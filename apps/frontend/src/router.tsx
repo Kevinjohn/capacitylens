@@ -98,7 +98,9 @@ export function RouteLoading() {
  */
 export function CompanyDateRoute({ children }: { children: ReactNode }) {
   const today = useStore((state) => state.planning.today);
-  const failed = useStore((state) => state.planning.status === 'error');
+  const failed = useStore(
+    (state) => state.planning.status === 'error' || state.planning.status === 'refused',
+  );
   if (today !== null) return children;
   if (failed) return null;
   return (

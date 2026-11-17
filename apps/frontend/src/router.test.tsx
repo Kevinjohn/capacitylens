@@ -83,24 +83,27 @@ describe('company date routes', () => {
     expect(screen.getByText('Wayne schedule')).toBeInTheDocument();
   });
 
-  it('keeps date-independent routes open after a failed read and leaves the alert to the shell', async () => {
-    await resetStoreWithAccount();
-    useStore.setState((state) => ({
-      planning: { ...state.planning, today: null, status: 'error' },
-    }));
-    await act(async () => {
-      await router.navigate('/clients');
-    });
+  it.each(['error', 'refused'] as const)(
+    'keeps date-independent routes open after a %s read and leaves the alert to the shell',
+    async (status) => {
+      await resetStoreWithAccount();
+      useStore.setState((state) => ({
+        planning: { ...state.planning, today: null, status },
+      }));
+      await act(async () => {
+        await router.navigate('/clients');
+      });
 
-    render(<RouterProvider router={router} />);
-    expect(await screen.findByText('Wayne clients')).toBeInTheDocument();
+      render(<RouterProvider router={router} />);
+      expect(await screen.findByText('Wayne clients')).toBeInTheDocument();
 
-    await act(async () => {
-      await router.navigate('/');
-    });
-    expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument();
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-  });
+      await act(async () => {
+        await router.navigate('/');
+      });
+      expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    },
+  );
 });
 
 describe('Overview route access', () => {
