@@ -34,7 +34,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  shell["AppShell renders GettingStarted"] --> steps["buildGettingStartedSteps derives five milestones"]
+  shell["AppShell renders GettingStarted"] --> steps["server reports five milestones"]
   steps --> panel["GettingStarted renders progress and links"]
   panel --> toggle["setOpen hides or shows checklist"]
   panel --> dismiss["useCompanyDismissal saves dismissal"]
@@ -43,4 +43,4 @@ flowchart TD
   panel --> tour["useTourAction starts role tour"]
 ```
 
-**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx); [gettingStarted.ts](../../apps/frontend/src/lib/gettingStarted.ts); [gettingStartedClient.ts](../../apps/frontend/src/account/gettingStartedClient.ts); [useTourAction.ts](../../apps/frontend/src/hooks/useTourAction.ts)
+**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx); [getting_started.ts](../../apps/backend/app/services/getting_started.ts); [gettingStartedClient.ts](../../apps/frontend/src/account/gettingStartedClient.ts); [useTourAction.ts](../../apps/frontend/src/hooks/useTourAction.ts)

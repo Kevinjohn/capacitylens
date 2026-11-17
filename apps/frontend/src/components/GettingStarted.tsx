@@ -5,8 +5,7 @@ import { Check } from 'lucide-react';
 import { useRole } from '@/auth/permissionContext';
 import { useTourAction } from '@/hooks/useTourAction';
 import { gettingStartedClient } from '@/account/gettingStartedClient';
-import { buildGettingStartedSteps } from '@/lib/gettingStarted';
-import { useActiveScopedData } from '@/store/useScopedData';
+import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 import { useStore } from '@/store/useStore';
 import { Button } from './ui/button';
 import {
@@ -67,16 +66,23 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
   const setNotice = useStore((state) => state.setNotice);
   const activeRole = useRole();
   const { pathname } = useLocation();
-  const data = useActiveScopedData();
-  const steps = buildGettingStartedSteps(data);
-  const done = Object.values(steps).filter(Boolean).length;
   const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null);
   const open =
     openChoice?.path === pathname ? openChoice.open : shouldOpenChecklistByDefault(pathname);
   const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
   const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
-  const { dismissed, loaded, loadFailed, retryLoad, confirmOpen, setConfirmOpen, saving, dismiss } =
-    useCompanyDismissal(accountId, pathname, setNotice);
+  const {
+    dismissed,
+    steps,
+    loaded,
+    loadFailed,
+    retryLoad,
+    confirmOpen,
+    setConfirmOpen,
+    saving,
+    dismiss,
+  } = useCompanyDismissal(accountId, pathname, setNotice);
+  const done = Object.values(steps).filter(Boolean).length;
   const requestDismiss = () => setConfirmOpen(true);
   if (
     done === 5 ||
@@ -168,7 +174,7 @@ function GettingStartedChecklist({
   tourBusy,
   showTour,
 }: {
-  steps: ReturnType<typeof buildGettingStartedSteps>;
+  steps: GettingStartedSteps;
   canShowTour: boolean;
   tourBusy: boolean;
   showTour: () => Promise<void>;
@@ -194,7 +200,7 @@ function GettingStartedChecklist({
   );
 }
 
-function FirstUseMilestones({ steps }: { steps: ReturnType<typeof buildGettingStartedSteps> }) {
+function FirstUseMilestones({ steps }: { steps: GettingStartedSteps }) {
   return (
     <ol className="flex flex-col gap-2">
       <StepRow done={steps.person} label={m.gs_step_person()} to="/resources" />
@@ -206,12 +212,24 @@ function FirstUseMilestones({ steps }: { steps: ReturnType<typeof buildGettingSt
   );
 }
 
+/** Shown until the server first reports the company's milestones. */
+const NO_STEPS: GettingStartedSteps = {
+  person: false,
+  client: false,
+  project: false,
+  activity: false,
+  scheduled: false,
+};
+
 function useCompanyDismissal(
   accountId: string,
   pathname: string,
   setNotice: (message: string, tone: 'error') => void,
 ) {
   const [dismissed, setDismissed] = useState(false);
+  const [steps, setSteps] = useState(NO_STEPS);
+  // Every committed or refetched planning change advances the revision, so milestones refetch.
+  const planningRevision = useStore((state) => state.planning.revision);
   const [loaded, setLoaded] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -222,10 +240,11 @@ function useCompanyDismissal(
     if (dismissedRef.current) return;
     const controller = new AbortController();
     void gettingStartedClient
-      .readDismissed(accountId, controller.signal)
-      .then((companyDismissed) => {
+      .read(accountId, controller.signal)
+      .then(({ dismissed: companyDismissed, steps: companySteps }) => {
         if (!controller.signal.aborted && !dismissedRef.current) {
           setDismissed(companyDismissed);
+          setSteps(companySteps);
           dismissedRef.current = companyDismissed;
           setLoadFailed(false);
           setLoaded(true);
@@ -239,7 +258,7 @@ function useCompanyDismissal(
         setNotice(m.gs_load_failed(), 'error');
       });
     return () => controller.abort();
-  }, [accountId, pathname, loadAttempt, setNotice]);
+  }, [accountId, pathname, loadAttempt, planningRevision, setNotice]);
 
   const dismiss = async () => {
     if (saving) return;
@@ -260,6 +279,7 @@ function useCompanyDismissal(
   };
   return {
     dismissed,
+    steps,
     loaded,
     loadFailed,
     retryLoad: () => setLoadAttempt((attempt) => attempt + 1),

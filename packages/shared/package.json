@@ -63,6 +63,11 @@
       "types": "./src/domain/errors.ts",
       "default": "./dist/domain/errors.js"
     },
+    "./domain/gettingStarted": {
+      "development": "./src/domain/gettingStarted.ts",
+      "types": "./src/domain/gettingStarted.ts",
+      "default": "./dist/domain/gettingStarted.js"
+    },
     "./domain/lifecycle": {
       "development": "./src/domain/lifecycle.ts",
       "types": "./src/domain/lifecycle.ts",
