@@ -95,14 +95,6 @@ async function sendOperation(
           signal,
         }),
       );
-    case 'allocation.repeat':
-      return requireReply(
-        await apiClient.request('api.planning.allocation.repeat', {
-          params: { ...params, id: intent.sourceAllocationId },
-          body: { ...execution, intent },
-          signal,
-        }),
-      );
     case 'resource.create':
       return requireReply(
         await apiClient.request('api.planning.resource.create', {

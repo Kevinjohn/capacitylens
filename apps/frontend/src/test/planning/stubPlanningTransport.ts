@@ -213,7 +213,6 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'allocation.createGroup':
       case 'allocation.deleteGroup':
       case 'allocation.duplicate':
-      case 'allocation.repeat':
       case 'planning.restoreGroup':
       case 'timeOff.deleteGroup':
       case 'timeOff.repeat':

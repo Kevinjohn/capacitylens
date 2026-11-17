@@ -158,12 +158,6 @@ router
       ])
       .as('api.planning.allocation.duplicate');
     router
-      .post('/api/accounts/:accountId/allocations/:id/repeat', [
-        PlanningController,
-        'allocationRepeat',
-      ])
-      .as('api.planning.allocation.repeat');
-    router
       .post('/api/accounts/:accountId/time-off/repeat', [PlanningController, 'timeOffRepeat'])
       .as('api.planning.timeOff.repeat');
     router
