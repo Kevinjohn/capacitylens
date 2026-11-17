@@ -499,7 +499,7 @@ it('does not surface a late typed write rejection after its company changed', as
   }
 });
 
-it('requires a placeholder to be bound to a project', async () => {
+it('hides Employment and Engagement for a placeholder and requires a bound project', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   render(<ResourceForm kind="placeholder" onClose={onClose} />);
