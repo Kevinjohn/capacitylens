@@ -1,4 +1,12 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
+import { buildGettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
+import { readStateWithClient } from '#services/state_repository';
+
+/** The company's getting-started milestones, from the same active projection the planning read uses. */
+export async function readGettingStartedSteps(trx: TransactionClientContract, accountId: string) {
+  return buildGettingStartedSteps(activeOnly(await readStateWithClient(trx, accountId, true)));
+}
 
 /** Whether the company has dismissed its getting-started panel. */
 export async function isGettingStartedDismissed(trx: TransactionClientContract, accountId: string) {

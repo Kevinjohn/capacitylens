@@ -1,8 +1,8 @@
-import type { AppData } from '@capacitylens/shared/types/entities';
-import { isBuiltinClient } from '@capacitylens/shared/data/internalClient';
-import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
+import type { AppData } from '../types/entities.js';
+import { isBuiltinClient } from '../data/internalClient.js';
+import { lifecycleStatus } from './lifecycle.js';
 
-// Derive onboarding outcomes from scoped data so checklist rendering shares one pure rule.
+// Getting-started milestones from a company's active projection; the server sends the result.
 
 /** Which onboarding steps the active account has completed. */
 export interface GettingStartedSteps {

@@ -48,7 +48,18 @@ beforeEach(() => {
         );
       }
       if (url.includes('/getting-started')) {
-        return Promise.resolve(Response.json({ dismissed: true }));
+        return Promise.resolve(
+          Response.json({
+            dismissed: true,
+            steps: {
+              person: false,
+              client: false,
+              project: false,
+              activity: false,
+              scheduled: false,
+            },
+          }),
+        );
       }
       return Promise.resolve(Response.json({ active: false, contextToken: 'idle' }));
     }),
@@ -242,10 +253,22 @@ describe('AppShell product orientation', () => {
         }
         if (url.endsWith(`/api/accounts/${DEFAULT_ACCOUNT_ID}/getting-started`)) {
           return Promise.resolve(
-            new Response(JSON.stringify({ dismissed: false }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            }),
+            new Response(
+              JSON.stringify({
+                dismissed: false,
+                steps: {
+                  person: false,
+                  client: false,
+                  project: false,
+                  activity: false,
+                  scheduled: false,
+                },
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            ),
           );
         }
         return Promise.resolve(
