@@ -103,6 +103,7 @@ test.group('M1 database contract', (group) => {
   test('readiness accepts a column added to package storage', async () => {
     const packageTables = [
       'memberships',
+      'account_sessions',
       'masquerade_modes',
       'masquerade_events',
       'password_confirmations',
