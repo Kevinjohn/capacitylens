@@ -317,7 +317,7 @@ describe('AllocationModal edit', () => {
     );
     queueAllocationGroupResponse('series-weekly');
     const [selected, later] = requireCreated(
-      await useStore.getState().addAllocations([
+      await useStore.getState().addRepeatedAllocation(
         {
           resourceId: resource.id,
           activityId: 't1',
@@ -325,18 +325,10 @@ describe('AllocationModal edit', () => {
           endDate: '2026-06-09',
           hoursPerDay: 8,
           status: 'confirmed',
-          seriesId: 'series-weekly',
         },
-        {
-          resourceId: resource.id,
-          activityId: 't1',
-          startDate: '2026-06-15',
-          endDate: '2026-06-16',
-          hoursPerDay: 8,
-          status: 'confirmed',
-          seriesId: 'series-weekly',
-        },
-      ]),
+        { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-15' },
+        2,
+      ),
     );
     expect(selected).toBeDefined();
     expect(later).toBeDefined();

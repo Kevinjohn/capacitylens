@@ -146,9 +146,15 @@ test.group('typed resource availability', (group) => {
       startDate: '2026-06-01',
       endDate: '2026-06-01',
     };
-    const after = { ...inside, id: randomUUID(), startDate: '2026-06-08', endDate: '2026-06-08' };
     const refused = await session(client.post(route('allocations/create-group')), cookie)
-      .json(input(1, { operation: 'allocation.createGroup', allocations: [inside, after] }))
+      .json(
+        input(1, {
+          operation: 'allocation.createGroup',
+          allocation: inside,
+          repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-08' },
+          occurrenceIds: [randomUUID()],
+        })
+      )
       .send();
     refused.assertStatus(400);
     assert.equal((refused.body() as { code: string }).code, 'VALIDATION_ERROR');

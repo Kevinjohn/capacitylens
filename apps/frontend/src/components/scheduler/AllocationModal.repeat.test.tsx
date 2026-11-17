@@ -10,6 +10,7 @@ import { chooseOption } from '@/test/schedulerTestKit';
 import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import {
   ACC,
   person,
@@ -188,12 +189,13 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     if (intent?.operation !== 'allocation.createGroup') {
       throw new Error('Expected a typed repeated allocation group intent.');
     }
-    const drafts = intent.allocations;
-    expect(drafts).toHaveLength(14);
-    expect(drafts[0]).toMatchObject({ startDate: '2099-06-01', endDate: '2099-06-03' });
-    expect(drafts.at(-1)).toMatchObject({ startDate: '2099-08-31', endDate: '2099-09-02' });
+    // The browser sends the first occurrence and the pattern; the server places the rest.
+    expect(intent.allocation).toMatchObject({ startDate: '2099-06-01', endDate: '2099-06-03' });
+    expect(intent.repeat).toEqual({ pattern: { kind: 'weeks', interval: 1 }, until: '2099-09-01' });
+    expect(intent.occurrenceIds).toHaveLength(13);
+    expect(intent).not.toHaveProperty('allocations');
     // The typed group write assigns one series id to every stored occurrence.
-    expect(drafts.some((draft) => 'seriesId' in draft)).toBe(false);
+    expect('seriesId' in intent.allocation).toBe(false);
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     const seriesIds = useStore.getState().data.allocations.map(({ seriesId }) => seriesId);
     expect(seriesIds).toHaveLength(14);
@@ -231,15 +233,12 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       if (intent?.operation !== 'allocation.createGroup') {
         throw new Error('Expected a typed repeated allocation group intent.');
       }
-      const drafts = intent.allocations;
-      expect(drafts.length).toBeGreaterThan(1);
-      for (const draft of drafts) {
-        expect(draft).toHaveProperty('projectId', projectId ?? null);
-      }
+      expect(intent.occurrenceIds.length).toBeGreaterThan(0);
+      expect(intent.allocation).toHaveProperty('projectId', projectId ?? null);
     },
   );
 
-  it('keeps the original monthly numeric day while preserving a multi-day span', async () => {
+  it('previews the original monthly numeric day and sends the monthly pattern', async () => {
     // The numeric repeat anchor must be an effective working day, so use a seven-day calendar to isolate date preservation from the creation gate.
     await useStore.getState().updateAccount(ACC, { workingDays: [0, 1, 2, 3, 4, 5, 6] });
     const resource = await requireCreated(
@@ -270,16 +269,13 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     if (intent?.operation !== 'allocation.createGroup') {
       throw new Error('Expected a typed repeated allocation group intent.');
     }
-    expect(intent.allocations.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
-      ['2099-01-31', '2099-02-02'],
-      ['2099-02-28', '2099-03-02'],
-      ['2099-03-31', '2099-04-02'],
-      ['2099-04-30', '2099-05-02'],
-    ]);
+    expect(intent.allocation).toMatchObject({ startDate: '2099-01-31', endDate: '2099-02-02' });
+    expect(intent.repeat).toEqual({ pattern: { kind: 'monthly-date' }, until: '2099-04-30' });
+    expect(intent.occurrenceIds).toHaveLength(3);
   });
 
   it.each(['days', 'blocks'] as const)(
-    'rejects a %s repeat when a later occurrence cannot fit the complete working span',
+    'keeps a %s repeat open when the server refuses a later occurrence beyond the date range',
     async (schedulingMode) => {
       await useStore
         .getState()
@@ -290,7 +286,6 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
           workingDays: [0, 1, 2, 3, 4, 5, 6],
         }),
       );
-      const bulkSpy = vi.spyOn(useStore.getState(), 'addAllocations');
       const onClose = vi.fn();
       const user = userEvent.setup();
       renderAsOwner(
@@ -305,16 +300,21 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       await user.clear(screen.getByLabelText('Repeat until'));
       await user.type(screen.getByLabelText('Repeat until'), '9999-12-30');
 
+      // The server places later occurrences, so it owns this refusal.
+      const refusal = 'A repeated working span extends beyond the supported date range.';
+      getStubPlanningTransport().failNext(
+        new PlanningControllerError(refusal, 'VALIDATION_ERROR', 400),
+      );
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Choose an earlier Repeat until date or a longer cadence; this repeat cannot fit the supported date range.',
-      );
+      expect(await screen.findByRole('alert')).toHaveTextContent(refusal);
+      expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+        operation: 'allocation.createGroup',
+        repeat: { pattern: { kind: 'monthly-date' }, until: '9999-12-30' },
+      });
       expect(screen.queryByText(/creates 4 linked allocations/i)).not.toBeInTheDocument();
       expect(screen.getByRole('dialog', { name: /new allocation/i })).toBeInTheDocument();
-      expect(bulkSpy).not.toHaveBeenCalled();
       expect(onClose).not.toHaveBeenCalled();
-      bulkSpy.mockRestore();
     },
   );
 
@@ -323,7 +323,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Tyler'), workingDays: [1] }),
     );
-    const bulkSpy = vi.spyOn(useStore.getState(), 'addAllocations');
+    const bulkSpy = vi.spyOn(useStore.getState(), 'addRepeatedAllocation');
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
@@ -351,7 +351,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
   it('keeps one-off on addAllocation and leaves a rejected bulk dialog open', async () => {
     const resource = await addPerson();
     const oneSpy = vi.spyOn(useStore.getState(), 'addAllocation');
-    const bulkSpy = vi.spyOn(useStore.getState(), 'addAllocations');
+    const bulkSpy = vi.spyOn(useStore.getState(), 'addRepeatedAllocation');
     const user = userEvent.setup();
     const first = renderAsOwner(
       <AllocationModal
@@ -369,9 +369,11 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     bulkSpy.mockRestore();
     restoreStoreAllocationActions();
 
-    const rejectBulk = vi.spyOn(useStore.getState(), 'addAllocations').mockImplementation(() => {
-      throw new Error('The generated batch was rejected.');
-    });
+    const rejectBulk = vi
+      .spyOn(useStore.getState(), 'addRepeatedAllocation')
+      .mockImplementation(() => {
+        throw new Error('The generated batch was rejected.');
+      });
     const onClose = vi.fn();
     renderAsOwner(
       <AllocationModal
@@ -394,7 +396,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
   it('validates the required, temporal and six-month Repeat until boundaries', async () => {
     await useStore.getState().updateAccount(ACC, { timezone: 'UTC' });
     const resource = await addPerson();
-    const bulkSpy = vi.spyOn(useStore.getState(), 'addAllocations');
+    const bulkSpy = vi.spyOn(useStore.getState(), 'addRepeatedAllocation');
     const user = userEvent.setup();
     renderAsOwner(
       <AllocationModal

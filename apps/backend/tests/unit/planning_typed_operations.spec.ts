@@ -60,7 +60,7 @@ const makeAllocation = (
 test.group('typed allocation group and lifecycle operations', (group) => {
   group.setup(() => freshDatabase());
 
-  test('creates one allocation series and allows only later group entries to start on a nonworking day', async ({
+  test('creates one allocation series and allows only later occurrences to start on a nonworking day', async ({
     assert,
   }) => {
     await resetState('single');
@@ -69,19 +69,19 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       const resource = before.resources.find((row) => row.id === allocation.resourceId);
       return (
         resource?.kind === 'person' &&
-        resource.workingDays.includes(1) &&
+        resource.workingDays.includes(4) &&
         !resource.workingDays.includes(0)
       );
     })!;
     const firstId = randomUUID();
     const secondId = randomUUID();
 
+    // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
     await execute({
       operation: 'allocation.createGroup',
-      allocations: [
-        makeAllocation(source, firstId, '2026-10-19'),
-        makeAllocation(source, secondId, '2026-10-25'),
-      ],
+      allocation: makeAllocation(source, firstId, '2026-10-01'),
+      repeat: { pattern: { kind: 'monthly-date' }, until: '2026-11-01' },
+      occurrenceIds: [secondId],
     });
 
     const after = await readState('a-studio', true);
@@ -90,6 +90,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     assert.isString(first.seriesId);
     assert.equal(first.seriesId, second.seriesId);
     assert.notEqual(first.seriesId, source.seriesId);
+    assert.equal(second.startDate, '2026-11-01');
 
     const refusedFirstId = randomUUID();
     const refusedLaterId = randomUUID();
@@ -97,10 +98,9 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       () =>
         execute({
           operation: 'allocation.createGroup',
-          allocations: [
-            makeAllocation(source, refusedFirstId, '2026-10-25'),
-            makeAllocation(source, refusedLaterId, '2026-10-26'),
-          ],
+          allocation: makeAllocation(source, refusedFirstId, '2026-10-25'),
+          repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-01' },
+          occurrenceIds: [refusedLaterId],
         }),
       PlanningOperationError
     );
@@ -108,40 +108,6 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     assert.isFalse(
       unchanged.allocations.some((row) => row.id === refusedFirstId || row.id === refusedLaterId)
     );
-  });
-
-  test('rejects a Sunday allocation on another resource before writing a heterogeneous group', async ({
-    assert,
-  }) => {
-    await resetState('single');
-    const before = await readState('a-studio', true);
-    const firstSource = before.allocations.find((allocation) => {
-      const resource = before.resources.find((row) => row.id === allocation.resourceId);
-      return resource?.kind === 'person' && resource.workingDays.includes(1);
-    })!;
-    const secondSource = before.allocations.find((allocation) => {
-      const resource = before.resources.find((row) => row.id === allocation.resourceId);
-      return (
-        allocation.resourceId !== firstSource.resourceId &&
-        resource?.kind === 'person' &&
-        resource.workingDays.includes(1)
-      );
-    })!;
-    const firstId = randomUUID();
-    const secondId = randomUUID();
-
-    const error = await refused({
-      operation: 'allocation.createGroup',
-      allocations: [
-        makeAllocation(firstSource, firstId, '2026-10-19'),
-        makeAllocation(secondSource, secondId, '2026-10-25'),
-      ],
-    });
-
-    assert.equal(error.status, 400);
-    assert.equal(error.code, 'VALIDATION_ERROR');
-    const after = await readState('a-studio', true);
-    assert.isFalse(after.allocations.some((row) => row.id === firstId || row.id === secondId));
   });
 
   test('archives and unarchives catalogue and resource rows through shared lifecycle rules', async ({

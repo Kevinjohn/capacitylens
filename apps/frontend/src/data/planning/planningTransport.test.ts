@@ -85,7 +85,12 @@ const cases: Array<{
 }> = [
   { intent: { operation: 'allocation.create', allocation }, method: 'POST', path: 'allocations' },
   {
-    intent: { operation: 'allocation.createGroup', allocations: [allocation] },
+    intent: {
+      operation: 'allocation.createGroup',
+      allocation,
+      repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-02' },
+      occurrenceIds: ['occurrence-2'],
+    },
     method: 'POST',
     path: 'allocations/create-group',
   },

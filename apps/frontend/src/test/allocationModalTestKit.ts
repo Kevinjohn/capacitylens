@@ -44,7 +44,7 @@ export function renderAsOwner(ui: ReactElement, options: Omit<RenderOptions, 'wr
 /** Account fixture ID used by allocation modal tests. */
 export const ACC = DEFAULT_ACCOUNT_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
-const originalAddAllocations = useStore.getState().addAllocations;
+const originalAddRepeatedAllocation = useStore.getState().addRepeatedAllocation;
 const originalAddActivity = useStore.getState().addActivity;
 
 /** Builds the base account data for allocation modal tests. */
@@ -68,7 +68,7 @@ export function restoreStoreAllocationActions(): void {
   // explicitly so a spy installed in one test cannot survive on a later state object.
   useStore.setState({
     addAllocation: originalAddAllocation,
-    addAllocations: originalAddAllocations,
+    addRepeatedAllocation: originalAddRepeatedAllocation,
     addActivity: originalAddActivity,
   });
 }

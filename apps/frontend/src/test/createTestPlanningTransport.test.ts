@@ -97,7 +97,20 @@ it('throws a queued refusal, records the intent, and requires responses for comp
   const transport = createTestPlanningTransport();
   const stub = getStubPlanningTransport();
   stub.reset(context.companyId, makeAppData());
-  const intent: PlanningIntent = { operation: 'allocation.createGroup', allocations: [] };
+  const intent: PlanningIntent = {
+    operation: 'allocation.createGroup',
+    allocation: {
+      id: 'a-1',
+      resourceId: 'r-1',
+      activityId: 't-1',
+      startDate: '2026-06-01',
+      endDate: '2026-06-01',
+      hoursPerDay: 8,
+      status: 'confirmed',
+    },
+    repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-08' },
+    occurrenceIds: ['a-2'],
+  };
   const refusal = Object.assign(new Error('Server rejected the group'), { status: 400 });
   stub.failNext(refusal);
 

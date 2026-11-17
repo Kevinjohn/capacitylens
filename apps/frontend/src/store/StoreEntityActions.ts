@@ -1,4 +1,5 @@
 import type { Draft, Patch } from '@/lib/entityDrafts';
+import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type {
   Activity,
@@ -7,11 +8,18 @@ import type {
   Closure,
   Discipline,
   ID,
+  ISODate,
   Phase,
   Project,
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
+
+/** The pattern and inclusive last start of a repeated create; the server places each occurrence. */
+export interface AllocationRepeat {
+  pattern: RepeatPattern;
+  until: ISODate;
+}
 
 /** A create action can be blocked until a writable role is confirmed. */
 export type CreateResult<T> = { kind: 'created'; value: T } | { kind: 'blocked' };
@@ -59,9 +67,13 @@ export interface StoreEntityActions {
 
   /** Create one allocation as one typed planning write; it resolves once the server acknowledges it. */
   addAllocation: (input: Draft<Allocation>) => Promise<CreateResult<Allocation>>;
-  /** Create a non-empty repeated set as one typed planning write and one Undo step. Every draft is
-   * validated before anything is sent; a tenancy, reference or date-range failure rejects. */
-  addAllocations: (inputs: readonly Draft<Allocation>[]) => Promise<CreateResult<Allocation[]>>;
+  /** Create a repeated set as one typed planning write and one Undo step. The server places the
+   * `count` occurrences from the first one and the repeat; a mismatched count or a refusal rejects. */
+  addRepeatedAllocation: (
+    input: Draft<Allocation>,
+    repeat: AllocationRepeat,
+    count: number,
+  ) => Promise<CreateResult<Allocation[]>>;
   /** Copy an allocation as one typed planning write, reusing the source when nothing else changed. */
   duplicateAllocation: (
     sourceId: ID,
