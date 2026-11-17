@@ -5,7 +5,6 @@ import {
   createClientProjectDisplayNameComparator,
   createEngagementFavouriteDisplayNameComparator,
   createFavouriteDisplayNameComparator,
-  effectiveDisplayName,
 } from './displayOrder';
 
 describe('display ordering', () => {
@@ -52,24 +51,18 @@ describe('display ordering', () => {
 });
 
 describe('client/project display ordering', () => {
-  it('uses a trimmed usable code name as the effective name', () => {
-    expect(effectiveDisplayName({ name: 'BP', codeName: '  Xavier  ' })).toBe('Xavier');
-    expect(effectiveDisplayName({ name: 'Celtic', codeName: '   ' })).toBe('Celtic');
-    expect(effectiveDisplayName({ name: '"Nightwing"' })).toBe('"Nightwing"');
-  });
-
-  it('orders by effective client then project name, with deterministic ties', () => {
+  it('orders by the server display name of client then project, with deterministic ties', () => {
     const clients = [
-      { id: 'client-x', name: 'BP', codeName: ' Xavier ' },
+      { id: 'client-x', name: 'BP', displayName: 'Xavier' },
       { id: 'client-c', name: 'Celtic' },
     ];
     const projects = [
-      { id: 'project-z', clientId: 'client-c', name: 'App', codeName: 'Zulu' },
+      { id: 'project-z', clientId: 'client-c', name: 'App', displayName: 'Zulu' },
       { id: 'project-b', clientId: 'client-x', name: 'Beta' },
       { id: 'project-a', clientId: 'client-x', name: 'alpha' },
       { id: 'project-a2', clientId: 'client-x', name: 'alpha' },
       { id: 'project-a1', clientId: 'client-x', name: 'alpha' },
-      { id: 'project-aardvark', clientId: 'client-c', name: 'Website', codeName: 'Aardvark' },
+      { id: 'project-aardvark', clientId: 'client-c', name: 'Website', displayName: 'Aardvark' },
     ];
 
     expect(

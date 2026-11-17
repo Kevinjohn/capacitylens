@@ -59,6 +59,8 @@ test.group('M1 read path', (group) => {
                 const body = structuredClone(expected.body) as AppData;
                 for (const key of APP_DATA_KEYS)
                   for (const row of body[key]) fillNullableFields(key, row);
+                // The recorded fixture has no private rows, so each display name is the name.
+                for (const row of [...body.clients, ...body.projects]) row.displayName = row.name;
                 return body;
               })()
             : expected.body;
