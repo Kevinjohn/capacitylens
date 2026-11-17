@@ -45,9 +45,9 @@ describe('planning history transitions', () => {
   it('clears both histories when Undo of a create commits without a restoration handle', async () => {
     const h = await readyWithHistory();
     const create = {
-      operation: 'allocation.repeat',
+      operation: 'allocation.duplicate',
       sourceAllocationId: 'allocation-1',
-      occurrences: [{ id: 'allocation-2', startDate: '2026-10-21', endDate: '2026-10-21' }],
+      occurrence: { id: 'allocation-2', startDate: '2026-10-21', endDate: '2026-10-21' },
     } as PlanningIntent;
     const remove: PlanningIntent = { operation: 'allocation.deleteGroup', ids: ['allocation-2'] };
     await h.controller.execute(h.controller.begin(), create, remove);

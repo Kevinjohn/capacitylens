@@ -341,7 +341,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey),
   ).toHaveLength(beforeStaleCount + 1);
 
-  // A new deliberate action uses the refreshed revision; move, resize, reassign, duplicate and repeat all
+  // A new deliberate action uses the refreshed revision; move, resize, reassign and duplicate all
   // exercise generated typed routes and are confirmed by the server's canonical read.
   await callHarness(
     page,
@@ -401,21 +401,6 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     } satisfies Intent,
     null,
   );
-  const repeatIds = [uuid(), uuid()];
-  await callHarness(
-    page,
-    'planningHarnessExecute',
-    primaryKey,
-    {
-      operation: 'allocation.repeat',
-      sourceAllocationId: allocationId,
-      occurrences: [
-        { id: repeatIds[0], startDate: '2026-11-09', endDate: '2026-11-11' },
-        { id: repeatIds[1], startDate: '2026-11-16', endDate: '2026-11-18' },
-      ],
-    } satisfies Intent,
-    null,
-  );
   const completeSnapshot = await planningSnapshot(request, owner.cookie, companyId);
   expect(completeSnapshot.data.allocations).toEqual(
     expect.arrayContaining([
@@ -431,8 +416,6 @@ test('unactivated planning controller uses authenticated typed routes and reconc
         startDate: '2026-11-02',
         endDate: '2026-11-04',
       }),
-      expect.objectContaining({ id: repeatIds[0], startDate: '2026-11-09', endDate: '2026-11-11' }),
-      expect.objectContaining({ id: repeatIds[1], startDate: '2026-11-16', endDate: '2026-11-18' }),
     ]),
   );
 
