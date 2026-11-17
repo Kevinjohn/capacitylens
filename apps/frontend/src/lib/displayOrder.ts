@@ -7,8 +7,8 @@ interface CompareDisplayNamesInput {
 
 type Identified = { id: string };
 type Named = Identified & { name: string };
-type EffectivelyNamed = Named & { codeName?: string | null };
-type ClientProject = EffectivelyNamed & { clientId: string };
+type DisplayNamed = Named & { displayName?: string };
+type ClientProject = DisplayNamed & { clientId: string };
 
 // CapacityLens is currently English-only. Pinning the locale keeps management-list order independent
 // of the host/browser locale; exact spelling and id then make every collation tie deterministic.
@@ -60,33 +60,29 @@ export function createDisplayNameComparator<T extends Identified>(
     });
 }
 
-/** The identity an owner uses to order private names. Redacted account slices omit `codeName` and
- * already project the safe quoted code name into `name`, so this never reaches behind that boundary. */
-export function effectiveDisplayName(item: { name: string; codeName?: string | null }): string {
-  const codeName = item.codeName?.trim();
-  return codeName?.length ? codeName : item.name;
-}
+/** The label the server chose for this reader; rows built without it order by name. */
+const orderingName = (item: DisplayNamed) => item.displayName ?? item.name;
 
 /** Shared client-first project ordering for project selectors and management views. */
 export function createClientProjectDisplayNameComparator<T extends ClientProject>(
-  clients: EffectivelyNamed[],
+  clients: DisplayNamed[],
 ) {
   const clientsById = new Map(clients.map((client) => [client.id, client]));
   return (left: T, right: T): number => {
     const leftClient = clientsById.get(left.clientId);
     const rightClient = clientsById.get(right.clientId);
     const clientOrder = compareDisplayNames({
-      leftName: leftClient ? effectiveDisplayName(leftClient) : '',
+      leftName: leftClient ? orderingName(leftClient) : '',
       leftId: left.clientId,
-      rightName: rightClient ? effectiveDisplayName(rightClient) : '',
+      rightName: rightClient ? orderingName(rightClient) : '',
       rightId: right.clientId,
     });
     return (
       clientOrder ||
       compareDisplayNames({
-        leftName: effectiveDisplayName(left),
+        leftName: orderingName(left),
         leftId: left.id,
-        rightName: effectiveDisplayName(right),
+        rightName: orderingName(right),
         rightId: right.id,
       })
     );

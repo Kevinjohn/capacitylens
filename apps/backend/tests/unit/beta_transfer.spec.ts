@@ -23,6 +23,16 @@ function confidentialSource() {
   return { source, client, project };
 }
 
+// The read adds `displayName` to each client and project; the export leaves it out by design.
+function dropDisplayNames<T extends { clients: object[]; projects: object[] }>(state: T): T {
+  const strip = <R extends object>(row: R): R => {
+    const copy = { ...row } as R & { displayName?: string };
+    delete copy.displayName;
+    return copy;
+  };
+  return { ...state, clients: state.clients.map(strip), projects: state.projects.map(strip) };
+}
+
 test.group('Beta transfer confidentiality boundary', () => {
   test('owner projection preserves supported confidential content and stable IDs', ({ assert }) => {
     const source = transformState(confidentialSource().source, 'a-studio', 'owner');
@@ -31,7 +41,7 @@ test.group('Beta transfer confidentiality boundary', () => {
       accountId: 'a-studio',
       memberResourceLinks: [{ memberId: 'bruce-member', resourceId: source.resources[0]!.id }],
     });
-    assert.deepEqual(prepared.data, source);
+    assert.deepEqual(prepared.data, dropDisplayNames(source));
     assert.deepEqual(
       buildBetaExport(prepared.data, { accountId: 'a-studio', completeness: 'full' }),
       document
@@ -50,7 +60,7 @@ test.group('Beta transfer confidentiality boundary', () => {
       });
       const serialized = serializeBetaExport(document);
       const parsed = parseBetaExport(serialized);
-      assert.deepEqual(parsed.data, projection);
+      assert.deepEqual(parsed.data, dropDisplayNames(projection));
       assert.notInclude(serialized, privateClient.name);
       assert.notInclude(serialized, privateProject.name);
       if (role !== 'admin') assert.notInclude(serialized, 'Confidential appointment');
@@ -75,7 +85,7 @@ test.group('Beta transfer backend contract regressions', () => {
           completeness: role === 'owner' ? 'full' : 'redacted',
         });
         const parsed = parseBetaExport(serializeBetaExport(document));
-        assert.deepEqual(parsed.data, projection);
+        assert.deepEqual(parsed.data, dropDisplayNames(projection));
         if (role !== 'owner') {
           assert.lengthOf(
             parsed.data.clients.find((row) => row.id === client.id)!.name,
@@ -122,7 +132,7 @@ test.group('Beta transfer backend contract regressions', () => {
         accountId: 'a-studio',
         memberResourceLinks: [],
       });
-      assert.deepEqual(prepared.data, source);
+      assert.deepEqual(prepared.data, dropDisplayNames(source));
     }
   });
 });
