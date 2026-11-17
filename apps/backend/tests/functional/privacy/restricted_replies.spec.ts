@@ -34,6 +34,10 @@ interface Principal {
   label: string;
   effective: Role;
   viewAs: boolean;
+  /** The signed-in role behind a view-as principal; Owner when absent. */
+  actor?: Role;
+  /** A view-as target the server must refuse; the principal then reads as itself. */
+  refusedTarget?: Role;
 }
 
 interface Fixture {
@@ -54,6 +58,15 @@ const principals: Principal[] = [
   { label: 'Owner viewing as Admin', effective: 'admin', viewAs: true },
   { label: 'Owner viewing as Editor', effective: 'editor', viewAs: true },
   { label: 'Owner viewing as Viewer', effective: 'viewer', viewAs: true },
+  { label: 'Admin viewing as Admin', effective: 'admin', viewAs: true, actor: 'admin' },
+  { label: 'Admin viewing as Editor', effective: 'editor', viewAs: true, actor: 'admin' },
+  { label: 'Admin viewing as Viewer', effective: 'viewer', viewAs: true, actor: 'admin' },
+  {
+    label: 'Admin refused a view as Owner',
+    effective: 'admin',
+    viewAs: false,
+    refusedTarget: 'owner',
+  },
 ];
 
 /** Names are visible to an effective Owner only; the time-off note to an effective Owner or Admin. */
@@ -425,6 +438,17 @@ async function readContextToken(client: ApiClient, cookie: string) {
   return String((status.body() as { contextToken: unknown }).contextToken);
 }
 
+async function startViewAs(client: ApiClient, viewerCookie: string, targetUserId: string) {
+  return session(
+    client
+      .post(buildCompanyRoute('masquerade'))
+      .header('X-Masquerade-Context', await readContextToken(client, viewerCookie)),
+    viewerCookie
+  )
+    .json({ targetUserId })
+    .send();
+}
+
 test.group('restricted values in replies', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
@@ -447,16 +471,9 @@ test.group('restricted values in replies', (group) => {
       let cookie: string;
       let viewToken: string | undefined;
       if (principal.viewAs) {
-        const viewer = await signIn(client, 'owner');
+        const viewer = await signIn(client, principal.actor ?? 'owner');
         const target = await signIn(client, principal.effective);
-        const started = await session(
-          client
-            .post(buildCompanyRoute('masquerade'))
-            .header('X-Masquerade-Context', await readContextToken(client, viewer.cookie)),
-          viewer.cookie
-        )
-          .json({ targetUserId: target.userId })
-          .send();
+        const started = await startViewAs(client, viewer.cookie, target.userId);
         started.assertStatus(200);
         cookie = viewer.cookie;
         viewToken = await readContextToken(client, cookie);
@@ -464,6 +481,14 @@ test.group('restricted values in replies', (group) => {
         const member =
           principal.effective === 'owner' ? owner : await signIn(client, principal.effective);
         cookie = member.cookie;
+        if (principal.refusedTarget) {
+          const target =
+            principal.refusedTarget === 'owner'
+              ? owner
+              : await signIn(client, principal.refusedTarget);
+          const refused = await startViewAs(client, cookie, target.userId);
+          refused.assertStatus(403);
+        }
       }
       const fixture: Fixture = { client, ownerCookie: owner.cookie, cookie, ...markers };
       const hidden = listHiddenMarkers(principal.effective);

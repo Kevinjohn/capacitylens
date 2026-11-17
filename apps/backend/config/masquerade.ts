@@ -7,7 +7,7 @@ import { LucidControlStore } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
 import { managedGuard } from '#services/auth/managed_guard';
 import { sessionUsers } from '#config/auth';
 import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
-import access from '#config/access_control';
+import { canViewAs } from '@capacitylens/shared/domain/access';
 import type User from '#models/user';
 
 type MasqueradeUser = User;
@@ -30,7 +30,7 @@ function requestedAccountId(request?: HttpContext): string | null {
 /**
  * Whether the actor may view the target in the request's company, or in any company the actor
  * belongs to when the request names none: the actor holds `viewAs:use` there and the target is an
- * active member.
+ * active member who does not rank above the actor.
  */
 async function sharesViewAsCompany(actorId: string, targetId: string, request?: HttpContext) {
   const accountId = requestedAccountId(request);
@@ -38,7 +38,7 @@ async function sharesViewAsCompany(actorId: string, targetId: string, request?: 
   for (const companyId of companies) {
     const actorRole = await activeCompanyRole(actorId, companyId, undefined);
     const targetRole = await activeCompanyRole(targetId, companyId, undefined);
-    if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) return true;
+    if (actorRole && targetRole && canViewAs(actorRole, targetRole)) return true;
   }
   return false;
 }

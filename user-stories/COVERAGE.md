@@ -246,17 +246,17 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Team
 
-| Story                                              | Action                            | Access                                                          | Status  | Catalogue |
-| -------------------------------------------------- | --------------------------------- | --------------------------------------------------------------- | ------- | --------- |
-| [US-TEAM-01](team/US-TEAM-01-check-access.md)      | Check company access              | Owner, Admin, Editor, Viewer                                    | Current | New       |
-| [US-TEAM-02](team/US-TEAM-02-invite-member.md)     | Invite a teammate                 | Owner, Admin                                                    | Current | New       |
-| [US-TEAM-03](team/US-TEAM-03-manage-invitation.md) | Resend or revoke an invitation    | Owner, Admin                                                    | Current | New       |
-| [US-TEAM-04](team/US-TEAM-04-accept-invitation.md) | Accept an emailed invitation      | Person with a valid invitation                                  | Current | New       |
-| [US-TEAM-05](team/US-TEAM-05-request-admission.md) | Request and decide company access | Invited person; Owner or Admin decides requests                 | Current | New       |
-| [US-TEAM-06](team/US-TEAM-06-change-membership.md) | Change a member's role or access  | Owner or Admin; own membership and the Owner are not manageable | Current | New       |
-| [US-TEAM-07](team/US-TEAM-07-link-resource.md)     | Link a member to a Resource       | Owner, Admin                                                    | Current | New       |
-| [US-TEAM-08](team/US-TEAM-08-view-as-member.md)    | View the company as a member      | Owner, Admin; another active member is the target               | Current | New       |
-| [US-TEAM-11](team/US-TEAM-11-sign-in-tracking.md)  | Record member sign-ins            | Owner; the control is not currently rendered                    | Hidden  | New       |
+| Story                                              | Action                            | Access                                                                   | Status  | Catalogue |
+| -------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------ | ------- | --------- |
+| [US-TEAM-01](team/US-TEAM-01-check-access.md)      | Check company access              | Owner, Admin, Editor, Viewer                                             | Current | New       |
+| [US-TEAM-02](team/US-TEAM-02-invite-member.md)     | Invite a teammate                 | Owner, Admin                                                             | Current | New       |
+| [US-TEAM-03](team/US-TEAM-03-manage-invitation.md) | Resend or revoke an invitation    | Owner, Admin                                                             | Current | New       |
+| [US-TEAM-04](team/US-TEAM-04-accept-invitation.md) | Accept an emailed invitation      | Person with a valid invitation                                           | Current | New       |
+| [US-TEAM-05](team/US-TEAM-05-request-admission.md) | Request and decide company access | Invited person; Owner or Admin decides requests                          | Current | New       |
+| [US-TEAM-06](team/US-TEAM-06-change-membership.md) | Change a member's role or access  | Owner or Admin; own membership and the Owner are not manageable          | Current | New       |
+| [US-TEAM-07](team/US-TEAM-07-link-resource.md)     | Link a member to a Resource       | Owner, Admin                                                             | Current | New       |
+| [US-TEAM-08](team/US-TEAM-08-view-as-member.md)    | View the company as a member      | Owner, Admin; another active member ranked at or below you is the target | Current | New       |
+| [US-TEAM-11](team/US-TEAM-11-sign-in-tracking.md)  | Record member sign-ins            | Owner; the control is not currently rendered                             | Hidden  | New       |
 
 ## Time Off
 

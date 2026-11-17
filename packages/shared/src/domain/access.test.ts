@@ -3,6 +3,7 @@ import {
   can,
   canSeeTimeOffNote,
   canSeePrivateNames,
+  canViewAs,
   canViewCapacityOverview,
   isOwnerOrAdmin,
 } from './access.js';
@@ -91,6 +92,31 @@ describe('canSeePrivateNames(role) — field-level rule (owner only)', () => {
     ['viewer', false],
   ] as const)('%s → %s', (role, expected) => {
     expect(canSeePrivateNames(role)).toBe(expected);
+  });
+});
+
+describe('canViewAs(actorRole, targetRole) — view-as rank rule', () => {
+  // Rows are the actor, columns the target, written by hand from DECISIONS.md: only Owner and Admin
+  // may view as, and never as a member who ranks above them.
+  const allowed: Record<Role, Record<Role, boolean>> = {
+    owner: { owner: true, admin: true, editor: true, viewer: true },
+    admin: { owner: false, admin: true, editor: true, viewer: true },
+    editor: { owner: false, admin: false, editor: false, viewer: false },
+    viewer: { owner: false, admin: false, editor: false, viewer: false },
+  };
+
+  for (const actor of ROLES) {
+    for (const target of ROLES) {
+      const expected = allowed[actor][target];
+      it(`canViewAs('${actor}', '${target}') === ${expected}`, () => {
+        expect(canViewAs(actor, target)).toBe(expected);
+      });
+    }
+  }
+
+  it('fails closed for an unknown actor or target role', () => {
+    expect(canViewAs('superuser' as Role, 'viewer')).toBe(false);
+    expect(canViewAs('owner', 'superuser' as Role)).toBe(false);
   });
 });
 
