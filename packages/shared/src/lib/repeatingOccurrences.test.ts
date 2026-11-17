@@ -349,11 +349,11 @@ describe('repeat occurrences pinned for the server', () => {
     const { drafts } = buildRepeatedTimeOffDrafts(draft('2026-06-30', '2026-07-01'), '2026-09-30', {
       kind: 'monthly-last-weekday',
     });
-    expect(drafts.map(({ startDate }) => startDate)).toEqual([
-      '2026-06-30',
-      '2026-07-28',
-      '2026-08-25',
-      '2026-09-29',
+    expect(drafts.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
+      ['2026-06-30', '2026-07-01'],
+      ['2026-07-28', '2026-07-29'],
+      ['2026-08-25', '2026-08-26'],
+      ['2026-09-29', '2026-09-30'],
     ]);
   });
 });
