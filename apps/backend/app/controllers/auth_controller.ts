@@ -19,7 +19,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { hasAnyIdentity, hasNoCompany } from '#services/installation_company';
+import { hasAnyIdentity, hasNoCompany } from '#models/installation_company';
 import { managedGuard } from '#services/auth/managed_guard';
 
 function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {

@@ -14,11 +14,25 @@ export { PlanningOperationError };
 
 export type Row = Record<string, unknown> & { id: string };
 
-/** Resolves a stored row from the complete company snapshot, refusing missing targets. */
-export function existingRow(data: AppData, table: AppDataKey, id: string): Row {
-  const row = (data[table] as unknown as Row[]).find((item) => item.id === id);
+/**
+ * Returns a table's rows as untyped records. The write path treats every table's rows this way;
+ * this is the single seam where the typed snapshot is widened.
+ */
+export function rowsOf(data: AppData, table: AppDataKey): Row[] {
+  return data[table] as unknown as Row[];
+}
+
+/** Resolves a stored row of the named table from the complete company snapshot, refusing missing targets. */
+export function existingRow<K extends AppDataKey>(
+  data: AppData,
+  table: K,
+  id: string
+): AppData[K][number] {
+  const rows: readonly { id: string }[] = data[table];
+  const row = rows.find((item) => item.id === id);
   if (!row) throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
-  return row;
+  // Indexing the snapshot by a generic key loses the element type, so restore it here.
+  return row as AppData[K][number];
 }
 
 /**
@@ -48,7 +62,7 @@ export async function writeRow({
     Object.assign(existing, row);
   } else {
     await trx.table(tables[table]).insert(encodeRow(tables[table], row));
-    (data[table] as unknown as Row[]).push(row as Row);
+    rowsOf(data, table).push(row as Row);
   }
   return row;
 }

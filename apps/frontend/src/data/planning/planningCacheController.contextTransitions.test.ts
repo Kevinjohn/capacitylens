@@ -44,7 +44,6 @@ describe('planning context transitions', () => {
   it('returns false without a read while no client context is installed', async () => {
     const h = setup();
     await expect(h.controller.refresh()).resolves.toBe(false);
-    await expect(h.controller.reconcile()).resolves.toBe(false);
     await expect(h.controller.undo()).resolves.toBe(false);
     expect(h.read).not.toHaveBeenCalled();
     expect(h.state().planning.status).toBe('idle');

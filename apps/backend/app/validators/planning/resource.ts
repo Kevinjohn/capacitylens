@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import { RESOURCE_KINDS } from '#validators/entity_kinds';
+import { RESOURCE_KINDS } from '@capacitylens/shared/types/entities';
 import {
   externalCapacityDefaults,
   placeholderCapacityDefaults,

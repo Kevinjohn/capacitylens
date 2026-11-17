@@ -103,11 +103,7 @@ async function assertTrigger(name: string, expectedSql: string) {
   }
 }
 
-async function assertProofStorage(table: string, expectedColumns: string[]) {
-  const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns)) {
-    throw new Error(`Database schema drift: ${table} columns differ from the baseline`);
-  }
+async function assertProofStorage(table: string) {
   const references = (await db.rawQuery(`PRAGMA foreign_key_list(${table})`)) as Array<{
     table: string;
     from: string;
@@ -144,12 +140,15 @@ async function assertProofStorage(table: string, expectedColumns: string[]) {
   }
 }
 
-async function assertPackageStorage(table: string, expectedColumns: string[], owner: string) {
+/** Package storage: only that the table exists and has the columns product code reads or joins on. */
+async function assertPackageColumns(table: string, readColumns: readonly string[]) {
   const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
-  if (JSON.stringify(columns.map(({ name }) => name)) !== JSON.stringify(expectedColumns)) {
-    throw new Error(
-      `Database schema drift: ${table} columns differ from the ${owner} package schema`
-    );
+  if (columns.length === 0) throw new Error(`Database schema drift: ${table} is missing`);
+  const present = new Set(columns.map(({ name }) => name));
+  for (const column of readColumns) {
+    if (!present.has(column)) {
+      throw new Error(`Database schema drift: ${table}.${column} column is missing`);
+    }
   }
 }
 
@@ -165,80 +164,21 @@ export async function assertSchemaIntegrity() {
   await assertAccountKitStorage();
   await assertBaselineMigrationRecord();
   await assertLegacyMasqueradeRetired();
-  await assertPackageStorage(
-    'memberships',
-    ['id', 'scope_id', 'user_id', 'role', 'status', 'created_at', 'updated_at'],
-    'Access Control'
-  );
-  await assertPackageStorage(
-    'masquerade_modes',
-    [
-      'authority_namespace',
-      'actor_id',
-      'actor_incarnation',
-      'revision',
-      'revision_nonce',
-      'state',
-      'access',
-      'mode_id',
-      'last_transition_id',
-      'target_id',
-      'target_incarnation',
-      'actor_stamp_hash',
-      'target_stamp_hash',
-      'reason',
-      'started_at',
-      'expires_at',
-      'updated_at',
-    ],
-    'Masquerade'
-  );
-  await assertPackageStorage(
-    'masquerade_events',
-    [
-      'id',
-      'mode_id',
-      'authority_namespace',
-      'actor_id',
-      'actor_incarnation',
-      'target_id',
-      'target_incarnation',
-      'at',
-      'kind',
-      'outcome_code',
-      'access',
-      'revision',
-      'reason',
-    ],
-    'Masquerade'
-  );
-  await assertProofStorage('login_link_tokens', [
+  await assertPackageColumns('memberships', [
     'id',
-    'tokenable_id',
-    'email',
-    'hash',
-    'client_challenge',
-    'expires_at',
+    'scope_id',
+    'user_id',
+    'role',
+    'status',
     'created_at',
   ]);
-  await assertProofStorage('password_reset_tokens', [
-    'id',
-    'tokenable_id',
-    'email',
-    'hash',
-    'expires_at',
-    'created_at',
-  ]);
-  await assertProofStorage('email_verification_tokens', [
-    'id',
-    'tokenable_id',
-    'email',
-    'current_email',
-    'purpose',
-    'hash',
-    'expires_at',
-    'created_at',
-  ]);
+  await assertPackageColumns('masquerade_modes', []);
+  await assertPackageColumns('masquerade_events', []);
+  await assertPackageColumns('password_confirmations', []);
+  await assertPackageColumns('account_sessions', ['id', 'expires_at']);
+  await assertProofStorage('login_link_tokens');
+  await assertProofStorage('password_reset_tokens');
+  await assertProofStorage('email_verification_tokens');
   for (const table of tenantIndexedTables) await assertIndex(table, 'account_id');
   const auditColumns = (await db.rawQuery('PRAGMA table_info(audit_entries)')) as Array<{
     name: string;
@@ -327,36 +267,7 @@ export async function assertSchemaIntegrity() {
         'consumed_at',
       ],
     ],
-    [
-      'account_invitations',
-      [
-        'id',
-        'email',
-        'scope',
-        'role',
-        'inviter_id',
-        'token_hash',
-        'expires_at',
-        'created_at',
-        'updated_at',
-      ],
-    ],
     ['deleted_rows', ['id', 'group_id', 'entity', 'row_id', 'payload_json']],
-    [
-      'password_confirmations',
-      [
-        'id',
-        'user_id',
-        'sign_in_id',
-        'credential_revision',
-        'action',
-        'scope',
-        'intent_hash',
-        'verified_at',
-        'issued_at',
-        'consumed_at',
-      ],
-    ],
     [
       'planning_mutations',
       [

@@ -13,6 +13,7 @@ import {
   TextField,
 } from '@/components/common/ui';
 import type { Option } from '@/components/common/ui';
+import { buildProjectOptions } from '@/components/common/projectOptions';
 import { FieldError, FieldGroup } from '@/components/ui/field';
 import { buildResourceEngagementOptions } from '@/lib/metadata';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -21,54 +22,9 @@ import type { ResourceFormState } from './useResourceFormState';
 import { useResourceSubmit } from './useResourceSubmit';
 import type { ResourceSubmitDraft } from './useResourceSubmit';
 import { ResourceAvailabilityFields } from './ResourceAvailabilityFields';
-import type {
-  Client,
-  Discipline,
-  Project,
-  Resource,
-  ResourceKind,
-} from '@capacitylens/shared/types/entities';
+import type { Discipline, Resource, ResourceKind } from '@capacitylens/shared/types/entities';
 
 type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
-type ProjectOptionsInput = {
-  resource: Resource | undefined;
-  projects: Project[];
-  clients: Client[];
-  rawProjects: Project[];
-  rawClients: Client[];
-};
-
-function useProjectOptions({
-  resource,
-  projects,
-  clients,
-  rawProjects,
-  rawClients,
-}: ProjectOptionsInput) {
-  const baseOptions: Option[] = useMemo(
-    () =>
-      projects.map((project) => {
-        const client = clients.find((candidate) => candidate.id === project.clientId);
-        return {
-          value: project.id,
-          label: client ? `${client.name} / ${project.name}` : project.name,
-        };
-      }),
-    [projects, clients],
-  );
-  if (!resource?.projectId || projects.some((project) => project.id === resource.projectId)) {
-    return baseOptions;
-  }
-  const rawProject = rawProjects.find((project) => project.id === resource.projectId);
-  const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
-  const label = rawProject
-    ? m.list_label_archived({
-        name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name,
-      })
-    : m.form_option_current_archived();
-  return [...baseOptions, { value: resource.projectId, label, disabled: true }];
-}
-
 type ResolveFormTitleOptions = { resource: Resource | undefined; isPlaceholder: boolean };
 function resolveFormTitle({ resource, isPlaceholder }: ResolveFormTitleOptions) {
   if (resource) {
@@ -248,13 +204,18 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   const disciplinesEnabled = useStore((state) =>
     hasDisciplinesEnabled(state.data, state.activeAccountId),
   );
-  const projectOptions = useProjectOptions({
-    resource,
-    projects: data.projects,
-    clients: data.clients,
-    rawProjects: raw.projects,
-    rawClients: raw.clients,
-  });
+  const currentProjectId = resource?.projectId;
+  const projectOptions = useMemo(
+    () =>
+      buildProjectOptions({
+        projects: data.projects,
+        clients: data.clients,
+        rawProjects: raw.projects,
+        rawClients: raw.clients,
+        currentProjectId,
+      }),
+    [data.projects, data.clients, raw.projects, raw.clients, currentProjectId],
+  );
   const draft = buildResourceSubmitDraft(form);
   const resources = useStore((state) => state.data.resources);
   const { submit, submitting } = useResourceSubmit({

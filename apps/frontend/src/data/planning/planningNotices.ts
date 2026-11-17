@@ -8,11 +8,14 @@ export function isShownByPlanningState(error: unknown): boolean {
   return code === 'STALE_REVISION' || status === 409 || status === 403;
 }
 
-/** The planning notice to show: a 403 refusal keeps the rows (K2), and a failed read leaves them stale. */
+/** The planning notice to show: a 403 refusal keeps the rows (K2), a failed read leaves them stale,
+ * and a write whose reply was lost asks the person to check the change. */
 export function readPlanningProblem(
   planning: PlanningControllerMetadata,
-): 'refused' | 'unavailable' | null {
-  if (planning.error === null) return null;
+): 'refused' | 'unavailable' | 'unconfirmed' | null {
+  if (planning.error === null) {
+    return planning.outcome?.kind === 'unconfirmed' ? 'unconfirmed' : null;
+  }
   if (errorDetails(planning.error).status === 403) return 'refused';
   return planning.status === 'error' ? 'unavailable' : null;
 }

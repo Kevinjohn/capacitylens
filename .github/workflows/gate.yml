@@ -23,6 +23,7 @@ on:
       - 'scripts/release/docker/prepare-container-runtime.mjs'
       - 'scripts/release/packagedServer.mjs'
       - 'scripts/release/smoke-packaged-*.mjs'
+      - 'tooling/smokeSchedule.mjs'
       - 'scripts/release/loopbackHttpProxy.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'

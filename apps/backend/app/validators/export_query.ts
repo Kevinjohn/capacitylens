@@ -4,7 +4,7 @@ import vine from '@vinejs/vine';
 export const exportQueryValidator = vine.compile(
   vine
     .object({
-      accountId: vine.string().regex(/\S/).optional(),
+      accountId: vine.string().regex(/\S/),
       includeInactive: vine.literal('1').optional(),
     })
     .use(

@@ -36,7 +36,8 @@ export const client = createTuyau({
 /** Typed route queries and mutation options generated from the backend registry. */
 export const api = createTuyauReactQueryClient({ client });
 
-type ProductRoutes = typeof registry.routes;
+/** The generated backend route registry, keyed by route name. */
+export type ProductRoutes = typeof registry.routes;
 
 /** Build a product API URL from a route name and its generated path/query arguments. */
 export function apiRouteUrl<Name extends keyof ProductRoutes>(

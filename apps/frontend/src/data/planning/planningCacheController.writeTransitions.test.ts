@@ -30,8 +30,6 @@ describe('planning write transitions', () => {
     });
     expect(planning.outcome).toEqual({ kind: 'pending', execution: planning.pending?.execution });
     expect(isPlanningHistoryReady(planning)).toBe(false);
-    await expect(h.controller.reconcile()).resolves.toBe(false);
-    expect(h.lookup).not.toHaveBeenCalled();
     h.server.revision = 2;
     response.resolve(receipt('mutation-1', 2));
     await expect(write).resolves.toMatchObject({ revision: 2 });
@@ -60,26 +58,25 @@ describe('planning write transitions', () => {
           },
         }),
     },
-  ])('treats a receipt with $name as uncertain and recovers it by lookup', async ({ make }) => {
+  ])('treats a receipt with $name as unconfirmed and shows the server state', async ({ make }) => {
     const h = await ready();
     h.execute.mockResolvedValueOnce(make());
+    h.server.revision = 2;
     const reads = h.read.mock.calls.length;
     await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject(
       { uncertain: true },
     );
-    expect(h.state().planning.status).toBe('uncertain');
-    expect(h.state().planning.outcome?.kind).toBe('uncertain');
-    expect(h.state().planning.pending?.execution.mutationId).toBe('mutation-1');
+    expect(h.read).toHaveBeenCalledTimes(reads + 1);
+    expect(h.state().planning).toMatchObject({
+      status: 'ready',
+      pending: null,
+      revision: 2,
+      outcome: { kind: 'unconfirmed', mutationId: 'mutation-1' },
+    });
     expect(h.state().data.clients[0]).toMatchObject({
       accountId: 'wayne',
       name: 'Wayne Enterprises',
     });
-    expect(h.read).toHaveBeenCalledTimes(reads);
-
-    h.lookup.mockResolvedValueOnce({ status: 'committed', mutationId: 'mutation-1', revision: 2 });
-    h.server.revision = 2;
-    await expect(h.controller.reconcile()).resolves.toBe(true);
-    expect(h.state().planning).toMatchObject({ status: 'ready', pending: null, revision: 2 });
     expect(h.execute).toHaveBeenCalledOnce();
   });
 
@@ -131,17 +128,21 @@ describe('planning write transitions', () => {
     await expect(h.controller.undo()).resolves.toBe(true);
   });
 
-  it('treats a server failure as uncertain without a canonical read or a release', async () => {
+  it('treats a server failure as unconfirmed with one canonical read and no resend', async () => {
     const h = await ready();
     const reads = h.read.mock.calls.length;
     h.execute.mockRejectedValueOnce(new PlanningControllerError('Unavailable', undefined, 503));
     await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject(
       { status: 503, uncertain: true },
     );
-    expect(h.state().planning.status).toBe('uncertain');
-    expect(h.state().planning.pending?.execution.mutationId).toBe('mutation-1');
-    expect(h.read).toHaveBeenCalledTimes(reads);
-    expect(() => h.controller.begin()).toThrow();
+    expect(h.read).toHaveBeenCalledTimes(reads + 1);
+    expect(h.state().planning).toMatchObject({
+      status: 'ready',
+      pending: null,
+      outcome: { kind: 'unconfirmed', mutationId: 'mutation-1' },
+    });
+    expect(h.execute).toHaveBeenCalledOnce();
+    expect(() => h.controller.begin()).not.toThrow();
   });
 
   it('reports a 401 write as one authentication loss and clears the projection', async () => {

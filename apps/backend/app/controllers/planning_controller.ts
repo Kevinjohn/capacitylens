@@ -1,11 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import {
-  readPlanning,
-  readArchiveRecovery,
-  mutatePlanning,
-  lookupPlanningMutation,
-  validatePlanningMutationId,
-} from '#services/planning';
+import { readPlanning, readArchiveRecovery, mutatePlanning } from '#services/planning';
 import { PlanningOperationError } from '#services/planning/execute';
 import { allocationMutationValidator } from '#validators/planning/allocation';
 import { catalogueMutationValidator } from '#validators/planning/catalogue';
@@ -33,18 +27,6 @@ export default class PlanningController {
     try {
       const accountId = String(ctx.params.accountId);
       return await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, accountId));
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
-  }
-
-  async lookup(ctx: HttpContext) {
-    try {
-      const mutationId = await validatePlanningMutationId(ctx.params.mutationId);
-      const accountId = String(ctx.params.accountId);
-      return await withActor(ctx, (actor, trx) =>
-        lookupPlanningMutation({ trx, actor, accountId, mutationId })
-      );
     } catch (error) {
       return sendRefusal(error, ctx);
     }

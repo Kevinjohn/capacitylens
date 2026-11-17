@@ -1,6 +1,7 @@
-import { activeOnly, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
+import { activeOnly, archiveImpact, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type { AppData } from '@capacitylens/shared/types/entities';
+import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
+import { readCompanyToday } from '#services/company_today';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import type { CurrentActor } from '#services/auth/current_actor';
@@ -19,19 +20,15 @@ import {
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import {
-  committedMutationRevision,
   countRestorableItems,
   discardRestorationGroups,
   isMutationCommitted,
   recordCommittedMutation,
   RestorationConfirmationError,
-  unconsumedGroupId,
 } from '#services/planning/restoration';
-import { mutationLookupValidator } from '#validators/planning/lookup';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
-  PlanningMutationLookup,
 } from '#validators/planning/contracts';
 
 export type { PlanningAuthority };
@@ -44,19 +41,13 @@ export interface PlanningMutationOptions {
   input: PlanningMutationInput;
 }
 
-/** One mutation-identity lookup in the caller's transaction, by its verified actor. */
-export interface PlanningLookupOptions {
-  trx: TransactionClientContract;
-  actor: CurrentActor;
-  accountId: string;
-  mutationId: string;
-}
-
 export interface PlanningSnapshot {
   accountId: string;
   revision: number;
   authority: PlanningAuthority;
   data: AppData;
+  /** The company's current calendar date in its own time zone. */
+  today: ISODate;
 }
 
 /** Resolves current product authority, revision and rows from the same database snapshot. */
@@ -72,6 +63,7 @@ export async function readPlanning(
     revision,
     authority,
     data: transformState(activeOnly(data), accountId, authority.role),
+    today: readCompanyToday(data.accounts.find((row) => row.id === accountId)?.timezone ?? null),
   };
 }
 
@@ -121,6 +113,12 @@ export async function mutatePlanning({
       mutationId: input.mutationId,
     },
   });
+  // archiveImpact measures the active projection itself. Passing the full state keeps an active row
+  // whose parent is already archived measurable: it hides nothing more, so every count is zero.
+  const archived =
+    input.intent.operation === 'catalogue.archive'
+      ? archiveImpact(before, input.intent.entity.entity, input.intent.entity.id)
+      : undefined;
   const after = await readStateWithClient(trx, accountId, true);
   if (semanticState(before) === semanticState(after)) {
     throw new PlanningOperationError(
@@ -178,34 +176,6 @@ export async function mutatePlanning({
     projection: requiresRefetch(input.intent)
       ? { mode: 'refetch', history: 'clear' }
       : { mode: 'patch', history: 'retain', changed },
+    ...(archived ? { archived } : {}),
   };
-}
-
-/** An absent marker remains unknown; lookup never returns a stored response or hidden before-image. */
-export async function lookupPlanningMutation({
-  trx,
-  actor,
-  accountId,
-  mutationId,
-}: PlanningLookupOptions): Promise<PlanningMutationLookup> {
-  const { authority } = await resolvePlanningAuthority(trx, accountId);
-  const revision = await committedMutationRevision(trx, accountId, authority.actorId, mutationId);
-  if (revision === undefined) return { status: 'unknown', mutationId };
-  const restorationGroupId = await unconsumedGroupId(trx, accountId, {
-    actorId: authority.actorId,
-    sessionId: actor.sessionId,
-    mutationId,
-  });
-  return {
-    status: 'committed',
-    mutationId,
-    revision,
-    ...(restorationGroupId ? { restorationGroupId } : {}),
-  };
-}
-
-/** Validate a URL mutation identity without adding a query parameter to the generated GET type. */
-export async function validatePlanningMutationId(mutationId: unknown) {
-  const input = await mutationLookupValidator.validate({ mutationId });
-  return input.mutationId;
 }

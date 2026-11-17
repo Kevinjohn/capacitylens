@@ -82,6 +82,24 @@ describe('AppShell planning problems', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent(text);
   });
+
+  it('asks the person to check a change whose reply was lost', () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell({});
+
+    act(() =>
+      useStore.setState((state) => ({
+        planning: {
+          ...state.planning,
+          status: 'ready',
+          error: null,
+          outcome: { kind: 'unconfirmed', mutationId: 'mutation-1' },
+        },
+      })),
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(m.app_planning_unconfirmed());
+  });
 });
 
 describe('AppShell transient notice', () => {

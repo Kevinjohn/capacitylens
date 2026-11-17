@@ -23,6 +23,11 @@ test.group('M1 HTTP contract', (group) => {
     const empty = await client.get('/api/state?accountId=');
     assert.equal(empty.status(), 400);
     assert.equal(empty.body().code, 'VALIDATION_ERROR');
+    const missing = await client.get('/api/state');
+    assert.equal(missing.status(), 400);
+    const refusal = missing.body() as unknown as { code: string; error: string };
+    assert.equal(refusal.code, 'VALIDATION_ERROR');
+    assert.include(refusal.error, 'accountId');
     const repeated = await client.get('/api/state?accountId=a-studio&accountId=a-loft');
     assert.equal(repeated.status(), 400);
     const whitespace = await client.get('/api/state?accountId=%20%20');
@@ -32,8 +37,8 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(invalidInactive.status(), 400);
     assert.equal(invalidInactive.body().code, 'VALIDATION_ERROR');
     for (const query of [
-      'unknown=1',
-      'includeInactive=1&includeInactive=1',
+      'accountId=a-studio&unknown=1',
+      'accountId=a-studio&includeInactive=1&includeInactive=1',
       'accountId[unexpected]=1',
     ]) {
       const invalid = await client.get(`/api/state?${query}`);

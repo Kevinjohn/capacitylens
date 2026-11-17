@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { makeAccount, makeAppData, makeClient } from '@/test/fixtures';
@@ -6,7 +6,7 @@ import { createPlanningCacheController, createPlanningCacheState } from './plann
 import { PlanningControllerError } from './planningErrors';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 
-type RequestStage = 'read' | 'execute' | 'lookup';
+type RequestStage = 'read' | 'execute';
 type Success = Awaited<ReturnType<PlanningTransport['execute']>>;
 
 const context = { identity: 'bruce-session-1', companyId: 'wayne' };
@@ -47,12 +47,11 @@ async function setup() {
   const store = createStore(() => createPlanningCacheState());
   const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot('Wayne Enterprises'));
   const execute = vi.fn<PlanningTransport['execute']>();
-  const lookup = vi.fn<PlanningTransport['lookup']>();
   const controller = createPlanningCacheController({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
-    transport: { read, execute, lookup },
+    transport: { read, execute },
   });
   controller.setContext(context);
   await controller.refresh();
@@ -62,27 +61,19 @@ async function setup() {
       history: { past: [{ forward: update, inverse }], future: [], tipRevision: 1 },
     },
   }));
-  return { store, controller, read, execute, lookup };
+  return { store, controller, read, execute };
 }
 
 type Fixture = Awaited<ReturnType<typeof setup>>;
 
 async function startRequest(fixture: Fixture, stage: RequestStage): Promise<unknown> {
   if (stage === 'read') return fixture.controller.refresh();
-  if (stage === 'execute') {
-    return fixture.controller.execute(fixture.controller.begin(), update, inverse);
-  }
-  fixture.execute.mockRejectedValueOnce(new TypeError('Response lost'));
-  await fixture.controller
-    .execute(fixture.controller.begin(), update, inverse)
-    .catch((error: unknown) => error);
-  return fixture.controller.reconcile();
+  return fixture.controller.execute(fixture.controller.begin(), update, inverse);
 }
 
 function rejectStage(fixture: Fixture, stage: RequestStage, error: Error) {
   if (stage === 'read') fixture.read.mockRejectedValueOnce(error);
-  else if (stage === 'execute') fixture.execute.mockRejectedValueOnce(error);
-  else fixture.lookup.mockRejectedValueOnce(error);
+  else fixture.execute.mockRejectedValueOnce(error);
 }
 
 describe('planning request access boundaries', () => {
@@ -99,7 +90,7 @@ describe('planning request access boundaries', () => {
     expect(fixture.store.getState().planning.revision).toBe(1);
   });
 
-  for (const stage of ['read', 'execute', 'lookup'] as const) {
+  for (const stage of ['read', 'execute'] as const) {
     it(`clears rows, history and pending state atomically after ${stage} reports 401`, async () => {
       const fixture = await setup();
       const publications: boolean[] = [];
@@ -139,11 +130,8 @@ describe('planning request access boundaries', () => {
       const fixture = await setup();
       const pending = deferred<never>();
       if (stage === 'read') fixture.read.mockImplementationOnce(() => pending.promise);
-      else if (stage === 'execute') fixture.execute.mockImplementationOnce(() => pending.promise);
-      else fixture.lookup.mockImplementationOnce(() => pending.promise);
+      else fixture.execute.mockImplementationOnce(() => pending.promise);
       const oldRequest = startRequest(fixture, stage).catch((error: unknown) => error);
-      // Lookup begins only after the lost execution has been classified.
-      if (stage === 'lookup') await vi.waitFor(() => expect(fixture.lookup).toHaveBeenCalledOnce());
       fixture.controller.setContext({ ...context, identity: 'diana-session-2' });
       fixture.read.mockResolvedValueOnce({ ...snapshot('Gotham', 2), accessKey: 'editor' });
       await fixture.controller.refresh();

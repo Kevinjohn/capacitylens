@@ -3,7 +3,7 @@ import { useStore } from '@/store/useStore';
 import type { LifecycleEntity } from '@/lib/entityDrafts';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { runResourceAnonymisation } from '@/data/resourceAnonymisation';
+import { runResourceAnonymisation } from '@/store/resourceAnonymisation';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 
 // Archive and restore use typed planning commands. Anonymisation has a named server route;

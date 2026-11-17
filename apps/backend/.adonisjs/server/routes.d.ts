@@ -6,7 +6,6 @@ export type ScannedRoutes = {
   ALL: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
     'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -99,7 +98,6 @@ export type ScannedRoutes = {
   GET: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -118,7 +116,6 @@ export type ScannedRoutes = {
   HEAD: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }

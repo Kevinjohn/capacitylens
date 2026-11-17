@@ -11,14 +11,14 @@ import { resetStoreWithAccount } from '@/test/fixtures';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { buildVisibleRange } from '@/store/selectors';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { GEOM, indexAtClientX } from './__tests__/schedulerTestKit';
+import { GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import {
   barFor,
   getStoredAllocation,
   seedAllocation,
   settlePlanning,
-} from './__tests__/allocationBarInteractionTestKit';
+} from '@/test/allocationBarInteractionTestKit';
 
 function OwnerPermissionsAndTooltip({ children }: { children: ReactNode }) {
   return (

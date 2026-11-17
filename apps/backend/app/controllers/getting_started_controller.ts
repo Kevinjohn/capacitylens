@@ -3,7 +3,11 @@ import type { HttpContext } from '@adonisjs/core/http';
 import vine, { errors as vineErrors } from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
-import { dismissGettingStarted, isGettingStartedDismissed } from '#services/getting_started';
+import {
+  dismissGettingStarted,
+  isGettingStartedDismissed,
+  readGettingStartedSteps,
+} from '#services/getting_started';
 
 const dismissal = vine.compile(vine.object({ dismissed: vine.literal(true) }));
 
@@ -14,6 +18,7 @@ export default class GettingStartedController {
       await assertCompanyAction(params.accountId, 'planning:read', trx);
       return response.ok({
         dismissed: await isGettingStartedDismissed(trx, params.accountId),
+        steps: await readGettingStartedSteps(trx, params.accountId),
       });
     });
   }

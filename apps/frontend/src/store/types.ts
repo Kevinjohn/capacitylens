@@ -81,6 +81,9 @@ type SetDirtyFormSourceOptions = { source: symbol; dirty: boolean };
 type SetUtilizationPrefOptions = { key: keyof UtilizationPreferences; value: boolean };
 type SetBarLabelPrefOptions = { key: keyof BarLabelPreferences; value: boolean };
 
+/** Shows a notice with the given tone (default `info`), or clears it with null. */
+export type SetNotice = (message: string | null, tone?: 'info' | 'warning' | 'error') => void;
+
 /** Public state and actions exposed by the application store. */
 export interface StoreState extends StoreEntityActions {
   data: AppData;
@@ -175,7 +178,7 @@ export interface StoreState extends StoreEntityActions {
   /** Record whether the initial load has finished. */
   setHydrated: (value: boolean) => void;
   /** Show a notice with the given tone (default `info`), or clear it with null. */
-  setNotice: (message: string | null, tone?: 'info' | 'warning' | 'error') => void;
+  setNotice: SetNotice;
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
    * so the same text re-announces (an aria-live region re-reads only on a content change). Call
    * only after a successful keyboard-committed allocation edit, pointer drags give sighted

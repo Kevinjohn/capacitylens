@@ -3,7 +3,7 @@ import { readCurrentWeekAnchor } from './schedulerSlice';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import {
   createPlanningCacheController,
@@ -154,14 +154,8 @@ export function createPlanningSessionSlice(
         }
         syncContext(companyId);
         if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise;
-        // A canonical read alone never settles an uncertain write; only its commitment lookup can,
-        // so every refresh trigger (focus, interval, legacy save) reconciles first.
-        const settle =
-          get().planning.outcome?.kind === 'uncertain'
-            ? controller.reconcile()
-            : Promise.resolve(false);
-        const promise = settle
-          .then((settled) => settled || controller.refresh())
+        const promise = controller
+          .refresh()
           .then(
             (accepted) =>
               accepted && get().activeAccountId === companyId && contextCompanyId === companyId,

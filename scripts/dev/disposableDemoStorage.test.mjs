@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { createDisposableDemoStorage } from './disposableDemoStorage.mjs';
-import { terminateProcessTree } from './devProcesses.mjs';
+import { terminateProcessTree } from '../../tooling/devProcesses.mjs';
 
 const databaseChild = `
 const { DatabaseSync } = require('node:sqlite');

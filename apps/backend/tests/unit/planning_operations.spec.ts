@@ -15,7 +15,6 @@ import { resourceMutationValidator } from '#validators/planning/resource';
 import { timeOffMutationValidator } from '#validators/planning/time_off';
 import { closureMutationValidator } from '#validators/planning/closure';
 import { settingsMutationValidator } from '#validators/planning/settings';
-import { mutationLookupValidator } from '#validators/planning/lookup';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
@@ -461,11 +460,7 @@ test.group('planning operation contracts', () => {
     );
   });
 
-  test('validates the mutation lookup request and planning failure bodies', async ({ assert }) => {
-    assert.deepEqual(await mutationLookupValidator.validate({ mutationId: uuid }), {
-      mutationId: uuid,
-    });
-
+  test('validates planning failure bodies', async ({ assert }) => {
     const stale = await planningMutationFailureValidator.validate({
       error: 'The planning revision changed.',
       code: 'STALE_REVISION',

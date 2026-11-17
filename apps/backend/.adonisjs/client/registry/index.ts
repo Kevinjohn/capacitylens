@@ -20,12 +20,6 @@ const routes = {
     tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"planning"],[0,"archive"]],
     types: placeholder as Registry['api.planning.archive']['types'],
   },
-  'api.planning.lookup': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/accounts/:accountId/planning/mutations/:mutationId',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"planning"],[0,"mutations"],[1,"mutationId"]],
-    types: placeholder as Registry['api.planning.lookup']['types'],
-  },
   'api.planning.allocation.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/allocations',

@@ -6,7 +6,6 @@ export interface ApiDefinition {
     planning: {
       show: typeof routes['api.planning.show']
       archive: typeof routes['api.planning.archive']
-      lookup: typeof routes['api.planning.lookup']
       allocation: {
         create: typeof routes['api.planning.allocation.create']
         update: typeof routes['api.planning.allocation.update']

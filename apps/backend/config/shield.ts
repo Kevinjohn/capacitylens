@@ -1,3 +1,5 @@
+// Shield owns HSTS, `nosniff`, frame protection and the CSP.
+
 import { publicOrigin } from '#config/public_origin';
 import { defineConfig } from '@adonisjs/shield';
 

@@ -207,6 +207,7 @@ export async function restoreGroup(
   for (const { entity, row } of rows) {
     assertRestorationCandidate(() => {
       if (entity === 'allocations') {
+        // Retained rows are read as plain records, so they do not overlap the entity type.
         const allocation = row as unknown as Allocation;
         const activity = dependencies.activities.find((item) => item.id === allocation.activityId);
         if (activity) assertScopedRefs(dependencies, accountId, 'activities', { ...activity });
@@ -254,6 +255,7 @@ export async function restoreGroup(
     const parent = current[entity === 'activities' ? 'phases' : 'disciplines'].find(
       (row) => row.id === parentId
     );
+    // The link field differs by table, and an entity interface has no index signature.
     if (!child || !parent || (child as unknown as Record<string, unknown>)[field] !== null) {
       conflict();
     }
@@ -363,41 +365,6 @@ export async function recordCommittedMutation(
     restoration_group_id: marker.restorationGroupId,
     origin_session_id: marker.originSessionId,
   });
-}
-
-/** The revision an actor's committed mutation produced, or undefined when none is recorded. */
-export async function committedMutationRevision(
-  trx: TransactionClientContract,
-  accountId: string,
-  actorId: string,
-  mutationId: string
-) {
-  const marker = await trx
-    .from('planning_mutations')
-    .where({ account_id: accountId, actor_id: actorId, mutation_id: mutationId })
-    .select('revision')
-    .first();
-  return marker ? Number(marker.revision) : undefined;
-}
-
-/** Lookup exposes only the caller's own unconsumed handle for the original mutation. */
-export async function unconsumedGroupId(
-  trx: TransactionClientContract,
-  accountId: string,
-  identity: RestorationIdentity
-) {
-  const group = await trx
-    .from('deleted_groups')
-    .where({
-      account_id: accountId,
-      actor_id: identity.actorId,
-      session_id: identity.sessionId,
-      mutation_id: identity.mutationId,
-    })
-    .whereNull('consumed_at')
-    .select('group_id')
-    .first();
-  return group ? String(group.group_id) : undefined;
 }
 
 /**

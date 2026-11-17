@@ -1,4 +1,3 @@
-import { requireCreated } from '@/test/requireCreated';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,6 +8,19 @@ import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 
+const NO_STEPS = {
+  person: false,
+  client: false,
+  project: false,
+  activity: false,
+  scheduled: false,
+};
+
+/** The getting-started read body: dismissal plus the milestones the server reports. */
+function readReply(dismissed: boolean, steps: Partial<typeof NO_STEPS> = {}) {
+  return JSON.stringify({ dismissed, steps: { ...NO_STEPS, ...steps } });
+}
+
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
 vi.mock('@/lib/tour', () => ({ startTour: tourMock.startTour }));
 
@@ -17,9 +29,7 @@ beforeEach(async () => {
   useStore.getState().setMasquerade({ kind: 'inactive' });
   vi.stubGlobal(
     'fetch',
-    vi
-      .fn<typeof fetch>()
-      .mockImplementation(async () => new Response(JSON.stringify({ dismissed: false }))),
+    vi.fn<typeof fetch>().mockImplementation(async () => new Response(readReply(false))),
   );
   tourMock.startTour.mockReset().mockResolvedValue(undefined);
 });
@@ -98,37 +108,9 @@ describe('Getting started', () => {
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
   });
 
-  it('renders nothing once all five steps are done', async () => {
-    await resetStoreWithAccount('acct-complete-checklist');
-    const store = useStore.getState();
-    const person = await requireCreated(
-      store.addResource({
-        kind: 'person',
-        name: 'Bruce Wayne',
-        role: 'Designer',
-        employmentType: 'permanent',
-        engagement: 'studio',
-        workingHoursPerDay: 8,
-        workingDays: [1, 2, 3, 4, 5],
-        halfDays: [],
-        color: '#2d75da',
-      }),
-    );
-    const client = await requireCreated(
-      store.addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
-    );
-    await store.addProject({ name: 'Wayne redesign', clientId: client.id, color: '#2d75da' });
-    const activity = await requireCreated(
-      store.addActivity({ name: 'Planning', kind: 'internal' }),
-    );
-    await store.addAllocation({
-      resourceId: person.id,
-      activityId: activity.id,
-      startDate: '2026-06-03',
-      endDate: '2026-06-03',
-      hoursPerDay: 0,
-      status: 'tentative',
-    });
+  it('renders nothing once the server reports all five steps done', async () => {
+    const all = { person: true, client: true, project: true, activity: true, scheduled: true };
+    vi.mocked(fetch).mockImplementation(async () => new Response(readReply(false, all)));
     renderChecklist('owner');
     await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
     await act(async () => {});
@@ -138,12 +120,31 @@ describe('Getting started', () => {
     expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
   });
 
+  it('shows the server milestones and reads them again after a planning change', async () => {
+    vi.mocked(fetch)
+      .mockImplementationOnce(async () => new Response(readReply(false, { person: true })))
+      .mockImplementationOnce(
+        async () => new Response(readReply(false, { person: true, client: true })),
+      );
+    renderChecklist('owner');
+    await vi.waitFor(() =>
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '1'),
+    );
+    act(() =>
+      useStore.setState((state) => ({
+        planning: { ...state.planning, revision: (state.planning.revision ?? 0) + 1 },
+      })),
+    );
+    await vi.waitFor(() =>
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '2'),
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it.each(['starting', 'active', 'ending'] as const)(
     'omits privileged onboarding requests while masquerade is %s',
     (kind) => {
-      const fetchMock = vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(new Response(JSON.stringify({ dismissed: false })));
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(readReply(false)));
       vi.stubGlobal('fetch', fetchMock);
       const state = {
         accountId: 'a-studio',
@@ -180,7 +181,7 @@ describe('Getting started', () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockReturnValueOnce(pending)
-      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false })));
+      .mockResolvedValueOnce(new Response(readReply(false)));
     vi.stubGlobal('fetch', fetchMock);
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     renderChecklist('editor', '/resources');
@@ -209,11 +210,25 @@ describe('Getting started', () => {
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
   });
 
+  it('makes no getting-started request for a viewer when the planning revision advances', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error('read failed'));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderChecklist('viewer');
+    await act(async () =>
+      useStore.setState((state) => ({
+        planning: { ...state.planning, revision: (state.planning.revision ?? 0) + 1 },
+      })),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useStore.getState().notice).toBeNull();
+  });
+
   it('ignores the legacy device flag and keeps guidance after a failed server save', async () => {
     localStorage.setItem('capacitylens/gettingStartedDismissed', 'on');
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(readReply(false), { status: 200 }))
       .mockResolvedValueOnce(new Response(null, { status: 503 }));
     vi.stubGlobal('fetch', fetchMock);
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -236,7 +251,7 @@ describe('Getting started', () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockRejectedValueOnce(new Error('sensitive server detail'))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(readReply(false), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
     renderChecklist('owner');
@@ -277,9 +292,9 @@ describe('Getting started', () => {
     });
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(readReply(false), { status: 200 }))
       .mockReturnValueOnce(pendingRead)
-      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: true }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(readReply(true), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const user = userEvent.setup();
     renderChecklist('owner');
@@ -291,9 +306,7 @@ describe('Getting started', () => {
     await vi.waitFor(() =>
       expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument(),
     );
-    await act(async () =>
-      finishRead(new Response(JSON.stringify({ dismissed: false }), { status: 200 })),
-    );
+    await act(async () => finishRead(new Response(readReply(false), { status: 200 })));
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
   });
 });
