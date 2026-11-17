@@ -1,4 +1,4 @@
-import { setMasqueradeContextToken } from './masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { useStore } from '@/store/useStore';

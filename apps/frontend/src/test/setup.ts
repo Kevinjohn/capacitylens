@@ -1,7 +1,7 @@
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { setMasqueradeContextReader } from '@/data/requestTimeout';
 
 // The app registers this reader when the masquerade controller is wired; tests that never load that
