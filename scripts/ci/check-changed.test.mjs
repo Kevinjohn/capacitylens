@@ -155,6 +155,11 @@ test('deleted paths select checks but are never passed to file tools', () => {
   assert.deepEqual(step(steps, 'format').args.slice(-1), ['README.md']);
 });
 
+test('a changed tooling module runs its own test file', () => {
+  const steps = planChecks(['tooling/ports.mjs'], everything, noImporters);
+  assert.deepEqual(step(steps, 'test: 1 script test').args, ['--test', 'tooling/ports.test.mjs']);
+});
+
 test('a changed script runs its own test file when one exists', () => {
   const steps = planChecks(
     ['scripts/dev/lanes.mjs', 'scripts/build/bundleBudget.mjs'],

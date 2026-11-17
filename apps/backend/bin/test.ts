@@ -16,7 +16,7 @@ assertSupportedNodeVersion();
 process.env.NODE_ENV = 'test';
 
 import { fileURLToPath } from 'node:url';
-import { ports } from '../../../scripts/dev/ports.mjs';
+import { ports } from '../../../tooling/ports.mjs';
 
 const testHttpPort = ports().testHttp;
 Object.assign(process.env, {

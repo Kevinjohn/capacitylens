@@ -5,13 +5,13 @@ import { renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { workerPorts, resolveLane } from '../dev/ports.mjs';
-import { portInUse } from '../dev/devProcesses.mjs';
+import { workerPorts, resolveLane } from '../../tooling/ports.mjs';
+import { portInUse } from '../../tooling/devProcesses.mjs';
 import {
   cleanupResetControlEndpoints,
   createResetControlToken,
   requestResetControl,
-} from '../../apps/backend/start/e2e_reset_control.ts';
+} from '../../tooling/e2e_reset_control.ts';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const backend = join(root, 'apps/backend');

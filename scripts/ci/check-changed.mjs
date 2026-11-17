@@ -80,7 +80,7 @@ const documentationPolicyInput =
 // A filter that matches nothing reports success; these markers turn it into a failure.
 // Specs run on their own; any other end-to-end input can affect every spec.
 const e2eSpec = /^e2e\/.+\.spec\.ts$/;
-const e2eInput = /^(?:e2e\/|playwright\.config\.ts$|scripts\/e2e\/playwright)/;
+const e2eInput = /^(?:e2e\/|tooling\/|playwright\.config\.ts$|scripts\/e2e\/playwright)/;
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
 // Vitest and Japa summarise as "Tests  12 passed (12)"; node --test reports "tests 12".
@@ -88,11 +88,14 @@ const testCounts = [/^\s*Tests\s+(\d+) passed/m, /^(?:# |ℹ )tests (\d+)$/m];
 
 const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 
-/** List the script test files that import `scripts/<path>.mjs`, whatever they are called. */
+/** List the script and tooling test files that import a changed `.mjs` file, whatever they are called. */
 function scriptTestsImporting(path) {
-  const scripts = new URL('scripts/', pathToFileURL(root));
-  return readdirSync(scripts, { recursive: true })
-    .map((entry) => `scripts/${entry.split('\\').join('/')}`)
+  return ['scripts', 'tooling']
+    .flatMap((directory) =>
+      readdirSync(new URL(`${directory}/`, pathToFileURL(root)), { recursive: true }).map(
+        (entry) => `${directory}/${entry.split('\\').join('/')}`,
+      ),
+    )
     .filter((test) => {
       if (!test.endsWith('.test.mjs')) return false;
       const target = posix.relative(posix.dirname(test), path);
@@ -283,7 +286,7 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const scriptTests = [
     ...new Set(
       paths
-        .filter((path) => /^scripts\/.+\.mjs$/.test(path))
+        .filter((path) => /^(?:scripts|tooling)\/.+\.mjs$/.test(path))
         .flatMap((path) =>
           path.endsWith('.test.mjs')
             ? [path]

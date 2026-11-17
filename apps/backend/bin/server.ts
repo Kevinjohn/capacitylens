@@ -9,6 +9,7 @@
 |
 */
 
+import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 const { assertSupportedNodeVersion } = await import('#start/node_version');
 assertSupportedNodeVersion();
 
@@ -36,7 +37,13 @@ const IMPORTER = (filePath: string) => {
 
 let logConnectionDrop: (entry: Record<string, unknown>) => void = () => {};
 let terminateApplication: (() => Promise<void>) | undefined;
-type E2eRequestActivity = typeof import('#start/e2e_request_activity').installE2eRequestActivity;
+// The reset harness lives in the repository's development tooling, outside the backend's source
+// root, so its signature is restated here rather than imported.
+type E2eRequestActivity = (
+  server: Server,
+  handler: (request: IncomingMessage, response: ServerResponse) => void | Promise<void>,
+  options: { token?: string; host: string; port: number }
+) => { ready: Promise<void>; close(): Promise<void> } | undefined;
 type NodeServer = Parameters<E2eRequestActivity>[0];
 type NodeHandler = Parameters<E2eRequestActivity>[1];
 let installE2eHarness:
@@ -60,7 +67,9 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
       // start keeps the framework's own request wiring and never evaluates the harness modules.
       const { default: env } = await import('#start/env');
       if (!env.get('CAPACITYLENS_ALLOW_RESET')) return;
-      const { installE2eRequestActivity } = await import('#start/e2e_request_activity');
+      const { installE2eRequestActivity } = (await import(
+        new URL('../../tooling/e2e_request_activity.ts', APP_ROOT).href
+      )) as { installE2eRequestActivity: E2eRequestActivity };
       installE2eHarness = (server, handler) =>
         installE2eRequestActivity(server, handler, {
           token: process.env.CAPACITYLENS_E2E_RESET_TOKEN,
