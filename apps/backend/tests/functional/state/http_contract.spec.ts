@@ -37,8 +37,8 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(invalidInactive.status(), 400);
     assert.equal(invalidInactive.body().code, 'VALIDATION_ERROR');
     for (const query of [
-      'unknown=1',
-      'includeInactive=1&includeInactive=1',
+      'accountId=a-studio&unknown=1',
+      'accountId=a-studio&includeInactive=1&includeInactive=1',
       'accountId[unexpected]=1',
     ]) {
       const invalid = await client.get(`/api/state?${query}`);
