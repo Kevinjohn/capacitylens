@@ -1,8 +1,8 @@
 import { m } from '@/i18n';
-import type { AppData } from '@capacitylens/shared/types/entities';
+import type { ScopedEntityKey } from '@capacitylens/shared/types/entities';
 
 // Store message getters so import-summary labels follow the active locale at render time.
-const SUMMARY: [keyof AppData, () => string][] = [
+const SUMMARY: [ScopedEntityKey, () => string][] = [
   ['resources', () => m.data_summary_resources()],
   ['disciplines', () => m.data_summary_disciplines()],
   ['clients', () => m.data_summary_clients()],
@@ -14,9 +14,9 @@ const SUMMARY: [keyof AppData, () => string][] = [
   ['closures', () => m.data_summary_closures()],
 ];
 
-export function summarize(data: AppData): string {
-  const parts = SUMMARY.filter(([key]) => data[key].length > 0).map(
-    ([key, label]) => `${data[key].length} ${label()}`,
+export function summarize(counts: Record<ScopedEntityKey, number>): string {
+  const parts = SUMMARY.filter(([key]) => counts[key] > 0).map(
+    ([key, label]) => `${counts[key]} ${label()}`,
   );
   return parts.length ? parts.join(', ') : m.data_summary_none();
 }

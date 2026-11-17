@@ -1,3 +1,8 @@
+// Account commands record receipts with `@kevinjohn/adonisjs-duplicate-request-guard`
+// (`request_receipts`). The wire contract keeps the standard `Idempotency-Key` header, and
+// CapacityLens's own names follow it (`idempotencyKey`, `isAccountIdempotencyKey`,
+// `IDEMPOTENCY_CONFLICT`); only values passed to the package use its `requestKey` name.
+
 import { RefusalError } from '#exceptions/refusal_error';
 import { randomUUID } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';

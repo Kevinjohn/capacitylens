@@ -11,7 +11,7 @@ As an Editor, I want to archive a project so that its work leaves active views w
 ## Acceptance criteria
 
 - Selecting **Archive {name}** opens **Archive project?** with **Archive** and **Cancel** controls.
-- The dialog explains that phases and allocations are hidden and restorable; when present, their counts are shown.
+- The dialog explains that phases and allocations are hidden and restorable, and states no count. After **Archive**, a notice reports the hidden phases and allocations when there are any.
 - **Cancel** closes the dialog without archiving. **Archive** archives the record.
 - The archived record appears in its archived section with a **Restore** control.
 

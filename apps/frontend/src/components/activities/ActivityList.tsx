@@ -8,7 +8,7 @@ import {
   ListPage,
 } from '@/components/common/ui';
 import { ActivityForm } from './ActivityForm';
-import type { Activity, AppData } from '@capacitylens/shared/types/entities';
+import type { Activity } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
 import { Fragment, useEffect, useMemo, useRef } from 'react';
 import { ClipboardCheck } from 'lucide-react';
@@ -18,15 +18,7 @@ import { useStore } from '@/store/useStore';
 import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
-import { buildActivityArchiveImpactCopy, safeArchiveImpact } from '@/lib/archiveImpactCopy';
-
-// Recheck archive eligibility at render time so a row that became inactive loses only its cascade warning.
-function buildActivityArchiveMessage(data: AppData, activity: Activity): string {
-  const base = m.list_activities_archive_message({ name: activity.name });
-  const impact = safeArchiveImpact(data, 'activities', activity.id);
-  if (!impact) return base;
-  return impact.allocations > 0 ? `${base} ${buildActivityArchiveImpactCopy(impact)}` : base;
-}
+import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy';
 
 interface BoxInput {
   rows: Activity[];
@@ -247,12 +239,20 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
       {confirming && (
         <ConfirmDialog
           title={m.list_activities_archive_title()}
-          message={buildActivityArchiveMessage(data, confirming)}
+          message={m.list_activities_archive_message({ name: confirming.name })}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
-            void deleteActivity(confirming.id).catch((error: unknown) => {
-              if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error');
-            });
+            void deleteActivity(confirming.id).then(
+              (receipt) => {
+                const notice = receipt?.archived
+                  ? buildArchiveImpactNotice('activities', receipt.archived)
+                  : null;
+                if (notice) setNotice(notice);
+              },
+              (error: unknown) => {
+                if (!isShownByPlanningState(error)) setNotice(resolveErrorMessage(error), 'error');
+              },
+            );
             setConfirming(null);
           }}
           onCancel={() => setConfirming(null)}

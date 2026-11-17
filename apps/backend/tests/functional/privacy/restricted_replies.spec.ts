@@ -74,6 +74,8 @@ const COUNTS = 'counts, ids or no body';
 const UNRESTRICTED = 'changes no restricted table and replies with no restricted row';
 const CALLER =
   'committed write whose reply carries only the revision, restoration handles and archive counts';
+const PREVIEW =
+  "Owner only, refused while viewing as: the caller document's name and counts, the revision and a changed flag";
 
 async function readRevision() {
   const row = await db.from('company_planning_revisions').where('account_id', accountId).first();
@@ -363,7 +365,7 @@ const replies: Record<string, Exposure> = {
   'api.planning.timeOff.repeat': { none: CALLER },
   'api.resources.anonymise': { none: COUNTS },
   'api.transfer.apply': { none: COUNTS },
-  'api.transfer.preview': { none: COUNTS },
+  'api.transfer.preview': { none: PREVIEW },
 };
 
 /** Marks one client, project and time-off note, and adds an archived private client. */

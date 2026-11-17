@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCapacityAdvisory } from '@/lib/capacity';
+import { formatCapacityAdvisory } from './advisoryCopy';
 
 describe('formatCapacityAdvisory', () => {
   it('says nothing when neither count is set', () => {

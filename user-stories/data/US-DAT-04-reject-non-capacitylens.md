@@ -26,11 +26,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  file["usePendingImport.readFile reads selected file"] --> parser["parseBetaExport validates JSON and beta document shape"]
-  parser -->|"invalid"| notice["ImportExport reports error before preview or replacement"]
-  parser -->|"valid"| preview["BetaImportPreview.prepareBetaImport checks full import contract"]
-  preview -->|"server apply"| request["TransferController input calls parseRequestDocument"]
-  request --> validate["previewBetaAccountTransfer or applyBetaAccountTransfer prepares document again"]
+  file["usePendingImport.readFile reads selected file"] --> json{"JSON?"}
+  json -->|"no"| notice["ImportExport reports invalid JSON before any request"]
+  json -->|"yes"| request["TransferController.preview calls readRequestDocument"]
+  request --> validate["previewBetaAccountTransfer prepares the full import contract"]
+  validate -->|"invalid"| refused["BetaImportPreview shows the server's reason; nothing changes"]
+  validate -->|"valid"| preview["BetaImportPreview shows the summary; apply validates the document again"]
 ```
 
 **Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [BetaImportPreview.tsx](../../apps/frontend/src/components/import-export/BetaImportPreview.tsx), [betaTransfer.ts](../../packages/shared/src/data/betaTransfer.ts), [transfer_controller.ts](../../apps/backend/app/controllers/transfer_controller.ts), [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts)

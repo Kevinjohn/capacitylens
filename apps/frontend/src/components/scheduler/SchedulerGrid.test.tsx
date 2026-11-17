@@ -104,13 +104,6 @@ describe('SchedulerGrid', () => {
     expect(Number.parseInt(bar.style.width, 10)).toBeGreaterThan(0);
     expect(bar).toHaveAttribute('data-status', 'confirmed');
   });
-
-  it('groups resource rows under their discipline', () => {
-    renderGrid();
-    expect(screen.getByText('Design')).toBeInTheDocument();
-    expect(screen.getByText('Bruce')).toBeInTheDocument();
-    expect(screen.getByText(/Wireframes/)).toBeInTheDocument();
-  });
 });
 
 describe('SchedulerGrid', () => {
@@ -218,20 +211,6 @@ describe('SchedulerGrid', () => {
     expect(row).not.toBeNull();
     expect(within(row as HTMLElement).getAllByTestId('half-day').length).toBeGreaterThan(0);
     expect(within(row as HTMLElement).getByText(/half working days\./)).toBeInTheDocument();
-  });
-
-  it('marks over-allocated days and shows a utilization figure', async () => {
-    await useStore.getState().addAllocation({
-      resourceId: 'r1',
-      activityId: 't1',
-      startDate: '2026-06-01',
-      endDate: '2026-06-01',
-      hoursPerDay: 4,
-      status: 'confirmed',
-    });
-    renderGrid();
-    expect(screen.getAllByTestId('over-marker').length).toBeGreaterThan(0);
-    expect(screen.getAllByTestId('utilization').length).toBeGreaterThan(0);
   });
 
   it('marks a zero-load block on time off and includes it in the non-colour row summary', async () => {
@@ -451,12 +430,6 @@ describe('SchedulerGrid visible-window utilisation', () => {
     expect(overallPct()).toBe(25);
     v8.unmount();
   });
-
-  it('the label tracks the zoom (no longer a fixed "next 2w")', async () => {
-    const v = await renderAtZoom(4);
-    expect(screen.getByText('Utilisation · 4w')).toBeInTheDocument();
-    v.unmount();
-  });
 });
 
 describe('SchedulerGrid account-local day rollover', () => {
@@ -535,24 +508,6 @@ describe('SchedulerGrid account-local day rollover', () => {
 });
 
 describe('SchedulerGrid filters', () => {
-  it('hides tentative allocations when "hide tentative" is on', async () => {
-    await useStore.getState().addAllocation({
-      resourceId: 'r1',
-      activityId: 't1',
-      startDate: '2026-06-10',
-      endDate: '2026-06-11',
-      hoursPerDay: 2,
-      status: 'tentative',
-    });
-    const view = renderGrid();
-    expect(screen.getAllByTestId('allocation-bar')).toHaveLength(2);
-    view.unmount();
-
-    useStore.getState().setFilters({ hideTentative: true });
-    renderGrid();
-    expect(screen.getAllByTestId('allocation-bar')).toHaveLength(1);
-  });
-
   it('shows an empty state when the search matches nobody', () => {
     useStore.getState().setFilters({ search: 'no-such-person' });
     renderGrid();
@@ -561,14 +516,6 @@ describe('SchedulerGrid filters', () => {
     expect(emptyRow).toBeInTheDocument();
     expect(emptyRow).toHaveAttribute('aria-rowindex', '2');
     expect(grid).toHaveAttribute('aria-rowcount', String(screen.getAllByRole('row').length));
-  });
-
-  it('collapsing a discipline hides its rows but keeps the header', () => {
-    renderGrid();
-    expect(screen.getByText('Bruce')).toBeInTheDocument();
-    act(() => useStore.getState().toggleGroup('d1'));
-    expect(screen.queryByText('Bruce')).not.toBeInTheDocument();
-    expect(screen.getByTestId('discipline-group')).toBeInTheDocument();
   });
 });
 

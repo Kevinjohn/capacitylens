@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
 import { companyDataRequests, readImportSummary } from '@/data/companyDataRequests';
 import type { ApplyTransferInput, ImportSummary } from '@/data/companyDataRequests';
 import { runSuspendedReplacement } from '@/store/suspendedReplacement';
@@ -98,7 +97,7 @@ export function useServerImport() {
   }, [busy, dirtySource, setDirtyFormSource]);
 
   const confirm = async (
-    document: BetaExportDocument,
+    document: unknown,
     baseRevision: number,
     confirmationId: string,
   ): Promise<void> => {

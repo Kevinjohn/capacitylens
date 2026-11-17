@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { applyCapacityMode } from '@/lib/capacity';
-import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import { applyCapacityMode } from '../capacity.js';
+import { addDaysISO } from '../dateMath.js';
+import { MAX_SPAN_DAYS } from '../schedulingDays.js';
 
 import {
   valueAt,
@@ -11,7 +11,7 @@ import {
   makeTimeOff,
   makeClosure,
   makeProposal,
-} from '@/test/capacityTestSupport';
+} from './capacity.test.support.js';
 
 describe('capacityAdvisory', () => {
   const r = makeResource();

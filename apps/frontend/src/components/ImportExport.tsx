@@ -15,6 +15,7 @@ import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { companyDataRequests } from '@/data/companyDataRequests';
+import type { TransferPreview } from '@/data/companyDataRequests';
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
@@ -43,10 +44,12 @@ function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
 
 function ImportConfirmation({
   pending,
+  counts,
   onConfirm,
   onCancel,
 }: {
   pending: PendingImport;
+  counts: TransferPreview['counts'];
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -62,7 +65,7 @@ function ImportConfirmation({
           {m.data_import_confirm_mid1()}
           <span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>
           {m.data_import_confirm_mid2()}
-          {summarize(pending.document.data)}
+          {summarize(counts)}
           {outro}
         </>
       }
@@ -147,26 +150,27 @@ export function ImportExport() {
     requiresReload: importRequiresReload,
   } = useServerImport();
   const { busy: exportBusy, exportData } = useExportAction();
-  const [previewRevision, setPreviewRevision] = useState<number | null>(null);
-  const [previewBusy, setPreviewBusy] = useState(false);
+  const [preview, setPreview] = useState<TransferPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [continued, setContinued] = useState(false);
   const [confirmingAction, setConfirmingAction] = useState(false);
-  const continuePreview = async () => {
-    if (!pendingImport || !activeAccountId) return;
+  const clearPendingImport = () => {
+    setPendingImport(null);
+    setPreview(null);
+    setPreviewError(null);
+  };
+  // The server is the only validator: its reply is either the preview or the refusal shown in the modal.
+  const requestPreview = async (pending: PendingImport) => {
+    const accountId = pending.accountId;
+    if (!accountId) return;
     const selection = selectionRef.current;
     const isCurrent = () =>
-      selectionRef.current === selection && useStore.getState().activeAccountId === activeAccountId;
-    setPreviewBusy(true);
+      selectionRef.current === selection && useStore.getState().activeAccountId === accountId;
     try {
-      const revision = await companyDataRequests.readTransferPreviewRevision(
-        activeAccountId,
-        pendingImport.document,
-      );
-      if (!isCurrent()) return;
-      setPreviewRevision(revision);
+      const reply = await companyDataRequests.readTransferPreview(accountId, pending.document);
+      if (isCurrent()) setPreview(reply);
     } catch (error) {
-      if (isCurrent()) setNotice(resolveErrorMessage(error), 'error');
-    } finally {
-      if (isCurrent()) setPreviewBusy(false);
+      if (isCurrent()) setPreviewError(resolveErrorMessage(error));
     }
   };
 
@@ -174,7 +178,7 @@ export function ImportExport() {
     if (!pendingImport) return;
     if (pendingImport.accountId !== useStore.getState().activeAccountId) {
       selectionRef.current += 1;
-      setPendingImport(null);
+      clearPendingImport();
       return;
     }
     setConfirmingAction(true);
@@ -188,56 +192,55 @@ export function ImportExport() {
         exportBusy={exportBusy}
         onExport={() => void exportData()}
         onFile={(file) => {
-          setPreviewRevision(null);
-          setPreviewBusy(false);
-          void readFile(file);
+          setContinued(false);
+          setPreview(null);
+          setPreviewError(null);
+          void readFile(file).then((pending) => {
+            if (pending) void requestPreview(pending);
+          });
         }}
       />
 
       {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
-      {pendingImport && canImport && previewRevision === null && (
+      {pendingImport && canImport && !continued && (
         <Modal
           title={m.data_import_confirm_title()}
           onClose={() => {
             selectionRef.current += 1;
-            setPendingImport(null);
-            setPreviewBusy(false);
+            clearPendingImport();
           }}
           guardDirty={false}
         >
-          {previewBusy ? (
-            <p role="status">{m.data_importing_body()}</p>
-          ) : (
-            <BetaImportPreview
-              document={pendingImport.document}
-              context={{ accountId: activeAccountId ?? '', memberResourceLinks: [] }}
-              onPrepared={() => void continuePreview()}
-            />
-          )}
+          <BetaImportPreview
+            preview={preview}
+            error={previewError}
+            onContinue={() => preview && setContinued(true)}
+          />
         </Modal>
       )}
-      {pendingImport && canImport && previewRevision !== null && !confirmingAction && (
+      {pendingImport && canImport && preview && continued && !confirmingAction && (
         <ImportConfirmation
           pending={pendingImport}
+          counts={preview.counts}
           onConfirm={confirmImport}
           onCancel={() => {
             selectionRef.current += 1;
-            setPendingImport(null);
-            setPreviewRevision(null);
+            clearPendingImport();
+            setContinued(false);
           }}
         />
       )}
-      {pendingImport && activeAccountId && previewRevision !== null && confirmingAction && (
+      {pendingImport && activeAccountId && preview && continued && confirmingAction && (
         <PasswordConfirmationDialog
           action="import"
           accountId={activeAccountId}
-          intent={{ baseRevision: previewRevision, document: pendingImport.document }}
+          intent={{ baseRevision: preview.baseRevision, document: pendingImport.document }}
           onConfirmed={(confirmationId) => {
             setConfirmingAction(false);
-            setPendingImport(null);
-            void confirmServerImport(pendingImport.document, previewRevision, confirmationId);
+            clearPendingImport();
+            void confirmServerImport(pendingImport.document, preview.baseRevision, confirmationId);
           }}
           onCancel={() => setConfirmingAction(false)}
         />
