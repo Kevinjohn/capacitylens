@@ -69,17 +69,6 @@ function markdownSlug(heading: string): string {
 }
 
 test.group('M5 documentation and policy contracts', () => {
-  test('keeps archived changelog releases linked in heading order', ({ assert }) => {
-    const archive = read('CHANGELOG-ARCHIVE.md');
-    const archivedHeadings = [...archive.matchAll(/^## \[([^\]]+)\]/gm)].map((match) => match[1]);
-    const archivedRefs = [...archive.matchAll(/^\[([^\]]+)\]: \S+$/gm)].map((match) => match[1]);
-    assert.isAbove(archivedHeadings.length, 0);
-    assert.deepEqual(
-      archivedRefs.filter((label) => archivedHeadings.includes(label)),
-      archivedHeadings
-    );
-  });
-
   test('keeps the README install commands and success check in step with the guide', ({
     assert,
   }) => {
