@@ -14,12 +14,6 @@ router
       .as('api.planning.archive')
       .use(sensitive());
     router
-      .get('/api/accounts/:accountId/planning/mutations/:mutationId', [
-        PlanningController,
-        'lookup',
-      ])
-      .as('api.planning.lookup');
-    router
       .post('/api/accounts/:accountId/allocations', [PlanningController, 'allocationCreate'])
       .as('api.planning.allocation.create');
     router

@@ -21,7 +21,7 @@ describe('planning cache controller', () => {
     const read = vi
       .fn<PlanningTransport['read']>()
       .mockResolvedValue({ revision: 4, canWrite: true, data: canonicalData() });
-    const h = harness({ execute, read, lookup: vi.fn<PlanningTransport['lookup']>() });
+    const h = harness({ execute, read });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
     const draft = h.controller.begin();
@@ -44,7 +44,6 @@ describe('planning cache controller', () => {
       read: vi
         .fn<PlanningTransport['read']>()
         .mockResolvedValue({ revision: 2, canWrite: true, data: canonicalData() }),
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
@@ -68,7 +67,7 @@ describe('planning cache controller', () => {
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
       Promise.resolve(success(execution.mutationId, 2)),
     );
-    const h = harness({ execute, read, lookup: vi.fn<PlanningTransport['lookup']>() });
+    const h = harness({ execute, read });
     h.controller.setContext(context);
     await h.controller.refresh();
     const draft = h.controller.begin();

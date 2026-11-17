@@ -139,7 +139,7 @@ describe('planning command suspension', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
-        status: 'uncertain',
+        status: 'pending',
         pending: {
           execution: {
             mutationId: 'pending-mutation',

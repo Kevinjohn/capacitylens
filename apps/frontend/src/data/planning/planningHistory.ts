@@ -31,10 +31,7 @@ export function isDeleteIntent(intent: PlanningIntent): boolean {
   return intent.operation.endsWith('.delete') || intent.operation.endsWith('deleteGroup');
 }
 
-export function isLookupHistoryEligible(
-  intent: PlanningIntent,
-  inverse: PlanningIntent | null,
-): boolean {
+export function isHistoryEligible(intent: PlanningIntent, inverse: PlanningIntent | null): boolean {
   if (!inverse) return false;
   return !(
     intent.operation === 'catalogue.update' &&

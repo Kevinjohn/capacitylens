@@ -379,44 +379,6 @@ test.group('authenticated typed planning transactions', (group) => {
     );
   });
 
-  test('lost response lookup is actor/company scoped and absent identity stays unknown', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup);
-    const { cookie } = await signIn(client);
-    const allocation = newAllocation(await readState(accountId, true));
-    const mutationId = randomUUID();
-    const committed = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
-      .json({ mutationId, baseRevision: 0, intent: { operation: 'allocation.create', allocation } })
-      .send();
-    committed.assertStatus(200);
-    const lookup = await session(
-      client.get(`${planningUrl}/mutations/${mutationId}`),
-      cookie
-    ).send();
-    lookup.assertStatus(200);
-    assert.deepEqual(lookup.body(), { status: 'committed', mutationId, revision: 1 });
-    const { cookie: otherCookie } = await signIn(client);
-    const other = await session(
-      client.get(`${planningUrl}/mutations/${mutationId}`),
-      otherCookie
-    ).send();
-    assert.deepEqual(other.body(), { status: 'unknown', mutationId });
-    const unknownId = randomUUID();
-    const unknown = await session(
-      client.get(`${planningUrl}/mutations/${unknownId}`),
-      cookie
-    ).send();
-    assert.deepEqual(unknown.body(), { status: 'unknown', mutationId: unknownId });
-    const foreign = await session(
-      client.get(`/api/accounts/a-loft/planning/mutations/${mutationId}`),
-      cookie
-    ).send();
-    foreign.assertStatus(403);
-  });
-
   test('same-value update has no audit, commitment marker or revision advance', async ({
     client,
     assert,

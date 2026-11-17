@@ -11,7 +11,7 @@ As a company member, I want saved server changes to persist after reload so that
 ## Acceptance criteria
 
 - A committed server change remains after a reload.
-- Stale writes are refused and refreshed for review; uncertain outcomes are checked before retry.
+- Stale writes are refused and refreshed for review. A change whose reply was lost is never resent: the schedule shows the server's data and asks the person to check the change.
 
 ## User flow
 

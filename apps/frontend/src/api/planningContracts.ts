@@ -30,7 +30,6 @@ export type PlanningMutationSuccess = Extract<
   Route.Response<'api.planning.restoreGroup'>,
   { status: 'committed' }
 >;
-export type PlanningMutationLookup = Exclude<Route.Response<'api.planning.lookup'>, void>;
 
 /** A history entry stores ordinary inputs; every Undo and Redo gets new execution metadata. */
 export interface PlanningHistoryEntry<TIntent = PlanningIntent> {

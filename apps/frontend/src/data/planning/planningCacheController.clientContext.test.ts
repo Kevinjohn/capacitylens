@@ -21,7 +21,7 @@ describe('planning cache controller', () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
       .mockResolvedValue(success('mutation-1', 4));
-    const h = harness({ execute, read: vi.fn(), lookup: vi.fn() });
+    const h = harness({ execute, read: vi.fn() });
     setMasqueradeContextToken('captured-idle-context');
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
@@ -40,7 +40,7 @@ describe('planning cache controller', () => {
     const read = vi
       .fn<PlanningTransport['read']>()
       .mockResolvedValue({ revision: 3, canWrite: true, data: canonicalData() });
-    const h = harness({ execute: vi.fn(), read, lookup: vi.fn() });
+    const h = harness({ execute: vi.fn(), read });
     h.controller.setContext(context);
     setMasqueradeContextToken('current-context');
 
@@ -63,7 +63,6 @@ describe('planning cache controller', () => {
     const h = harness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read,
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     h.controller.setContext(context);
     const readPromise = h.controller.refresh();
@@ -90,7 +89,6 @@ describe('planning cache controller', () => {
     const h = harness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     const anonymousIdentity = Symbol('anonymous');
     const anonymous = { identity: anonymousIdentity, companyId: 'company-1' };
@@ -113,7 +111,6 @@ describe('planning cache controller', () => {
     const h = harness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read: vi.fn<PlanningTransport['read']>(),
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     const callerContext = { identity: 'actor-1', companyId: 'company-1' };
     h.controller.setContext(callerContext);
@@ -122,7 +119,7 @@ describe('planning cache controller', () => {
   });
 });
 
-describe.each(['receipt', 'lookup'] as const)('planning %s completion context', (proof) => {
+describe('planning receipt completion context', () => {
   for (const action of ['execute', 'undo', 'redo'] as const) {
     it.each(['sign-out', 'company switch', 'authority change'] as const)(
       `suppresses ${action} completion after %s during the acknowledged read`,
@@ -131,8 +128,7 @@ describe.each(['receipt', 'lookup'] as const)('planning %s completion context', 
           Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
         );
         const read = vi.fn<PlanningTransport['read']>();
-        const lookup = vi.fn<PlanningTransport['lookup']>();
-        const h = harness({ execute, read, lookup });
+        const h = harness({ execute, read });
         h.controller.setContext(context);
         await h.readSnapshot({
           revision: 1,
@@ -147,14 +143,6 @@ describe.each(['receipt', 'lookup'] as const)('planning %s completion context', 
         const revision = baseRevision + 1;
         const delayed = deferred<PlanningSnapshot>();
         read.mockImplementationOnce(() => delayed.promise);
-        if (proof === 'lookup') {
-          execute.mockRejectedValueOnce({ status: 409, code: 'MUTATION_ID_REUSED' });
-          lookup.mockImplementationOnce(async (_context, mutationId) => ({
-            status: 'committed',
-            mutationId,
-            revision,
-          }));
-        }
         const completion =
           action === 'execute'
             ? h.controller.execute(h.controller.begin(), intent, inverse)

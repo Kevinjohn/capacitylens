@@ -24,31 +24,15 @@ describe('resetStoreWithAccount', () => {
     expect(useStore.getState().data.accounts.map(({ id }) => id)).toEqual(['acct-cold-reset']);
   });
 
-  it('clears committed transport history on a repeated same-company reset', async () => {
+  it('restores the seeded rows and revision on a repeated same-company reset', async () => {
     const accountId = 'acct-repeat-reset';
     await resetStoreWithAccount(accountId);
-    const transport = getPlanningTransportHandle();
-    const execute = vi.spyOn(transport, 'execute');
-
     await useStore.getState().updateAccount(accountId, { name: 'Changed Test Co' });
-    const call = execute.mock.calls.at(-1);
-    if (!call) throw new Error('Expected the account update to reach the planning transport.');
-    const [context, execution] = call;
-    const beforeReset = await transport.lookup(
-      context,
-      execution.mutationId,
-      new AbortController().signal,
-    );
-    expect(beforeReset.status).toBe('committed');
+    expect(useStore.getState().planning.revision).toBe(1);
 
     await expect(resetStoreWithAccount(accountId)).resolves.toBe(true);
 
-    const afterReset = await transport.lookup(
-      context,
-      execution.mutationId,
-      new AbortController().signal,
-    );
-    expect(afterReset.status).toBe('unknown');
+    expect(useStore.getState().planning.revision).toBe(0);
     expect(useStore.getState().data.accounts.map(({ name }) => name)).toEqual(['Test Co']);
     expect(useStore.getState().planning.context?.companyId).toBe(accountId);
     expect(useStore.getState().planning.status).toBe('ready');

@@ -18,7 +18,6 @@ const failure = vi.hoisted(() => ({
   holdNextRead: null as Promise<void> | null,
   onHeldRead: null as (() => void) | null,
 }));
-const lookups = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock('@/data/planning/storePlanningTransport', async () => {
   const actual = await vi.importActual<typeof import('@/test/createTestPlanningTransport')>(
@@ -41,10 +40,6 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
         },
         execute: (...args: Parameters<typeof transport.execute>) =>
           failure.execute ? Promise.reject(failure.execute) : transport.execute(...args),
-        lookup: (...args: Parameters<typeof transport.lookup>) => {
-          lookups.count += 1;
-          return transport.lookup(...args);
-        },
       }));
     },
   };
@@ -136,20 +131,16 @@ describe('planning authority publication', () => {
     expect(readPlanningProblem(state.planning)).toBe('refused');
   });
 
-  it('looks up an uncertain write on refresh and keeps an unknown result uncertain', async () => {
+  it('shows the server state after a lost write and asks the person to check it', async () => {
     const allocation = await seedTypedAllocation();
     failure.execute = new TypeError('response lost');
     await expect(
       useStore.getState().updateAllocation(allocation.id, { endDate: '2026-06-03' }),
     ).rejects.toThrow('response lost');
-    expect(useStore.getState().planning.status).toBe('uncertain');
     failure.execute = null;
-    lookups.count = 0;
 
-    await useStore.getState().refreshPlanning();
-
-    expect(lookups.count).toBe(1);
-    expect(useStore.getState().planning.status).toBe('uncertain');
+    expect(useStore.getState().planning.status).toBe('ready');
+    expect(readPlanningProblem(useStore.getState().planning)).toBe('unconfirmed');
     expect(
       useStore.getState().data.allocations.find((row) => row.id === allocation.id)?.endDate,
     ).toBe(allocation.endDate);

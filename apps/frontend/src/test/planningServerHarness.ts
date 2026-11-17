@@ -82,7 +82,6 @@ export async function initializePlanningServerHarness(key: string, companyId: st
   const executions: Harness['executions'] = [];
   const transport: PlanningTransport = {
     read: (context, signal) => realTransport.read(context, signal),
-    lookup: (context, mutationId, signal) => realTransport.lookup(context, mutationId, signal),
     execute: (context, execution, signal) => {
       executions.push(execution);
       return realTransport.execute(context, execution, signal);
@@ -224,12 +223,6 @@ export async function planningHarnessUndo(key: string) {
 export async function planningHarnessRedo(key: string) {
   const harness = requireHarness(key);
   const result = await harness.controller.redo();
-  return { result, executions: harness.executions, state: view(harness.store.getState()) };
-}
-
-export async function planningHarnessReconcile(key: string) {
-  const harness = requireHarness(key);
-  const result = await harness.controller.reconcile();
   return { result, executions: harness.executions, state: view(harness.store.getState()) };
 }
 
