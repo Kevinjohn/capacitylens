@@ -33,6 +33,7 @@ interface CurrentAccessCardProps {
 }
 
 interface AccessManagementProps {
+  masqueradeActive: boolean;
   mayManage: boolean;
   permissionStatus: ReturnType<typeof usePermissionStatus>;
 }
@@ -126,7 +127,11 @@ function CurrentAccessCard({
   );
 }
 
-function AccessManagement({ mayManage, permissionStatus }: AccessManagementProps) {
+function AccessManagement({
+  masqueradeActive,
+  mayManage,
+  permissionStatus,
+}: AccessManagementProps) {
   if (mayManage) return <MembersSection />;
   if (permissionStatus !== 'resolved') return null;
 
@@ -136,7 +141,9 @@ function AccessManagement({ mayManage, permissionStatus }: AccessManagementProps
         <CardTitle>
           <h2>{m.access_management_heading()}</h2>
         </CardTitle>
-        <CardDescription>{m.access_management_restricted()}</CardDescription>
+        <CardDescription>
+          {masqueradeActive ? m.access_management_masquerade() : m.access_management_restricted()}
+        </CardDescription>
       </CardHeader>
     </Card>
   );
@@ -159,7 +166,10 @@ export function TeamAccessView() {
     role: resolvedRole,
   };
   const accessLabel = resolveAccessLabel(accessCopyInput);
-  const accessSummary = resolveAccessSummary(accessCopyInput);
+  // A view-as is read-only whatever the viewed member's role, so the role summary would overclaim.
+  const accessSummary = masqueradeActive
+    ? m.notice_masquerade_read_only()
+    : resolveAccessSummary(accessCopyInput);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
@@ -176,7 +186,11 @@ export function TeamAccessView() {
 
       {/* Resolve permission before mounting: lower roles must not issue privileged directory reads
           merely by visiting this page. */}
-      <AccessManagement mayManage={mayManage} permissionStatus={permissionStatus} />
+      <AccessManagement
+        masqueradeActive={masqueradeActive}
+        mayManage={mayManage}
+        permissionStatus={permissionStatus}
+      />
 
       {!masqueradeActive && isOwnerOrAdmin(resolvedRole) && (
         <AdmissionRequestsPanel key={JSON.stringify([activeAccountId, user?.id])} />

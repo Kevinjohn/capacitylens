@@ -17,22 +17,16 @@ import { api, scopeQueryKey } from '@/api/queryClient';
 // selectable but fail closed without claiming an authoritative Viewer membership.
 function parseAccountSummary(entry: unknown): AccountSummary | null {
   if (!isRecord(entry)) return null;
-  const summaryRecord = entry;
-  if (typeof summaryRecord.id !== 'string' || summaryRecord.id.length === 0) return null;
-  if (typeof summaryRecord.name !== 'string') return null;
-  const grant = isAccountRole(summaryRecord.role) ? parseAccessGrant(summaryRecord) : null;
-  if (!isAccountRole(summaryRecord.role) || !grant) {
+  if (typeof entry.id !== 'string' || entry.id.length === 0) return null;
+  if (typeof entry.name !== 'string') return null;
+  const grant = parseAccessGrant(entry);
+  if (!isAccountRole(entry.role) || !grant) {
     console.warn(
       'fetchAccountSummaries: /api/accounts returned an unrecognized role or grant; marking it unavailable',
     );
-    return {
-      id: summaryRecord.id,
-      name: summaryRecord.name,
-      role: 'viewer',
-      roleStatus: 'unavailable',
-    };
+    return { id: entry.id, name: entry.name, role: 'viewer', roleStatus: 'unavailable' };
   }
-  return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role, grant };
+  return { id: entry.id, name: entry.name, role: entry.role, grant };
 }
 
 type AccountSummaryParseOutcome =

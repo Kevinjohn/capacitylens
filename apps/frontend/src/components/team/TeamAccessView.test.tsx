@@ -114,6 +114,46 @@ describe('TeamAccessView access presentation', () => {
       'Not allowed:',
     );
   });
+
+  it('summarises a view-as as read-only instead of describing the viewed role', () => {
+    useStore.setState({
+      masquerade: {
+        kind: 'active',
+        generation: 1,
+        state: {
+          accountId: 'a-studio',
+          targetUserId: 'target-user',
+          targetName: 'Kara Danvers',
+          effectiveRole: 'admin',
+          ...viewAsGrantFor('admin'),
+          startedAt: '2026-09-01T10:00:00.000Z',
+          expiresAt: '2999-09-01T10:15:00.000Z',
+          token: 'session-token',
+        },
+      },
+    });
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={auth()}>
+          <PermissionContext.Provider
+            value={{ role: 'admin', status: 'resolved', grant: viewAsGrantFor('admin') }}
+          >
+            <TeamAccessView />
+          </PermissionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+
+    const card = screen.getByTestId('current-access');
+    expect(card).toHaveTextContent('Admin');
+    expect(card).toHaveTextContent('Masquerade is read-only.');
+    expect(card).not.toHaveTextContent(/Can edit the schedule/);
+    expect(
+      screen.getByText('Invitations and membership changes are not available during a masquerade.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/An Owner or Admin manages invitations/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
+  });
 });
 
 describe('TeamAccessView member management', () => {

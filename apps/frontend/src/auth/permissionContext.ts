@@ -2,8 +2,9 @@ import { createContext, useContext } from 'react';
 import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
 
 // The server sends the effective member's grant: its permission keys and the field-visibility
-// flags. The browser shows or hides controls from the grant and never evaluates a role. A view-as
-// grant holds only `planning:read`.
+// flags. The browser shows or hides permission-gated controls from the grant; a view-as grant holds
+// only `planning:read`. The Owner-or-Admin, Capacity Overview and sole-Owner checks still read the
+// role.
 
 /** The most restricted grant: no keys and neither field flag. Pending and unavailable states use it. */
 export const NO_ACCESS: AccessGrant = Object.freeze({

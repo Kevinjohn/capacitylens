@@ -87,9 +87,7 @@ export async function currentMasquerade(
         break;
       }
     }
-    if (!accountId || !effectiveRole) {
-      throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
-    }
+    if (!accountId) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   }
   // An empty display name falls through to the email, so these are string-or-empty, not nullable.
   const displayName = String(target.display_name ?? '');
