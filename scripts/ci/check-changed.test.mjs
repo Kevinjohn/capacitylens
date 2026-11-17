@@ -158,6 +158,19 @@ test('deleted paths select checks but are never passed to file tools', () => {
 test('a changed tooling module runs its own test file', () => {
   const steps = planChecks(['tooling/ports.mjs'], everything, noImporters);
   assert.deepEqual(step(steps, 'test: 1 script test').args, ['--test', 'tooling/ports.test.mjs']);
+  assert.ok(step(steps, 'lint: 1 file(s)'));
+});
+
+test('a changed reset harness runs the backend suite and the script tests that load it', () => {
+  const harness = 'tooling/e2e_reset_control.ts';
+  const steps = planChecks([harness], everything, (path) =>
+    path === harness ? ['scripts/e2e/e2eReset.test.mjs'] : [],
+  );
+  assert.ok(step(steps, 'test: backend suite'));
+  assert.deepEqual(step(steps, 'test: 1 script test').args, [
+    '--test',
+    'scripts/e2e/e2eReset.test.mjs',
+  ]);
 });
 
 test('a changed script runs its own test file when one exists', () => {

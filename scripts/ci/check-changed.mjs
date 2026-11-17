@@ -221,6 +221,9 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const suiteReasons = [];
   if (sharedChanged) suiteReasons.push('the shared contract package changed');
   if (workspaceChanged) suiteReasons.push('dependencies or workspace configuration changed');
+  // The backend loads the reset harness from tooling/, and its entry spec checks when it loads.
+  if (paths.some((path) => path.startsWith('tooling/e2e_')))
+    suiteReasons.push('the reset harness the backend loads changed');
   const mappedSpecs = new Map();
   for (const path of backendSources) {
     if (backendSuiteInput.test(path) || backendPermissionFile.test(path)) {
@@ -259,7 +262,7 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const frontendTests = present.filter((path) => frontendTest.test(path) && path !== docsSiteTest);
   const frontendLint = presentCode.filter((path) => path.startsWith('apps/frontend/'));
   const rootLint = presentCode.filter((path) =>
-    /^(?:scripts|e2e|packages\/shared\/src)\//.test(path),
+    /^(?:scripts|e2e|tooling|packages\/shared\/src)\//.test(path),
   );
   const backendLint = presentCode.filter((path) => path.startsWith('apps/backend/'));
   const related = presentCode.filter(
@@ -286,12 +289,13 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const scriptTests = [
     ...new Set(
       paths
-        .filter((path) => /^(?:scripts|tooling)\/.+\.mjs$/.test(path))
-        .flatMap((path) =>
-          path.endsWith('.test.mjs')
-            ? [path]
-            : [path.replace(/\.mjs$/, '.test.mjs'), ...testsImporting(path)],
-        )
+        .filter((path) => /^(?:scripts|tooling)\/.+\.(?:mjs|ts)$/.test(path))
+        .flatMap((path) => {
+          if (path.endsWith('.test.mjs')) return [path];
+          // A TypeScript helper has no sibling test of its own; its importers test it.
+          const sibling = path.endsWith('.mjs') ? [path.replace(/\.mjs$/, '.test.mjs')] : [];
+          return [...sibling, ...testsImporting(path)];
+        })
         .filter(exists),
     ),
   ];

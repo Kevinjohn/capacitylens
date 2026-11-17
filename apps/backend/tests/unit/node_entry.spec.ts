@@ -81,7 +81,7 @@ test('native web entry loads the isolated-worker harness only when reset is enab
       `import { registerHooks } from 'node:module';
 registerHooks({
   load(url, context, nextLoad) {
-    if (url.includes('/start/e2e_')) process.stderr.write('harness-loaded\\n');
+    if (url.includes('/tooling/e2e_')) process.stderr.write('harness-loaded\\n');
     return nextLoad(url, context);
   },
 });`
