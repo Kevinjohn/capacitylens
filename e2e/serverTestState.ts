@@ -289,7 +289,12 @@ export async function serverState(
     }>
   >
 > {
-  const response = await request.get(`${target.api}/api/state`, { maxRetries: 1 });
+  const response = await request.get(
+    `${target.api}/api/state?accountId=a-studio&includeInactive=1`,
+    {
+      maxRetries: 1,
+    },
+  );
   expect(response.ok()).toBeTruthy();
   return response.json();
 }

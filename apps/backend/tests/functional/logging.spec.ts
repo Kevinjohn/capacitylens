@@ -145,7 +145,9 @@ test.group('general HTTP logging privacy', (group) => {
       throw new Error(secret);
     }) as typeof Account.query;
     try {
-      const { output, result } = await captureLogs(() => client.get('/api/state').send());
+      const { output, result } = await captureLogs(() =>
+        client.get('/api/state?accountId=a-studio').send()
+      );
       assert.equal(result.status(), 500);
       assert.include(output, '"event":"http.request.error"');
       assert.include(output, '"errorType":"unexpected"');
@@ -294,7 +296,7 @@ test.group('general HTTP logging privacy', (group) => {
       throw new Error(privateError);
     }) as typeof Account.query;
     try {
-      const captured = await captureLogs(() => client.get('/api/state').send());
+      const captured = await captureLogs(() => client.get('/api/state?accountId=a-studio').send());
       assert.notInclude(captured.output, privateError);
       assert.equal(captured.result.status(), 500);
       assert.deepEqual(captured.result.body(), { error: 'Internal server error.' });

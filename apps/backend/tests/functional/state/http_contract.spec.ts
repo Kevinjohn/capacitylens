@@ -23,6 +23,11 @@ test.group('M1 HTTP contract', (group) => {
     const empty = await client.get('/api/state?accountId=');
     assert.equal(empty.status(), 400);
     assert.equal(empty.body().code, 'VALIDATION_ERROR');
+    const missing = await client.get('/api/state');
+    assert.equal(missing.status(), 400);
+    const refusal = missing.body() as unknown as { code: string; error: string };
+    assert.equal(refusal.code, 'VALIDATION_ERROR');
+    assert.include(refusal.error, 'accountId');
     const repeated = await client.get('/api/state?accountId=a-studio&accountId=a-loft');
     assert.equal(repeated.status(), 400);
     const whitespace = await client.get('/api/state?accountId=%20%20');

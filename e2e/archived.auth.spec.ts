@@ -82,9 +82,12 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
   await reloaded;
   await waitForAppLanding(page, page.locator('#main'));
 
-  const stateResponse = await request.get(`${AUTH_API}/api/state`, {
-    headers: { cookie: owner.cookie },
-  });
+  const stateResponse = await request.get(
+    `${AUTH_API}/api/state?accountId=${accountId}&includeInactive=1`,
+    {
+      headers: { cookie: owner.cookie },
+    },
+  );
   expect(stateResponse.status()).toBe(200);
   const state = (await stateResponse.json()) as {
     accounts: Array<{ id: string }>;

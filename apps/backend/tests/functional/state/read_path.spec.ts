@@ -86,15 +86,6 @@ test.group('M1 read path', (group) => {
     const identity = await client.get('/api/auth/me');
     identity.assertStatus(200);
     assert.equal(identity.body().user.email, 'bruce.wayne@wayne.example');
-    const unscoped = await client.get('/api/state');
-    unscoped.assertStatus(200);
-    assert.deepEqual(
-      unscoped
-        .body()
-        .accounts.map(({ id }: { id: string }) => id)
-        .sort(),
-      ['a-loft', 'a-studio']
-    );
   });
 
   test('exposes liveness and readiness', async ({ client, assert }) => {
