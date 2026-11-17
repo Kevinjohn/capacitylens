@@ -16,6 +16,10 @@ test('production refuses bootstrap, invalid limiter, and reset settings', ({ ass
   for (const rateLimit of ['0', ' 100 ', '1e3', '12.5', '+100', '2000000'])
     assert.throws(() => assertProductionPosture({ ...safe, rateLimit }), /RATE_LIMIT/);
   assert.throws(() => assertProductionPosture({ ...safe, allowReset: true }), /ALLOW_RESET/);
+  assert.throws(
+    () => assertProductionPosture({ ...safe, fixedToday: '2026-06-03' }),
+    /FIXED_TODAY/
+  );
 });
 
 for (const failedOperation of ['grantInvitation', 'approve'] as const) {
