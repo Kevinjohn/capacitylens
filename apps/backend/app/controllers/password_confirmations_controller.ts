@@ -1,3 +1,9 @@
+// The wire names are `POST /api/auth/password-confirmation`, `confirmationId`,
+// `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`.
+//
+// Confirmations are pruned globally after successful issuance, outside every transaction; a pruning
+// failure cannot fail the issuance response.
+
 import type { HttpContext } from '@adonisjs/core/http';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import {

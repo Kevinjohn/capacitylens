@@ -6,6 +6,7 @@ import {
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isOnClosure, isOnTimeOff } from '@/lib/capacity';
+import { NO_CLOSURES, NO_TIME_OFF } from './schedulerModelIndexing';
 import type {
   Closure,
   ISODate,
@@ -72,10 +73,6 @@ export function resolveEffectiveWorkingDays(
 
 /** Distinguishes a blocked working calendar from personal time off. An allocation override may bypass calendars, but it never bypasses time off. */
 export type CreationBlockReason = 'non-working' | 'time-off';
-
-// Share an empty time-off list because move eligibility needs only calendars on the pointer hot path.
-const NO_TIME_OFF: TimeOff[] = [];
-const NO_CLOSURES: Closure[] = [];
 
 /** The start-of-gesture gate, shared by every surface that asks "may a bar start on this
  * resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the

@@ -10,8 +10,11 @@ const scope = new ScopeMiddleware();
 
 /**
  * Refuses a company route before its handler unless the route's user holds an active membership
- * in `:accountId`; under view-as that user is the viewed-as member. The refusal matches what the
- * handler's own check answers, which still runs inside the product transaction.
+ * in `:accountId`; under view-as that user is the viewed-as member. Every route with `:accountId`
+ * in its path runs the Access Control package's `scope` middleware through this one, after
+ * authentication. The refusal matches what the handler's own check answers: the package's
+ * `memberships.authorize` inside the product transaction, which still runs and is the only check
+ * on a route that takes the company id from the body.
  */
 export default class CompanyScopeMiddleware {
   async handle(ctx: HttpContext, next: NextFn, options: { planning?: boolean } = {}) {

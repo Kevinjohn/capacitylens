@@ -5,7 +5,7 @@ import { client, scopeQueryKey } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';

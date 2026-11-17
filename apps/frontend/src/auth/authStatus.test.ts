@@ -84,7 +84,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { sessionRequests } = await import('@/account/sessionRequests');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { getMasqueradeContextToken, setMasqueradeContextToken } =
-      await import('./masqueradeContext');
+      await import('@/api/masqueradeContext');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
       contextToken: 'idle-context',
@@ -110,7 +110,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeController } = await import('./masqueradeControllerInstance');
     const { getMasqueradeContextToken, setMasqueradeContextToken } =
-      await import('./masqueradeContext');
+      await import('@/api/masqueradeContext');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
       contextToken: 'new-idle-context',
@@ -179,7 +179,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeController } = await import('./masqueradeControllerInstance');
     const { useStore } = await import('@/store/useStore');
-    const { getMasqueradeContextToken } = await import('./masqueradeContext');
+    const { getMasqueradeContextToken } = await import('@/api/masqueradeContext');
     let resolveStatus!: (status: Awaited<ReturnType<typeof masqueradeApi.status>>) => void;
     const status = vi.spyOn(masqueradeApi, 'status').mockReturnValue(
       new Promise((resolve) => {

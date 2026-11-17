@@ -6,7 +6,7 @@ import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readCalendarToday } from '@/lib/calendarToday';
-import { chooseOption } from './__tests__/schedulerTestKit';
+import { chooseOption } from '@/test/schedulerTestKit';
 import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
@@ -18,7 +18,7 @@ import {
   resetAllocationModalStore,
   restoreStoreAllocationActions,
   renderAsOwner,
-} from './__tests__/allocationModalTestKit';
+} from '@/test/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]

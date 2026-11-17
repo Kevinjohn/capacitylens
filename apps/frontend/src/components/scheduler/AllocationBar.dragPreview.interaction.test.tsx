@@ -5,11 +5,7 @@ import { AllocationBar } from './AllocationBar';
 import { buildAllocationBarInset } from './layout';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithData, resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
-import {
-  renderWithOwnerAndTooltip as render,
-  GEOM,
-  indexAtClientX,
-} from './__tests__/schedulerTestKit';
+import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import {
   barFor,
@@ -17,7 +13,7 @@ import {
   rect,
   seedAllocation,
   settlePlanning,
-} from './__tests__/allocationBarInteractionTestKit';
+} from '@/test/allocationBarInteractionTestKit';
 
 beforeEach(async () => resetStoreWithAccount());
 

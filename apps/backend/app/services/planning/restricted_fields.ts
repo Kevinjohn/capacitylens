@@ -1,4 +1,4 @@
-import type { ScopedEntityKey } from '@capacitylens/shared/types/entities';
+import type { Client, Project, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { redactPrivateName } from '@capacitylens/shared/domain/privateNames';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 
@@ -81,8 +81,9 @@ export function projectForReader<T extends object>(
 ): T {
   const rule = restrictionFor(table, capabilities);
   if (!rule) return row;
+  // Only clients and projects have private-row fields, so a row reaching redaction is one of them.
   let projected = (
-    rule.privateRowFields.length > 0 ? redactPrivateName(row as never) : row
+    rule.privateRowFields.length > 0 ? redactPrivateName(row as T & (Client | Project)) : row
   ) as Record<string, unknown>;
   for (const field of rule.fields) {
     if (rule.shownOnRead.includes(field)) continue;

@@ -1,9 +1,10 @@
 import { m } from '@/i18n';
 import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
+import { buildRepeatedAllocationDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings';
 import { resolveDomainErrorMessage, resolveErrorMessage } from '@/lib/errorMessage';
-import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from '@/lib/repeatingAllocations';
+import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
 import { parseText } from '@/lib/validation';
 import type { useStore } from '@/store/useStore';
 import { resolveEndDate, validateAllocationDraft } from './allocationDraft';

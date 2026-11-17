@@ -15,8 +15,9 @@ import {
   TextField,
 } from '@/components/common/ui';
 import type { Option } from '@/components/common/ui';
+import { buildProjectOptions } from '@/components/common/projectOptions';
 import { FieldError } from '@/components/ui/field';
-import type { Activity, ActivityKind, Client, Project } from '@capacitylens/shared/types/entities';
+import type { Activity, ActivityKind } from '@capacitylens/shared/types/entities';
 import { ACTIVITY_KIND_ORDER } from './activityKinds';
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
@@ -29,45 +30,6 @@ const buildKindOptions = (): { value: ActivityKind; label: string }[] => {
   };
   return ACTIVITY_KIND_ORDER.map((value) => ({ value, label: labels[value] }));
 };
-
-interface ProjectOptionsInput {
-  projects: Project[];
-  clients: Client[];
-  rawProjects?: Project[];
-  rawClients?: Client[];
-  activity?: Activity;
-}
-
-function buildProjectOptions({
-  projects,
-  clients,
-  rawProjects = [],
-  rawClients = [],
-  activity,
-}: ProjectOptionsInput): Option[] {
-  const options = projects.map((project) => {
-    const client = clients.find((candidate) => candidate.id === project.clientId);
-    return { value: project.id, label: client ? `${client.name} / ${project.name}` : project.name };
-  });
-  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) {
-    return options;
-  }
-
-  const rawProject = rawProjects.find((project) => project.id === activity.projectId);
-  const rawClient = rawProject && rawClients.find((client) => client.id === rawProject.clientId);
-  return [
-    ...options,
-    {
-      value: activity.projectId,
-      label: rawProject
-        ? m.list_label_archived({
-            name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name,
-          })
-        : m.form_option_current_archived(),
-      disabled: true,
-    },
-  ];
-}
 
 function useActivityFields(activity?: Activity) {
   const [name, setName] = useState(activity?.name ?? '');
@@ -151,20 +113,18 @@ function ActivityFields(props: ActivityFieldsProps) {
 function useProjectOptions(activity?: Activity) {
   const { projects, clients } = useActiveScopedData();
   const raw = useScopedData();
-  const baseOptions = useMemo(
-    () => buildProjectOptions({ projects, clients }),
-    [projects, clients],
+  const currentProjectId = activity?.projectId;
+  return useMemo(
+    () =>
+      buildProjectOptions({
+        projects,
+        clients,
+        rawProjects: raw.projects,
+        rawClients: raw.clients,
+        currentProjectId,
+      }),
+    [projects, clients, raw.projects, raw.clients, currentProjectId],
   );
-  if (!activity?.projectId || projects.some((project) => project.id === activity.projectId)) {
-    return baseOptions;
-  }
-  return buildProjectOptions({
-    projects,
-    clients,
-    rawProjects: raw.projects,
-    rawClients: raw.clients,
-    activity,
-  });
 }
 
 /** Creates or edits an activity and closes after save or cancel. Only project activities carry project and phase attribution. */

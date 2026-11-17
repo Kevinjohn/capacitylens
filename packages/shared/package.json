@@ -63,6 +63,11 @@
       "types": "./src/domain/errors.ts",
       "default": "./dist/domain/errors.js"
     },
+    "./domain/gettingStarted": {
+      "development": "./src/domain/gettingStarted.ts",
+      "types": "./src/domain/gettingStarted.ts",
+      "default": "./dist/domain/gettingStarted.js"
+    },
     "./domain/lifecycle": {
       "development": "./src/domain/lifecycle.ts",
       "types": "./src/domain/lifecycle.ts",
@@ -152,6 +157,11 @@
       "development": "./src/lib/repeatingDates.ts",
       "types": "./src/lib/repeatingDates.ts",
       "default": "./dist/lib/repeatingDates.js"
+    },
+    "./lib/repeatingOccurrences": {
+      "development": "./src/lib/repeatingOccurrences.ts",
+      "types": "./src/lib/repeatingOccurrences.ts",
+      "default": "./dist/lib/repeatingOccurrences.js"
     },
     "./lib/schedulingDays": {
       "development": "./src/lib/schedulingDays.ts",

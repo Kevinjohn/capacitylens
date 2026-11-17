@@ -5,7 +5,7 @@ import type { Account, AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { makeAccount } from '@/test/fixtures';
 
 export const context = { identity: 'actor-1', companyId: 'company-1' };

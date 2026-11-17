@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useCan } from '@/auth/permissionContext';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { companyDataRequests } from '@/data/companyDataRequests';
-import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
-import type { SuspendedReplacementOutcome } from '@/data/planning/suspendedReplacement';
+import { runSuspendedReplacement } from '@/store/suspendedReplacement';
+import type { SuspendedReplacementOutcome } from '@/store/suspendedReplacement';
 import { useScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
+import type { SetNotice } from '@/store/types';
 import { Button } from '@/components/ui/button';
 import { SettingsSection } from './SettingsSection';
 import { CompanyAnonymiseSection } from './CompanyAnonymiseSection';
@@ -22,8 +23,6 @@ function useCompanyIsEmpty(): boolean {
     data.allocations.length === 0
   );
 }
-
-type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
 
 function reportExampleData(outcome: SuspendedReplacementOutcome, setNotice: SetNotice): void {
   switch (outcome.kind) {

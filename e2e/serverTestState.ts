@@ -1,11 +1,11 @@
 import { expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
-import { resolveLane, workerPorts } from '../scripts/dev/ports.mjs';
+import { resolveLane, workerPorts } from '../tooling/ports.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, realpathSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { requestResetControl } from '../apps/backend/start/e2e_reset_control.ts';
+import { requestResetControl } from '../tooling/e2e_reset_control.ts';
 
 const backendDirectory = fileURLToPath(new URL('../apps/backend/', import.meta.url));
 
@@ -289,7 +289,12 @@ export async function serverState(
     }>
   >
 > {
-  const response = await request.get(`${target.api}/api/state`, { maxRetries: 1 });
+  const response = await request.get(
+    `${target.api}/api/state?accountId=a-studio&includeInactive=1`,
+    {
+      maxRetries: 1,
+    },
+  );
   expect(response.ok()).toBeTruthy();
   return response.json();
 }

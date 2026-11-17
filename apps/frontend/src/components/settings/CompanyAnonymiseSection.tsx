@@ -3,7 +3,7 @@ import { m } from '@/i18n';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { useCan } from '@/auth/permissionContext';
 import { companyDataRequests } from '@/data/companyDataRequests';
-import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
+import { runSuspendedReplacement } from '@/store/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { reloadPage } from '@/lib/reloadPage';
 import { useStore } from '@/store/useStore';

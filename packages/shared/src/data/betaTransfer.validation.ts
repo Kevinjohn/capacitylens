@@ -13,7 +13,12 @@ import {
 } from '../lib/strings.js';
 import { parseResourceAvatarUrl } from '../domain/resourceAvatarUrl.js';
 import { halfDaysWithinWorkingDays, sameWeekdays } from '../domain/resourceWorkingPattern.js';
-import { externalCapacityDefaults, placeholderCapacityDefaults } from '../types/entities.js';
+import {
+  ACTIVITY_KINDS,
+  RESOURCE_KINDS,
+  externalCapacityDefaults,
+  placeholderCapacityDefaults,
+} from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { assert, isId, isOneOf, own } from './betaTransfer.errors.js';
 import { FIELDS } from './betaTransfer.fields.js';
@@ -166,7 +171,7 @@ function validateDisciplineRow(row: Row, path: string): void {
 }
 
 function validateResourceRow(row: Row, path: string): void {
-  assert(isOneOf(row.kind, ['person', 'placeholder', 'external']), `${path}.kind`, 'is invalid');
+  assert(isOneOf(row.kind, RESOURCE_KINDS), `${path}.kind`, 'is invalid');
   assertNullableText(row, 'name', path);
   assertText(row, 'role', path, { allowEmpty: true });
   assert(nullable(row.avatarUrl, isString), `${path}.avatarUrl`, 'must be a string or null');
@@ -294,7 +299,7 @@ function validatePhaseRow(row: Row, path: string): void {
 
 function validateActivityRow(row: Row, path: string): void {
   assertText(row, 'name', path);
-  assert(isOneOf(row.kind, ['project', 'internal', 'repeatable']), `${path}.kind`, 'is invalid');
+  assert(isOneOf(row.kind, ACTIVITY_KINDS), `${path}.kind`, 'is invalid');
   assertNullableId(row, 'projectId', path);
   assertNullableId(row, 'phaseId', path);
   assertNullableTimestamp(row, 'archivedAt', path);

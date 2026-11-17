@@ -1,4 +1,4 @@
-import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
@@ -6,13 +6,13 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { resolveLane, workerPorts } from '../dev/ports.mjs';
+import { resolveLane, workerPorts } from '../../tooling/ports.mjs';
 import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs';
 import {
   cleanupResetControlEndpoints,
   createResetControlToken,
   resetControlEndpoint,
-} from '../../apps/backend/start/e2e_reset_control.ts';
+} from '../../tooling/e2e_reset_control.ts';
 
 const lane = resolveLane();
 const slot = E2E_SCRIPT_TEST_SLOTS.runtime;
@@ -285,7 +285,7 @@ test(
         [
           '--input-type=module',
           '-e',
-          `import { createResetControlServer } from ${JSON.stringify(new URL('../../apps/backend/start/e2e_reset_control.ts', import.meta.url).href)}; const server = createResetControlServer(${JSON.stringify(resetToken)}, 'api', { status: () => ({}), pause: async () => ({}), resume: async () => ({}) }); await server.ready; process.exit(0);`,
+          `import { createResetControlServer } from ${JSON.stringify(new URL('../../tooling/e2e_reset_control.ts', import.meta.url).href)}; const server = createResetControlServer(${JSON.stringify(resetToken)}, 'api', { status: () => ({}), pause: async () => ({}), resume: async () => ({}) }); await server.ready; process.exit(0);`,
         ],
         { cwd: process.cwd(), encoding: 'utf8' },
       );

@@ -2,12 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { useNavigate } from 'react-router-dom';
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from '@/lib/joinedAccountHandoff';
 import { transitionAccount } from '@/auth/accountTransition';
-import type { useStore } from '@/store/useStore';
+import type { StoreState } from '@/store/types';
 
 // Which company the shell enters at bootstrap: a joined-account handoff from the URL, or the only
 // company once the directory proves there is exactly one.
-
-type StoreState = ReturnType<typeof useStore.getState>;
 
 interface JoinedAccountHandoffInput {
   accountSummaries: StoreState['accountSummaries'];

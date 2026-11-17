@@ -30,7 +30,7 @@ import {
   resolveLaunchClaim,
   shareForClaims,
 } from './laneClaims.mjs';
-import { LANE_CEILING, LANE_CLAIM_ENVIRONMENT_KEY, portsForLane } from './ports.mjs';
+import { LANE_CEILING, LANE_CLAIM_ENVIRONMENT_KEY, portsForLane } from '../../tooling/ports.mjs';
 
 function scratch() {
   const cache = mkdtempSync(join(tmpdir(), 'lanes-'));

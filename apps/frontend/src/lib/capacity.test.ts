@@ -17,8 +17,8 @@ import {
   makeTimeOff,
   makeClosure,
   makeProposal,
-} from './capacity/capacityTestSupport';
-import type { CapacityCaseInput } from './capacity/capacityTestSupport';
+} from '@/test/capacityTestSupport';
+import type { CapacityCaseInput } from '@/test/capacityTestSupport';
 
 function registerSemanticsTableTests(
   cases: readonly CapacityCaseInput[],

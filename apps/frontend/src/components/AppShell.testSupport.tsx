@@ -69,7 +69,18 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
             })),
           );
         }
-        if (url.pathname.includes('/getting-started')) return Response.json({ dismissed: true });
+        if (url.pathname.includes('/getting-started')) {
+          return Response.json({
+            dismissed: true,
+            steps: {
+              person: false,
+              client: false,
+              project: false,
+              activity: false,
+              scheduled: false,
+            },
+          });
+        }
         return Response.json({ active: false, contextToken: 'idle' });
       }),
     );

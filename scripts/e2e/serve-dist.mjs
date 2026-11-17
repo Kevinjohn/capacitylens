@@ -4,7 +4,7 @@ import { stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parsePort } from '../dev/parsePort.mjs';
-import { ports } from '../dev/ports.mjs';
+import { ports } from '../../tooling/ports.mjs';
 
 const DEFAULT_DIST = join(process.cwd(), 'dist');
 /**
