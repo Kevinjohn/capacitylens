@@ -8,6 +8,7 @@ import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
 import { companyDocument } from '@/test/companyDocument';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
+import { permissionValue } from '@/test/permissionGrants';
 
 const refreshOverride = vi.hoisted(() => ({ result: { kind: 'reloaded' } as { kind: string } }));
 const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
@@ -47,7 +48,7 @@ function renderTools() {
     },
   });
   return render(
-    <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+    <PermissionContext.Provider value={permissionValue('owner', 'resolved')}>
       <ImportExport />
     </PermissionContext.Provider>,
   );
@@ -388,7 +389,7 @@ describe('beta import and export', () => {
     'hides server import from a %s while keeping export',
     (role) => {
       render(
-        <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+        <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
           <ImportExport />
         </PermissionContext.Provider>,
       );

@@ -152,6 +152,32 @@ test.group('native read-only masquerade', (group) => {
     assert.equal((write.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
   });
 
+  test('sends only the read key and the target flags while viewing an Editor', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, targetId } = await fixture(client, 'editor');
+    const started = await startView(client, cookie, targetId);
+    started.assertStatus(200);
+    const grantOf = (body: Record<string, unknown>) => ({
+      effectiveRole: body.effectiveRole,
+      permissions: body.permissions,
+      canSeePrivateNames: body.canSeePrivateNames,
+      canSeeTimeOffNote: body.canSeeTimeOffNote,
+    });
+    const readOnly = {
+      effectiveRole: 'editor',
+      permissions: ['planning:read'],
+      canSeePrivateNames: false,
+      canSeeTimeOffNote: false,
+    };
+    assert.deepEqual(grantOf(started.body()), readOnly);
+    const status = await asSession(client.get('/api/masquerade?accountId=a-studio'), cookie).send();
+    status.assertStatus(200);
+    assert.isTrue(status.body().active);
+    assert.deepEqual(grantOf(status.body()), readOnly);
+  });
+
   test('rejects planning reads carrying a context from before a remote mode change', async ({
     client,
     assert,

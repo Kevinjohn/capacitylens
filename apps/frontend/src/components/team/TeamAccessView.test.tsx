@@ -9,6 +9,7 @@ import { teamAccessClient } from '@/account/teamAccessClient';
 import type { AdmissionRequest } from '@/account/teamAccessClient';
 import { TeamAccessView } from './TeamAccessView';
 import { useStore } from '@/store/useStore';
+import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 
 vi.mock('./MembersSection', () => ({
   MembersSection: () => <div data-testid="member-management">Member controls</div>,
@@ -37,7 +38,7 @@ function renderView({
   return render(
     <MemoryRouter>
       <AuthContext.Provider value={auth(userId)}>
-        <PermissionContext.Provider value={{ role, status }}>
+        <PermissionContext.Provider value={permissionValue(role, status)}>
           <TeamAccessView />
         </PermissionContext.Provider>
       </AuthContext.Provider>
@@ -93,6 +94,26 @@ describe('TeamAccessView access presentation', () => {
     expect(screen.getByText(/An Owner or Admin manages invitations/)).toBeInTheDocument();
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
   });
+
+  it('lists capabilities from the grant, so viewing as an Editor shows editing as not allowed', () => {
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={auth()}>
+          <PermissionContext.Provider
+            value={{ role: 'editor', status: 'resolved', grant: viewAsGrantFor('editor') }}
+          >
+            <TeamAccessView />
+          </PermissionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('current-access')).toHaveTextContent('Editor');
+    showCapabilities();
+    expect(screen.getByText('View the schedule').closest('li')).toHaveTextContent('Allowed:');
+    expect(screen.getByText('Edit scheduling data').closest('li')).toHaveTextContent(
+      'Not allowed:',
+    );
+  });
 });
 
 describe('TeamAccessView member management', () => {
@@ -135,7 +156,7 @@ describe('TeamAccessView member management', () => {
     view.rerender(
       <MemoryRouter>
         <AuthContext.Provider value={auth('password-only')}>
-          <PermissionContext.Provider value={{ role: 'viewer', status: 'pending' }}>
+          <PermissionContext.Provider value={permissionValue('viewer', 'pending')}>
             <TeamAccessView />
           </PermissionContext.Provider>
         </AuthContext.Provider>
@@ -191,7 +212,7 @@ describe('TeamAccessView member management', () => {
         view.rerender(
           <MemoryRouter>
             <AuthContext.Provider value={auth('next-principal')}>
-              <PermissionContext.Provider value={{ role: 'admin', status: 'resolved' }}>
+              <PermissionContext.Provider value={permissionValue('admin', 'resolved')}>
                 <TeamAccessView />
               </PermissionContext.Provider>
             </AuthContext.Provider>

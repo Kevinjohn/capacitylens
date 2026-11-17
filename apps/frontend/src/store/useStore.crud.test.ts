@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
 import { makeResourceDraft, requireValue, resetStoreWithAccount } from '@/test/fixtures';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { grantFor } from '@/test/permissionGrants';
 
 const s = () => useStore.getState();
 
@@ -164,10 +165,19 @@ describe('store CRUD covers every entity', () => {
   it('resources: a viewer cannot change an account favourite', async () => {
     const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
-    s().setActiveRole('viewer');
+    s().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     await s().updateResource(resource.id, { isFavourite: true });
 
     expect(requireValue(s().data.resources[0], 'resource')).toHaveProperty('isFavourite', null);
+    expect(s().notice).toMatchObject({ tone: 'error' });
+  });
+  it('blocks a write when the grant lacks planning:write, whatever the role', async () => {
+    s().setActiveRole('owner', 'resolved', []);
+
+    expect(await s().addClient({ name: 'Wayne Foundation', color: '#1' })).toEqual({
+      kind: 'blocked',
+    });
+    expect(s().data.clients.some((client) => client.name === 'Wayne Foundation')).toBe(false);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
   it('allocations: add / update / delete', async () => {
@@ -269,18 +279,18 @@ describe('store UI + history extras', () => {
     const afterUndo = s().data;
     const futureAfterUndo = s().planning.history.future;
 
-    s().setActiveRole('viewer');
+    s().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     expect(await s().redoPlanning()).toBe(false);
     expect(s().data).toBe(afterUndo);
     expect(s().planning.history.future).toBe(futureAfterUndo);
     expect(s().notice).toMatchObject({ tone: 'error' });
 
-    s().setActiveRole('editor');
+    s().setActiveRole('editor', 'resolved', grantFor('editor').permissions);
     await s().redoPlanning();
     const afterRedo = s().data;
     const pastAfterRedo = s().planning.history.past;
     s().setNotice(null);
-    s().setActiveRole('viewer');
+    s().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     expect(await s().undoPlanning()).toBe(false);
     expect(s().data).toBe(afterRedo);
     expect(s().planning.history.past).toBe(pastAfterRedo);
@@ -404,7 +414,7 @@ describe('store colour and role behavior', () => {
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe('#7adae3');
   });
   it('a viewer cannot add a client', async () => {
-    s().setActiveRole('viewer');
+    s().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     const returned = await s().addClient({ name: 'Ferris', color: '#2d75da' });
     expect(s().data.clients).toHaveLength(0);
     expect(s().notice).toMatchObject({ tone: 'error' });
@@ -412,7 +422,7 @@ describe('store colour and role behavior', () => {
   });
   it('a viewer cannot update a client colour', async () => {
     const client = await requireCreated(s().addClient({ name: 'Ferris', color: '#7adae3' }));
-    s().setActiveRole('viewer');
+    s().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     await s().updateClient(client.id, { color: '#e02727' });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe('#7adae3');
     expect(s().notice).toMatchObject({ tone: 'error' });

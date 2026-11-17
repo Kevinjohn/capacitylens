@@ -16,6 +16,7 @@ import {
 } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { ArchivedEntitySection } from './ArchivedEntitySection';
+import { permissionValue } from '@/test/permissionGrants';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -47,7 +48,7 @@ function authenticated(children: ReactNode, role: 'owner' | 'editor') {
         signOut: async () => {},
       }}
     >
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
         {children}
       </PermissionContext.Provider>
     </AuthContext.Provider>

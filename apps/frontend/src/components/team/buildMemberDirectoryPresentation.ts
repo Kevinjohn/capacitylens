@@ -1,6 +1,5 @@
 import { ACCOUNT_ROLES } from '@capacitylens/shared/account/types';
-import { can } from '@capacitylens/shared/domain/access';
-import type { Role } from '@capacitylens/shared/domain/access';
+import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember as Member } from '@/account/teamAccessClient';
 import type { TeamInvitation } from '@/account/teamAccessClient';
 import { resolveRoleLabel } from '@/lib/accessCopy';
@@ -32,11 +31,14 @@ export function sortInvitationsForPresentation(
   );
 }
 
-/** Derives role and invitation display state from the current member list. */
-export function buildMemberDirectoryPresentation(members: Member[] | null) {
+/** Derives role and invitation display state from the current member list and the caller's grant. */
+export function buildMemberDirectoryPresentation(
+  members: Member[] | null,
+  permissions: readonly PermissionKey[],
+) {
   const myRole = members?.find((member) => member.isSelf)?.role;
-  const mayManageInvites = myRole !== undefined && can(myRole, 'invitations:manage');
-  const mayManageSignInTracking = myRole !== undefined && can(myRole, 'members:signInTracking');
+  const mayManageInvites = permissions.includes('invitations:manage');
+  const mayManageSignInTracking = permissions.includes('members:signInTracking');
   // Active and inactive members use the same role-first presentation order, independent of server join-date ordering. Inactive rows remain available through a disclosure.
   const grouped = { active: [] as Member[], inactive: [] as Member[] };
   for (const member of members ?? []) {

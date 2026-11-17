@@ -24,6 +24,7 @@ import {
 } from '#services/auth/authorization';
 import access from '#config/access_control';
 import type { Role } from '@capacitylens/shared/account/types';
+import { accessGrant } from '#services/auth/access_grant';
 
 export { PackageMasqueradeError as MasqueradeError };
 
@@ -93,6 +94,7 @@ export async function currentMasquerade(
   // An empty display name falls through to the email, so these are string-or-empty, not nullable.
   const displayName = String(target.display_name ?? '');
   const email = String(target.email ?? '');
+  if (!effectiveRole) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   return {
     active: true as const,
     accountId,
@@ -104,6 +106,7 @@ export async function currentMasquerade(
     contextToken: view.contextToken,
     token: view.contextToken,
     principal: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
+    ...accessGrant(effectiveRole, true),
   };
 }
 

@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { canSeePrivateNames } from '@capacitylens/shared/domain/access';
 import { normalizeCodeName } from '@capacitylens/shared/domain/privateNames';
-import { useRole } from '@/auth/permissionContext';
+import { useAccessGrant } from '@/auth/permissionContext';
 import type { FieldError as FormFieldError } from '@/hooks/useFieldError';
 import { parseName } from '@/lib/validation';
 
@@ -20,8 +19,7 @@ export function usePrivateNameFields(
   source: PrivateNameSource | undefined,
   fail: FormFieldError['fail'],
 ) {
-  const role = useRole();
-  const canManagePrivacy = role !== null && canSeePrivateNames(role);
+  const canManagePrivacy = useAccessGrant().canSeePrivateNames;
   const protectedName = source?.isPrivate === true && !canManagePrivacy;
   const [isPrivate, setIsPrivate] = useState(source?.isPrivate ?? false);
   const [codeName, setCodeName] = useState(source?.codeName ?? '');

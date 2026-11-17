@@ -9,6 +9,7 @@ import type { TeamMember } from '@/account/teamAccessClient';
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
+import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 
 const client = vi.hoisted(() => ({ listMembers: vi.fn(), transferOwnership: vi.fn() }));
 const reproject = vi.hoisted(() => vi.fn(async () => true));
@@ -78,7 +79,7 @@ function renderAs({
     ...render(
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider value={auth}>
-          <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+          <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
             <OwnershipTransferCard />
           </PermissionContext.Provider>
         </AuthContext.Provider>
@@ -229,6 +230,7 @@ describe('OwnershipTransferCard', () => {
           targetUserId: 'selina',
           targetName: 'Selina Kyle',
           effectiveRole: 'owner',
+          ...viewAsGrantFor('owner'),
           startedAt: '2026-09-01T00:00:00.000Z',
           expiresAt: '2999-09-01T00:15:00.000Z',
           token: 'masquerade-token',

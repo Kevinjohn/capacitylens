@@ -7,6 +7,7 @@ import { PermissionContext } from './auth/permissionContext';
 import { resetStoreWithAccount } from './test/fixtures';
 import { useStore } from './store/useStore';
 import { STATIC_SPA_ROUTES } from '../../../scripts/build/staticSpaRoutes.mjs';
+import { permissionValue } from '@/test/permissionGrants';
 
 vi.mock('./components/AppShell', () => ({ AppShell: Outlet }));
 vi.mock('./components/activities/ActivityList', () => ({
@@ -109,7 +110,7 @@ describe('Overview route access', () => {
     status: 'pending' | 'resolved' | 'unavailable',
   ) {
     return render(
-      <PermissionContext.Provider value={{ role, status }}>
+      <PermissionContext.Provider value={permissionValue(role, status)}>
         <MemoryRouter initialEntries={['/overview']}>
           <Routes>
             <Route path="/" element={<div>Schedule content</div>} />
@@ -152,7 +153,7 @@ describe('Diagnostics route access', () => {
   ) {
     return render(
       <PermissionContext.Provider
-        value={role === null ? { role, status: 'not-applicable' } : { role, status }}
+        value={permissionValue(role, role === null ? 'not-applicable' : status)}
       >
         <MemoryRouter initialEntries={['/diagnostics']}>
           <Routes>

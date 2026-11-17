@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useStore } from '@/store/useStore';
 import type { AccountSummary } from '@/store/useStore';
 import { isAccountRole } from '@capacitylens/shared/account/types';
+import { parseAccessGrant } from './accessGrant';
 import { sessionRequests } from '@/account/sessionRequests';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
@@ -12,16 +13,17 @@ import { api, scopeQueryKey } from '@/api/queryClient';
 // The company directory is loaded before a tenant is selected because the active company slice
 // cannot enumerate other memberships.
 
-// Validate directory entries before publication. Unknown roles remain selectable but
-// fail closed without claiming an authoritative Viewer membership.
+// Validate directory entries before publication. Unknown roles and malformed grants remain
+// selectable but fail closed without claiming an authoritative Viewer membership.
 function parseAccountSummary(entry: unknown): AccountSummary | null {
-  if (typeof entry !== 'object' || entry === null) return null;
-  const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown };
+  if (!isRecord(entry)) return null;
+  const summaryRecord = entry;
   if (typeof summaryRecord.id !== 'string' || summaryRecord.id.length === 0) return null;
   if (typeof summaryRecord.name !== 'string') return null;
-  if (!isAccountRole(summaryRecord.role)) {
+  const grant = isAccountRole(summaryRecord.role) ? parseAccessGrant(summaryRecord) : null;
+  if (!isAccountRole(summaryRecord.role) || !grant) {
     console.warn(
-      'fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable',
+      'fetchAccountSummaries: /api/accounts returned an unrecognized role or grant; marking it unavailable',
     );
     return {
       id: summaryRecord.id,
@@ -30,7 +32,7 @@ function parseAccountSummary(entry: unknown): AccountSummary | null {
       roleStatus: 'unavailable',
     };
   }
-  return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
+  return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role, grant };
 }
 
 type AccountSummaryParseOutcome =

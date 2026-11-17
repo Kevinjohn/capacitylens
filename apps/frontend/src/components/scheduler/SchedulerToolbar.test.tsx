@@ -23,6 +23,7 @@ import {
 import { chooseOption } from '@/test/schedulerTestKit';
 import { m } from '@/i18n';
 import { OwnerPermissions } from '@/test/ownerPermissions';
+import { permissionValue } from '@/test/permissionGrants';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -125,7 +126,7 @@ describe('SchedulerToolbar filter panel', () => {
 
   it('keeps the filter toggle in the right-hand action area for viewers', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider value={permissionValue('viewer')}>
         <SchedulerToolbar />
       </PermissionContext.Provider>,
     );

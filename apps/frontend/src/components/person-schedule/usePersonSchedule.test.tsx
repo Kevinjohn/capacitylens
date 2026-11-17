@@ -16,6 +16,7 @@ import {
   makeTimeOff,
 } from '@/test/fixtures';
 import { usePersonSchedule } from './usePersonSchedule';
+import { permissionValue } from '@/test/permissionGrants';
 
 const calendarToday = vi.hoisted(() => ({ today: '2026-09-10' }));
 
@@ -26,7 +27,7 @@ vi.mock('@/hooks/useCompanyToday', () => ({
 function wrapper({
   role = null,
   status = role === null ? 'not-applicable' : 'resolved',
-}: PermissionContextValue) {
+}: Omit<PermissionContextValue, 'grant'>) {
   return function Wrapper({ children }: PropsWithChildren) {
     return (
       <AuthContext.Provider
@@ -36,7 +37,9 @@ function wrapper({
           signOut: async () => {},
         }}
       >
-        <PermissionContext.Provider value={{ role, status }}>{children}</PermissionContext.Provider>
+        <PermissionContext.Provider value={permissionValue(role, status)}>
+          {children}
+        </PermissionContext.Provider>
       </AuthContext.Provider>
     );
   };

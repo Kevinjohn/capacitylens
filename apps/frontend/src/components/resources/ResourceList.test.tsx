@@ -20,6 +20,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { AuthContext } from '@/auth/authContext';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+import { permissionValue } from '@/test/permissionGrants';
 
 function TestProviders({ children }: { children: ReactNode }) {
   return (
@@ -89,7 +90,7 @@ const freelancerDraft = (name: string) => ({
 describe('ResourceList display', () => {
   it('does not direct resource management to Team & access', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('owner', 'resolved')}>
         <MemoryRouter>
           <ResourceList />
         </MemoryRouter>
@@ -212,7 +213,7 @@ describe('ResourceList display', () => {
   it('hides direct section create actions from viewers', async () => {
     await useStore.getState().addResource(personDraft('Alice'));
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider value={permissionValue('viewer')}>
         <ResourceList />
       </PermissionContext.Provider>,
     );

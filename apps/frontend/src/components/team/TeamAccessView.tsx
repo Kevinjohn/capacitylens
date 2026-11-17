@@ -1,13 +1,8 @@
 import { useState } from 'react';
-import {
-  can,
-  canSeePrivateNames,
-  canSeeTimeOffNote,
-  isOwnerOrAdmin,
-} from '@capacitylens/shared/domain/access';
-import type { Role } from '@capacitylens/shared/domain/access';
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
+import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
 import { useAuth } from '@/auth/authContext';
-import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { useAccessGrant, useCan, usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { resolveAccessLabel, resolveAccessSummary } from '@/lib/accessCopy';
 import { MembersSection } from './MembersSection';
 import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';
@@ -34,6 +29,7 @@ interface CurrentAccessCardProps {
   accessLabel: string;
   accessSummary: string;
   effectiveRole: Role | null;
+  grant: AccessGrant;
 }
 
 interface AccessManagementProps {
@@ -41,25 +37,27 @@ interface AccessManagementProps {
   permissionStatus: ReturnType<typeof usePermissionStatus>;
 }
 
-function listCapabilities(role: Role): Capability[] {
+// Rendered from the server's grant, so a view-as lists only what the read-only view allows.
+function listCapabilities(grant: AccessGrant): Capability[] {
+  const holds = (key: AccessGrant['permissions'][number]) => grant.permissions.includes(key);
   return [
-    { label: m.access_cap_view_schedule(), allowed: can(role, 'planning:read') },
-    { label: m.access_cap_edit_schedule(), allowed: can(role, 'planning:write') },
-    { label: m.access_cap_manage_team(), allowed: can(role, 'members:manage') },
-    { label: m.access_cap_timeoff_notes(), allowed: canSeeTimeOffNote(role) },
-    { label: m.access_cap_private_names(), allowed: canSeePrivateNames(role) },
-    { label: m.access_cap_transfer_owner(), allowed: can(role, 'ownership:transfer') },
+    { label: m.access_cap_view_schedule(), allowed: holds('planning:read') },
+    { label: m.access_cap_edit_schedule(), allowed: holds('planning:write') },
+    { label: m.access_cap_manage_team(), allowed: holds('members:manage') },
+    { label: m.access_cap_timeoff_notes(), allowed: grant.canSeeTimeOffNote },
+    { label: m.access_cap_private_names(), allowed: grant.canSeePrivateNames },
+    { label: m.access_cap_transfer_owner(), allowed: holds('ownership:transfer') },
   ];
 }
 
-function CapabilityList({ role }: { role: Role }) {
+function CapabilityList({ grant }: { grant: AccessGrant }) {
   return (
     <ul
       id="access-capabilities"
       className="mt-3 grid gap-2 sm:grid-cols-2"
       aria-label={m.access_capabilities_label()}
     >
-      {listCapabilities(role).map((capability) => (
+      {listCapabilities(grant).map((capability) => (
         <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
           {capability.allowed ? (
             <Check className="text-brand" />
@@ -78,7 +76,12 @@ function CapabilityList({ role }: { role: Role }) {
   );
 }
 
-function CurrentAccessCard({ accessLabel, accessSummary, effectiveRole }: CurrentAccessCardProps) {
+function CurrentAccessCard({
+  accessLabel,
+  accessSummary,
+  effectiveRole,
+  grant,
+}: CurrentAccessCardProps) {
   const [capabilitiesOpen, setCapabilitiesOpen] = useState(false);
   let accessDetails = null;
 
@@ -101,7 +104,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, effectiveRole }: Curren
           )}
           {capabilitiesOpen ? m.access_capabilities_hide() : m.access_capabilities_show()}
         </button>
-        {capabilitiesOpen && <CapabilityList role={effectiveRole} />}
+        {capabilitiesOpen && <CapabilityList grant={grant} />}
       </>
     );
   }
@@ -148,7 +151,9 @@ export function TeamAccessView() {
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const resolvedRole = permissionStatus === 'resolved' ? role : null;
   const effectiveRole: Role | null = resolvedRole;
-  const mayManage = resolvedRole !== null && can(resolvedRole, 'members:manage');
+  const grant = useAccessGrant();
+  const mayManage = useCan('members:manage');
+  const mayTransferOwnership = useCan('ownership:transfer');
   const accessCopyInput = {
     permissionStatus,
     role: resolvedRole,
@@ -166,6 +171,7 @@ export function TeamAccessView() {
         accessLabel={accessLabel}
         accessSummary={accessSummary}
         effectiveRole={effectiveRole}
+        grant={grant}
       />
 
       {/* Resolve permission before mounting: lower roles must not issue privileged directory reads
@@ -177,9 +183,7 @@ export function TeamAccessView() {
       )}
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}
-      {!masqueradeActive && resolvedRole !== null && can(resolvedRole, 'ownership:transfer') && (
-        <OwnershipTransferCard />
-      )}
+      {!masqueradeActive && mayTransferOwnership && <OwnershipTransferCard />}
     </div>
   );
 }

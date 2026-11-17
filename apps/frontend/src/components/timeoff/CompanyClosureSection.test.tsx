@@ -9,6 +9,7 @@ import { CompanyClosureSection } from './CompanyClosureSection';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { permissionValue } from '@/test/permissionGrants';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -139,7 +140,7 @@ describe('CompanyClosureSection', () => {
       endDate: '2026-08-05',
     });
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider value={permissionValue('viewer')}>
         <CompanyClosureSection />
       </PermissionContext.Provider>,
     );

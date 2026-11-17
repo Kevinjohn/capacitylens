@@ -8,6 +8,7 @@ import { resolveColorName } from '@/lib/palette';
 import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
+import { permissionValue } from '@/test/permissionGrants';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -204,7 +205,7 @@ it('hides owner-only privacy controls and locks the redacted name for a non-owne
   const client = { ...created, name: '"Nightwing"', isPrivate: true };
   loadPlanningData({ ...useStore.getState().data, clients: [client] });
   render(
-    <PermissionContext.Provider value={{ role: 'editor' }}>
+    <PermissionContext.Provider value={permissionValue('editor')}>
       <ClientForm client={client} onClose={vi.fn()} />
     </PermissionContext.Provider>,
   );

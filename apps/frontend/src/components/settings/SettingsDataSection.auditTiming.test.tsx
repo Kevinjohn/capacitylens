@@ -15,6 +15,7 @@ import {
 } from '@/test/planningTransportHandle';
 import { m } from '@/i18n';
 import { SettingsDataSection } from './SettingsDataSection';
+import { permissionValue } from '@/test/permissionGrants';
 
 const hold = vi.hoisted(() => ({
   promise: null as Promise<void> | null,
@@ -97,7 +98,7 @@ it.each(
               signOut: async () => {},
             }}
           >
-            <PermissionContext.Provider value={{ role: 'owner' }}>
+            <PermissionContext.Provider value={permissionValue('owner')}>
               <ShellListener />
               <SettingsDataSection />
             </PermissionContext.Provider>

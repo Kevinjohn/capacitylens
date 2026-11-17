@@ -1,12 +1,18 @@
-import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import type { ReactNode } from 'react';
-import { PermissionContext, useCan, useCanEdit } from './permissionContext';
-import { can } from '@capacitylens/shared/domain/access';
+import {
+  NO_ACCESS,
+  PermissionContext,
+  useAccessGrant,
+  useCan,
+  useCanEdit,
+} from './permissionContext';
+import type { PermissionContextValue } from './permissionContext';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
-import { useStore } from '@/store/useStore';
+import { grantFor, permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 
-// Resolved roles use the shared `can` matrix; an absent role fails closed.
+// Decisions follow the grant the server sent; the role is never evaluated.
 
 // Keep the sweep explicit and reject entries that are not valid permission keys.
 const ACTIONS = [
@@ -25,27 +31,41 @@ const ACTIONS = [
 
 const ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer'];
 
-beforeEach(() => useStore.getState().setMasquerade({ kind: 'inactive' }));
-
-const withRole =
-  (role: Role | null) =>
+const withValue =
+  (value: PermissionContextValue) =>
   ({ children }: { children: ReactNode }) => (
-    <PermissionContext.Provider value={{ role }}>{children}</PermissionContext.Provider>
+    <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>
   );
 
 describe('useCan', () => {
-  it('delegates every resolved role × action to the pure matrix', () => {
+  it('reports each key the resolved grant holds', () => {
     for (const role of ROLES) {
       for (const action of ACTIONS) {
-        const { result } = renderHook(() => useCan(action), { wrapper: withRole(role) });
-        expect(result.current, `${role}/${action}`).toBe(can(role, action));
+        const { result } = renderHook(() => useCan(action), {
+          wrapper: withValue(permissionValue(role)),
+        });
+        expect(result.current, `${role}/${action}`).toBe(
+          grantFor(role).permissions.includes(action),
+        );
       }
     }
   });
 
-  it('denies every action until a role is resolved', () => {
+  it('follows the grant, not the role', () => {
+    const value = {
+      role: 'owner' as const,
+      status: 'resolved' as const,
+      grant: grantFor('viewer'),
+    };
+    const { result } = renderHook(() => useCan('planning:write'), { wrapper: withValue(value) });
+    expect(result.current).toBe(false);
+  });
+
+  it('denies every action, reads included, while the lookup is pending', () => {
     for (const action of ACTIONS) {
-      const { result } = renderHook(() => useCan(action), { wrapper: withRole(null) });
+      const { result } = renderHook(() => useCan(action), {
+        wrapper: withValue(permissionValue('owner', 'pending')),
+      });
       expect(result.current, action).toBe(false);
     }
   });
@@ -55,23 +75,18 @@ describe('useCan', () => {
       const { result } = renderHook(() => useCan(action));
       expect(result.current, action).toBe(false);
     }
+    const { result } = renderHook(() => useAccessGrant());
+    expect(result.current).toEqual(NO_ACCESS);
   });
 
-  it('still denies a resolved viewer the write tier', () => {
-    const { result } = renderHook(() => useCan('planning:write'), { wrapper: withRole('viewer') });
-    expect(result.current).toBe(false);
-  });
-
-  it('permits reads but denies every other action throughout a masquerade transition', () => {
-    act(() =>
-      useStore.getState().setMasquerade({
-        kind: 'starting',
-        pending: { accountId: 'a-studio', targetUserId: 'u-viewer' },
-        generation: 1,
-      }),
-    );
+  it('permits only reads under a view-as grant', () => {
+    const value = {
+      role: 'owner' as const,
+      status: 'resolved' as const,
+      grant: viewAsGrantFor('owner'),
+    };
     for (const action of ACTIONS) {
-      const { result } = renderHook(() => useCan(action), { wrapper: withRole('owner') });
+      const { result } = renderHook(() => useCan(action), { wrapper: withValue(value) });
       expect(result.current, action).toBe(action === 'planning:read');
     }
   });
@@ -83,7 +98,7 @@ describe('useCanEdit', () => {
       const { result } = renderHook(
         () => ({ edit: useCanEdit(), write: useCan('planning:write') }),
         {
-          wrapper: withRole(role),
+          wrapper: withValue(permissionValue(role)),
         },
       );
       expect(result.current.edit, `${role}`).toBe(result.current.write);

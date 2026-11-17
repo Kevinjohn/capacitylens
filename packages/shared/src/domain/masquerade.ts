@@ -1,3 +1,4 @@
+import type { AccessGrant } from './access.js';
 import type { IsoInstant, PrincipalId, Role, WorkspaceId } from '../account/types.js';
 
 /** Reasons a masquerade can end. Only the first two may be supplied by the browser. */
@@ -18,7 +19,7 @@ export type MasqueradeEndReason = (typeof MASQUERADE_END_REASONS)[number];
 export type ClientMasqueradeEndReason = Extract<MasqueradeEndReason, 'explicit' | 'account_switch'>;
 
 /** Server-computed wire representation of an active identity read projection. */
-export interface MasqueradeState {
+export interface MasqueradeState extends AccessGrant {
   accountId: WorkspaceId;
   targetUserId: PrincipalId;
   targetName: string;

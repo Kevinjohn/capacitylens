@@ -15,12 +15,14 @@ vi.mock('./masqueradeRequests', () => ({
 }));
 
 import { masqueradeApi } from './masqueradeApi';
+import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const state = {
   accountId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',
+  ...viewAsGrantFor('viewer'),
   startedAt: '2026-09-01T10:00:00.000Z',
   expiresAt: '2026-09-01T10:15:00.000Z',
   token: 'token-1',
@@ -92,6 +94,9 @@ describe('masqueradeApi', () => {
     ['an empty target user id', { targetUserId: '' }],
     ['an empty token', { token: '' }],
     ['an invalid timestamp', { startedAt: '2026-02-30T10:00:00.000Z' }],
+    ['no permission list', { permissions: undefined }],
+    ['a non-string permission key', { permissions: [1] }],
+    ['a non-boolean private-name flag', { canSeePrivateNames: 'no' }],
   ])('rejects active state with %s', async (_description, change) => {
     mocks.status.mockResolvedValue(json({ ...activeStatus, ...change }));
 

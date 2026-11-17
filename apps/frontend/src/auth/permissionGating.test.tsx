@@ -24,10 +24,13 @@ import { loadPlanningData, resetStoreWithAccount, makeResourceDraft } from '@/te
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import type { Role } from '@capacitylens/shared/domain/access';
+import { grantFor, permissionValue } from '@/test/permissionGrants';
 
 // Verify UI affordances and the store's local guard; server authorization remains authoritative.
 function withRole(role: Role | null, ui: ReactNode) {
-  return render(<PermissionContext.Provider value={{ role }}>{ui}</PermissionContext.Provider>);
+  return render(
+    <PermissionContext.Provider value={permissionValue(role)}>{ui}</PermissionContext.Provider>,
+  );
 }
 
 function PrivateNameFieldsHarness() {
@@ -150,7 +153,7 @@ describe('private name fields require a resolved role', () => {
     const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
 
     render(
-      <PermissionContext.Provider value={{ role: null }}>
+      <PermissionContext.Provider value={permissionValue(null)}>
         <TimeOffForm
           defaults={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }}
           onClose={vi.fn()}
@@ -166,20 +169,20 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
   beforeEach(() => resetStoreWithAccount());
 
   it('add*/update*/delete* NO-OP for a viewer and surface a read-only notice', async () => {
-    useStore.getState().setActiveRole('viewer');
+    useStore.getState().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
 
     const result = await useStore.getState().addResource(makeResourceDraft());
     expect(result).toEqual({ kind: 'blocked' });
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
-    useStore.getState().setActiveRole('owner');
+    useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const seeded = await requireCreated(
       useStore.getState().addResource(makeResourceDraft({ name: 'Seeded' })),
     );
     expect(useStore.getState().data.resources).toHaveLength(1);
 
-    useStore.getState().setActiveRole('viewer');
+    useStore.getState().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     await useStore.getState().updateResource(seeded.id, { name: 'Renamed' });
     expect(useStore.getState().data.resources[0]?.name).toBe('Seeded');
 
@@ -189,7 +192,7 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
   it.each(['editor', 'owner', 'admin'] as const)(
     'role %s permits the mutation outside masquerade',
     async (role) => {
-      useStore.getState().setActiveRole(role);
+      useStore.getState().setActiveRole(role, 'resolved', grantFor(role).permissions);
       const r = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
       expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);
     },

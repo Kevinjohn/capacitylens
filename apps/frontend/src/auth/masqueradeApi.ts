@@ -10,6 +10,7 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { isTimestamp } from '@/account/accessResult';
 import { masqueradeRequests } from './masqueradeRequests';
 import { extractApiErrorMessage } from '@/lib/readApiError';
+import { parseAccessGrant } from './accessGrant';
 
 function parseMasqueradeState(value: unknown, accountIdFallback?: string): MasqueradeState | null {
   if (!isRecord(value)) return null;
@@ -25,7 +26,8 @@ function parseMasqueradeState(value: unknown, accountIdFallback?: string): Masqu
     !isTimestamp(state.startedAt) ||
     !isTimestamp(state.expiresAt) ||
     typeof state.token !== 'string' ||
-    state.token.length === 0
+    state.token.length === 0 ||
+    !parseAccessGrant(state)
   ) {
     return null;
   }
