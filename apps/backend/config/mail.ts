@@ -22,8 +22,7 @@ if (
   );
 }
 
-// SMTP is the only transport. The Postmark transport is unsupported because it is incompatible with
-// Nodemailer 10.
+// The Postmark transport is unsupported because it is incompatible with Nodemailer 10.
 export default defineConfig({
   default: 'smtp',
   from: from ?? 'noreply@capacitylens.local',

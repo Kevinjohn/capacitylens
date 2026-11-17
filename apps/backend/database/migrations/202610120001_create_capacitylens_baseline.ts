@@ -455,7 +455,7 @@ export default class extends BaseSchema {
     });
     // This table and the `social_*` tables below stay empty while their capabilities are disabled.
     // Account Kit still visits them in its hourly prune, account deletion and every credential
-    // change, whichever capabilities are enabled.
+    // change, regardless of which capabilities are enabled.
     this.schema.createTable('login_link_tokens', (table) => {
       table.increments('id');
       table

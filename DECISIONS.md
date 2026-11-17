@@ -60,8 +60,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Changing global working days reinterprets existing allocations: stored dates never move, while
   capacity, utilisation and conflicts are recalculated.
 - Displayed utilisation is calculated over the visible 1/2/4/6/8-week window.
-- The overbooked-soon warning is calculated over a fixed forward 14-day window from today and
-  never changes with zoom or pan.
+- The "overbooked in the next two weeks" signal is calculated over a fixed forward 14-day window
+  from today and never changes with zoom or pan.
 - Today is the company's calendar date, resolved by the server in the company time zone and sent
   with the planning read; the browser never reads its own clock for it.
 - The visible span is chosen from a **Weeks visible** dropdown, not a row of always-on buttons; the
@@ -317,12 +317,12 @@ framework defaults; any other departure needs a decision recorded here first.
 ## Installation
 
 - Installation is one runnable release archive, and the installed server runs with production
-  defaults. Its install script, which runs the manual steps as root on a systemd
-  host, is the default path. It never rewrites an existing environment file; running a newer
-  release's script without arguments is the upgrade. Backup scheduling stays
-  in the web provider. The manual steps remain the documented fallback.
-  Company naming then happens in the browser. The hosting operator owns upgrades, backups and service
-  maintenance; the company Owner is not expected to maintain hosting alone.
+  defaults. Its install script, which runs the manual steps as root on a systemd host, is the
+  default path. It never rewrites an existing environment file; running a newer release's script
+  without arguments is the upgrade. Backup scheduling stays in the web provider. The manual steps
+  remain the documented fallback. Company naming then happens in the browser. The hosting operator
+  owns upgrades, backups and service maintenance; the company Owner is not expected to maintain
+  hosting alone.
 - Native Node with a loopback TLS proxy on the same machine is the expected installation. The
   operator owns that proxy; the server's HSTS header is host-only. Existing container support is
   optional. A proxy on a separate machine is unsupported for the first release. The Compose stack's
