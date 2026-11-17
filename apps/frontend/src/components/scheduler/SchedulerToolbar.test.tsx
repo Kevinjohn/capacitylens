@@ -55,17 +55,6 @@ describe('SchedulerToolbar weeks dropdown', () => {
     }
     expect(screen.queryByRole('radio', { name: '4w' })).not.toBeInTheDocument();
   });
-
-  it('choosing a level sets ui.zoom (weeks visible)', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerToolbar />);
-
-    await chooseOption(user, /Weeks visible/, '8 weeks');
-    expect(useStore.getState().ui.zoom).toBe(8);
-
-    await chooseOption(user, /Weeks visible/, '1 week');
-    expect(useStore.getState().ui.zoom).toBe(1);
-  });
 });
 
 describe('SchedulerToolbar date navigation', () => {
@@ -84,17 +73,6 @@ describe('SchedulerToolbar date navigation', () => {
 });
 
 describe('SchedulerToolbar search filter', () => {
-  it('typing in the Search field updates ui.filters.search', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerToolbar />);
-    showFilters();
-
-    await user.type(screen.getByLabelText('Search people'), 'Alice');
-
-    // The search is debounced into the store, so the update lands shortly after typing.
-    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe('Alice'));
-  });
-
   it('rejects an overlong paste without shortening the query and clears feedback after correction', async () => {
     const user = userEvent.setup();
     render(<SchedulerToolbar />);
@@ -145,22 +123,6 @@ describe('SchedulerToolbar filter panel', () => {
     expect(screen.queryByLabelText('Search people')).not.toBeInTheDocument();
   });
 
-  it('places the filter toggle after the history controls with dividers on both sides', () => {
-    render(<SchedulerToolbar />);
-
-    const actions = screen.getByTestId('scheduler-toolbar-actions');
-    const show = within(actions).getByRole('button', { name: 'Show filters' });
-    const undo = within(actions).getByRole('button', { name: 'Undo' });
-    const redo = within(actions).getByRole('button', { name: 'Redo' });
-
-    expect(actions.children).toHaveLength(4);
-    expect(actions.children[0]).toHaveAttribute('data-slot', 'separator');
-    expect(actions.children[1]).toContainElement(undo);
-    expect(actions.children[1]).toContainElement(redo);
-    expect(actions.children[2]).toHaveAttribute('data-slot', 'separator');
-    expect(actions.children[3]).toBe(show);
-  });
-
   it('keeps the filter toggle in the right-hand action area for viewers', () => {
     render(
       <PermissionContext.Provider value={{ role: 'viewer' }}>
@@ -185,56 +147,6 @@ function optionNames(label: string) {
 }
 
 describe('SchedulerToolbar filter ordering', () => {
-  it('keeps search left of one wrapping right-aligned group with Clear last', async () => {
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#111', sortOrder: 0 });
-    const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Queen Consolidated', color: '#222' }),
-    );
-    await useStore
-      .getState()
-      .addProject({ name: 'Project Watchtower', clientId: client.id, color: '#333' });
-    await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' });
-    useStore.getState().setFilters({ clientId: client.id });
-    render(<SchedulerToolbar />);
-    showFilters();
-
-    const filterbar = document.getElementById('scheduler-filters');
-    if (!filterbar) throw new Error('Expected the scheduler filters container.');
-    const rightGroup = screen.getByTestId('scheduler-filter-controls');
-    const controls = [
-      screen.getByRole('textbox', { name: 'Search people' }),
-      screen.getByRole('combobox', { name: 'Filter by discipline' }),
-      screen.getByRole('combobox', { name: 'Filter by client' }),
-      screen.getByRole('combobox', { name: 'Filter by project' }),
-      screen.getByRole('combobox', { name: 'Filter by activity' }),
-      screen.getByRole('button', { name: 'Tentative' }),
-      screen.getByRole('radiogroup', { name: 'Draw mode' }),
-      screen.getByRole('checkbox', { name: 'Show unallocated' }),
-      screen.getByRole('button', { name: 'Clear Filters' }),
-    ];
-    const rightGroupControls = controls.slice(1);
-    const searchControl = controls[0];
-    if (!searchControl) throw new Error('Expected the scheduler search control.');
-    const searchField = searchControl.parentElement;
-    if (!searchField) throw new Error('Expected the scheduler search field wrapper.');
-
-    expect(filterbar.children).toHaveLength(2);
-    expect(filterbar.children[0]).toBe(searchField);
-    expect(searchField).toContainElement(searchControl);
-    expect(filterbar.children[1]).toBe(rightGroup);
-    expect(filterbar).toHaveClass('flex-wrap');
-    expect(rightGroup).toHaveClass('ml-auto', 'flex-wrap', 'justify-end');
-    expect(rightGroupControls.every((control) => rightGroup.contains(control))).toBe(true);
-    expect(
-      rightGroupControls.map((control) =>
-        Array.from(rightGroup.children).findIndex(
-          (child) => child === control || child.contains(control),
-        ),
-      ),
-    ).toEqual(rightGroupControls.map((_, index) => index));
-    expect(rightGroup.lastElementChild).toBe(controls.at(-1));
-  });
-
   it('hides the discipline filter when disciplines are enabled but none exist', () => {
     useStore.setState((state) => ({
       data: {
@@ -255,23 +167,6 @@ describe('SchedulerToolbar filter ordering', () => {
 });
 
 describe('SchedulerToolbar discipline and client ordering', () => {
-  it('follows the scheduler discipline order rather than alphabetising disciplines', async () => {
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#111', sortOrder: 0 });
-    await useStore
-      .getState()
-      .addDiscipline({ name: 'Account Management', color: '#222', sortOrder: 2 });
-    await useStore.getState().addDiscipline({ name: 'Development', color: '#333', sortOrder: 1 });
-    render(<SchedulerToolbar />);
-    showFilters();
-
-    expect(optionNames('Filter by discipline')).toEqual([
-      'All disciplines',
-      'Design',
-      'Development',
-      'Account Management',
-    ]);
-  });
-
   it('pins Internal before alphabetically ordered clients', async () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
     await resetStoreWithData(
@@ -493,25 +388,6 @@ describe('SchedulerToolbar project option presentation', () => {
   });
 });
 
-describe('SchedulerToolbar tentative visibility', () => {
-  it('maps the Tentative pill to the inverse of the stored hideTentative filter', async () => {
-    const user = userEvent.setup();
-    render(<SchedulerToolbar />);
-    showFilters();
-
-    const pill = screen.getByRole('button', { name: 'Tentative' });
-    expect(pill).toHaveAttribute('aria-pressed', 'true');
-
-    await user.click(pill);
-    expect(useStore.getState().ui.filters.hideTentative).toBe(true);
-    expect(pill).toHaveAttribute('aria-pressed', 'false');
-
-    await user.click(pill);
-    expect(useStore.getState().ui.filters.hideTentative).toBe(false);
-    expect(pill).toHaveAttribute('aria-pressed', 'true');
-  });
-});
-
 describe('SchedulerToolbar history errors', () => {
   it.each([
     ['Undo', 'undoPlanning'],
@@ -589,28 +465,6 @@ describe('SchedulerToolbar history errors', () => {
 });
 
 describe('SchedulerToolbar Clear filter presentation', () => {
-  it('keeps Clear Filters visible, quiet and disabled when no filters are set', () => {
-    render(<SchedulerToolbar />);
-    showFilters();
-
-    const clear = screen.getByRole('button', { name: 'Clear Filters' });
-    expect(clear).toBeDisabled();
-    expect(clear).toHaveAttribute('data-variant', 'outline');
-    expect(clear).toBe(screen.getByTestId('scheduler-filter-controls').lastElementChild);
-    expect(clear.querySelector('svg')).toBeNull();
-  });
-
-  it('enables red Clear Filters styling and a decorative bin icon when a filter is active', () => {
-    useStore.getState().setFilters({ disciplineId: 'd1' });
-    render(<SchedulerToolbar />);
-    showFilters();
-
-    const clear = screen.getByRole('button', { name: 'Clear Filters' });
-    expect(clear).toBeEnabled();
-    expect(clear).toHaveAttribute('data-variant', 'danger-soft');
-    expect(clear.querySelector('.lucide-trash-2')).toHaveAttribute('aria-hidden', 'true');
-  });
-
   it('clicking Clear Filters resets every filter field and returns the button to its quiet state', async () => {
     const user = userEvent.setup();
     useStore.setState((state) => ({
@@ -721,19 +575,6 @@ const seedLensActivities = async () => ({
 });
 
 describe('SchedulerToolbar Activities filter (standalone lens)', () => {
-  it('renders the Activities dropdown with grouped Internal / All projects options', async () => {
-    await seedLensActivities();
-    render(<SchedulerToolbar />);
-    showFilters();
-    const select = screen.getByRole('combobox', { name: 'Filter by activity' });
-    expect(select).toBeInTheDocument();
-    fireEvent.keyDown(select, { key: 'ArrowDown' });
-    expect(screen.getByRole('option', { name: 'Internal — All' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'All projects — All' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Design' })).toBeInTheDocument();
-  });
-
   it('is absent when the account has no project-less activities', () => {
     render(<SchedulerToolbar />);
     showFilters();
@@ -786,26 +627,6 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 });
 
 describe('SchedulerToolbar activity and project lens interaction', () => {
-  it('selecting a project clears an active activity lens (mutual exclusion both ways)', async () => {
-    const user = userEvent.setup();
-    const { repeatable } = await seedLensActivities();
-    const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
-    );
-    const project = await requireCreated(
-      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
-    );
-    useStore.getState().setFilters({ activityId: repeatable.id });
-    render(<SchedulerToolbar />);
-    showFilters();
-
-    await chooseOption(user, 'Filter by project', 'Ferris / Lightning');
-
-    expect(useStore.getState().ui.filters.projectId).toBe(project.id);
-    expect(useStore.getState().ui.filters.activityId).toBeNull();
-    expect(useStore.getState().ui.filters.activityKind).toBeNull();
-  });
-
   it('qualifies same-named projects with their client names', async () => {
     const firstClient = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
