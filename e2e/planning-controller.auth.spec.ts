@@ -373,7 +373,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey),
   ).toHaveLength(beforeStaleCount + 1);
 
-  // A new deliberate action uses the refreshed revision; move, resize, reassign, duplicate and repeat all
+  // A new deliberate action uses the refreshed revision; move, resize, reassign and duplicate all
   // exercise generated typed routes and are confirmed by the server's canonical read.
   await callHarness(
     page,

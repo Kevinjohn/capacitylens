@@ -520,19 +520,17 @@ test.group('planning operation contracts', () => {
   test('malformed repeat entries fail as validation errors, not rule exceptions', async ({
     assert,
   }) => {
-    for (const intent of [{ operation: 'timeOff.repeat', entries: [null] }]) {
-      let error: unknown;
-      try {
-        await planningMutationValidator.validate({
-          mutationId: otherUuid,
-          baseRevision: 0,
-          intent,
-        });
-      } catch (caught) {
-        error = caught;
-      }
-      assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR');
+    let error: unknown;
+    try {
+      await planningMutationValidator.validate({
+        mutationId: otherUuid,
+        baseRevision: 0,
+        intent: { operation: 'timeOff.repeat', entries: [null] },
+      });
+    } catch (caught) {
+      error = caught;
     }
+    assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR');
   });
 
   test('retains resource-kind defaults and scalar validity', async ({ assert }) => {
