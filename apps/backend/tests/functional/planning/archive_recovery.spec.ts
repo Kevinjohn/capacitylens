@@ -429,6 +429,15 @@ test.group('identity-only archive recovery', (suite) => {
         )
         .send();
       response.assertStatus(200);
+      // t-brand sits under the project archived above, so archiving it hides nothing more.
+      if (id === 't-brand')
+        assert.deepEqual((response.body() as { archived?: unknown }).archived, {
+          projects: 0,
+          phases: 0,
+          activities: 0,
+          allocations: 0,
+          timeOff: 0,
+        });
     }
 
     const archiveRead = await session(client.get(archiveUrl), editor.cookie).send();

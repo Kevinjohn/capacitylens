@@ -7,8 +7,7 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { refreshAccountSummaries } from './useAccountSummaries';
 import { masqueradeApi } from './masqueradeApi';
 import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
-
-type PermissionStatus = 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
+import type { AccessPermissionStatus } from '@/lib/accessCopy';
 
 interface FetchedPermission {
   accountId: string;
@@ -22,7 +21,7 @@ interface PermissionRefresh {
   membershipRevision: number;
   isCurrent: () => boolean;
   setFetched: Dispatch<SetStateAction<FetchedPermission | null>>;
-  setActiveRole: (role: Role | null, status?: PermissionStatus) => void;
+  setActiveRole: (role: Role | null, status?: AccessPermissionStatus) => void;
 }
 
 interface PermissionValueInput {
@@ -35,7 +34,7 @@ interface PermissionValueInput {
 
 interface PermissionValue {
   role: Role | null;
-  status: PermissionStatus;
+  status: AccessPermissionStatus;
 }
 
 function publishUnavailable(refresh: PermissionRefresh) {

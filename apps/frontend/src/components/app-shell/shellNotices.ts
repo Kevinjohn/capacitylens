@@ -3,10 +3,9 @@ import { toast } from 'sonner';
 import { m } from '@/i18n';
 import { AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 import { useStore } from '@/store/useStore';
+import type { StoreState } from '@/store/types';
 
 // Store notices and audit-degradation events shown as toasts.
-
-type StoreState = ReturnType<typeof useStore.getState>;
 
 function showNoticeToast(notice: NonNullable<StoreState['notice']>, clear: () => void) {
   if (notice.tone === 'error') {

@@ -138,6 +138,13 @@ test('rejects generated test code and application source maps', async (context) 
   await assert.rejects(() => inspectManagedRelease(root, []), /source map/);
 });
 
+test('rejects the development tooling directory', async (context) => {
+  const root = await makeRelease();
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, 'tooling'));
+  await assert.rejects(() => inspectManagedRelease(root, []), /development tooling/);
+});
+
 test("forbids the repository's development dependencies but not server runtime dependencies", async () => {
   const forbidden = await readDevelopmentPackages(repositoryRoot);
   for (const tool of [

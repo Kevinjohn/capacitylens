@@ -10,7 +10,7 @@ import {
   makeTimeOff,
   resetStoreWithData,
 } from '@/test/fixtures';
-import { schedulerDataset } from './__tests__/schedulerTestKit';
+import { schedulerDataset } from '@/test/schedulerTestKit';
 import { useStore } from '@/store/useStore';
 import { SchedulerGrid } from './SchedulerGrid';
 import { OwnerPermissions } from '@/test/ownerPermissions';

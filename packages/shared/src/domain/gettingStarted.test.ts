@@ -1,7 +1,7 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import { describe, expect, it } from 'vitest';
-import { buildGettingStartedSteps } from './gettingStarted';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { buildGettingStartedSteps } from './gettingStarted.js';
+import { emptyAppData } from '../types/entities.js';
 import type {
   Activity,
   Allocation,
@@ -9,8 +9,8 @@ import type {
   Client,
   Project,
   Resource,
-} from '@capacitylens/shared/types/entities';
-import { FIXTURE_RESOURCE_EXTERNAL } from '@capacitylens/shared/data/fixtures';
+} from '../types/entities.js';
+import { FIXTURE_RESOURCE_EXTERNAL } from '../data/fixtures.js';
 
 const NOW = '2026-06-03T12:00:00.000Z';
 const entity = { accountId: 'a1', createdAt: NOW, updatedAt: NOW };

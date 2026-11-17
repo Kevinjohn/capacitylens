@@ -4,7 +4,7 @@ import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWor
 import { buildAllocationModalSeed } from './buildAllocationModalSeed';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
-import { ACC, base, resetAllocationModalStore } from './__tests__/allocationModalTestKit';
+import { ACC, base, resetAllocationModalStore } from '@/test/allocationModalTestKit';
 
 type IsExact<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;

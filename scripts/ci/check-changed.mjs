@@ -76,11 +76,11 @@ const applicationOnly =
 // still exists, so a deleted file or a change to them can fail it without touching backend code.
 const documentationPolicySpec = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
 const documentationPolicyInput =
-  /^(?:user-stories\/|docs-src\/|packaging\/|apps\/frontend\/messages\/|README\.md$|CHANGELOG-ARCHIVE\.md$)/;
+  /^(?:user-stories\/|docs-src\/|packaging\/|apps\/frontend\/messages\/|README\.md$)/;
 // A filter that matches nothing reports success; these markers turn it into a failure.
 // Specs run on their own; any other end-to-end input can affect every spec.
 const e2eSpec = /^e2e\/.+\.spec\.ts$/;
-const e2eInput = /^(?:e2e\/|playwright\.config\.ts$|scripts\/e2e\/playwright)/;
+const e2eInput = /^(?:e2e\/|tooling\/|playwright\.config\.ts$|scripts\/e2e\/playwright)/;
 const japaNoTests = /NO TESTS EXECUTED/;
 const nodeTestNoTests = /^(?:# |ℹ )tests 0$/m;
 // Vitest and Japa summarise as "Tests  12 passed (12)"; node --test reports "tests 12".
@@ -88,11 +88,14 @@ const testCounts = [/^\s*Tests\s+(\d+) passed/m, /^(?:# |ℹ )tests (\d+)$/m];
 
 const relativeTo = (prefix) => (path) => path.slice(prefix.length);
 
-/** List the script test files that import `scripts/<path>.mjs`, whatever they are called. */
+/** List the script and tooling test files that import a changed `.mjs` file, whatever they are called. */
 function scriptTestsImporting(path) {
-  const scripts = new URL('scripts/', pathToFileURL(root));
-  return readdirSync(scripts, { recursive: true })
-    .map((entry) => `scripts/${entry.split('\\').join('/')}`)
+  return ['scripts', 'tooling']
+    .flatMap((directory) =>
+      readdirSync(new URL(`${directory}/`, pathToFileURL(root)), { recursive: true }).map(
+        (entry) => `${directory}/${entry.split('\\').join('/')}`,
+      ),
+    )
     .filter((test) => {
       if (!test.endsWith('.test.mjs')) return false;
       const target = posix.relative(posix.dirname(test), path);
@@ -218,6 +221,9 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const suiteReasons = [];
   if (sharedChanged) suiteReasons.push('the shared contract package changed');
   if (workspaceChanged) suiteReasons.push('dependencies or workspace configuration changed');
+  // The backend loads the reset harness from tooling/, and its entry spec checks when it loads.
+  if (paths.some((path) => path.startsWith('tooling/e2e_')))
+    suiteReasons.push('the reset harness the backend loads changed');
   const mappedSpecs = new Map();
   for (const path of backendSources) {
     if (backendSuiteInput.test(path) || backendPermissionFile.test(path)) {
@@ -256,7 +262,7 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const frontendTests = present.filter((path) => frontendTest.test(path) && path !== docsSiteTest);
   const frontendLint = presentCode.filter((path) => path.startsWith('apps/frontend/'));
   const rootLint = presentCode.filter((path) =>
-    /^(?:scripts|e2e|packages\/shared\/src)\//.test(path),
+    /^(?:scripts|e2e|tooling|packages\/shared\/src)\//.test(path),
   );
   const backendLint = presentCode.filter((path) => path.startsWith('apps/backend/'));
   const related = presentCode.filter(
@@ -283,12 +289,13 @@ function planAllChecks(paths, exists, testsImporting, { staticOnly, backendImpor
   const scriptTests = [
     ...new Set(
       paths
-        .filter((path) => /^scripts\/.+\.mjs$/.test(path))
-        .flatMap((path) =>
-          path.endsWith('.test.mjs')
-            ? [path]
-            : [path.replace(/\.mjs$/, '.test.mjs'), ...testsImporting(path)],
-        )
+        .filter((path) => /^(?:scripts|tooling)\/.+\.(?:mjs|ts)$/.test(path))
+        .flatMap((path) => {
+          if (path.endsWith('.test.mjs')) return [path];
+          // A TypeScript helper has no sibling test of its own; its importers test it.
+          const sibling = path.endsWith('.mjs') ? [path.replace(/\.mjs$/, '.test.mjs')] : [];
+          return [...sibling, ...testsImporting(path)];
+        })
         .filter(exists),
     ),
   ];

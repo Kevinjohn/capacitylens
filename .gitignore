@@ -79,5 +79,5 @@ _code-review-2026-07-17-below-cap.md
 /docs/
 docs-src/.vitepress/cache
 
-# Transient single-flight locks for the fixed-port suites (see scripts/dev/ports.mjs)
+# Transient single-flight locks for the fixed-port suites (see tooling/ports.mjs)
 server/*.lock

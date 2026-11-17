@@ -5,11 +5,12 @@ import {
   maximumTimeOffRepeatUntilDate,
   RepeatingDateError,
 } from '@capacitylens/shared/lib/repeatingDates';
+import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ISODate, Resource, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
 import { readActiveDateLocale, m } from '@/i18n';
 import type { EntitySave } from '@/hooks/useEditSubmit';
-import { buildRepeatedTimeOffDrafts } from '@/lib/repeatingTimeOff';
+import { resolveTimeOffRepeatPattern } from '@/lib/repeatingTimeOff';
 import { parseText } from '@/lib/validation';
 import type { useStore } from '@/store/useStore';
 import type { Draft } from '@/store/useStore';
@@ -103,7 +104,11 @@ function buildTimeOffDraftsForSave(
     return null;
   }
   try {
-    return buildRepeatedTimeOffDrafts(baseDraft, options.repeatUntil, options.repeat).drafts;
+    return buildRepeatedTimeOffDrafts(
+      baseDraft,
+      options.repeatUntil,
+      resolveTimeOffRepeatPattern(options.repeat),
+    ).drafts;
   } catch (error) {
     // Route repeat-generation failures to the appropriate form field rather than letting them escape submit.
     return resolveRepeatFailure(baseDraft.startDate, error, options.fail);

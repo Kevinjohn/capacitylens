@@ -2,7 +2,7 @@ import { setMasqueradeContextReader, setMasqueradeEndedHandler } from '@/data/re
 import { createStorePlanningTransport } from '@/data/planning/storePlanningTransport';
 import { useStore } from '@/store/useStore';
 import { masqueradeApi } from './masqueradeApi';
-import { getMasqueradeContextToken, setMasqueradeContextToken } from './masqueradeContext';
+import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { MasqueradeController } from './masqueradeController';
 import { reprojectAccess } from './reprojectAccess';
 

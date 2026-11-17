@@ -5,6 +5,7 @@ import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDa
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
+import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import {
   accountId,
   configureAuth,
@@ -194,6 +195,9 @@ test.group('independent typed planning operations', (group) => {
         .send();
       response.assertStatus(200);
       assert.equal(body(response).revision, index + 1);
+      // Only a catalogue archive reports what it hid.
+      if (transition.operation !== 'catalogue.archive')
+        assert.notProperty(response.body() as object, 'archived');
       const row = await db.from(transition.entityTable).where({ id: transition.id }).first();
       assert.isDefined(row);
       assert.equal(row!.id, transition.id);
@@ -273,6 +277,39 @@ test.group('independent typed planning operations', (group) => {
       await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
       1
     );
+  });
+
+  test('a client archive reports the active rows it hid', async ({ client, assert, cleanup }) => {
+    configureAuth(cleanup);
+    const before = await readState(accountId, true);
+    const { cookie } = await signIn(client);
+    const target = before.clients.find(
+      (row) =>
+        row.accountId === accountId &&
+        !row.builtin &&
+        before.projects.some((project) => project.clientId === row.id)
+    )!;
+    const archived = await session(client.post(route(`clients/${target.id}/archive`)), cookie)
+      .json(
+        input(0, { operation: 'catalogue.archive', entity: { entity: 'clients', id: target.id } })
+      )
+      .send();
+    archived.assertStatus(200);
+    const after = await readState(accountId, true);
+    const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff') =>
+      activeOnly(before)[key].filter((row) => row.accountId === accountId).length -
+      activeOnly(after)[key].filter((row) => row.accountId === accountId).length;
+    const reported = (archived.body() as { archived?: Record<string, number> }).archived;
+    assert.deepEqual(reported, {
+      projects: hidden('projects'),
+      phases: hidden('phases'),
+      activities: hidden('activities'),
+      allocations: hidden('allocations'),
+      timeOff: hidden('timeOff'),
+    });
+    assert.isAbove(reported!.projects, 0);
+    assert.isAbove(reported!.activities, 0);
+    assert.isAbove(reported!.allocations, 0);
   });
 
   test('the built-in Internal client rejects both lifecycle verbs without mutation', async ({

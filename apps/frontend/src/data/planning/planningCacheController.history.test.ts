@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlanningIntent } from '@/api/planningContracts';
 import type { PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,

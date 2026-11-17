@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { laneDirectory } from './laneClaims.mjs';
 import { leftoverPids, surveyLanes } from './lanes.mjs';
-import { portsForLane } from './ports.mjs';
+import { portsForLane } from '../../tooling/ports.mjs';
 
 function scratch() {
   const cache = mkdtempSync(join(tmpdir(), 'lanes-report-'));

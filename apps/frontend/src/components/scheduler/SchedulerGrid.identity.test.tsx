@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { PermissionContext } from '@/auth/permissionContext';
 import { resetStoreWithData, DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { schedulerDataset } from './__tests__/schedulerTestKit';
+import { schedulerDataset } from '@/test/schedulerTestKit';
 import { useResourceAvatars } from '@/account/useResourceAvatars';
 import { SchedulerGrid } from './SchedulerGrid';
 import { OwnerPermissions } from '@/test/ownerPermissions';

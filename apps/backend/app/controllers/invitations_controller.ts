@@ -13,7 +13,7 @@ import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { isInvitableRole } from '#services/account_kit/policy';
-import { installationCompany, installationCompanyId } from '#services/installation_company';
+import { installationCompany, installationCompanyId } from '#models/installation_company';
 import { invalidAdmission, missingAdmission } from '#services/admission/errors';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';

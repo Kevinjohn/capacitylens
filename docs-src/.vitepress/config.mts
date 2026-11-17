@@ -3,7 +3,7 @@ import { defineConfig } from "vitepress";
 import { imageLightbox } from "./lightbox.mts";
 import { BASE, SITE_URL } from "./base.mjs";
 import { generateDocumentationComponentId } from "./generateDocumentationComponentId.mts";
-import { ports } from "../../scripts/dev/ports.mjs";
+import { ports } from "../../tooling/ports.mjs";
 
 // Standalone pages retain this inline keyboard handler because file:// copies cannot depend on a separate bundle.
 // Click-to-close still works through CSS when JavaScript is unavailable.
@@ -12,7 +12,7 @@ const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs/docs-light
 // VitePress is Vite, so `docs:dev` would default to 5173 and `docs:preview` to 4173, the exact
 // ports the application dev server and the E2E suite bind. Writing documentation would then quietly
 // block a test run in another worktree, and the collision surfaces as an unrelated E2E failure.
-// Pin both to the documentation lane instead (scripts/dev/ports.mjs).
+// Pin both to the documentation lane instead (tooling/ports.mjs).
 const lanePorts = ports();
 
 const usingSidebar = [

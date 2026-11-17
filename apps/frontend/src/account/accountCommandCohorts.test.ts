@@ -13,7 +13,7 @@ vi.mock('@/data/requestTimeout', () => ({
 }));
 
 import { masqueradeController } from '@/auth/masqueradeControllerInstance';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from './accountCommands';
 import { invitationRequests } from './invitationRequests';
 

@@ -88,12 +88,11 @@ This is the short, present-tense record of decisions that constrain future work.
   creates that company; the UI offers no company switcher or additional-company creation. Tenant
   scoping, memberships and the account directory remain enforced, and ambiguous installations
   report an error.
-- The one-company rule has one server home, `app/services/installation_company.ts`. Every server
+- The one-company rule has one server home, `app/models/installation_company.ts`. Every server
   check of the limit, or of whether a company exists yet, reads through it. The client shows the
   server's refusal and does not count companies itself.
-- Code that works across several companies stays on purpose: an export without a named company
-  merges every company the person belongs to, and view-as searches every membership when no company
-  is named.
+- Code that works across several companies stays on purpose: view-as searches every membership when
+  no company is named. An export always names its company.
 - Planning reads return current authority, one integer company revision and the complete,
   confidentially projected company slice from one transaction. Every typed mutation carries the
   `baseRevision` it was drafted against; a mismatch returns 409 and the client refetches. No
@@ -194,80 +193,67 @@ This is the short, present-tense record of decisions that constrain future work.
 - Account Kit owns accounts: password sign-in, registration, address confirmation, password
   change and reset, invitations, sessions and admission. CapacityLens owns company membership,
   roles, the member↔resource link, the permission keys, the access-control services and every
-  screen and word that renders a kit outcome. The Access Control package owns the Bouncer abilities
-  for each permission key; CapacityLens has no policies of its own. Password sign-in is the only
-  sign-in method; there are no identity providers.
-- Company memberships are stored and ruled by `@kevinjohn/adonisjs-access-control`: its
-  `memberships` table, the roles viewer < editor < admin < owner, and the permission keys declared
-  once in `packages/shared/src/domain/access.ts`. Every route with `:accountId` in its path runs
-  the package's `scope` middleware after authentication; it refuses a caller without an active
-  membership before the handler, with the refusal the handler would give. The server still
-  authorizes inside the request transaction through the package's `memberships.authorize`; a route
-  that takes the company id from the body has only that check. The browser reads the same
-  declaration only to show or hide controls. A membership is active or suspended. Nobody manages
-  their own membership, and an Admin cannot manage the Owner.
-- Admission is cumulative and owned by the kit: an optional allowed email domain
-  (`CAPACITYLENS_ALLOWED_EMAIL_DOMAINS`), invitation evidence and Owner or Admin approval, all from
-  static configuration (restart to change). Accepting an emailed invitation records the evidence,
-  confirms the address and creates the membership with the invited role; approval is still required. A person who is signed in but not admitted
-  reaches only the limited screens, which show the step that applies. Approval, rejection and
-  revocation are enforced on the next request; nothing is pushed to the browser. An admitted person
-  without a membership (operator-granted evidence or an approved registration) joins explicitly,
-  with the invited role or Viewer, never Owner. A suspended member cannot rejoin this way; only an
-  Owner or Admin restores them. A new identity always needs fresh invitation evidence and approval.
+  screen and word that renders a kit outcome. CapacityLens has no authorization policies of its
+  own. Password sign-in is the only sign-in method; there are no identity providers.
+- Roles rank viewer < editor < admin < owner, and the permission keys are declared once. A route
+  with the company in its path refuses a caller without an active membership before its handler,
+  with the refusal the handler would give. The server always authorizes inside the request
+  transaction; a route that takes the company from the request body has only that check. The
+  browser reads the permissions only to show or hide controls. A membership is active or suspended.
+  Nobody manages their own membership, and an Admin cannot manage the Owner.
+- Admission is cumulative and owned by the kit: an optional allowed email domain, invitation
+  evidence and Owner or Admin approval, all from static configuration (restart to change).
+  Accepting an emailed invitation records the evidence, confirms the address and creates the
+  membership with the invited role; approval is still required. A person who is signed in but not
+  admitted reaches only the limited screens, which show the step that applies. Approval, rejection
+  and revocation are enforced on the next request; nothing is pushed to the browser. An admitted
+  person without a membership (operator-granted evidence or an approved registration) joins
+  explicitly, with the invited role or Viewer, never Owner. A suspended member cannot rejoin this
+  way; only an Owner or Admin restores them. A new identity always needs fresh invitation evidence
+  and approval.
 - Invitations are emailed only; the acceptance link is never shown in the product. One configured
   lifetime (seven days) applies to every invitation. Accepting creates a new identity and refuses an
   already-registered address; identities are never merged by email. When an existing limited
-  account needs invitation evidence, the operator uses the kit's `grant-invitation` command. An
-  invitation never proposes or creates a Resource; link the member to a Resource after they join.
-- A company invitation carries its company id. Access Control's Account Kit callbacks decide who
-  may invite, create the invited membership and remove memberships when an account is deleted; the
-  product adds the audit entry and planning revision in the same transaction. An invitation without
-  a company, such as the operator's, creates no membership.
+  account needs invitation evidence, the operator grants it. An invitation never proposes or creates
+  a Resource; link the member to a Resource after they join.
+- A company invitation carries its company id. It creates the invited membership with its audit
+  entry and planning revision in one transaction, and deleting an account removes its memberships. An invitation without a company,
+  such as the operator's, creates no membership.
 - Invitations, address confirmation and password resets need configured mail delivery. Without
   it they are refused with an explanation rather than falling back to a copyable link.
-- Sessions use the kit's database-backed registry with a 14-day idle expiry. Changing or resetting
-  a password ends every session, including the current one. Administrator password resets and
-  session revocation for other members are deferred; the operator's kit commands cover recovery.
+- Sessions end after 14 days without use. Changing or resetting a password ends every session,
+  including the current one. Administrator password resets and session revocation for other members
+  are deferred; the operator's kit commands cover recovery.
 - Ownership transfer, whole-company import and company-wide people anonymisation each require a
   password confirmation for that action; no time-based fresh-session window replaces it.
 - A password confirmation is single-use, lasts five minutes and binds the real principal, Kit
   session, live credential revision, company, action and exact intent. It verifies the current
   password and is spent in the same transaction as the change, including ownership transfer's
   idempotency execution boundary.
-- `@kevinjohn/adonisjs-confirm-action-with-password` 0.1.1, used with exactly Account Kit 0.3.4,
-  owns issuance, credential/session/request binding, expiry and transactional consumption. Product
-  code owns live company authority and the response contract; its pre-flight and transactional
-  policy require a confirmed email, admission, a live Owner and no view-as mode. Credential writes
-  remain Account Kit-owned.
+- Both the check before confirming and the check inside the transaction require a confirmed
+  address, admission, a live Owner and no view-as mode. Credential writes stay with Account Kit.
 - Wrong passwords are limited per account before hashing: five failures per minute, then a
   20-minute block. A successful confirmation resets only that account's budget.
-- Confirmations are pruned globally after successful issuance, outside every transaction; a pruning
-  failure cannot fail the issuance response.
-- Account deletion issues and spends its own `delete-account` confirmation, scoped to the person's
-  id with no company authority, just before Account Kit's deletion transaction. The Kit's own
-  current-password check stays because it cannot be turned off. A confirmation's scope carries no
-  foreign key to `accounts`.
-- The wire names are `POST /api/auth/password-confirmation`, `confirmationId`,
-  `PASSWORD_CONFIRMATION_REQUIRED` and `PASSWORD_CONFIRMATION_DENIED`.
+- Cleaning up old confirmations never fails the confirmation being issued.
+- Deleting an account also requires a password confirmation for that action, scoped to the person
+  with no company authority and spent just before the deletion.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
 - Production requires an HTTPS public URL; plain HTTP is accepted only for loopback development.
-- The first identity comes from the operator's bootstrap invitation, printed by
-  `account-kit:admission:bootstrap`. Accepting it sets that person's password; on an empty
-  installation the sole admitted identity then enters a company name in the browser and becomes its
-  Owner. The current session, absence of companies/memberships and sole-principal identity are
-  checked under the transaction lock, and defaults, Internal client, membership, revision and audit
-  commit together. The server refuses open signup until the first company exists, even when open
-  signup is enabled in configuration, and rechecks this under the transaction lock used by identity
-  creation. The controlled first identity can still sign in and finish setup. Once the first company
-  exists, the configured signup policy applies. The stopped-server operator initializer remains a
-  recovery option, never the normal install path, and also requires an admitted identity. Neither
-  path creates credentials or changes identity admission. No environment variable grants company
-  ownership.
+- The first identity comes from the operator's bootstrap invitation. Accepting it sets that person's
+  password; on an empty installation the sole admitted identity then enters a company name in the
+  browser and becomes its Owner. The current session, absence of companies/memberships and
+  sole-principal identity are checked under the transaction lock, and defaults, Internal client,
+  membership, revision and audit commit together. The server refuses open signup until the first
+  company exists, even when open signup is enabled in configuration, and rechecks this under the
+  transaction lock used by identity creation. The controlled first identity can still sign in and
+  finish setup. Once the first company exists, the configured signup policy applies. The
+  stopped-server operator initializer remains a recovery option, never the normal install path, and
+  also requires an admitted identity. Neither path creates credentials or changes identity
+  admission. No environment variable grants company ownership.
   A development-only demo command may, on an empty disposable database, create the sample company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.
-- The development bootstrap identity is the one account written straight into `users`, already
-  confirmed and with a known password. The kit creates an account only unconfirmed, with a mailed
+- The development bootstrap identity is the one account created outside the kit, already
+  confirmed and with a known password; the kit creates an account only unconfirmed, with a mailed
   proof. Production refuses the setting that enables it.
 - Each company has exactly one Owner. Ownership moves only by one atomic transfer to an existing
   member; the former Owner becomes Admin. Admins cannot administer an Owner. Credential recovery
@@ -275,54 +261,33 @@ This is the short, present-tense record of decisions that constrain future work.
 - Members and schedulable Resources are separate records linked explicitly. Adding a Resource never
   grants access; inviting a member never creates a person. Team & access is visible to every role;
   only Owner/Admin see invitation and access-management controls.
-- View-as-member uses the pinned Masquerade package for identity-wide, read-only modes and durable
-  lifecycle audit, with a fixed 15-minute expiry. Every signed-in session observes the same mode on
-  its next request; focus and visibility reconciliation refresh the browser. Company navigation
-  ends the mode globally; signing out ends only the current session. Each company request checks
-  both real-actor and target permissions. No failed target check falls back to actor permissions.
-- Package admission captures the request identity before product transactions. The product
-  transaction revalidates the same real actor/session and company/target access. Already-admitted
-  operator requests may finish after start; already-admitted target requests remain read-only after
-  stop. Package operations never run inside the single-connection product transaction. Covered
-  writes require the context captured for the action, including idle-mode writes; stale actions are
-  refused and never automatically replayed.
-- One router middleware gates every route by its name before the handler runs, using Account Kit's
-  managed guard: public routes pass, limited routes need a valid sign-in, and every other route
-  also needs a confirmed address and admission. A route name in no list gets the strictest check;
-  only the health probes and the application shell have no name. Routes under `/api/auth` are
-  public at the gate because their handlers answer a signed-out caller themselves. The gate adds
-  an early refusal; it does not replace the check inside the product transaction.
-- View-as policy is declared where each route is registered (`start/route_guards.ts`) and enforced
-  by the Masquerade package's context middleware after route matching. Member routes use the
-  package's effective guard and are refused for writes while a mode is active; `asMemberOnly()`
-  marks reads that are refused outright; the view-as controls run on the raw guard; routes about
-  the signed-in person's own account carry Account Kit's account blocker. No route allows writes
-  under view-as. A request carrying a stale `X-Masquerade-Context` is refused, reads included.
-  `tests/functional/auth/masquerade_routes.spec.ts` pins every route's classification from
-  `node ace masquerade:routes`. Because policy runs after routing and body parsing, a write to a
-  path with no route answers 404 and a malformed body answers 400, not `MASQUERADE_READ_ONLY`.
-- Package events are authoritative for view-as lifecycle audit. They carry no company ID and no
-  separate explicit, company-switch or sign-out classification. Control state and events stay in
-  database backups, outside scheduling exports.
-- View-as events are kept for 365 days. The server runs the package's `masquerade:prune` at
-  startup and hourly: it ends expired modes and deletes older events. A failed pass is logged and
-  retried on the next one. The operator can also run `masquerade:prune`, `masquerade:status` and
-  `masquerade:stop`.
-- Unsafe requests are accepted only from the public URL's origin or a `CAPACITYLENS_CORS_ORIGIN`
-  entry; when that is unset outside production, the built-in `localhost` and `127.0.0.1` origins on
-  ports 5173 and 5273 are trusted. With no Origin, only `Sec-Fetch-Site: same-origin` is accepted.
-  Shield owns HSTS, `nosniff`, frame protection and the CSP. HSTS is sent only when the public URL
-  is HTTPS. There is no CSP report route. Secure-cookie behaviour follows `CAPACITYLENS_PUBLIC_URL`.
-- `@kevinjohn/adonisjs-origin-guard` supplies the unsafe-request origin check, the origin parsers
-  and the private-peer list used for proxy trust. Its middleware runs straight after the security
-  headers, so a refusal still carries them.
+- View-as-member is identity-wide and read-only, with durable lifecycle audit and a fixed 15-minute
+  expiry. Every signed-in session observes the same mode on its next request; focus and visibility
+  reconciliation refresh the browser. Company navigation ends the mode globally; signing out ends
+  only the current session. Each company request checks both real-actor and target permissions. No
+  failed target check falls back to actor permissions.
+- The product transaction revalidates the real actor/session and the company/target access
+  captured before it. Already-admitted operator requests may finish after start; already-admitted
+  target requests remain read-only after stop. Covered writes require the context captured for the
+  action, including idle-mode writes; stale actions are refused and never automatically replayed.
+- Every route is gated by name before its handler runs: public routes pass, limited routes need a
+  valid sign-in, and every other route also needs a confirmed address and admission. A named route
+  in no list gets the strictest check; unnamed routes (the health probes and the application shell)
+  have no gate. The gate adds an early refusal; it does not replace the check inside the product
+  transaction.
+- Each route declares its view-as policy where it is registered. No route allows writes under
+  view-as; some reads are refused outright, and a request carrying a stale view-as context is
+  refused, reads included.
+- View-as control state and events stay in database backups, outside scheduling exports.
+- View-as events are kept for 365 days; a regular pass ends expired modes and deletes older events.
+- Unsafe requests are accepted only from the public URL's origin or a configured extra origin;
+  outside production with none configured, the local development origins are trusted. A refusal
+  still carries the security headers. HSTS is sent only when the public URL is HTTPS. There is no
+  CSP report route.
 - The audit table is written inside the mutation's transaction. Post-commit logging is diagnostic.
-- Logs correlate a request by the framework's `request_id`. The server always generates it (a
-  UUID, echoed in the `X-Request-Id` response header); a client-supplied `X-Request-Id` is
-  discarded before the framework reads it, so no client text becomes the id.
-- Validation and domain errors use the flat `{ error, code? }` contract. Vine runs behind one
-  response adapter; the SPA keys its presentation on `code`.
-- Rate limits on authentication and the API use `@adonisjs/limiter`.
+- Every request gets a server-generated id for log correlation; no client text becomes the id.
+- Validation and domain errors use one flat error contract; the browser presents them by code.
+- Authentication and the API are rate limited.
 - CapacityLens ships no analytics. Mail delivers addressed invitations, address confirmations and
   password resets only.
 - Errors on data paths are surfaced, not swallowed.

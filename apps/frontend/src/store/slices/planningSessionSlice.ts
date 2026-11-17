@@ -3,7 +3,7 @@ import { readCurrentWeekAnchor } from './schedulerSlice';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import {
   createPlanningCacheController,

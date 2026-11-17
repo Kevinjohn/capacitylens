@@ -4,7 +4,7 @@ import { registry } from '@capacitylens/backend/registry';
 import type { PlanningIntent } from '@/api/planningContracts';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { createPlanningTransport } from './planningTransport';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 
 const context = {
   identity: 'bruce-login',

@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import { ACTIVITY_KINDS, RESOURCE_KINDS } from '#validators/entity_kinds';
+import { ACTIVITY_KINDS, RESOURCE_KINDS } from '@capacitylens/shared/types/entities';
 import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';

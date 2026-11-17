@@ -155,6 +155,24 @@ test('deleted paths select checks but are never passed to file tools', () => {
   assert.deepEqual(step(steps, 'format').args.slice(-1), ['README.md']);
 });
 
+test('a changed tooling module runs its own test file', () => {
+  const steps = planChecks(['tooling/ports.mjs'], everything, noImporters);
+  assert.deepEqual(step(steps, 'test: 1 script test').args, ['--test', 'tooling/ports.test.mjs']);
+  assert.ok(step(steps, 'lint: 1 file(s)'));
+});
+
+test('a changed reset harness runs the backend suite and the script tests that load it', () => {
+  const harness = 'tooling/e2e_reset_control.ts';
+  const steps = planChecks([harness], everything, (path) =>
+    path === harness ? ['scripts/e2e/e2eReset.test.mjs'] : [],
+  );
+  assert.ok(step(steps, 'test: backend suite'));
+  assert.deepEqual(step(steps, 'test: 1 script test').args, [
+    '--test',
+    'scripts/e2e/e2eReset.test.mjs',
+  ]);
+});
+
 test('a changed script runs its own test file when one exists', () => {
   const steps = planChecks(
     ['scripts/dev/lanes.mjs', 'scripts/build/bundleBudget.mjs'],
@@ -377,7 +395,6 @@ test('deleted files and documentation policy inputs run the documentation policy
     [['apps/frontend/src/components/a.test.tsx'], (path) => path === policy],
     [['user-stories/navigation/US-NAV-15.md'], everything],
     [['README.md'], everything],
-    [['CHANGELOG-ARCHIVE.md'], everything],
   ]) {
     const files = step(planChecks(paths, exists), 'test: 1 backend spec').args;
     assert.deepEqual(files.slice(-2), ['--files', policy.slice('apps/backend/'.length)], paths[0]);

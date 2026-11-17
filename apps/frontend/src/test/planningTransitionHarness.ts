@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { expect, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';

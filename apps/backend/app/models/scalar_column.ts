@@ -2,6 +2,10 @@ import type { ColumnOptions } from '@adonisjs/lucid/types/model';
 import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
 import { isIsoInstant } from '@capacitylens/shared/account/types';
 import { DateTime } from 'luxon';
+import { isOneOf } from '@kevinjohn/adonisjs-lucid-checked-columns';
+
+/** Accepts a weekday number, 0 (Sunday) to 6 (Saturday), in a JSON column. */
+export const isWeekday = isOneOf([0, 1, 2, 3, 4, 5, 6] as const);
 
 /** Converts a valid Luxon tombstone to the canonical UTC value stored in SQLite and sent to the API. */
 function canonicalDeletedAt(

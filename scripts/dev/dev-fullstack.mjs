@@ -6,14 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { parsePort } from './parsePort.mjs';
 import { spawnPnpm } from '../shared/pnpmSpawn.mjs';
-import { ports, resolveLane } from './ports.mjs';
+import { ports, resolveLane } from '../../tooling/ports.mjs';
 import { createDisposableDemoStorage } from './disposableDemoStorage.mjs';
 import {
   isProcessTreeRunning,
   portInUse,
   requireNode24,
   terminateProcessTrees,
-} from './devProcesses.mjs';
+} from '../../tooling/devProcesses.mjs';
 
 export async function runDevelopmentStack({ demo = false } = {}) {
   if (demo && process.env.NODE_ENV === 'production')

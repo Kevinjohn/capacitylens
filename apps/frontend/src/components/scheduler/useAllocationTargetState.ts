@@ -18,6 +18,7 @@ import {
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { FieldError } from '@/hooks/useFieldError';
 import type { AllocationModalSeed } from './buildAllocationModalSeed';
+import { formatProjectLabel } from '@/components/common/projectOptions';
 import {
   isActivityInProjectSelection,
   buildActivityScope,
@@ -104,7 +105,7 @@ function buildProjectOptions(
       const clientName = clientNamesById.get(project.clientId);
       return {
         value: project.id,
-        label: clientName ? `${clientName} / ${project.name}` : project.name,
+        label: formatProjectLabel(project.name, clientName),
         separatorBefore: index === 0,
       };
     }),

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { SchedulerView } from './SchedulerView';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
-import { schedulerDataset } from './__tests__/schedulerTestKit';
+import { schedulerDataset } from '@/test/schedulerTestKit';
 
 describe('SchedulerView', () => {
   beforeEach(async () => {

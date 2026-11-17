@@ -1,4 +1,4 @@
-import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -8,12 +8,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { resolveLane, workerPorts } from '../dev/ports.mjs';
+import { resolveLane, workerPorts } from '../../tooling/ports.mjs';
 import { assertE2eProxyDrained } from './e2eWorkerRuntime.mjs';
-import {
-  createResetControlToken,
-  requestResetControl,
-} from '../../apps/backend/start/e2e_reset_control.ts';
+import { createResetControlToken, requestResetControl } from '../../tooling/e2e_reset_control.ts';
 
 const frontend = join(process.cwd(), 'apps/frontend');
 const lane = resolveLane();
