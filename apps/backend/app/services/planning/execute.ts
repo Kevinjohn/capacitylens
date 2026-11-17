@@ -78,6 +78,7 @@ async function transitionLifecycle(
   action: 'archive' | 'unarchive'
 ) {
   const current = existingRow(data, table, id);
+  // Checking the table does not narrow the row, but a clients row is a Client.
   if (table === 'clients' && (current as Client).builtin === true) {
     throw new PlanningOperationError(
       409,

@@ -81,6 +81,7 @@ export function projectForReader<T extends object>(
 ): T {
   const rule = restrictionFor(table, capabilities);
   if (!rule) return row;
+  // Only clients and projects have private-row fields, so a row reaching redaction is one of them.
   let projected = (
     rule.privateRowFields.length > 0 ? redactPrivateName(row as T & (Client | Project)) : row
   ) as Record<string, unknown>;

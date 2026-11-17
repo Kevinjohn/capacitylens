@@ -61,6 +61,7 @@ export function assertEntityDomain(
       );
     }
   }
+  // The caller has checked that the table is a lifecycle table, so its rows carry lifecycle fields.
   const ancestry = inspectLifecycleAncestry(
     table,
     row as LifecycleAncestryRow,
@@ -114,6 +115,7 @@ export function assertEntityDomain(
   if (table === 'resources') {
     // The row is validated client input typed as a plain record, so it does not overlap the entity type.
     const resource = row as unknown as Resource;
+    // The stored row comes from the same table, so it is a Resource.
     const previous = existing as Resource | undefined;
     assertResourceProjectAllowsDependents(state, accountId, id, resource, previous, lookup);
     assertResourceKindAllowsDependents(state, accountId, id, resource.kind, lookup);
@@ -135,6 +137,7 @@ export function assertEntityDomain(
       id,
       // The row is validated client input typed as a plain record, so it does not overlap the entity type.
       row as unknown as Activity,
+      // The stored row comes from the same table, so it is an Activity.
       existing as Activity | undefined,
       lookup
     );
@@ -156,6 +159,7 @@ export function assertEntityDomain(
     if (resource) {
       assertAllocationPlacement({
         allocation,
+        // The stored row comes from the same table, so it is an Allocation.
         existing: existing as Allocation | undefined,
         resource,
         accountWorkingDays: lookup.accountWorkingDays(accountId),
