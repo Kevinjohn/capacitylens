@@ -59,6 +59,8 @@ test.group('M1 read path', (group) => {
                 const body = structuredClone(expected.body) as AppData;
                 for (const key of APP_DATA_KEYS)
                   for (const row of body[key]) fillNullableFields(key, row);
+                // The recorded fixture has no private rows, so each display name is the name.
+                for (const row of [...body.clients, ...body.projects]) row.displayName = row.name;
                 return body;
               })()
             : expected.body;
@@ -86,15 +88,6 @@ test.group('M1 read path', (group) => {
     const identity = await client.get('/api/auth/me');
     identity.assertStatus(200);
     assert.equal(identity.body().user.email, 'bruce.wayne@wayne.example');
-    const unscoped = await client.get('/api/state');
-    unscoped.assertStatus(200);
-    assert.deepEqual(
-      unscoped
-        .body()
-        .accounts.map(({ id }: { id: string }) => id)
-        .sort(),
-      ['a-loft', 'a-studio']
-    );
   });
 
   test('exposes liveness and readiness', async ({ client, assert }) => {

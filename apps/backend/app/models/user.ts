@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { RefusalError } from '#exceptions/refusal_error';
 import { UserSchema } from '#database/schema';
 import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm';
-import { hasNoCompany } from '#services/installation_company';
+import { hasNoCompany } from '#models/installation_company';
 
 export class FirstCompanyPendingError extends RefusalError {
   constructor() {

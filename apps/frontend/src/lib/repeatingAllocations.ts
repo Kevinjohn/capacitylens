@@ -1,22 +1,14 @@
-import { addDaysISO, daysInclusive, weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import {
-  lacksEffectiveWorkingDays,
-  startsOnNonEffectiveWeekday,
-} from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { daysInclusive, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { startsOnNonEffectiveWeekday } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import {
-  endDateForSpan,
-  maxSpanDaysForStart,
-  MAX_SPAN_DAYS,
-} from '@capacitylens/shared/lib/schedulingDays';
+import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates';
-import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
+import { isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type {
   Allocation,
   Closure,
   ISODate,
   Resource,
-  SchedulingMode,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
 import type { Draft } from '@/lib/entityDrafts';
@@ -41,14 +33,6 @@ interface BuildRepeatingAllocationAdvisoryInput {
 export type RepeatSelection =
   'none' | 'weekly' | 'every-two-weeks' | 'every-three-weeks' | 'every-four-weeks' | 'monthly';
 
-/** Scheduling inputs that a persisted allocation draft does not carry. */
-export interface RepeatProjectionContext {
-  schedulingMode: SchedulingMode;
-  daysOver: number;
-  resource: Pick<Resource, 'id' | 'kind'>;
-  effectiveWeek: EffectiveWorkingWeek;
-}
-
 /** Number of generated allocations with each non-blocking advisory category. */
 export interface RepeatingAllocationAdvisory {
   overCapacityAllocations: number;
@@ -67,97 +51,6 @@ const REPEAT_PATTERNS: Record<Exclude<RepeatSelection, 'none'>, RepeatPattern> =
 /** Map a repeating form choice to the shared date-generation pattern. */
 export function resolveRepeatPattern(selection: Exclude<RepeatSelection, 'none'>): RepeatPattern {
   return REPEAT_PATTERNS[selection];
-}
-
-/**
- * Project a validated allocation draft onto generated repeat starts.
- * The first result is the exact `baseDraft` object; later results change only the date range.
- *
- * @throws Error when the resolved resource does not match the draft.
- * @throws RangeError when a working-span mode receives an invalid `daysOver` value, has no effective
- * working days, or a projected range leaves the supported ISO-date domain. Record-creation callers
- * reject an empty effective week before projection so copy is routed to the assignee/form surface.
- */
-export function buildRepeatedAllocationDrafts(
-  baseDraft: Draft<Allocation>,
-  startDates: readonly ISODate[],
-  context: RepeatProjectionContext,
-): Draft<Allocation>[] {
-  assertRepeatProjection(baseDraft, startDates, context);
-  const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
-  const usesCalendarSpan =
-    isExternalResource(context.resource) || context.schedulingMode === 'hourly';
-  const spanOptions = {
-    ...(context.effectiveWeek.kind === 'days' ? { workingDays: context.effectiveWeek.days } : {}),
-    ...(baseDraft.ignoreWorkingDays !== undefined
-      ? { ignoreWorkingDays: baseDraft.ignoreWorkingDays }
-      : {}),
-  };
-  assertProjectedSpans({ startDates, daysOver: context.daysOver, spanOptions, usesCalendarSpan });
-
-  return startDates.map((generatedStart, index) => {
-    if (index === 0) return baseDraft;
-    const projectedEnd = usesCalendarSpan
-      ? addDaysISO(generatedStart, calendarSpan - 1)
-      : endDateForSpan(generatedStart, context.daysOver, spanOptions);
-    return { ...baseDraft, startDate: generatedStart, endDate: projectedEnd };
-  });
-}
-
-function assertRepeatProjection(
-  baseDraft: Draft<Allocation>,
-  startDates: readonly ISODate[],
-  context: RepeatProjectionContext,
-): void {
-  if (context.resource.id !== baseDraft.resourceId) {
-    throw new Error('The repeat projection resource does not match the allocation resource.');
-  }
-  if (startDates.length === 0 || startDates[0] !== baseDraft.startDate) {
-    throw new Error('Repeat projection must begin with the validated allocation draft.');
-  }
-  const usesCalendarSpan =
-    isExternalResource(context.resource) || context.schedulingMode === 'hourly';
-  if (!usesCalendarSpan && !isValidWorkingSpan(context.daysOver)) {
-    throw new RangeError(
-      `Repeat projection daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`,
-    );
-  }
-
-  const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
-  if (calendarSpan < 1) {
-    throw new RangeError('Repeat projection requires a valid inclusive date range.');
-  }
-  if (
-    !usesCalendarSpan &&
-    lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWorkingDays ?? undefined)
-  ) {
-    throw new RangeError('Repeat projection requires at least one effective working day.');
-  }
-}
-
-function isValidWorkingSpan(daysOver: number): boolean {
-  return Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS;
-}
-
-interface ValidateProjectedSpansInput {
-  startDates: readonly ISODate[];
-  daysOver: number;
-  spanOptions: Parameters<typeof maxSpanDaysForStart>[1];
-  usesCalendarSpan: boolean;
-}
-
-function assertProjectedSpans({
-  startDates,
-  daysOver,
-  spanOptions,
-  usesCalendarSpan,
-}: ValidateProjectedSpansInput): void {
-  if (usesCalendarSpan) return;
-  for (const generatedStart of startDates) {
-    if (daysOver > maxSpanDaysForStart(generatedStart, spanOptions)) {
-      throw new RangeError('A repeated working span extends beyond the supported date range.');
-    }
-  }
 }
 
 /**

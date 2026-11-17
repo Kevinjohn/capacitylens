@@ -197,7 +197,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   });
 
   // A real server commit is held before the browser receives its response. The cache must remain pending,
-  // without history, until acknowledgement; then a dropped response is recovered by the real lookup route.
+  // without history, until acknowledgement; then the dropped response ends in a canonical read.
   const committedAtServer = deferred<{ status: number; body: unknown }>();
   const releaseResponse = deferred<void>();
   const updatePath = `**/api/accounts/${companyId}/allocations/${allocationId}`;
@@ -262,56 +262,24 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     'planningHarnessFinish',
     primaryKey,
   );
+  // The lost reply ends in the server's state: the committed change shows, undo history is cleared and
+  // the person is asked to check it. Nothing is resent.
   expect(lostResponse).toMatchObject({
     result: { kind: 'rejected' },
-    state: { status: 'uncertain', outcome: 'uncertain' },
+    state: { status: 'ready', outcome: 'unconfirmed', history: { past: 0 } },
   });
-
-  const recovered = await callHarness<{
-    result: boolean;
-    state: HarnessState;
-    executions: Array<{ mutationId: string; baseRevision: number }>;
-  }>(page, 'planningHarnessReconcile', primaryKey);
-  expect(recovered).toMatchObject({
-    result: true,
-    state: {
-      status: 'ready',
-      history: { past: 1, tipRevision: started.baseRevision + 1 },
-    },
-  });
-  expect(
-    recovered.executions.filter(({ mutationId }) => mutationId === started.mutationId),
-  ).toHaveLength(1);
-
-  const sameRevision = await callHarness<{ refreshed: boolean; state: HarnessState }>(
-    page,
-    'planningHarnessRefresh',
-    primaryKey,
+  expect(lostResponse.state.allocations).toContainEqual(
+    expect.objectContaining({ id: allocationId, endDate: '2026-10-29' }),
   );
-  expect(sameRevision).toMatchObject({ refreshed: true, state: { history: { past: 1 } } });
-  const beforeUndo = recovered.state.revision;
-  const undo = await callHarness<{
+  const afterLoss = await callHarness<{
     result: boolean;
     executions: Array<{ mutationId: string; baseRevision: number }>;
     state: HarnessState;
   }>(page, 'planningHarnessUndo', primaryKey);
-  expect(undo.result).toBe(true);
-  expect(undo.state.allocations).toContainEqual(
-    expect.objectContaining({ id: allocationId, endDate: '2026-10-27' }),
-  );
-  expect(undo.executions.at(-1)).toMatchObject({ baseRevision: beforeUndo });
-  expect(undo.executions.at(-1)?.mutationId).not.toBe(started.mutationId);
-  const redo = await callHarness<{
-    result: boolean;
-    executions: Array<{ mutationId: string; baseRevision: number }>;
-    state: HarnessState;
-  }>(page, 'planningHarnessRedo', primaryKey);
-  expect(redo.result).toBe(true);
-  expect(redo.state.allocations).toContainEqual(
-    expect.objectContaining({ id: allocationId, endDate: '2026-10-29' }),
-  );
-  expect(redo.executions.at(-1)?.baseRevision).toBe(undo.state.revision);
-  expect(redo.executions.at(-1)?.mutationId).not.toBe(undo.executions.at(-1)?.mutationId);
+  expect(afterLoss.result).toBe(false);
+  expect(
+    afterLoss.executions.filter(({ mutationId }) => mutationId === started.mutationId),
+  ).toHaveLength(1);
 
   // A second authenticated client changes the same row. The primary client's refresh clears old history,
   // and its captured draft is refused at the original revision rather than rebased or replayed.
@@ -321,7 +289,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     primaryKey,
     'before-peer-write',
   );
-  expect(staleDraft.baseRevision).toBe(redo.state.revision);
+  expect(staleDraft.baseRevision).toBe(afterLoss.state.revision);
   const peerKey = `peer-${suffix}`;
   await callHarness(page, 'initializePlanningServerHarness', peerKey, companyId);
   await callHarness(
@@ -373,7 +341,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey),
   ).toHaveLength(beforeStaleCount + 1);
 
-  // A new deliberate action uses the refreshed revision; move, resize, reassign, duplicate and repeat all
+  // A new deliberate action uses the refreshed revision; move, resize, reassign and duplicate all
   // exercise generated typed routes and are confirmed by the server's canonical read.
   await callHarness(
     page,
@@ -433,21 +401,6 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     } satisfies Intent,
     null,
   );
-  const repeatIds = [uuid(), uuid()];
-  await callHarness(
-    page,
-    'planningHarnessExecute',
-    primaryKey,
-    {
-      operation: 'allocation.repeat',
-      sourceAllocationId: allocationId,
-      occurrences: [
-        { id: repeatIds[0], startDate: '2026-11-09', endDate: '2026-11-11' },
-        { id: repeatIds[1], startDate: '2026-11-16', endDate: '2026-11-18' },
-      ],
-    } satisfies Intent,
-    null,
-  );
   const completeSnapshot = await planningSnapshot(request, owner.cookie, companyId);
   expect(completeSnapshot.data.allocations).toEqual(
     expect.arrayContaining([
@@ -463,8 +416,6 @@ test('unactivated planning controller uses authenticated typed routes and reconc
         startDate: '2026-11-02',
         endDate: '2026-11-04',
       }),
-      expect.objectContaining({ id: repeatIds[0], startDate: '2026-11-09', endDate: '2026-11-11' }),
-      expect.objectContaining({ id: repeatIds[1], startDate: '2026-11-16', endDate: '2026-11-18' }),
     ]),
   );
 
@@ -552,52 +503,54 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     }
   }
 
-  // A request lost before dispatch has no commitment marker. Lookup remains unknown and blocks retries.
+  // A request lost before dispatch committed nothing. The browser shows the server's state, asks the
+  // person to check, and never resends; a deliberate retry is a new change with a new identity.
   const unknownRoute = `**/api/accounts/${companyId}/allocations/${allocationId}`;
   await page.route(unknownRoute, async (route) => route.abort('failed'));
+  const confirm = {
+    operation: 'allocation.update',
+    id: allocationId,
+    changes: { status: 'confirmed' },
+  } satisfies Intent;
   const unknownStart = await callHarness<{ mutationId: string }>(
     page,
     'planningHarnessStart',
     primaryKey,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { status: 'confirmed' },
-    } satisfies Intent,
+    confirm,
     {
       operation: 'allocation.update',
       id: allocationId,
       changes: { status: 'tentative' },
     } satisfies Intent,
   );
-  await callHarness(page, 'planningHarnessFinish', primaryKey);
-  const unknownLookup = await callHarness<{ result: boolean; state: HarnessState }>(
+  const lostRequest = await callHarness<{ state: HarnessState }>(
     page,
-    'planningHarnessReconcile',
+    'planningHarnessFinish',
     primaryKey,
   );
-  expect(unknownLookup).toMatchObject({
-    result: false,
-    state: {
-      status: 'uncertain',
-      outcome: 'uncertain',
-      pending: { mutationId: unknownStart.mutationId },
-    },
+  expect(lostRequest.state).toMatchObject({
+    status: 'ready',
+    outcome: 'unconfirmed',
+    pending: null,
   });
-  const attemptsBeforeRetry = (
-    await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey)
-  ).length;
-  await expect(
-    callHarness(page, 'planningHarnessExecute', primaryKey, {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { status: 'confirmed' },
-    } satisfies Intent),
-  ).rejects.toThrow(/ready|pending|uncertain/i);
-  expect(
-    await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey),
-  ).toHaveLength(attemptsBeforeRetry);
   await page.unroute(unknownRoute);
+  const retried = await callHarness<{ receipt: { mutationId: string }; state: HarnessState }>(
+    page,
+    'planningHarnessExecute',
+    primaryKey,
+    confirm,
+  );
+  expect(retried.receipt.mutationId).not.toBe(unknownStart.mutationId);
+  expect(retried.state).toMatchObject({ status: 'ready', outcome: 'acknowledged' });
+  expect(
+    (
+      await callHarness<Array<{ mutationId: string }>>(
+        page,
+        'planningHarnessExecutions',
+        primaryKey,
+      )
+    ).filter(({ mutationId }) => mutationId === unknownStart.mutationId),
+  ).toHaveLength(1);
 
   const cleared = await callHarness<{
     signOutStatus: number;

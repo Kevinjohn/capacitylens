@@ -22,7 +22,7 @@ import {
   cloneImmutable,
   emptyHistory,
   isDeleteIntent,
-  isLookupHistoryEligible,
+  isHistoryEligible,
   movedHistory,
 } from './planningHistory';
 import {
@@ -88,7 +88,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   let generation = 0;
   let readSequence = 0;
   let accessKeyEstablished = false;
-  let lookupSequence = 0;
   let attempt: {
     pending: PlanningPendingMutation;
     history: PlanningHistory;
@@ -127,7 +126,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (sameContext(store.getState().planning.context, frozenContext)) return;
     generation += 1;
     readSequence += 1;
-    lookupSequence += 1;
     attempt = null;
     accessKeyEstablished = false;
     abortAll();
@@ -159,7 +157,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (accessChanged) {
       generation += 1;
       readSequence += 1;
-      lookupSequence += 1;
       attempt = null;
       abortAll();
       accessKeyEstablished = true;
@@ -210,7 +207,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }
     if (finalized) {
       attempt = null;
-      lookupSequence += 1;
     }
     store.setState((state) => ({
       data: snapshot.data,
@@ -341,57 +337,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }));
   }
 
-  async function reconcilePending(): Promise<boolean> {
-    const owner = attempt;
-    if (!owner || !ownsAttempt(owner)) return false;
-    if (owner.pending.commitment) return refresh();
-    if (store.getState().planning.outcome?.kind !== 'uncertain') return false;
-    const sequence = ++lookupSequence;
-    const controller = requestController();
-    const currentLookup = () =>
-      ownsAttempt(owner) && sequence === lookupSequence && !controller.signal.aborted;
-    try {
-      const lookup = await transport.lookup(
-        owner.draft.requestContext,
-        owner.pending.execution.mutationId,
-        controller.signal,
-      );
-      if (!currentLookup()) return false;
-      if (lookup.mutationId !== owner.pending.execution.mutationId) {
-        throw new PlanningControllerError('The commitment lookup returned an invalid identity.');
-      }
-      if (lookup.status === 'unknown') return false;
-      if (
-        !Number.isSafeInteger(lookup.revision) ||
-        lookup.revision !== owner.pending.execution.baseRevision + 1
-      ) {
-        throw new PlanningControllerError('The commitment lookup returned an invalid revision.');
-      }
-      acknowledge(
-        owner,
-        lookup.revision,
-        isLookupHistoryEligible(owner.pending.execution.intent, owner.pending.inverse),
-        lookup.restorationGroupId,
-      );
-      return await refresh();
-    } catch (error) {
-      if (!currentLookup()) return false;
-      if (losesScope(error)) loseScope();
-      else {
-        store.setState((state) => ({
-          planning: {
-            ...state.planning,
-            status: owner.pending.commitment ? 'error' : 'uncertain',
-            error,
-          },
-        }));
-      }
-      return false;
-    } finally {
-      finishRequest(controller);
-    }
-  }
-
   function assertCanPerform(draft: PlanningDraft): void {
     const state = store.getState();
     if (!isCurrent(draft.generation, draft.context) || state.planning.revision === null) {
@@ -407,7 +352,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       );
     }
     if (state.planning.pending) {
-      throw new PlanningControllerError('A planning change is already pending or uncertain.');
+      throw new PlanningControllerError('A planning change is already pending.');
     }
     if (!isPlanningReadyForChange(state.planning)) {
       throw new PlanningControllerError('Planning is not ready for a new change.');
@@ -514,19 +459,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       !isValidReceipt(receipt, pending.execution) ||
       !isProjectionForCompany(receipt, draft.context.companyId)
     ) {
-      store.setState((current) => ({
-        planning: {
-          ...current.planning,
-          status: 'uncertain',
-          outcome: { kind: 'uncertain', execution: pending.execution },
-          error: new PlanningControllerError(
-            'The server receipt was invalid; commitment is unknown.',
-            undefined,
-            undefined,
-            true,
-          ),
-        },
-      }));
+      await settleUnconfirmed(owner);
       throw new PlanningControllerError(
         'The server receipt was invalid; commitment is unknown.',
         undefined,
@@ -537,7 +470,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     acknowledge(
       owner,
       receipt.revision,
-      receipt.projection.mode === 'patch' && isLookupHistoryEligible(intent, inverse),
+      receipt.projection.mode === 'patch' && isHistoryEligible(intent, inverse),
       receipt.restoration.replacementGroupId ?? undefined,
       receipt,
     );
@@ -570,22 +503,27 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }));
   }
 
-  function markUncertain(owner: NonNullable<typeof attempt>, error: unknown): void {
-    const { pending } = owner;
+  /**
+   * A write whose reply was lost may or may not have committed. Show the server's state, clear undo
+   * history and keep an `unconfirmed` outcome so the person checks their change; never resend it.
+   */
+  async function settleUnconfirmed(owner: NonNullable<typeof attempt>): Promise<void> {
+    attempt = null;
     store.setState((current) => ({
       planning: {
         ...current.planning,
-        status: 'uncertain',
-        outcome: { kind: 'uncertain', execution: pending.execution },
-        error,
-        pending,
+        status: 'loading',
+        pending: null,
+        outcome: { kind: 'unconfirmed', mutationId: owner.pending.execution.mutationId },
+        error: null,
+        history: emptyHistory(),
       },
     }));
+    await refresh();
   }
 
-  /** Records a failed send in planning state and rethrows it as a controller error. Returns null
-   * only when a reused mutation id reconciles to a commitment. */
-  async function settleFailure(owner: NonNullable<typeof attempt>, error: unknown): Promise<null> {
+  /** Records a failed send in planning state and rethrows it as a controller error. */
+  async function settleFailure(owner: NonNullable<typeof attempt>, error: unknown): Promise<never> {
     const details = errorDetails(error);
     if (error instanceof PlanningControllerError && error.uncertain) throw error;
     if (losesScope(error)) {
@@ -593,11 +531,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       throw new PlanningControllerError(details.message, details.code, details.status);
     }
     if (details.code === 'MUTATION_ID_REUSED') {
-      if (ownsAttempt(owner)) {
-        markUncertain(owner, error);
-        await reconcilePending();
-        if (owner.pending.commitment) return null;
-      }
+      if (ownsAttempt(owner)) await settleUnconfirmed(owner);
       throw new PlanningControllerError(details.message, details.code, details.status, true);
     }
     if (details.code === 'STALE_REVISION' || details.status === 409) {
@@ -621,7 +555,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       if (ownsAttempt(owner)) markRefused(owner, error, details.code);
       throw new PlanningControllerError(details.message, details.code, details.status);
     }
-    if (ownsAttempt(owner)) markUncertain(owner, error);
+    if (ownsAttempt(owner)) await settleUnconfirmed(owner);
     throw new PlanningControllerError(details.message, details.code, details.status, true);
   }
 
@@ -647,7 +581,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }
   }
 
-  /** Returns no receipt after context invalidation or commitment-only reconciliation; neither permits replay. */
+  /** Returns no receipt after context invalidation or a declined cleanup confirmation. */
   async function execute(
     draft: PlanningDraft,
     intent: PlanningIntent,
@@ -715,7 +649,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     refresh,
     begin,
     execute,
-    reconcile: reconcilePending,
     undo,
     redo,
   };

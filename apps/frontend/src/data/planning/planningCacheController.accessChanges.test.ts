@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
@@ -22,7 +22,6 @@ describe('planning cache controller', () => {
     const h = harness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
@@ -46,7 +45,6 @@ describe('planning cache controller', () => {
     const h = harness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     h.controller.setContext(context);
     await h.readSnapshot({
@@ -75,7 +73,6 @@ describe('planning cache controller', () => {
     const h = harness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read: vi.fn<PlanningTransport['read']>(),
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     h.controller.setContext(context);
     const cached = canonicalData();
@@ -105,7 +102,6 @@ describe('planning cache controller', () => {
     const h = harness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read,
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     h.controller.setContext(context);
     await h.controller.refresh();
@@ -127,7 +123,6 @@ describe('canonical planning write capability', () => {
     const h = harness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
-      lookup: vi.fn<PlanningTransport['lookup']>(),
     });
     h.controller.setContext(context);
     await h.readSnapshot({ revision: 0, canWrite: true, data: canonicalData() });

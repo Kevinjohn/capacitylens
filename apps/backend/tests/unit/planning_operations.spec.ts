@@ -15,7 +15,6 @@ import { resourceMutationValidator } from '#validators/planning/resource';
 import { timeOffMutationValidator } from '#validators/planning/time_off';
 import { closureMutationValidator } from '#validators/planning/closure';
 import { settingsMutationValidator } from '#validators/planning/settings';
-import { mutationLookupValidator } from '#validators/planning/lookup';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
@@ -202,27 +201,9 @@ test.group('planning operation contracts', () => {
     });
   });
 
-  test('requires distinct client-minted IDs for atomic repeated allocations', async ({
+  test('requires a duplicate id distinct from its source and refuses the removed repeat', async ({
     assert,
   }) => {
-    const valid = await planningMutationValidator.validate({
-      mutationId: uuid,
-      baseRevision: 5,
-      intent: {
-        operation: 'allocation.repeat',
-        sourceAllocationId: uuid,
-        occurrences: [
-          { id: otherUuid, startDate: '2026-10-26', endDate: '2026-10-30' },
-          {
-            id: 'eb149a79-2581-40bd-8b7e-82f540243d2c',
-            startDate: '2026-11-02',
-            endDate: '2026-11-06',
-          },
-        ],
-      },
-    });
-    assert.equal(valid.intent.operation, 'allocation.repeat');
-
     const duplicate = await planningMutationValidator.validate({
       mutationId: otherUuid,
       baseRevision: 5,
@@ -250,6 +231,7 @@ test.group('planning operation contracts', () => {
       })
     );
 
+    // A repeat is created as one allocation group; the source-copying repeat operation is gone.
     await assert.rejects(() =>
       planningMutationValidator.validate({
         mutationId: uuid,
@@ -257,10 +239,7 @@ test.group('planning operation contracts', () => {
         intent: {
           operation: 'allocation.repeat',
           sourceAllocationId: uuid,
-          occurrences: [
-            { id: otherUuid, startDate: '2026-10-26', endDate: '2026-10-30' },
-            { id: otherUuid, startDate: '2026-11-02', endDate: '2026-11-06' },
-          ],
+          occurrences: [{ id: otherUuid, startDate: '2026-10-26', endDate: '2026-10-30' }],
         },
       })
     );
@@ -481,11 +460,7 @@ test.group('planning operation contracts', () => {
     );
   });
 
-  test('validates the mutation lookup request and planning failure bodies', async ({ assert }) => {
-    assert.deepEqual(await mutationLookupValidator.validate({ mutationId: uuid }), {
-      mutationId: uuid,
-    });
-
+  test('validates planning failure bodies', async ({ assert }) => {
     const stale = await planningMutationFailureValidator.validate({
       error: 'The planning revision changed.',
       code: 'STALE_REVISION',
@@ -540,22 +515,17 @@ test.group('planning operation contracts', () => {
   test('malformed repeat entries fail as validation errors, not rule exceptions', async ({
     assert,
   }) => {
-    for (const intent of [
-      { operation: 'allocation.repeat', sourceAllocationId: uuid, occurrences: [null] },
-      { operation: 'timeOff.repeat', entries: [null] },
-    ]) {
-      let error: unknown;
-      try {
-        await planningMutationValidator.validate({
-          mutationId: otherUuid,
-          baseRevision: 0,
-          intent,
-        });
-      } catch (caught) {
-        error = caught;
-      }
-      assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR');
+    let error: unknown;
+    try {
+      await planningMutationValidator.validate({
+        mutationId: otherUuid,
+        baseRevision: 0,
+        intent: { operation: 'timeOff.repeat', entries: [null] },
+      });
+    } catch (caught) {
+      error = caught;
     }
+    assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR');
   });
 
   test('retains resource-kind defaults and scalar validity', async ({ assert }) => {

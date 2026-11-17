@@ -2,8 +2,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ports, resolveLane, workerPorts } from '../../../scripts/dev/ports.mjs';
-import { portInUse } from '../../../scripts/dev/devProcesses.mjs';
+import { ports, resolveLane, workerPorts } from '../../../tooling/ports.mjs';
+import { portInUse } from '../../../tooling/devProcesses.mjs';
 import { admitIdentity } from './e2e-identity.mjs';
 
 const flavour = process.argv[2];
@@ -43,6 +43,8 @@ const env = {
   APP_URL: `http://127.0.0.1:${port}`,
   CAPACITYLENS_DB: database,
   CAPACITYLENS_ALLOW_RESET: '1',
+  // Matches FIXED_NOW in e2e/browserTestSupport.ts, so the server's today is the browser's.
+  CAPACITYLENS_FIXED_TODAY: '2026-06-03',
   CAPACITYLENS_BACKUP_DIR: '',
   CAPACITYLENS_MAIL_HOST: '',
   CAPACITYLENS_MAIL_PORT: '',

@@ -14,12 +14,6 @@ router
       .as('api.planning.archive')
       .use(sensitive());
     router
-      .get('/api/accounts/:accountId/planning/mutations/:mutationId', [
-        PlanningController,
-        'lookup',
-      ])
-      .as('api.planning.lookup');
-    router
       .post('/api/accounts/:accountId/allocations', [PlanningController, 'allocationCreate'])
       .as('api.planning.allocation.create');
     router
@@ -163,12 +157,6 @@ router
         'allocationDuplicate',
       ])
       .as('api.planning.allocation.duplicate');
-    router
-      .post('/api/accounts/:accountId/allocations/:id/repeat', [
-        PlanningController,
-        'allocationRepeat',
-      ])
-      .as('api.planning.allocation.repeat');
     router
       .post('/api/accounts/:accountId/time-off/repeat', [PlanningController, 'timeOffRepeat'])
       .as('api.planning.timeOff.repeat');

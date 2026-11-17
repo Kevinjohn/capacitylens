@@ -20,12 +20,6 @@ const routes = {
     tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"planning"],[0,"archive"]],
     types: placeholder as Registry['api.planning.archive']['types'],
   },
-  'api.planning.lookup': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/accounts/:accountId/planning/mutations/:mutationId',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"planning"],[0,"mutations"],[1,"mutationId"]],
-    types: placeholder as Registry['api.planning.lookup']['types'],
-  },
   'api.planning.allocation.create': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/allocations',
@@ -241,12 +235,6 @@ const routes = {
     pattern: '/api/accounts/:accountId/allocations/:id/duplicate',
     tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"allocations"],[1,"id"],[0,"duplicate"]],
     types: placeholder as Registry['api.planning.allocation.duplicate']['types'],
-  },
-  'api.planning.allocation.repeat': {
-    methods: ["POST"],
-    pattern: '/api/accounts/:accountId/allocations/:id/repeat',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"allocations"],[1,"id"],[0,"repeat"]],
-    types: placeholder as Registry['api.planning.allocation.repeat']['types'],
   },
   'api.planning.timeOff.repeat': {
     methods: ["POST"],
@@ -511,12 +499,6 @@ const routes = {
     pattern: '/api/accounts/:accountId/members/:userId/resource-link',
     tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"userId"],[0,"resource-link"]],
     types: placeholder as Registry['api.member-resources.clear']['types'],
-  },
-  'api.member-resources.avatars': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/accounts/:accountId/resource-avatars',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"resource-avatars"]],
-    types: placeholder as Registry['api.member-resources.avatars']['types'],
   },
   'api.masquerade.start': {
     methods: ["POST"],

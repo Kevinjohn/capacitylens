@@ -6,7 +6,6 @@ export interface ApiDefinition {
     planning: {
       show: typeof routes['api.planning.show']
       archive: typeof routes['api.planning.archive']
-      lookup: typeof routes['api.planning.lookup']
       allocation: {
         create: typeof routes['api.planning.allocation.create']
         update: typeof routes['api.planning.allocation.update']
@@ -14,7 +13,6 @@ export interface ApiDefinition {
         delete: typeof routes['api.planning.allocation.delete']
         deleteGroup: typeof routes['api.planning.allocation.deleteGroup']
         duplicate: typeof routes['api.planning.allocation.duplicate']
-        repeat: typeof routes['api.planning.allocation.repeat']
       }
       restoreGroup: typeof routes['api.planning.restoreGroup']
       resource: {
@@ -130,7 +128,6 @@ export interface ApiDefinition {
     memberResources: {
       set: typeof routes['api.member-resources.set']
       clear: typeof routes['api.member-resources.clear']
-      avatars: typeof routes['api.member-resources.avatars']
     }
     masquerade: {
       start: typeof routes['api.masquerade.start']

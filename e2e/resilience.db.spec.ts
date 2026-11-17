@@ -41,7 +41,7 @@ test.describe('database-backed resilience', () => {
     await expect(page.getByText('Bruce Wayne')).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
-  test('an uncertain typed save is not replayed and a deliberate retry persists exactly once', async ({
+  test('an unconfirmed typed save is not replayed and a deliberate retry persists exactly once', async ({
     page,
     request,
   }) => {
@@ -64,7 +64,9 @@ test.describe('database-backed resilience', () => {
     await expect.poll(clientFailure.attempts).toBe(1);
     expect(clientPosts).toHaveLength(1);
     await expect(
-      page.getByRole('dialog', { name: 'Add client' }).getByText('Temporary test outage'),
+      page
+        .getByRole('dialog', { name: 'Add client' })
+        .getByText(/couldn’t confirm that your last schedule change was saved/),
     ).toBeVisible();
     expect(
       requireStateRows(await serverState(request), 'clients').filter(
@@ -78,22 +80,7 @@ test.describe('database-backed resilience', () => {
       .getByRole('dialog', { name: 'Add client' })
       .getByRole('button', { name: 'Save' })
       .click();
-    await expect(
-      page.getByRole('dialog', { name: 'Add client' }).getByText(/planning is not ready/i),
-    ).toBeVisible();
-    expect(clientPosts).toHaveLength(1);
-    expect(
-      requireStateRows(await serverState(request), 'clients').filter(
-        ({ name }) => name === 'Retry Recovery Co',
-      ),
-    ).toHaveLength(0);
-
-    // An unknown commitment cannot be safely replayed. Reload authoritative state, then retry explicitly.
-    await openApp(page, '/clients');
-    await page.getByRole('button', { name: 'Add client' }).click();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Retry Recovery Co');
-    await page.getByRole('button', { name: 'Save' }).click();
-
+    // The unconfirmed save was refetched, not replayed; this second Save is the person's own retry.
     await expect
       .poll(
         async () =>

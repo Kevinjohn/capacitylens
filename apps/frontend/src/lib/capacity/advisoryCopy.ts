@@ -1,16 +1,11 @@
 import { m } from '@/i18n';
 import type { CapacityAdvisory } from './advisory';
+import { plural } from '@/lib/pluralCopy';
 
 /** The surface an advisory is written for. Over/time-off counts exist on every surface; only the
  * wording differs (a toast appends to a committed-move sentence, the form states it standalone).
  * The `repeat` variant counts whole allocations and can add the non-effective-start count. */
 export type CapacityAdvisoryVariant = 'toast' | 'form' | 'repeat';
-
-// Resolve plural messages at lookup so advisory text follows the active locale.
-const plural =
-  (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
-  (count: number): string =>
-    count === 1 ? one({ count }) : other({ count });
 
 const ADVISORY_COPY: Record<
   CapacityAdvisoryVariant,

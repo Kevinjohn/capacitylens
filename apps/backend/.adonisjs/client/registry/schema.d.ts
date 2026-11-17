@@ -34,19 +34,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
     }
   }
-  'api.planning.lookup': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/accounts/:accountId/planning/mutations/:mutationId'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; mutationId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
-    }
-  }
   'api.planning.allocation.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations'
@@ -513,19 +500,6 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
-    }
-  }
-  'api.planning.allocation.repeat': {
-    methods: ["POST"]
-    pattern: '/api/accounts/:accountId/allocations/:id/repeat'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
     }
   }
   'api.planning.timeOff.repeat': {
@@ -1098,19 +1072,6 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
-    }
-  }
-  'api.member-resources.avatars': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/accounts/:accountId/resource-avatars'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { accountId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
     }
   }
   'api.masquerade.start': {

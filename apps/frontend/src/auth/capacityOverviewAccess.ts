@@ -1,8 +1,8 @@
 import { canViewCapacityOverview } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { CapacityOverviewAccess } from '@capacitylens/shared/types/entities';
+import type { AccessPermissionStatus } from '@/lib/accessCopy';
 
-type PermissionStatus = 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
 /** Access outcome for the capacity overview route guard. */
 export type CapacityOverviewAccessDecision = 'allowed' | 'pending' | 'denied';
 
@@ -13,7 +13,7 @@ export function resolveCapacityOverviewAccessDecision({
   access,
 }: {
   role: Role | null;
-  status: PermissionStatus;
+  status: AccessPermissionStatus;
   access: CapacityOverviewAccess;
 }): CapacityOverviewAccessDecision {
   if (status === 'not-applicable' && role === null) return 'denied';

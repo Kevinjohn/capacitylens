@@ -18,6 +18,7 @@ import type { createAllocationFilters } from './schedulerModelFilters';
 import type { createCapacitySource } from './schedulerRowCapacity';
 import type {
   BarLayout,
+  CapacitySource,
   DayState,
   RowModel,
   SchedulerModelOptions,
@@ -39,7 +40,6 @@ interface CreateRowBuilderInput {
 }
 
 type AllocationFilters = ReturnType<typeof createAllocationFilters>;
-type CapacitySource = ReturnType<ReturnType<typeof createCapacitySource>['capacitySourceFor']>;
 const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
 
 function buildTimeOffBlock(

@@ -5,8 +5,9 @@ import {
   maximumTimeOffRepeatUntilDate,
   RepeatingDateError,
 } from '@capacitylens/shared/lib/repeatingDates';
+import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
-import { buildRepeatedTimeOffDrafts } from '@/lib/repeatingTimeOff';
+import { resolveTimeOffRepeatPattern } from '@/lib/repeatingTimeOff';
 import type { TimeOffRepeatSelection } from '@/lib/repeatingTimeOff';
 import { useRepeatUntil } from '@/hooks/useRepeatUntil';
 import type { Draft } from '@/store/useStore';
@@ -47,7 +48,11 @@ export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
       ...(input.note ? { note: input.note } : {}),
     };
     try {
-      return buildRepeatedTimeOffDrafts(baseDraft, repeatUntil, repeat);
+      return buildRepeatedTimeOffDrafts(
+        baseDraft,
+        repeatUntil,
+        resolveTimeOffRepeatPattern(repeat),
+      );
     } catch (error) {
       if (error instanceof RepeatingDateError) {
         // Invalid repeat settings have no preview, so the form stays editable while the user corrects them.

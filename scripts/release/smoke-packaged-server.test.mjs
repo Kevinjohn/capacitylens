@@ -6,11 +6,8 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import {
-  expireSmokeViewer,
-  seedSmokeViewer,
-  writeSmokeSchedule,
-} from './smoke-packaged-server.mjs';
+import { writeSmokeSchedule } from '../../tooling/smokeSchedule.mjs';
+import { expireSmokeViewer, seedSmokeViewer } from './smoke-packaged-server.mjs';
 
 test('packaged smoke seeds its fictional Viewer only in the disposable stopped database', () => {
   const directory = mkdtempSync(join(tmpdir(), 'capacitylens-smoke-viewer-fixture-'));

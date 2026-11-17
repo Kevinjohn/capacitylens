@@ -6,7 +6,6 @@ import type {
 import type {
   PlanningExecution,
   PlanningIntent,
-  PlanningMutationLookup,
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
 import { APP_DATA_KEYS, emptyAppData } from '@capacitylens/shared/types/entities';
@@ -26,10 +25,9 @@ export class StubPlanningTransport implements PlanningTransport {
   private data = emptyAppData();
   private canWrite = true;
   private revisions = new Map<string, number>();
-  private commitments = new Map<string, PlanningMutationLookup>();
   private queued: Queued[] = [];
 
-  /** Replace the test's loaded rows and discard earlier calls, responses and commitments. */
+  /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
     this.data = structuredClone(data);
     this.canWrite = true;
@@ -37,7 +35,6 @@ export class StubPlanningTransport implements PlanningTransport {
     this.revisions.set(companyId, 0);
     this.calls.length = 0;
     this.queued.length = 0;
-    this.commitments.clear();
   }
 
   /** Replace canonical fixture rows without clearing revision or test response history. */
@@ -72,20 +69,6 @@ export class StubPlanningTransport implements PlanningTransport {
     return { revision: this.revisions.get(context.companyId) ?? 0, canWrite: this.canWrite, data };
   }
 
-  async lookup(
-    context: PlanningClientContext,
-    mutationId: string,
-    signal: AbortSignal,
-  ): Promise<PlanningMutationLookup> {
-    signal.throwIfAborted();
-    return structuredClone(
-      this.commitments.get(this.key(context.companyId, mutationId)) ?? {
-        status: 'unknown',
-        mutationId,
-      },
-    );
-  }
-
   async execute(
     context: PlanningClientContext,
     execution: PlanningExecution,
@@ -116,20 +99,9 @@ export class StubPlanningTransport implements PlanningTransport {
       };
     }
     this.revisions.set(context.companyId, receipt.revision);
-    this.commitments.set(this.key(context.companyId, receipt.mutationId), {
-      status: 'committed',
-      mutationId: receipt.mutationId,
-      revision: receipt.revision,
-      ...(receipt.restoration.replacementGroupId
-        ? { restorationGroupId: receipt.restoration.replacementGroupId }
-        : {}),
-    });
     return structuredClone(receipt);
   }
 
-  private key(companyId: string, mutationId: string) {
-    return `${companyId}\0${mutationId}`;
-  }
   private rows(entity: AppDataKey): Row[] {
     return this.data[entity] as unknown as Row[];
   }
@@ -241,7 +213,6 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'allocation.createGroup':
       case 'allocation.deleteGroup':
       case 'allocation.duplicate':
-      case 'allocation.repeat':
       case 'planning.restoreGroup':
       case 'timeOff.deleteGroup':
       case 'timeOff.repeat':

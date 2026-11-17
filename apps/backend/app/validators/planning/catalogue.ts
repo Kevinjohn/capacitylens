@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import { ACTIVITY_KINDS } from '#validators/entity_kinds';
+import { ACTIVITY_KINDS } from '@capacitylens/shared/types/entities';
 import {
   boolean,
   entityId,

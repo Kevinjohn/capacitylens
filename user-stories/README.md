@@ -8,7 +8,7 @@ or controls they encounter. Historical stories stay discoverable when a feature 
 - [Template](TEMPLATE.md): how to write and maintain a story.
 - [Reference](REFERENCE.md): contexts, shared boundaries and source map.
 
-176 stories across 19 areas. The retired demo company-switching story has been removed.
+175 stories across 19 areas. The retired demo company-switching story has been removed.
 
 Every story includes a plain-language user flowchart and a Mermaid diagram of the relevant code path
 with links to its implementation sources.
@@ -281,7 +281,6 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Zoom the timeline (1/2/4/6/8 weeks)                   | Current |
 | [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week back / forward                             | Current |
 | [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                                    | Current |
-| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a specific date (hidden from the toolbar)     | Hidden  |
 | [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Switch Work / Time-off draw mode                      | Current |
 | [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Undo / Redo toolbar buttons                           | Current |
 | [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo / Redo with ⌘Z / ⌘⇧Z                             | Current |

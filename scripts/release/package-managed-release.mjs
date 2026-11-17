@@ -124,6 +124,11 @@ export async function inspectManagedRelease(root, forbiddenPackages) {
     throw error;
   });
   if (tests) throw new Error('Production artifact contains compiled tests.');
+  const tooling = await stat(join(root, 'tooling')).catch((error) => {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (tooling) throw new Error('Production artifact contains development tooling.');
   const inspectCompiled = async (directory) => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       if (entry.name === 'node_modules' || entry.name === 'public') continue;

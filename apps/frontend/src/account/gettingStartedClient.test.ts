@@ -5,6 +5,8 @@ vi.mock('@/data/requestTimeout', () => ({ apiFetch }));
 
 import { gettingStartedClient } from './gettingStartedClient';
 
+const steps = { person: true, client: true, project: false, activity: false, scheduled: false };
+
 describe('getting-started account client', () => {
   beforeEach(() => {
     apiFetch.mockReset().mockResolvedValue(new Response(null, { status: 204 }));
@@ -12,10 +14,11 @@ describe('getting-started account client', () => {
 
   it('reads and dismisses the encoded company URL', async () => {
     const controller = new AbortController();
-    apiFetch.mockResolvedValueOnce(Response.json({ dismissed: false }));
-    await expect(
-      gettingStartedClient.readDismissed('company / one', controller.signal),
-    ).resolves.toBe(false);
+    apiFetch.mockResolvedValueOnce(Response.json({ dismissed: false, steps }));
+    await expect(gettingStartedClient.read('company / one', controller.signal)).resolves.toEqual({
+      dismissed: false,
+      steps,
+    });
     await gettingStartedClient.dismiss('company / one');
     expect(apiFetch).toHaveBeenNthCalledWith(
       1,
@@ -36,9 +39,15 @@ describe('getting-started account client', () => {
 
   it('throws for a refused read, an off-spec body or a refused dismissal', async () => {
     apiFetch.mockResolvedValueOnce(new Response(null, { status: 503 }));
-    await expect(gettingStartedClient.readDismissed('c-1')).rejects.toThrow('(503)');
-    apiFetch.mockResolvedValueOnce(Response.json({ dismissed: 'yes' }));
-    await expect(gettingStartedClient.readDismissed('c-1')).rejects.toThrow('invalid');
+    await expect(gettingStartedClient.read('c-1')).rejects.toThrow('(503)');
+    apiFetch.mockResolvedValueOnce(Response.json({ dismissed: 'yes', steps }));
+    await expect(gettingStartedClient.read('c-1')).rejects.toThrow('invalid');
+    apiFetch.mockResolvedValueOnce(Response.json({ dismissed: false }));
+    await expect(gettingStartedClient.read('c-1')).rejects.toThrow('invalid');
+    apiFetch.mockResolvedValueOnce(
+      Response.json({ dismissed: false, steps: { ...steps, scheduled: 'yes' } }),
+    );
+    await expect(gettingStartedClient.read('c-1')).rejects.toThrow('invalid');
     apiFetch.mockResolvedValueOnce(new Response(null, { status: 403 }));
     await expect(gettingStartedClient.dismiss('c-1')).rejects.toThrow('(403)');
   });

@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isProcessTreeRunning } from './devProcesses.mjs';
+import { isProcessTreeRunning } from '../../tooling/devProcesses.mjs';
 
 /** Allocate fresh storage; a later invocation never deletes an earlier invocation's database. */
 export async function createDisposableDemoStorage(

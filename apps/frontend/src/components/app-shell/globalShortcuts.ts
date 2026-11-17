@@ -5,8 +5,7 @@ import { hasOpenModal, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
 import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
-
-type StoreState = ReturnType<typeof useStore.getState>;
+import type { StoreState } from '@/store/types';
 
 interface GlobalShortcutsInput {
   paletteOpen: boolean;

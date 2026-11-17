@@ -6,7 +6,6 @@ export type ScannedRoutes = {
   ALL: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
     'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -43,7 +42,6 @@ export type ScannedRoutes = {
     'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
-    'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.installation.company': { paramsTuple?: []; params?: {} }
@@ -88,7 +86,6 @@ export type ScannedRoutes = {
     'api.admission.revoke': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.masquerade.end': { paramsTuple?: []; params?: {} }
@@ -100,7 +97,6 @@ export type ScannedRoutes = {
   GET: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -110,7 +106,6 @@ export type ScannedRoutes = {
     'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }
     'api.admission.index': { paramsTuple?: []; params?: {} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
@@ -119,7 +114,6 @@ export type ScannedRoutes = {
   HEAD: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
-    'api.planning.lookup': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'mutationId': ParamValue} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -129,7 +123,6 @@ export type ScannedRoutes = {
     'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }
     'api.admission.index': { paramsTuple?: []; params?: {} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
@@ -163,7 +156,6 @@ export type ScannedRoutes = {
     'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
-    'api.planning.allocation.repeat': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.installation.company': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }

@@ -6,14 +6,13 @@ import { clearMemberResourceLink, setMemberResourceLink } from '#services/member
 import { invalidAdmission } from '#services/admission/errors';
 import { renderAdmissionFailure } from '#services/admission/http';
 import { hasOnlyFields } from '#services/request_helpers';
-import { readMemberAvatars } from '#services/member_resources/directory';
 
 function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
   if (!hasOnlyFields(value, keys)) invalidAdmission();
   return value;
 }
 
-/** Scoped member/person association and the read-only avatar projection. */
+/** Scoped member/person association. */
 export default class MemberResourcesController {
   async setLink(ctx: HttpContext) {
     try {
@@ -93,18 +92,6 @@ export default class MemberResourcesController {
         });
       });
       return ctx.response.noContent();
-    } catch (error) {
-      return renderAdmissionFailure(ctx, error);
-    }
-  }
-
-  async avatars(ctx: HttpContext) {
-    try {
-      const { accountId } = ctx.params;
-      return await withActor(ctx, async (_actor, trx) => {
-        await assertCompanyAction(accountId, 'planning:read', trx);
-        return ctx.response.ok(await readMemberAvatars(trx, accountId));
-      });
     } catch (error) {
       return renderAdmissionFailure(ctx, error);
     }

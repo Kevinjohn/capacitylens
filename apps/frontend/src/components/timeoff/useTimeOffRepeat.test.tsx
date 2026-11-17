@@ -3,11 +3,11 @@ import { Component } from 'react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RepeatingDateError } from '@capacitylens/shared/lib/repeatingDates';
-import { buildRepeatedTimeOffDrafts } from '@/lib/repeatingTimeOff';
+import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { useTimeOffRepeat } from './useTimeOffRepeat';
 
-vi.mock('@/lib/repeatingTimeOff', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/repeatingTimeOff')>()),
+vi.mock('@capacitylens/shared/lib/repeatingOccurrences', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@capacitylens/shared/lib/repeatingOccurrences')>()),
   buildRepeatedTimeOffDrafts: vi.fn(),
 }));
 

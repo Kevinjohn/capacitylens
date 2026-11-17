@@ -95,14 +95,6 @@ async function sendOperation(
           signal,
         }),
       );
-    case 'allocation.repeat':
-      return requireReply(
-        await apiClient.request('api.planning.allocation.repeat', {
-          params: { ...params, id: intent.sourceAllocationId },
-          body: { ...execution, intent },
-          signal,
-        }),
-      );
     case 'resource.create':
       return requireReply(
         await apiClient.request('api.planning.resource.create', {
@@ -390,19 +382,6 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           context,
           execution,
           signal,
-        );
-      } catch (error) {
-        throw planningError(error);
-      }
-    },
-    async lookup(context, mutationId, signal) {
-      try {
-        const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
-        return requireReply(
-          await scopedClient.request('api.planning.lookup', {
-            params: { accountId: context.companyId, mutationId },
-            signal,
-          }),
         );
       } catch (error) {
         throw planningError(error);

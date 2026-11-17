@@ -22,7 +22,6 @@ describe('planning readiness', () => {
     expect(isPlanningReadyForChange({ ...ready, canWrite: false })).toBe(false);
     expect(isPlanningReadyForChange({ ...ready, revision: null })).toBe(false);
     expect(isPlanningReadyForChange({ ...ready, status: 'loading' })).toBe(false);
-    expect(isPlanningReadyForChange({ ...ready, status: 'uncertain' })).toBe(false);
     expect(
       isPlanningReadyForChange({
         ...ready,

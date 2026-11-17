@@ -4,10 +4,13 @@ import {
   hasMultipleCompanies,
   hasNoCompany,
   installationCompanyId,
-} from '#services/installation_company';
+} from '#models/installation_company';
+import { freshDatabase } from '../helpers/fresh_database.js';
 import { resetState } from '../helpers/state_fixture.js';
 
-test.group('installation company', () => {
+test.group('installation company', (group) => {
+  group.setup(() => freshDatabase());
+
   test('an installation without a company has none to name', async ({ assert }) => {
     await resetState(false);
     assert.isTrue(await hasNoCompany(db));

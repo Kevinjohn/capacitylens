@@ -4,7 +4,7 @@ import { registry } from '@capacitylens/backend/registry';
 import type { PlanningIntent } from '@/api/planningContracts';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { createPlanningTransport } from './planningTransport';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 
 const context = {
   identity: 'bruce-login',
@@ -98,15 +98,6 @@ const cases: Array<{
     intent: { operation: 'allocation.duplicate', sourceAllocationId: 'source-1', occurrence },
     method: 'POST',
     path: 'allocations/source-1/duplicate',
-  },
-  {
-    intent: {
-      operation: 'allocation.repeat',
-      sourceAllocationId: 'source-1',
-      occurrences: [occurrence],
-    },
-    method: 'POST',
-    path: 'allocations/source-1/repeat',
   },
   {
     intent: { operation: 'allocation.delete', id },
@@ -358,18 +349,7 @@ describe('generated planning transport', () => {
     await expect(transport.read(context, signal)).rejects.toThrow(/another company/);
   });
 
-  it('uses only URL parameters for actor-scoped commitment lookup', async () => {
-    const result = { status: 'unknown', mutationId };
-    const { transport, requests } = harness(result);
-    expect(await transport.lookup(context, mutationId, signal)).toEqual(result);
-    expect(requests[0]?.url).toBe(
-      `http://planning.test/api/accounts/wayne/planning/mutations/${mutationId}`,
-    );
-    expect(requests[0]?.method).toBe('GET');
-    expect(await requests[0]?.text()).toBe('');
-  });
-
-  it.each(['read', 'execute', 'lookup'] as const)(
+  it.each(['read', 'execute'] as const)(
     'preserves flat HTTP loss/refusal semantics for %s',
     async (stage) => {
       const { transport } = harness(
@@ -379,13 +359,11 @@ describe('generated planning transport', () => {
       const request =
         stage === 'read'
           ? transport.read(context, signal)
-          : stage === 'lookup'
-            ? transport.lookup(context, mutationId, signal)
-            : transport.execute(
-                context,
-                execution({ operation: 'allocation.create', allocation }),
-                signal,
-              );
+          : transport.execute(
+              context,
+              execution({ operation: 'allocation.create', allocation }),
+              signal,
+            );
       await expect(request).rejects.toMatchObject({
         status: 403,
         code: 'ACCOUNT_MEMBERSHIP_LOST',

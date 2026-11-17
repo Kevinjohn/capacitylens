@@ -480,51 +480,6 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
   });
 
-  test('allocation repeat copies source fields, accepts a later Sunday and commits once', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup);
-    const { cookie } = await signIn(client);
-    const allocation = {
-      ...newAllocation(await readState(accountId, true)),
-      note: 'Planning notes',
-      task: 'Discovery',
-    };
-    const created = await session(client.post(route('allocations')), cookie)
-      .json(input(0, { operation: 'allocation.create', allocation }))
-      .send();
-    created.assertStatus(200);
-    const firstId = randomUUID();
-    const laterId = randomUUID();
-    const repeated = await session(
-      client.post(route(`allocations/${allocation.id}/repeat`)),
-      cookie
-    )
-      .json(
-        input(1, {
-          operation: 'allocation.repeat',
-          sourceAllocationId: allocation.id,
-          occurrences: [
-            { id: firstId, startDate: '2026-11-09', endDate: '2026-11-09' },
-            { id: laterId, startDate: '2026-11-15', endDate: '2026-11-15' },
-          ],
-        })
-      )
-      .send();
-    repeated.assertStatus(200);
-    assert.equal(body(repeated).revision, 2);
-    assert.equal(body(repeated).projection.mode, 'patch');
-    const state = await readState(accountId, true);
-    const first = state.allocations.find((row) => row.id === firstId);
-    const later = state.allocations.find((row) => row.id === laterId);
-    assert.equal(first?.note, allocation.note);
-    assert.equal(later?.task, allocation.task);
-    assert.isString(first?.seriesId);
-    assert.equal(first?.seriesId, later?.seriesId);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 2);
-  });
   test('refuses phase reassignment that would invalidate its activities without committing effects', async ({
     client,
     assert,

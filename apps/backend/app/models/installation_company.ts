@@ -1,5 +1,5 @@
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
-import { AdmissionError } from '#services/admission/errors';
+import { AdmissionError } from '#exceptions/admission_error';
 
 type CompanyReader = Pick<Trx, 'from'>;
 

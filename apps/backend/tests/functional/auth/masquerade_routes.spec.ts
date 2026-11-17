@@ -52,7 +52,6 @@ const sensitiveReads = [
   'GET,HEAD /api/accounts/:accountId/invites [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/admission [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/admission/requests [BUSINESS READ] (sensitive)',
-  'GET,HEAD /api/accounts/:accountId/resource-avatars [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/diagnostics [BUSINESS READ] (sensitive)',
 ];
 

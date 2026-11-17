@@ -6,7 +6,7 @@ import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
 import type { Activity, Weekday } from '@capacitylens/shared/types/entities';
 import { setExternalEnabled, setPlaceholdersEnabled } from '@/test/fixtures';
-import { chooseOption } from './__tests__/schedulerTestKit';
+import { chooseOption } from '@/test/schedulerTestKit';
 import {
   queueAllocationDeleteGroupResponse,
   queueAllocationGroupResponse,
@@ -18,7 +18,7 @@ import {
   required,
   resetAllocationModalStore,
   renderAsOwner,
-} from './__tests__/allocationModalTestKit';
+} from '@/test/allocationModalTestKit';
 
 interface AllocationScopeCaseInput {
   caseName: string;

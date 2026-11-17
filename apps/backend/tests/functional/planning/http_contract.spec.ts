@@ -41,6 +41,7 @@ test.group('authenticated typed planning transactions', (group) => {
     response.assertStatus(200);
     assert.equal(response.body().accountId, accountId);
     assert.equal(response.body().revision, 0);
+    assert.match(response.body().today, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(response.body().authority.actorId, userId);
     assert.equal(response.body().authority.role, 'editor');
     assert.isTrue(response.body().authority.canWrite);
@@ -224,108 +225,69 @@ test.group('authenticated typed planning transactions', (group) => {
     );
   });
 
-  test('resource avatars include only active linked people with usable images in the company', async ({
+  test("the planning read carries each person's stored avatar whatever the member link", async ({
     client,
     assert,
     cleanup,
   }) => {
     configureAuth(cleanup);
     const { cookie, userId } = await signIn(client, 'viewer');
-    const person = await db
+    const { userId: suspendedUserId } = await signIn(client);
+    const people = await db
       .from('resources')
       .where({ account_id: accountId, kind: 'person' })
       .whereNull('archived_at')
       .whereNull('deleted_at')
-      .first();
-    const imageUrl = 'https://wayne.example/avatar.png';
-    await db.from('resources').where('id', person.id).update({ avatar_url: imageUrl });
-    await db.table('account_member_resources').insert({
-      id: randomUUID(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      account_id: accountId,
-      user_id: userId,
-      resource_id: person.id,
-      revision: randomUUID(),
-    });
-    const read = async () => {
-      const response = await session(
-        client.get(`/api/accounts/${accountId}/resource-avatars`),
-        cookie
-      ).send();
-      response.assertStatus(200);
-      return response.body();
-    };
+      .orderBy('id')
+      .limit(3);
+    assert.lengthOf(people, 3);
+    const [linked, unlinked, suspendedLink] = people;
+    const imageFor = (id: string) => `https://wayne.example/${id}.png`;
+    for (const person of people) {
+      await db
+        .from('resources')
+        .where('id', person.id)
+        .update({ avatar_url: imageFor(person.id) });
+    }
+    const now = new Date().toISOString();
+    for (const [memberId, resourceId] of [
+      [userId, linked.id],
+      [suspendedUserId, suspendedLink.id],
+    ]) {
+      await db.table('account_member_resources').insert({
+        id: randomUUID(),
+        created_at: now,
+        updated_at: now,
+        account_id: accountId,
+        user_id: memberId,
+        resource_id: resourceId,
+        revision: randomUUID(),
+      });
+    }
+    await db
+      .from('memberships')
+      .where({ scope_id: accountId, user_id: suspendedUserId })
+      .update({ status: 'suspended' });
     const foreign = await db
       .from('resources')
       .where({ account_id: 'a-loft', kind: 'person' })
       .first();
-    const { userId: foreignUserId } = await signIn(client);
-    const now = new Date().toISOString();
-    await db.table('memberships').insert({
-      scope_id: 'a-loft',
-      user_id: foreignUserId,
-      role: 'viewer',
-      status: 'active',
-      created_at: now,
-      updated_at: now,
-    });
-    await db.from('resources').where('id', foreign.id).update({ avatar_url: imageUrl });
-    await db.table('account_member_resources').insert({
-      id: randomUUID(),
-      account_id: 'a-loft',
-      user_id: foreignUserId,
-      resource_id: foreign.id,
-      revision: randomUUID(),
-      created_at: now,
-      updated_at: now,
-    });
-    const unlinked = await db
-      .from('resources')
-      .where({ account_id: accountId, kind: 'person' })
-      .whereNot('id', person.id)
-      .first();
-    await db.from('resources').where('id', unlinked.id).update({ avatar_url: imageUrl });
-    assert.deepEqual(await read(), { avatars: [{ resourceId: person.id, imageUrl }] });
-    for (const changes of [
-      { archived_at: new Date().toISOString() },
-      { deleted_at: new Date().toISOString() },
-      { kind: 'placeholder' },
-      { avatar_url: null },
-      { avatar_url: 'javascript:alert(1)' },
-    ]) {
-      await db.from('resources').where('id', person.id).update(changes);
-      // Kind changes clear links in a database trigger; restore the link to isolate the read filter.
-      await db
-        .from('account_member_resources')
-        .where({ account_id: accountId, user_id: userId })
-        .delete();
-      await db.table('account_member_resources').insert({
-        account_id: accountId,
-        user_id: userId,
-        id: randomUUID(),
-        resource_id: person.id,
-        revision: randomUUID(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-      assert.deepEqual(await read(), { avatars: [] });
-      await db
-        .from('resources')
-        .where('id', person.id)
-        .update({ archived_at: null, deleted_at: null, kind: 'person', avatar_url: imageUrl });
-    }
     await db
-      .from('memberships')
-      .where({ scope_id: accountId, user_id: userId })
-      .update({ status: 'suspended' });
-    const { cookie: otherCookie } = await signIn(client);
-    const suspended = await session(
-      client.get(`/api/accounts/${accountId}/resource-avatars`),
-      otherCookie
-    ).send();
-    suspended.assertStatus(200);
-    assert.deepEqual(suspended.body(), { avatars: [] });
+      .from('resources')
+      .where('id', foreign.id)
+      .update({ avatar_url: imageFor(foreign.id) });
+
+    const response = await session(client.get(planningUrl), cookie).send();
+    response.assertStatus(200);
+    const resources = response.body().data.resources as { id: string; avatarUrl: string | null }[];
+    for (const person of [linked, unlinked, suspendedLink]) {
+      assert.equal(
+        resources.find((row) => row.id === person.id)?.avatarUrl,
+        imageFor(person.id),
+        person.id
+      );
+    }
+    assert.isUndefined(resources.find((row) => row.id === foreign.id));
   });
 
   test('occupied and missing entity targets use the validation transport mapping without effects', async ({
@@ -377,44 +339,6 @@ test.group('authenticated typed planning transactions', (group) => {
       await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
       1
     );
-  });
-
-  test('lost response lookup is actor/company scoped and absent identity stays unknown', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup);
-    const { cookie } = await signIn(client);
-    const allocation = newAllocation(await readState(accountId, true));
-    const mutationId = randomUUID();
-    const committed = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
-      .json({ mutationId, baseRevision: 0, intent: { operation: 'allocation.create', allocation } })
-      .send();
-    committed.assertStatus(200);
-    const lookup = await session(
-      client.get(`${planningUrl}/mutations/${mutationId}`),
-      cookie
-    ).send();
-    lookup.assertStatus(200);
-    assert.deepEqual(lookup.body(), { status: 'committed', mutationId, revision: 1 });
-    const { cookie: otherCookie } = await signIn(client);
-    const other = await session(
-      client.get(`${planningUrl}/mutations/${mutationId}`),
-      otherCookie
-    ).send();
-    assert.deepEqual(other.body(), { status: 'unknown', mutationId });
-    const unknownId = randomUUID();
-    const unknown = await session(
-      client.get(`${planningUrl}/mutations/${unknownId}`),
-      cookie
-    ).send();
-    assert.deepEqual(unknown.body(), { status: 'unknown', mutationId: unknownId });
-    const foreign = await session(
-      client.get(`/api/accounts/a-loft/planning/mutations/${mutationId}`),
-      cookie
-    ).send();
-    foreign.assertStatus(403);
   });
 
   test('same-value update has no audit, commitment marker or revision advance', async ({

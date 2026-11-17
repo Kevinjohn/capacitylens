@@ -1,3 +1,8 @@
+// The server runs the Masquerade package's `masquerade:prune` at startup and hourly: it ends
+// expired modes and deletes view-as events older than 365 days. A failed pass is logged and retried
+// on the next one. The operator can also run `masquerade:prune`, `masquerade:status` and
+// `masquerade:stop`.
+
 import type { ApplicationService } from '@adonisjs/core/types';
 import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';
@@ -17,6 +22,7 @@ interface ProductionPosture {
   createAdmin?: boolean;
   bootstrapPassword?: string;
   rateLimit?: string;
+  fixedToday?: string;
 }
 
 export function assertProductionPosture(options: ProductionPosture) {
@@ -32,6 +38,7 @@ export function assertProductionPosture(options: ProductionPosture) {
     throw new Error('CAPACITYLENS_RATE_LIMIT must be an integer from 1 to 1,000,000 in production');
   }
   if (options.allowReset) throw new Error('CAPACITYLENS_ALLOW_RESET is forbidden in production');
+  if (options.fixedToday) throw new Error('CAPACITYLENS_FIXED_TODAY is forbidden in production');
 }
 
 export default class ConfigurationProvider {
@@ -45,6 +52,7 @@ export default class ConfigurationProvider {
         createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
         bootstrapPassword: env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'),
         rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
+        fixedToday: env.get('CAPACITYLENS_FIXED_TODAY'),
       });
     }
   }

@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it, vi } from 'vitest';
 import { makeAccount } from '@/test/fixtures';
@@ -45,7 +45,6 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
           accounts: [makeAccount({ id: context.companyId })],
         },
       }),
-      lookup: vi.fn(),
     },
     ...(confirm ? { confirmRestorationCleanup: confirm } : {}),
   });

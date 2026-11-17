@@ -4,9 +4,9 @@ import type {
   ResourceKind,
   SchedulingMode,
   ScopedEntity,
-  ScopedEntityKey,
-} from './entities.js';
+} from './entityTypes.js';
 import { FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from './entityKeys.js';
+import type { ScopedEntityKey } from './entityKeys.js';
 
 /** Does an allocation entered in this mode carry an hourly load? Blocks record placement and use
  * `blockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and

@@ -4,7 +4,7 @@ import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
-import { chooseOption } from './__tests__/schedulerTestKit';
+import { chooseOption } from '@/test/schedulerTestKit';
 import {
   required,
   closestForm,
@@ -13,7 +13,7 @@ import {
   person,
   enableDays,
   renderAsOwner,
-} from './__tests__/allocationModalTestKit';
+} from '@/test/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
