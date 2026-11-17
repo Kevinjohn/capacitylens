@@ -103,7 +103,7 @@ function buildModelPreferences(
 
 function useSchedulerModelProjection({
   preferences: { data, accountPrefs, accountWorkingDays, ui },
-  viewport: { days, geom, start, end },
+  viewport: { days, geom },
   visibleStart,
   visibleEnd,
   rowLaneLayout,
@@ -114,21 +114,20 @@ function useSchedulerModelProjection({
     [accountPrefs, accountWorkingDays],
   );
   const capacity = useStore((state) => state.planning.capacity);
-  // The static model spans the timeline so scrolling does not rebuild it; the visible projection
-  // below replaces its utilisation with the visible window's.
+  // The static model spans the timeline so scrolling does not rebuild it. It sums no utilisation,
+  // because the visible projection below sets the visible window's.
   const staticModel = useMemo(
     () =>
       buildSchedulerModel({
         data,
         geom,
         days,
-        visibleWindow: { start, end },
         capacity,
         filters: ui.filters,
         preferences: modelPreferences,
         laneLayout: rowLaneLayout,
       }),
-    [data, geom, days, start, end, capacity, ui.filters, modelPreferences, rowLaneLayout],
+    [data, geom, days, capacity, ui.filters, modelPreferences, rowLaneLayout],
   );
   return useMemo(
     () =>

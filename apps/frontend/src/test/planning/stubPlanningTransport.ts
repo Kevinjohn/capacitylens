@@ -45,6 +45,7 @@ export class StubPlanningTransport implements PlanningTransport {
   readonly readWindows: (CapacityRange | undefined)[] = [];
   private revisions = new Map<string, number>();
   private queued: Queued[] = [];
+  private readGate: Promise<void> | null = null;
 
   /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
@@ -57,6 +58,16 @@ export class StubPlanningTransport implements PlanningTransport {
     this.revisions.set(companyId, 0);
     this.calls.length = 0;
     this.queued.length = 0;
+    this.readGate = null;
+  }
+
+  /** Hold the next read, after it records its window, until the returned release is called. */
+  holdNextRead(): () => void {
+    let release = () => {};
+    this.readGate = new Promise((resolve) => {
+      release = resolve;
+    });
+    return release;
   }
 
   /** Replace canonical fixture rows without clearing revision or test response history. */
@@ -115,6 +126,12 @@ export class StubPlanningTransport implements PlanningTransport {
   ): Promise<PlanningSnapshot> {
     signal.throwIfAborted();
     this.readWindows.push(window);
+    const gate = this.readGate;
+    this.readGate = null;
+    if (gate) {
+      await gate;
+      signal.throwIfAborted();
+    }
     const data = emptyAppData();
     for (const entity of APP_DATA_KEYS) {
       const rows = this.rows(entity).filter((row) =>

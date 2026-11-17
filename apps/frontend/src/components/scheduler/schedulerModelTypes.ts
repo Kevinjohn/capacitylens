@@ -91,8 +91,9 @@ export interface SchedulerModelOptions {
   // The geometry origin must match days[0] and ui.originDate so date headers, bars and narrowed weekend columns share one alignment.
   geom: ColumnGeometry;
   days: ISODate[];
-  // Visible utilisation follows the zoom/pan window; per-day conflict markers cover the materialized timeline.
-  visibleWindow: { start: ISODate; end: ISODate };
+  // Visible utilisation follows the zoom/pan window; per-day conflict markers cover the materialized
+  // timeline. Omitted when a visible projection replaces the utilisation, which is then left at 0.
+  visibleWindow?: { start: ISODate; end: ISODate };
   /** The server's capacity figures from the last planning read; null before the first read. */
   capacity: CapacitySection | null;
   filters: Filters;

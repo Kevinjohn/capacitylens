@@ -84,6 +84,9 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   let generation = 0;
   let readSequence = 0;
   let accessKeyEstablished = false;
+  // The newest read: a read it supersedes is aborted and resolves with its outcome.
+  let latestRead: Promise<boolean> | null = null;
+  let readController: AbortController | null = null;
   let attempt: {
     pending: PlanningPendingMutation;
     history: PlanningHistory;
@@ -231,15 +234,24 @@ export function createPlanningCacheController(options: PlanningControllerOptions
 
   /**
    * Reads the canonical snapshot. A quiet read from a settled state, such as the one that follows
-   * a move of the capacity window, leaves the status alone so writes stay allowed meanwhile; any
-   * other read shows as loading.
+   * a move of the capacity window, leaves the status alone so writes stay allowed meanwhile. Any
+   * other read shows as loading, except while a write is pending, when the status stays pending.
+   * A newer read aborts this one, and this one then resolves with the newer read's outcome.
    */
-  async function refresh({ quiet = false }: { quiet?: boolean } = {}): Promise<boolean> {
+  function refresh(readOptions: { quiet?: boolean } = {}): Promise<boolean> {
+    const read = readSnapshot(readOptions);
+    latestRead = read;
+    return read;
+  }
+
+  async function readSnapshot({ quiet = false }: { quiet?: boolean }): Promise<boolean> {
     const context = store.getState().planning.context;
     if (!context) return false;
     const capturedGeneration = generation;
     const sequence = ++readSequence;
+    readController?.abort();
     const controller = requestController();
+    readController = controller;
     const { status } = store.getState().planning;
     if (!quiet || (status !== 'ready' && status !== 'refused')) {
       store.setState((state) => ({
@@ -256,16 +268,13 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         controller.signal,
         options.readCapacityWindow?.(),
       );
-      if (!isCurrent(capturedGeneration, context) || sequence !== readSequence) return false;
+      if (!isCurrent(capturedGeneration, context)) return false;
+      if (sequence !== readSequence) return await (latestRead ?? false);
       return acceptRead(snapshot);
     } catch (error) {
-      if (
-        !isCurrent(capturedGeneration, context) ||
-        sequence !== readSequence ||
-        controller.signal.aborted
-      ) {
-        return false;
-      }
+      if (!isCurrent(capturedGeneration, context)) return false;
+      if (sequence !== readSequence) return await (latestRead ?? false);
+      if (controller.signal.aborted) return false;
       if (losesScope(error)) {
         loseScope();
         return false;
@@ -276,6 +285,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       return false;
     } finally {
       finishRequest(controller);
+      if (readController === controller) readController = null;
     }
   }
 

@@ -92,7 +92,7 @@ function createTrackedCapacitySource(
 /** Reads each resource's capacity cues from the server's figures and its dated exceptions. */
 export function createCapacitySource({
   days,
-  visibleWindow: { start: visibleStart, end: visibleEnd },
+  visibleWindow,
   capacity,
   closures,
 }: CreateCapacitySourceInput) {
@@ -104,6 +104,6 @@ export function createCapacitySource({
 
   return {
     capacitySourceFor: createResourceCapacitySource,
-    visDays: eachDayISO(visibleStart, visibleEnd),
+    visDays: visibleWindow ? eachDayISO(visibleWindow.start, visibleWindow.end) : [],
   };
 }
