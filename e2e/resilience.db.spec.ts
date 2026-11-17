@@ -64,7 +64,9 @@ test.describe('database-backed resilience', () => {
     await expect.poll(clientFailure.attempts).toBe(1);
     expect(clientPosts).toHaveLength(1);
     await expect(
-      page.getByRole('dialog', { name: 'Add client' }).getByText('Temporary test outage'),
+      page
+        .getByRole('dialog', { name: 'Add client' })
+        .getByText(/couldn’t confirm that your last schedule change was saved/),
     ).toBeVisible();
     expect(
       requireStateRows(await serverState(request), 'clients').filter(
