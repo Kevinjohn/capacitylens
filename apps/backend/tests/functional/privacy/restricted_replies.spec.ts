@@ -72,7 +72,8 @@ function canReadInactive(role: Role) {
 const IDENTITY = 'identity or account reply with no client, project or time-off rows';
 const COUNTS = 'counts, ids or no body';
 const UNRESTRICTED = 'changes no restricted table and replies with no restricted row';
-const CALLER = 'replies with caller-sent fields or removed ids only';
+const CALLER =
+  'committed write whose reply carries only the revision, restoration handles and archive counts';
 
 async function readRevision() {
   const row = await db.from('company_planning_revisions').where('account_id', accountId).first();

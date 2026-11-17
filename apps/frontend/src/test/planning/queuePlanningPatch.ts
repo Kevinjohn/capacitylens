@@ -2,8 +2,6 @@ import type { PlanningExecution } from '@/api/planningContracts';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import type { PlanningPatch, StubPlanningTransport } from './stubPlanningTransport';
 
-export type { PlanningPatch };
-
 /** Queue a receipt and the rows it changes, without teaching the transport planning rules. */
 export function queuePlanningPatch(
   changed: (execution: PlanningExecution) => PlanningPatch,
