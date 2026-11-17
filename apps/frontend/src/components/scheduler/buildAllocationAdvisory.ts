@@ -3,10 +3,10 @@ import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 import {
   buildCapacityAdvisory,
   applyCapacityMode,
-  formatCapacityAdvisory,
   listTimeOffApplyingTo,
-} from '@/lib/capacity';
-import { buildRepeatingAllocationAdvisory } from '@/lib/repeatingAllocations';
+} from '@capacitylens/shared/lib/capacity';
+import { buildRepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory';
+import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
 
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
 import type { buildRepeatProjection } from './buildRepeatProjection';
