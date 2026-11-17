@@ -4,6 +4,7 @@ import { buildSchedulerModel } from './schedulerModel';
 import { buildEmptyFilters } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { requireValue } from '@/test/fixtures';
+import { capacityOver } from '@/test/capacityFixtures';
 import {
   barIds,
   build,
@@ -77,20 +78,25 @@ describe('buildSchedulerModel', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters,
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
 
-  it('hideTentative removes tentative bars, but capacity/utilisation still count them', () => {
-    const model = build({ filters: { ...buildEmptyFilters(), hideTentative: true } });
+  it("hideTentative removes tentative bars, but utilisation still draws the server's figures", () => {
+    // The server counts the hidden tentative work: 24 of 56 hours.
+    const capacity = capacityOver(
+      { from: start, to: end },
+      { r1: { byDate: { '2026-06-03': { allocated: 8 }, '2026-06-04': { allocated: 16 } } } },
+    );
+    const model = build({ filters: { ...buildEmptyFilters(), hideTentative: true }, capacity });
     expect(barIds(model)).toEqual(['a1', 'a3']);
     const r1 = requireValue(
       model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
       'r1 scheduler row',
     );
 
-    expect(r1.utilization).toBeCloseTo(0.6);
+    expect(r1.utilization).toBeCloseTo(24 / 56);
   });
 
   it('project filter limits bars to that project (resources still listed)', () => {
@@ -190,7 +196,7 @@ describe('buildSchedulerModel', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), projectId: 'p1', showUnmatched: false },
       preferences: {
         disciplinesEnabled: true,
@@ -206,7 +212,7 @@ describe('buildSchedulerModel', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), projectId: 'p1', showUnmatched: true },
       preferences: {
         disciplinesEnabled: true,
@@ -262,7 +268,7 @@ describe('buildSchedulerModel', () => {
         geom,
         days,
         visibleWindow: { start, end },
-        overSoonWindow: { start, end },
+        capacity: null,
         filters: { ...buildEmptyFilters(), search: query },
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       })

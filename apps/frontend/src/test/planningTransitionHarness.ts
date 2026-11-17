@@ -13,6 +13,7 @@ import type {
   PlanningSnapshot,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 // Shared setup for the planning cache controller transition tests.
 
@@ -38,6 +39,7 @@ export function snapshot(revision: number, clientName = 'Wayne Enterprises'): Pl
       clients: [makeClient({ id: 'client-1', accountId: 'wayne', name: clientName })],
     }),
     today: '2026-06-03',
+    capacity: emptyCapacity(),
   };
 }
 

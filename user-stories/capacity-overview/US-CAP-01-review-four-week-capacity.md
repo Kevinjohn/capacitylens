@@ -28,7 +28,7 @@ As a company member, I want to compare available capacity across the selected we
 flowchart TD
   A["Authorized member opens Overview"]
   B["Member changes horizon or display controls"]
-  C["Table recalculates locally from current planning data"]
+  C["Table redraws locally from the capacity figures in the last planning read"]
   D["Blocks mode: explanation appears instead of capacity figures"]
   A --> B
   B --> C
@@ -40,7 +40,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["CapacityOverviewRoute checks role and account access"] --> B["CapacityOverviewView holds horizon and display controls in component state"]
-  B --> C["buildCapacityOverviewModel derives periods, rows, filters and totals from scoped data"]
+  B --> C["buildCapacityOverviewModel sums the server's per-day horizon figures into periods, rows, filters and totals"]
   C --> D["CapacityOverviewTable renders toolbar and capacity cells"]
   D --> E["Blocks mode renders explanatory Alert instead of capacity figures"]
 ```

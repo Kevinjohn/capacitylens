@@ -10,6 +10,7 @@ export * from './capacity/availability.js';
 export * from './capacity/advisory.js';
 
 export * from './capacity/primitives.js';
+export type * from './capacity/section.js';
 import { hasOverCapacity } from './capacity/primitives.js';
 
 interface BuildDayCapacityInput {

@@ -205,6 +205,7 @@ describe('CapacityOverviewTable content', () => {
       data,
       today: '2026-06-03',
       horizon: '12-weeks',
+      capacity: null,
       disciplinesEnabled: false,
     });
 
@@ -222,6 +223,7 @@ describe('CapacityOverviewTable content', () => {
       data: { ...emptyAppData(), resources: [] },
       today: '2026-06-03',
       horizon: '12-weeks',
+      capacity: null,
     });
     renderTable({ model: twelveWeekModel });
 

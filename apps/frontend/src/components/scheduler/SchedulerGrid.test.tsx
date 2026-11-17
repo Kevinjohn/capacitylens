@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -8,7 +7,6 @@ import { useStore } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
   DEFAULT_ACCOUNT_ID,
-  makeAllocation,
   makeClosure,
   makeResource,
   makeTimeOff,
@@ -16,6 +14,8 @@ import {
 } from '@/test/fixtures';
 import { schedulerDataset } from '@/test/schedulerTestKit';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { capacityOver } from '@/test/capacityFixtures';
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
@@ -367,42 +367,38 @@ describe('SchedulerGrid', () => {
 });
 
 describe('SchedulerGrid visible-window utilisation', () => {
-  // A single Mon–Fri resource (8h/day → 40h/week) with a different booking density each week, so the
-  // displayed overall % must change exactly with the 1/2/4/8-week toggle (and stay distinct across them).
-  function densityDataset(): AppData {
-    return schedulerDataset({
-      resources: [
-        makeResource({ accountId: ACC, disciplineId: 'd1', name: 'Dana', color: '#111' }),
-      ],
-      allocations: [
-        makeAllocation({
-          id: 'w1',
-          accountId: ACC,
-          startDate: '2026-06-01',
-          endDate: '2026-06-05',
-        }),
-        makeAllocation({
-          id: 'w2',
-          accountId: ACC,
-          startDate: '2026-06-08',
-          endDate: '2026-06-12',
-          hoursPerDay: 4,
-        }),
-        makeAllocation({
-          id: 'w34',
-          accountId: ACC,
-          startDate: '2026-06-15',
-          endDate: '2026-06-26',
-          hoursPerDay: 2,
-        }),
-      ],
-    });
-  }
+  // The server's figures for a single Mon–Fri resource: eight hours each weekday, booked in full in
+  // the first week and not at all after it, so the drawn overall % follows the visible span.
+  const span = { from: '2026-06-01', to: '2026-07-26' };
+  const capacity = capacityOver(span, {
+    dana: {
+      byDate: Object.fromEntries(
+        eachDayISO(span.from, span.to).map((date, index) => [
+          date,
+          index % 7 >= 5 ? { available: 0 } : { allocated: date <= '2026-06-05' ? 8 : 0 },
+        ]),
+      ),
+    },
+  });
 
   // Pin origin and focus dates because jsdom leaves the container unmeasured and the visible window otherwise falls back to the current focus date.
-  const renderAtZoom = async (zoom: 1 | 2 | 4 | 8) => {
-    await resetStoreWithData(densityDataset(), ACC);
+  const renderAtZoom = async (zoom: 1 | 8) => {
+    await resetStoreWithData(
+      schedulerDataset({
+        resources: [
+          makeResource({
+            id: 'dana',
+            accountId: ACC,
+            disciplineId: 'd1',
+            name: 'Dana',
+            color: '#111',
+          }),
+        ],
+      }),
+      ACC,
+    );
     useStore.getState().clearFilters();
+    getStubPlanningTransport().setCapacity(capacity);
     useStore.setState((st) => ({
       ui: {
         ...st.ui,
@@ -412,44 +408,26 @@ describe('SchedulerGrid visible-window utilisation', () => {
         collapsedGroups: [],
       },
     }));
+    // Moving the grid reads the figures for its new window.
+    await useStore.getState().refreshPlanning();
     return renderGrid();
   };
   const overallPct = () =>
     Number.parseInt(screen.getByTestId('overall-utilization').textContent, 10);
 
-  it('the week-range toggle changes the overall % to reflect EXACTLY the visible span', async () => {
+  it("the week-range toggle redraws the overall % from the server's figures for the visible span", async () => {
     const v1 = await renderAtZoom(1);
     expect(overallPct()).toBe(100);
     v1.unmount();
-    const v2 = await renderAtZoom(2);
-    expect(overallPct()).toBe(75);
-    v2.unmount();
-    const v4 = await renderAtZoom(4);
-    expect(overallPct()).toBe(50);
-    v4.unmount();
     const v8 = await renderAtZoom(8);
-    expect(overallPct()).toBe(25);
+    expect(overallPct()).toBe(13);
     v8.unmount();
   });
 });
 
 describe('SchedulerGrid company day rollover', () => {
   beforeEach(async () => {
-    const data = dataset();
-    data.allocations.push({
-      ...NULLABLE_FIELDS.allocations,
-      id: 'boundary-over',
-      accountId: ACC,
-      createdAt: 't',
-      updatedAt: 't',
-      resourceId: 'r1',
-      activityId: 't1',
-      startDate: '2026-06-15',
-      endDate: '2026-06-15',
-      hoursPerDay: 9,
-      status: 'confirmed',
-    });
-    await resetStoreWithData(data, ACC);
+    await resetStoreWithData(dataset(), ACC);
     getStubPlanningTransport().setToday('2026-06-01');
     await useStore.getState().refreshPlanning({ fresh: true });
     useStore.setState((state) => ({
@@ -457,7 +435,7 @@ describe('SchedulerGrid company day rollover', () => {
     }));
   });
 
-  it('moves the today marker and fixed over-soon window when a read brings the next date', async () => {
+  it('moves the today marker and draws the over-soon flag when a read brings them', async () => {
     const view = renderGrid();
     const currentHeader = () =>
       view.container.querySelector('[role="columnheader"] .bg-brand-soft');
@@ -466,6 +444,9 @@ describe('SchedulerGrid company day rollover', () => {
     expect(screen.queryByText(/Overbooked in the next two weeks/)).not.toBeInTheDocument();
 
     getStubPlanningTransport().setToday('2026-06-02');
+    getStubPlanningTransport().setCapacity(
+      capacityOver({ from: '2026-06-01', to: '2026-06-07' }, { r1: { overSoon: true } }),
+    );
     await act(() => useStore.getState().refreshPlanning({ fresh: true }));
 
     expect(currentHeader()).toHaveTextContent('2');

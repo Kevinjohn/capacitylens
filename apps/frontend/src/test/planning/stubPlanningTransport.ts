@@ -12,6 +12,8 @@ import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
 import { APP_DATA_KEYS, emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData, AppDataKey, ISODate } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 type Row = { id: string; accountId?: string; [key: string]: unknown };
 /** Rows a queued write changes in the stub's canonical data, which the next read returns. */
@@ -38,6 +40,9 @@ export class StubPlanningTransport implements PlanningTransport {
   private data = emptyAppData();
   private canWrite = true;
   private today: ISODate | null = null;
+  private capacity: CapacitySection | null = null;
+  /** The capacity window each read asked for; undefined for a read that asked for the default. */
+  readonly readWindows: (CapacityRange | undefined)[] = [];
   private revisions = new Map<string, number>();
   private queued: Queued[] = [];
 
@@ -46,6 +51,8 @@ export class StubPlanningTransport implements PlanningTransport {
     this.data = structuredClone(data);
     this.canWrite = true;
     this.today = null;
+    this.capacity = null;
+    this.readWindows.length = 0;
     this.revisions.clear();
     this.revisions.set(companyId, 0);
     this.calls.length = 0;
@@ -89,6 +96,11 @@ export class StubPlanningTransport implements PlanningTransport {
     this.today = today;
   }
 
+  /** Set the capacity figures returned by subsequent reads, in place of a section with no resources. */
+  setCapacity(capacity: CapacitySection): void {
+    this.capacity = capacity;
+  }
+
   /** The company date a read returns: the set value, or the clock's date in the company's zone. */
   todayFor(companyId: string): ISODate {
     if (this.today !== null) return this.today;
@@ -96,8 +108,13 @@ export class StubPlanningTransport implements PlanningTransport {
     return resolveCalendarToday(account?.timezone ?? 'Etc/GMT').date;
   }
 
-  async read(context: PlanningClientContext, signal: AbortSignal): Promise<PlanningSnapshot> {
+  async read(
+    context: PlanningClientContext,
+    signal: AbortSignal,
+    window?: CapacityRange,
+  ): Promise<PlanningSnapshot> {
     signal.throwIfAborted();
+    this.readWindows.push(window);
     const data = emptyAppData();
     for (const entity of APP_DATA_KEYS) {
       const rows = this.rows(entity).filter((row) =>
@@ -110,6 +127,7 @@ export class StubPlanningTransport implements PlanningTransport {
       canWrite: this.canWrite,
       data,
       today: this.todayFor(context.companyId),
+      capacity: this.capacity ?? emptyCapacity(window),
     };
   }
 

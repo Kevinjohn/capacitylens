@@ -60,7 +60,13 @@ useStore.subscribe((state) => {
   setActiveDateStyle(resolveDateStyle(state.data, state.activeAccountId));
 });
 
-// Entering a company opens its planning context and loads its canonical planning snapshot.
+// Entering a company opens its planning context and loads its canonical planning snapshot. Moving
+// the grid's window reads the capacity figures for the new window, quietly so writes stay allowed
+// meanwhile; the first read's own anchoring needs no second read, because that read already
+// covered the anchored window.
 useStore.subscribe((state, previous) => {
   if (state.activeAccountId !== previous.activeAccountId) void state.refreshPlanning();
+  else if (state.ui.originDate !== previous.ui.originDate && previous.planning.today !== null) {
+    void state.refreshPlanning({ fresh: true, quiet: true });
+  }
 });

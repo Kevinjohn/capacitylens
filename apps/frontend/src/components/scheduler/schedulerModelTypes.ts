@@ -1,5 +1,5 @@
 import type { LaneLayout } from '@/lib/lanePacking';
-import type { DayCapacity } from '@capacitylens/shared/lib/capacity';
+import type { CapacitySection, DayCapacity } from '@capacitylens/shared/lib/capacity';
 import type { DisciplineGroup } from '@/store/selectors';
 import type { ColumnGeometry } from './columnGeometry';
 import type { Filters } from '@/store/useStore';
@@ -91,9 +91,10 @@ export interface SchedulerModelOptions {
   // The geometry origin must match days[0] and ui.originDate so date headers, bars and narrowed weekend columns share one alignment.
   geom: ColumnGeometry;
   days: ISODate[];
-  // Visible utilisation follows the zoom/pan window; overSoon follows the fixed forward window from today. Per-day conflict markers cover the materialized timeline. Keep these three boundaries separate.
+  // Visible utilisation follows the zoom/pan window; per-day conflict markers cover the materialized timeline.
   visibleWindow: { start: ISODate; end: ISODate };
-  overSoonWindow: { start: ISODate; end: ISODate };
+  /** The server's capacity figures from the last planning read; null before the first read. */
+  capacity: CapacitySection | null;
   filters: Filters;
   preferences: {
     // When false (account.disciplinesEnabled === false), discipline bands disappear and the
@@ -117,11 +118,13 @@ export interface CapacitySource {
   tracked: boolean;
   /** The row's applicable personal time off covering one date. */
   listTimeOffOn: (date: ISODate) => TimeOff[];
-  resolveCapacityOnDay: (date: ISODate) => DayCapacity;
+  /** The server's figures for one date; undefined when the read did not cover it. */
+  resolveCapacityOnDay: (date: ISODate) => DayCapacity | undefined;
   countAllocationsOn: (date: ISODate) => number;
   countTimeOffOn: (date: ISODate) => number;
   resolveUtilizationOver: (dates: ISODate[]) => number;
-  isOverOn: (dates: ISODate[]) => boolean;
+  /** The server's flag for an over-capacity day from today to today + 13. */
+  overSoon: boolean;
 }
 /** A discipline group with scheduler-specific display fields. */
 export interface SchedulerResourceGroup extends DisciplineGroup {

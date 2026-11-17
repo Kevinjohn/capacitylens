@@ -1,8 +1,17 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 
 import { describe, expect, it } from 'vitest';
-import type { Allocation, AppData, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
+import {
+  addDaysISO,
+  eachDayISO,
+  startOfWeekISO,
+  weekdayOf,
+} from '@capacitylens/shared/lib/dateMath';
+import type { AppData, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { capacityOver, onlyRange } from '@/test/capacityFixtures';
+import type { ServerDayFigures } from '@/test/capacityFixtures';
 import { buildCapacityOverviewPeriods } from './capacityOverviewDates';
 import { buildCapacityOverviewModel } from './capacityOverviewModel';
 import type { CapacityOverviewModel } from './capacityOverviewModel';
@@ -37,30 +46,33 @@ function placeholder(id: string, overrides: Partial<Resource> = {}): Resource {
   return person(id, { kind: 'placeholder', role: 'Designer', ...overrides });
 }
 
-function allocation(
-  id: string,
-  resourceId: string,
-  startDate: string,
-  endDate: string,
-  hoursPerDay: number,
-  overrides: Partial<Allocation> = {},
-): Allocation {
-  return {
-    ...NULLABLE_FIELDS.allocations,
-    ...BASE,
-    id,
-    resourceId,
-    activityId: `activity-${id}`,
-    startDate,
-    endDate,
-    hoursPerDay,
-    status: 'confirmed',
-    ...overrides,
-  };
+function data(resources: Resource[]): AppData {
+  return { ...emptyAppData(), resources };
 }
 
-function data(resources: Resource[], allocations: Allocation[] = []): AppData {
-  return { ...emptyAppData(), resources, allocations };
+/** The server's figures over the twelve-week horizon from `today`: eight hours on each weekday and
+ * none at weekends, nothing allocated, then each resource's figures for the dates it names. */
+function horizonCapacity(
+  today: ISODate,
+  resources: Record<string, Record<ISODate, ServerDayFigures>>,
+): CapacitySection {
+  const range = { from: today, to: addDaysISO(startOfWeekISO(today, 1), 83) };
+  const weekends = Object.fromEntries(
+    eachDayISO(range.from, range.to)
+      .filter((date) => weekdayOf(date) === 0 || weekdayOf(date) === 6)
+      .map((date) => [date, { available: 0 }]),
+  );
+  return capacityOver(
+    range,
+    Object.fromEntries(
+      Object.entries(resources).map(([id, byDate]) => [id, { byDate: { ...weekends, ...byDate } }]),
+    ),
+  );
+}
+
+/** The same figures on each date from `from` to `to`. */
+function onDates(from: ISODate, to: ISODate, figures: ServerDayFigures) {
+  return Object.fromEntries(eachDayISO(from, to).map((date) => [date, figures]));
 }
 
 function period(model: CapacityOverviewModel, rowId: string, index: number) {
@@ -151,27 +163,34 @@ describe('buildCapacityOverviewPeriods', () => {
 describe('buildCapacityOverviewModel', () => {
   it('filters a person by availability in any displayed week, including later horizon weeks', () => {
     const resource = person('later', { workingDays: [1] });
-    const tacticalAllocations = [
-      allocation('tactical-1', resource.id, '2026-06-01', '2026-06-01', 8),
-      allocation('tactical-2', resource.id, '2026-06-08', '2026-06-08', 8),
-      allocation('tactical-3', resource.id, '2026-06-15', '2026-06-15', 8),
-      allocation('tactical-4', resource.id, '2026-06-22', '2026-06-22', 8),
-    ];
-    const laterAllocations = [allocation('week-5', resource.id, '2026-06-29', '2026-06-29', 6)];
+    // Mondays only, booked in full for four weeks and to six hours in the fifth.
+    const capacity = horizonCapacity('2026-06-01', {
+      [resource.id]: {
+        ...onDates('2026-06-01', '2026-08-23', { available: 0 }),
+        ...Object.fromEntries(
+          eachDayISO('2026-06-01', '2026-08-23')
+            .filter((date) => weekdayOf(date) === 1)
+            .map((date) => [
+              date,
+              { allocated: date <= '2026-06-22' ? 8 : date === '2026-06-29' ? 6 : 0 },
+            ]),
+        ),
+      },
+    });
     const twelveWeekResult = buildCapacityOverviewModel({
-      data: data([resource], [...tacticalAllocations, ...laterAllocations]),
+      data: data([resource]),
       today: '2026-06-01',
       weekStartsOn: 1,
-      accountWorkingDays: [1],
+      capacity,
       horizon: '12-weeks',
       hasAvailability: true,
       disciplinesEnabled: false,
     });
     const fourWeekResult = buildCapacityOverviewModel({
-      data: data([resource], [...tacticalAllocations, ...laterAllocations]),
+      data: data([resource]),
       today: '2026-06-01',
       weekStartsOn: 1,
-      accountWorkingDays: [1],
+      capacity,
       hasAvailability: true,
       disciplinesEnabled: false,
     });
@@ -186,62 +205,34 @@ describe('buildCapacityOverviewModel', () => {
   it('includes placeholder demand only in a displayed week and excludes tentative demand', () => {
     const confirmedSlot = placeholder('confirmed-slot');
     const tentativeSlot = placeholder('tentative-slot');
+    const capacity = horizonCapacity('2026-06-01', {
+      [confirmedSlot.id]: { '2026-06-29': { allocated: 1 } },
+      [tentativeSlot.id]: { '2026-07-06': { allocated: 1, confirmedAllocated: 0 } },
+    });
     const twelveWeekResult = buildCapacityOverviewModel({
-      data: data(
-        [confirmedSlot, tentativeSlot],
-        [
-          allocation('strategic-demand', confirmedSlot.id, '2026-06-29', '2026-06-29', 1),
-          allocation(
-            'tentative-strategic-demand',
-            tentativeSlot.id,
-            '2026-07-06',
-            '2026-07-06',
-            1,
-            {
-              status: 'tentative',
-            },
-          ),
-        ],
-      ),
+      data: data([confirmedSlot, tentativeSlot]),
       today: '2026-06-01',
       weekStartsOn: 1,
-      accountWorkingDays: WEEKDAYS,
+      capacity,
       horizon: '12-weeks',
       placeholdersEnabled: true,
       hasAvailability: true,
       disciplinesEnabled: false,
     });
     const fourWeekResult = buildCapacityOverviewModel({
-      data: data(
-        [confirmedSlot],
-        [allocation('strategic-demand', confirmedSlot.id, '2026-06-29', '2026-06-29', 1)],
-      ),
+      data: data([confirmedSlot]),
       today: '2026-06-01',
       weekStartsOn: 1,
-      accountWorkingDays: WEEKDAYS,
+      capacity,
       placeholdersEnabled: true,
       hasAvailability: true,
       disciplinesEnabled: false,
     });
     const hiddenTentativeResult = buildCapacityOverviewModel({
-      data: data(
-        [tentativeSlot],
-        [
-          allocation(
-            'tentative-strategic-demand',
-            tentativeSlot.id,
-            '2026-07-06',
-            '2026-07-06',
-            1,
-            {
-              status: 'tentative',
-            },
-          ),
-        ],
-      ),
+      data: data([tentativeSlot]),
       today: '2026-06-01',
       weekStartsOn: 1,
-      accountWorkingDays: WEEKDAYS,
+      capacity,
       horizon: '12-weeks',
       includeTentative: false,
       placeholdersEnabled: true,
@@ -260,40 +251,17 @@ describe('buildCapacityOverviewModel', () => {
     expect(hiddenTentativeResult.groups).toHaveLength(0);
   });
 
-  it('keeps the configured company-working-day denominator for later complete weeks', () => {
-    const resource = person('strategic');
-    const result = buildCapacityOverviewModel({
-      data: data([resource]),
-      today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
-      horizon: '12-weeks',
-      closures: [
-        {
-          ...BASE,
-          id: 'closure',
-          name: 'Founders Day',
-          startDate: '2026-06-29',
-          endDate: '2026-06-29',
-        },
-      ],
-      disciplinesEnabled: false,
-    });
-
-    expect(period(result, resource.id, 4)).toMatchObject({ freeHours: 32, freeDays: 4 });
-  });
-
   it('keeps daily spare and overload separate before quarter-day rounding', () => {
     const resource = person('person-1');
     const result = buildCapacityOverviewModel({
-      data: data(
-        [resource],
-        [
-          allocation('over', resource.id, '2026-06-03', '2026-06-03', 10),
-          allocation('spare', resource.id, '2026-06-04', '2026-06-04', 1),
-        ],
-      ),
+      data: data([resource]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: horizonCapacity('2026-06-01', {
+        [resource.id]: {
+          '2026-06-03': { allocated: 10, over: true },
+          '2026-06-04': { allocated: 1 },
+        },
+      }),
       weekStartsOn: 1,
       disciplinesEnabled: false,
     });
@@ -311,12 +279,11 @@ describe('buildCapacityOverviewModel', () => {
   it('floors free capacity and ceils overload after precise weekly aggregation', () => {
     const resource = person('person-1');
     const result = buildCapacityOverviewModel({
-      data: data(
-        [resource],
-        [allocation('fractional', resource.id, '2026-06-01', '2026-06-02', 7)],
-      ),
+      data: data([resource]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: horizonCapacity('2026-06-01', {
+        [resource.id]: onDates('2026-06-01', '2026-06-02', { allocated: 7 }),
+      }),
       disciplinesEnabled: false,
     });
 
@@ -331,20 +298,12 @@ describe('buildCapacityOverviewModel', () => {
     const working = person('working');
     const away = person('away');
     const result = buildCapacityOverviewModel({
-      data: data([working, away], [allocation('full', working.id, '2026-06-01', '2026-06-05', 8)]),
+      data: data([working, away]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
-      timeOff: [
-        {
-          ...BASE,
-          id: 'leave',
-          resourceId: away.id,
-          startDate: '2026-06-01',
-          endDate: '2026-06-05',
-          type: 'holiday',
-          note: null,
-        },
-      ],
+      capacity: horizonCapacity('2026-06-01', {
+        [working.id]: onDates('2026-06-01', '2026-06-05', { allocated: 8 }),
+        [away.id]: onDates('2026-06-01', '2026-06-05', { available: 0 }),
+      }),
       disciplinesEnabled: false,
     });
 
@@ -355,9 +314,11 @@ describe('buildCapacityOverviewModel', () => {
   it('treats less than a quarter-day of precise spare time as fully booked', () => {
     const resource = person('almost-full');
     const result = buildCapacityOverviewModel({
-      data: data([resource], [allocation('load', resource.id, '2026-06-01', '2026-06-05', 7.8)]),
+      data: data([resource]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: horizonCapacity('2026-06-01', {
+        [resource.id]: onDates('2026-06-01', '2026-06-05', { allocated: 7.8 }),
+      }),
       disciplinesEnabled: false,
     });
 
@@ -368,67 +329,56 @@ describe('buildCapacityOverviewModel', () => {
     expect(resultPeriod.state).toBe('fully-booked');
   });
 
-  it('removes company closures from working capacity', () => {
+  it('reads each period from the dates of the server horizon, starting at today', () => {
     const resource = person('person-1');
-    const result = buildCapacityOverviewModel({
-      data: data([resource]),
-      today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
-      closures: [
-        {
-          ...BASE,
-          id: 'closure',
-          name: 'Founders Day',
-          startDate: '2026-06-01',
-          endDate: '2026-06-01',
-        },
-      ],
-      disciplinesEnabled: false,
-    });
-
-    expect(period(result, resource.id, 0)).toMatchObject({
-      availableHours: 32,
-      freeDays: 4,
-    });
-  });
-
-  it("measures capacity from the person's own working days, not the company's", () => {
-    const resource = person('person-1', { workingDays: [1, 2, 3] });
+    // Today is a Wednesday, so the first period runs from the horizon's first date to Sunday.
     const result = buildCapacityOverviewModel({
       data: data([resource]),
       today: '2026-06-03',
-      accountWorkingDays: [1, 2, 3, 4],
+      capacity: onlyRange(
+        horizonCapacity('2026-06-03', {
+          [resource.id]: { '2026-06-03': { allocated: 8 }, '2026-06-08': { allocated: 4 } },
+        }),
+        'horizon',
+      ),
       weekStartsOn: 1,
       disciplinesEnabled: false,
     });
 
-    expect(period(result, resource.id, 0)).toMatchObject({
-      availableHours: 8,
-      freeHours: 8,
-      freeDays: 1,
+    expect(period(result, resource.id, 0)).toMatchObject({ availableHours: 24, freeHours: 16 });
+    expect(period(result, resource.id, 1)).toMatchObject({ availableHours: 40, freeHours: 36 });
+  });
+
+  it('counts nothing for a resource the server sent no figures for', () => {
+    const resource = person('person-1');
+    const result = buildCapacityOverviewModel({
+      data: data([resource]),
+      today: '2026-06-01',
+      capacity: horizonCapacity('2026-06-01', {}),
+      disciplinesEnabled: false,
     });
-    expect(period(result, resource.id, 1)).toMatchObject({
-      availableHours: 24,
-      freeHours: 24,
-      freeDays: 3,
+
+    expect(period(result, resource.id, 0)).toMatchObject({
+      availableHours: 0,
+      state: 'unavailable',
     });
   });
 
-  it('excludes tentative load when requested and recalculates capacity', () => {
+  it('excludes tentative load when requested', () => {
     const resource = person('person-1');
-    const allocations = [
-      allocation('tentative', resource.id, '2026-06-01', '2026-06-05', 8, { status: 'tentative' }),
-    ];
+    const capacity = horizonCapacity('2026-06-01', {
+      [resource.id]: onDates('2026-06-01', '2026-06-05', { allocated: 8, confirmedAllocated: 0 }),
+    });
     const included = buildCapacityOverviewModel({
-      data: data([resource], allocations),
+      data: data([resource]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity,
       disciplinesEnabled: false,
     });
     const excluded = buildCapacityOverviewModel({
-      data: data([resource], allocations),
+      data: data([resource]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity,
       includeTentative: false,
       disciplinesEnabled: false,
     });
@@ -439,23 +389,23 @@ describe('buildCapacityOverviewModel', () => {
 
   it('measures tentative work as the free time it consumes, clamped to real spare capacity', () => {
     const resource = person('person-1');
-    const allocations = [
-      allocation('confirmed', resource.id, '2026-06-01', '2026-06-01', 8),
-      allocation('tentative', resource.id, '2026-06-02', '2026-06-03', 8, { status: 'tentative' }),
-      allocation('tentative-over', resource.id, '2026-06-01', '2026-06-01', 4, {
-        status: 'tentative',
-      }),
-    ];
+    // Monday carries 8h confirmed and 4h tentative; Tuesday and Wednesday 8h tentative each.
+    const capacity = horizonCapacity('2026-06-01', {
+      [resource.id]: {
+        '2026-06-01': { allocated: 12, confirmedAllocated: 8, over: true },
+        ...onDates('2026-06-02', '2026-06-03', { allocated: 8, confirmedAllocated: 0 }),
+      },
+    });
     const included = buildCapacityOverviewModel({
-      data: data([resource], allocations),
+      data: data([resource]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity,
       disciplinesEnabled: false,
     });
     const excluded = buildCapacityOverviewModel({
-      data: data([resource], allocations),
+      data: data([resource]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity,
       includeTentative: false,
       disciplinesEnabled: false,
     });
@@ -478,20 +428,20 @@ describe('buildCapacityOverviewModel', () => {
 
   it('excludes tentative placeholder demand when requested', () => {
     const slot = placeholder('slot');
-    const allocations = [
-      allocation('tentative-demand', slot.id, '2026-06-01', '2026-06-01', 8, {
-        status: 'tentative',
-      }),
-    ];
+    const capacity = horizonCapacity('2026-06-01', {
+      [slot.id]: { '2026-06-01': { allocated: 8, confirmedAllocated: 0 } },
+    });
     const included = buildCapacityOverviewModel({
-      data: data([slot], allocations),
+      data: data([slot]),
       today: '2026-06-01',
+      capacity,
       placeholdersEnabled: true,
       disciplinesEnabled: false,
     });
     const excluded = buildCapacityOverviewModel({
-      data: data([slot], allocations),
+      data: data([slot]),
       today: '2026-06-01',
+      capacity,
       includeTentative: false,
       placeholdersEnabled: true,
       disciplinesEnabled: false,
@@ -505,9 +455,12 @@ describe('buildCapacityOverviewModel', () => {
     const real = person('real');
     const slot = placeholder('slot');
     const result = buildCapacityOverviewModel({
-      data: data([real, slot], [allocation('demand', slot.id, '2026-06-01', '2026-06-02', 8)]),
+      data: data([real, slot]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: horizonCapacity('2026-06-01', {
+        [real.id]: {},
+        [slot.id]: onDates('2026-06-01', '2026-06-02', { allocated: 8 }),
+      }),
       placeholdersEnabled: true,
       disciplinesEnabled: false,
     });
@@ -527,20 +480,17 @@ describe('buildCapacityOverviewModel', () => {
     const supplementary = person('supplementary', { engagement: 'supplementary' });
     const slot = placeholder('slot', { engagement: 'studio' });
     const grouped = buildCapacityOverviewModel({
-      data: data(
-        [studio, supplementary, slot],
-        [allocation('demand', slot.id, '2026-06-01', '2026-06-01', 8)],
-      ),
+      data: data([studio, supplementary, slot]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: null,
       placeholdersEnabled: true,
       disciplinesEnabled: false,
     });
 
     const ungrouped = buildCapacityOverviewModel({
-      data: data([studio, slot], [allocation('demand', slot.id, '2026-06-01', '2026-06-01', 8)]),
+      data: data([studio, slot]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: null,
       placeholdersEnabled: true,
       disciplinesEnabled: false,
     });
@@ -558,13 +508,13 @@ describe('buildCapacityOverviewModel', () => {
     const slot = placeholder('slot', { disciplineId: 'design' });
     const result = buildCapacityOverviewModel({
       data: {
-        ...data([designer, slot], [allocation('demand', slot.id, '2026-06-01', '2026-06-01', 8)]),
+        ...data([designer, slot]),
         disciplines: [
           { ...NULLABLE_FIELDS.disciplines, ...BASE, id: 'design', name: 'Design', sortOrder: 0 },
         ],
       },
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: null,
       placeholdersEnabled: true,
       disciplinesEnabled: true,
     });
@@ -579,18 +529,17 @@ describe('buildCapacityOverviewModel', () => {
     const full = person('full');
     const slot = placeholder('slot');
     const result = buildCapacityOverviewModel({
-      data: data(
-        [available, full, slot],
-        [
-          allocation('full-load-1', full.id, '2026-06-01', '2026-06-05', 8),
-          allocation('full-load-2', full.id, '2026-06-08', '2026-06-12', 8),
-          allocation('full-load-3', full.id, '2026-06-15', '2026-06-19', 8),
-          allocation('full-load-4', full.id, '2026-06-22', '2026-06-26', 8),
-          allocation('demand', slot.id, '2026-06-08', '2026-06-08', 1),
-        ],
-      ),
+      data: data([available, full, slot]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: horizonCapacity('2026-06-01', {
+        [available.id]: {},
+        [full.id]: Object.fromEntries(
+          eachDayISO('2026-06-01', '2026-06-26')
+            .filter((date) => weekdayOf(date) !== 0 && weekdayOf(date) !== 6)
+            .map((date) => [date, { allocated: 8 }]),
+        ),
+        [slot.id]: { '2026-06-08': { allocated: 1 } },
+      }),
       placeholdersEnabled: true,
       hasAvailability: true,
       disciplinesEnabled: false,
@@ -624,7 +573,7 @@ describe('buildCapacityOverviewModel', () => {
         ],
       },
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
+      capacity: null,
       disciplinesEnabled: true,
     });
 
@@ -636,27 +585,16 @@ describe('buildCapacityOverviewModel', () => {
     const first = person('first');
     const second = person('second');
     const result = buildCapacityOverviewModel({
-      data: data(
-        [first, second],
-        [
-          allocation('first-load', first.id, '2026-06-01', '2026-06-01', 7),
-          allocation('second-load', second.id, '2026-06-01', '2026-06-01', 7),
-          allocation('first-overload', first.id, '2026-06-08', '2026-06-08', 10),
-        ],
-      ),
+      data: data([first, second]),
       today: '2026-06-01',
-      accountWorkingDays: WEEKDAYS,
-      timeOff: [
-        {
-          ...BASE,
-          id: 'first-leave',
-          resourceId: first.id,
-          startDate: '2026-06-09',
-          endDate: '2026-06-09',
-          type: 'holiday',
-          note: null,
+      capacity: horizonCapacity('2026-06-01', {
+        [first.id]: {
+          '2026-06-01': { allocated: 7 },
+          '2026-06-08': { allocated: 10, over: true },
+          '2026-06-09': { available: 0 },
         },
-      ],
+        [second.id]: { '2026-06-01': { allocated: 7 } },
+      }),
       disciplinesEnabled: false,
     });
 
@@ -675,9 +613,11 @@ describe('buildCapacityOverviewModel', () => {
   });
 
   it('returns a measured-capacity explanation in Blocks mode', () => {
+    const resource = person('person-1');
     const result = buildCapacityOverviewModel({
-      data: data([person('person-1')]),
+      data: data([resource]),
       today: '2026-06-01',
+      capacity: horizonCapacity('2026-06-01', { [resource.id]: {} }),
       blocksMode: true,
     });
 

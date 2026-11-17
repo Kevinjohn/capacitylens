@@ -12,6 +12,7 @@ import {
   success,
   harness,
 } from './planningCacheController.testSupport';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -40,6 +41,7 @@ const serverSnapshot: PlanningSnapshot = {
   canWrite: true,
   data: serverData,
   today: companyToday,
+  capacity: emptyCapacity(),
 };
 
 type Read = ReturnType<typeof vi.fn<PlanningTransport['read']>>;
@@ -53,7 +55,13 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
     .mockImplementationOnce(async (_context, execution) => success(execution.mutationId, 2));
   const h = harness({ execute, read });
   h.controller.setContext(context);
-  await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData(), today: companyToday });
+  await h.readSnapshot({
+    revision: 1,
+    canWrite: true,
+    data: canonicalData(),
+    today: companyToday,
+    capacity: emptyCapacity(),
+  });
   await h.controller.execute(h.controller.begin(), intent, inverse);
   expect(h.state().planning.history.past).toHaveLength(1);
   lose(execute);
@@ -104,6 +112,7 @@ describe('planning write whose reply was lost', () => {
           canWrite: true,
           data: canonicalData(),
           today: companyToday,
+          capacity: emptyCapacity(),
         }),
     );
     expect(h.state().planning).toMatchObject({

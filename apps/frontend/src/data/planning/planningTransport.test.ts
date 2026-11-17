@@ -313,6 +313,29 @@ describe('generated planning transport', () => {
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
   });
 
+  it('asks for the capacity window it is given and returns the server figures', async () => {
+    const capacity = {
+      window: { from: '2026-05-04', to: '2026-09-28' },
+      horizon: { from: '2026-06-03', to: '2026-08-23' },
+      resources: {},
+    };
+    const authority = {
+      actorId: 'bruce',
+      effectiveActorId: 'bruce',
+      role: 'owner',
+      canWrite: true,
+    };
+    const reply = { accountId: 'wayne', revision: 5, authority, data: emptyAppData(), capacity };
+    const { transport, requests } = harness(reply);
+
+    const result = await transport.read(context, signal, capacity.window);
+    await transport.read(context, signal);
+
+    expect(result.capacity).toEqual(capacity);
+    expect(new URL(requests[0]?.url ?? '').search).toBe('?from=2026-05-04&to=2026-09-28');
+    expect(new URL(requests[1]?.url ?? '').search).toBe('');
+  });
+
   it('surfaces a stale proof on a canonical read without replaying it', async () => {
     const { transport, fetcher, requests } = harness(
       { error: 'The masquerade context changed.', code: 'MASQUERADE_CONTEXT_CHANGED' },

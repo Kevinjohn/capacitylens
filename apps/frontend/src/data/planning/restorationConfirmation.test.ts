@@ -5,6 +5,7 @@ import { makeAccount } from '@/test/fixtures';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import { PlanningControllerError } from './planningErrors';
 import type { PlanningCacheState, PlanningTransport } from './planningCacheTypes';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 const context = { identity: 'bruce', companyId: 'wayne' };
 const intent = {
@@ -44,6 +45,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
           accounts: [makeAccount({ id: context.companyId })],
         },
         today: '2026-06-03',
+        capacity: emptyCapacity(),
       }),
     },
     ...(confirm ? { confirmRestorationCleanup: confirm } : {}),

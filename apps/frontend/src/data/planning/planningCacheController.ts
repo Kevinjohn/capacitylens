@@ -38,6 +38,7 @@ const initialMetadata = (
   canWrite: false,
   revision: null,
   today: null,
+  capacity: null,
   status: context ? 'loading' : 'idle',
   history: emptyHistory(),
   pending: null,
@@ -163,6 +164,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           canWrite: !older && snapshot.canWrite,
           revision: older ? null : snapshot.revision,
           today: older ? null : snapshot.today,
+          capacity: older ? null : snapshot.capacity,
           status: older ? 'error' : 'ready',
           error: older
             ? new PlanningControllerError('The access projection changed but its read was stale.')
@@ -212,6 +214,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         canWrite: snapshot.canWrite,
         revision: snapshot.revision,
         today: snapshot.today,
+        capacity: snapshot.capacity,
         status:
           finalized || !state.planning.pending
             ? 'ready'
@@ -226,21 +229,33 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     return true;
   }
 
-  async function refresh(): Promise<boolean> {
+  /**
+   * Reads the canonical snapshot. A quiet read from a settled state, such as the one that follows
+   * a move of the capacity window, leaves the status alone so writes stay allowed meanwhile; any
+   * other read shows as loading.
+   */
+  async function refresh({ quiet = false }: { quiet?: boolean } = {}): Promise<boolean> {
     const context = store.getState().planning.context;
     if (!context) return false;
     const capturedGeneration = generation;
     const sequence = ++readSequence;
     const controller = requestController();
-    store.setState((state) => ({
-      planning: {
-        ...state.planning,
-        status: state.planning.pending ? state.planning.status : 'loading',
-        error: null,
-      },
-    }));
+    const { status } = store.getState().planning;
+    if (!quiet || (status !== 'ready' && status !== 'refused')) {
+      store.setState((state) => ({
+        planning: {
+          ...state.planning,
+          status: state.planning.pending ? state.planning.status : 'loading',
+          error: null,
+        },
+      }));
+    }
     try {
-      const snapshot = await transport.read(withContextToken(context), controller.signal);
+      const snapshot = await transport.read(
+        withContextToken(context),
+        controller.signal,
+        options.readCapacityWindow?.(),
+      );
       if (!isCurrent(capturedGeneration, context) || sequence !== readSequence) return false;
       return acceptRead(snapshot);
     } catch (error) {

@@ -33,9 +33,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useSchedulerGridModel anchors overSoonWindow from today"] --> B["buildSchedulerModel calculates overSoon for each row"]
+  A["The planning read carries each resource's overSoon flag, computed by the server for today to today + 13"] --> B["buildSchedulerModel copies overSoon onto each row"]
   B --> C["SchedulerGridRow reads row.overSoon"]
   C --> D["UtilizationCell renders red emphasis and 14-day hint"]
 ```
 
-**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx)
+**Code references:** [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts), [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx)
