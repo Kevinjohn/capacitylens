@@ -1,5 +1,5 @@
 import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from '@/lib/lanePacking';
-import { isHalfDay } from '@/lib/capacity';
+import { isHalfDay } from '@capacitylens/shared/lib/capacity';
 import { rangesOverlap, weekdayOf } from '@capacitylens/shared/lib/dateMath';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { resolveBarColor } from '@capacitylens/shared/lib/color';

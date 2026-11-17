@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { applyCapacityMode, isOnTimeOff, resolveUtilizationFromCapacity } from './capacity';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
-import type { Allocation, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
+import { applyCapacityMode, isOnTimeOff, resolveUtilizationFromCapacity } from './capacity.js';
+import { eachDayISO } from './dateMath.js';
+import type { Allocation, ISODate, Resource, Weekday } from '../types/entities.js';
 
 import {
   valueAt,
@@ -17,8 +17,8 @@ import {
   makeTimeOff,
   makeClosure,
   makeProposal,
-} from '@/test/capacityTestSupport';
-import type { CapacityCaseInput } from '@/test/capacityTestSupport';
+} from './capacity/capacity.test.support.js';
+import type { CapacityCaseInput } from './capacity/capacity.test.support.js';
 
 function registerSemanticsTableTests(
   cases: readonly CapacityCaseInput[],

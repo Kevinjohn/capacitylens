@@ -17,7 +17,7 @@ import {
 } from '@/lib/resourceGrouping';
 import type { ResourceBandGroup } from '@/lib/resourceGrouping';
 import { buildDisciplineGroups, hasSupplementaryResources } from '@/store/selectors';
-import { buildDayCapacity } from '@/lib/capacity';
+import { buildDayCapacity } from '@capacitylens/shared/lib/capacity';
 import type { CapacityOverviewPeriod } from './capacityOverviewDates';
 import { buildCapacityOverviewPeriods } from './capacityOverviewDates';
 import type {

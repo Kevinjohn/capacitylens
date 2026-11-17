@@ -2,7 +2,7 @@ import {
   applyCapacityMode,
   buildDayCapacity,
   resolveUtilizationFromCapacity,
-} from '@/lib/capacity';
+} from '@capacitylens/shared/lib/capacity';
 import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';

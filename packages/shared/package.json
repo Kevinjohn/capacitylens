@@ -113,6 +113,16 @@
       "types": "./src/lib/calendarToday.ts",
       "default": "./dist/lib/calendarToday.js"
     },
+    "./lib/capacity": {
+      "development": "./src/lib/capacity.ts",
+      "types": "./src/lib/capacity.ts",
+      "default": "./dist/lib/capacity.js"
+    },
+    "./lib/capacity/repeatAdvisory": {
+      "development": "./src/lib/capacity/repeatAdvisory.ts",
+      "types": "./src/lib/capacity/repeatAdvisory.ts",
+      "default": "./dist/lib/capacity/repeatAdvisory.js"
+    },
     "./lib/color": {
       "development": "./src/lib/color.ts",
       "types": "./src/lib/color.ts",
