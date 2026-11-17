@@ -12,7 +12,7 @@ function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
   return value;
 }
 
-/** Scoped member/person association and the read-only avatar projection. */
+/** Scoped member/person association. */
 export default class MemberResourcesController {
   async setLink(ctx: HttpContext) {
     try {
