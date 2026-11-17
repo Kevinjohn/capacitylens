@@ -4,6 +4,7 @@ import { buildSchedulerModel } from './schedulerModel';
 import { buildEmptyFilters } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { makeResource, requireValue } from '@/test/fixtures';
+import { capacityOver } from '@/test/capacityFixtures';
 import {
   allBars,
   dataset as buildDataset,
@@ -65,7 +66,7 @@ describe('buildSchedulerModel', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -87,7 +88,7 @@ describe('buildSchedulerModel', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -107,7 +108,7 @@ describe('buildSchedulerModel', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -122,12 +123,17 @@ describe('buildSchedulerModel', () => {
 
   it('placeholdersEnabled OFF excludes placeholders from per-discipline utilisation', () => {
     // Hidden placeholders must not contribute to group utilisation because averages use only modeled capacity rows.
+    // The server reports the placeholder fully booked and r1 idle.
+    const capacity = capacityOver(
+      { from: start, to: end },
+      { ph: { fill: { allocated: 8 } }, r1: {} },
+    );
     const off = buildSchedulerModel({
       data: withPlaceholder(),
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -140,7 +146,7 @@ describe('buildSchedulerModel', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,

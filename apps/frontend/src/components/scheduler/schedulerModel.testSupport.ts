@@ -1,18 +1,8 @@
-import type {
-  Allocation,
-  AppData,
-  ISODate,
-  Resource,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
-import {
-  buildCapacityWindow as capacityForWindowWithWeek,
-  resolveUtilization as utilizationWithWeek,
-} from '@capacitylens/shared/lib/capacity';
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { buildEmptyFilters } from '@/store/useStore';
 import {
   makeActivity,
@@ -25,73 +15,13 @@ import { buildColumnGeometry } from './columnGeometry';
 import { buildSchedulerModel } from './schedulerModel';
 import type { GroupModel } from './schedulerModel';
 
-interface CapacityForWindowOfTestInput {
-  resource: Resource;
-  allocations: Allocation[];
-  timeOff: AppData['timeOff'];
-  windowStart: ISODate;
-  windowEnd: ISODate;
-  accountWorkingDays?: Weekday[] | undefined;
-  closures?: AppData['closures'] | undefined;
-}
-
-interface UtilizationOfTestInput {
-  resource: Resource;
-  allocations: Allocation[];
-  timeOff: AppData['timeOff'];
-  windowStart: ISODate;
-  windowEnd: ISODate;
-  accountWorkingDays?: Weekday[] | undefined;
-  closures?: AppData['closures'] | undefined;
-}
-
 interface SchedulerModelTestInput {
   filters?: ReturnType<typeof buildEmptyFilters> | undefined;
   disciplinesEnabled?: boolean | undefined;
   placeholdersEnabled?: boolean | undefined;
   externalEnabled?: boolean | undefined;
+  capacity?: CapacitySection | null | undefined;
 }
-
-/** Monday through Friday fixture schedule for model tests. */
-export const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
-/** Calculates fixture capacity inside a chosen test window. */
-export const capacityForWindowOf = ({
-  resource,
-  allocations,
-  timeOff,
-  windowStart,
-  windowEnd,
-  accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
-  closures = [],
-}: CapacityForWindowOfTestInput) =>
-  capacityForWindowWithWeek({
-    resource,
-    allocations,
-    timeOff,
-    start: windowStart,
-    end: windowEnd,
-    effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
-    closures,
-  });
-/** Calculates fixture utilization for one resource and window. */
-export const utilizationOf = ({
-  resource,
-  allocations,
-  timeOff,
-  windowStart,
-  windowEnd,
-  accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
-  closures = [],
-}: UtilizationOfTestInput) =>
-  utilizationWithWeek({
-    resource,
-    allocations,
-    timeOff,
-    start: windowStart,
-    end: windowEnd,
-    effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
-    closures,
-  });
 
 /** Start of the fixed model-test week. */
 export const start = '2026-06-01';
@@ -180,13 +110,14 @@ export const build = ({
   disciplinesEnabled = true,
   placeholdersEnabled = true,
   externalEnabled = true,
+  capacity = null,
 }: SchedulerModelTestInput = {}) =>
   buildSchedulerModel({
     data: dataset(),
     geom,
     days,
     visibleWindow: { start, end },
-    overSoonWindow: { start, end },
+    capacity,
     filters,
     preferences: { disciplinesEnabled, placeholdersEnabled, externalEnabled },
   });

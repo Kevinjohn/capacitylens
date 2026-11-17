@@ -1,3 +1,4 @@
+import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import type {
   PlanningExecution,
@@ -15,6 +16,8 @@ export interface PlanningSnapshot {
   accessKey?: string;
   /** The company's calendar date, resolved by the server in the company time zone. */
   today: ISODate;
+  /** The server's per-day capacity figures for the requested window and the overview horizon. */
+  capacity: CapacitySection;
 }
 
 /** Client identity is deliberately opaque; company id distinguishes its planning projection. */
@@ -43,7 +46,12 @@ export interface PlanningTransport {
     execution: PlanningExecution,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
-  read(context: PlanningClientContext, signal: AbortSignal): Promise<PlanningSnapshot>;
+  /** `window` is the capacity window to read; the server uses its default window when absent. */
+  read(
+    context: PlanningClientContext,
+    signal: AbortSignal,
+    window?: CapacityRange,
+  ): Promise<PlanningSnapshot>;
 }
 
 export interface PlanningHistory {
@@ -77,6 +85,8 @@ export interface PlanningControllerMetadata {
   revision: number | null;
   /** The company's calendar date from the last accepted read; null until a read is accepted. */
   today: ISODate | null;
+  /** The capacity figures from the last accepted read; null until a read is accepted. */
+  capacity: CapacitySection | null;
   status: PlanningStatus;
   history: PlanningHistory;
   pending: PlanningPendingMutation | null;
@@ -109,6 +119,8 @@ export interface PlanningControllerOptions {
   transport: PlanningTransport;
   /** The current masquerade context proof, captured into each request when it is dispatched. */
   readMasqueradeContextToken: () => string | null;
+  /** The capacity window each read asks for, captured when the read is sent. */
+  readCapacityWindow?: () => CapacityRange | undefined;
   createMutationId?: () => string;
   onAuthLoss?: () => void;
   confirmRestorationCleanup?: (count: number, signal: AbortSignal) => Promise<boolean>;

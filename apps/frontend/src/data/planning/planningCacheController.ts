@@ -38,6 +38,7 @@ const initialMetadata = (
   canWrite: false,
   revision: null,
   today: null,
+  capacity: null,
   status: context ? 'loading' : 'idle',
   history: emptyHistory(),
   pending: null,
@@ -83,6 +84,9 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   let generation = 0;
   let readSequence = 0;
   let accessKeyEstablished = false;
+  // The newest read: a read it supersedes is aborted and resolves with its outcome.
+  let latestRead: Promise<boolean> | null = null;
+  let readController: AbortController | null = null;
   let attempt: {
     pending: PlanningPendingMutation;
     history: PlanningHistory;
@@ -163,6 +167,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           canWrite: !older && snapshot.canWrite,
           revision: older ? null : snapshot.revision,
           today: older ? null : snapshot.today,
+          capacity: older ? null : snapshot.capacity,
           status: older ? 'error' : 'ready',
           error: older
             ? new PlanningControllerError('The access projection changed but its read was stale.')
@@ -212,6 +217,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         canWrite: snapshot.canWrite,
         revision: snapshot.revision,
         today: snapshot.today,
+        capacity: snapshot.capacity,
         status:
           finalized || !state.planning.pending
             ? 'ready'
@@ -226,31 +232,49 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     return true;
   }
 
-  async function refresh(): Promise<boolean> {
+  /**
+   * Reads the canonical snapshot. A quiet read from a settled state, such as the one that follows
+   * a move of the capacity window, leaves the status alone so writes stay allowed meanwhile. Any
+   * other read shows as loading, except while a write is pending, when the status stays pending.
+   * A newer read aborts this one, and this one then resolves with the newer read's outcome.
+   */
+  function refresh(readOptions: { quiet?: boolean } = {}): Promise<boolean> {
+    const read = readSnapshot(readOptions);
+    latestRead = read;
+    return read;
+  }
+
+  async function readSnapshot({ quiet = false }: { quiet?: boolean }): Promise<boolean> {
     const context = store.getState().planning.context;
     if (!context) return false;
     const capturedGeneration = generation;
     const sequence = ++readSequence;
+    readController?.abort();
     const controller = requestController();
-    store.setState((state) => ({
-      planning: {
-        ...state.planning,
-        status: state.planning.pending ? state.planning.status : 'loading',
-        error: null,
-      },
-    }));
+    readController = controller;
+    const { status } = store.getState().planning;
+    if (!quiet || (status !== 'ready' && status !== 'refused')) {
+      store.setState((state) => ({
+        planning: {
+          ...state.planning,
+          status: state.planning.pending ? state.planning.status : 'loading',
+          error: null,
+        },
+      }));
+    }
     try {
-      const snapshot = await transport.read(withContextToken(context), controller.signal);
-      if (!isCurrent(capturedGeneration, context) || sequence !== readSequence) return false;
+      const snapshot = await transport.read(
+        withContextToken(context),
+        controller.signal,
+        options.readCapacityWindow?.(),
+      );
+      if (!isCurrent(capturedGeneration, context)) return false;
+      if (sequence !== readSequence) return await (latestRead ?? false);
       return acceptRead(snapshot);
     } catch (error) {
-      if (
-        !isCurrent(capturedGeneration, context) ||
-        sequence !== readSequence ||
-        controller.signal.aborted
-      ) {
-        return false;
-      }
+      if (!isCurrent(capturedGeneration, context)) return false;
+      if (sequence !== readSequence) return await (latestRead ?? false);
+      if (controller.signal.aborted) return false;
       if (losesScope(error)) {
         loseScope();
         return false;
@@ -261,6 +285,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       return false;
     } finally {
       finishRequest(controller);
+      if (readController === controller) readController = null;
     }
   }
 

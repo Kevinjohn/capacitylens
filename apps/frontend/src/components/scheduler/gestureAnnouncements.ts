@@ -5,15 +5,17 @@ import { m } from '@/i18n';
 import {
   buildCapacityAdvisory,
   applyCapacityMode,
-  buildCapacityWindow,
   listTimeOffApplyingTo,
 } from '@capacitylens/shared/lib/capacity';
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { FULL_DAY_HOURS, isCapacityTracked } from '@capacitylens/shared/types/entities';
-import type { AppData, ID, Weekday } from '@capacitylens/shared/types/entities';
+import type { AppData, ID, Resource, Weekday } from '@capacitylens/shared/types/entities';
 import { resolveResourceDisplayName } from '@/lib/metadata';
 import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
+import { readServerDayCapacity } from './schedulerRowCapacity';
 
 /** The active company's planning rows and working week a gesture measures capacity against. */
 export interface GestureCapacitySource {
@@ -22,12 +24,12 @@ export interface GestureCapacitySource {
   accountWorkingDays: Weekday[];
 }
 
-/** The visible span and scheduling mode a keyboard announcement measures over. */
+/** The server's capacity figures and the visible span a keyboard announcement counts over. */
 export interface CapacityAnnouncementInput {
-  source: GestureCapacitySource;
+  resources: Resource[];
+  capacity: CapacitySection | null;
   resourceId: ID;
   visibleRange: { start: string; end: string };
-  blocksMode: boolean;
 }
 
 /** A capacity-tracked resource's name and its over-capacity days in the measured window. */
@@ -46,48 +48,22 @@ interface BuildCapacityGestureAdvisoryInput {
 }
 
 /**
- * Counts a resource's over-capacity days across its allocations, clamped to the visible range, from
- * the same visible-range capacity signal as the grid. Returns `undefined` for an unknown resource
- * or one whose capacity is not tracked.
+ * Counts a resource's over-capacity days in the visible range from the server's figures, the same
+ * figures the grid draws. A date the server has not sent counts as not over. Returns `undefined`
+ * for an unknown resource or one whose capacity is not tracked.
  */
 export function buildVisibleOverCapacity({
-  source,
+  resources,
+  capacity,
   resourceId,
   visibleRange,
-  blocksMode,
 }: CapacityAnnouncementInput): VisibleOverCapacity | undefined {
-  const { data } = source;
-  const resource = data.resources.find((candidate) => candidate.id === resourceId);
+  const resource = resources.find((candidate) => candidate.id === resourceId);
   if (!resource || !isCapacityTracked(resource)) return undefined;
-
-  const name = resolveResourceDisplayName(resource);
-  const allocations = applyCapacityMode({
-    allocations: data.allocations.filter((allocation) => allocation.resourceId === resourceId),
-    blocksMode: blocksMode,
-  });
-  const firstAllocation = allocations[0];
-  if (!firstAllocation) return { name, overDays: 0 };
-  let start = firstAllocation.startDate;
-  let end = firstAllocation.endDate;
-  for (const allocation of allocations) {
-    if (allocation.startDate < start) start = allocation.startDate;
-    if (allocation.endDate > end) end = allocation.endDate;
-  }
-  if (start < visibleRange.start) start = visibleRange.start;
-  if (end > visibleRange.end) end = visibleRange.end;
-  if (start > end) return { name, overDays: 0 };
-
-  const timeOff = listTimeOffApplyingTo(resourceId, listRenderableDateRanges(data.timeOff));
-  const overDays = buildCapacityWindow({
-    resource: resource,
-    allocations: allocations,
-    timeOff: timeOff,
-    start: start,
-    end: end,
-    effectiveWeek: effectiveWorkingWeek(resource, source.accountWorkingDays),
-    closures: listRenderableDateRanges(data.closures),
-  }).filter((day) => day.over).length;
-  return { name, overDays };
+  const overDays = eachDayISO(visibleRange.start, visibleRange.end).filter(
+    (date) => readServerDayCapacity(capacity, resourceId, date)?.over === true,
+  ).length;
+  return { name: resolveResourceDisplayName(resource), overDays };
 }
 
 /** Formats the screen-reader status for a measured resource; an unmeasured one is silent. */
@@ -100,7 +76,7 @@ export function formatCapacityAnnouncement(overCapacity: VisibleOverCapacity | u
     : m.scheduler_sr_announce_over_other({ name, count: overDays });
 }
 
-/** Builds the screen-reader status from the same visible-range capacity signal as the grid. */
+/** Builds the screen-reader status from the server's figures for the visible range. */
 export function buildCapacityAnnouncement(input: CapacityAnnouncementInput): string {
   return formatCapacityAnnouncement(buildVisibleOverCapacity(input));
 }

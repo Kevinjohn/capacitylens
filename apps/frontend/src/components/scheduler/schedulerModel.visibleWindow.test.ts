@@ -1,5 +1,4 @@
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, it, expect } from 'vitest';
 import { buildSchedulerModel, applyVisibleUtilization } from './schedulerModel';
 import type { GroupModel } from './schedulerModel';
@@ -7,16 +6,9 @@ import { buildColumnGeometry } from './columnGeometry';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { buildEmptyFilters } from '@/store/useStore';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
+import { capacityOver } from '@/test/capacityFixtures';
+import { makeActivity, makeClient, makeProject, makeResource, requireValue } from '@/test/fixtures';
 import {
-  makeActivity,
-  makeAllocation,
-  makeClient,
-  makeProject,
-  makeResource,
-  requireValue,
-} from '@/test/fixtures';
-import {
-  DEFAULT_ACCOUNT_WORKING_DAYS,
   dataset as buildDataset,
   days,
   end,
@@ -27,14 +19,20 @@ import {
 
 const dataset = () => buildDataset(makeDisciplines());
 
+const timeline = { from: start, to: end };
+
 describe('buildSchedulerModel', () => {
   it('displayed utilisation % follows the VISIBLE window (visStart/visEnd), not the whole timeline', () => {
+    // The days outside the visible window are fully booked, so summing the timeline would read higher.
+    const capacity = capacityOver(timeline, {
+      r1: { fill: { allocated: 8 }, byDate: { '2026-06-04': { allocated: 0 } } },
+    });
     const model = buildSchedulerModel({
       data: dataset(),
       geom: geom,
       days: days,
       visibleWindow: { start: '2026-06-03', end: '2026-06-04' },
-      overSoonWindow: { start: start, end: end },
+      capacity,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -51,29 +49,14 @@ describe('buildSchedulerModel', () => {
     expect(r1.dayStates.length).toBe(days.length);
   });
 
-  it('overSoon stays on the FIXED forward window — independent of the visible window', () => {
-    const d = dataset();
-
-    d.allocations.push({
-      ...NULLABLE_FIELDS.allocations,
-      id: 'a4',
-      accountId: 'acct-test',
-      createdAt: 't',
-      updatedAt: 't',
-      resourceId: 'r1',
-      activityId: 't1',
-      startDate: '2026-06-01',
-      endDate: '2026-06-02',
-      hoursPerDay: 8,
-      status: 'confirmed',
-    });
-    // overSoon uses its fixed forward window even when the visible utilisation window contains no conflict.
+  it("overSoon is the server's flag, independent of the visible window", () => {
+    // No visible day is over, yet the server reports an over day in its fixed forward window.
     const rows = buildSchedulerModel({
-      data: d,
+      data: dataset(),
       geom: geom,
       days: days,
       visibleWindow: { start: '2026-06-03', end: '2026-06-04' },
-      overSoonWindow: { start: '2026-06-01', end: '2026-06-02' },
+      capacity: capacityOver(timeline, { r1: { overSoon: true }, r2: {} }),
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -97,21 +80,18 @@ describe('buildSchedulerModel', () => {
 
   it('refreshes visible utilisation without rebuilding static schedule rows', () => {
     const data = dataset();
-    data.closures.push({
-      id: 'company-wednesday',
-      accountId: 'acct-test',
-      createdAt: 't',
-      updatedAt: 't',
-      name: 'Company shutdown',
-      startDate: '2026-06-03',
-      endDate: '2026-06-03',
+    const capacity = capacityOver(timeline, {
+      r1: {
+        byDate: { '2026-06-03': { allocated: 0, available: 0 }, '2026-06-04': { allocated: 4 } },
+      },
+      r2: { fill: { allocated: 8 } },
     });
     const base = buildSchedulerModel({
       data,
       geom,
       days,
       visibleWindow: { start: '2026-06-01', end: '2026-06-02' },
-      overSoonWindow: { start, end },
+      capacity,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -121,17 +101,16 @@ describe('buildSchedulerModel', () => {
     });
     const refreshed = applyVisibleUtilization({
       model: base,
-      data,
+      capacity,
       start: '2026-06-03',
       end: '2026-06-05',
-      accountWorkingDays: DEFAULT_ACCOUNT_WORKING_DAYS,
     });
     const rebuilt = buildSchedulerModel({
       data,
       geom,
       days,
       visibleWindow: { start: '2026-06-03', end: '2026-06-05' },
-      overSoonWindow: { start, end },
+      capacity,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -144,6 +123,7 @@ describe('buildSchedulerModel', () => {
         groups.flatMap((group) => group.rows.map((row) => [row.resource.id, row.utilization])),
       );
     expect(utilisationByResource(refreshed)).toEqual(utilisationByResource(rebuilt));
+    // The day with no availability is left out: 4 of 16 hours.
     expect(utilisationByResource(refreshed).r1).toBe(0.25);
 
     const baseRow = requireValue(requireValue(base[0], 'base group').rows[0], 'base row');
@@ -172,31 +152,6 @@ function buildVisibleWindowDensityData(): AppData {
         color: '#4',
       }),
     ],
-    allocations: [
-      makeAllocation({
-        id: 'w1',
-        accountId: 'acct-test',
-        startDate: '2026-06-01',
-        endDate: '2026-06-05',
-        hoursPerDay: 8,
-      }),
-
-      makeAllocation({
-        id: 'w2',
-        accountId: 'acct-test',
-        startDate: '2026-06-08',
-        endDate: '2026-06-12',
-        hoursPerDay: 4,
-      }),
-
-      makeAllocation({
-        id: 'w34',
-        accountId: 'acct-test',
-        startDate: '2026-06-15',
-        endDate: '2026-06-26',
-        hoursPerDay: 2,
-      }),
-    ],
     timeOff: [],
   };
 }
@@ -204,14 +159,30 @@ function buildVisibleWindowDensityData(): AppData {
 describe('displayed utilisation % over the visible window (1/2/4/8 weeks)', () => {
   const winStart = '2026-06-01';
   const winDays = eachDayISO('2026-06-01', '2026-07-26');
+  const winRange = { from: winStart, to: '2026-07-26' };
   const winGeom = buildColumnGeometry(winDays, 48, { minimiseWeekends: false, weekendWidth: 22 });
-  const utilOver = (visEnd: string): number => {
-    const model = buildSchedulerModel({
+  // The server's figures: eight hours on weekdays, none at weekends; 8, 4, then 2 hours booked per
+  // weekday in weeks 1, 2 and 3–4, and nothing after.
+  const bookedPerWeekday = (date: ISODate) =>
+    date <= '2026-06-05' ? 8 : date <= '2026-06-12' ? 4 : date <= '2026-06-26' ? 2 : 0;
+  const densityCapacity = capacityOver(winRange, {
+    r1: {
+      byDate: Object.fromEntries(
+        winDays.map((date, index) =>
+          index % 7 >= 5
+            ? [date, { available: 0 }]
+            : [date, { allocated: bookedPerWeekday(date), available: 8 }],
+        ),
+      ),
+    },
+  });
+  const buildWindowModel = (visEnd: string, capacity = densityCapacity) =>
+    buildSchedulerModel({
       data: buildVisibleWindowDensityData(),
       geom: winGeom,
       days: winDays,
       visibleWindow: { start: winStart, end: visEnd },
-      overSoonWindow: { start: winStart, end: winStart },
+      capacity,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: false,
@@ -219,36 +190,19 @@ describe('displayed utilisation % over the visible window (1/2/4/8 weeks)', () =
         externalEnabled: true,
       },
     });
-    return requireValue(
-      model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
+  const utilOver = (visEnd: string): number =>
+    requireValue(
+      buildWindowModel(visEnd)
+        .flatMap((g) => g.rows)
+        .find((r) => r.resource.id === 'r1'),
       'r1 scheduler row',
     ).utilization;
-  };
 
-  const buildBoundaryModel = (id: string, allocationDate: ISODate) =>
-    buildSchedulerModel({
-      data: {
-        ...buildVisibleWindowDensityData(),
-        allocations: [
-          makeAllocation({
-            id,
-            accountId: 'acct-test',
-            startDate: allocationDate,
-            endDate: allocationDate,
-          }),
-        ],
-      },
-      geom: winGeom,
-      days: winDays,
-      visibleWindow: { start: winStart, end: '2026-06-07' },
-      overSoonWindow: { start: winStart, end: winStart },
-      filters: buildEmptyFilters(),
-      preferences: {
-        disciplinesEnabled: false,
-        placeholdersEnabled: true,
-        externalEnabled: true,
-      },
-    });
+  const buildBoundaryModel = (bookedDate: ISODate) =>
+    buildWindowModel(
+      '2026-06-07',
+      capacityOver(winRange, { r1: { byDate: { [bookedDate]: { allocated: 8 } } } }),
+    );
 
   // Use distinct booking density in each zoom window so visible utilisation must change when the window changes. An inclusive-edge booking separately pins the end boundary.
   it('1 week → 100% (week-1 density only)', () => {
@@ -278,10 +232,11 @@ describe('displayed utilisation % over the visible window (1/2/4/8 weeks)', () =
   });
 
   it('inclusive-end boundary: a booking on the visible window LAST day counts; the day AFTER does not', () => {
-    const inModel = buildBoundaryModel('in', '2026-06-05');
-    expect(inModel.flatMap((g) => g.rows)[0]?.utilization).toBeCloseTo(0.2);
+    // Every day of the fixture has eight hours available, so the week holds 56.
+    const inModel = buildBoundaryModel('2026-06-07');
+    expect(inModel.flatMap((g) => g.rows)[0]?.utilization).toBeCloseTo(8 / 56);
 
-    const afterModel = buildBoundaryModel('af', '2026-06-08');
+    const afterModel = buildBoundaryModel('2026-06-08');
     expect(afterModel.flatMap((g) => g.rows)[0]?.utilization).toBe(0);
   });
 });

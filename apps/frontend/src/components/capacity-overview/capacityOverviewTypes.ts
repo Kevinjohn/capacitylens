@@ -1,11 +1,5 @@
-import type {
-  AppData,
-  Closure,
-  ISODate,
-  Resource,
-  TimeOff,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
+import type { AppData, ISODate, Resource } from '@capacitylens/shared/types/entities';
 import type { CapacityOverviewHorizon, CapacityOverviewPeriod } from './capacityOverviewDates';
 
 /** Availability categories displayed for a resource in one period. */
@@ -55,13 +49,11 @@ export interface BuildCapacityOverviewModelInput {
   today: ISODate;
   weekStartsOn?: 0 | 1;
   horizon?: CapacityOverviewHorizon;
-  accountWorkingDays?: Weekday[];
+  /** The server's capacity figures from the last planning read; null before the first read. */
+  capacity: CapacitySection | null;
   includeTentative?: boolean;
   placeholdersEnabled?: boolean;
   hasAvailability?: boolean;
   disciplinesEnabled?: boolean;
   blocksMode?: boolean;
-  /** Narrowed test/read projections may pass these arrays explicitly; data remains the default. */
-  timeOff?: TimeOff[];
-  closures?: Closure[];
 }

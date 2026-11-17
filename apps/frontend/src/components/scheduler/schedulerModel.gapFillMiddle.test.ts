@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { buildEmptyFilters } from '@/store/useStore';
 import { makeResource, requireValue } from '@/test/fixtures';
+import { capacityOver } from '@/test/capacityFixtures';
 import { buildSchedulerModel } from './schedulerModel';
 import type { GroupModel } from './schedulerModel';
 import {
@@ -40,7 +41,7 @@ function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), projectId: 'p1' },
       preferences: {
         disciplinesEnabled: true,
@@ -55,7 +56,7 @@ function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), clientId: 'c1' },
       preferences: {
         disciplinesEnabled: true,
@@ -70,7 +71,7 @@ function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), activityKind: 'internal' },
       preferences: {
         disciplinesEnabled: true,
@@ -87,7 +88,7 @@ function buildDanglingActivityModel(d: AppData) {
     geom: geom,
     days: days,
     visibleWindow: { start: start, end: end },
-    overSoonWindow: { start: start, end: end },
+    capacity: null,
     filters: { ...buildEmptyFilters(), projectId: 'p1' },
     preferences: {
       disciplinesEnabled: true,
@@ -165,7 +166,24 @@ function buildCompanyClosureModel({ blocksMode = false }: BuildCompanyClosureMod
     geom,
     days,
     visibleWindow: { start, end },
-    overSoonWindow: { start, end },
+    // The server's figures: Wednesday's closure leaves no capacity, and r1 is over on Wednesday and
+    // r2 on Saturday.
+    capacity: capacityOver(
+      { from: start, to: end },
+      {
+        r1: {
+          overSoon: true,
+          byDate: { '2026-06-03': { allocated: 8, available: 0, over: !blocksMode } },
+        },
+        r2: {
+          byDate: {
+            '2026-06-03': { available: 0 },
+            '2026-06-06': { allocated: 4, available: 0, over: true },
+          },
+        },
+        'placeholder-1': { byDate: { '2026-06-03': { available: 0 } } },
+      },
+    ),
     filters: buildEmptyFilters(),
     preferences: {
       disciplinesEnabled: true,
@@ -181,7 +199,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     const companyData: () => AppData = buildCompanyClosureData;
     const buildCompany: (options?: BuildCompanyClosureModelOptions) => GroupModel[] =
       buildCompanyClosureModel;
-    it('applies closure capacity and conflict cells to every tracked row', () => {
+    it('draws closure conflict cells on every tracked row from the server figures', () => {
       const rows = buildCompany().flatMap((group) => group.rows);
       const r1 = requireValue(
         rows.find((row) => row.resource.id === 'r1'),
@@ -276,7 +294,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -319,7 +337,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         geom: geom,
         days: days,
         visibleWindow: { start: start, end: end },
-        overSoonWindow: { start: start, end: end },
+        capacity: null,
         filters: buildEmptyFilters(),
         preferences: {
           disciplinesEnabled: true,
@@ -368,7 +386,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -409,7 +427,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), disciplineId: 'deleted-discipline' },
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -442,7 +460,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -464,7 +482,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         geom,
         days,
         visibleWindow: { start, end },
-        overSoonWindow: { start, end },
+        capacity: null,
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }).map((group) => group.title),
@@ -479,7 +497,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         geom,
         days,
         visibleWindow: { start, end },
-        overSoonWindow: { start, end },
+        capacity: null,
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }).map((group) => group.title),
@@ -498,7 +516,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -517,7 +535,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), disciplineId: 'd-dev' },
       preferences: {
         disciplinesEnabled: false,
@@ -537,7 +555,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -594,7 +612,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,

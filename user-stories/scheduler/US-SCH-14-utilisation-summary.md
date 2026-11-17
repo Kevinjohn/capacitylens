@@ -35,7 +35,7 @@ flowchart TD
 flowchart TD
   A["SchedulerToolbar calls setZoom"] --> B["useSchedulerViewport recalculates visible dates"]
   B --> C["useSchedulerGridModel resolves visible window"]
-  C --> D["applyVisibleUtilization derives resource percentages"]
+  C --> D["applyVisibleUtilization sums the server's per-day figures over the visible dates"]
   D --> E["SchedulerGridHeader and SchedulerGridGroupHeader render summaries"]
 ```
 

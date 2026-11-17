@@ -2,11 +2,8 @@ import { activeOnly, archiveImpact, archiveRecovery } from '@capacitylens/shared
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { readCompanyToday } from '#services/company_today';
-import {
-  buildCapacitySection,
-  type CapacityRange,
-  type CapacitySection,
-} from '#services/planning/capacity_section';
+import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
+import { buildCapacitySection } from '#services/planning/capacity_section';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import type { CurrentActor } from '#services/auth/current_actor';

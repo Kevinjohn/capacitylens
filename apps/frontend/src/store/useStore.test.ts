@@ -127,6 +127,8 @@ describe('store scheduler UI', () => {
   });
   it('preserves the visible week when refreshing the currently loaded account', async () => {
     s().goToDate('2026-09-09');
+    // Moving the grid reads the capacity for its new window; let that read land first.
+    await s().refreshPlanning();
     const before = {
       originDate: s().ui.originDate,
       focusDate: s().ui.focusDate,

@@ -214,7 +214,7 @@ export interface StoreState extends StoreEntityActions {
   /** Replace the view-as-member runtime state. */
   setMasquerade: (state: MasqueradeRuntimeState) => void;
   /** Load the active company's canonical planning snapshot, entering its planning context first. */
-  refreshPlanning: (options?: { fresh?: boolean }) => Promise<boolean>;
+  refreshPlanning: (options?: { fresh?: boolean; quiet?: boolean }) => Promise<boolean>;
   /** End the current planning context and discard private planning rows. */
   clearPlanning: () => void;
   /** Atomically claim an out-of-band replacement; release is idempotent for its context. */
