@@ -167,6 +167,23 @@ describe('SchedulerToolbar filter ordering', () => {
 });
 
 describe('SchedulerToolbar discipline and client ordering', () => {
+  it('follows the scheduler discipline order rather than alphabetising disciplines', async () => {
+    await useStore.getState().addDiscipline({ name: 'Design', color: '#111', sortOrder: 0 });
+    await useStore
+      .getState()
+      .addDiscipline({ name: 'Account Management', color: '#222', sortOrder: 2 });
+    await useStore.getState().addDiscipline({ name: 'Development', color: '#333', sortOrder: 1 });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(optionNames('Filter by discipline')).toEqual([
+      'All disciplines',
+      'Design',
+      'Development',
+      'Account Management',
+    ]);
+  });
+
   it('pins Internal before alphabetically ordered clients', async () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
     await resetStoreWithData(
@@ -627,6 +644,26 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 });
 
 describe('SchedulerToolbar activity and project lens interaction', () => {
+  it('selecting a project clears an active activity lens (mutual exclusion both ways)', async () => {
+    const user = userEvent.setup();
+    const { repeatable } = await seedLensActivities();
+    const client = await requireCreated(
+      useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
+    );
+    const project = await requireCreated(
+      useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
+    );
+    useStore.getState().setFilters({ activityId: repeatable.id });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    await chooseOption(user, 'Filter by project', 'Ferris / Lightning');
+
+    expect(useStore.getState().ui.filters.projectId).toBe(project.id);
+    expect(useStore.getState().ui.filters.activityId).toBeNull();
+    expect(useStore.getState().ui.filters.activityKind).toBeNull();
+  });
+
   it('qualifies same-named projects with their client names', async () => {
     const firstClient = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
