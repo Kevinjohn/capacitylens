@@ -3,6 +3,7 @@ import { resolveErrorMessage, resolveDomainErrorMessage } from './errorMessage';
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import type { DomainErrorCode } from '@capacitylens/shared/domain/errors';
 import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 
 describe('errorMessage', () => {
   it('normalises an Error, a string, a React Router ErrorResponse, and unknown throws', () => {
@@ -12,6 +13,15 @@ describe('errorMessage', () => {
     expect(resolveErrorMessage(null)).toBe('An unexpected error occurred.');
     expect(resolveErrorMessage(undefined)).toBe('An unexpected error occurred.');
     expect(resolveErrorMessage(42)).toBe('An unexpected error occurred.');
+  });
+
+  it('tells the person to check a planning change whose reply was lost', () => {
+    expect(
+      resolveErrorMessage(new PlanningControllerError('Temporary outage', undefined, 502, true)),
+    ).toMatch(/couldn’t confirm that your last schedule change was saved/);
+    expect(resolveErrorMessage(new PlanningControllerError('Refused', 'NO_CHANGE', 422))).toBe(
+      'Refused',
+    );
   });
 
   it.each(['', '   ', new Error(''), new Error('   '), { statusText: '' }])(
