@@ -60,6 +60,7 @@ describe('planning cache controller', () => {
         accounts: [...canonicalData().accounts, ...canonicalData().accounts],
       },
     },
+    { revision: 6, canWrite: true, data: canonicalData(), today: '2026-02-30' },
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
     const h = harness({ execute: vi.fn(), read });

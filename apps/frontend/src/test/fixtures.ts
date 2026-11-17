@@ -17,6 +17,7 @@ import type { LifecycleEntity } from '@/lib/entityDrafts';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import {
+  getStubPlanningTransport,
   resetPlanningTransport,
   updatePlanningFixtureSource as updatePlanningFixtureSourceHandle,
 } from '@/test/planningTransportHandle';
@@ -202,7 +203,11 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
 export function loadPlanningData(data: AppData): void {
   const companyId = useStore.getState().activeAccountId ?? data.accounts[0]?.id ?? 'unit-fixture';
   resetPlanningTransport(companyId, data, useStore);
-  useStore.setState({ data: structuredClone(data) });
+  const today = getStubPlanningTransport().todayFor(companyId);
+  useStore.setState((state) => ({
+    data: structuredClone(data),
+    planning: { ...state.planning, today },
+  }));
 }
 
 /** Reset test data and authority, then wait for the selected canonical company snapshot. */

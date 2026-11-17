@@ -1,5 +1,6 @@
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot } from './planningCacheTypes';
@@ -18,6 +19,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
     SCOPED_KEYS.every((key) => Array.isArray(data[key])) &&
     SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord)) &&
     (snapshot.accessKey === undefined || typeof snapshot.accessKey === 'string') &&
+    (snapshot.today === undefined || isValidISODate(snapshot.today)) &&
     typeof snapshot.canWrite === 'boolean'
   );
 }

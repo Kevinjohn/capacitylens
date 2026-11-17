@@ -31,7 +31,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ToolbarDateNavigation invokes goToToday"] --> B["schedulerSlice.goToToday resolves company timezone and week start"]
+  A["ToolbarDateNavigation invokes goToToday"] --> B["schedulerSlice.goToToday reads the company date from the planning read and the week start"]
   B --> C["recenterOn updates focus and recenter token"]
   C --> D["useSchedulerViewport aligns scroll to focus date"]
   D --> E["SchedulerGrid renders current week"]

@@ -2,11 +2,11 @@ import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useStore } from '@/store/useStore';
-import { hasPlaceholdersEnabled, resolveTimeZone } from '@/store/selectors';
+import { hasPlaceholdersEnabled } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
-import { readCalendarToday } from '@/lib/calendarToday';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { m } from '@/i18n';
 import {
   DateField,
@@ -56,7 +56,7 @@ interface TimeOffFieldsProps {
 interface TimeOffDraftOptions {
   timeOff: TimeOff | undefined;
   defaults: TimeOffFormProps['defaults'];
-  calendarTimeZone: string;
+  today: ISODate;
   canEditNote: boolean;
 }
 
@@ -64,13 +64,7 @@ function resolveDraftValue<T>(stored: T | undefined, fallback: T | undefined, de
   return stored ?? fallback ?? defaultValue;
 }
 
-function useTimeOffDraft({
-  timeOff,
-  defaults,
-  calendarTimeZone,
-  canEditNote,
-}: TimeOffDraftOptions) {
-  const today = readCalendarToday(calendarTimeZone);
+function useTimeOffDraft({ timeOff, defaults, today, canEditNote }: TimeOffDraftOptions) {
   const [resourceId, setResourceId] = useState(
     resolveDraftValue(timeOff?.resourceId, defaults?.resourceId, ''),
   );
@@ -165,11 +159,11 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
   const placeholdersEnabled = useStore((state) =>
     hasPlaceholdersEnabled(state.data, state.activeAccountId),
   );
-  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
+  const today = useCompanyToday();
   const resources = useActiveScopedData().resources;
   const canEditNote = useCanEditTimeOffNote();
 
-  const fields = useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote });
+  const fields = useTimeOffDraft({ timeOff, defaults, today, canEditNote });
   const acceptedSubmission = useRef(false);
   const repeatState = useTimeOffRepeat(fields);
   const fieldError = useFieldError();

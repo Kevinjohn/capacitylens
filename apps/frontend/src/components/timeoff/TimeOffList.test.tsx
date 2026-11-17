@@ -188,13 +188,12 @@ it("uses the active company's timezone and week-start setting for the visible bo
   expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 });
 
-it('removes expired time off when the company week rolls over while mounted', async () => {
-  vi.useRealTimers();
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date('2026-06-07T23:59:59.000Z'));
+it('removes expired time off when a read brings the next company week while mounted', async () => {
   await useStore
     .getState()
     .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+  getStubPlanningTransport().setToday('2026-06-07');
+  await useStore.getState().refreshPlanning({ fresh: true });
   const resource = await requireCreated(
     useStore.getState().addResource({ ...resourceDraft, name: 'Bruce Wayne' }),
   );
@@ -208,7 +207,8 @@ it('removes expired time off when the company week rolls over while mounted', as
   render(<TimeOffList />);
   expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 
-  await act(() => vi.advanceTimersByTimeAsync(1_000));
+  getStubPlanningTransport().setToday('2026-06-08');
+  await act(() => useStore.getState().refreshPlanning({ fresh: true }));
 
   expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
 });

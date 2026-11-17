@@ -15,6 +15,7 @@ import {
   resetStoreWithData,
 } from '@/test/fixtures';
 import { schedulerDataset } from '@/test/schedulerTestKit';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
@@ -459,14 +460,9 @@ describe('SchedulerGrid visible-window utilisation', () => {
   });
 });
 
-describe('SchedulerGrid account-local day rollover', () => {
+describe('SchedulerGrid company day rollover', () => {
   beforeEach(async () => {
-    vi.useFakeTimers();
     const data = dataset();
-    data.accounts = data.accounts.map((account) => ({
-      ...account,
-      timezone: 'Pacific/Kiritimati',
-    }));
     data.allocations.push({
       ...NULLABLE_FIELDS.allocations,
       id: 'boundary-over',
@@ -481,19 +477,14 @@ describe('SchedulerGrid account-local day rollover', () => {
       status: 'confirmed',
     });
     await resetStoreWithData(data, ACC);
+    getStubPlanningTransport().setToday('2026-06-01');
+    await useStore.getState().refreshPlanning({ fresh: true });
     useStore.setState((state) => ({
       ui: { ...state.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1 },
     }));
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('advances the today marker and fixed over-soon window at company-local midnight', () => {
-    // Pacific/Kiritimati is UTC+14: this instant is 23:59:59 on 1 June for the account even when
-    // the test host is in another timezone.
-    vi.setSystemTime(new Date('2026-06-01T09:59:59.000Z'));
+  it('moves the today marker and fixed over-soon window when a read brings the next date', async () => {
     const view = renderGrid();
     const currentHeader = () =>
       view.container.querySelector('[role="columnheader"] .bg-brand-soft');
@@ -501,36 +492,12 @@ describe('SchedulerGrid account-local day rollover', () => {
     const lineBefore = screen.getByTestId('today-line').style.left;
     expect(screen.queryByText(/Overbooked in the next two weeks/)).not.toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(2_000);
-    });
+    getStubPlanningTransport().setToday('2026-06-02');
+    await act(() => useStore.getState().refreshPlanning({ fresh: true }));
 
     expect(currentHeader()).toHaveTextContent('2');
     expect(screen.getByTestId('today-line').style.left).not.toBe(lineBefore);
     expect(screen.getByText(/Overbooked in the next two weeks/)).toBeInTheDocument();
-  });
-
-  it('refreshes immediately when a visible page resumes without its timer firing', async () => {
-    vi.setSystemTime(new Date('2026-06-01T00:00:00.000Z'));
-    await useStore.getState().updateAccount(ACC, { timezone: 'Etc/GMT' });
-    const view = renderGrid();
-    const currentHeader = () =>
-      view.container.querySelector('[role="columnheader"] .bg-brand-soft');
-    expect(currentHeader()).toHaveTextContent('1');
-
-    vi.setSystemTime(new Date('2026-06-02T12:00:00.000Z'));
-    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
-    act(() => {
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-    expect(currentHeader()).toHaveTextContent('2');
-
-    vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
-    act(() => {
-      window.dispatchEvent(new PageTransitionEvent('pageshow'));
-    });
-    expect(currentHeader()).toHaveTextContent('3');
-    visibility.mockRestore();
   });
 });
 

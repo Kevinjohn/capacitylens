@@ -64,7 +64,7 @@ function publishPlanning(
     planning,
     data,
     ...(account && !state.data.accounts.some((row) => row.id === companyId)
-      ? { ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, companyId)) }
+      ? { ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, companyId, planning.today)) }
       : {}),
     ...(account
       ? {

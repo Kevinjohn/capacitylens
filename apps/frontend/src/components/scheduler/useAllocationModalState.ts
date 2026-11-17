@@ -2,11 +2,11 @@ import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { m } from '@/i18n';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
-import { readCalendarToday } from '@/lib/calendarToday';
 import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCanEdit } from '@/auth/permissionContext';
 import { isSoleAcknowledgedAdvance } from '@/data/planning/planningReadiness';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { formatWeekdayScheduleDate } from '@/lib/dateDisplay';
 import { resolveResourceDisplayName } from '@/lib/metadata';
@@ -16,7 +16,6 @@ import {
   hasVisibleTaskFieldInSchedule,
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
-  resolveTimeZone,
 } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
@@ -96,7 +95,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
   const showTaskFieldInSchedule = useStore((state) =>
     hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId),
   );
-  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
+  const today = useCompanyToday();
   const isDays = mode === 'days';
   const isBlocks = !carriesHourlyLoad(mode);
 
@@ -117,7 +116,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     mode,
     resourceById: resourcesById,
     accountWorkingDays,
-    today: readCalendarToday(calendarTimeZone),
+    today,
   });
   const fieldError = useFieldError();
   // Register focus before the schedule hook registers its repeat-adjustment effect.
@@ -145,7 +144,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     externalEnabled,
     inlineActivityCreateEnabled,
     showTaskFieldInSchedule,
-    calendarTimeZone,
+    today,
     isDays,
     isBlocks,
     editId,
@@ -173,7 +172,7 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
     selectedResource: target.selectedResource,
     mode: context.mode,
     accountWorkingDays: context.accountWorkingDays,
-    calendarTimeZone: context.calendarTimeZone,
+    today: context.today,
     seed: context.seed,
   });
   const repeatProjection = useRepeatProjection(

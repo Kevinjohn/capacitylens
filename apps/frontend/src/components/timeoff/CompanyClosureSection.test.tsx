@@ -8,6 +8,7 @@ import { useStore } from '@/store/useStore';
 import { CompanyClosureSection } from './CompanyClosureSection';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -83,13 +84,12 @@ describe('CompanyClosureSection', () => {
     expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
   });
 
-  it('removes an expired closure when the company week rolls over while mounted', async () => {
-    vi.useRealTimers();
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-06-07T23:59:59.000Z'));
+  it('removes an expired closure when a read brings the next company week while mounted', async () => {
     await useStore
       .getState()
       .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+    getStubPlanningTransport().setToday('2026-06-07');
+    await useStore.getState().refreshPlanning({ fresh: true });
     await useStore.getState().addClosure({
       name: 'Wayne Enterprises shutdown',
       startDate: '2026-06-07',
@@ -99,7 +99,8 @@ describe('CompanyClosureSection', () => {
     render(<CompanyClosureSection />);
     expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
 
-    await act(() => vi.advanceTimersByTimeAsync(1_000));
+    getStubPlanningTransport().setToday('2026-06-08');
+    await act(() => useStore.getState().refreshPlanning({ fresh: true }));
 
     expect(screen.queryByTestId('company-closure-row')).not.toBeInTheDocument();
   });

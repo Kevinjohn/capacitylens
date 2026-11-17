@@ -7,6 +7,7 @@ const ready: PlanningControllerMetadata = {
   accessKey: null,
   canWrite: true,
   revision: 4,
+  today: '2026-06-03',
   status: 'ready',
   history: { past: [], future: [], tipRevision: 4 },
   pending: null,

@@ -11,7 +11,6 @@ import {
   hasVisibleTaskFieldInSchedule,
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
-  resolveTimeZone,
   resolveWeekStart,
 } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
@@ -19,7 +18,7 @@ import { useStore } from '@/store/useStore';
 import { buildPersonSchedule } from './personScheduleModel';
 import type { PersonScheduleResult } from './personScheduleTypes';
 import { reportInvalidScheduleDateRangeOnce } from '@/lib/renderableDateRanges';
-import { useCalendarToday } from '@/hooks/useCalendarToday';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 
 /** Account and resource identities requested for a person schedule. */
 export interface UsePersonScheduleInput {
@@ -97,8 +96,7 @@ export function usePersonSchedule({
     () => ({ ...data, accounts: activeAccount ? [activeAccount] : [] }),
     [activeAccount, data],
   );
-  const timeZone = resolveTimeZone(accountView, activeAccountId);
-  const today = useCalendarToday(timeZone);
+  const today = useCompanyToday();
   const permissionAvailable = permissionStatus === 'resolved' && role !== null;
   const canSeeTimeOffNotes =
     permissionStatus === 'resolved' && role !== null && canSeeTimeOffNote(role);

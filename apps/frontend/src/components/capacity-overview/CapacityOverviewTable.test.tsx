@@ -1,5 +1,5 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useResourceAvatars } from '@/account/useResourceAvatars';
@@ -143,7 +143,11 @@ function renderTable(
 }
 
 describe('CapacityOverviewTable date style', () => {
-  afterEach(() => resetStoreWithAccount());
+  // Unmount first: outside the app shell, a mounted table cannot outlive its company's date.
+  afterEach(() => {
+    cleanup();
+    return resetStoreWithAccount();
+  });
 
   it('re-reads column headers when the date style changes with a stable model', async () => {
     await resetStoreWithAccount('account');
