@@ -9,7 +9,10 @@ import type { PlanningSnapshot } from '@/data/planning/planningCacheTypes';
 import { useAppShellController } from '@/components/useAppShellController';
 import { useStore } from '@/store/useStore';
 import { makeResource, resetStoreWithAccount, requireValue } from '@/test/fixtures';
-import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
+import {
+  getPlanningTransportHandle,
+  getStubPlanningTransport,
+} from '@/test/planningTransportHandle';
 import { m } from '@/i18n';
 import { SettingsDataSection } from './SettingsDataSection';
 
@@ -111,6 +114,7 @@ it.each(
         data: canonicalData,
         revision: revision + 1,
         canWrite: true,
+        today: getStubPlanningTransport().todayFor(accountId),
       };
       vi.spyOn(getPlanningTransportHandle(), 'read').mockImplementationOnce(async () => {
         hold.entered = true;

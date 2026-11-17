@@ -141,7 +141,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
     await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }));
     expect(screen.getByRole('dialog', { name: "Bruce's schedule" })).toBeVisible();
 
-    // The switch clears the company date until a2's read lands; the app shell holds the grid
+    // The switch clears the company date until a2's read lands; `CompanyDateRoute` holds the grid
     // behind its loader meanwhile, so the date arrives here in the same render.
     act(() => {
       useStore.getState().setActiveAccount('a2');

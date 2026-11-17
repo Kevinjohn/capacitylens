@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import type { AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
@@ -9,6 +8,7 @@ import {
   intent,
   inverse,
   canonicalData,
+  companyToday,
   success,
   harness,
   deferred,
@@ -24,7 +24,12 @@ describe('planning cache controller', () => {
     const h = harness({ execute, read: vi.fn() });
     setMasqueradeContextToken('captured-idle-context');
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 3,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
 
     const draft = h.controller.begin();
     setMasqueradeContextToken('new-active-context');
@@ -37,9 +42,12 @@ describe('planning cache controller', () => {
   });
 
   it('sends a canonical read with the proof current when the read is dispatched', async () => {
-    const read = vi
-      .fn<PlanningTransport['read']>()
-      .mockResolvedValue({ revision: 3, canWrite: true, data: canonicalData() });
+    const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
+      revision: 3,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const h = harness({ execute: vi.fn(), read });
     h.controller.setContext(context);
     setMasqueradeContextToken('current-context');
@@ -53,10 +61,10 @@ describe('planning cache controller', () => {
   });
 
   it('ignores late reads from an invalidated client context and clears data/history atomically', async () => {
-    let resolveRead!: (value: { revision: number; canWrite: boolean; data: AppData }) => void;
+    let resolveRead!: (value: PlanningSnapshot) => void;
     const read = vi.fn<PlanningTransport['read']>(
       () =>
-        new Promise<{ revision: number; canWrite: boolean; data: AppData }>((resolve) => {
+        new Promise<PlanningSnapshot>((resolve) => {
           resolveRead = resolve;
         }),
     );
@@ -71,6 +79,7 @@ describe('planning cache controller', () => {
       revision: 9,
       canWrite: true,
       data: { ...emptyAppData(), accounts: [{ id: 'leak' } as never] },
+      today: companyToday,
     });
     await readPromise;
     expect(h.state().data).toEqual(emptyAppData());
@@ -93,13 +102,23 @@ describe('planning cache controller', () => {
     const anonymousIdentity = Symbol('anonymous');
     const anonymous = { identity: anonymousIdentity, companyId: 'company-1' };
     h.controller.setContext(anonymous);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const write = h.controller
       .execute(h.controller.begin(), intent, inverse)
       .catch(() => undefined);
     h.controller.setContext({ identity: anonymousIdentity, companyId: 'company-2' });
     h.controller.setContext(anonymous);
-    await h.readSnapshot({ revision: 7, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 7,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     release(success('mutation-1', 2));
     await write;
     expect(h.state().planning.revision).toBe(7);
@@ -134,6 +153,7 @@ describe('planning receipt completion context', () => {
           revision: 1,
           canWrite: true,
           data: canonicalData(),
+          today: companyToday,
           accessKey: 'owner',
         });
         await h.controller.execute(h.controller.begin(), intent, inverse);
@@ -158,6 +178,7 @@ describe('planning receipt completion context', () => {
           revision,
           canWrite: true,
           data: canonicalData(),
+          today: companyToday,
           accessKey: change === 'authority change' ? 'editor' : 'owner',
         });
         await expect(completion).resolves.toBe(action === 'execute' ? null : false);

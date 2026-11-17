@@ -1,7 +1,7 @@
 import { createStore } from 'zustand/vanilla';
 import { vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import type { Account, AppData } from '@capacitylens/shared/types/entities';
+import type { Account, AppData, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
@@ -20,6 +20,8 @@ export const inverse = {
   changes: { startDate: '2026-10-20' },
 } as const;
 const makeState = (): PlanningCacheState => createPlanningCacheState();
+/** The company date every canonical read in these tests carries. */
+export const companyToday: ISODate = '2026-06-03';
 export const canonicalData = (accountOverrides: Partial<Account> = {}): AppData => ({
   ...emptyAppData(),
   accounts: [makeAccount({ id: context.companyId, ...accountOverrides })],
@@ -35,7 +37,12 @@ export const success = (mutationId: string, revision: number): PlanningMutationS
 export function harness(transport: PlanningTransport) {
   const store = createStore<PlanningCacheState>(() => makeState());
   const snapshots: PlanningSnapshot[] = [];
-  let serverSnapshot: PlanningSnapshot = { revision: 0, canWrite: true, data: canonicalData() };
+  let serverSnapshot: PlanningSnapshot = {
+    revision: 0,
+    canWrite: true,
+    data: canonicalData(),
+    today: companyToday,
+  };
   const read = vi.fn(
     async (clientContext: Parameters<PlanningTransport['read']>[0], signal: AbortSignal) => {
       const snapshot = snapshots.shift();

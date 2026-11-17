@@ -168,7 +168,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           accessKey: snapshot.accessKey ?? null,
           canWrite: !older && snapshot.canWrite,
           revision: older ? null : snapshot.revision,
-          today: older ? null : (snapshot.today ?? null),
+          today: older ? null : snapshot.today,
           status: older ? 'error' : 'ready',
           error: older
             ? new PlanningControllerError('The access projection changed but its read was stale.')
@@ -217,7 +217,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         accessKey: snapshot.accessKey ?? state.planning.accessKey,
         canWrite: snapshot.canWrite,
         revision: snapshot.revision,
-        today: snapshot.today ?? state.planning.today,
+        today: snapshot.today,
         status:
           finalized || !state.planning.pending
             ? 'ready'

@@ -14,7 +14,7 @@ export interface PlanningSnapshot {
   /** Stable key produced by the typed transport from its verified authority projection. */
   accessKey?: string;
   /** The company's calendar date, resolved by the server in the company time zone. */
-  today?: ISODate;
+  today: ISODate;
 }
 
 /** Client identity is deliberately opaque; company id distinguishes its planning projection. */

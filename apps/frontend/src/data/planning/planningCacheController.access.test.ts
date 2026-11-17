@@ -30,6 +30,7 @@ function snapshot(name: string, revision = 1): PlanningSnapshot {
       accounts: [makeAccount({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ accountId: 'wayne', name })],
     }),
+    today: '2026-06-03',
   };
 }
 

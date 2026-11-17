@@ -7,6 +7,7 @@ import {
   intent,
   inverse,
   canonicalData,
+  companyToday,
   success,
   harness,
 } from './planningCacheController.testSupport';
@@ -18,14 +19,27 @@ describe('planning cache controller', () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
       .mockRejectedValue({ status: 409, code: 'STALE_REVISION' });
-    const read = vi
-      .fn<PlanningTransport['read']>()
-      .mockResolvedValue({ revision: 4, canWrite: true, data: canonicalData() });
+    const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
+      revision: 4,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const h = harness({ execute, read });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 3,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const draft = h.controller.begin();
-    await h.readSnapshot({ revision: 4, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 4,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     expect(draft.baseRevision).toBe(3);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({
       code: 'STALE_REVISION',
@@ -41,14 +55,27 @@ describe('planning cache controller', () => {
       .mockRejectedValue({ status: 409, code: 'STALE_REVISION' });
     const h = harness({
       execute,
-      read: vi
-        .fn<PlanningTransport['read']>()
-        .mockResolvedValue({ revision: 2, canWrite: true, data: canonicalData() }),
+      read: vi.fn<PlanningTransport['read']>().mockResolvedValue({
+        revision: 2,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      }),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const gesture = h.controller.begin();
-    await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 2,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const finalIntent = {
       operation: 'settings.update',
       changes: { timezone: 'Europe/Paris' },
@@ -62,7 +89,12 @@ describe('planning cache controller', () => {
   it('keeps acknowledged writes locked until every operation receives a canonical refresh', async () => {
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
+      .mockResolvedValueOnce({
+        revision: 1,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      })
       .mockRejectedValueOnce(new TypeError('read unavailable'));
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
       Promise.resolve(success(execution.mutationId, 2)),

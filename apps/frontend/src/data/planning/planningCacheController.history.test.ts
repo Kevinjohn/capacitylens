@@ -7,6 +7,7 @@ import {
   intent,
   inverse,
   canonicalData,
+  companyToday,
   success,
   harness,
 } from './planningCacheController.testSupport';
@@ -23,7 +24,12 @@ describe('planning cache controller', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 0, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 0,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     for (let index = 0; index < 51; index += 1) {
       await h.controller.execute(h.controller.begin(), intent, inverse);
     }
@@ -46,13 +52,28 @@ describe('planning cache controller', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const draft = h.controller.begin();
     await h.controller.execute(draft, intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(1);
-    await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 2,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     expect(h.state().planning.history.past).toHaveLength(1);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 3,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
 
@@ -67,7 +88,12 @@ describe('planning cache controller', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     await h.controller.execute(h.controller.begin(), intent, inverse);
     expect(await h.controller.undo()).toBe(true);
     expect(await h.controller.redo()).toBe(true);
@@ -84,7 +110,12 @@ describe('planning cache controller', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject(
       {
         code: 'NO_CHANGE',
@@ -108,8 +139,18 @@ describe('planning cache controller', () => {
       .mockImplementation(async (_context, execution) => success(execution.mutationId, 2));
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
-      .mockResolvedValueOnce({ revision: 2, canWrite: true, data: canonicalData() });
+      .mockResolvedValueOnce({
+        revision: 1,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      })
+      .mockResolvedValueOnce({
+        revision: 2,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      });
     const h = harness({ execute, read });
     h.controller.setContext(context);
     await h.controller.refresh();
@@ -129,7 +170,12 @@ describe('planning activity history via a receipt', () => {
       const read = vi.fn<PlanningTransport['read']>();
       const h = harness({ execute, read });
       h.controller.setContext(context);
-      await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+      await h.readSnapshot({
+        revision: 1,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      });
       await h.controller.execute(h.controller.begin(), intent, inverse);
       await h.controller.execute(h.controller.begin(), intent, inverse);
       await h.controller.undo();
@@ -147,7 +193,12 @@ describe('planning activity history via a receipt', () => {
         operation: 'catalogue.update',
         entity: { entity: 'activities', id: 'activity-1', changes: { ...changes, name: 'Office' } },
       };
-      read.mockResolvedValueOnce({ revision: 5, canWrite: true, data: canonicalData() });
+      read.mockResolvedValueOnce({
+        revision: 5,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      });
       execute.mockImplementationOnce(async (_context, execution) => ({
         ...success(execution.mutationId, 5),
         ...(includesKind

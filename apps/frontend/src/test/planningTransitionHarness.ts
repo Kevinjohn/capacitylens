@@ -37,6 +37,7 @@ export function snapshot(revision: number, clientName = 'Wayne Enterprises'): Pl
       accounts: [makeAccount({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', accountId: 'wayne', name: clientName })],
     }),
+    today: '2026-06-03',
   };
 }
 

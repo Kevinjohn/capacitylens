@@ -139,7 +139,7 @@ function renderTable(
 }
 
 describe('CapacityOverviewTable date style', () => {
-  // Unmount first: outside the app shell, a mounted table cannot outlive its company's date.
+  // Unmount first: outside `CompanyDateRoute`, a mounted table cannot outlive its company's date.
   afterEach(() => {
     cleanup();
     return resetStoreWithAccount();

@@ -44,6 +44,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
           ...createPlanningCacheState().data,
           accounts: [makeAccount({ id: context.companyId })],
         },
+        today: '2026-06-03',
       }),
     },
     ...(confirm ? { confirmRestorationCleanup: confirm } : {}),
