@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
 import { companyDataRequests, readImportSummary } from '@/data/companyDataRequests';
 import type { ApplyTransferInput, ImportSummary } from '@/data/companyDataRequests';
-import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
+import { runSuspendedReplacement } from '@/store/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';

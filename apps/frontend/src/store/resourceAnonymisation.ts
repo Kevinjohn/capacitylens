@@ -1,16 +1,14 @@
-import type { useStore } from '@/store/useStore';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { m } from '@/i18n';
 import { companyDataRequests } from '@/data/companyDataRequests';
-import { runSuspendedReplacement } from '@/data/planning/suspendedReplacement';
-import type { UncertainReplacementFailure } from '@/data/planning/suspendedReplacement';
+import { runSuspendedReplacement } from './suspendedReplacement';
+import type { UncertainReplacementFailure } from './suspendedReplacement';
+import type { SetNotice } from './types';
 
 // A confirmed anonymisation without its mandatory refresh must stay gated across route/component
 // remounts: the same stale store slice is shared across those surfaces. Module lifetime matches the
 // required recovery boundary, a full page reload boots, hydrates, and creates a fresh gate map.
 const reloadRequiredByAccount = new Map<string, string>();
-
-type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
 
 function describeUncertainFailure(failure: UncertainReplacementFailure): string {
   return failure.kind === 'status'
