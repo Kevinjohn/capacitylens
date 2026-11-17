@@ -51,7 +51,7 @@ flowchart TD
   E --> F["planningTransport sends api.planning.allocation.createGroup"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Repeat error; draft remains available"]
-  F --> G["PlanningController.mutatePlanning writes the first allocation, then repeat_occurrences expands and writes the rest"]
+  F --> G["mutatePlanning → executePlanningIntent writes the first allocation, then repeat_occurrences expands and writes the rest"]
   G --> H["Acknowledgement reconciles separate occurrences"]
 ```
 

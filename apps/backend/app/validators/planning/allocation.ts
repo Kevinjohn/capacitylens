@@ -9,7 +9,7 @@ import {
   meta,
   nullableId,
   nullableUserText,
-  occurrenceIdsExclude,
+  occurrenceIdsExcludeFirst,
   operationMatches,
   repeatRange,
   requireChanges,
@@ -121,7 +121,7 @@ export const allocationIntent = vine
             .maxLength(GENERATED_ALLOCATION_LIMIT - 1),
         })
         .use(uniqueArrayIds('occurrenceIds'))
-        .use(occurrenceIdsExclude('allocation'))
+        .use(occurrenceIdsExcludeFirst())
     ),
     vine.union.if(
       (value) => operationMatches(value, 'allocation.duplicate'),

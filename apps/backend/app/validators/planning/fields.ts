@@ -162,12 +162,14 @@ export const repeatPattern = () =>
 /** A repeat's pattern and its inclusive last start date; the server generates the occurrences. */
 export const repeatRange = () => vine.object({ pattern: repeatPattern(), until: calendarDate() });
 
-/** Later occurrence ids must differ from the first occurrence's id in `property`. */
-export const occurrenceIdsExclude = (property: 'allocation') =>
+/** Later occurrence ids must differ from the first allocation's id. */
+export const occurrenceIdsExcludeFirst = () =>
   vine.createRule((value, _options, field) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-    const { occurrenceIds } = value as { occurrenceIds?: unknown };
-    const first = (value as Record<string, unknown>)[property] as { id?: unknown } | undefined;
+    const { occurrenceIds, allocation: first } = value as {
+      occurrenceIds?: unknown;
+      allocation?: { id?: unknown };
+    };
     if (!Array.isArray(occurrenceIds) || !occurrenceIds.includes(first?.id)) return;
     field.report('Entity IDs must be unique.', 'distinctIds', field);
   })();
