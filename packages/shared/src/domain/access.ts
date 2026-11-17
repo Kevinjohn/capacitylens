@@ -1,5 +1,11 @@
 // CapacityLens permissions. `accessPermissions` is the one declaration: the server builds the
 // Access Control package from it and enforces it; the browser reads it only to show or hide controls.
+// Company memberships are stored and ruled by `@kevinjohn/adonisjs-access-control`: its
+// `memberships` table, the roles below and these permission keys. The package owns the Bouncer
+// abilities for each key. Every route with `:accountId` in its path runs the package's `scope`
+// middleware after authentication. The server still authorizes inside the request transaction
+// through the package's `memberships.authorize`; a route that takes the company id from the body
+// has only that check.
 import type { Role } from '../account/types.js';
 import type { CapacityOverviewAccess } from '../types/entities.js';
 export type { Role } from '../account/types.js';

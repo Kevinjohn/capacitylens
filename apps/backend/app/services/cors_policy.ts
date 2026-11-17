@@ -1,3 +1,13 @@
+/**
+ * Unsafe requests are accepted only from the public URL's origin or a `CAPACITYLENS_CORS_ORIGIN`
+ * entry; when that is unset outside production, the built-in `localhost` and `127.0.0.1` origins on
+ * ports 5173 and 5273 are trusted. With no Origin, only `Sec-Fetch-Site: same-origin` is accepted.
+ * Shield owns HSTS, `nosniff`, frame protection and the CSP.
+ *
+ * `@kevinjohn/adonisjs-origin-guard` supplies the unsafe-request origin check, the origin parsers
+ * and the private-peer list used for proxy trust. Its middleware runs straight after the security
+ * headers, so a refusal still carries them.
+ */
 import env from '#start/env';
 import { parseOrigins } from '@kevinjohn/adonisjs-origin-guard';
 

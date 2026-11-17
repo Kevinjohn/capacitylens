@@ -1,3 +1,7 @@
+/**
+ * The first identity comes from the operator's bootstrap invitation, printed by
+ * `account-kit:admission:bootstrap`.
+ */
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import access from '#config/access_control';
 import { hasOnlyFields } from '#services/request_helpers';

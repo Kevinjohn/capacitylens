@@ -1,3 +1,8 @@
+/**
+ * Logs correlate a request by the framework's `request_id`. The server always generates it (a UUID,
+ * echoed in the `X-Request-Id` response header); a client-supplied `X-Request-Id` is discarded
+ * before the framework reads it.
+ */
 import type { Server } from 'node:http';
 
 export const MAX_SERVER_CONNECTIONS = 512;

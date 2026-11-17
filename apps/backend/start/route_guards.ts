@@ -1,3 +1,14 @@
+/**
+ * View-as policy is declared where each route is registered and enforced by the Masquerade
+ * package's context middleware after route matching. Member routes use the package's effective
+ * guard and are refused for writes while a mode is active; `asMemberOnly()` marks reads that are
+ * refused outright; the view-as controls run on the raw guard; routes about the signed-in person's
+ * own account carry Account Kit's account blocker. A request carrying a stale
+ * `X-Masquerade-Context` is refused, reads included.
+ * `tests/functional/auth/masquerade_routes.spec.ts` pins every route's classification from `node
+ * ace masquerade:routes`. Because policy runs after routing and body parsing, a write to a path
+ * with no route answers 404 and a malformed body answers 400, not `MASQUERADE_READ_ONLY`.
+ */
 import type { MiddlewareFn, ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import { sensitive } from '@kevinjohn/adonisjs-masquerade/http';
 import { middleware } from '#start/kernel';
