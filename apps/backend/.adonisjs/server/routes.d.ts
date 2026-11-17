@@ -88,7 +88,6 @@ export type ScannedRoutes = {
     'api.admission.revoke': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
     'api.member-resources.clear': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'userId': ParamValue} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.masquerade.end': { paramsTuple?: []; params?: {} }
@@ -110,7 +109,6 @@ export type ScannedRoutes = {
     'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }
     'api.admission.index': { paramsTuple?: []; params?: {} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }
@@ -129,7 +127,6 @@ export type ScannedRoutes = {
     'api.invites.preview': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'api.admission.show': { paramsTuple?: []; params?: {} }
     'api.admission.index': { paramsTuple?: []; params?: {} }
-    'api.member-resources.avatars': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.masquerade.status': { paramsTuple?: []; params?: {} }
     'api.health': { paramsTuple?: []; params?: {} }
     'api.diagnostics': { paramsTuple?: []; params?: {} }

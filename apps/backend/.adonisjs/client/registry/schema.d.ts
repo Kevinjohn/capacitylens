@@ -1100,19 +1100,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
     }
   }
-  'api.member-resources.avatars': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/accounts/:accountId/resource-avatars'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { accountId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['avatars']>>>
-    }
-  }
   'api.masquerade.start': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/masquerade'

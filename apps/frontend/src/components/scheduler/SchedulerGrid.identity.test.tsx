@@ -7,7 +7,6 @@ import { PermissionContext } from '@/auth/permissionContext';
 import { resetStoreWithData, DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { schedulerDataset } from './__tests__/schedulerTestKit';
-import { useResourceAvatars } from '@/account/useResourceAvatars';
 import { SchedulerGrid } from './SchedulerGrid';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 
@@ -19,10 +18,7 @@ function OwnerRouter({ children }: { children: ReactNode }) {
   );
 }
 
-vi.mock('@/account/useResourceAvatars', () => ({ useResourceAvatars: vi.fn() }));
-
 beforeEach(async () => {
-  vi.mocked(useResourceAvatars).mockReturnValue(new Map());
   await resetStoreWithData(schedulerDataset(), DEFAULT_ACCOUNT_ID);
   useStore.getState().setOriginDate('2026-06-01');
   useStore.getState().setZoom(1);
@@ -35,8 +31,8 @@ beforeEach(async () => {
 });
 
 describe('SchedulerGrid component identity and row variants', () => {
-  it.each([undefined, 'https://images.example/bruce.png'])(
-    'uses the linked avatar fallback unless stored URL %s is present',
+  it.each([null, 'https://images.example/bruce.png'])(
+    'shows the stored avatar URL %s, and no image without one',
     async (avatarUrl) => {
       class LoadedImage {
         complete = true;
@@ -51,16 +47,17 @@ describe('SchedulerGrid component identity and row variants', () => {
       const bruce = useStore.getState().data.resources.find(({ name }) => name === 'Bruce');
       if (!bruce) throw new Error('Expected Bruce in the scheduler fixture');
       await useStore.getState().updateResource(bruce.id, { avatarUrl });
-      vi.mocked(useResourceAvatars).mockReturnValue(
-        new Map([[bruce.id, 'https://images.example/linked.png']]),
-      );
 
       try {
         const { container } = render(<SchedulerGrid />, { wrapper: OwnerRouter });
 
         const avatar = container.querySelector('button[data-testid="person-schedule-trigger"] img');
-        expect(avatar).toHaveAttribute('src', avatarUrl ?? 'https://images.example/linked.png');
-        expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer');
+        if (avatarUrl === null) {
+          expect(avatar).toBeNull();
+        } else {
+          expect(avatar).toHaveAttribute('src', avatarUrl);
+          expect(avatar).toHaveAttribute('referrerpolicy', 'no-referrer');
+        }
       } finally {
         vi.unstubAllGlobals();
       }

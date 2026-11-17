@@ -130,7 +130,6 @@ export interface ApiDefinition {
     memberResources: {
       set: typeof routes['api.member-resources.set']
       clear: typeof routes['api.member-resources.clear']
-      avatars: typeof routes['api.member-resources.avatars']
     }
     masquerade: {
       start: typeof routes['api.masquerade.start']
