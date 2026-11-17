@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { apiFetch } from '@/data/requestTimeout';
 import { apiRouteUrl } from '@/api/queryClient';
 import type { BrowserAccountCommand } from './accountCommands';

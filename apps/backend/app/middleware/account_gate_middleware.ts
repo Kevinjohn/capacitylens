@@ -22,8 +22,12 @@ const checks = {
 };
 
 /**
- * Account Kit checks the sign-in, and admission on product routes, before the handler runs. The
- * route's name selects the check. Handlers still verify the actor inside their own transaction.
+ * Applies each route's account gate before the handler runs: Account Kit's managed guard checks the
+ * sign-in, and admission on product routes. This one router middleware covers every route, and the
+ * route's name selects the check. A route name in no list gets the strictest check; only the health
+ * probes and the application shell have no name. Routes under `/api/auth` are public at the gate
+ * because their handlers answer a signed-out caller themselves. Handlers still verify the actor
+ * inside their own transaction.
  */
 export default class AccountGateMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {

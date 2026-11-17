@@ -1,6 +1,7 @@
 import { chmod, lstat, unlink } from 'node:fs/promises';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import net, { type Server as NetServer, type Socket } from 'node:net';
+import net from 'node:net';
+import type { Server as NetServer, Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -60,7 +61,7 @@ export class ResetControlError extends Error {
     role: ResetControlRole,
     command: ResetControlCommand,
     state?: unknown,
-    options?: ErrorOptions
+    options?: ErrorOptions,
   ) {
     super(message, options);
     this.role = role;
@@ -76,7 +77,7 @@ export function createResetControlServer(
     status(): unknown;
     pause(timeoutMs: number): Promise<unknown>;
     resume(timeoutMs: number): Promise<unknown>;
-  }
+  },
 ): { ready: Promise<void>; close(): Promise<void> } {
   assertToken(token);
   const endpoint = resetControlEndpoint(token, role);
@@ -85,7 +86,7 @@ export function createResetControlServer(
     clients.add(socket);
     const requestTimeout = setTimeout(
       () => socket.destroy(new Error('Reset control request timed out.')),
-      2_000
+      2_000,
     );
     socket.once('close', () => {
       clearTimeout(requestTimeout);
@@ -159,7 +160,7 @@ export function createResetControlServer(
             command: roleCommand,
             error: error instanceof Error ? error.message : String(error),
             state: handlers.status(),
-          })
+          }),
         );
       }
     }
@@ -185,7 +186,7 @@ export function createResetControlServer(
       for (const client of clients) client.destroy();
       if (server.listening) {
         await new Promise<void>((resolve, reject) =>
-          server.close((error) => (error ? reject(error) : resolve()))
+          server.close((error) => (error ? reject(error) : resolve())),
         );
       }
       await cleanupResetControlEndpoint(token, role);
@@ -197,7 +198,7 @@ export async function requestResetControl(
   token: string,
   role: ResetControlRole,
   command: ResetControlCommand,
-  timeoutMs = defaultControlTimeoutMs
+  timeoutMs = defaultControlTimeoutMs,
 ): Promise<unknown> {
   assertToken(token);
   const endpoint = resetControlEndpoint(token, role);
@@ -216,16 +217,16 @@ export async function requestResetControl(
         reject(
           error instanceof ResetControlError
             ? error
-            : new ResetControlError(error.message, role, command, undefined, { cause: error })
+            : new ResetControlError(error.message, role, command, undefined, { cause: error }),
         );
       } else resolve(value);
     };
     const timer = setTimeout(
       () =>
         finish(
-          new Error(`${role} reset control ${command} timed out after ${clientTimeoutMs} ms.`)
+          new Error(`${role} reset control ${command} timed out after ${clientTimeoutMs} ms.`),
         ),
-      clientTimeoutMs
+      clientTimeoutMs,
     );
     socket.on('error', (error) => finish(error));
     socket.once('close', () => {
@@ -257,8 +258,8 @@ export async function requestResetControl(
               response.error ?? `Reset control ${command} failed.`,
               role,
               command,
-              response.state
-            )
+              response.state,
+            ),
           );
         } else throw new Error('Reset control response has an invalid outcome.');
       } catch (error) {

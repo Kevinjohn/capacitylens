@@ -1,5 +1,6 @@
 import { test } from '@japa/runner';
 import { operatorFixture, withOperatorServer } from './operator_command_support.js';
+import { writeSmokeSchedule } from '../../../../tooling/smokeSchedule.mjs';
 
 const args = [
   'company:initialize',
@@ -275,19 +276,6 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       assert.equal(data.accounts[0]!.weekStartsOn, 1);
       assert.lengthOf(data.clients, 1);
       assert.equal(data.clients[0]!.builtin, true);
-      const smokeUrl = new URL(
-        '../../../../scripts/release/smoke-packaged-server.mjs',
-        import.meta.url
-      );
-      const { writeSmokeSchedule } = (await import(smokeUrl.href)) as {
-        writeSmokeSchedule(
-          origin: string,
-          cookie: string,
-          accountId: string,
-          fixture: unknown,
-          contextToken: string
-        ): Promise<{ allocation: { id: string } }>;
-      };
       const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } });
       const modeBody = await modeResponse.text();
       assert.equal(modeResponse.status, 200, modeBody);

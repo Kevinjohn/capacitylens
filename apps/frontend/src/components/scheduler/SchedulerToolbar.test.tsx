@@ -20,7 +20,7 @@ import {
   resetStoreWithAccount,
   resetStoreWithData,
 } from '@/test/fixtures';
-import { chooseOption } from './__tests__/schedulerTestKit';
+import { chooseOption } from '@/test/schedulerTestKit';
 import { m } from '@/i18n';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 

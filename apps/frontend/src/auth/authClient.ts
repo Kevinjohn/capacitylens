@@ -3,6 +3,7 @@ import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { RequestArgs, ResponseOf } from '@tuyau/core/types';
 import type { registry } from '@capacitylens/backend/registry';
 import { client, apiRouteUrl } from '@/api/queryClient';
+import type { ProductRoutes } from '@/api/queryClient';
 import { apiFetch } from '@/data/requestTimeout';
 
 export interface AuthApiError extends Omit<HttpErrorBody, 'error'> {
@@ -30,7 +31,6 @@ function readErrorMessage(value: unknown, status: number): AuthApiError {
   return { message, ...metadata, status };
 }
 
-type ProductRoutes = typeof registry.routes;
 type AuthRoute = Exclude<
   Extract<
     keyof ProductRoutes,

@@ -5,6 +5,7 @@ import {
 import {
   inspectLifecycleAncestry,
   isLifecycleEntityKey,
+  type LifecycleAncestryRow,
 } from '@capacitylens/shared/domain/lifecycle';
 import {
   assertActivityProjectAllowsDependents,
@@ -60,10 +61,11 @@ export function assertEntityDomain(
       );
     }
   }
+  // The caller has checked that the table is a lifecycle table, so its rows carry lifecycle fields.
   const ancestry = inspectLifecycleAncestry(
     table,
-    row as never,
-    (parentTable, parentId) => lookup.row(parentTable, parentId) as never
+    row as LifecycleAncestryRow,
+    (parentTable, parentId) => lookup.row(parentTable, parentId) as LifecycleAncestryRow | undefined
   );
   if (ancestry.kind === 'hidden') {
     throw new EntityWriteError(
@@ -111,8 +113,10 @@ export function assertEntityDomain(
     );
   }
   if (table === 'resources') {
+    // The row is validated client input typed as a plain record, so it does not overlap the entity type.
     const resource = row as unknown as Resource;
-    const previous = existing as unknown as Resource | undefined;
+    // The stored row comes from the same table, so it is a Resource.
+    const previous = existing as Resource | undefined;
     assertResourceProjectAllowsDependents(state, accountId, id, resource, previous, lookup);
     assertResourceKindAllowsDependents(state, accountId, id, resource.kind, lookup);
     const availability = validateResourceAvailabilityPair(
@@ -131,11 +135,14 @@ export function assertEntityDomain(
       state,
       accountId,
       id,
+      // The row is validated client input typed as a plain record, so it does not overlap the entity type.
       row as unknown as Activity,
-      existing as unknown as Activity | undefined,
+      // The stored row comes from the same table, so it is an Activity.
+      existing as Activity | undefined,
       lookup
     );
   } else if (table === 'allocations') {
+    // The row is validated client input typed as a plain record, so it does not overlap the entity type.
     const allocation = row as unknown as Allocation;
     assertAllocationRefs(
       state,
@@ -152,12 +159,14 @@ export function assertEntityDomain(
     if (resource) {
       assertAllocationPlacement({
         allocation,
-        existing: existing as unknown as Allocation | undefined,
+        // The stored row comes from the same table, so it is an Allocation.
+        existing: existing as Allocation | undefined,
         resource,
         accountWorkingDays: lookup.accountWorkingDays(accountId),
       });
     }
   } else if (table === 'timeOff') {
+    // The row is validated client input typed as a plain record, so it does not overlap the entity type.
     const timeOff = row as unknown as TimeOff;
     assertResourceExists(
       state,

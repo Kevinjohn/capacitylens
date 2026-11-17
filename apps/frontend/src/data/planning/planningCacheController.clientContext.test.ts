@@ -3,7 +3,7 @@ import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,

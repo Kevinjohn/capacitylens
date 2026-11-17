@@ -9,7 +9,7 @@ import { establishInitialCompanyAuthority } from '#services/initial_company_auth
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
 import env from '#start/env';
-import { hasNoCompany } from '#services/installation_company';
+import { hasNoCompany } from '#models/installation_company';
 
 /** Insert the single disposable company graph and its authority in one transaction. */
 async function insertDisposableDemoSeed(ownerId: string) {

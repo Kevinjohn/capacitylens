@@ -41,3 +41,12 @@ test('proxy trust keeps boolean values loopback-only and accepts private', ({ as
   for (const value of ['yes', 'PRIVATE', 'all', ' private'])
     assert.throws(() => validate(key, value), key);
 });
+
+test('a pinned browser-test date must be a real calendar date', ({ assert }) => {
+  const key = 'CAPACITYLENS_FIXED_TODAY';
+  assert.isUndefined(envSchema[key](key, undefined));
+  assert.isUndefined(envSchema[key](key, ''));
+  assert.equal(envSchema[key](key, '2026-06-03'), '2026-06-03');
+  for (const value of ['2026-02-30', '2026-6-3', 'today'])
+    assert.throws(() => envSchema[key](key, value), key);
+});

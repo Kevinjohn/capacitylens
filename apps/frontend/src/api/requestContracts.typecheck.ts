@@ -30,12 +30,14 @@ export function checkOrdinaryRequestContracts() {
     // @ts-expect-error Admission status is a generated finite union.
     query: { status: 'unknown' },
   };
-  // @ts-expect-error State's inactive flag is the literal wire value.
-  const invalidInactive: RequestArgs<Routes['api.state']> = { query: { includeInactive: true } };
+  const invalidInactive: RequestArgs<Routes['api.state']> = {
+    // @ts-expect-error State's inactive flag is the literal wire value.
+    query: { accountId: 'a-studio', includeInactive: true },
+  };
   // @ts-expect-error The generated read query refuses boolean inactive flags at the browser seam.
-  apiReadRouteUrl('api.state', { query: { includeInactive: true } });
+  apiReadRouteUrl('api.state', { query: { accountId: 'a-studio', includeInactive: true } });
   // @ts-expect-error Admission status cannot be supplied as a state query.
-  apiReadRouteUrl('api.state', { query: { status: 'pending' } });
+  apiReadRouteUrl('api.state', { query: { accountId: 'a-studio', status: 'pending' } });
   // @ts-expect-error Sign-in is a generated POST route, never GET.
   client.get('/api/auth/sign-in', {});
   return {

@@ -1,15 +1,15 @@
 import { format } from 'date-fns';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
-import type { ISODate } from '@capacitylens/shared/types/entities';
+import type { ISODate, TimeOff } from '@capacitylens/shared/types/entities';
 import { readActiveDateLocale, m } from '@/i18n';
 import { formatScheduleDateRange } from '@/lib/dateDisplay';
 import type { TimeOffRepeatChoice } from './useTimeOffRepeat';
-import type { buildRepeatedTimeOffDrafts } from '@/lib/repeatingTimeOff';
+import type { Draft } from '@/store/useStore';
 import { DateField, SelectField } from '@/components/common/ui';
 import type { Option } from '@/components/common/ui';
 
-type RepeatProjection = ReturnType<typeof buildRepeatedTimeOffDrafts>;
+type RepeatProjection = { repeatUntil: ISODate; drafts: Draft<TimeOff>[] };
 
 interface TimeOffRepeatFieldsProps {
   startDate: ISODate | '';

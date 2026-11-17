@@ -18,9 +18,9 @@ import {
   waitFor,
   waitUntilReady,
 } from './packagedServer.mjs';
+import { RESOURCE_NAME, writeSmokeSchedule } from '../../tooling/smokeSchedule.mjs';
 
 const MEMBER_VIEW_DURATION_MS = 15 * 60_000;
-const RESOURCE_NAME = 'Bruce Wayne Packaged Schedule';
 // The baseline is followed by planning deletion ownership, the member-view control migration,
 // transactional receipts, the password confirmation cutover and the company-scope removal from
 // password confirmations.
@@ -159,110 +159,6 @@ function verifyBackup(backend, environment, directory, name) {
   ]);
   assert.equal(result.status, 0, result.output);
   assert.match(result.output, new RegExp(`Bundle ${name} verified`));
-}
-
-/** Write one scheduled allocation through authenticated typed planning routes. */
-export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, contextToken) {
-  const account = fixture.accounts.find((row) => row.id === 'a-studio');
-  assert.ok(account);
-  const resource = {
-    ...fixture.resources.find((row) => row.kind === 'person' && row.accountId === 'a-studio'),
-    id: randomUUID(),
-    name: RESOURCE_NAME,
-  };
-  assert.ok(resource.id);
-  const createdResource = await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'sec-fetch-site': 'same-origin',
-      cookie,
-      'X-Masquerade-Context': contextToken,
-    },
-    body: JSON.stringify({
-      mutationId: randomUUID(),
-      baseRevision: 1,
-      intent: {
-        operation: 'resource.create',
-        id: resource.id,
-        fields: {
-          kind: 'person',
-          name: resource.name,
-          role: resource.role,
-          avatarUrl: null,
-          disciplineId: null,
-          employmentType: resource.employmentType,
-          engagement: resource.engagement,
-          workingHoursPerDay: resource.workingHoursPerDay,
-          workingDays: resource.workingDays,
-          halfDays: resource.halfDays,
-          projectId: null,
-          color: resource.color,
-          isFavourite: false,
-          firstAvailableDate: null,
-          lastAvailableDate: null,
-        },
-      },
-    }),
-  });
-  assert.equal(JSON.parse(createdResource.body).revision, 2);
-
-  const activity = {
-    id: randomUUID(),
-    name: 'Packaged Planning',
-    kind: 'internal',
-    projectId: null,
-    phaseId: null,
-  };
-  const createdActivity = await fetchOk(`${baseUrl}/api/accounts/${accountId}/activities`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'sec-fetch-site': 'same-origin',
-      cookie,
-      'X-Masquerade-Context': contextToken,
-    },
-    body: JSON.stringify({
-      mutationId: randomUUID(),
-      baseRevision: 2,
-      intent: {
-        operation: 'catalogue.create',
-        entity: {
-          entity: 'activities',
-          id: activity.id,
-          fields: { name: activity.name, kind: activity.kind, projectId: null, phaseId: null },
-        },
-      },
-    }),
-  });
-  assert.equal(JSON.parse(createdActivity.body).revision, 3);
-
-  const allocation = {
-    id: randomUUID(),
-    resourceId: resource.id,
-    activityId: activity.id,
-    projectId: null,
-    startDate: '2026-11-02',
-    endDate: '2026-11-06',
-    hoursPerDay: 7.5,
-    status: 'confirmed',
-  };
-  const createdAllocation = await fetchOk(`${baseUrl}/api/accounts/${accountId}/allocations`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'sec-fetch-site': 'same-origin',
-      cookie,
-      'X-Masquerade-Context': contextToken,
-    },
-    body: JSON.stringify({
-      mutationId: randomUUID(),
-      baseRevision: 3,
-      intent: { operation: 'allocation.create', allocation },
-    }),
-  });
-  assert.equal(JSON.parse(createdAllocation.body).revision, 4);
-  return { accountId, resource, activity, allocation };
 }
 
 /** Exercise an extracted native artifact, optionally including its browser acceptance journey. */

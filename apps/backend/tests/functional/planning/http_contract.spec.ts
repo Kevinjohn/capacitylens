@@ -41,6 +41,7 @@ test.group('authenticated typed planning transactions', (group) => {
     response.assertStatus(200);
     assert.equal(response.body().accountId, accountId);
     assert.equal(response.body().revision, 0);
+    assert.match(response.body().today, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(response.body().authority.actorId, userId);
     assert.equal(response.body().authority.role, 'editor');
     assert.isTrue(response.body().authority.canWrite);

@@ -2,9 +2,10 @@ import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
+import { buildRepeatedAllocationDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
-import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from '@/lib/repeatingAllocations';
+import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
 
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
 

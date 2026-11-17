@@ -1,4 +1,4 @@
-// Claiming a port lane and a share of the machine's CPUs. scripts/dev/ports.mjs maps a lane to ports
+// Claiming a port lane and a share of the machine's CPUs. tooling/ports.mjs maps a lane to ports
 // and is pure; everything that touches the filesystem or another process lives here, and
 // scripts/dev/with-lane.mjs is the only caller in normal use.
 //
@@ -34,8 +34,8 @@ import {
   resolveLane,
   soloShare,
   testShare,
-} from './ports.mjs';
-import { portInUse } from './devProcesses.mjs';
+} from '../../tooling/ports.mjs';
+import { portInUse } from '../../tooling/devProcesses.mjs';
 
 const MUTEX_STALE_MS = 30_000;
 // File-format mutexes need a grace period because the owner can be written after the path becomes visible.

@@ -7,17 +7,21 @@ import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
-import { resolveLane } from '../dev/ports.mjs';
-import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
-import { acquireExclusiveFile, portInUse, terminateProcessTree } from '../dev/devProcesses.mjs';
+import { resolveLane } from '../../tooling/ports.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs';
+import {
+  acquireExclusiveFile,
+  portInUse,
+  terminateProcessTree,
+} from '../../tooling/devProcesses.mjs';
 import {
   createResetControlServer,
   createResetControlToken,
   cleanupResetControlEndpoints,
   requestResetControl,
   resetControlEndpoint,
-} from '../../apps/backend/start/e2e_reset_control.ts';
-import { createRetirableListener } from '../../apps/backend/start/e2e_retirable_listener.ts';
+} from '../../tooling/e2e_reset_control.ts';
+import { createRetirableListener } from '../../tooling/e2e_retirable_listener.ts';
 import {
   configureServerTarget,
   prepareServerTemplate,
@@ -557,8 +561,7 @@ for (const frameCase of ['oversized', 'truncated', 'multiple']) {
     { timeout: 10_000 },
     async () => {
       const token = createResetControlToken();
-      const helperUrl = new URL('../../apps/backend/start/e2e_reset_control.ts', import.meta.url)
-        .href;
+      const helperUrl = new URL('../../tooling/e2e_reset_control.ts', import.meta.url).href;
       const program = `
       import assert from 'node:assert/strict';
       import net from 'node:net';

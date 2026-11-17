@@ -2,6 +2,7 @@ import { archiveImpact, canArchive } from '@capacitylens/shared/domain/lifecycle
 import type { ArchiveImpact, LifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
+import { plural } from './pluralCopy';
 
 /**
  * `archiveImpact` throws when its target row is missing or already inactive, a real possibility at
@@ -24,13 +25,6 @@ export function safeArchiveImpact(
   const row = data[entity].find((candidate) => candidate.id === id);
   return row && canArchive(row) ? archiveImpact(data, entity, id) : undefined;
 }
-
-// Resolve plural copy at lookup so it follows the current locale. The catalogue
-// currently uses the English one-versus-other categories.
-const plural =
-  (one: (inputs: { count: number }) => string, other: (inputs: { count: number }) => string) =>
-  (count: number): string =>
-    count === 1 ? one({ count }) : other({ count });
 
 const projectCount = plural(m.list_archive_project_one, m.list_archive_project_other);
 const phaseCount = plural(m.list_archive_phase_one, m.list_archive_phase_other);

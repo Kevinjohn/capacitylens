@@ -31,7 +31,7 @@ test.group('M2b data routes', (group) => {
     await db.from('account_getting_started_dismissals').delete();
   });
 
-  test('inactive export follows effective member role and omitted scope stays active-only', async ({
+  test('inactive export follows effective member role and a default read stays active-only', async ({
     client,
     assert,
   }) => {
@@ -48,10 +48,10 @@ test.group('M2b data routes', (group) => {
         .update({ role });
       const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
       explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200);
-      const omitted = await client.get('/api/state').send();
-      omitted.assertStatus(200);
-      const ids = omitted.body().resources.map((row: { id: string }) => row.id);
-      assert.equal(ids.includes(candidate.id), ['admin', 'owner'].includes(role));
+      const active = await client.get('/api/state?accountId=a-studio').send();
+      active.assertStatus(200);
+      const ids = active.body().resources.map((row: { id: string }) => row.id);
+      assert.isFalse(ids.includes(candidate.id), role);
     }
   });
 
@@ -193,14 +193,54 @@ test.group('M2b data routes', (group) => {
     assert.equal(written.status(), 200, JSON.stringify(written.body()));
     const shared = await client.get(route).send();
     const other = await client.get('/api/accounts/a-loft/getting-started').send();
-    assert.deepEqual(shared.body(), { dismissed: true });
-    assert.deepEqual(other.body(), {
-      dismissed: false,
-    });
+    assert.equal(shared.body().dismissed, true);
+    assert.equal(other.body().dismissed, false);
     const reverse = await trusted(client.put(route)).json({ dismissed: false }).send();
     reverse.assertStatus(400);
     const stillDismissed = await client.get(route).send();
-    assert.deepEqual(stillDismissed.body(), { dismissed: true });
+    assert.equal(stillDismissed.body().dismissed, true);
+  });
+
+  test('getting-started reports each milestone from the active company rows', async ({
+    client,
+    assert,
+  }) => {
+    client = await reset(client, true);
+    const now = new Date().toISOString();
+    const studio = (table: string) => db.from(table).where('account_id', 'a-studio');
+    const read = async (accountId = 'a-studio') => {
+      const reply = await client.get(`/api/accounts/${accountId}/getting-started`).send();
+      reply.assertStatus(200);
+      // The generated reply type omits the nested steps interface; the route returns it.
+      return (reply.body() as { dismissed: boolean; steps?: Record<string, boolean> }).steps;
+    };
+    const all = { person: true, client: true, project: true, activity: true, scheduled: true };
+    const loft = await read('a-loft');
+    assert.deepEqual(await read(), all);
+
+    await studio('projects').update({ archived_at: now });
+    assert.deepEqual(await read(), { ...all, project: false });
+    await studio('projects').update({ archived_at: null });
+
+    // A project under an archived client no longer counts, though the project itself is active.
+    await studio('clients').update({ archived_at: now });
+    assert.deepEqual(await read(), { ...all, client: false, project: false });
+    await studio('clients').update({ archived_at: null });
+
+    await studio('allocations').delete();
+    assert.deepEqual(await read(), { ...all, scheduled: false });
+
+    await studio('activities').update({ archived_at: now });
+    assert.deepEqual(await read(), { ...all, scheduled: false, activity: false });
+
+    await studio('resources').where('kind', 'person').update({ archived_at: now });
+    assert.deepEqual(await read(), {
+      ...all,
+      scheduled: false,
+      activity: false,
+      person: false,
+    });
+    assert.deepEqual(await read('a-loft'), loft);
   });
 
   test('getting-started strips extra fields and reports missing companies', async ({
@@ -214,11 +254,11 @@ test.group('M2b data routes', (group) => {
       .send();
     extraFields.assertStatus(200);
     const saved = await client.get(route).send();
-    assert.deepEqual(saved.body(), { dismissed: true });
+    assert.equal(saved.body().dismissed, true);
     const invalid = await trusted(client.put(route)).json({ dismissed: null }).send();
     invalid.assertStatus(400);
     const stillDismissed = await client.get(route).send();
-    assert.deepEqual(stillDismissed.body(), { dismissed: true });
+    assert.equal(stillDismissed.body().dismissed, true);
     const missing = await client.get('/api/accounts/unknown/getting-started').send();
     missing.assertStatus(403);
   });
