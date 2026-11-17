@@ -499,6 +499,21 @@ it('does not surface a late typed write rejection after its company changed', as
   }
 });
 
+it('requires a placeholder to be bound to a project', async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  render(<ResourceForm kind="placeholder" onClose={onClose} />);
+
+  expect(screen.queryByLabelText('Employment')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Engagement')).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText('Role'), 'Senior Designer');
+  await user.click(screen.getByRole('button', { name: 'Save' }));
+
+  expect(screen.getByRole('alert')).toHaveTextContent(/bound to a project/i);
+  expect(onClose).not.toHaveBeenCalled();
+  expect(useStore.getState().data.resources).toHaveLength(0);
+});
+
 it('saves a placeholder once a bound project is chosen', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
