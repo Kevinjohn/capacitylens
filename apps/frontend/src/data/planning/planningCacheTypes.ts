@@ -3,7 +3,6 @@ import type {
   PlanningExecution,
   PlanningHistoryEntry,
   PlanningIntent,
-  PlanningMutationLookup,
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
 
@@ -28,12 +27,12 @@ export interface PlanningClientContext {
  * The server port. Error contract: the controller reads any thrown value for `code`, `status` and
  * `message` only. On `execute`, status 401 ends the planning scope; code `MUTATION_ID_REUSED`, status
  * 408, a status of 500 or more, or no status (a network failure) leaves the commit boundary unknown,
- * so the controller marks the write uncertain and reconciles through `lookup`; code `STALE_REVISION`
+ * so the controller refetches and reports the change as unconfirmed; code `STALE_REVISION`
  * or status 409 is refused and refreshed; codes `AUTHORIZATION_DENIED`, `VALIDATION_ERROR` and
  * `NO_CHANGE`, and any other status below 500, are refused. Only a server request to confirm cleanup
  * must be a `PlanningControllerError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
  * `restorableItemCount`. A transport must not set `uncertain`; the controller sets it on failures it
- * has already recorded. A `read` or `lookup` failure ends the scope on 401 and is otherwise recorded
+ * has already recorded. A `read` failure ends the scope on 401 and is otherwise recorded
  * on the planning state.
  */
 export interface PlanningTransport {
@@ -43,11 +42,6 @@ export interface PlanningTransport {
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
   read(context: PlanningClientContext, signal: AbortSignal): Promise<PlanningSnapshot>;
-  lookup(
-    context: PlanningClientContext,
-    mutationId: string,
-    signal: AbortSignal,
-  ): Promise<PlanningMutationLookup>;
 }
 
 export interface PlanningHistory {
@@ -57,14 +51,13 @@ export interface PlanningHistory {
   tipRevision: number | null;
 }
 
-export type PlanningStatus =
-  'idle' | 'loading' | 'ready' | 'pending' | 'refused' | 'uncertain' | 'error';
+export type PlanningStatus = 'idle' | 'loading' | 'ready' | 'pending' | 'refused' | 'error';
 
 export type PlanningMutationOutcome =
   | { kind: 'pending'; execution: PlanningExecution }
   | { kind: 'acknowledged'; mutationId: string; revision: number }
   | { kind: 'refused'; mutationId: string; code?: string }
-  | { kind: 'uncertain'; execution: PlanningExecution };
+  | { kind: 'unconfirmed'; mutationId: string };
 
 export interface PlanningPendingMutation {
   execution: PlanningExecution;

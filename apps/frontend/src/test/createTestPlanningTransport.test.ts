@@ -89,11 +89,6 @@ it('returns a queued response, preserves its canonical read data and exposes its
       signal,
     ),
   ).resolves.toEqual(queued);
-  await expect(transport.lookup(context, 'queued', signal)).resolves.toEqual({
-    status: 'committed',
-    mutationId: 'queued',
-    revision: 7,
-  });
   const snapshot = await transport.read(context, signal);
   expect(snapshot.data.clients).toEqual([client]);
 });
@@ -110,16 +105,12 @@ it('throws a queued refusal, records the intent, and requires responses for comp
     transport.execute(context, { mutationId: 'refused', baseRevision: 0, intent }, signal),
   ).rejects.toBe(refusal);
   expect(stub.calls).toEqual([intent]);
-  await expect(transport.lookup(context, 'refused', signal)).resolves.toEqual({
-    status: 'unknown',
-    mutationId: 'refused',
-  });
   await expect(
     transport.execute(context, { mutationId: 'unanswered', baseRevision: 0, intent }, signal),
   ).rejects.toThrow('stub: queue a response for allocation.createGroup');
 });
 
-it('reset discards queued responses, failures, calls and recorded commitments', async () => {
+it('reset discards queued responses, failures and calls', async () => {
   const transport = createTestPlanningTransport();
   const stub = getStubPlanningTransport();
   stub.reset(context.companyId, makeAppData());
@@ -134,11 +125,7 @@ it('reset discards queued responses, failures, calls and recorded commitments', 
     signal,
   );
 
-  await expect(transport.lookup(context, 'committed', signal)).resolves.toMatchObject({
-    status: 'committed',
-    mutationId: 'committed',
-    revision: 5,
-  });
+  await expect(transport.read(context, signal)).resolves.toMatchObject({ revision: 5 });
   stub.respondNext(receipt('discarded-response', 8));
   stub.failNext(new Error('discarded-error'));
 
@@ -148,10 +135,6 @@ it('reset discards queued responses, failures, calls and recorded commitments', 
   );
 
   expect(stub.calls).toEqual([]);
-  await expect(transport.lookup(context, 'committed', signal)).resolves.toEqual({
-    status: 'unknown',
-    mutationId: 'committed',
-  });
   await expect(transport.read(context, signal)).resolves.toMatchObject({
     revision: 0,
     data: { accounts: [{ name: 'Reset' }] },

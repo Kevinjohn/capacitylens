@@ -21,7 +21,7 @@ apps/backend/
   app/controllers/        HTTP contracts: one controller per route family
   app/validators/         Vine schemas; the only runtime schema for request bodies
   app/services/
-    planning.ts           planning facade: read, archive read, mutate, lookup
+    planning.ts           planning facade: read, archive read, mutate
     planning/             planning internals: execute, writer, restoration, entity policy
     planning_revision.ts  company planning revision (shared by every product writer)
     state_repository.ts   reads one company's rows on a given transaction
@@ -160,12 +160,9 @@ The forwarded codes are listed in `planningMutationErrorCodes` in
 `apps/backend/app/validators/planning/contracts.ts`; a `PlanningOperationError` states one of them
 or none, and is sent with its own status.
 
-A request that times out or loses its response is not a failure. The browser marks it
-`uncertain`, sends nothing new, and asks
-`GET /api/accounts/:accountId/planning/mutations/:mutationId`. The answer is `committed` (with
-the revision and any restoration handle) or `unknown`. The lookup is scoped to the same company
-and actor, so another member always sees `unknown`. `unknown` keeps the write uncertain and the
-editor locked until a later lookup proves commitment or the context changes.
+A request that times out or loses its response may or may not have committed. The browser sends
+nothing new: it refetches, shows the server's state, clears undo history and records an
+`unconfirmed` outcome, which asks the person to check that their change is there.
 
 ## Planning internals other modules import
 
@@ -185,7 +182,7 @@ product writer advances the revision, and export, import and anonymisation read 
 
 One `createPlanningCacheController` in
 `apps/frontend/src/data/planning/planningCacheController.ts` owns the confirmed planning cache,
-page-local Undo/Redo history (50 entries) and the single pending or uncertain write. The store
+page-local Undo/Redo history (50 entries) and the single pending write. The store
 wires it in `apps/frontend/src/store/slices/planningSessionSlice.ts`; nothing else writes planning rows
 in the browser, and nothing is persisted.
 
@@ -198,7 +195,7 @@ in the browser, and nothing is persisted.
   `apps/frontend/src/api/planningContracts.ts`. They are type aliases only; the backend Vine
   validators are the only runtime schema.
 
-Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused`, `uncertain` and `error`.
+Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused` and `error`.
 
 | From | Event | To |
 | --- | --- | --- |
@@ -212,11 +209,7 @@ Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused`, `uncer
 | pending | `STALE_REVISION` or other 409 | `refused`, then refetch |
 | pending | `NO_CHANGE`, `VALIDATION_ERROR`, 403 | `refused`; rows and history kept |
 | pending | `RESTORATION_CONFIRMATION_REQUIRED` | dialog; one resend with the count, or back on cancel |
-| pending | network failure, 408, 5xx or invalid receipt | `uncertain` |
-| pending | `MUTATION_ID_REUSED` | `uncertain`, then immediate lookup |
-| uncertain | lookup `committed` | `pending`, then read, then `ready` |
-| uncertain | lookup `unknown` or lookup fails | `uncertain` |
-| uncertain | canonical read fails | `error`; the write stays `uncertain` and writes stay locked until a lookup proves the commit or the context changes |
+| pending | network failure, 408, 5xx, invalid receipt or `MUTATION_ID_REUSED` | `loading` with an `unconfirmed` outcome and history cleared, then read; `ready`, or `error` if the read fails |
 | ready, refused | Undo or Redo with an eligible entry | `pending` with a fresh `mutationId` |
 
 These transitions are pinned in `apps/frontend/src/data/planning/planningCacheController.test.ts`,
@@ -228,7 +221,6 @@ These transitions are pinned in `apps/frontend/src/data/planning/planningCacheCo
 `apps/frontend/src/data/planning/planningCacheController.historyTransitions.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.readTransitions.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.reconciliation.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.reconciliationTransitions.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.uncertainWrites.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.writeTransitions.test.ts`,
 `apps/frontend/src/data/planning/restorationConfirmation.test.ts`,
@@ -254,7 +246,6 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Closure intents | `…/closures`; time-off screen | `app/services/planning/execute.ts` | `withActor` in `mutatePlanning` | As allocation | `projectionChanges` | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning_operations.spec.ts` |
 | Settings intent | `PATCH …/settings`; settings | `app/services/planning/writer.ts` `updateSettings` | `withActor` in `mutatePlanning` | As allocation; capacity overview access needs Owner or Admin | `projectionChanges` | `AUTHORIZATION_DENIED`, `NO_CHANGE`, codeless 409 frozen setting | `tests/functional/planning/settings_frozen.spec.ts`, `tests/functional/planning_operations.spec.ts` |
 | Restore group | `POST …/planning/restore-group`; Undo | `app/services/planning/restoration.ts` `restoreGroup` | `withActor`; group consumption and reinsertion share it | As allocation, plus same actor and session as the deleting one | `projectionChanges` and the consumed handle | `AUTHORIZATION_DENIED`, `STALE_REVISION`, codeless 409 | `tests/functional/planning/restoration_allocations.spec.ts`, `tests/functional/planning/restoration_sessions.spec.ts`, `tests/functional/planning/retained_restoration.spec.ts` |
-| Mutation lookup | `GET …/planning/mutations/:mutationId` | `app/services/planning.ts` `lookupPlanningMutation` | Read-only `withActor` | `currentAuthority` read; marker scoped to company and actor | `committed` or `unknown` only | `VALIDATION_ERROR`, `ACCOUNT_MEMBERSHIP_LOST` | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/transactions.spec.ts` |
 | Sign-in, session, revocation | `/api/auth/*`; sign-in and reset screens | Account Kit; `app/services/auth/password_sign_in.ts`, `app/controllers/credential_controller.ts` | Kit `login`, `logout`, password change and reset transactions; tracking in `withActor` | Kit session, revision and registry check under the account lock on every request | `app/services/auth/user_projection.ts` | 401, 429, `SIGN_UP_CLOSED`, `CURRENT_PASSWORD_INCORRECT`, `INVALID_TOKEN` | `tests/functional/auth/password_sessions.spec.ts`, `tests/functional/auth/recovery.spec.ts` |
 | Admission | `/api/admission*`; limited screens | Kit `AccountAdmission`; `app/services/account_kit/policy.ts`, `app/services/membership/admission_membership.ts` | Kit admission transaction; completion in `withActor` | Live role holds `invitations:manage`; admission rechecked in `withActor` on the next request | `decision` in `/api/auth/me` and `/api/admission` | `ADMISSION_REQUIRED`, `COMPANY_SETUP_REQUIRED`, `MEMBERSHIP_SUSPENDED` | `tests/functional/auth/admission.spec.ts` |
 | Invitations | `/api/invites*`; Team & access, invite screen | Kit invitations; `app/controllers/invitations_controller.ts` | Kit transactions; acceptance inserts the membership inside the Kit's; mail after commit | `assertCompanyAction` `invitations:manage`, re-checked by Kit callbacks; Owner never invitable | Controller `projection`; `no-store` on token routes | `MAIL_UNAVAILABLE`, `INVALID_TOKEN`, `IDENTITY_AUTHORITY_DENIED`, 202 committed | `tests/functional/auth/invitations.spec.ts` |
@@ -289,8 +280,8 @@ Backend test paths are relative to `apps/backend/`.
   `tests/functional/transfer_apply.spec.ts`, `tests/functional/anonymise.spec.ts`,
   `tests/functional/auth/first_company_setup.spec.ts`,
   `tests/functional/transaction_faults.spec.ts` (the transaction primitive itself).
-- **Idempotency and lookup.** `tests/functional/planning/http_contract.spec.ts` (stale and duplicate
-  identities never commit again; lookup is actor and company scoped),
+- **Idempotency.** `tests/functional/planning/http_contract.spec.ts` (stale and duplicate
+  identities never commit again),
   `tests/functional/planning/restoration_sessions.spec.ts` (late duplicates never re-apply),
   `tests/functional/membership/member_administration.spec.ts` (command receipt replay).
 - **Projection and confidentiality.** `tests/unit/state_transformer.spec.ts`,

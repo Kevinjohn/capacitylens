@@ -120,11 +120,6 @@ db.exec('COMMIT')`,
     assert.deepEqual(await readState(accountId, true), before);
     assert.lengthOf(await db.from('company_planning_revisions').where('account_id', accountId), 0);
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
-    const lookup = await session(
-      client.get(`${planningUrl}/mutations/${mutationId}`),
-      cookie
-    ).send();
-    assert.deepEqual(lookup.body(), { status: 'unknown', mutationId });
   });
 
   test('competing drafts at one revision permit one commit and never rebase the other', async ({
@@ -169,11 +164,6 @@ db.exec('COMMIT')`,
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const mutationId = randomUUID();
-    const lookup = await session(
-      client.get(`${planningUrl}/mutations/${mutationId}`),
-      cookie
-    ).send();
-    assert.deepEqual(lookup.body(), { status: 'unknown', mutationId });
     const allocation = newAllocation(await readState(accountId, true));
     const input = {
       mutationId,
@@ -192,11 +182,10 @@ db.exec('COMMIT')`,
       replies.find((reply) => reply.status() === 409)!.body().code,
       'MUTATION_ID_REUSED'
     );
-    const committed = await session(
-      client.get(`${planningUrl}/mutations/${mutationId}`),
-      cookie
-    ).send();
-    assert.deepEqual(committed.body(), { status: 'committed', mutationId, revision: 1 });
+    assert.lengthOf(
+      await db.from('planning_mutations').where({ account_id: accountId, mutation_id: mutationId }),
+      1
+    );
     assert.lengthOf(await db.from('allocations').where('id', allocation.id), 1);
   });
 

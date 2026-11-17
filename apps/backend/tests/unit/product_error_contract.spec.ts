@@ -72,7 +72,7 @@ test.group('product error adapters', () => {
         if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
         else {
           try {
-            await new PlanningController().lookup(ctx);
+            await new PlanningController().show(ctx);
           } catch (unhandled) {
             await new HttpExceptionHandler().handle(unhandled, ctx);
           }
@@ -95,7 +95,7 @@ test.group('product error adapters', () => {
       if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
       else {
         try {
-          await new PlanningController().lookup(ctx);
+          await new PlanningController().show(ctx);
         } catch (unhandled) {
           await new HttpExceptionHandler().handle(unhandled, ctx);
         }
@@ -119,7 +119,7 @@ test.group('product error adapters', () => {
     };
     const viaPlanning = async (error: unknown) => {
       const { ctx, result } = context(error);
-      await new PlanningController().lookup(ctx);
+      await new PlanningController().show(ctx);
       return result.body;
     };
     assert.deepEqual(await viaHandler(identity), {
@@ -203,18 +203,18 @@ test.group('product error adapters', () => {
     assert,
   }) => {
     const conflict = context(new PlanningOperationError(409, null, 'The record is in use.'));
-    await new PlanningController().lookup(conflict.ctx);
+    await new PlanningController().show(conflict.ctx);
     assert.equal(conflict.result.status, 409);
     assert.deepEqual(conflict.result.body, { error: 'The record is in use.' });
 
     // No code is inferred from the status, and a stated code does not rewrite the status.
     const uncoded = context(new PlanningOperationError(400, null, 'Nothing to restore.'));
-    await new PlanningController().lookup(uncoded.ctx);
+    await new PlanningController().show(uncoded.ctx);
     assert.equal(uncoded.result.status, 400);
     assert.deepEqual(uncoded.result.body, { error: 'Nothing to restore.' });
 
     const stale = context(new PlanningOperationError(409, 'STALE_REVISION', 'Reload first.'));
-    await new PlanningController().lookup(stale.ctx);
+    await new PlanningController().show(stale.ctx);
     assert.equal(stale.result.status, 409);
     assert.deepEqual(stale.result.body, { error: 'Reload first.', code: 'STALE_REVISION' });
   });
@@ -224,7 +224,7 @@ test.group('product error adapters', () => {
     for (const stale of [false, true]) {
       const error = new RestorationConfirmationError(3, stale);
       const { ctx, result } = context(error);
-      await new PlanningController().lookup(ctx);
+      await new PlanningController().show(ctx);
       assert.equal(result.status, 409);
       assert.deepEqual(result.body, {
         error: error.message,

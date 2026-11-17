@@ -185,7 +185,9 @@ function GatedMain({
           <AlertDescription>
             {planningProblem === 'refused'
               ? m.app_planning_refused()
-              : m.app_planning_unavailable()}
+              : planningProblem === 'unconfirmed'
+                ? m.app_planning_unconfirmed()
+                : m.app_planning_unavailable()}
           </AlertDescription>
         </Alert>
       )}

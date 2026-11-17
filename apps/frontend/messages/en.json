@@ -784,6 +784,7 @@
   "app_loading": "Loading…",
   "app_planning_refused": "That schedule change was refused, so it wasn’t saved.",
   "app_planning_unavailable": "The schedule couldn’t be loaded from the server. Reload to try again.",
+  "app_planning_unconfirmed": "We couldn’t confirm that your last schedule change was saved. The schedule now shows what the server has, so check your change is there before you try again.",
   "data_err_invalid_json": "Could not import that file — it is not valid {app} JSON.",
   "data_no_records": "No records imported{why}.",
   "data_imported_server_one": "Imported {count} record{skipped}.",

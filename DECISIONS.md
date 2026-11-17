@@ -100,8 +100,9 @@ This is the short, present-tense record of decisions that constrain future work.
   planning projection or membership authority; session activity, mail and configuration edits that
   change neither do not advance it.
 - A planning mutation is identified by a client-minted UUID recorded with the audit row in the
-  same transaction. A later lookup answers "committed at revision N" or "unknown"; absence while the
-  request may still be executing is not failure. Reusing a committed identity returns 409.
+  same transaction; reusing a committed identity returns 409. When a write's reply is lost, the
+  browser refetches, shows the server's state, clears undo history and asks the person to check
+  that their change is there. It never replays the write.
 - Undo and redo are typed inverse operations held page-locally in the browser. Deleted planning
   rows remain in their own tables under package-managed soft deletion, bound to a session, actor
   and company through the recovery ledger. Restore is one atomic operation under current authority;

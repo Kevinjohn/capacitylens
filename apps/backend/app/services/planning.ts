@@ -20,19 +20,15 @@ import {
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import {
-  committedMutationRevision,
   countRestorableItems,
   discardRestorationGroups,
   isMutationCommitted,
   recordCommittedMutation,
   RestorationConfirmationError,
-  unconsumedGroupId,
 } from '#services/planning/restoration';
-import { mutationLookupValidator } from '#validators/planning/lookup';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
-  PlanningMutationLookup,
 } from '#validators/planning/contracts';
 
 export type { PlanningAuthority };
@@ -43,14 +39,6 @@ export interface PlanningMutationOptions {
   actor: CurrentActor;
   accountId: string;
   input: PlanningMutationInput;
-}
-
-/** One mutation-identity lookup in the caller's transaction, by its verified actor. */
-export interface PlanningLookupOptions {
-  trx: TransactionClientContract;
-  actor: CurrentActor;
-  accountId: string;
-  mutationId: string;
 }
 
 export interface PlanningSnapshot {
@@ -190,33 +178,4 @@ export async function mutatePlanning({
       : { mode: 'patch', history: 'retain', changed },
     ...(archived ? { archived } : {}),
   };
-}
-
-/** An absent marker remains unknown; lookup never returns a stored response or hidden before-image. */
-export async function lookupPlanningMutation({
-  trx,
-  actor,
-  accountId,
-  mutationId,
-}: PlanningLookupOptions): Promise<PlanningMutationLookup> {
-  const { authority } = await resolvePlanningAuthority(trx, accountId);
-  const revision = await committedMutationRevision(trx, accountId, authority.actorId, mutationId);
-  if (revision === undefined) return { status: 'unknown', mutationId };
-  const restorationGroupId = await unconsumedGroupId(trx, accountId, {
-    actorId: authority.actorId,
-    sessionId: actor.sessionId,
-    mutationId,
-  });
-  return {
-    status: 'committed',
-    mutationId,
-    revision,
-    ...(restorationGroupId ? { restorationGroupId } : {}),
-  };
-}
-
-/** Validate a URL mutation identity without adding a query parameter to the generated GET type. */
-export async function validatePlanningMutationId(mutationId: unknown) {
-  const input = await mutationLookupValidator.validate({ mutationId });
-  return input.mutationId;
 }

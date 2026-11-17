@@ -62,11 +62,6 @@ export interface PlanningMutationSuccess {
   archived?: ArchiveImpact;
 }
 
-/** A commitment lookup never returns a prior response or a before-image. */
-export type PlanningMutationLookup =
-  | { status: 'committed'; mutationId: string; revision: number; restorationGroupId?: string }
-  | { status: 'unknown'; mutationId: string };
-
 /** Product planning refusal codes; Kit codes retain their own contract. */
 export const planningMutationErrorCodes = [
   'VALIDATION_ERROR',

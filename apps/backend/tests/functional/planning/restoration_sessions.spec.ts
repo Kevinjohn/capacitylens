@@ -5,7 +5,6 @@ import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   accountId,
-  planningUrl,
   configureAuth,
   resetPlanningFixture,
   session,
@@ -13,7 +12,6 @@ import {
   signInAgain,
 } from './helpers.js';
 import {
-  note,
   deleteOne,
   restore,
   createAllocations,
@@ -107,7 +105,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.isUndefined(await stored(id!));
   });
 
-  test('lost-response lookup returns the handle only to its session and late duplicates never re-apply', async ({
+  test('late duplicates of a delete and a restore never re-apply', async ({
     client,
     assert,
     cleanup,
@@ -119,26 +117,6 @@ test.group('session-bound allocation restoration', (suite) => {
     const deleted = await deleteOne(client, owner.cookie, id!, 1, deleteId);
     deleted.assertStatus(200);
     const groupId = deleted.body().restoration.replacementGroupId;
-    const lookup = () =>
-      session(client.get(`${planningUrl}/mutations/${deleteId}`), owner.cookie).send();
-    const committed = { status: 'committed', mutationId: deleteId, revision: 2 };
-    for (const attempt of [await lookup(), await lookup()]) {
-      attempt.assertStatus(200);
-      assert.deepEqual(attempt.body(), { ...committed, restorationGroupId: groupId });
-      assert.notInclude(attempt.text(), note);
-    }
-    const otherSession = await signInAgain(client, owner.email);
-    const sameActor = await session(
-      client.get(`${planningUrl}/mutations/${deleteId}`),
-      otherSession
-    ).send();
-    assert.deepEqual(sameActor.body(), committed);
-    const editor = await signIn(client, 'editor');
-    const otherActor = await session(
-      client.get(`${planningUrl}/mutations/${deleteId}`),
-      editor.cookie
-    ).send();
-    assert.deepEqual(otherActor.body(), { status: 'unknown', mutationId: deleteId });
 
     const lateDelete = await deleteOne(client, owner.cookie, id!, 1, deleteId);
     lateDelete.assertStatus(409);
@@ -148,8 +126,6 @@ test.group('session-bound allocation restoration', (suite) => {
     const restoreId = randomUUID();
     const restored = await restore(client, owner.cookie, groupId, 2, restoreId);
     restored.assertStatus(200);
-    const consumed = await lookup();
-    assert.deepEqual(consumed.body(), committed);
     const lateRestore = await restore(client, owner.cookie, groupId, 2, restoreId);
     lateRestore.assertStatus(409);
     assert.equal(lateRestore.body().code, 'MUTATION_ID_REUSED');

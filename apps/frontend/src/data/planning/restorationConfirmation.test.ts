@@ -45,7 +45,6 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
           accounts: [makeAccount({ id: context.companyId })],
         },
       }),
-      lookup: vi.fn(),
     },
     ...(confirm ? { confirmRestorationCleanup: confirm } : {}),
   });

@@ -395,18 +395,5 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
         throw planningError(error);
       }
     },
-    async lookup(context, mutationId, signal) {
-      try {
-        const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
-        return requireReply(
-          await scopedClient.request('api.planning.lookup', {
-            params: { accountId: context.companyId, mutationId },
-            signal,
-          }),
-        );
-      } catch (error) {
-        throw planningError(error);
-      }
-    },
   };
 }

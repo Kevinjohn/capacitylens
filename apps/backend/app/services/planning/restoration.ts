@@ -367,41 +367,6 @@ export async function recordCommittedMutation(
   });
 }
 
-/** The revision an actor's committed mutation produced, or undefined when none is recorded. */
-export async function committedMutationRevision(
-  trx: TransactionClientContract,
-  accountId: string,
-  actorId: string,
-  mutationId: string
-) {
-  const marker = await trx
-    .from('planning_mutations')
-    .where({ account_id: accountId, actor_id: actorId, mutation_id: mutationId })
-    .select('revision')
-    .first();
-  return marker ? Number(marker.revision) : undefined;
-}
-
-/** Lookup exposes only the caller's own unconsumed handle for the original mutation. */
-export async function unconsumedGroupId(
-  trx: TransactionClientContract,
-  accountId: string,
-  identity: RestorationIdentity
-) {
-  const group = await trx
-    .from('deleted_groups')
-    .where({
-      account_id: accountId,
-      actor_id: identity.actorId,
-      session_id: identity.sessionId,
-      mutation_id: identity.mutationId,
-    })
-    .whereNull('consumed_at')
-    .select('group_id')
-    .first();
-  return group ? String(group.group_id) : undefined;
-}
-
 /**
  * Counts deleted records across every pending company group whose sign-in is still live;
  * surviving-child links are not items. An expired sign-in's groups wait only for pruning.

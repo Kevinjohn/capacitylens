@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla';
-import { expect, vi } from 'vitest';
+import { vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Account, AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
@@ -84,21 +84,4 @@ export function deferred<T>() {
     reject = no;
   });
   return { promise, resolve, reject };
-}
-
-export async function uncertainHarness() {
-  const execute = vi
-    .fn<PlanningTransport['execute']>()
-    .mockRejectedValue(new TypeError('response lost'));
-  const read = vi
-    .fn<PlanningTransport['read']>()
-    .mockResolvedValue({ revision: 2, canWrite: true, data: canonicalData(), accessKey: 'owner' });
-  const lookup = vi.fn<PlanningTransport['lookup']>();
-  const h = harness({ execute, read, lookup });
-  h.controller.setContext(context);
-  await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData(), accessKey: 'owner' });
-  await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject({
-    uncertain: true,
-  });
-  return { ...h, read, lookup };
 }

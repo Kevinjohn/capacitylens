@@ -34,19 +34,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
     }
   }
-  'api.planning.lookup': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/accounts/:accountId/planning/mutations/:mutationId'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; mutationId: ParamValue }
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['lookup']>>>
-    }
-  }
   'api.planning.allocation.create': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/allocations'

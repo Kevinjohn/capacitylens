@@ -31,7 +31,7 @@ The suites cover the frontend, backend and shared workspace packages.
   backend assertions establish authenticated scheduler-write coverage. The failure case injects
   a refused response; successful writes are never mocked.
 - Planning-controller transition tests use controlled responses to check revision ordering,
-  pending and uncertain outcomes (including HTTP 408), context invalidation, explicit server write
+  pending and unconfirmed outcomes (including HTTP 408), context invalidation, explicit server write
   authority and page-local typed history capped at 50 entries. A missing write capability rejects
   the snapshot; a read-only snapshot cannot open a writable draft or execute history. Completion results are suppressed if the initiating context changes during the
   post-commit read. Activity updates supplying a kind conservatively clear typed history because
@@ -44,13 +44,13 @@ The suites cover the frontend, backend and shared workspace packages.
   authenticated browser harness exercises the controller through real typed routes and SQLite:
   create, move, resize, reassign, duplicate, repeat, grouped creation, archive/unarchive, update
   Undo/Redo, stale-edit refusal, lost-response
-  commitment lookup and sign-out cache clearing. The schedule uses the controller for bookings,
+  recovery by refetch and sign-out cache clearing. The schedule uses the controller for bookings,
   and Undo/Redo share page-local history for eligible acknowledged typed planning changes. History is
   cleared on context changes and does not cover imports or irreversible privacy actions. Server
   tests cover session-bound deletion and restoration of bookings,
   time off, closures, phases and disciplines through the typed routes. Deleted rows stay hidden
   from reads and exports. Only the deleting session can restore each group once, with the original
-  IDs and timestamps. Tests cover fresh Redo handles, uncertain-response lookup, surviving-child
+  IDs and timestamps. Tests cover fresh Redo handles, surviving-child
   links, failed-transaction rollback and cleanup after sign-out, revocation, expiry, credential
   changes, privacy changes, anonymisation and import. Old groups cannot affect restored,
   replacement or newer-deleted rows. Catalogue and resource screens keep their archive controls.

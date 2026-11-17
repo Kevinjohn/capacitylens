@@ -75,18 +75,17 @@ export function setup(options: Options = {}) {
     server.revision = execution.baseRevision + 1;
     return receipt(execution.mutationId, server.revision);
   });
-  const lookup = vi.fn<PlanningTransport['lookup']>();
   let id = 0;
   const controller = createPlanningCacheController({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
-    transport: { read, execute, lookup },
+    transport: { read, execute },
     createMutationId: () => `mutation-${++id}`,
     ...options,
   });
   const state = () => store.getState();
-  return { store, state, server, read, execute, lookup, controller };
+  return { store, state, server, read, execute, controller };
 }
 
 export async function ready(options: Options = {}) {
@@ -102,15 +101,5 @@ export async function readyWithHistory(options: Options = {}) {
   await h.controller.execute(h.controller.begin(), update, inverse);
   expect(h.state().planning.history.past).toHaveLength(1);
   expect(h.state().planning.revision).toBe(2);
-  return h;
-}
-
-export async function uncertain() {
-  const h = await ready();
-  h.execute.mockRejectedValueOnce(new TypeError('response lost'));
-  await expect(h.controller.execute(h.controller.begin(), update, inverse)).rejects.toMatchObject({
-    uncertain: true,
-  });
-  expect(h.state().planning.status).toBe('uncertain');
   return h;
 }
