@@ -309,7 +309,11 @@ describe('beta import and export', () => {
       accountId,
     });
     expect(requests[1]?.body.intent).toEqual({ baseRevision: 7, document: incoming });
-    expect(requests[2]?.body).toMatchObject({ accountId, baseRevision: 7, confirmationId: 'proof-7' });
+    expect(requests[2]?.body).toMatchObject({
+      accountId,
+      baseRevision: 7,
+      confirmationId: 'proof-7',
+    });
     expect(requests[2]?.body.document).toEqual(incoming);
   });
 

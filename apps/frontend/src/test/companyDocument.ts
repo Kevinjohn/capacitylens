@@ -1,4 +1,7 @@
-import { BETA_EXPORT_FORMAT, BETA_EXPORT_SCHEMA_VERSION } from '@capacitylens/shared/data/betaTransfer';
+import {
+  BETA_EXPORT_FORMAT,
+  BETA_EXPORT_SCHEMA_VERSION,
+} from '@capacitylens/shared/data/betaTransfer';
 import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
