@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import env from '#start/env';
 import HttpExceptionHandler from '#exceptions/handler';
 import { RefusalError } from '#exceptions/refusal_error';
-import { AdmissionError } from '#services/admission/errors';
+import { AdmissionError } from '#exceptions/admission_error';
 import { MembershipError } from '#services/membership/member_mutations';
 import { OwnershipTransferError } from '#services/membership/ownership_transfer';
 import { isMailConfigured } from '#services/mail_delivery';

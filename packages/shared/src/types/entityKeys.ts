@@ -1,4 +1,4 @@
-import type { AppData } from './entities.js';
+import type { AppData } from './entityTypes.js';
 
 /** Fixed capacity of a resource weekday marked as a full day. */
 export const FULL_DAY_HOURS = 8;

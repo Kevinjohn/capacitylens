@@ -12,8 +12,7 @@ import {
   isoTimestampColumn,
   jsonColumn,
 } from '@kevinjohn/adonisjs-lucid-checked-columns';
-
-const isWeekday = isOneOf([0, 1, 2, 3, 4, 5, 6] as const);
+import { isWeekday } from '#models/scalar_column';
 
 export default class Account extends AccountSchema {
   @column(jsonColumn('accounts', 'week_starts_on', isOneOf([0, 1] as const)))
