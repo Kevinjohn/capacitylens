@@ -80,7 +80,7 @@ function readGestureCapacitySource(): GestureCapacitySource {
   };
 }
 
-// Called once the write has settled, so the store holds the figures of the read that followed it.
+// Reads the figures the store holds now; the caller checks they come from a read after the write.
 function readCapacityAnnouncement(resourceId: ID): string {
   const { data, planning, ui } = useStore.getState();
   return buildCapacityAnnouncement({
@@ -373,7 +373,11 @@ async function saveKeyboardGesture(
         'warning',
       );
     }
-    announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
+    // A cleared pending write means a read at or after its revision was accepted. Otherwise the
+    // follow-up read failed or was overtaken, the figures may predate the write, and nothing is said.
+    if (useStore.getState().planning.pending === null) {
+      announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
+    }
     scheduleFocus(bar.allocation.id, activeAccountId);
   } catch (error) {
     // Surface a refused gesture commit so preview feedback cannot imply that a rejected move saved.
