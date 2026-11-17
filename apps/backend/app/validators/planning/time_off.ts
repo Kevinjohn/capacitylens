@@ -1,27 +1,20 @@
 import vine from '@vinejs/vine';
+import { TIME_OFF_REPEAT_POLICY } from '@capacitylens/shared/lib/repeatingDates';
 import {
   calendarDate,
   dateRange,
   entityId,
   meta,
   nullableUserText,
+  occurrenceIdsExcludeFirst,
   operationMatches,
+  repeatRange,
   requireChanges,
   uniqueArrayIds,
   uuid,
 } from '#validators/planning/fields';
 
 const timeOffCreate = vine
-  .object({
-    id: uuid(),
-    resourceId: entityId(),
-    startDate: calendarDate(),
-    endDate: calendarDate(),
-    type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const),
-    note: nullableUserText(true).optional(),
-  })
-  .use(dateRange());
-const timeOffOccurrence = vine
   .object({
     id: uuid(),
     resourceId: entityId(),
@@ -42,9 +35,15 @@ export const timeOffIntent = vine.union([
     vine
       .object({
         operation: vine.literal('timeOff.repeat'),
-        entries: vine.array(timeOffOccurrence).minLength(1),
+        timeOff: timeOffCreate,
+        repeat: repeatRange(),
+        occurrenceIds: vine
+          .array(uuid())
+          .minLength(1)
+          .maxLength(TIME_OFF_REPEAT_POLICY.maxOccurrences - 1),
       })
-      .use(uniqueArrayIds('entries'))
+      .use(uniqueArrayIds('occurrenceIds'))
+      .use(occurrenceIdsExcludeFirst('timeOff'))
   ),
   vine.union.if(
     (value) => operationMatches(value, 'timeOff.deleteGroup'),

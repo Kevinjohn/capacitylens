@@ -154,7 +154,7 @@ function useCanEditTimeOffNote(): boolean {
 export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormProps) {
   const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addTimeOff);
-  const addMany = useStore((state) => state.addTimeOffs);
+  const addRepeated = useStore((state) => state.addRepeatedTimeOff);
   const update = useStore((state) => state.updateTimeOff);
   const placeholdersEnabled = useStore((state) =>
     hasPlaceholdersEnabled(state.data, state.activeAccountId),
@@ -202,7 +202,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
       canEditNote,
       fail,
       add,
-      addMany,
+      addRepeated,
       update,
       repeat: repeatState.repeat,
       repeatUntil: repeatState.repeatUntil,

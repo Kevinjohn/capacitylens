@@ -57,15 +57,15 @@ test.group('typed bulk writer tenant isolation', (group) => {
       path: 'time-off/repeat',
       intent: (data: AppData) => ({
         operation: 'timeOff.repeat',
-        entries: [
-          {
-            id: randomUUID(),
-            resourceId: data.timeOff[0]!.resourceId,
-            startDate: '2026-11-09',
-            endDate: '2026-11-09',
-            type: 'holiday',
-          },
-        ],
+        timeOff: {
+          id: randomUUID(),
+          resourceId: data.timeOff[0]!.resourceId,
+          startDate: '2026-11-09',
+          endDate: '2026-11-09',
+          type: 'holiday',
+        },
+        repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
+        occurrenceIds: [randomUUID()],
       }),
     },
   ] as const) {

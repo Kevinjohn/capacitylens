@@ -29,7 +29,7 @@ import {
   buildTimeOffUpdate,
 } from '@/data/planning/planningCommands';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
-import type { CreateResult, Draft, Patch, StoreState } from './types';
+import type { CreateResult, Draft, Patch, RepeatRange, StoreState } from './types';
 import type { StoreInternals } from './storeInternal';
 
 const restoreFromReceipt = { operation: 'planning.restoreGroup', restorationGroupId: '' } as const;
@@ -218,33 +218,34 @@ export function createTypedPlanningActions(
       );
     },
     addTimeOff: createTimeOff,
-    addTimeOffs: async (inputs: readonly Draft<TimeOff>[]): Promise<CreateResult<TimeOff[]>> => {
-      if (inputs.length === 0) throw new Error('At least one time-off entry is required.');
+    addRepeatedTimeOff: async (
+      input: Draft<TimeOff>,
+      repeat: RepeatRange,
+      count: number,
+    ): Promise<CreateResult<TimeOff[]>> => {
+      if (!Number.isSafeInteger(count) || count < 2) {
+        throw new Error('A repeat needs at least two entries.');
+      }
       const companyId = accountId();
       if (blocked()) return { kind: 'blocked' };
-      const commands = inputs.map((fields) => {
-        assertResourceExists(get().data, companyId, fields.resourceId);
-        const command = buildTimeOffCreate({
-          data: get().data,
-          accountId: companyId,
-          args: { id: newId(), fields },
-        });
-        if (!command || command.intent.operation !== 'timeOff.create') {
-          throw unprepared(companyId, 'The time-off entry could not be prepared.');
-        }
-        return command.intent.timeOff;
+      assertResourceExists(get().data, companyId, input.resourceId);
+      const command = buildTimeOffCreate({
+        data: get().data,
+        accountId: companyId,
+        args: { id: newId(), fields: input },
       });
+      if (!command || command.intent.operation !== 'timeOff.create') {
+        throw unprepared(companyId, 'The time-off entry could not be prepared.');
+      }
+      const timeOff = command.intent.timeOff;
+      // Later entry ids are minted here too, so Undo can delete the whole set by id.
+      const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
+      const ids = [createdId(timeOff.id), ...occurrenceIds];
       await send({
-        intent: { operation: 'timeOff.repeat', entries: commands },
-        inverse: {
-          operation: 'timeOff.deleteGroup',
-          ids: commands.map((entry) => createdId(entry.id)),
-        },
+        intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds },
+        inverse: { operation: 'timeOff.deleteGroup', ids },
       });
-      return {
-        kind: 'created',
-        value: commands.map((entry) => created('timeOff', createdId(entry.id))),
-      };
+      return { kind: 'created', value: ids.map((id) => created('timeOff', id)) };
     },
     updateTimeOff: async (id: string, changes: Patch<TimeOff>, expectedUpdatedAt?: string) => {
       const companyId = accountId();

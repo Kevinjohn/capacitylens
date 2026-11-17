@@ -11,10 +11,11 @@ import type { ISODate, Resource, TimeOff, TimeOffType } from '@capacitylens/shar
 import { readActiveDateLocale, m } from '@/i18n';
 import type { EntitySave } from '@/hooks/useEditSubmit';
 import { resolveTimeOffRepeatPattern } from '@/lib/repeatingTimeOff';
+import type { TimeOffRepeatSelection } from '@/lib/repeatingTimeOff';
 import { parseText } from '@/lib/validation';
 import type { useStore } from '@/store/useStore';
 import type { Draft } from '@/store/useStore';
-import type { CreateResult } from '@/store/StoreEntityActions';
+import type { CreateResult, RepeatRange } from '@/store/StoreEntityActions';
 import type { TimeOffRepeatChoice } from './useTimeOffRepeat';
 
 type Fail = (field: string | null, message: string) => void;
@@ -31,7 +32,7 @@ export interface SaveTimeOffOptions {
   canEditNote: boolean;
   fail: Fail;
   add: ReturnType<typeof useStore.getState>['addTimeOff'];
-  addMany: ReturnType<typeof useStore.getState>['addTimeOffs'];
+  addRepeated: ReturnType<typeof useStore.getState>['addRepeatedTimeOff'];
   update: ReturnType<typeof useStore.getState>['updateTimeOff'];
   repeat: TimeOffRepeatChoice;
   repeatUntil: ISODate | '';
@@ -66,20 +67,26 @@ function parseTimeOffDraft(options: SaveTimeOffOptions) {
   return { basePatch: { resourceId, startDate, endDate, type }, cleanNote };
 }
 
+/** A repeat the form accepted, with the number of entries it makes. */
+interface AcceptedRepeat {
+  range: RepeatRange;
+  count: number;
+}
+
 async function persistNewTimeOff(options: {
   baseDraft: Draft<TimeOff>;
-  repeatedDrafts: Draft<TimeOff>[];
+  repeated: AcceptedRepeat | null;
   add: SaveTimeOffOptions['add'];
-  addMany: SaveTimeOffOptions['addMany'];
+  addRepeated: SaveTimeOffOptions['addRepeated'];
   acceptedSubmission: SaveTimeOffOptions['acceptedSubmission'];
-  repeat: TimeOffRepeatChoice;
 }): Promise<CreateResult<unknown>> {
   if (options.acceptedSubmission.current) return { kind: 'blocked' };
   options.acceptedSubmission.current = true;
   try {
-    const result = await (options.repeat === 'none'
-      ? options.add(options.baseDraft)
-      : options.addMany(options.repeatedDrafts));
+    const { repeated } = options;
+    const result = await (repeated
+      ? options.addRepeated(options.baseDraft, repeated.range, repeated.count)
+      : options.add(options.baseDraft));
     if (result.kind === 'blocked') options.acceptedSubmission.current = false;
     return result;
   } catch (error) {
@@ -89,11 +96,12 @@ async function persistNewTimeOff(options: {
   }
 }
 
-function buildTimeOffDraftsForSave(
+/** The repeat to send and its entry count, or `null` after reporting a field error. The count
+ * comes from the shared projection the server also runs; the server refuses a different count. */
+function acceptRepeat(
   baseDraft: Draft<TimeOff>,
-  options: Pick<SaveTimeOffOptions, 'repeat' | 'repeatUntil' | 'fail'>,
-) {
-  if (options.repeat === 'none') return [baseDraft];
+  options: Pick<SaveTimeOffOptions, 'repeatUntil' | 'fail'> & { repeat: TimeOffRepeatSelection },
+): AcceptedRepeat | null {
   if (!isValidISODate(options.repeatUntil)) {
     options.fail('repeatUntil', m.form_timeoff_err_repeat_until_required());
     return null;
@@ -103,12 +111,13 @@ function buildTimeOffDraftsForSave(
     options.fail('repeatUntil', m.form_timeoff_err_repeat_until_after_max({ max: maximum }));
     return null;
   }
+  const range = {
+    pattern: resolveTimeOffRepeatPattern(options.repeat),
+    until: options.repeatUntil,
+  };
   try {
-    return buildRepeatedTimeOffDrafts(
-      baseDraft,
-      options.repeatUntil,
-      resolveTimeOffRepeatPattern(options.repeat),
-    ).drafts;
+    const { drafts } = buildRepeatedTimeOffDrafts(baseDraft, range.until, range.pattern);
+    return { range, count: drafts.length };
   } catch (error) {
     // Route repeat-generation failures to the appropriate form field rather than letting them escape submit.
     return resolveRepeatFailure(baseDraft.startDate, error, options.fail);
@@ -150,7 +159,9 @@ export function prepareTimeOffSave(options: SaveTimeOffOptions): EntitySave | nu
     return () => options.update(timeOff.id, patch, timeOff.updatedAt);
   }
   const baseDraft = { ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) };
-  const repeatedDrafts = buildTimeOffDraftsForSave(baseDraft, options);
-  if (!repeatedDrafts) return null;
-  return () => persistNewTimeOff({ ...options, baseDraft, repeatedDrafts });
+  const { repeat } = options;
+  if (repeat === 'none') return () => persistNewTimeOff({ ...options, baseDraft, repeated: null });
+  const repeated = acceptRepeat(baseDraft, { ...options, repeat });
+  if (!repeated) return null;
+  return () => persistNewTimeOff({ ...options, baseDraft, repeated });
 }

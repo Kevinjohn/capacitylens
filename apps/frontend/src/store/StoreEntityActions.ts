@@ -16,7 +16,7 @@ import type {
 } from '@capacitylens/shared/types/entities';
 
 /** The pattern and inclusive last start of a repeated create; the server places each occurrence. */
-export interface AllocationRepeat {
+export interface RepeatRange {
   pattern: RepeatPattern;
   until: ISODate;
 }
@@ -73,7 +73,7 @@ export interface StoreEntityActions {
    * `count` occurrences from the first one and the repeat; a mismatched count or a refusal rejects. */
   addRepeatedAllocation: (
     input: Draft<Allocation>,
-    repeat: AllocationRepeat,
+    repeat: RepeatRange,
     count: number,
   ) => Promise<CreateResult<Allocation[]>>;
   /** Copy an allocation as one typed planning write, reusing the source when nothing else changed. */
@@ -91,9 +91,13 @@ export interface StoreEntityActions {
 
   /** Create a time-off entry in the active account. */
   addTimeOff: (input: Draft<TimeOff>) => Promise<CreateResult<TimeOff>>;
-  /** Create a non-empty time-off batch in one mutation/history step. Every draft is validated before
-   * anything commits; a tenancy, resource or date-range failure throws and leaves state untouched. */
-  addTimeOffs: (inputs: readonly Draft<TimeOff>[]) => Promise<CreateResult<TimeOff[]>>;
+  /** Create repeated time off as one typed planning write and one Undo step. The server places the
+   * `count` entries from the first one and the repeat; a mismatched count or a refusal rejects. */
+  addRepeatedTimeOff: (
+    input: Draft<TimeOff>,
+    repeat: RepeatRange,
+    count: number,
+  ) => Promise<CreateResult<TimeOff[]>>;
   /** Patch a time-off entry in the active account. */
   updateTimeOff: (id: ID, patch: Patch<TimeOff>, expectedUpdatedAt?: string) => Promise<void>;
   /** Delete a time-off entry from the active account. */
