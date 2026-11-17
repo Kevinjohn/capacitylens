@@ -1,6 +1,7 @@
 #!/bin/sh
 # Installs or upgrades the CapacityLens release that contains this script on a Linux systemd host.
-# It runs the manual steps in INSTALL.md.
+# It runs the manual steps in INSTALL.md. Its commands and the installed service set
+# NODE_ENV=production, which gives the server its production defaults.
 #   Install: sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh capacity.example.com owner@example.com
 #   Upgrade: sudo sh /opt/capacitylens/capacitylens-X.Y.Z/install.sh
 set -eu

@@ -453,8 +453,9 @@ export default class extends BaseSchema {
       table.timestamp('expires_at', { useTz: true }).notNullable();
       table.timestamp('created_at', { useTz: true }).notNullable();
     });
-    // Account Kit 0.1.2 requires this and the social tables below while those capabilities are
-    // disabled: credential cleanup and pruning visit them. They stay empty.
+    // This table and the `social_*` tables below stay empty while their capabilities are disabled.
+    // Account Kit still visits them in its hourly prune, account deletion and every credential
+    // change, regardless of which capabilities are enabled.
     this.schema.createTable('login_link_tokens', (table) => {
       table.increments('id');
       table
