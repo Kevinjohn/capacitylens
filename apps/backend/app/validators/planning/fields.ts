@@ -119,8 +119,10 @@ export const meta = () => ({
   mutationId: uuid(),
   baseRevision: revision(),
   confirmedRestorationCount: revision().optional(),
-  /** The edited row's `updatedAt` when its form opened; an update refuses a row that has moved on.
-   * Only the canonical `toISOString()` form passes, because the server compares it as a string. */
+  /**
+   * The edited row's `updatedAt` when its form opened; an update refuses a row that has moved on.
+   * Only the canonical `toISOString()` form passes, because the server compares it as a string.
+   */
   expectedUpdatedAt: vine
     .string()
     .use(
