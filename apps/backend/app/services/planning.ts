@@ -18,6 +18,7 @@ import {
   semanticState,
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
+import { buildSaveAdvisory } from '#services/planning/save_advisory';
 import {
   countRestorableItems,
   discardRestorationGroups,
@@ -174,5 +175,6 @@ export async function mutatePlanning({
     revision,
     restoration,
     ...(archived ? { archived } : {}),
+    ...buildSaveAdvisory(input.intent, activeOnly(after), accountId),
   };
 }

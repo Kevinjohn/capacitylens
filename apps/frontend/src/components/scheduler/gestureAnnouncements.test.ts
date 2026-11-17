@@ -1,20 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { Allocation, ISODate, Resource } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
-import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
   makeAllocation,
   makeAppData,
-  makeBar,
   makeResource,
   WORKDAYS,
 } from '@/test/fixtures';
-import { buildCapacityAnnouncement, buildCapacityGestureAdvisory } from './gestureAnnouncements';
+import { buildCapacityAnnouncement } from './gestureAnnouncements';
 import type { GestureCapacitySource } from './gestureAnnouncements';
 
-// Both builders are pure, so each case passes its resources and allocations as the capacity source
+// The builder is pure, so each case passes its resources and allocations as the capacity source
 // and compares the resulting strings with the compiled messages.
 
 const A = DEFAULT_ACCOUNT_ID;
@@ -63,8 +61,6 @@ const announce = (resourceId: string) =>
     visibleRange: { start: '2026-06-01', end: '2026-06-14' },
     blocksMode: false,
   });
-const advise = (input: Omit<Parameters<typeof buildCapacityGestureAdvisory>[0], 'source'>) =>
-  buildCapacityGestureAdvisory({ ...input, source });
 
 describe('buildCapacityAnnouncement', () => {
   it('is silent for an unknown or untracked resource', () => {
@@ -132,49 +128,5 @@ describe('buildCapacityAnnouncement', () => {
       [alloc('a', 'r1', '2026-06-22', '2026-06-23'), alloc('b', 'r1', '2026-06-22', '2026-06-23')],
     );
     expect(announce('r1')).toBe(clear);
-  });
-});
-
-describe('buildCapacityGestureAdvisory', () => {
-  const dates = { startDate: '2026-06-01', endDate: '2026-06-02' } as const;
-  const overTwo = formatCapacityAdvisory({ overDays: 2, timeOffDays: 0 }, 'toast');
-  const own = alloc('own', 'r1', '2026-06-01', '2026-06-02');
-
-  it('is silent for an unknown or untracked resource', () => {
-    seed(
-      [person('r1'), person('ext', { kind: 'external' })],
-      [
-        alloc('other', 'r1', '2026-06-01', '2026-06-02'),
-        alloc('a', 'ext', '2026-06-01', '2026-06-02'),
-      ],
-    );
-    const input = { bar: makeBar({ allocation: own }), isBlocks: false, dates, reconciledHours: 9 };
-    expect(advise({ ...input, effectiveResourceId: 'missing' })).toBe('');
-    expect(advise({ ...input, effectiveResourceId: 'ext' })).toBe('');
-  });
-
-  it('excludes the gestured bar’s own allocation from the existing load', () => {
-    seed([person('r1')], [own]);
-    const input = { effectiveResourceId: 'r1', isBlocks: false, dates, reconciledHours: 8 };
-    expect(advise({ ...input, bar: makeBar({ allocation: own }) })).toBe('');
-    expect(
-      advise({
-        ...input,
-        bar: makeBar({ allocation: { ...own, id: 'another' } }),
-      }),
-    ).toBe(overTwo);
-    expect(overTwo).not.toBe('');
-  });
-
-  it('projects blocks-mode load instead of the reconciled hours', () => {
-    seed([person('r1')], [own]);
-    const input = {
-      bar: makeBar({ allocation: { ...own, id: 'another' } }),
-      effectiveResourceId: 'r1',
-      dates,
-      reconciledHours: 2,
-    };
-    expect(advise({ ...input, isBlocks: false })).toBe(overTwo);
-    expect(advise({ ...input, isBlocks: true })).toBe('');
   });
 });

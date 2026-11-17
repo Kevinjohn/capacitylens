@@ -13,7 +13,7 @@ import type { AllocationModalProps } from './allocationModalTypes';
 
 /** Current form values consumed by pure projections and the command factory. */
 export interface AllocationModalSnapshot {
-  /** Only the tables the seed, advisory and submit projections read. */
+  /** Only the tables the seed and submit projections read. */
   data: Pick<AppData, 'activities' | 'allocations' | 'closures' | 'timeOff'>;
   create: Extract<AllocationModalProps, { create: unknown }>['create'] | undefined;
   editing: Allocation | undefined;

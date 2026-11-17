@@ -8,6 +8,7 @@ import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import {
   barFor,
   getStoredAllocation,
@@ -130,6 +131,37 @@ async function verifyWorkingDayRejection({
 }
 
 describe('AllocationBar pointer drag and reassignment interactions', () => {
+  it('appends the save reply capacity advisory to the move toast', async () => {
+    const a = await seedAllocation();
+    render(
+      <AllocationBar
+        bar={barFor(a)}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
+    queuePlanningPatch(
+      (execution) => {
+        if (execution.intent.operation !== 'allocation.update') {
+          throw new Error('Expected an update.');
+        }
+        const row = { ...a, ...execution.intent.changes } as Allocation;
+        return { removed: [], upserts: [{ entity: 'allocations', row }] };
+      },
+      { advisory: { overDays: 2, timeOffDays: 0 } },
+    );
+
+    fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 });
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
+    await settlePlanning();
+
+    expect(useStore.getState().notice?.message).toMatch(
+      /^Allocation moved — now over capacity on 2 days\. Press .+ to undo\.$/,
+    );
+  });
+
   it('does not report a successful move when permission drops to Viewer mid-drag', async () => {
     const a = await seedAllocation();
     const barUi = (role: 'editor' | 'viewer') => (
