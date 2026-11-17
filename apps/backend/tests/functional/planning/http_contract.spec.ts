@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
+import env from '#start/env';
 import { updateSettings, PlanningOperationError } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
 import {
@@ -56,6 +57,74 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(foreign.body().code, 'ACCOUNT_MEMBERSHIP_LOST');
     const anonymous = await trusted(client.get(planningUrl)).send();
     anonymous.assertStatus(401);
+  });
+
+  test('read carries capacity for the default or the requested window', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    // The default window and the horizon follow today, so the date is pinned.
+    const pinned = env.get('CAPACITYLENS_FIXED_TODAY');
+    cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
+    env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
+    const { cookie } = await signIn(client, 'viewer');
+    const data = await readState(accountId, false);
+
+    const read = await session(client.get(planningUrl), cookie).send();
+    read.assertStatus(200);
+    const { capacity } = read.body();
+    assert.deepEqual(capacity.window, { from: '2026-05-04', to: '2026-09-28' });
+    assert.deepEqual(capacity.horizon, { from: '2026-06-03', to: '2026-08-23' });
+    assert.sameMembers(
+      Object.keys(capacity.resources),
+      data.resources.filter((row) => row.kind !== 'external').map((row) => row.id)
+    );
+    const [first] = Object.values(capacity.resources) as Array<{
+      window: { over: boolean[] };
+      horizon: { over: boolean[] };
+    }>;
+    assert.lengthOf(first!.window.over, 148);
+    assert.lengthOf(first!.horizon.over, 82);
+
+    const requested = await session(
+      client.get(planningUrl).qs({ from: '2026-01-05', to: '2026-01-11' }),
+      cookie
+    ).send();
+    requested.assertStatus(200);
+    assert.deepEqual(requested.body().capacity.window, { from: '2026-01-05', to: '2026-01-11' });
+    assert.deepEqual(requested.body().capacity.horizon, capacity.horizon);
+  });
+
+  test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client, 'viewer');
+    const refusals: Array<[Record<string, string>, string]> = [
+      [{ from: '2026-06-02', to: '2026-06-01' }, 'The to date must be on or after the from date.'],
+      [{ from: '2026-01-01', to: '2027-01-02' }, 'The range may cover at most 366 days.'],
+      [{ from: '2026-06-01' }, 'Send both from and to, or neither.'],
+      [{ to: '2026-06-01' }, 'Send both from and to, or neither.'],
+      [{ from: '2026-02-30', to: '2026-03-01' }, 'The from field must be a datetime value'],
+    ];
+    for (const [query, error] of refusals) {
+      const response = await session(client.get(planningUrl).qs(query), cookie).send();
+      response.assertStatus(400);
+      assert.deepEqual(response.body(), { error, code: 'VALIDATION_ERROR' }, JSON.stringify(query));
+    }
+    const longest = await session(
+      client.get(planningUrl).qs({ from: '2026-01-01', to: '2027-01-01' }),
+      cookie
+    ).send();
+    longest.assertStatus(200);
+    const [resource] = Object.values(longest.body().capacity.resources) as Array<{
+      window: { over: boolean[] };
+    }>;
+    assert.lengthOf(resource!.window.over, 366);
   });
 
   test('create and move commit once, stale and duplicate identities never commit again', async ({

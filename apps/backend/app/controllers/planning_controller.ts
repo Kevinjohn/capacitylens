@@ -8,6 +8,7 @@ import { timeOffMutationValidator } from '#validators/planning/time_off';
 import { closureMutationValidator } from '#validators/planning/closure';
 import { settingsMutationValidator } from '#validators/planning/settings';
 import { planningMutationValidator } from '#validators/planning_operations';
+import { planningReadValidator } from '#validators/planning/read';
 import type { PlanningMutationInput } from '#validators/planning/contracts';
 import { sendRefusal } from '#services/planning/http_refusal';
 import { withActor } from '#services/auth/current_actor';
@@ -17,7 +18,11 @@ export default class PlanningController {
   async show(ctx: HttpContext) {
     try {
       const accountId = String(ctx.params.accountId);
-      return await withActor(ctx, (_actor, trx) => readPlanning(trx, accountId));
+      const { from, to } = await ctx.request.validateUsing(planningReadValidator, {
+        data: ctx.request.qs(),
+      });
+      const window = from !== undefined && to !== undefined ? { from, to } : undefined;
+      return await withActor(ctx, (_actor, trx) => readPlanning(trx, accountId, window));
     } catch (error) {
       return sendRefusal(error, ctx);
     }

@@ -15,7 +15,7 @@ export interface Registry {
       body: {}
       paramsTuple: [ParamValue]
       params: { accountId: ParamValue }
-      query: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/planning/read').planningReadValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>

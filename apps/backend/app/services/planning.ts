@@ -2,6 +2,11 @@ import { activeOnly, archiveImpact, archiveRecovery } from '@capacitylens/shared
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { readCompanyToday } from '#services/company_today';
+import {
+  buildCapacitySection,
+  type CapacityRange,
+  type CapacitySection,
+} from '#services/planning/capacity_section';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import type { CurrentActor } from '#services/auth/current_actor';
@@ -47,22 +52,30 @@ export interface PlanningSnapshot {
   data: AppData;
   /** The company's current calendar date in its own time zone. */
   today: ISODate;
+  capacity: CapacitySection;
 }
 
-/** Resolves current product authority, revision and rows from the same database snapshot. */
+/** Resolves current product authority, revision, rows and their capacity from the same database
+ * snapshot. Capacity covers `window`, or the scheduler's default window when it is absent. */
 export async function readPlanning(
   trx: TransactionClientContract,
-  accountId: string
+  accountId: string,
+  window?: CapacityRange
 ): Promise<PlanningSnapshot> {
   const { authority } = await resolvePlanningAuthority(trx, accountId);
   const revision = await getPlanningRevision(trx, accountId);
   const data = await readStateWithClient(trx, accountId, true);
+  const account = data.accounts.find((row) => row.id === accountId);
+  const today = readCompanyToday(account?.timezone ?? null);
+  const visible = transformState(activeOnly(data), accountId, authority.role);
   return {
     accountId,
     revision,
     authority,
-    data: transformState(activeOnly(data), accountId, authority.role),
-    today: readCompanyToday(data.accounts.find((row) => row.id === accountId)?.timezone ?? null),
+    data: visible,
+    today,
+    // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
+    capacity: buildCapacitySection({ data: visible, account, today, window }),
   };
 }
 
