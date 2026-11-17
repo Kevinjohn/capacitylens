@@ -1,3 +1,8 @@
+// The server runs the Masquerade package's `masquerade:prune` at startup and hourly: it ends
+// expired modes and deletes view-as events older than 365 days. A failed pass is logged and retried
+// on the next one. The operator can also run `masquerade:prune`, `masquerade:status` and
+// `masquerade:stop`.
+
 import type { ApplicationService } from '@adonisjs/core/types';
 import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';

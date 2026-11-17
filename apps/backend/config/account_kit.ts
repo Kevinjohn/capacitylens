@@ -1,3 +1,6 @@
+// Sessions use the kit's database-backed session registry with the idle expiry from
+// `SESSION_IDLE_EXPIRY`.
+
 import { publicOrigin } from '#config/public_origin';
 import app from '@adonisjs/core/services/app';
 import env from '#start/env';
