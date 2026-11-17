@@ -146,7 +146,7 @@ function optionNames(label: string) {
   return screen.getAllByRole('option').map((option) => option.textContent);
 }
 
-describe('SchedulerToolbar filter ordering', () => {
+describe('SchedulerToolbar discipline filter visibility', () => {
   it('hides the discipline filter when disciplines are enabled but none exist', () => {
     useStore.setState((state) => ({
       data: {
@@ -167,7 +167,7 @@ describe('SchedulerToolbar filter ordering', () => {
 });
 
 describe('SchedulerToolbar discipline and client ordering', () => {
-  it('follows the scheduler discipline order rather than alphabetising disciplines', async () => {
+  it('orders disciplines by sortOrder, not by name or insertion order', async () => {
     await useStore.getState().addDiscipline({ name: 'Design', color: '#111', sortOrder: 0 });
     await useStore
       .getState()
