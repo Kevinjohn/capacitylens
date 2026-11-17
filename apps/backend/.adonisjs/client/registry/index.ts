@@ -506,12 +506,6 @@ const routes = {
     tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"members"],[1,"userId"],[0,"resource-link"]],
     types: placeholder as Registry['api.member-resources.clear']['types'],
   },
-  'api.member-resources.avatars': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/accounts/:accountId/resource-avatars',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"resource-avatars"]],
-    types: placeholder as Registry['api.member-resources.avatars']['types'],
-  },
   'api.masquerade.start': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/masquerade',

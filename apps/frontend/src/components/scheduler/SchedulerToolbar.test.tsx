@@ -81,12 +81,6 @@ describe('SchedulerToolbar date navigation', () => {
     await user.click(screen.getByRole('button', { name }));
     expect(panDays).toHaveBeenCalledWith(days);
   });
-
-  it('does not render the jump-to-date picker', () => {
-    render(<SchedulerToolbar />);
-
-    expect(screen.queryByLabelText('Jump to date')).not.toBeInTheDocument();
-  });
 });
 
 describe('SchedulerToolbar search filter', () => {

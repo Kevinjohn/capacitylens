@@ -38,7 +38,7 @@ export const UNANCHORED_WEEK_START = '1970-01-05';
 /** How many days the timeline spans forward from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120;
 /** Scrollable history kept to the left of the focus date (default view, Today,
- * jump-to-date, account switch). The view still opens scrolled to the focus date,
+ * go to date, account switch). The view still opens scrolled to the focus date,
  * the buffer exists so a leftward swipe pans into the past instead of overscrolling
  * the left edge, which macOS treats as browser back-navigation. A whole number of
  * weeks, so the origin stays on the same weekday as the focused Monday. */

@@ -282,7 +282,6 @@
   "scheduler_nav_today": "Today",
   "scheduler_nav_next": "Next",
   "scheduler_nav_next_title": "Forward one week",
-  "scheduler_jump_to_date": "Jump to date",
   "scheduler_weeks_visible_aria": "Weeks visible, {span}",
   "scheduler_weeks_option_one": "{count} week",
   "scheduler_weeks_option_other": "{count} weeks",

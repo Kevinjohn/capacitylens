@@ -2,7 +2,6 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamMember } from '@/account/teamAccessClient';
-import { invalidateResourceAvatars } from '@/account/useResourceAvatars';
 
 interface MemberResourceLinkRequestsInput {
   companyId: string | null;
@@ -118,14 +117,10 @@ export function useMemberResourceLinkRequests({
             error: resolveRejectionMessage(result, m.settings_member_resource_error()),
           });
         } else update(userId, { expectedResourceId: resourceId === '' ? null : resourceId });
-        if (result.kind !== 'rejected') invalidateResourceAvatars();
       })
       .catch((cause: unknown) => {
         console.warn('Resource link request failed', cause);
-        if (current()) {
-          update(userId, { error: m.settings_member_resource_unknown() });
-          invalidateResourceAvatars();
-        }
+        if (current()) update(userId, { error: m.settings_member_resource_unknown() });
       })
       .finally(() => {
         if (current()) update(userId, { sending: false, requiredReadGeneration: reload() });
