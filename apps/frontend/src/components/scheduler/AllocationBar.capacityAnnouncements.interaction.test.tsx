@@ -1,8 +1,8 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { act, screen, fireEvent } from '@testing-library/react';
 import { AllocationBar } from './AllocationBar';
-import { useStore } from '@/store/useStore';
+import { useStore, WINDOW_READ_DELAY_MS } from '@/store/useStore';
 import { resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 import {
@@ -108,6 +108,8 @@ describe('AllocationBar capacity announcement interactions', () => {
     it('stays silent when the read after the write fails, as the store still holds older figures', async () => {
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
       const b = await seedConflictPair();
+      // Let the pan's delayed read run now, so it cannot land after the failed read and clear it.
+      await act(() => new Promise((resolve) => setTimeout(resolve, WINDOW_READ_DELAY_MS)));
       await settlePlanning();
       getStubPlanningTransport().setCapacity(
         capacityOver(
