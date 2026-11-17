@@ -29,7 +29,6 @@ export const success = (mutationId: string, revision: number): PlanningMutationS
   mutationId,
   revision,
   restoration: { consumedGroupId: null, replacementGroupId: null },
-  projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
 });
 
 export function harness(transport: PlanningTransport) {

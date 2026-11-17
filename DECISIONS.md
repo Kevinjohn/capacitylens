@@ -178,7 +178,7 @@ This is the short, present-tense record of decisions that constrain future work.
 ## Browser data
 
 - Scheduling records and identity snapshots are never persisted in the browser. The Zustand
-  planning slice is a non-persisted cache patched from server responses; it is never authoritative.
+  planning slice is a non-persisted cache replaced from server reads; it is never authoritative.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.

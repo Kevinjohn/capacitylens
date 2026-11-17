@@ -29,27 +29,12 @@ type PlanningBody = {
   data: AppData;
 };
 
-type MutationBody = {
-  revision: number;
-  projection: {
-    mode: string;
-    changed: {
-      upserts: Array<{ entity: string; row: { id: string } }>;
-      removed: Array<{ entity: string; id: string }>;
-    };
-  };
-};
-
 function recovery(response: { body(): unknown }) {
   return response.body() as ArchiveRecovery;
 }
 
 function planning(response: { body(): unknown }) {
   return response.body() as PlanningBody;
-}
-
-function mutation(response: { body(): unknown }) {
-  return response.body() as MutationBody;
 }
 
 function requestWithContext<T extends ApiRequest>(request: T, cookie: string, context?: string) {
@@ -403,21 +388,19 @@ test.group('identity-only archive recovery', (suite) => {
       )
       .send();
     archiveProject.assertStatus(200);
-    const archiveReply = mutation(archiveProject);
-    assert.equal(archiveReply.projection.mode, 'patch');
-    assert.include(
-      archiveReply.projection.changed.removed.map((row) => row.id),
+    assert.notInclude(archiveProject.text(), privateProjectName);
+    const afterArchive = await session(client.get(route('planning')), editor.cookie).send();
+    afterArchive.assertStatus(200);
+    const afterArchiveData = planning(afterArchive).data;
+    assert.notInclude(
+      afterArchiveData.projects.map((row) => row.id),
       projectId
-    );
-    assert.include(
-      archiveReply.projection.changed.removed.map((row) => row.id),
-      'r-ph-designer'
     );
     assert.notInclude(
-      archiveReply.projection.changed.upserts.map((row) => row.row.id),
-      projectId
+      afterArchiveData.resources.map((row) => row.id),
+      'r-ph-designer'
     );
-    assert.notInclude(archiveProject.text(), privateProjectName);
+    assert.notInclude(afterArchive.text(), privateProjectName);
 
     for (const [index, id] of ['t-brand', 't-cms'].entries()) {
       const response = await session(client.post(route(`activities/${id}/archive`)), editor.cookie)
@@ -456,7 +439,6 @@ test.group('identity-only archive recovery', (suite) => {
 
     const childRestore = await unarchive(client, editor.cookie, 'activities', 't-brand', 3);
     childRestore.assertStatus(200);
-    assert.deepEqual(mutation(childRestore).projection.changed.upserts, []);
     const stillHidden = await session(client.get(route('planning')), editor.cookie).send();
     assert.notInclude(
       planning(stillHidden).data.activities.map((row) => row.id),
@@ -481,26 +463,10 @@ test.group('identity-only archive recovery', (suite) => {
 
     const parentRestore = await unarchive(client, editor.cookie, 'projects', projectId, 4);
     parentRestore.assertStatus(200);
-    const parentUpserts = mutation(parentRestore).projection.changed.upserts;
-    assert.include(
-      parentUpserts.map((row) => row.row.id),
-      projectId
-    );
-    assert.include(
-      parentUpserts.map((row) => row.row.id),
-      't-brand'
-    );
-    assert.include(
-      parentUpserts.map((row) => row.row.id),
-      'r-ph-designer'
-    );
-    assert.notInclude(
-      parentUpserts.map((row) => row.row.id),
-      't-cms'
-    );
     assert.notInclude(parentRestore.text(), 'Secret Designer Role');
 
     const afterParent = await session(client.get(route('planning')), editor.cookie).send();
+    assert.notInclude(afterParent.text(), 'Secret Designer Role');
     const afterParentData = planning(afterParent).data;
     assert.include(
       afterParentData.projects.map((row) => row.id),
@@ -523,17 +489,9 @@ test.group('identity-only archive recovery', (suite) => {
 
     const clientRestore = await unarchive(client, editor.cookie, 'clients', clientId, 5);
     clientRestore.assertStatus(200);
-    const clientUpserts = mutation(clientRestore).projection.changed.upserts;
-    assert.include(
-      clientUpserts.map((row) => row.row.id),
-      clientId
-    );
-    assert.include(
-      clientUpserts.map((row) => row.row.id),
-      'p-acme'
-    );
     assert.notInclude(clientRestore.text(), privateClientName);
     const afterClient = await session(client.get(route('planning')), editor.cookie).send();
+    assert.notInclude(afterClient.text(), privateClientName);
     const projectedClient = planning(afterClient).data.clients.find((row) => row.id === clientId);
     const projectedProject = planning(afterClient).data.projects.find((row) => row.id === 'p-acme');
     assert.equal(projectedClient?.name, '"Project Nightwing"');

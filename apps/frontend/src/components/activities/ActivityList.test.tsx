@@ -509,7 +509,6 @@ describe('ActivityList', () => {
           mutationId: 'm-archive',
           revision: 1,
           restoration: { consumedGroupId: null, replacementGroupId: null },
-          projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
           archived: { projects: 0, phases: 0, activities: 0, allocations: 2, timeOff: 0 },
         };
       },

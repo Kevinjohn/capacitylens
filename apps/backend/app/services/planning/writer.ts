@@ -69,7 +69,7 @@ export async function writeRow({
 
 /**
  * Validates allowed settings and mutates the supplied complete company state after writing.
- * The caller owns rollback, no-change detection and the refetch/history-clear acknowledgement.
+ * The caller owns rollback and no-change detection.
  */
 export async function updateSettings(
   trx: TransactionClientContract,

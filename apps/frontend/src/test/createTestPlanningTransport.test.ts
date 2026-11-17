@@ -13,7 +13,6 @@ function receipt(mutationId: string, revision: number): PlanningMutationSuccess 
     mutationId,
     revision,
     restoration: { consumedGroupId: null, replacementGroupId: null },
-    projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
   };
 }
 
@@ -57,14 +56,11 @@ it('records the sent intent and applies an unvalidated single-row change', async
   expect(getStubPlanningTransport().calls).toEqual([
     { operation: 'catalogue.create', entity: { entity: 'clients', id: client.id, fields: client } },
   ]);
-  expect(response).toMatchObject({
+  expect(response).toEqual({
+    status: 'committed',
     mutationId: 'create-client',
     revision: 1,
-    projection: {
-      mode: 'patch',
-      history: 'retain',
-      changed: { upserts: [{ entity: 'clients', row: client }] },
-    },
+    restoration: { consumedGroupId: null, replacementGroupId: null },
   });
   const snapshot = await transport.read(context, signal);
   expect(snapshot.data.clients).toEqual([client]);

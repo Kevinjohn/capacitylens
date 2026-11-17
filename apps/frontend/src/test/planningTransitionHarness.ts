@@ -50,7 +50,6 @@ export function receipt(
     mutationId,
     revision,
     restoration: { consumedGroupId: null, replacementGroupId: null },
-    projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
     ...overrides,
   };
 }

@@ -15,7 +15,6 @@ import { resolvePlanningAuthority, type PlanningAuthority } from '#services/plan
 import {
   invalidatesRestoration,
   projectionChanges,
-  requiresRefetch,
   semanticState,
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
@@ -173,9 +172,6 @@ export async function mutatePlanning({
     mutationId: input.mutationId,
     revision,
     restoration,
-    projection: requiresRefetch(input.intent)
-      ? { mode: 'refetch', history: 'clear' }
-      : { mode: 'patch', history: 'retain', changed },
     ...(archived ? { archived } : {}),
   };
 }

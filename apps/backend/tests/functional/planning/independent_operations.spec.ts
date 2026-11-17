@@ -29,7 +29,6 @@ const body = (response: { body(): unknown }) =>
     status?: string;
     mutationId?: string;
     revision?: number;
-    projection?: { mode: string; history: string };
   };
 
 test.group('independent typed planning operations', (group) => {
@@ -62,8 +61,6 @@ test.group('independent typed planning operations', (group) => {
 
     committed.assertStatus(200);
     assert.equal(body(committed).revision, 1);
-    assert.equal(body(committed).projection?.mode, 'patch');
-    assert.equal(body(committed).projection?.history, 'retain');
     const saved = await readState(accountId, true);
     const created = [first.id, laterId].map((id) => saved.allocations.find((row) => row.id === id));
     assert.isDefined(created[0]);

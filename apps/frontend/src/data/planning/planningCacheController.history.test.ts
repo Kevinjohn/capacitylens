@@ -148,12 +148,9 @@ describe('planning activity history via a receipt', () => {
         entity: { entity: 'activities', id: 'activity-1', changes: { ...changes, name: 'Office' } },
       };
       read.mockResolvedValueOnce({ revision: 5, canWrite: true, data: canonicalData() });
-      execute.mockImplementationOnce(async (_context, execution) => ({
-        ...success(execution.mutationId, 5),
-        ...(includesKind
-          ? { projection: { mode: 'refetch' as const, history: 'clear' as const } }
-          : {}),
-      }));
+      execute.mockImplementationOnce(async (_context, execution) =>
+        success(execution.mutationId, 5),
+      );
       await h.controller.execute(h.controller.begin(), update, reverse);
       expect(h.state().planning.history.past).toEqual(
         includesKind
