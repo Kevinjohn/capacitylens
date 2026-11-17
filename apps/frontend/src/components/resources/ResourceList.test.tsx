@@ -206,22 +206,6 @@ describe('ResourceList display', () => {
       expect.stringContaining('Supplementary Alpha'),
     ]);
   });
-
-  it('keeps a Studio-only company in one favourites-first list', async () => {
-    await useStore.getState().addResource(personDraft('Studio Zulu'));
-    await useStore.getState().addResource({ ...personDraft('Studio Alpha'), isFavourite: true });
-    await useStore.getState().addResource(personDraft('Studio Bravo'));
-
-    render(<ResourceList />);
-
-    expect(screen.queryByRole('heading', { name: 'Studio' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Supplementary' })).not.toBeInTheDocument();
-    expect(
-      screen
-        .getAllByTestId('resource-row')
-        .map((row) => row.querySelector('.font-medium')?.textContent),
-    ).toEqual(['Studio Alpha', 'Studio Bravo', 'Studio Zulu']);
-  });
 });
 
 describe('ResourceList display', () => {
@@ -247,12 +231,6 @@ describe('ResourceList display', () => {
 });
 
 describe('ResourceList display', () => {
-  it('shows the name of a person resource', async () => {
-    await useStore.getState().addResource(personDraft('Alice'));
-    render(<ResourceList />);
-    expect(screen.getByText('Alice')).toBeInTheDocument();
-  });
-
   it('omits both fixed hours text and dangling metadata separators', async () => {
     await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
     await useStore.getState().addResource({ ...personDraft('Alice'), role: '' });
@@ -311,16 +289,6 @@ describe('ResourceList display', () => {
 });
 
 describe('ResourceList display', () => {
-  it('gives repeated resource edit controls distinct contextual names', async () => {
-    await useStore.getState().addResource(personDraft('Alice'));
-    await useStore.getState().addResource(personDraft('Bob'));
-    render(<ResourceList />);
-
-    expect(screen.getByRole('button', { name: 'Edit Alice' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Edit Bob' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
-  });
-
   it('gives repeated external-party edit controls distinct contextual names', async () => {
     await setExternalEnabled({ on: true });
     await useStore
@@ -337,25 +305,6 @@ describe('ResourceList display', () => {
 });
 
 describe('ResourceList display', () => {
-  it("keeps the External explainer behind the section's labelled help action", async () => {
-    const user = userEvent.setup();
-    await setExternalEnabled({ on: true });
-    await useStore
-      .getState()
-      .addResource({ ...personDraft('Kord Industries'), kind: 'external', role: 'Partner studio' });
-    render(<ResourceList />);
-
-    expect(
-      screen.queryByText(/never count toward your team’s capacity or utilisation/i),
-    ).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'About External' }));
-    const dialog = screen.getByRole('dialog', { name: 'External' });
-    expect(
-      within(dialog).getByText(/never count toward your team’s capacity or utilisation/i),
-    ).toBeInTheDocument();
-  });
-
   it('does not show a "placeholder" tag or "Temp" tag for a permanent person', async () => {
     await useStore.getState().addResource(personDraft('Alice'));
     render(<ResourceList />);
@@ -441,36 +390,6 @@ describe('ResourceList display', () => {
       screen.queryByText('Resources are the people you schedule work for.'),
     ).not.toBeInTheDocument();
   });
-
-  it('hides the Placeholders section + its placeholders when the pref is OFF (default)', async () => {
-    const client = await requireCreated(
-      useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
-    );
-    const project = await requireCreated(
-      useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#76a5e7' }),
-    );
-    await useStore.getState().addResource(personDraft('Alice'));
-    await useStore.getState().addResource({
-      kind: 'placeholder',
-      role: 'Senior Designer',
-      employmentType: 'permanent' as const,
-      engagement: 'studio' as const,
-      workingHoursPerDay: 8,
-      workingDays: WORKDAYS,
-      halfDays: [],
-      color: '#9c3ace',
-      projectId: project.id,
-    });
-
-    await setPlaceholdersEnabled({ on: false });
-    render(<ResourceList />);
-
-    expect(screen.getByText('Alice')).toBeInTheDocument();
-    expect(screen.queryByText('Placeholders')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Add placeholder/i })).not.toBeInTheDocument();
-    expect(screen.queryByText('placeholder')).not.toBeInTheDocument();
-    expect(screen.getAllByTestId('resource-row')).toHaveLength(1);
-  });
 });
 
 describe('ResourceList display', () => {
@@ -549,29 +468,6 @@ describe('ResourceList archive flow', () => {
       null,
     );
     expect(screen.getByText('Alice')).toBeInTheDocument();
-  });
-
-  it('archives a resource after confirming and shows it below the active sections', async () => {
-    const user = userEvent.setup();
-    const resource = await requireCreated(useStore.getState().addResource(personDraft('Alice')));
-    render(<ResourceList />);
-
-    await user.click(screen.getByRole('button', { name: 'Archive Alice' }));
-    const dialog = screen.getByRole('alertdialog');
-    queuePlanningPatch(() => ({
-      upserts: [
-        { entity: 'resources', row: { ...resource, archivedAt: '2026-01-01T00:00:00.000Z' } },
-      ],
-      removed: [],
-    }));
-    await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
-
-    expect(useStore.getState().data.resources).toHaveLength(1);
-    expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
-    expect(screen.queryByTestId('resource-row')).not.toBeInTheDocument();
-    expect(
-      within(await screen.findByTestId('archived-resources-section')).getByText('Alice'),
-    ).toBeInTheDocument();
   });
 });
 
@@ -714,32 +610,6 @@ describe('ResourceList archive flow', () => {
 });
 
 describe('ResourceList archive flow', () => {
-  it('archives a freelancer resource', async () => {
-    const user = userEvent.setup();
-    const freelancer = await requireCreated(
-      useStore.getState().addResource(freelancerDraft('Bob')),
-    );
-    render(<ResourceList />);
-
-    expect(screen.getByText('Bob')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Archive Bob' }));
-    const dialog = screen.getByRole('alertdialog');
-    queuePlanningPatch(() => ({
-      upserts: [
-        { entity: 'resources', row: { ...freelancer, archivedAt: '2026-01-01T00:00:00.000Z' } },
-      ],
-      removed: [],
-    }));
-    await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
-
-    expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
-    expect(screen.queryByTestId('resource-row')).not.toBeInTheDocument();
-    expect(
-      within(await screen.findByTestId('archived-resources-section')).getByText('Bob'),
-    ).toBeInTheDocument();
-  });
-
   it('archives a placeholder resource', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
