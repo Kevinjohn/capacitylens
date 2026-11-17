@@ -144,8 +144,8 @@ Resources, Clients, Projects or Activities page, not from Settings.
 CapacityLens needs a server connection to read and save the company schedule. If a request fails,
 use the retry or recovery control offered after reconnecting. A visible edit is not proof that it
 was saved. If the reply to a schedule change is lost, the schedule reloads what the server has and
-asks you to check that your change is there before trying again; Undo is not offered for that
-change. The app never replaces a failed read with a browser snapshot or queues changes for later.
+asks you to check that your change is there before trying again. Undo and Redo start again from
+that point. The app never replaces a failed read with a browser snapshot or queues changes for later.
 
 ### Example data
 

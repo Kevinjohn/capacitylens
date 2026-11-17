@@ -89,6 +89,19 @@ describe('planning write whose reply was lost', () => {
     },
   );
 
+  it('clears undo history even when the server has not yet committed the change', async () => {
+    const { h } = await afterLostReply(
+      (execute) => execute.mockRejectedValueOnce({ status: 408 }),
+      (read) => read.mockResolvedValueOnce({ revision: 2, canWrite: true, data: canonicalData() }),
+    );
+    expect(h.state().planning).toMatchObject({
+      status: 'ready',
+      revision: 2,
+      outcome: { kind: 'unconfirmed', mutationId: 'mutation-2' },
+      history: { past: [], future: [] },
+    });
+  });
+
   it('shows the read failure first, then the unconfirmed change once a read succeeds', async () => {
     const { h, execute } = await afterLostReply(
       (lost) => lost.mockRejectedValueOnce(new TypeError('offline')),
