@@ -53,7 +53,6 @@ const admittedRoutes = new Set([
   'api.invites.index',
   'api.invites.resend',
   'api.invites.revoke',
-  'api.member-resources.avatars',
   'api.member-resources.clear',
   'api.member-resources.set',
   'api.members.index',

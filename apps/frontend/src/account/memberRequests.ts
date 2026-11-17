@@ -3,11 +3,7 @@ import { apiRouteUrl } from '@/api/queryClient';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import type { BrowserAccountCommand } from './accountCommands';
 import { runCommand, buildJsonCommandRequestInit } from './commandRequest';
-import {
-  clearMemberResourceLink,
-  resourceAvatarsUrl,
-  setMemberResourceLink,
-} from './memberResourceClient';
+import { clearMemberResourceLink, setMemberResourceLink } from './memberResourceClient';
 
 interface ChangeMemberRoleInput {
   companyId: string;
@@ -33,8 +29,8 @@ interface ChangeMemberStatusInput {
 type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
 
 /**
- * Member, avatar and ownership requests. Their typed readers are `teamAccessClient`,
- * `ownershipTransferAccess` and `useResourceAvatars`; screens use those, never these responses.
+ * Member and ownership requests. Their typed readers are `teamAccessClient` and
+ * `ownershipTransferAccess`; screens use those, never these responses.
  */
 export const memberRequests = {
   listMembers(companyId: string, signal?: AbortSignal): Promise<Response> {
@@ -43,9 +39,6 @@ export const memberRequests = {
       ...(signal ? { signal } : {}),
     });
   },
-
-  listResourceAvatars: (companyId: string) =>
-    apiFetch(resourceAvatarsUrl(companyId), { credentials: 'include' }),
 
   setMemberResourceLink,
 
