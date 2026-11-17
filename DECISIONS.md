@@ -124,7 +124,9 @@ This is the short, present-tense record of decisions that constrain future work.
   Unknown request fields are stripped by the validator.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
-  Identity, sessions, membership and admission records are never part of the export.
+  Identity, sessions, membership and admission records are never part of the export. The server
+  builds the export for the reader's role, labels it full or redacted and serves it as a download;
+  the browser only saves the file.
 - Beta transfer uses the versioned full company document, binds the exported company scope to
   the selected destination company, preserves scheduling IDs and existing member links, and replaces
   supported company settings. Validate every source row against the exported company before binding;

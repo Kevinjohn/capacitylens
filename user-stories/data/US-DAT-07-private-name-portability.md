@@ -28,11 +28,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  role["ExportsController.show resolves active company role"] --> project["transformState redacts private names for non-Owners"]
-  project --> build["useExportAction chooses full or redacted completeness"]
-  build --> beta["buildBetaExport validates and serializes portable data"]
-  beta --> import["prepareBetaImport accepts only full exports and validates private fields"]
+  fetch["useExportAction fetches api.export"] --> role["ExportsController.download projects rows and sets completeness"]
+  role --> project["transformState redacts private names for non-Owners"]
+  project --> beta["buildBetaExport validates and serializes portable data"]
+  beta --> file["downloadTextFile saves the server's file"]
+  file --> import["prepareBetaImport accepts only full exports and validates private fields"]
   import --> replace["Transfer service replaces company rows only after preparation"]
 ```
 
-**Code references:** [useExportAction.ts](../../apps/frontend/src/components/import-export/useExportAction.ts), [fetchInactiveSlice.ts](../../apps/frontend/src/data/fetchInactiveSlice.ts), [exports_controller.ts](../../apps/backend/app/controllers/exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [betaTransfer.ts](../../packages/shared/src/data/betaTransfer.ts), [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts)
+**Code references:** [useExportAction.ts](../../apps/frontend/src/components/import-export/useExportAction.ts), [exports_controller.ts](../../apps/backend/app/controllers/exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [betaTransfer.ts](../../packages/shared/src/data/betaTransfer.ts), [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts)

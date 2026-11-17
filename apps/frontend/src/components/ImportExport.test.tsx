@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
-import { buildBetaExport, parseBetaExport } from '@capacitylens/shared/data/betaTransfer';
 import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { PermissionContext } from '@/auth/permissionContext';
@@ -188,9 +187,9 @@ describe('beta import and export', () => {
     },
   );
 
-  it("exports the selected company's full beta document", async () => {
+  it("saves the server's export document unchanged", async () => {
     let downloaded: Blob | undefined;
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     vi.stubGlobal('URL', {
       ...URL,
       createObjectURL: vi.fn((blob: Blob) => {
@@ -199,40 +198,33 @@ describe('beta import and export', () => {
       }),
       revokeObjectURL: vi.fn(),
     });
+    const body = '{"exported":true}';
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
-      expect(url).toContain(`/api/state?accountId=${accountId}&includeInactive=1`);
-      return Response.json(document().data);
+      expect(url).toMatch(new RegExp(`/api/accounts/${accountId}/export$`));
+      return new Response(body);
     });
     vi.stubGlobal('fetch', fetchMock);
     renderTools();
     fireEvent.click(screen.getByTestId('export-data'));
-    await waitFor(() => {
-      expect(useStore.getState().notice).toBeNull();
-      expect(downloaded).toBeDefined();
-    });
+    await waitFor(() => expect(downloaded).toBeDefined());
     if (!downloaded) throw new Error('The export was not downloaded.');
-    const exported = parseBetaExport(await downloaded.text());
-    expect(exported.format).toBe('capacitylens-beta');
-    expect(exported.completeness).toBe('full');
-    expect(exported.data.accounts.map((row) => row.id)).toEqual([accountId]);
-    expect(exported.data.resources[0]?.id).toBeDefined();
+    expect(await downloaded.text()).toBe(body);
+    expect(useStore.getState().notice).toBeNull();
+    expect(download).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it('refuses a malformed inactive server slice instead of downloading a repaired backup', async () => {
-    const bad = buildBetaExport(seed(), { accountId, completeness: 'full' }).data;
-    const client = bad.clients[0];
-    if (!client) throw new Error('The export fixture has no client.');
-    Object.assign(client, { archivedAt: 'yesterday' });
+  it('reports a refused export and saves nothing', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => Response.json(bad)),
+      vi.fn(async () => Response.json({ error: 'Export refused.' }, { status: 403 })),
     );
     const download = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     renderTools();
     fireEvent.click(screen.getByTestId('export-data'));
-    await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'));
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe('Export refused.'));
+    expect(useStore.getState().notice?.tone).toBe('error');
     expect(download).not.toHaveBeenCalled();
   });
 

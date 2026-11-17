@@ -798,7 +798,6 @@
   "data_import_blocked_unsynced": "Changes are still failing to save — the import was not started. Fix the connection first (or reload to discard unsaved changes).",
   "data_export": "Export JSON",
   "data_export_failed": "The complete data export could not be loaded ({status}).",
-  "data_export_incomplete": "The server returned incomplete data, so no export was created.",
   "data_export_error": "The export could not be created: {error}",
   "download_start_failed": "Could not request the download. Check your browser’s download settings and try again.",
   "data_import": "Import JSON",

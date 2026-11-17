@@ -138,6 +138,17 @@ const replies: Record<string, Exposure> = {
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('planning/archive')), fixture.cookie).send(),
   },
+  'api.export': {
+    write: false,
+    carries: (principal) => [
+      MARKER_CLIENT,
+      MARKER_PROJECT,
+      MARKER_NOTE,
+      ...(canReadInactive(principal.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
+    ],
+    call: (fixture) =>
+      session(fixture.client.get(buildCompanyRoute('export')), fixture.cookie).send(),
+  },
   'api.state': {
     write: false,
     carries: (principal) => [
