@@ -19,7 +19,7 @@ function assertOutsideLiveDatabase(directory: string, livePath: string): void {
 }
 
 /**
- * Own the web schedule while the package owns copying, verification, retention and restore
+ * Owns the web schedule while the package owns copying, verification, retention and restore
  * preparation.
  */
 export default class BackupProvider {
