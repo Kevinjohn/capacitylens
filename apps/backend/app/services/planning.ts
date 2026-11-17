@@ -121,9 +121,11 @@ export async function mutatePlanning({
       mutationId: input.mutationId,
     },
   });
+  // archiveImpact measures the active projection itself. Passing the full state keeps an active row
+  // whose parent is already archived measurable: it hides nothing more, so every count is zero.
   const archived =
     input.intent.operation === 'catalogue.archive'
-      ? archiveImpact(activeOnly(before), input.intent.entity.entity, input.intent.entity.id)
+      ? archiveImpact(before, input.intent.entity.entity, input.intent.entity.id)
       : undefined;
   const after = await readStateWithClient(trx, accountId, true);
   if (semanticState(before) === semanticState(after)) {
