@@ -13,7 +13,6 @@ import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade
 import app from '@adonisjs/core/services/app';
 import { nativeAdapter } from '#config/masquerade';
 import { actorIn } from '#services/auth/current_actor';
-import { canViewAs } from '@capacitylens/shared/domain/access';
 import type {
   QueryClientContract,
   TransactionClientContract,
@@ -23,6 +22,7 @@ import {
   activeCompanyRole,
   IdentityAuthorityError,
 } from '#services/auth/authorization';
+import { canViewAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 
 export { PackageMasqueradeError as MasqueradeError };
@@ -133,7 +133,9 @@ export async function effectiveReadPrincipal(
   if (!context || context.actorId !== actor.userId) {
     throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   }
-  if (context.isMasquerading && accountId) {
+  if (context.isMasquerading) {
+    // Without a company there is no rank to check, so a view never reads company-free.
+    if (!accountId) throw new IdentityAuthorityError('Masquerade company authority changed.');
     const actorRole = await activeCompanyRole(actor.userId, accountId, trx);
     const targetRole = await activeCompanyRole(context.effectiveId, accountId, trx);
     if (!actorRole || !targetRole || !canViewAs(actorRole, targetRole)) {

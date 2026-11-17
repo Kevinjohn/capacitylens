@@ -1076,10 +1076,13 @@ test.group('native read-only masquerade', (group) => {
   });
 
   test("ends an Admin's view when the target is promoted to Owner", async ({ client, assert }) => {
-    const { cookie, companyOwnerId, targetId } = await adminFixture(client);
+    const { cookie, adminId, companyOwnerId, targetId } = await adminFixture(client);
     await insertPrivateClient();
     // The first refused read ends the mode, so each read gets its own view.
-    for (const path of ['/api/accounts/a-studio/planning', '/api/state?accountId=a-studio']) {
+    for (const [index, path] of [
+      '/api/accounts/a-studio/planning',
+      '/api/state?accountId=a-studio',
+    ].entries()) {
       await db
         .from('memberships')
         .where({ scope_id: 'a-studio', user_id: companyOwnerId })
@@ -1092,6 +1095,10 @@ test.group('native read-only masquerade', (group) => {
       started.assertStatus(200);
       await promoteToOwner(targetId, companyOwnerId);
       const read = await asSession(client.get(path), cookie).send();
+      const ended = await db
+        .from('masquerade_events')
+        .where({ actor_id: adminId, kind: 'invalidated', outcome_code: 'policy_denied' });
+      assert.lengthOf(ended, index + 1, path);
       read.assertStatus(409);
       assert.notInclude(read.text(), privateClientName, path);
       const status = await asSession(
@@ -1144,6 +1151,32 @@ test.group('native read-only masquerade', (group) => {
       release.resolve();
       serviceWithTestGate.resolve = originalResolve;
     }
+  });
+
+  test('refuses a state read in the company where the target outranks the Admin', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, adminId, companyOwnerId, targetId } = await adminFixture(client);
+    await insertPrivateClient();
+    await createFixtureCompanyForOwner(adminId, 'Stark Industries', 'a-tower');
+    const now = new Date().toISOString();
+    await db.table('memberships').insert({
+      scope_id: 'a-tower',
+      user_id: targetId,
+      role: 'editor',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
+    const started = await startView(client, cookie, targetId);
+    started.assertStatus(200);
+    await promoteToOwner(targetId, companyOwnerId);
+    // The query names no route company, so admission accepts the view through a-tower and only
+    // the in-transaction check sees that the target outranks the Admin in a-studio.
+    const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    read.assertStatus(403);
+    assert.notInclude(read.text(), privateClientName);
   });
 
   test("reports an Admin's view only where the target does not outrank them", async ({
