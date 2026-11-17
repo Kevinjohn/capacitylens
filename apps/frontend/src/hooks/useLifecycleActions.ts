@@ -5,6 +5,7 @@ import type { PlanningCommand } from '@/data/planning/planningCommands';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { runResourceAnonymisation } from '@/store/resourceAnonymisation';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
+import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy';
 
 // Archive and restore use typed planning commands. Anonymisation has a named server route;
 // uncertain results require authoritative recovery before another irreversible attempt.
@@ -67,8 +68,12 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
                       intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
                       inverse: null,
                     };
-            await useStore.getState().sendPlanningCommand(command);
+            const receipt = await useStore.getState().sendPlanningCommand(command);
             if (activeAccountId) notifyInactiveDataChanged(activeAccountId);
+            if (entity !== 'resources' && verb === 'archive' && receipt?.archived) {
+              const notice = buildArchiveImpactNotice(entity, receipt.archived);
+              if (notice) setNotice(notice);
+            }
           } else {
             await dispatchServer(verb, entity, id);
           }

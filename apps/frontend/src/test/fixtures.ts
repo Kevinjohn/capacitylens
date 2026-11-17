@@ -14,6 +14,7 @@ import type {
 } from '@capacitylens/shared/types/entities';
 import type { Draft } from '@/store/useStore';
 import type { LifecycleEntity } from '@/lib/entityDrafts';
+import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import {
@@ -225,7 +226,10 @@ export function resetStoreWithData(
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
-export function archiveForTest(entity: LifecycleEntity, id: ID): Promise<void> {
+export function archiveForTest(
+  entity: LifecycleEntity,
+  id: ID,
+): Promise<PlanningMutationSuccess | undefined> {
   const intent =
     entity === 'resources'
       ? { operation: 'resource.archive' as const, id }
@@ -234,7 +238,10 @@ export function archiveForTest(entity: LifecycleEntity, id: ID): Promise<void> {
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
-export function unarchiveForTest(entity: LifecycleEntity, id: ID): Promise<void> {
+export function unarchiveForTest(
+  entity: LifecycleEntity,
+  id: ID,
+): Promise<PlanningMutationSuccess | undefined> {
   const intent =
     entity === 'resources'
       ? { operation: 'resource.unarchive' as const, id }

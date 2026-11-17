@@ -26,6 +26,7 @@ describe('named lifecycle actions', () => {
   it('sends archive and restore through typed planning commands', async () => {
     const send = vi.fn(async (command: PlanningCommand) => {
       void command;
+      return undefined;
     });
     useStore.setState({ sendPlanningCommand: send });
     const fetch = vi.fn();
@@ -46,6 +47,28 @@ describe('named lifecycle actions', () => {
       },
     ]);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('reports what the server says a client archive hid', async () => {
+    const send = vi.fn(async (command: PlanningCommand) => {
+      void command;
+      return {
+        status: 'committed' as const,
+        mutationId: 'm-archive',
+        revision: 1,
+        restoration: { consumedGroupId: null, replacementGroupId: null },
+        projection: { mode: 'refetch' as const, history: 'clear' as const },
+        archived: { projects: 1, phases: 1, activities: 1, allocations: 2, timeOff: 0 },
+      };
+    });
+    useStore.setState({ sendPlanningCommand: send });
+    const { result } = renderHook(() => useLifecycleActions());
+    await act(async () => result.current.archive('clients', 'c-1'));
+    expect(useStore.getState().notice).toEqual({
+      message:
+        'Archiving the client also hid 1 project, 1 phase and 2 allocations from the schedule; restore it to bring them back.',
+      tone: 'info',
+    });
   });
 
   it('only resource anonymisation calls the named destructive endpoint', async () => {
@@ -83,6 +106,7 @@ describe('named lifecycle actions', () => {
   it('drops a queued action after the selected company changes', async () => {
     const send = vi.fn(async (command: PlanningCommand) => {
       void command;
+      return undefined;
     });
     useStore.setState({ sendPlanningCommand: send });
     const { result } = renderHook(() => useLifecycleActions());

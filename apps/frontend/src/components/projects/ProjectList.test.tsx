@@ -236,9 +236,7 @@ describe('ProjectList', () => {
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveTextContent(/Archive "Doomed Project"/);
     expect(dialog).toHaveTextContent(/Archived projects/);
-    expect(dialog).toHaveTextContent(
-      'This also hides 1 phase and 0 allocations from the schedule; restore the project to bring them back.',
-    );
+    expect(dialog).not.toHaveTextContent('also hid');
   });
 
   it('keeps exactly one quote pair around a redacted private code name in confirmation copy', async () => {

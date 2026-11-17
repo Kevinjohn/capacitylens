@@ -458,7 +458,7 @@ describe('ActivityList', () => {
     ).toBeInTheDocument();
   });
 
-  it('warns how many allocations an archive would hide from the schedule', async () => {
+  it('reports the allocations the server says the archive hid, not a count in the dialog', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
@@ -500,14 +500,39 @@ describe('ActivityList', () => {
       hoursPerDay: 8,
       status: 'confirmed',
     });
-    render(<ActivityList />);
+    const originalSend = useStore.getState().sendPlanningCommand;
+    useStore.setState({
+      sendPlanningCommand: async (command) => {
+        void command;
+        return {
+          status: 'committed',
+          mutationId: 'm-archive',
+          revision: 1,
+          restoration: { consumedGroupId: null, replacementGroupId: null },
+          projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
+          archived: { projects: 0, phases: 0, activities: 0, allocations: 2, timeOff: 0 },
+        };
+      },
+    });
+    try {
+      render(<ActivityList />);
 
-    await user.click(screen.getByRole('button', { name: 'Archive My Activity' }));
+      await user.click(screen.getByRole('button', { name: 'Archive My Activity' }));
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).not.toHaveTextContent('also hid');
 
-    const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toHaveTextContent(
-      'This also hides 2 allocations from the schedule; restore the activity to bring them back.',
-    );
+      await user.click(within(dialog).getByRole('button', { name: 'Archive' }));
+
+      await vi.waitFor(() =>
+        expect(useStore.getState().notice).toMatchObject({
+          message:
+            'Archiving the activity also hid 2 allocations from the schedule; restore it to bring them back.',
+          tone: 'info',
+        }),
+      );
+    } finally {
+      useStore.setState({ sendPlanningCommand: originalSend });
+    }
   });
 
   it('shows the base archive message instead of throwing when the row is archived while the dialog is open', async () => {
@@ -533,7 +558,6 @@ describe('ActivityList', () => {
     expect(dialog).toHaveTextContent(
       'Archive "My Activity"? This hides it from scheduling while keeping its history.',
     );
-    expect(dialog).not.toHaveTextContent('also hides');
   });
 
   it('surfaces an archive integrity failure without removing the activity', async () => {

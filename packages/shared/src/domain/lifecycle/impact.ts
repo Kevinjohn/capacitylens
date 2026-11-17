@@ -6,8 +6,8 @@ import { LifecycleTransitionError } from './transitions.js';
 
 /**
  * Per-table counts of currently-active descendants that archiving one entity would additionally hide
- * from the {@link activeOnly} view projection, not counting the entity itself. Feeds the
- * archive-confirmation warning ("this also hides N projects and M allocations").
+ * from the {@link activeOnly} view projection, not counting the entity itself. The server reports
+ * it in the archive reply, and the browser shows it as a notice after the archive.
  */
 export interface ArchiveImpact {
   /** Active projects hidden, non-zero only when archiving a client. */
