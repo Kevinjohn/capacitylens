@@ -1,13 +1,4 @@
-import { addDaysISO, daysInclusive } from '@capacitylens/shared/lib/dateMath';
-import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
-import {
-  generateRepeatingStartDates,
-  RepeatingDateError,
-  TIME_OFF_REPEAT_POLICY,
-} from '@capacitylens/shared/lib/repeatingDates';
 import type { RepeatPattern } from '@capacitylens/shared/lib/repeatingDates';
-import type { ISODate, TimeOff } from '@capacitylens/shared/types/entities';
-import type { Draft } from '@/lib/entityDrafts';
 
 /** A create-only cadence; persisted time-off entries remain independent dated records. */
 export type TimeOffRepeatSelection =
@@ -30,44 +21,4 @@ const TIME_OFF_REPEAT_PATTERNS: Record<TimeOffRepeatSelection, RepeatPattern> = 
 /** The shared repeat pattern behind one time-off cadence choice. Pure. */
 export function resolveTimeOffRepeatPattern(selection: TimeOffRepeatSelection): RepeatPattern {
   return TIME_OFF_REPEAT_PATTERNS[selection];
-}
-
-/** Generate the exact independent drafts shared by the form preview and its one atomic save. */
-export function buildRepeatedTimeOffDrafts(
-  baseDraft: Draft<TimeOff>,
-  repeatUntil: ISODate,
-  selection: TimeOffRepeatSelection,
-): { repeatUntil: ISODate; drafts: Draft<TimeOff>[] } {
-  if (!isValidISODate(baseDraft.startDate) || !isValidISODate(baseDraft.endDate)) {
-    throw new RepeatingDateError('invalid-date', 'Time off requires valid ISO dates.');
-  }
-  const duration = daysInclusive(baseDraft.startDate, baseDraft.endDate);
-  if (!Number.isSafeInteger(duration) || duration < 1) {
-    throw new RepeatingDateError(
-      'invalid-date',
-      'Repeat projection requires a valid inclusive date range.',
-    );
-  }
-  const generated = generateRepeatingStartDates(
-    baseDraft.startDate,
-    repeatUntil,
-    resolveTimeOffRepeatPattern(selection),
-    TIME_OFF_REPEAT_POLICY,
-  );
-  const drafts = generated.startDates.map((startDate, index) => {
-    if (index === 0) return baseDraft;
-    try {
-      return { ...baseDraft, startDate, endDate: addDaysISO(startDate, duration - 1) };
-    } catch (error) {
-      // Translate date overflow into a field-domain failure while allowing unrelated programming errors to propagate.
-      if (error instanceof RangeError) {
-        throw new RepeatingDateError(
-          'invalid-date',
-          'Repeated time off extends beyond the supported ISO date range.',
-        );
-      }
-      throw error;
-    }
-  });
-  return { repeatUntil: generated.repeatUntil, drafts };
 }

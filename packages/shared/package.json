@@ -158,6 +158,11 @@
       "types": "./src/lib/repeatingDates.ts",
       "default": "./dist/lib/repeatingDates.js"
     },
+    "./lib/repeatingOccurrences": {
+      "development": "./src/lib/repeatingOccurrences.ts",
+      "types": "./src/lib/repeatingOccurrences.ts",
+      "default": "./dist/lib/repeatingOccurrences.js"
+    },
     "./lib/schedulingDays": {
       "development": "./src/lib/schedulingDays.ts",
       "types": "./src/lib/schedulingDays.ts",
