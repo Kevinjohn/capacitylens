@@ -4,7 +4,7 @@ import {
   hasMultipleCompanies,
   hasNoCompany,
   installationCompanyId,
-} from '#services/installation_company';
+} from '#models/installation_company';
 import { resetState } from '../helpers/state_fixture.js';
 
 test.group('installation company', () => {

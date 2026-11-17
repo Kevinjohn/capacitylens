@@ -88,7 +88,7 @@ This is the short, present-tense record of decisions that constrain future work.
   creates that company; the UI offers no company switcher or additional-company creation. Tenant
   scoping, memberships and the account directory remain enforced, and ambiguous installations
   report an error.
-- The one-company rule has one server home, `app/services/installation_company.ts`. Every server
+- The one-company rule has one server home, `app/models/installation_company.ts`. Every server
   check of the limit, or of whether a company exists yet, reads through it. The client shows the
   server's refusal and does not count companies itself.
 - Code that works across several companies stays on purpose: an export without a named company
