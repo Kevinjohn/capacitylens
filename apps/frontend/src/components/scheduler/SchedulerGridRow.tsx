@@ -37,7 +37,6 @@ export interface SchedulerGridRowProps {
   onEdit: LaneProps['onEdit'];
   onDraw: LaneProps['onDraw'];
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
-  resourceAvatars: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
 }
 
@@ -46,21 +45,15 @@ function ResourceIdentity({
   row,
   density,
   personScheduleTitlesByResourceId,
-  resourceAvatars,
   onViewSchedule,
 }: Pick<
   SchedulerGridRowProps,
-  | 'group'
-  | 'row'
-  | 'density'
-  | 'personScheduleTitlesByResourceId'
-  | 'resourceAvatars'
-  | 'onViewSchedule'
+  'group' | 'row' | 'density' | 'personScheduleTitlesByResourceId' | 'onViewSchedule'
 >) {
   const { resource } = row;
   const scheduleTitle =
     personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
-  const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
+  const imageUrl = resolveResourceAvatarUrl(resource);
   // A placeholder in a discipline band takes the discipline colour; one without a discipline keeps
   // its own colour instead of the neutral Unassigned band colour. The capacity overview differs on
   // purpose: it gathers every placeholder into the uncoloured Unassigned demand band, so there a
@@ -188,12 +181,11 @@ type RowHeaderProps = Pick<
   | 'visibleStartDate'
   | 'setModal'
   | 'personScheduleTitlesByResourceId'
-  | 'resourceAvatars'
   | 'onViewSchedule'
 >;
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
-  const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui, resourceAvatars } = props;
+  const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui } = props;
   const { resource } = row;
   return (
     <div
@@ -216,7 +208,6 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
         row={row}
         density={density}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
-        resourceAvatars={resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
       <ResourceActions {...props} />
@@ -263,7 +254,6 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         visibleStartDate={props.visibleStartDate}
         setModal={props.setModal}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
-        resourceAvatars={props.resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
 
