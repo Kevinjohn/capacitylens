@@ -28,6 +28,8 @@ Object.assign(process.env, {
   CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_RATE_LIMIT: '10000',
   CAPACITYLENS_ALLOW_RESET: 'true',
+  // Tests read the real clock; a date pinned in the developer's shell must not leak in.
+  CAPACITYLENS_FIXED_TODAY: '',
   CAPACITYLENS_TEST_HTTP_PORT: String(testHttpPort),
   CAPACITYLENS_DB: fileURLToPath(new URL(`../tmp/japa-${testHttpPort}.db`, import.meta.url)),
 });

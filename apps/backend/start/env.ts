@@ -1,4 +1,5 @@
 import { Env } from '@adonisjs/core/env';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 const optional = Env.schema.string.optional();
 const optionalBoolean = Env.schema.boolean.optional();
 // Keep the caller's string contract while rejecting malformed supplied operator values.
@@ -16,6 +17,13 @@ function optionalInteger(maximum: number, minimum = 1): OptionalStringValidator 
     return value;
   };
 }
+
+/** An optional calendar date, checked when the server starts rather than on the first read. */
+const optionalISODate: OptionalStringValidator = (key, value) => {
+  if (value === undefined || value === '') return undefined;
+  if (!isValidISODate(value)) throw new Error(`${key} must be a calendar date (YYYY-MM-DD)`);
+  return value;
+};
 
 type StringValidator = ReturnType<typeof Env.schema.string>;
 type NumberValidator = ReturnType<typeof Env.schema.number>;
@@ -100,7 +108,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   // Set by scripts/dev/dev-fullstack.mjs to its lane's Vite origins; ignored outside development.
   CAPACITYLENS_DEV_WEB_ORIGINS: optional,
   // Set by scripts/e2e-server.mjs so the server's today matches the browser tests' frozen date.
-  CAPACITYLENS_FIXED_TODAY: optional,
+  CAPACITYLENS_FIXED_TODAY: optionalISODate,
   CAPACITYLENS_LOG: Env.schema.enum.optional(['0', '1'] as const),
   CAPACITYLENS_MAIL_FROM: Env.schema.string.optional({ format: 'email' }),
   CAPACITYLENS_MAIL_HOST: Env.schema.string.optional({ format: 'host' }),
