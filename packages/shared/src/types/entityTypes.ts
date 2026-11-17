@@ -182,6 +182,9 @@ export interface Client extends ScopedEntity {
   /** Owner-managed cover name for a private client. Stored without quotation marks; the read
    * projection adds them consistently wherever the code name is displayed. */
   codeName: string | null;
+  /** Read projection only: the reader's ordering label, set by the server. Never stored, exported
+   * or accepted on writes. */
+  displayName?: string;
   /** True only for the built-in "Internal" pseudo-client, exactly one per account, created by
    * seed / addAccount / imports. A built-in client cannot be renamed or deleted, and a project-less
    * internal/all-projects activity buckets under it for display + filtering. Null/false = a normal,
@@ -205,6 +208,9 @@ export interface Project extends ScopedEntity {
   /** Owner-managed cover name for a private project. Stored without quotation marks; the read
    * projection adds them consistently wherever the code name is displayed. */
   codeName: string | null;
+  /** Read projection only: the reader's ordering label, set by the server. Never stored, exported
+   * or accepted on writes. */
+  displayName?: string;
   /** ISO 8601 archive timestamp; null means active. Archived rows are hidden from scheduling. */
   archivedAt: ISOTimestamp | null;
   /** Retained import field for previously exported deleted records. New lifecycle actions do not set it. */

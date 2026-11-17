@@ -81,8 +81,4 @@ export function registerAdmissionRoutes() {
     ])
     .as('api.member-resources.clear')
     .use(asCompanyMember());
-  router
-    .get('/api/accounts/:accountId/resource-avatars', [MemberResourcesController, 'avatars'])
-    .as('api.member-resources.avatars')
-    .use(asCompanyMemberOnly());
 }

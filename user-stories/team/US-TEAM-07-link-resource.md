@@ -42,7 +42,7 @@ flowchart TD
     Choose -->|"None"| ClearClient["teamAccessClient.clearMemberResourceLink → memberRequests DELETE resource-link"]
     ClearClient --> ClearRoute["api.member-resources.clear → MemberResourcesController.clearLink"]
     ClearRoute --> ClearLink["clearMemberResourceLink removes account_member_resources row"]
-    SetLink --> Reload["Request hook invalidates avatars and reloads directory"]
+    SetLink --> Reload["Request hook reloads directory"]
     ClearLink --> Reload
     Reload --> Fence["useTeamDirectory accepts the requested read generation only from a successful members read"]
     Fence --> Row["Member row shows refreshed link or a visible error; the editor is available again"]

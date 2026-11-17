@@ -64,8 +64,7 @@ This is the short, present-tense record of decisions that constrain future work.
   zoom or pan.
 - The visible span is chosen from a **Weeks visible** dropdown, not a row of always-on buttons; the
   schedule's top bar is reserved for the controls people reach for every session.
-- The schedule's jump-to-date picker is not shown. The control remains in the codebase and under
-  test.
+- The schedule has no jump-to-date picker.
 - Narrowing a resource's availability (working pattern, weekly capacity or employment type)
   leaves existing allocations in place; capacity and utilisation are recalculated so they show
   as over-capacity rather than being moved, split or deleted.

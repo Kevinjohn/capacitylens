@@ -89,22 +89,40 @@ describe('ProjectList', () => {
 
     loadPlanningData({
       ...useStore.getState().data,
-      clients: useStore
-        .getState()
-        .data.clients.map((client) =>
-          client.id === alphaClient.id
-            ? { ...client, isPrivate: true, codeName: '  Beta Client  ' }
-            : client,
-        ),
+      clients: useStore.getState().data.clients.map((client) =>
+        client.id === alphaClient.id
+          ? {
+              ...client,
+              isPrivate: true,
+              codeName: '  Beta Client  ',
+              displayName: 'Beta Client',
+            }
+          : client,
+      ),
       projects: useStore.getState().data.projects.map((project) => {
         if (project.id === alphaZuluProject.id) {
-          return { ...project, isPrivate: true, codeName: 'Zulu Project' };
+          return {
+            ...project,
+            isPrivate: true,
+            codeName: 'Zulu Project',
+            displayName: 'Zulu Project',
+          };
         }
         if (project.id === zuluBravoProject.id) {
-          return { ...project, isPrivate: true, codeName: 'Bravo Project' };
+          return {
+            ...project,
+            isPrivate: true,
+            codeName: 'Bravo Project',
+            displayName: 'Bravo Project',
+          };
         }
         if (project.id === betaZuluProject.id) {
-          return { ...project, isPrivate: true, codeName: 'Alpha Project' };
+          return {
+            ...project,
+            isPrivate: true,
+            codeName: 'Alpha Project',
+            displayName: 'Alpha Project',
+          };
         }
         return project;
       }),
