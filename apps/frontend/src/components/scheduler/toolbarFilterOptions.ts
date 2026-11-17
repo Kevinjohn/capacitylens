@@ -1,6 +1,7 @@
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { byName, createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
 import { byDisciplineOrder } from '@/store/selectors';
+import { formatProjectLabel } from '@/components/common/projectOptions';
 
 /** One entity option in a {@link FilterSelect}, the stored id and the text the menu shows. */
 export interface FilterOption {
@@ -41,7 +42,7 @@ export function buildFilterOptions(
         const clientName = clientNames.get(project.clientId);
         return {
           id: project.id,
-          label: clientName ? `${clientName} / ${project.name}` : project.name,
+          label: formatProjectLabel(project.name, clientName),
           ...(clientName ? { contextLabel: `${clientName} /`, primaryLabel: project.name } : {}),
         };
       }),
