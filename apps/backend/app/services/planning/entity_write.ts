@@ -1,10 +1,5 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type {
-  AppData,
-  AppDataKey,
-  ScopedEntityKey,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
+import type { AppData, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { tables } from '#services/product_tables';
@@ -34,9 +29,8 @@ interface WriteEntityOptions {
 }
 
 function lookupFor(data: AppData): ValidationDataLookup {
-  const rows = (table: AppDataKey) => rowsOf(data, table);
   return {
-    row: (table, id) => rows(table).find((row) => row.id === id),
+    row: (table, id) => rowsOf(data, table).find((row) => row.id === id),
     allocationsForResource: (accountId, resourceId) =>
       data.allocations.filter(
         (row) => row.accountId === accountId && row.resourceId === resourceId
