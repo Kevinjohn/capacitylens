@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDates';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
@@ -26,6 +25,7 @@ const input = (baseRevision: number, intent: Record<string, unknown>) => ({
 const body = (response: { body(): unknown }) =>
   response.body() as {
     code?: string;
+    error?: string;
     status?: string;
     mutationId?: string;
     revision?: number;
@@ -38,7 +38,7 @@ test.group('independent typed planning operations', (group) => {
     await resetPlanningFixture();
   });
 
-  test('creates one homogeneous allocation series and permits a later Sunday occurrence', async ({
+  test('creates one allocation series from a pattern and permits a later Sunday occurrence', async ({
     client,
     assert,
     cleanup,
@@ -46,15 +46,18 @@ test.group('independent typed planning operations', (group) => {
     configureAuth(cleanup);
     const data = await readState(accountId, true);
     const { cookie } = await signIn(client);
-    const first = newAllocation(data);
-    const later = {
-      ...first,
-      id: randomUUID(),
-      startDate: '2026-11-08',
-      endDate: '2026-11-12',
-    };
+    // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
+    const first = { ...newAllocation(data), startDate: '2026-10-01', endDate: '2026-10-01' };
+    const laterId = randomUUID();
     const committed = await session(client.post(route('allocations/create-group')), cookie)
-      .json(input(0, { operation: 'allocation.createGroup', allocations: [first, later] }))
+      .json(
+        input(0, {
+          operation: 'allocation.createGroup',
+          allocation: first,
+          repeat: { pattern: { kind: 'monthly-date' }, until: '2026-11-01' },
+          occurrenceIds: [laterId],
+        })
+      )
       .send();
 
     committed.assertStatus(200);
@@ -62,18 +65,16 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(body(committed).projection?.mode, 'patch');
     assert.equal(body(committed).projection?.history, 'retain');
     const saved = await readState(accountId, true);
-    const created = [first.id, later.id].map((id) =>
-      saved.allocations.find((row) => row.id === id)
-    );
+    const created = [first.id, laterId].map((id) => saved.allocations.find((row) => row.id === id));
     assert.isDefined(created[0]);
     assert.isDefined(created[1]);
     assert.isNotEmpty(created[0]!.seriesId);
     assert.equal(created[1]!.seriesId, created[0]!.seriesId);
-    assert.equal(created[1]!.startDate, later.startDate);
+    assert.equal(created[1]!.startDate, '2026-11-01');
     assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
   });
 
-  test('accepts allocation groups up to the shared ceiling and refuses one extra row', async ({
+  test('refuses more occurrence ids than the shared ceiling allows', async ({
     client,
     assert,
     cleanup,
@@ -81,30 +82,54 @@ test.group('independent typed planning operations', (group) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const before = await readState(accountId, true);
-    const first = newAllocation(before);
-    const allocations = Array.from({ length: GENERATED_ALLOCATION_LIMIT + 1 }, (_, index) => ({
-      ...first,
-      id: randomUUID(),
-      startDate: addDaysISO(first.startDate, index),
-      endDate: addDaysISO(first.endDate, index),
-    }));
-    const postGroup = (rows: typeof allocations) =>
-      session(client.post(route('allocations/create-group')), cookie)
-        .json(input(0, { operation: 'allocation.createGroup', allocations: rows }))
-        .send();
+    const refused = await session(client.post(route('allocations/create-group')), cookie)
+      .json(
+        input(0, {
+          operation: 'allocation.createGroup',
+          allocation: newAllocation(before),
+          repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2027-05-02' },
+          occurrenceIds: Array.from({ length: GENERATED_ALLOCATION_LIMIT }, () => randomUUID()),
+        })
+      )
+      .send();
 
-    const refused = await postGroup(allocations);
     refused.assertStatus(400);
     assert.equal(body(refused).code, 'VALIDATION_ERROR');
-    const afterRefusal = await readState(accountId, true);
-    assert.deepEqual(afterRefusal.allocations, before.allocations);
-
-    const accepted = await postGroup(allocations.slice(0, GENERATED_ALLOCATION_LIMIT));
-    accepted.assertStatus(200);
-    assert.equal(body(accepted).revision, 1);
+    assert.include(body(refused).error, 'occurrenceIds');
+    assert.deepEqual(await readState(accountId, true), before);
   });
 
-  test('refuses heterogeneous allocation groups before persisting any occurrence', async ({
+  test('refuses a repeated occurrence id or one that reuses the first id', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const before = await readState(accountId, true);
+    const allocation = newAllocation(before);
+    const repeated = randomUUID();
+    for (const occurrenceIds of [
+      [repeated, repeated],
+      [allocation.id, randomUUID()],
+    ]) {
+      const refused = await session(client.post(route('allocations/create-group')), cookie)
+        .json(
+          input(0, {
+            operation: 'allocation.createGroup',
+            allocation,
+            repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
+            occurrenceIds,
+          })
+        )
+        .send();
+      refused.assertStatus(400);
+      assert.equal(body(refused).error, 'Entity IDs must be unique.');
+    }
+    assert.deepEqual(await readState(accountId, true), before);
+  });
+
+  test('refuses occurrence ids that do not match the repeat before persisting any occurrence', async ({
     client,
     assert,
     cleanup,
@@ -113,23 +138,24 @@ test.group('independent typed planning operations', (group) => {
     const data = await readState(accountId, true);
     const { cookie } = await signIn(client);
     const first = newAllocation(data);
-    const otherResource = data.resources.find(
-      (row) => row.accountId === accountId && row.kind === 'person' && row.id !== first.resourceId
-    )!;
-    const heterogeneous = {
-      ...first,
-      id: randomUUID(),
-      resourceId: otherResource.id,
-      startDate: '2026-11-08',
-      endDate: '2026-11-12',
-    };
     const before = await readState(accountId, true);
-    const refused = await session(client.post(route('allocations/create-group')), cookie)
-      .json(input(0, { operation: 'allocation.createGroup', allocations: [first, heterogeneous] }))
-      .send();
+    // Weekly from 2 November to 16 November makes three occurrences, so two later ids.
+    for (const count of [1, 3]) {
+      const refused = await session(client.post(route('allocations/create-group')), cookie)
+        .json(
+          input(0, {
+            operation: 'allocation.createGroup',
+            allocation: first,
+            repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
+            occurrenceIds: Array.from({ length: count }, () => randomUUID()),
+          })
+        )
+        .send();
 
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      refused.assertStatus(400);
+      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      assert.equal(body(refused).error, 'The occurrence identities do not match the repeat.');
+    }
     assert.deepEqual(await readState(accountId, true), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 0);

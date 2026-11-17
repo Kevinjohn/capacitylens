@@ -420,15 +420,18 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   );
 
   // The independent extension uses the same generated transport and existing real session.
-  const groupIds = [uuid(), uuid()];
+  const [firstGroupId, laterGroupId] = [uuid(), uuid()];
+  const groupIds = [firstGroupId, laterGroupId];
   await callHarness(page, 'planningHarnessExecute', primaryKey, {
     operation: 'allocation.createGroup',
-    allocations: groupIds.map((id, index) => ({
+    allocation: {
       ...sourceAllocation.allocation,
-      id,
-      startDate: index === 0 ? '2026-11-23' : '2026-11-30',
-      endDate: index === 0 ? '2026-11-25' : '2026-12-02',
-    })),
+      id: firstGroupId,
+      startDate: '2026-11-23',
+      endDate: '2026-11-25',
+    },
+    repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-30' },
+    occurrenceIds: [laterGroupId],
   } satisfies Intent);
   const groupedSnapshot = await planningSnapshot(request, owner.cookie, companyId);
   expect(groupedSnapshot.revision).toBe(completeSnapshot.revision + 1);

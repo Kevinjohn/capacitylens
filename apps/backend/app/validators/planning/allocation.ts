@@ -9,7 +9,9 @@ import {
   meta,
   nullableId,
   nullableUserText,
+  occurrenceIdsExclude,
   operationMatches,
+  repeatRange,
   requireChanges,
   uniqueArrayIds,
   uuid,
@@ -111,12 +113,15 @@ export const allocationIntent = vine
       vine
         .object({
           operation: vine.literal('allocation.createGroup'),
-          allocations: vine
-            .array(allocationCreate)
+          allocation: allocationCreate,
+          repeat: repeatRange(),
+          occurrenceIds: vine
+            .array(uuid())
             .minLength(1)
-            .maxLength(GENERATED_ALLOCATION_LIMIT),
+            .maxLength(GENERATED_ALLOCATION_LIMIT - 1),
         })
-        .use(uniqueArrayIds('allocations'))
+        .use(uniqueArrayIds('occurrenceIds'))
+        .use(occurrenceIdsExclude('allocation'))
     ),
     vine.union.if(
       (value) => operationMatches(value, 'allocation.duplicate'),

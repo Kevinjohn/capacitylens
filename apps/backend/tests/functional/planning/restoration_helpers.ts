@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
 import { accountId, newAllocation, session } from './helpers.js';
 
@@ -81,19 +82,28 @@ export const restore = (
     mutationId
   );
 
+/** Creates `count` allocations in one mutation: one create, or a weekly repeat of `count` occurrences. */
 export async function createAllocations(client: ApiClient, cookie: string, count: number) {
   const data = await readState(accountId, true);
-  const allocations = Array.from({ length: count }, () => ({
-    ...newAllocation(data),
-    note,
-    task: 'Watchtower rota',
-  }));
-  const created = await send(client, cookie, `${allocationsUrl}/create-group`, 0, {
-    operation: 'allocation.createGroup',
-    allocations,
-  });
+  const allocation = { ...newAllocation(data), note, task: 'Watchtower rota' };
+  const occurrenceIds = Array.from({ length: count - 1 }, () => randomUUID());
+  const created =
+    count === 1
+      ? await send(client, cookie, allocationsUrl, 0, {
+          operation: 'allocation.create',
+          allocation,
+        })
+      : await send(client, cookie, `${allocationsUrl}/create-group`, 0, {
+          operation: 'allocation.createGroup',
+          allocation,
+          repeat: {
+            pattern: { kind: 'weeks', interval: 1 },
+            until: addDaysISO(allocation.startDate, 7 * (count - 1)),
+          },
+          occurrenceIds,
+        });
   created.assertStatus(200);
-  return allocations.map((row) => row.id);
+  return [allocation.id, ...occurrenceIds];
 }
 
 export async function stored(id: string) {

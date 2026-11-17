@@ -39,18 +39,29 @@ async function allocationSetup() {
   return { resource, activity, draft };
 }
 
+/** A weekly repeat whose last start is `until`. */
+const weekly = (until: string) => ({
+  pattern: { kind: 'weeks' as const, interval: 1 as const },
+  until,
+});
+
 describe('atomic allocation creation', () => {
-  it('shares the single/bulk path, mints unique rows, preserves valid hours and records one typed history step', async () => {
+  it('shares the single/repeat path, mints unique rows, preserves valid hours and records one typed history step', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory().past.length;
     queueAllocationGroupResponse();
     const created = requireCreated(
-      await state().addAllocations([
-        draft({ hoursPerDay: 24 }),
-        draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-      ]),
+      await state().addRepeatedAllocation(draft({ hoursPerDay: 24 }), weekly('2026-06-08'), 2),
     );
 
+    const sent = getStubPlanningTransport().calls.at(-1);
+    expect(sent).toMatchObject({
+      operation: 'allocation.createGroup',
+      allocation: { id: created[0]?.id, startDate: '2026-06-01' },
+      repeat: weekly('2026-06-08'),
+      occurrenceIds: [created[1]?.id],
+    });
+    expect(sent).not.toHaveProperty('allocations');
     expect(created).toHaveLength(2);
     expect(new Set(created.map((allocation) => allocation.id)).size).toBe(2);
     expect(created.every((allocation) => allocation.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
@@ -64,12 +75,15 @@ describe('atomic allocation creation', () => {
     expect(state().data.allocations.at(-1)).toEqual(single);
     expect(typedHistory().past).toHaveLength(historyBefore + 2);
   });
-  it('rejects an empty batch', async () => {
-    await expect(state().addAllocations([])).rejects.toThrow(/at least one allocation/i);
+  it('rejects a repeat of fewer than two occurrences', async () => {
+    const { draft } = await allocationSetup();
+    await expect(state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 1)).rejects.toThrow(
+      /at least two occurrences/i,
+    );
     expect(state().data.allocations).toHaveLength(0);
   });
 
-  it('rejects an invalid middle row before any state/history publication', async () => {
+  it('rejects an invalid first occurrence before any state/history publication', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory().past.length;
     let publications = 0;
@@ -77,11 +91,11 @@ describe('atomic allocation creation', () => {
       publications += 1;
     });
     await expect(
-      state().addAllocations([
-        draft(),
+      state().addRepeatedAllocation(
         draft({ startDate: '2026-07-10', endDate: '2026-07-01' }),
-        draft({ startDate: '2026-08-01', endDate: '2026-08-02' }),
-      ]),
+        weekly('2026-07-24'),
+        3,
+      ),
     ).rejects.toThrow(/end date cannot be before/i);
     unsubscribe();
     expect(publications).toBe(0);
@@ -106,10 +120,11 @@ describe('atomic allocation creation', () => {
     }));
     const historyBeforeCrossAccountRejection = typedHistory().past.length;
     await expect(
-      state().addAllocations([
-        first.draft(),
+      state().addRepeatedAllocation(
         first.draft({ resourceId: otherResource.id, activityId: otherActivity.id }),
-      ]),
+        weekly('2026-06-08'),
+        2,
+      ),
     ).rejects.toThrow(/active company|existing resource and activity/i);
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory().past).toHaveLength(historyBeforeCrossAccountRejection);
@@ -143,10 +158,11 @@ describe('atomic allocation creation', () => {
     );
     const historyBeforePlaceholderRejection = typedHistory().past.length;
     await expect(
-      state().addAllocations([
-        first.draft(),
+      state().addRepeatedAllocation(
         first.draft({ resourceId: placeholder.id, activityId: mismatchedActivity.id }),
-      ]),
+        weekly('2026-06-08'),
+        2,
+      ),
     ).rejects.toThrow(/placeholder.*bound project/i);
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory().past).toHaveLength(historyBeforePlaceholderRejection);
@@ -155,11 +171,7 @@ describe('atomic allocation creation', () => {
     const { draft } = await allocationSetup();
     queueAllocationGroupResponse();
     const created = requireCreated(
-      await state().addAllocations([
-        draft(),
-        draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-        draft({ startDate: '2026-06-15', endDate: '2026-06-17' }),
-      ]),
+      await state().addRepeatedAllocation(draft(), weekly('2026-06-15'), 3),
     );
     expect(state().data.allocations).toEqual(created);
     queueAllocationDeleteGroupResponse(
@@ -167,6 +179,10 @@ describe('atomic allocation creation', () => {
       'group-allocation-undo',
     );
     expect(await state().undoPlanning()).toBe(true);
+    expect(getStubPlanningTransport().calls.at(-1)).toEqual({
+      operation: 'allocation.deleteGroup',
+      ids: created.map(({ id }) => id),
+    });
     expect(state().data.allocations).toHaveLength(0);
     queueAllocationRestoreResponse(created, 'group-allocation-undo');
     expect(await state().redoPlanning()).toBe(true);
@@ -181,10 +197,7 @@ describe('atomic allocation creation', () => {
     const { draft } = await allocationSetup();
     queueAllocationGroupResponse('server-series');
     const created = requireCreated(
-      await state().addAllocations([
-        draft(),
-        draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-      ]),
+      await state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2),
     );
 
     expect(created[0]?.seriesId).toBeTruthy();
@@ -204,10 +217,7 @@ describe('atomic allocation creation', () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory().past.length;
     state().setActiveRole('viewer');
-    const returned = await state().addAllocations([
-      draft(),
-      draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-    ]);
+    const returned = await state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2);
     expect(returned).toEqual({ kind: 'blocked' });
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory().past).toHaveLength(historyBefore);
@@ -216,7 +226,7 @@ describe('atomic allocation creation', () => {
 });
 
 describe('resource availability boundaries', () => {
-  it('rejects a batch atomically at its first out-of-bound scheduled day', async () => {
+  it('rejects a repeat whose first occurrence starts before availability', async () => {
     const { resource, draft } = await allocationSetup();
     await state().updateResource(resource.id, {
       firstAvailableDate: '2026-06-08',
@@ -224,12 +234,9 @@ describe('resource availability boundaries', () => {
     });
     const historyBefore = typedHistory().past.length;
 
-    await expect(
-      state().addAllocations([
-        draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-        draft({ startDate: '2026-06-01', endDate: '2026-06-03' }),
-      ]),
-    ).rejects.toThrow(/before.*available/i);
+    await expect(state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2)).rejects.toThrow(
+      /before.*available/i,
+    );
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory().past).toHaveLength(historyBefore);
   });
@@ -333,11 +340,7 @@ describe('repeat-series allocation mutations', () => {
     const { draft } = await allocationSetup();
     queueAllocationGroupResponse('server-series');
     const [earlier, selected, later] = requireCreated(
-      await state().addAllocations([
-        draft({ startDate: '2026-06-01', endDate: '2026-06-03' }),
-        draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-        draft({ startDate: '2026-06-15', endDate: '2026-06-17' }),
-      ]),
+      await state().addRepeatedAllocation(draft(), weekly('2026-06-15'), 3),
     );
     const unrelated = requireCreated(
       await state().addAllocation(draft({ startDate: '2026-06-22', endDate: '2026-06-24' })),
@@ -363,10 +366,7 @@ describe('repeat-series allocation mutations', () => {
     const { draft } = await allocationSetup();
     queueAllocationGroupResponse('server-series');
     const [linked] = requireCreated(
-      await state().addAllocations([
-        draft(),
-        draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-      ]),
+      await state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2),
     );
     const oneOff = requireCreated(
       await state().addAllocation(draft({ startDate: '2026-07-01', endDate: '2026-07-01' })),

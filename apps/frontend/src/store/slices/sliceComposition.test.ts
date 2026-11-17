@@ -79,7 +79,7 @@ describe('store slice composition', () => {
         'updateActivity',
         'deleteActivity',
         'addAllocation',
-        'addAllocations',
+        'addRepeatedAllocation',
         'updateAllocation',
         'deleteAllocation',
         'deleteAllocationSeriesFrom',

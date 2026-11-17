@@ -22,7 +22,7 @@ import type { Draft, StoreState } from '@/store/types';
 type AllocationSlice = Pick<
   StoreState,
   | 'addAllocation'
-  | 'addAllocations'
+  | 'addRepeatedAllocation'
   | 'duplicateAllocation'
   | 'updateAllocation'
   | 'deleteAllocation'
@@ -137,19 +137,27 @@ export function createAllocationSlice(
         if (!created) throw new Error('Allocation creation produced no row.');
         return { kind: 'created', value: created };
       },
-      addAllocations: async (inputs) => {
-        const prepared = prepareNew(inputs);
+      addRepeatedAllocation: async (input, repeat, count) => {
+        if (!Number.isSafeInteger(count) || count < 2) {
+          throw new Error('A repeat needs at least two occurrences.');
+        }
+        const prepared = prepareNew([input]);
         if (!prepared) return { kind: 'blocked' };
-        const allocations = prepared.drafts.map((draft) => {
-          const command = requireCommand(buildAllocationCreate({ ...prepared, args: draft }));
-          if (command.intent.operation !== 'allocation.create') {
-            throw new Error('Unexpected allocation command.');
-          }
-          return command.intent.allocation;
-        });
-        const ids = prepared.drafts.map((draft) => draft.id);
+        const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
+        const command = requireCommand(buildAllocationCreate({ ...prepared, args: draft }));
+        if (command.intent.operation !== 'allocation.create') {
+          throw new Error('Unexpected allocation command.');
+        }
+        // Later occurrence ids are minted here too, so Undo can delete the whole set by id.
+        const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
+        const ids = [draft.id, ...occurrenceIds];
         await send({
-          intent: { operation: 'allocation.createGroup', allocations },
+          intent: {
+            operation: 'allocation.createGroup',
+            allocation: command.intent.allocation,
+            repeat,
+            occurrenceIds,
+          },
           inverse: { operation: 'allocation.deleteGroup', ids },
         });
         return { kind: 'created', value: createdRows(get, ids) };

@@ -123,8 +123,8 @@ function buildProjection(
     );
     return { drafts, startDates };
   } catch (error) {
-    // A near-boundary date can be valid input while a projected occurrence cannot fit. Save owns
-    // the localized error surface; invariant/programming errors remain loud instead of disappearing.
+    // A near-boundary date can be valid input while a projected occurrence cannot fit. The server
+    // refuses that repeat on save; invariant/programming errors remain loud instead of disappearing.
     if (error instanceof RangeError) return null;
     throw error;
   }
