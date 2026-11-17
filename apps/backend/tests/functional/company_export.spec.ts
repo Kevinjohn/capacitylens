@@ -37,9 +37,10 @@ async function setRole(role: Role, accountId = 'a-studio') {
 test.group('company export download', (group) => {
   group.setup(() => freshDatabase());
 
-  test('serves the same document the browser built, for each role', async ({ client, assert }) => {
+  test("serves the role's projected export document", async ({ client, assert }) => {
     client = await reset(client);
     await archiveResource();
+    await db.from('accounts').where('id', 'a-studio').update({ date_style: 'month-day' });
     for (const role of roles) {
       await setRole(role);
       const response = await client.get('/api/accounts/a-studio/export').send();
@@ -57,7 +58,7 @@ test.group('company export download', (group) => {
         })
       );
       assert.equal(response.text(), expected, role);
-      assert.include(response.text(), '"dateStyle"', role);
+      assert.include(response.text(), '"dateStyle": "month-day"', role);
     }
   });
 
@@ -85,10 +86,27 @@ test.group('company export download', (group) => {
     }
   });
 
-  test('refuses a company the caller does not belong to', async ({ client }) => {
+  test('refuses a company the caller does not belong to', async ({ client, assert }) => {
     client = await reset(client);
     await db.from('memberships').where({ user_id: userId, scope_id: 'a-loft' }).delete();
     const response = await client.get('/api/accounts/a-loft/export').send();
     response.assertStatus(403);
+    assert.equal(response.body().code, 'ACCOUNT_MEMBERSHIP_LOST');
+  });
+
+  test('refuses an export that fails validation with its message', async ({ client, assert }) => {
+    client = await reset(client);
+    const placeholder = await db
+      .from('resources')
+      .where('account_id', 'a-studio')
+      .whereNot('kind', 'person')
+      .first();
+    await db
+      .from('resources')
+      .where('id', placeholder.id)
+      .update({ avatar_url: 'https://example.test/oracle.png' });
+    const response = await client.get('/api/accounts/a-studio/export').send();
+    response.assertStatus(400);
+    assert.match(response.body().error, /avatarUrl: only a person may have an avatar URL$/);
   });
 });
