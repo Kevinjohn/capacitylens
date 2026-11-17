@@ -14,7 +14,6 @@ export interface ApiDefinition {
         delete: typeof routes['api.planning.allocation.delete']
         deleteGroup: typeof routes['api.planning.allocation.deleteGroup']
         duplicate: typeof routes['api.planning.allocation.duplicate']
-        repeat: typeof routes['api.planning.allocation.repeat']
       }
       restoreGroup: typeof routes['api.planning.restoreGroup']
       resource: {

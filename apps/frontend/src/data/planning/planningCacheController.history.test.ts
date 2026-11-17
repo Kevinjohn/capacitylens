@@ -135,9 +135,9 @@ describe('planning cache controller', () => {
 
   it('reconciles lost Undo and Redo responses with each fresh restoration handle', async () => {
     const create = {
-      operation: 'allocation.repeat',
+      operation: 'allocation.duplicate',
       sourceAllocationId: 'source-1',
-      occurrences: [{ id: 'group-1', startDate: '2026-10-21', endDate: '2026-10-21' }],
+      occurrence: { id: 'group-1', startDate: '2026-10-21', endDate: '2026-10-21' },
     } as PlanningIntent;
     const deleteIntent = {
       operation: 'allocation.deleteGroup',

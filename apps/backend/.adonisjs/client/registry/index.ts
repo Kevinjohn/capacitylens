@@ -242,12 +242,6 @@ const routes = {
     tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"allocations"],[1,"id"],[0,"duplicate"]],
     types: placeholder as Registry['api.planning.allocation.duplicate']['types'],
   },
-  'api.planning.allocation.repeat': {
-    methods: ["POST"],
-    pattern: '/api/accounts/:accountId/allocations/:id/repeat',
-    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"allocations"],[1,"id"],[0,"repeat"]],
-    types: placeholder as Registry['api.planning.allocation.repeat']['types'],
-  },
   'api.planning.timeOff.repeat': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/time-off/repeat',

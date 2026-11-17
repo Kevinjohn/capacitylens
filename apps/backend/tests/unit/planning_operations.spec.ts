@@ -202,27 +202,9 @@ test.group('planning operation contracts', () => {
     });
   });
 
-  test('requires distinct client-minted IDs for atomic repeated allocations', async ({
+  test('requires a duplicate id distinct from its source and refuses the removed repeat', async ({
     assert,
   }) => {
-    const valid = await planningMutationValidator.validate({
-      mutationId: uuid,
-      baseRevision: 5,
-      intent: {
-        operation: 'allocation.repeat',
-        sourceAllocationId: uuid,
-        occurrences: [
-          { id: otherUuid, startDate: '2026-10-26', endDate: '2026-10-30' },
-          {
-            id: 'eb149a79-2581-40bd-8b7e-82f540243d2c',
-            startDate: '2026-11-02',
-            endDate: '2026-11-06',
-          },
-        ],
-      },
-    });
-    assert.equal(valid.intent.operation, 'allocation.repeat');
-
     const duplicate = await planningMutationValidator.validate({
       mutationId: otherUuid,
       baseRevision: 5,
@@ -250,6 +232,7 @@ test.group('planning operation contracts', () => {
       })
     );
 
+    // A repeat is created as one allocation group; the source-copying repeat operation is gone.
     await assert.rejects(() =>
       planningMutationValidator.validate({
         mutationId: uuid,
@@ -257,10 +240,7 @@ test.group('planning operation contracts', () => {
         intent: {
           operation: 'allocation.repeat',
           sourceAllocationId: uuid,
-          occurrences: [
-            { id: otherUuid, startDate: '2026-10-26', endDate: '2026-10-30' },
-            { id: otherUuid, startDate: '2026-11-02', endDate: '2026-11-06' },
-          ],
+          occurrences: [{ id: otherUuid, startDate: '2026-10-26', endDate: '2026-10-30' }],
         },
       })
     );
@@ -540,10 +520,7 @@ test.group('planning operation contracts', () => {
   test('malformed repeat entries fail as validation errors, not rule exceptions', async ({
     assert,
   }) => {
-    for (const intent of [
-      { operation: 'allocation.repeat', sourceAllocationId: uuid, occurrences: [null] },
-      { operation: 'timeOff.repeat', entries: [null] },
-    ]) {
+    for (const intent of [{ operation: 'timeOff.repeat', entries: [null] }]) {
       let error: unknown;
       try {
         await planningMutationValidator.validate({

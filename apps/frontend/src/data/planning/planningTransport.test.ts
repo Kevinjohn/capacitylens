@@ -100,15 +100,6 @@ const cases: Array<{
     path: 'allocations/source-1/duplicate',
   },
   {
-    intent: {
-      operation: 'allocation.repeat',
-      sourceAllocationId: 'source-1',
-      occurrences: [occurrence],
-    },
-    method: 'POST',
-    path: 'allocations/source-1/repeat',
-  },
-  {
     intent: { operation: 'allocation.delete', id },
     method: 'POST',
     path: `allocations/${id}/delete`,
