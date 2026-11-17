@@ -1,14 +1,22 @@
-import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
 import { apiRouteUrl } from '@/api/queryClient';
 import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
+import type { ScopedEntityKey } from '@capacitylens/shared/types/entities';
+
+/** What the server reports about a transfer document it would import into one company. */
+export interface TransferPreview {
+  baseRevision: number;
+  companyName: string;
+  counts: Record<ScopedEntityKey, number>;
+}
 
 /** The confirmed import of one transfer document into one company. */
 export interface ApplyTransferInput {
   accountId: string;
-  document: BetaExportDocument;
+  document: unknown;
   baseRevision: number;
   confirmationId: string;
 }
@@ -45,15 +53,13 @@ export async function readImportSummary(response: Response): Promise<ImportSumma
  */
 export const companyDataRequests = {
   /**
-   * Reads the destination revision the server would replace with this document.
+   * Asks the server to validate a transfer document and describe the import: the destination
+   * revision it would replace, the document's company name and its rows per scoped table.
    *
-   * @throws An `Error` whose message is safe to show when the server refuses the preview or answers
-   *   off-spec.
+   * @throws An `Error` whose message is safe to show when the server refuses the document or
+   *   answers off-spec.
    */
-  async readTransferPreviewRevision(
-    accountId: string,
-    document: BetaExportDocument,
-  ): Promise<number> {
+  async readTransferPreview(accountId: string, document: unknown): Promise<TransferPreview> {
     const response = await apiFetch('/api/transfer/preview', {
       method: 'POST',
       credentials: 'include',
@@ -66,16 +72,25 @@ export const companyDataRequests = {
       );
     }
     const result: unknown = await response.json();
+    const counts = isRecord(result) && isRecord(result.counts) ? result.counts : null;
     if (
-      !result ||
-      typeof result !== 'object' ||
-      !('baseRevision' in result) ||
-      !Number.isSafeInteger(result.baseRevision)
+      !isRecord(result) ||
+      !Number.isSafeInteger(result.baseRevision) ||
+      typeof result.companyName !== 'string' ||
+      !counts ||
+      SCOPED_KEYS.some((key) => parseCount(counts[key]) === null)
     ) {
       throw new Error(m.data_import_failed({ status: 0 }));
     }
-    // This cast is sound because the value was just checked to be a safe integer.
-    return result.baseRevision as number;
+    // These casts are sound because each value was just checked.
+    return {
+      baseRevision: result.baseRevision as number,
+      companyName: result.companyName,
+      counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, counts[key]])) as Record<
+        ScopedEntityKey,
+        number
+      >,
+    };
   },
 
   /** Sends a confirmed whole-company import. */

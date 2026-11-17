@@ -9,6 +9,7 @@ import {
 } from '@capacitylens/shared/data/betaTransfer';
 import {
   APP_DATA_KEYS,
+  SCOPED_KEYS,
   SCOPED_WRITE_ORDER,
   type AppData,
 } from '@capacitylens/shared/types/entities';
@@ -20,14 +21,27 @@ import { writeAudit } from '#services/audit';
 import { discardRestorationGroups } from '#services/planning/restoration';
 
 /**
- * Validates a document taken from a parsed request body, or returns null when it is not a valid
- * export. Nesting too deep to serialise counts as invalid input; any other failure propagates.
+ * Validates a document taken from a parsed request body, throwing a {@link BetaTransferError} that
+ * names the reason when it is not a valid export. Nesting too deep to serialise is one such reason;
+ * any other failure propagates.
  */
-export function parseRequestDocument(value: unknown): BetaExportDocument | null {
+export function readRequestDocument(value: unknown): BetaExportDocument {
   try {
     return parseBetaExport(JSON.stringify(value));
   } catch (error) {
-    if (error instanceof BetaTransferError || error instanceof RangeError) return null;
+    if (error instanceof RangeError) {
+      throw new BetaTransferError('document', 'is nested too deeply');
+    }
+    throw error;
+  }
+}
+
+/** Like {@link readRequestDocument}, but returns null instead of naming why the document is invalid. */
+export function parseRequestDocument(value: unknown): BetaExportDocument | null {
+  try {
+    return readRequestDocument(value);
+  } catch (error) {
+    if (error instanceof BetaTransferError) return null;
     throw error;
   }
 }
@@ -91,7 +105,10 @@ async function context(trx: TransactionClientContract, accountId: string) {
   };
 }
 
-/** Validates one full document against current company links and returns its visible impact. */
+/**
+ * Validates one full document against current company links and returns its visible impact: the
+ * document's company name and its row count per scoped table.
+ */
 export async function previewBetaAccountTransfer(
   trx: TransactionClientContract,
   accountId: string,
@@ -103,7 +120,15 @@ export async function previewBetaAccountTransfer(
   await assertNoForeignIdCollision(trx, accountId, prepared.data);
   const changed = portableFingerprint(current, accountId) !== fingerprint(prepared.data);
   const baseRevision = await getPlanningRevision(trx, accountId);
-  return { baseRevision, imported: prepared.imported, changed };
+  const company = prepared.data.accounts.at(0);
+  if (!company) throw new Error('A prepared beta import always carries exactly one account.');
+  return {
+    baseRevision,
+    imported: prepared.imported,
+    changed,
+    companyName: company.name,
+    counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, prepared.data[key].length])),
+  };
 }
 
 /** Replaces the company slice with stable IDs; the caller owns authorization and password confirmation consumption. */

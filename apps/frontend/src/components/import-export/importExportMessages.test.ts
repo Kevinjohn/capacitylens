@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { makeAppData, makeAllocation, makeResource } from '@/test/fixtures';
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { buildSkippedMessage, summarize } from './importExportMessages';
 
 describe('import messages', () => {
@@ -13,8 +12,10 @@ describe('import messages', () => {
   });
 
   it('summarises only the tables that hold rows', () => {
-    const data = makeAppData({ resources: [makeResource()], allocations: [makeAllocation()] });
-    expect(summarize({ ...data, accounts: [] })).toBe('1 resources, 1 allocations');
-    expect(summarize(emptyAppData())).toBe('no entities');
+    const none = Object.fromEntries(SCOPED_KEYS.map((key) => [key, 0])) as Parameters<
+      typeof summarize
+    >[0];
+    expect(summarize({ ...none, resources: 1, allocations: 1 })).toBe('1 resources, 1 allocations');
+    expect(summarize(none)).toBe('no entities');
   });
 });

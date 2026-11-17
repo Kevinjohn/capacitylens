@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { parseBetaExport } from '@capacitylens/shared/data/betaTransfer';
-import type { BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
-import { resolveErrorMessage } from '@/lib/errorMessage';
 import { APP_NAME } from '@capacitylens/shared/brand';
 import { m } from '@/i18n';
 
 export type PendingImport = {
   accountId: string | null;
-  document: BetaExportDocument;
+  /** The file's parsed JSON, sent unchanged to preview, password confirmation and apply. */
+  document: unknown;
   name: string;
 };
 
-/** Reads the selected export file; only the latest selection for the current company survives. */
+/**
+ * Reads the selected export file; only the latest selection for the current company survives. The
+ * browser checks only that the file is JSON; the server's preview validates the document.
+ */
 export function usePendingImport(
   activeAccountId: string | null,
   setNotice: ReturnType<typeof useStore.getState>['setNotice'],
@@ -28,24 +29,29 @@ export function usePendingImport(
     setPending(null);
   }, [activeAccountId]);
 
-  const readFile = async (file: File) => {
+  /** Stores the file as the pending import, or returns null when it is not JSON or was superseded. */
+  const readFile = async (file: File): Promise<PendingImport | null> => {
     const selection = ++selectionRef.current;
     setPending(null);
+    let document: unknown;
     try {
-      const content = await file.text();
-      const parsed = parseBetaExport(content);
-      if (
-        selection !== selectionRef.current ||
-        useStore.getState().activeAccountId !== activeAccountId
-      ) {
-        return;
+      document = JSON.parse(await file.text()) as unknown;
+    } catch {
+      // Only the latest file selection may report a failure, or a stale read could overwrite a newer import choice.
+      if (selection === selectionRef.current) {
+        setNotice(m.data_err_invalid_json({ app: APP_NAME }), 'error');
       }
-      setPending({ accountId: activeAccountId, document: parsed, name: file.name });
-    } catch (error) {
-      // Only the latest file selection may report a parse failure, or a stale read could overwrite a newer import choice.
-      if (selection !== selectionRef.current) return;
-      setNotice(resolveErrorMessage(error) || m.data_err_invalid_json({ app: APP_NAME }), 'error');
+      return null;
     }
+    if (
+      selection !== selectionRef.current ||
+      useStore.getState().activeAccountId !== activeAccountId
+    ) {
+      return null;
+    }
+    const selected = { accountId: activeAccountId, document, name: file.name };
+    setPending(selected);
+    return selected;
   };
 
   return { pending, readFile, selectionRef, setPending };
