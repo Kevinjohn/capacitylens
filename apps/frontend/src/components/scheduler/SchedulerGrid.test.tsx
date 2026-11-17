@@ -14,7 +14,7 @@ import {
   makeTimeOff,
   resetStoreWithData,
 } from '@/test/fixtures';
-import { schedulerDataset } from './__tests__/schedulerTestKit';
+import { schedulerDataset } from '@/test/schedulerTestKit';
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';

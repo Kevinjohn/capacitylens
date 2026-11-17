@@ -13,18 +13,17 @@ export async function settlePlanning(): Promise<void> {
 }
 
 /** Creates a DOM rectangle with predictable vertical bounds for gesture tests. */
-export const rect = (top: number, bottom: number): DOMRect =>
-  ({
-    left: 0,
-    right: 500,
-    top,
-    bottom,
-    width: 500,
-    height: bottom - top,
-    x: 0,
-    y: top,
-    toJSON: () => ({}),
-  }) as DOMRect;
+export const rect = (top: number, bottom: number): DOMRect => ({
+  left: 0,
+  right: 500,
+  top,
+  bottom,
+  width: 500,
+  height: bottom - top,
+  x: 0,
+  y: top,
+  toJSON: () => ({}),
+});
 
 /** Creates a stored allocation with optional field overrides for interaction tests. */
 export async function seedAllocation(overrides: Partial<Allocation> = {}): Promise<Allocation> {
@@ -122,15 +121,14 @@ export function getSrAnnouncement() {
 }
 
 /** Creates predictable lane bounds for pointer interaction tests. */
-export const laneRect = (top: number, bottom: number): DOMRect =>
-  ({
-    left: 0,
-    right: 500,
-    top,
-    bottom,
-    width: 500,
-    height: bottom - top,
-    x: 0,
-    y: top,
-    toJSON: () => ({}),
-  }) as DOMRect;
+export const laneRect = (top: number, bottom: number): DOMRect => ({
+  left: 0,
+  right: 500,
+  top,
+  bottom,
+  width: 500,
+  height: bottom - top,
+  x: 0,
+  y: top,
+  toJSON: () => ({}),
+});

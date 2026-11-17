@@ -10,7 +10,7 @@ import {
   setMasqueradeEndedHandler,
 } from './requestTimeout';
 import { MASQUERADE_ERROR_CODES } from '@capacitylens/shared/domain/masquerade';
-import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/api/masqueradeContext';
 
 afterEach(() => {
   setMasqueradeEndedHandler(null);

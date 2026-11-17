@@ -4,11 +4,10 @@ import { APP_NAME } from '@capacitylens/shared/brand';
 import { syncLocaleFromAccount } from '@/i18n';
 import { APP_ROUTES } from '@/lib/navLinks';
 import { useStore } from '@/store/useStore';
+import type { StoreState } from '@/store/types';
 
 // The browser page around the shell: the active company's locale, the document title and the
 // unload warning while work is unsaved.
-
-type StoreState = ReturnType<typeof useStore.getState>;
 
 /** Applies the active company's language once its account row has loaded. */
 export function useAccountLocale(

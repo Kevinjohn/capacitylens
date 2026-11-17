@@ -4,8 +4,7 @@ import { AllocationFooter } from './AllocationFooter';
 import { AllocationScheduleFields } from './AllocationScheduleFields';
 import { AllocationTargetFields } from './AllocationTargetFields';
 import { useAllocationModalState } from './useAllocationModalState';
-
-type AllocationModalProps = Parameters<typeof useAllocationModalState>[0];
+import type { AllocationModalProps } from './allocationModalTypes';
 
 type BuildTitleOptions = { editing: boolean; createName: string | undefined };
 function buildTitle({ editing, createName }: BuildTitleOptions) {

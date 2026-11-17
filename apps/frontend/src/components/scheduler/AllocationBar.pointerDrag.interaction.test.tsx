@@ -7,11 +7,7 @@ import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { useStore } from '@/store/useStore';
 import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';
-import {
-  renderWithOwnerAndTooltip as render,
-  GEOM,
-  indexAtClientX,
-} from './__tests__/schedulerTestKit';
+import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import {
   barFor,
@@ -20,7 +16,7 @@ import {
   rect,
   seedAllocation,
   settlePlanning,
-} from './__tests__/allocationBarInteractionTestKit';
+} from '@/test/allocationBarInteractionTestKit';
 
 beforeEach(async () => resetStoreWithAccount());
 

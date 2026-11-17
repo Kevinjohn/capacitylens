@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/auth/masqueradeContext';
+import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,

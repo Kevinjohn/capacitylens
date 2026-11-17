@@ -10,8 +10,8 @@ import {
   GEOM,
   indexAtClientX,
   renderWithOwnerAndTooltip,
-} from './__tests__/schedulerTestKit';
-import { settlePlanning } from './__tests__/allocationBarInteractionTestKit';
+} from '@/test/schedulerTestKit';
+import { settlePlanning } from '@/test/allocationBarInteractionTestKit';
 import {
   required,
   ACC,
@@ -19,7 +19,7 @@ import {
   person,
   enableDays,
   renderAsOwner,
-} from './__tests__/allocationModalTestKit';
+} from '@/test/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
   | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
