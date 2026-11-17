@@ -227,7 +227,7 @@ test("gateCommands('all') includes every retained policy, package and security c
   }
 });
 
-test('every scripts/ test file is named by a root package script', () => {
+test('every scripts/ and tooling/ test file is named by a root package script', () => {
   const named = new Set(
     Object.values(
       JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).scripts,
@@ -235,11 +235,13 @@ test('every scripts/ test file is named by a root package script', () => {
       .join(' ')
       .split(/\s+/),
   );
-  const testFiles = readdirSync(join(root, 'scripts'), { recursive: true })
-    .map((path) => `scripts/${String(path).replaceAll('\\', '/')}`)
-    .filter((path) => /\.test\.[cm]?[jt]s$/.test(path));
-  assert.ok(testFiles.length > 0);
-  for (const file of testFiles) assert.ok(named.has(file), `${file} is run by no script`);
+  for (const folder of ['scripts', 'tooling']) {
+    const testFiles = readdirSync(join(root, folder), { recursive: true })
+      .map((path) => `${folder}/${String(path).replaceAll('\\', '/')}`)
+      .filter((path) => /\.test\.[cm]?[jt]s$/.test(path));
+    assert.ok(testFiles.length > 0, folder);
+    for (const file of testFiles) assert.ok(named.has(file), `${file} is run by no script`);
+  }
 });
 
 test('every gate runs the bundle check once, through the root build script', () => {
