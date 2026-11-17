@@ -62,6 +62,5 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
   if (accounts.length !== 1 || !isRecord(account) || account.id !== accountId) {
     throw new InactiveSliceShapeError();
   }
-  // The server owns these rows; the checks above only refuse a partial or foreign response.
   return body as unknown as AppData;
 }

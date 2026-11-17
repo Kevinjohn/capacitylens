@@ -152,7 +152,7 @@ export function ImportExport() {
   const { busy: exportBusy, exportData } = useExportAction();
   const [preview, setPreview] = useState<TransferPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewRevision, setPreviewRevision] = useState<number | null>(null);
+  const [continued, setContinued] = useState(false);
   const [confirmingAction, setConfirmingAction] = useState(false);
   const clearPendingImport = () => {
     setPendingImport(null);
@@ -192,7 +192,7 @@ export function ImportExport() {
         exportBusy={exportBusy}
         onExport={() => void exportData()}
         onFile={(file) => {
-          setPreviewRevision(null);
+          setContinued(false);
           setPreview(null);
           setPreviewError(null);
           void readFile(file).then((pending) => {
@@ -204,7 +204,7 @@ export function ImportExport() {
       {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
-      {pendingImport && canImport && previewRevision === null && (
+      {pendingImport && canImport && !continued && (
         <Modal
           title={m.data_import_confirm_title()}
           onClose={() => {
@@ -216,11 +216,11 @@ export function ImportExport() {
           <BetaImportPreview
             preview={preview}
             error={previewError}
-            onContinue={() => preview && setPreviewRevision(preview.baseRevision)}
+            onContinue={() => preview && setContinued(true)}
           />
         </Modal>
       )}
-      {pendingImport && canImport && preview && previewRevision !== null && !confirmingAction && (
+      {pendingImport && canImport && preview && continued && !confirmingAction && (
         <ImportConfirmation
           pending={pendingImport}
           counts={preview.counts}
@@ -228,19 +228,19 @@ export function ImportExport() {
           onCancel={() => {
             selectionRef.current += 1;
             clearPendingImport();
-            setPreviewRevision(null);
+            setContinued(false);
           }}
         />
       )}
-      {pendingImport && activeAccountId && previewRevision !== null && confirmingAction && (
+      {pendingImport && activeAccountId && preview && continued && confirmingAction && (
         <PasswordConfirmationDialog
           action="import"
           accountId={activeAccountId}
-          intent={{ baseRevision: previewRevision, document: pendingImport.document }}
+          intent={{ baseRevision: preview.baseRevision, document: pendingImport.document }}
           onConfirmed={(confirmationId) => {
             setConfirmingAction(false);
             clearPendingImport();
-            void confirmServerImport(pendingImport.document, previewRevision, confirmationId);
+            void confirmServerImport(pendingImport.document, preview.baseRevision, confirmationId);
           }}
           onCancel={() => setConfirmingAction(false)}
         />

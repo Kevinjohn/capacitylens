@@ -19,12 +19,12 @@ export function companySeed(accountId: string): AppData {
   return company as unknown as AppData;
 }
 
-/** One company's seed data wrapped as a transfer document of the given completeness. */
-export function companyDocument(accountId: string, completeness: 'full' | 'redacted') {
+/** One company's seed data wrapped as a full transfer document. */
+export function companyDocument(accountId: string) {
   return {
     format: BETA_EXPORT_FORMAT,
     schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
-    completeness,
+    completeness: 'full',
     data: companySeed(accountId),
   };
 }

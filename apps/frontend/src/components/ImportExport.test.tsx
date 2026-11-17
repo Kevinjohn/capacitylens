@@ -21,7 +21,7 @@ const originalPlanning = {
 const accountId = 'a-studio';
 
 function document() {
-  return companyDocument(accountId, 'full');
+  return companyDocument(accountId);
 }
 
 /** A preview reply as the server sends it for {@link document}. */
