@@ -5,6 +5,8 @@ import { AllocationBar } from './AllocationBar';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { capacityOver } from '@/test/capacityFixtures';
 
 import {
   barFor,
@@ -48,11 +50,21 @@ async function seedConflictPair() {
 }
 
 describe('AllocationBar capacity announcement interactions', () => {
-  describe('keyboard edit announces the recomputed capacity (a11y live region)', () => {
-    it('announces the over-capacity outcome when a nudge flips a day to over, and "no conflicts" when it resolves', async () => {
+  describe('keyboard edit announces the server capacity after the reply (a11y live region)', () => {
+    // The announcement reads the figures of the canonical read that follows the write. Each case
+    // sets the stub's figures after seeding, so only that read carries them.
+    it('announces the over-capacity outcome from the reply, and "no conflicts" when the next reply resolves it', async () => {
       // Anchor the visible window to the fixed fixture dates so capacity announcements remain deterministic as today advances.
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
       const b = await seedConflictPair();
+      await settlePlanning();
+      const transport = getStubPlanningTransport();
+      const window = { from: '2026-06-01', to: '2026-06-14' };
+      transport.setCapacity(
+        capacityOver(window, {
+          [b.resourceId]: { byDate: { '2026-06-03': { allocated: 16, over: true } } },
+        }),
+      );
       const { rerender } = render(
         <AllocationBar
           bar={barFor(b)}
@@ -62,6 +74,8 @@ describe('AllocationBar capacity announcement interactions', () => {
         />,
       );
       expect(useStore.getState().srAnnouncement).toBeNull();
+      // Before the write the store holds the figures of an earlier read, with no over day.
+      expect(useStore.getState().planning.capacity?.resources[b.resourceId]).toBeUndefined();
 
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' });
       await settlePlanning();
@@ -70,6 +84,7 @@ describe('AllocationBar capacity announcement interactions', () => {
       const over = getSrAnnouncement();
       expect(over.text).toBe('Ty now over capacity on 1 day.');
 
+      transport.setCapacity(capacityOver(window, { [b.resourceId]: {} }));
       rerender(
         <AllocationBar
           bar={barFor(moved)}
@@ -87,57 +102,18 @@ describe('AllocationBar capacity announcement interactions', () => {
       expect(clear.seq).toBeGreaterThan(over.seq);
     });
 
-    it('ignores retained allocations hidden beneath an archived client', async () => {
-      useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
-      const visible = await seedVisibleAllocationWithHiddenCapacity();
-      // Adopt the helper's direct archive fixture before sending an allocation edit.
-      await useStore.getState().refreshPlanning();
-      render(
-        <AllocationBar
-          bar={barFor(visible)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />,
-      );
-
-      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' });
-      await settlePlanning();
-
-      expect(useStore.getState().srAnnouncement?.text).toBe('Ty: no capacity conflicts.');
-    });
     // Gesture announcements count only conflicts within the visible zoom window; off-window conflicts must not enter the spoken result.
     it('does NOT count an over-day OUTSIDE the visible window (spoken count == rendered row summary)', async () => {
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
-      const st = useStore.getState();
-      const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
-      const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
-      const t = await requireCreated(
-        st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
+      const b = await seedConflictPair();
+      await settlePlanning();
+      // The figures reach past the visible window, with the one over day beyond it.
+      getStubPlanningTransport().setCapacity(
+        capacityOver(
+          { from: '2026-06-01', to: '2026-09-28' },
+          { [b.resourceId]: { byDate: { '2026-09-02': { allocated: 16, over: true } } } },
+        ),
       );
-      const r = await requireCreated(
-        st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
-      );
-
-      await st.addAllocation({
-        resourceId: r.id,
-        activityId: t.id,
-        startDate: '2026-09-02',
-        endDate: '2026-09-02',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      });
-      const b = requireCreated(
-        await st.addAllocation({
-          resourceId: r.id,
-          activityId: t.id,
-          startDate: '2026-09-01',
-          endDate: '2026-09-01',
-          hoursPerDay: 8,
-          status: 'confirmed',
-        }),
-      );
-
       const { rerender } = render(
         <AllocationBar
           bar={barFor(b)}
@@ -148,24 +124,10 @@ describe('AllocationBar capacity announcement interactions', () => {
       );
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' });
       await settlePlanning();
-      const moved = getStoredAllocation(b.id);
-      expect([moved.startDate, moved.endDate]).toEqual(['2026-09-02', '2026-09-02']);
-
       expect(getSrAnnouncement().text).toBe('Ty: no capacity conflicts.');
 
-      // A wider window must include the same existing conflict, proving the announcement is scoped by visibility.
+      // A wider window must include the same conflict, proving the announcement is scoped by visibility.
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 120 } }));
-      rerender(
-        <AllocationBar
-          bar={barFor(moved)}
-          geom={GEOM}
-          indexAtClientX={indexAtClientX}
-          onEdit={vi.fn()}
-        />,
-      );
-
-      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowLeft' });
-      await settlePlanning();
       rerender(
         <AllocationBar
           bar={barFor(getStoredAllocation(b.id))}
@@ -174,7 +136,7 @@ describe('AllocationBar capacity announcement interactions', () => {
           onEdit={vi.fn()}
         />,
       );
-      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' });
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowLeft' });
       await settlePlanning();
       expect(getSrAnnouncement().text).toBe('Ty now over capacity on 1 day.');
     });

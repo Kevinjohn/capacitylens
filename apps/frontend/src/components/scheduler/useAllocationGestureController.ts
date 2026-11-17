@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { m } from '@/i18n';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { rangesOverlap } from '@capacitylens/shared/lib/dateMath';
-import { carriesHourlyLoad, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
 import { useDragResize } from '@/hooks/useDragResize';
 import type { DragResizePreviewInput, Pointer } from '@/hooks/useDragResize';
@@ -12,11 +12,7 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { applyGesture } from '@/lib/gestureMath';
 import type { DateRange, DragMode } from '@/lib/gestureMath';
 import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
-import {
-  buildVisibleRange,
-  listAccountWorkingDays,
-  resolveSchedulingMode,
-} from '@/store/selectors';
+import { buildVisibleRange, listAccountWorkingDays } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import {
   reconcileReassignedHours,
@@ -84,13 +80,14 @@ function readGestureCapacitySource(): GestureCapacitySource {
   };
 }
 
+// Called once the write has settled, so the store holds the figures of the read that followed it.
 function readCapacityAnnouncement(resourceId: ID): string {
-  const { data, activeAccountId, ui } = useStore.getState();
+  const { data, planning, ui } = useStore.getState();
   return buildCapacityAnnouncement({
-    source: readGestureCapacitySource(),
+    resources: data.resources,
+    capacity: planning.capacity,
     resourceId,
     visibleRange: buildVisibleRange(ui),
-    blocksMode: !carriesHourlyLoad(resolveSchedulingMode(data, activeAccountId)),
   });
 }
 
