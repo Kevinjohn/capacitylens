@@ -45,7 +45,7 @@
     "policy:dco:test": "node --test scripts/maintenance/check-dco.test.mjs",
     "policy:workflow-report:test": "node --test scripts/ci/report-workflow-outcome.test.mjs",
     "policy:release-validation:test": "node --test scripts/release/require-release-validation.test.mjs",
-    "policy:script-processes:test": "node --test scripts/dev/devProcesses.test.mjs scripts/shared/pnpmSpawn.test.mjs scripts/e2e/run-preset.test.mjs",
+    "policy:script-processes:test": "node --test scripts/dev/devProcesses.test.mjs scripts/shared/pnpmSpawn.test.mjs scripts/e2e/run-preset.test.mjs scripts/build/bundleBudget.test.mjs scripts/e2e/serve-dist.test.mjs scripts/e2e/playwrightFixturesPolicy.test.mjs",
     "ui:check": "node scripts/maintenance/check-ui-primitives.mjs",
     "ui:registry": "node scripts/maintenance/ui-registry.mjs",
     "check:push": "pnpm run format:check && pnpm run typecheck && pnpm run lint",
