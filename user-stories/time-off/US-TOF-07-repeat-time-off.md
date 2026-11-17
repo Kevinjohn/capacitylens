@@ -46,7 +46,7 @@ flowchart TD
   B -->|valid| C["Count the entries the repeat makes"]
   B -->|invalid| D["Repeat field error; no mutation"]
   C --> E["addRepeatedTimeOff"]
-  E --> F["typedPlanningActions.addRepeatedTimeOff sends the first entry, the pattern and the entry ids"]
+  E --> F["typedPlanningActions.addRepeatedTimeOff sends the first entry, the pattern and the ids for later entries"]
   F --> H["executePlanningIntent writes the first entry, then repeat_occurrences expands and writes the rest"]
   H --> G["Planning cache reconciles independent time-off rows"]
 ```

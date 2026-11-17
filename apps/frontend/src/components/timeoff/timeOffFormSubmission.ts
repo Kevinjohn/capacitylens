@@ -160,7 +160,8 @@ export function prepareTimeOffSave(options: SaveTimeOffOptions): EntitySave | nu
   }
   const baseDraft = { ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) };
   const { repeat } = options;
-  const repeated = repeat === 'none' ? null : acceptRepeat(baseDraft, { ...options, repeat });
-  if (repeat !== 'none' && !repeated) return null;
+  if (repeat === 'none') return () => persistNewTimeOff({ ...options, baseDraft, repeated: null });
+  const repeated = acceptRepeat(baseDraft, { ...options, repeat });
+  if (!repeated) return null;
   return () => persistNewTimeOff({ ...options, baseDraft, repeated });
 }
