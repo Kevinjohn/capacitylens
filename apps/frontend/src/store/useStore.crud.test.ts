@@ -2,6 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
 import { makeResourceDraft, requireValue, resetStoreWithAccount } from '@/test/fixtures';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const s = () => useStore.getState();
 
@@ -81,6 +82,20 @@ describe('store CRUD covers every entity', () => {
     expect(s().data.activities).toHaveLength(1);
     expect(s().data.activities[0]?.id).toBe(t.id);
     expect(typeof s().data.activities[0]?.archivedAt).toBe('string');
+  });
+  it('activities: archiving resolves with the counts the server reply reports', async () => {
+    const t = await requireCreated(s().addActivity({ name: 'Stark sprint', kind: 'internal' }));
+    const archived = { projects: 0, phases: 0, activities: 0, allocations: 3, timeOff: 0 };
+    getStubPlanningTransport().respondNext((execution) => ({
+      status: 'committed',
+      mutationId: execution.mutationId,
+      revision: execution.baseRevision + 1,
+      restoration: { consumedGroupId: null, replacementGroupId: null },
+      projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
+      archived,
+    }));
+
+    await expect(s().deleteActivity(t.id)).resolves.toMatchObject({ archived });
   });
   it('activities: a general (no-project) activity can be added without a projectId', async () => {
     const t = await requireCreated(s().addActivity({ name: 'Admin', kind: 'repeatable' }));

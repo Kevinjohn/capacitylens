@@ -1,4 +1,5 @@
 import type { Draft, Patch } from '@/lib/entityDrafts';
+import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type {
   Activity,
   Allocation,
@@ -52,8 +53,9 @@ export interface StoreEntityActions {
   addActivity: (input: Draft<Activity>) => Promise<CreateResult<Activity>>;
   /** Patch an activity in the active account. */
   updateActivity: (id: ID, patch: Patch<Activity>) => Promise<void>;
-  /** Delete an activity from the active account; dependent rows follow the shared cascade rules. */
-  deleteActivity: (id: ID) => Promise<void>;
+  /** Archive an activity in the active account and resolve with the server reply, or with nothing
+   * when the write is blocked; dependent rows follow the shared cascade rules. */
+  deleteActivity: (id: ID) => Promise<PlanningMutationSuccess | undefined>;
 
   /** Create one allocation as one typed planning write; it resolves once the server acknowledges it. */
   addAllocation: (input: Draft<Allocation>) => Promise<CreateResult<Allocation>>;

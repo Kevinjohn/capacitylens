@@ -11,7 +11,7 @@ As an Editor, I want to archive a client so that its work leaves active views wh
 ## Acceptance criteria
 
 - Selecting **Archive {name}** opens **Archive client?** with **Archive** and **Cancel** controls.
-- The dialog explains that descendants are hidden and restorable; when descendants exist, it states counts of affected projects, phases and allocations.
+- The dialog explains that descendants are hidden and restorable, and states no count. After **Archive**, a notice reports the hidden projects, phases and allocations when there are any.
 - **Cancel** closes the dialog without archiving. **Archive** archives the record.
 - The archived record appears in its archived section with a **Restore** control.
 
