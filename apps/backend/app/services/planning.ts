@@ -111,6 +111,7 @@ export async function mutatePlanning({
       sessionId: actor.sessionId,
       mutationId: input.mutationId,
     },
+    expectedUpdatedAt: input.expectedUpdatedAt,
   });
   // archiveImpact measures the active projection itself. Passing the full state keeps an active row
   // whose parent is already archived measurable: it hides nothing more, so every count is zero.

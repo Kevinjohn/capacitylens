@@ -108,7 +108,7 @@ export function ClosureForm({
       return null;
     }
     const patch = { name: cleanName, startDate, endDate };
-    return closure ? () => update(closure.id, patch) : () => add(patch);
+    return closure ? () => update(closure.id, patch, closure.updatedAt) : () => add(patch);
   };
 
   return (

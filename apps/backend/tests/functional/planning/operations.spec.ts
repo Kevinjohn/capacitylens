@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   accountId,
@@ -560,6 +561,43 @@ test.group('authenticated planning operations', (group) => {
     assert.lengthOf(await db.from('audit_entries').where('account_id', accountId), 0);
     const current = await session(client.get(planningUrl), cookie).send();
     assert.equal(body(current).revision, 0);
+  });
+
+  test('an edit carrying an out-of-date row timestamp is refused', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const before = await readState(accountId, true);
+    // The browser sends the timestamp it read, so take the row from the planning read.
+    const read = await session(client.get(planningUrl), cookie).send();
+    const row = (read.body() as { data: AppData }).data.clients.find(
+      (entry) => entry.accountId === accountId && !entry.builtin
+    )!;
+    const edit = (expectedUpdatedAt: string) =>
+      session(client.patch(route(`clients/${row.id}`)), cookie)
+        .json({
+          ...input(0, {
+            operation: 'catalogue.update',
+            entity: { entity: 'clients', id: row.id, changes: { name: 'Wayne Enterprises' } },
+          }),
+          expectedUpdatedAt,
+        })
+        .send();
+
+    const stale = await edit('2000-01-01T00:00:00.000Z');
+    stale.assertStatus(409);
+    assert.equal(body(stale).code, 'STALE_REVISION');
+    assert.deepEqual(await readState(accountId, true), before);
+    const unchanged = await session(client.get(planningUrl), cookie).send();
+    assert.equal(body(unchanged).revision, 0);
+
+    const current = await edit(row.updatedAt);
+    current.assertStatus(200);
+    const after = await readState(accountId, true);
+    assert.equal(after.clients.find((entry) => entry.id === row.id)?.name, 'Wayne Enterprises');
   });
 
   test('allows moving a phase without dependent activities', async ({

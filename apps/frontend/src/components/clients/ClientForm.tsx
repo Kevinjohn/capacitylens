@@ -92,7 +92,9 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
     const privacy = privateNameFields.parsePrivacyPatch();
     if (!privacy) return null;
     if (!validatePresetColor(color, fail)) return null;
-    if (client) return () => updateClient(client.id, { name: trimmed, color, ...privacy });
+    if (client) {
+      return () => updateClient(client.id, { name: trimmed, color, ...privacy }, client.updatedAt);
+    }
     return () =>
       addClient({
         name: trimmed,
