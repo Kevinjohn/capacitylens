@@ -94,4 +94,43 @@ describe('planning read transitions', () => {
     expect(h.state().planning.error).toBeInstanceOf(PlanningControllerError);
     expect(h.state().data.clients[0]?.name).toBe('Wayne Enterprises');
   });
+
+  it("resolves a read that a newer read supersedes with the newer read's outcome", async () => {
+    const h = await ready();
+    const first = deferred<PlanningSnapshot>();
+    const second = deferred<PlanningSnapshot>();
+    h.read.mockImplementationOnce(() => first.promise);
+    h.read.mockImplementationOnce(() => second.promise);
+    const fresh = h.controller.refresh();
+    const pan = h.controller.refresh({ quiet: true });
+    first.resolve(snapshot(2, 'Stale Wayne name'));
+    second.resolve(snapshot(2));
+    await expect(fresh).resolves.toBe(true);
+    await expect(pan).resolves.toBe(true);
+    expect(h.state().data.clients[0]?.name).toBe('Wayne Enterprises');
+  });
+
+  it('aborts a read that a newer read supersedes, without showing an error', async () => {
+    const h = await ready();
+    const second = deferred<PlanningSnapshot>();
+    let firstSignal: AbortSignal | undefined;
+    h.read.mockImplementationOnce(
+      (_context, signal) =>
+        new Promise((_resolve, reject) => {
+          firstSignal = signal;
+          signal.addEventListener('abort', () => reject(signal.reason));
+        }),
+    );
+    h.read.mockImplementationOnce(() => second.promise);
+    const fresh = h.controller.refresh();
+    const pan = h.controller.refresh({ quiet: true });
+    expect(firstSignal?.aborted).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(h.state().planning.status).toBe('loading');
+    expect(h.state().planning.error).toBeNull();
+    second.resolve(snapshot(2));
+    await expect(fresh).resolves.toBe(true);
+    await expect(pan).resolves.toBe(true);
+    expect(h.state().planning.status).toBe('ready');
+  });
 });

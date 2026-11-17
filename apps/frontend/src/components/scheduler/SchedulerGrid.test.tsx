@@ -371,7 +371,7 @@ describe('SchedulerGrid visible-window utilisation', () => {
   // the first week and not at all after it, so the drawn overall % follows the visible span.
   const span = { from: '2026-06-01', to: '2026-07-26' };
   const capacity = capacityOver(span, {
-    dana: {
+    'r-diana': {
       byDate: Object.fromEntries(
         eachDayISO(span.from, span.to).map((date, index) => [
           date,
@@ -387,10 +387,10 @@ describe('SchedulerGrid visible-window utilisation', () => {
       schedulerDataset({
         resources: [
           makeResource({
-            id: 'dana',
+            id: 'r-diana',
             accountId: ACC,
             disciplineId: 'd1',
-            name: 'Dana',
+            name: 'Diana Prince',
             color: '#111',
           }),
         ],
