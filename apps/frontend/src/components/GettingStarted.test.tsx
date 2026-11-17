@@ -210,6 +210,20 @@ describe('Getting started', () => {
     expect(screen.queryByTestId('getting-started-progress')).not.toBeInTheDocument();
   });
 
+  it('makes no getting-started request for a viewer when the planning revision advances', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error('read failed'));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderChecklist('viewer');
+    await act(async () =>
+      useStore.setState((state) => ({
+        planning: { ...state.planning, revision: (state.planning.revision ?? 0) + 1 },
+      })),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useStore.getState().notice).toBeNull();
+  });
+
   it('ignores the legacy device flag and keeps guidance after a failed server save', async () => {
     localStorage.setItem('capacitylens/gettingStartedDismissed', 'on');
     const fetchMock = vi

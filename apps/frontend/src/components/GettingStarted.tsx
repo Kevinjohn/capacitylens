@@ -53,8 +53,11 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
 export function GettingStarted() {
   const accountId = useStore((state) => state.activeAccountId);
   const masqueradeKind = useStore((state) => state.masquerade.kind);
+  const activeRole = useRole();
   // Company onboarding is outside the read-only member projection, including its transitions.
   if (!accountId || masqueradeKind !== 'inactive') return null;
+  // Readers never see the panel, so they must not read its state or receive its load notice.
+  if (activeRole !== null && !can(activeRole, 'planning:write')) return null;
   return <GettingStartedForAccount key={accountId} accountId={accountId} />;
 }
 
@@ -84,14 +87,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
   } = useCompanyDismissal(accountId, pathname, setNotice);
   const done = Object.values(steps).filter(Boolean).length;
   const requestDismiss = () => setConfirmOpen(true);
-  if (
-    done === 5 ||
-    !loaded ||
-    dismissed ||
-    (activeRole !== null && !can(activeRole, 'planning:write'))
-  ) {
-    return null;
-  }
+  if (done === 5 || !loaded || dismissed) return null;
   const canDismiss = isOwnerOrAdmin(activeRole);
 
   return (
