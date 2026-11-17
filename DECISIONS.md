@@ -91,9 +91,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - The one-company rule has one server home, `app/models/installation_company.ts`. Every server
   check of the limit, or of whether a company exists yet, reads through it. The client shows the
   server's refusal and does not count companies itself.
-- Code that works across several companies stays on purpose: an export without a named company
-  merges every company the person belongs to, and view-as searches every membership when no company
-  is named.
+- Code that works across several companies stays on purpose: view-as searches every membership when
+  no company is named. An export always names its company.
 - Planning reads return current authority, one integer company revision and the complete,
   confidentially projected company slice from one transaction. Every typed mutation carries the
   `baseRevision` it was drafted against; a mismatch returns 409 and the client refetches. No

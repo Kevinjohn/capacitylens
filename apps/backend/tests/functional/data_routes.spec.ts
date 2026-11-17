@@ -31,7 +31,7 @@ test.group('M2b data routes', (group) => {
     await db.from('account_getting_started_dismissals').delete();
   });
 
-  test('inactive export follows effective member role and omitted scope stays active-only', async ({
+  test('inactive export follows effective member role and a default read stays active-only', async ({
     client,
     assert,
   }) => {
@@ -48,10 +48,10 @@ test.group('M2b data routes', (group) => {
         .update({ role });
       const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
       explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200);
-      const omitted = await client.get('/api/state').send();
-      omitted.assertStatus(200);
-      const ids = omitted.body().resources.map((row: { id: string }) => row.id);
-      assert.equal(ids.includes(candidate.id), ['admin', 'owner'].includes(role));
+      const active = await client.get('/api/state?accountId=a-studio').send();
+      active.assertStatus(200);
+      const ids = active.body().resources.map((row: { id: string }) => row.id);
+      assert.isFalse(ids.includes(candidate.id), role);
     }
   });
 
