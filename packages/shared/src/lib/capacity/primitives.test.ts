@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { applyCapacityMode } from '@/lib/capacity';
+import { applyCapacityMode } from '../capacity.js';
 import {
   availableHoursOnDay,
   allocatedHoursOnDay,
   makeResource,
   makeAlloc,
-} from '@/test/capacityTestSupport';
-import { addCapacityHours, hasOverCapacity } from './primitives';
+} from './capacity.test.support.js';
+import { addCapacityHours, hasOverCapacity } from './primitives.js';
 
 const expansion = (hours: readonly number[]) => hours.reduce(addCapacityHours, [] as number[]);
 

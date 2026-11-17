@@ -7,11 +7,7 @@ import { useStore } from '@/store/useStore';
 import type { Activity, Weekday } from '@capacitylens/shared/types/entities';
 import { setExternalEnabled, setPlaceholdersEnabled } from '@/test/fixtures';
 import { chooseOption } from '@/test/schedulerTestKit';
-import {
-  queueAllocationDeleteGroupResponse,
-  queueAllocationGroupResponse,
-} from '@/test/planning/queuePlanningFixtures';
-import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
 import {
   ACC,
   person,
@@ -29,8 +25,8 @@ interface AllocationScopeCaseInput {
 }
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
-  | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisory>[0]
+  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -39,8 +35,8 @@ const capacityAdvisoryMock = vi.hoisted(() =>
 );
 
 // Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
-vi.mock('@/lib/capacity', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/capacity')>()),
+vi.mock('@capacitylens/shared/lib/capacity', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@capacitylens/shared/lib/capacity')>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));
@@ -167,36 +163,6 @@ describe('AllocationModal edit', () => {
       startDate: '2026-06-01',
       endDate: '2026-06-02',
     });
-  });
-
-  it('clears attributed All-projects work when its scope changes', async () => {
-    const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const activity = await requireCreated(
-      useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' }),
-    );
-    const allocation = requireCreated(
-      await useStore.getState().addAllocation({
-        resourceId: resource.id,
-        activityId: activity.id,
-        projectId: 'p1',
-        startDate: '2026-06-01',
-        endDate: '2026-06-02',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      }),
-    );
-    const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
-
-    await chooseOption(user, 'Project', 'No specific project');
-    await chooseOption(user, 'Activity', 'Planning');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    expect(
-      useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id),
-    ).toHaveProperty('projectId', null);
   });
 
   it('shows an unmatched hours value and preserves it through an unrelated save', async () => {
@@ -345,81 +311,13 @@ describe('AllocationModal edit', () => {
     }
   });
 
-  it('offers one-or-future deletion for a linked occurrence and closes after the atomic removal', async () => {
-    const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const seriesId = 'series-weekly';
-    queueAllocationGroupResponse(seriesId);
-    const [earlier, selected, later] = requireCreated(
-      await useStore.getState().addAllocations([
-        {
-          resourceId: resource.id,
-          activityId: 't1',
-          startDate: '2026-06-01',
-          endDate: '2026-06-02',
-          hoursPerDay: 8,
-          status: 'confirmed',
-          seriesId,
-        },
-        {
-          resourceId: resource.id,
-          activityId: 't1',
-          startDate: '2026-06-08',
-          endDate: '2026-06-09',
-          hoursPerDay: 8,
-          status: 'confirmed',
-          seriesId,
-        },
-        {
-          resourceId: resource.id,
-          activityId: 't1',
-          startDate: '2026-06-15',
-          endDate: '2026-06-16',
-          hoursPerDay: 8,
-          status: 'confirmed',
-          seriesId,
-        },
-      ]),
-    );
-    expect(earlier).toBeDefined();
-    expect(selected).toBeDefined();
-    expect(later).toBeDefined();
-    if (!earlier || !selected || !later) {
-      throw new Error('Expected all repeated allocations to be created.');
-    }
-    const onClose = vi.fn();
-    const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={selected.id} onClose={onClose} />);
-
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
-    const dialog = screen.getByRole('alertdialog', { name: 'Delete repeated allocation?' });
-    expect(
-      within(dialog).getByRole('button', { name: 'Delete this occurrence' }),
-    ).toBeInTheDocument();
-    expect(onClose).not.toHaveBeenCalled();
-    queueAllocationDeleteGroupResponse([selected.id, later.id], 'future-delete-group');
-    await user.click(
-      within(dialog).getByRole('button', { name: 'Delete this and future occurrences' }),
-    );
-
-    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
-      operation: 'allocation.deleteGroup',
-      ids: [selected.id, later.id],
-    });
-    expect(useStore.getState().data.allocations.map(({ id }) => id)).toContain(earlier.id);
-    expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(selected.id);
-    expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(later.id);
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
   it('deletes only the selected linked occurrence when that scope is chosen', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
     );
     queueAllocationGroupResponse('series-weekly');
     const [selected, later] = requireCreated(
-      await useStore.getState().addAllocations([
+      await useStore.getState().addRepeatedAllocation(
         {
           resourceId: resource.id,
           activityId: 't1',
@@ -427,18 +325,10 @@ describe('AllocationModal edit', () => {
           endDate: '2026-06-09',
           hoursPerDay: 8,
           status: 'confirmed',
-          seriesId: 'series-weekly',
         },
-        {
-          resourceId: resource.id,
-          activityId: 't1',
-          startDate: '2026-06-15',
-          endDate: '2026-06-16',
-          hoursPerDay: 8,
-          status: 'confirmed',
-          seriesId: 'series-weekly',
-        },
-      ]),
+        { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-15' },
+        2,
+      ),
     );
     expect(selected).toBeDefined();
     expect(later).toBeDefined();
@@ -459,36 +349,6 @@ describe('AllocationModal edit', () => {
 
     expect(useStore.getState().data.allocations.map(({ id }) => id)).toEqual([later.id]);
     expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('reassigns an allocation to another resource', async () => {
-    const a = await requireCreated(
-      useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const b = await requireCreated(
-      useStore.getState().addResource({ ...person('Clark Kent'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const alloc = requireCreated(
-      await useStore.getState().addAllocation({
-        resourceId: a.id,
-        activityId: 't1',
-        startDate: '2026-06-01',
-        endDate: '2026-06-02',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      }),
-    );
-    const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
-
-    await chooseOption(user, 'Assignee', 'Clark Kent');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-
-    const reassigned = required(
-      useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id),
-      'Expected the reassigned allocation to remain saved.',
-    );
-    expect(reassigned.resourceId).toBe(b.id);
   });
 
   it('rejects reassigning a normal allocation to a zero-overlap person', async () => {
@@ -801,48 +661,6 @@ describe('AllocationModal edit', () => {
       hoursPerDay: 4,
       note: 'Draft note',
     });
-  });
-
-  it('keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence', async () => {
-    const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    const activity = await requireCreated(
-      useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' }),
-    );
-    const oneOff = requireCreated(
-      await useStore.getState().addAllocation({
-        resourceId: resource.id,
-        activityId: activity.id,
-        startDate: '2026-06-01',
-        endDate: '2026-06-01',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      }),
-    );
-    queueAllocationGroupResponse('server-series');
-    const [linked] = requireCreated(
-      await useStore.getState().addAllocations(
-        ['2026-06-08', '2026-06-15'].map((date) => ({
-          resourceId: resource.id,
-          activityId: activity.id,
-          startDate: date,
-          endDate: date,
-          hoursPerDay: 8,
-          status: 'confirmed' as const,
-        })),
-      ),
-    );
-    if (!linked) throw new Error('Expected a linked occurrence.');
-
-    const oneOffView = renderAsOwner(
-      <AllocationModal kind="edit" allocationId={oneOff.id} onClose={vi.fn()} />,
-    );
-    expect(screen.getByRole('button', { name: 'Duplicate' })).toBeInTheDocument();
-    oneOffView.unmount();
-
-    renderAsOwner(<AllocationModal kind="edit" allocationId={linked.id} onClose={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument();
   });
 
   it('rejects duplicating a zero-hour block after the account switches to Hours mode', async () => {

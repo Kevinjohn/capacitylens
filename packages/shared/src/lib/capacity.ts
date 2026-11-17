@@ -1,23 +1,16 @@
-import { eachDayISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type {
-  Allocation,
-  Closure,
-  ISODate,
-  Resource,
-  TimeOff,
-} from '@capacitylens/shared/types/entities';
+import { eachDayISO, weekdayOf } from './dateMath.js';
+import type { EffectiveWorkingWeek } from './effectiveWorkingWeek.js';
+import type { Allocation, Closure, ISODate, Resource, TimeOff } from '../types/entities.js';
 import {
   resolveAllocationLoadForWeekday,
   resolveAvailableHoursForWeekday,
-} from './capacity/availability';
+} from './capacity/availability.js';
 
-export * from './capacity/availability';
-export * from './capacity/advisory';
-export * from './capacity/advisoryCopy';
+export * from './capacity/availability.js';
+export * from './capacity/advisory.js';
 
-export * from './capacity/primitives';
-import { hasOverCapacity } from './capacity/primitives';
+export * from './capacity/primitives.js';
+import { hasOverCapacity } from './capacity/primitives.js';
 
 interface BuildDayCapacityInput {
   resource: Resource;

@@ -77,7 +77,7 @@ function validInput(overrides: Partial<CommandInput> = {}): CommandInput {
     addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
       Promise.resolve(created(makeAllocation())),
     ),
-    addAllocations: vi.fn<CommandInput['addAllocations']>(() =>
+    addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
       Promise.resolve(created([makeAllocation()])),
     ),
     duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
@@ -126,7 +126,7 @@ function expectFailed(input: CommandInput, field: string | null, message: string
 
 function expectNothingWritten(input: CommandInput) {
   expect(input.addAllocation).not.toHaveBeenCalled();
-  expect(input.addAllocations).not.toHaveBeenCalled();
+  expect(input.addRepeatedAllocation).not.toHaveBeenCalled();
   expect(input.updateAllocation).not.toHaveBeenCalled();
   expect(input.duplicateAllocation).not.toHaveBeenCalled();
   expect(input.onClose).not.toHaveBeenCalled();
@@ -420,52 +420,34 @@ describe('createAllocationCommands new placement', () => {
 describe('createAllocationCommands repeats', () => {
   const weekly = { repeat: 'weekly', repeatUntil: '2027-01-25' } as const;
 
-  it('creates every repeated start in one group write and closes', async () => {
+  it('sends the first occurrence, the pattern and the occurrence count in one group write and closes', async () => {
     const input = validInput(weekly);
     await submit(input);
     expect(input.addAllocation).not.toHaveBeenCalled();
-    const drafts = vi.mocked(input.addAllocations).mock.calls[0]?.[0];
-    expect(drafts?.map((draft) => draft.startDate)).toEqual([
-      '2027-01-04',
-      '2027-01-11',
-      '2027-01-18',
-      '2027-01-25',
-    ]);
+    expect(input.addRepeatedAllocation).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ startDate: '2027-01-04' }),
+      { pattern: { kind: 'weeks', interval: 1 }, until: '2027-01-25' },
+      4,
+    );
     expect(input.onClose).toHaveBeenCalledOnce();
   });
 
   it('keeps the dialog open when the group write is blocked', async () => {
     const input = validInput({
       ...weekly,
-      addAllocations: vi.fn<CommandInput['addAllocations']>(() =>
+      addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
         Promise.resolve({ kind: 'blocked' }),
       ),
     });
     await submit(input);
-    expect(input.addAllocations).toHaveBeenCalledOnce();
+    expect(input.addRepeatedAllocation).toHaveBeenCalledOnce();
     expect(input.onClose).not.toHaveBeenCalled();
-  });
-
-  it('reports an unresolved resource or week at form level instead of projecting', async () => {
-    for (const unresolved of [
-      { selectedResource: undefined },
-      { selectedEffectiveWeek: undefined },
-    ]) {
-      const input = validInput({ ...weekly, ...unresolved });
-      await submit(input);
-      expectFailed(
-        input,
-        null,
-        'The selected resource could not be resolved for repeat projection.',
-      );
-      expect(input.addAllocations).not.toHaveBeenCalled();
-    }
   });
 
   it('reports a repeat range failure on the repeat cutoff', async () => {
     const input = validInput({
       ...weekly,
-      addAllocations: vi.fn<CommandInput['addAllocations']>(() =>
+      addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
         Promise.reject(new RangeError('Beyond the calendar.')),
       ),
     });

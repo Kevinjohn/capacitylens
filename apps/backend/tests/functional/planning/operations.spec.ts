@@ -17,7 +17,6 @@ const body = (response: { body(): unknown }) =>
   response.body() as {
     code: string;
     revision: number;
-    projection: { mode: string; history: string };
   };
 const route = (path: string) => `/api/accounts/${accountId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
@@ -394,6 +393,62 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(state.timeOff.find((row) => row.id === timeOffId)?.note, 'Private note');
   });
 
+  test('a repeated allocation commits its pattern as one series that deletes and restores as a group', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(accountId, true);
+    const { cookie } = await signIn(client);
+    const allocation = newAllocation(data);
+    const repeatGroup = (until: string, occurrenceIds: string[]) =>
+      session(client.post(route('allocations/create-group')), cookie)
+        .json(
+          input(0, {
+            operation: 'allocation.createGroup',
+            allocation,
+            repeat: { pattern: { kind: 'weeks', interval: 1 }, until },
+            occurrenceIds,
+          })
+        )
+        .send();
+
+    // Six calendar months after 2 November is 2 May.
+    const tooLate = await repeatGroup('2027-05-03', [randomUUID()]);
+    tooLate.assertStatus(400);
+    assert.equal(body(tooLate).code, 'VALIDATION_ERROR');
+
+    const ids = [allocation.id, randomUUID(), randomUUID(), randomUUID()];
+    const created = await repeatGroup('2026-11-23', ids.slice(1));
+    created.assertStatus(200);
+    const rows = () =>
+      readState(accountId, true).then((state) =>
+        ids.map((id) => state.allocations.find((row) => row.id === id))
+      );
+    const saved = await rows();
+    assert.deepEqual(
+      saved.map((row) => row?.startDate),
+      ['2026-11-02', '2026-11-09', '2026-11-16', '2026-11-23']
+    );
+    assert.isNotEmpty(saved[0]!.seriesId);
+    assert.isTrue(saved.every((row) => row?.seriesId === saved[0]!.seriesId));
+
+    // Undo deletes the minted ids as one group; redo restores that group.
+    const undone = await session(client.post(route('allocations/delete-group')), cookie)
+      .json(input(1, { operation: 'allocation.deleteGroup', ids }))
+      .send();
+    undone.assertStatus(200);
+    assert.deepEqual(await rows(), [undefined, undefined, undefined, undefined]);
+    const restorationGroupId = (undone.body() as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
+    const redone = await session(client.post(route('planning/restore-group')), cookie)
+      .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
+      .send();
+    redone.assertStatus(200);
+    assert.deepEqual(await rows(), saved);
+  });
+
   test('time-off repeat rolls back a later invalid entry; closure and settings commit with correct projection', async ({
     client,
     assert,
@@ -456,25 +511,17 @@ test.group('authenticated planning operations', (group) => {
       .send();
     setting.assertStatus(200);
     assert.equal(body(setting).revision, 2);
-    const projection = body(setting).projection as {
-      mode: string;
-      history: string;
-      changed: {
-        upserts: Array<{ entity: string; row: { id: string; weekStartsOn: number | null } }>;
-        removed: unknown[];
-      };
+    const read = await session(client.get(planningUrl), cookie).send();
+    read.assertStatus(200);
+    const snapshot = read.body() as {
+      revision: number;
+      data: { accounts: Array<{ id: string; weekStartsOn: number | null }> };
     };
-    assert.equal(projection.mode, 'patch');
-    assert.equal(projection.history, 'retain');
+    assert.equal(snapshot.revision, 2);
     assert.deepEqual(
-      projection.changed.upserts.map(({ entity, row }) => ({
-        entity,
-        id: row.id,
-        weekStartsOn: row.weekStartsOn,
-      })),
-      [{ entity: 'accounts', id: accountId, weekStartsOn: 0 }]
+      snapshot.data.accounts.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
+      [{ id: accountId, weekStartsOn: 0 }]
     );
-    assert.isEmpty(projection.changed.removed);
     const state = await readState(accountId, true);
     assert.equal(state.accounts[0]?.weekStartsOn, 0);
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
@@ -553,11 +600,7 @@ test.group('authenticated planning operations', (group) => {
     const afterMove = await readState(accountId, true);
     assert.equal(afterMove.phases.find((row) => row.id === id)?.projectId, 'p-brand');
   });
-  test('activity kind edits clear history after dependent attribution is removed', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
+  test('activity kind edits remove dependent attribution', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const data = await readState(accountId, true);
@@ -599,7 +642,6 @@ test.group('authenticated planning operations', (group) => {
       .send();
     changed.assertStatus(200);
     assert.equal(body(changed).revision, 3);
-    assert.deepEqual(body(changed).projection, { mode: 'refetch', history: 'clear' });
     const afterKindChange = await readState(accountId, true);
     assert.isNull(afterKindChange.allocations.find((row) => row.id === allocation.id)?.projectId);
 
@@ -645,7 +687,6 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     sameKind.assertStatus(200);
-    assert.deepEqual(body(sameKind).projection, { mode: 'refetch', history: 'clear' });
     const renamed = await session(client.patch(route(`activities/${activityId}`)), cookie)
       .json(
         input(4, {
@@ -659,7 +700,5 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     renamed.assertStatus(200);
-    assert.equal(body(renamed).projection.mode, 'patch');
-    assert.equal(body(renamed).projection.history, 'retain');
   });
 });

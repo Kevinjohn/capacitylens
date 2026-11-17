@@ -31,7 +31,9 @@ test.group('typed bulk writer tenant isolation', (group) => {
       path: 'allocations/create-group',
       intent: (data: AppData) => ({
         operation: 'allocation.createGroup',
-        allocations: [newAllocation(data)],
+        allocation: newAllocation(data),
+        repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-09' },
+        occurrenceIds: [randomUUID()],
       }),
     },
     {

@@ -1,12 +1,12 @@
-import { isWithin, weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import { effectiveWeekIncludes } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isWithin, weekdayOf } from '../dateMath.js';
+import { effectiveWeekIncludes } from '../effectiveWorkingWeek.js';
+import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import {
   FULL_DAY_HOURS,
   HALF_DAY_HOURS,
   hasPersonalWorkingPattern,
   isExternalResource,
-} from '@capacitylens/shared/types/entities';
+} from '../../types/entities.js';
 import type {
   Allocation,
   Closure,
@@ -15,8 +15,8 @@ import type {
   Resource,
   TimeOff,
   Weekday,
-} from '@capacitylens/shared/types/entities';
-import { addCapacityHours, hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from './primitives';
+} from '../../types/entities.js';
+import { addCapacityHours, hasAllocationLoadOnDay, warnOnNonFiniteCapacity } from './primitives.js';
 
 /** Checks whether a date belongs to the effective working week. */
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {

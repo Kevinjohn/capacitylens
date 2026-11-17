@@ -132,13 +132,55 @@ export const requireChanges = (allowedFields: readonly string[]) =>
     field.report('At least one writable field is required.', 'emptyChanges', field);
   })();
 
-export const uniqueArrayIds = (property: 'ids' | 'entries' | 'allocations') =>
+const kindMatches = (value: unknown, kind: string): boolean =>
+  value !== null &&
+  typeof value === 'object' &&
+  !Array.isArray(value) &&
+  (value as { kind?: unknown }).kind === kind;
+
+/** A repeat cadence, the wire form of the shared `RepeatPattern`. */
+export const repeatPattern = () =>
+  vine
+    .union([
+      vine.union.if(
+        (value) => kindMatches(value, 'weeks'),
+        vine.object({ kind: vine.literal('weeks'), interval: vine.enum([1, 2, 3, 4] as const) })
+      ),
+      vine.union.if(
+        (value) => kindMatches(value, 'monthly-date'),
+        vine.object({ kind: vine.literal('monthly-date') })
+      ),
+      vine.union.if(
+        (value) => kindMatches(value, 'monthly-last-weekday'),
+        vine.object({ kind: vine.literal('monthly-last-weekday') })
+      ),
+    ])
+    .otherwise((_value, field) =>
+      field.report('Unsupported repeat pattern.', 'unsupportedPattern', field)
+    );
+
+/** A repeat's pattern and its inclusive last start date; the server generates the occurrences. */
+export const repeatRange = () => vine.object({ pattern: repeatPattern(), until: calendarDate() });
+
+/** Later occurrence ids must differ from the first allocation's id. */
+export const occurrenceIdsExcludeFirst = () =>
+  vine.createRule((value, _options, field) => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
+    const { occurrenceIds, allocation: first } = value as {
+      occurrenceIds?: unknown;
+      allocation?: { id?: unknown };
+    };
+    if (!Array.isArray(occurrenceIds) || !occurrenceIds.includes(first?.id)) return;
+    field.report('Entity IDs must be unique.', 'distinctIds', field);
+  })();
+
+export const uniqueArrayIds = (property: 'ids' | 'entries' | 'occurrenceIds') =>
   vine.createRule((value, _options, field) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
     const items = (value as Record<string, unknown>)[property];
     if (!Array.isArray(items)) return;
     const ids = items.map((item) =>
-      property === 'ids'
+      property === 'ids' || property === 'occurrenceIds'
         ? item
         : item !== null && typeof item === 'object' && !Array.isArray(item)
           ? (item as { id?: unknown }).id

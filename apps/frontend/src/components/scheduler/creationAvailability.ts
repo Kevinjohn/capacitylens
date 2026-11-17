@@ -5,7 +5,7 @@ import {
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { isOnClosure, isOnTimeOff } from '@/lib/capacity';
+import { isOnClosure, isOnTimeOff } from '@capacitylens/shared/lib/capacity';
 import { NO_CLOSURES, NO_TIME_OFF } from './schedulerModelIndexing';
 import type {
   Closure,

@@ -76,10 +76,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - Every server requires an authenticated, authorised company member. There is no sign-in mode
   setting or anonymous persisted access. The development demo runs the full server with a printed
   sign-in and one sample company on disposable SQLite storage. Refresh retains changes; restarting
-  the command resets the sample data. Each invocation owns a temporary directory beneath the backend
-  temporary-data directory, with `.demo.db` as its basename. Cleanup removes it only after the
-  owned process groups have exited. Uncertain crash residue is retained and never reset by a later
-  invocation; Windows also retains storage when descendant exit cannot be verified.
+  the command resets the sample data. Each invocation owns its own storage. Cleanup removes it only
+  after the owned processes are verified to have exited. Uncertain crash residue is retained and
+  never reset by a later invocation.
 - SQLite is the only product database. One process owns one database file through a pool of one
   connection. Missing API access is an error, never a silent browser-storage fallback.
 - Every scoped row carries its company id. The server authorises every tenant read and write from
@@ -89,14 +88,14 @@ This is the short, present-tense record of decisions that constrain future work.
   creates that company; the UI offers no company switcher or additional-company creation. Tenant
   scoping, memberships and the account directory remain enforced, and ambiguous installations
   report an error.
-- The one-company rule has one server home, `app/models/installation_company.ts`. Every server
-  check of the limit, or of whether a company exists yet, reads through it. The client shows the
-  server's refusal and does not count companies itself.
+- The one-company rule has one server home. Every server check of the limit, or of whether a
+  company exists yet, reads through it. The client shows the server's refusal and does not count
+  companies itself.
 - Code that works across several companies stays on purpose: view-as searches every membership when
   no company is named. An export always names its company.
 - Planning reads return current authority, one integer company revision and the complete,
   confidentially projected company slice from one transaction. Every typed mutation carries the
-  `baseRevision` it was drafted against; a mismatch returns 409 and the client refetches. No
+  company revision it was drafted against; a mismatch returns 409 and the client refetches. No
   automatic rebase or replay. A revision advances once per transaction that changes planning data,
   planning projection or membership authority; session activity, mail and configuration edits that
   change neither do not advance it.
@@ -140,10 +139,9 @@ This is the short, present-tense record of decisions that constrain future work.
   action-specific proof. Client, project and activity catalogue fields, the company, Owner and
   memberships remain unchanged. There is no company
   deletion, soft-delete or purge action.
-- A person deletes their own account from **Account** with their current password. The password
-  is checked through a `delete-account` password confirmation scoped to the person, then Account
-  Kit removes the identity, sessions and tokens; in the same transaction CapacityLens removes every
-  membership through the Access Control package and the member/person link. An Owner must transfer
+- A person deletes their own account from **Account** with their current password, checked
+  through a password confirmation scoped to the person. One transaction removes the identity,
+  sessions and tokens, every membership and the member/person link. An Owner must transfer
   ownership first. Invitations the person sent stay acceptable with their inviter cleared. The person
   resource and audit rows keep the former user id as history.
 - Editor and up may change company-wide planning and display configuration (company name,
@@ -170,21 +168,19 @@ This is the short, present-tense record of decisions that constrain future work.
 - Migrations start from one baseline, are forward-only and run through Lucid. `app:upgrade` writes
   an online backup before migrating; the backup is the rollback. There are no down migrations and
   no checksum ledger.
-- A native online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
-  configured number of verified READY bundles on local storage. The package owns copying, verification, retention and restore preparation; the web provider owns scheduling. Pre-migration bundles and reset archives stay outside scheduled retention. Failures are logged or returned by the operator command.
-- Account commands record receipts with `@kevinjohn/adonisjs-duplicate-request-guard`
-  (`request_receipts`) inside the caller's transaction. The wire contract keeps the standard
-  `Idempotency-Key` header, and CapacityLens's own names follow it (`idempotencyKey`,
-  `isAccountIdempotencyKey`, `IDEMPOTENCY_CONFLICT`); only values passed to the package use its
-  `requestKey` name. Receipts are scoped to one actor's operation, so the same command headers sent
-  by another actor or for another operation run as a new command.
+- An online SQLite backup runs at startup and every 24 hours; count-based retention keeps the
+  configured number of verified bundles on local storage. Pre-migration bundles and reset archives
+  stay outside scheduled retention. Failures are logged or returned by the operator command.
+- Account commands record receipts inside the caller's transaction. Receipts are scoped to one
+  actor's operation, so the same command headers sent by another actor or for another operation run
+  as a new command.
 - Completed request receipts are deleted 24 hours after their last update, at startup and hourly.
   Pending receipts stay. A command retried after its receipt is deleted runs as a new command.
 
 ## Browser data
 
 - Scheduling records and identity snapshots are never persisted in the browser. The Zustand
-  planning slice is a non-persisted cache patched from server responses; it is never authoritative.
+  planning slice is a non-persisted cache replaced from server reads; it is never authoritative.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.

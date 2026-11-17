@@ -1,6 +1,5 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
-import { cleanText } from '@capacitylens/shared/lib/strings';
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import {
   archive,
@@ -18,6 +17,7 @@ import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planni
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { existingRow, PlanningOperationError, updateSettings } from './writer.js';
 import { writeEntity } from './entity_write.js';
+import { allocationOccurrences } from './repeat_occurrences.js';
 import {
   deleteAllocations,
   deleteRows,
@@ -27,47 +27,6 @@ import {
 export { PlanningOperationError } from './writer.js';
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
-
-type GroupAllocation = Extract<
-  PlanningIntent,
-  { operation: 'allocation.createGroup' }
->['allocations'][number];
-
-function allocationGroupShape(allocation: GroupAllocation) {
-  return JSON.stringify({
-    resourceId: allocation.resourceId,
-    activityId: allocation.activityId,
-    projectId: allocation.projectId ?? null,
-    hoursPerDay: allocation.hoursPerDay,
-    status: allocation.status,
-    note:
-      allocation.note === null || allocation.note === undefined
-        ? null
-        : cleanText(allocation.note, { multiline: true }),
-    task:
-      allocation.task === null || allocation.task === undefined ? null : cleanText(allocation.task),
-    ignoreWorkingDays: allocation.ignoreWorkingDays === true,
-  });
-}
-
-function assertAllocationGroupHomogeneous(allocations: readonly GroupAllocation[]) {
-  const first = allocations.at(0);
-  if (!first) {
-    throw new PlanningOperationError(
-      400,
-      'VALIDATION_ERROR',
-      'An allocation group needs at least one allocation.'
-    );
-  }
-  const firstShape = allocationGroupShape(first);
-  if (allocations.some((allocation) => allocationGroupShape(allocation) !== firstShape)) {
-    throw new PlanningOperationError(
-      400,
-      'VALIDATION_ERROR',
-      'All allocations in a group must share the same allocation details.'
-    );
-  }
-}
 
 async function transitionLifecycle(
   trx: TransactionClientContract,
@@ -160,16 +119,33 @@ export async function executePlanningIntent({
         });
         return unchanged;
       case 'allocation.createGroup': {
-        assertAllocationGroupHomogeneous(intent.allocations);
+        const { allocation, repeat, occurrenceIds } = intent;
         const seriesId = crypto.randomUUID();
-        for (const [index, allocation] of intent.allocations.entries()) {
+        // The first occurrence is the allocation as sent, so its write refuses what a create refuses.
+        await writeEntity({
+          ...writeOptions,
+          table: 'allocations',
+          id: allocation.id,
+          fields: { ...allocation, seriesId },
+          mode: 'create',
+        });
+        const later = allocationOccurrences(data, accountId, allocation, repeat).slice(1);
+        if (occurrenceIds.length !== later.length) {
+          throw new PlanningOperationError(
+            400,
+            'VALIDATION_ERROR',
+            'The occurrence identities do not match the repeat.'
+          );
+        }
+        for (const [index, { startDate, endDate }] of later.entries()) {
+          const id = occurrenceIds[index] as string;
           await writeEntity({
             ...writeOptions,
             table: 'allocations',
-            id: allocation.id,
-            fields: { ...allocation, seriesId },
+            id,
+            fields: { ...allocation, id, startDate, endDate, seriesId },
             mode: 'create',
-            permissiveRepeatStart: index > 0,
+            permissiveRepeatStart: true,
           });
         }
         return unchanged;

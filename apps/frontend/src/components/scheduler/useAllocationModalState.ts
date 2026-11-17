@@ -30,7 +30,7 @@ import { useAllocationTargetState } from './useAllocationTargetState';
 function useAllocationStoreActions() {
   return {
     addAllocation: useStore((state) => state.addAllocation),
-    addAllocations: useStore((state) => state.addAllocations),
+    addRepeatedAllocation: useStore((state) => state.addRepeatedAllocation),
     duplicateAllocation: useStore((state) => state.duplicateAllocation),
     updateAllocation: useStore((state) => state.updateAllocation),
     deleteAllocation: useStore((state) => state.deleteAllocation),
@@ -219,7 +219,7 @@ function buildModalState(
     writing: context.writing,
     isCurrentDraft: context.isCurrentDraft,
     addAllocation: context.addAllocation,
-    addAllocations: context.addAllocations,
+    addRepeatedAllocation: context.addRepeatedAllocation,
     duplicateAllocation: context.duplicateAllocation,
     updateAllocation: context.updateAllocation,
     deleteAllocation: context.deleteAllocation,

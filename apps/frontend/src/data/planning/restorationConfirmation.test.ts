@@ -29,7 +29,6 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
       mutationId: execution.mutationId,
       revision: 1,
       restoration: { consumedGroupId: null, replacementGroupId: null },
-      projection: { mode: 'refetch', history: 'clear' },
     }));
   const controller = createPlanningCacheController({
     readMasqueradeContextToken: getMasqueradeContextToken,

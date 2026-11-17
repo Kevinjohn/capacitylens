@@ -1,7 +1,6 @@
 import { m } from '@/i18n';
 import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
-import { buildRepeatedAllocationDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings';
 import { resolveDomainErrorMessage, resolveErrorMessage } from '@/lib/errorMessage';
 import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
@@ -17,7 +16,7 @@ type CommandInput = Omit<AllocationModalSnapshot, 'editId' | 'repeatUntilMinimum
   Pick<
     ReturnType<typeof useStore.getState>,
     | 'addAllocation'
-    | 'addAllocations'
+    | 'addRepeatedAllocation'
     | 'duplicateAllocation'
     | 'updateAllocation'
     | 'deleteAllocation'
@@ -181,22 +180,11 @@ async function saveDraft(input: CommandInput, draft: ValidatedDraft): Promise<bo
     const result = await input.addAllocation(draft);
     return result.kind === 'created';
   }
-  if (!input.selectedResource || input.selectedEffectiveWeek === undefined) {
-    throw new Error('The selected resource could not be resolved for repeat projection.');
-  }
-  const { startDates } = generateRepeatingStartDates(
-    draft.startDate,
-    input.repeatUntil,
-    resolveRepeatPattern(input.repeat),
-  );
-  const drafts = buildRepeatedAllocationDrafts(draft, startDates, {
-    schedulingMode: input.mode,
-    daysOver: input.daysOver,
-    resource: input.selectedResource,
-    effectiveWeek: input.selectedEffectiveWeek,
-  });
+  const repeat = { pattern: resolveRepeatPattern(input.repeat), until: input.repeatUntil };
+  // The count tells the store how many ids to mint; the server places each occurrence.
+  const { startDates } = generateRepeatingStartDates(draft.startDate, repeat.until, repeat.pattern);
   // One typed group write creates the repeated set; the server assigns its series id.
-  const result = await input.addAllocations(drafts);
+  const result = await input.addRepeatedAllocation(draft, repeat, startDates.length);
   return result.kind === 'created';
 }
 

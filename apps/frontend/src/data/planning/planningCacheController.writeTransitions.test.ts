@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { makeClient } from '@/test/fixtures';
+import type { PlanningSnapshot } from './planningCacheTypes';
 import { isPlanningHistoryReady } from './planningReadiness';
 import { isShownByPlanningState, readPlanningProblem } from './planningNotices';
 import { PlanningControllerError } from './planningErrors';
@@ -11,6 +11,7 @@ import {
   receipt,
   deferred,
   ready,
+  snapshot,
   readyWithHistory,
 } from '@/test/planningTransitionHarness';
 
@@ -36,28 +37,25 @@ describe('planning write transitions', () => {
     expect(h.state().planning).toMatchObject({ status: 'ready', pending: null });
   });
 
+  it("an acknowledged write shows the server's rows only after the canonical read", async () => {
+    const h = await ready();
+    const before = h.state().data;
+    const canonical = snapshot(2, 'Ferris Aircraft');
+    const canonicalRead = deferred<PlanningSnapshot>();
+    h.read.mockImplementationOnce(() => canonicalRead.promise);
+    const write = h.controller.execute(h.controller.begin(), update, inverse);
+    await vi.waitFor(() => expect(h.state().planning.outcome?.kind).toBe('acknowledged'));
+    expect(h.state().data).toBe(before);
+    expect(h.state().planning).toMatchObject({ status: 'pending', revision: 1 });
+    canonicalRead.resolve(canonical);
+    await expect(write).resolves.toMatchObject({ revision: 2 });
+    expect(h.state().data).toEqual(canonical.data);
+    expect(h.state().planning).toMatchObject({ status: 'ready', revision: 2, pending: null });
+  });
+
   it.each([
     { name: 'a skipped revision', make: () => receipt('mutation-1', 3) },
     { name: 'another mutation id', make: () => receipt('mutation-9', 2) },
-    {
-      name: 'a foreign-company projection',
-      make: () =>
-        receipt('mutation-1', 2, {
-          projection: {
-            mode: 'patch',
-            history: 'retain',
-            changed: {
-              upserts: [
-                {
-                  entity: 'clients',
-                  row: makeClient({ id: 'client-1', accountId: 'lexcorp', name: 'LexCorp' }),
-                },
-              ],
-              removed: [],
-            },
-          },
-        }),
-    },
   ])('treats a receipt with $name as unconfirmed and shows the server state', async ({ make }) => {
     const h = await ready();
     h.execute.mockResolvedValueOnce(make());

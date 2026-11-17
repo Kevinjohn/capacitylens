@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildClientArchiveImpactCopy,
-  buildProjectArchiveImpactCopy,
-  safeArchiveImpact,
-} from './archiveImpactCopy';
-import { makeActivity, makeAppData } from '@/test/fixtures';
+import { buildArchiveImpactNotice } from './archiveImpactCopy';
 
 const impact = (projects: number, phases: number, allocations: number) => ({
   projects,
@@ -14,56 +9,46 @@ const impact = (projects: number, phases: number, allocations: number) => ({
   timeOff: 0,
 });
 
-describe('archive impact copy', () => {
+describe('buildArchiveImpactNotice', () => {
+  it('reports what archiving a client hid', () => {
+    expect(buildArchiveImpactNotice('clients', impact(1, 0, 2))).toBe(
+      'Archiving the client also hid 1 project, 0 phases and 2 allocations from the schedule; restore it to bring them back.',
+    );
+  });
+
   it.each([
-    [0, '0 projects, 0 phases, and 0 allocations'],
-    [1, '1 project, 1 phase, and 1 allocation'],
-    [2, '2 projects, 2 phases, and 2 allocations'],
-  ] as const)('formats client cascade count %s', (count, expected) => {
-    const copy = buildClientArchiveImpactCopy(impact(count, count, count));
+    [1, '1 project, 1 phase and 1 allocation'],
+    [2, '2 projects, 2 phases and 2 allocations'],
+  ] as const)('formats client counts of %s', (count, expected) => {
+    const copy = buildArchiveImpactNotice('clients', impact(count, count, count));
     expect(copy).toContain(expected);
     expect(copy).not.toContain('(s)');
   });
 
   it.each([
-    [0, '0 phases and 0 allocations'],
     [1, '1 phase and 1 allocation'],
     [2, '2 phases and 2 allocations'],
-  ] as const)('formats project cascade count %s', (count, expected) => {
-    const copy = buildProjectArchiveImpactCopy(impact(0, count, count));
+  ] as const)('formats project counts of %s', (count, expected) => {
+    const copy = buildArchiveImpactNotice('projects', impact(0, count, count));
     expect(copy).toContain(expected);
     expect(copy).not.toContain('(s)');
   });
-});
 
-describe('safeArchiveImpact', () => {
-  it('returns the impact for a row that is present and active', () => {
-    const activity = makeActivity({ id: 'act-1', kind: 'internal' });
-    const data = makeAppData({ activities: [activity] });
-
-    expect(safeArchiveImpact(data, 'activities', activity.id)).toEqual({
-      projects: 0,
-      phases: 0,
-      activities: 0,
-      allocations: 0,
-      timeOff: 0,
-    });
+  it('reports what archiving an activity hid', () => {
+    expect(buildArchiveImpactNotice('activities', impact(0, 0, 3))).toBe(
+      'Archiving the activity also hid 3 allocations from the schedule; restore it to bring them back.',
+    );
   });
 
-  it('returns undefined instead of throwing when the row is missing', () => {
-    const data = makeAppData({ activities: [] });
+  it.each(['clients', 'projects', 'activities'] as const)(
+    'returns null when archiving %s hid nothing',
+    (entity) => {
+      expect(buildArchiveImpactNotice(entity, impact(0, 0, 0))).toBeNull();
+    },
+  );
 
-    expect(safeArchiveImpact(data, 'activities', 'missing')).toBeUndefined();
-  });
-
-  it('returns undefined instead of throwing when the row is already archived', () => {
-    const activity = makeActivity({
-      id: 'act-1',
-      kind: 'internal',
-      archivedAt: '2020-01-01T00:00:00.000Z',
-    });
-    const data = makeAppData({ activities: [activity] });
-
-    expect(safeArchiveImpact(data, 'activities', activity.id)).toBeUndefined();
+  it('ignores counts that do not belong to the archived entity', () => {
+    expect(buildArchiveImpactNotice('projects', impact(4, 0, 0))).toBeNull();
+    expect(buildArchiveImpactNotice('activities', impact(4, 4, 0))).toBeNull();
   });
 });

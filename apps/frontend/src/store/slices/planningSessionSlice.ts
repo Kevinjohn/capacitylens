@@ -11,6 +11,7 @@ import {
 } from '@/data/planning/planningCacheController';
 import type { PlanningCacheState, PlanningTransport } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
+import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { isPlanningReadyForChange } from '@/data/planning/planningReadiness';
 import type { StoreInternals } from '@/store/storeInternal';
 import type { StoreState } from '@/store/types';
@@ -134,13 +135,14 @@ export function createPlanningSessionSlice(
         isPlanningReadyForChange(planning)
       );
     };
-    const send = async (command: PlanningCommand): Promise<void> => {
+    const send = async (command: PlanningCommand): Promise<PlanningMutationSuccess | undefined> => {
       if (blockedByViewer()) return;
       if (commandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
       const receipt = await controller.execute(controller.begin(), command.intent, command.inverse);
       if (!receipt) throw new PlanningSaveCancelledError();
+      return receipt;
     };
 
     return {

@@ -14,11 +14,23 @@ import type { AppData, AppDataKey, ISODate } from '@capacitylens/shared/types/en
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 
 type Row = { id: string; accountId?: string; [key: string]: unknown };
-type Patch = Extract<PlanningMutationSuccess['projection'], { mode: 'patch' }>['changed'];
+/** Rows a queued write changes in the stub's canonical data, which the next read returns. */
+export type PlanningPatch = {
+  upserts: Array<
+    { [Entity in AppDataKey]: { entity: Entity; row: AppData[Entity][number] } }[AppDataKey]
+  >;
+  removed: Array<{ entity: AppDataKey; id: string }>;
+};
 type Response =
   PlanningMutationSuccess | ((execution: PlanningExecution) => PlanningMutationSuccess);
 type Queued =
-  { kind: 'response'; response: Response; data?: AppData } | { kind: 'error'; error: unknown };
+  | {
+      kind: 'response';
+      response: Response;
+      data?: AppData;
+      changed?: (execution: PlanningExecution) => PlanningPatch;
+    }
+  | { kind: 'error'; error: unknown };
 
 /** A controlled response source for frontend tests; scheduling and validation belong to the server. */
 export class StubPlanningTransport implements PlanningTransport {
@@ -45,9 +57,21 @@ export class StubPlanningTransport implements PlanningTransport {
     this.data = structuredClone(data);
   }
 
-  /** Queue the exact server receipt, optionally with the canonical data returned by a later read. */
-  respondNext(response: Response, data?: AppData): void {
-    this.queued.push({ kind: 'response', response, ...(data ? { data } : {}) });
+  /**
+   * Queue the exact server receipt, optionally with the canonical data, or the rows it changes,
+   * that a later read returns.
+   */
+  respondNext(
+    response: Response,
+    data?: AppData,
+    changed?: (execution: PlanningExecution) => PlanningPatch,
+  ): void {
+    this.queued.push({
+      kind: 'response',
+      response,
+      ...(data ? { data } : {}),
+      ...(changed ? { changed } : {}),
+    });
   }
 
   /** Queue a refusal or transport error without implementing the server's validation rule. */
@@ -103,10 +127,9 @@ export class StubPlanningTransport implements PlanningTransport {
       receipt =
         typeof queued.response === 'function' ? queued.response(execution) : queued.response;
       if (queued.data) this.data = structuredClone(queued.data);
-      else if (receipt.projection.mode === 'patch') this.applyPatch(receipt.projection.changed);
+      else if (queued.changed) this.applyPatch(queued.changed(execution));
     } else {
-      const changed: Patch = { upserts: [], removed: [] };
-      const deletion = this.applySingleRow(context.companyId, execution.intent, changed);
+      const deletion = this.applySingleRow(context.companyId, execution.intent);
       receipt = {
         status: 'committed',
         mutationId: execution.mutationId,
@@ -115,7 +138,6 @@ export class StubPlanningTransport implements PlanningTransport {
           consumedGroupId: null,
           replacementGroupId: deletion ? crypto.randomUUID() : null,
         },
-        projection: { mode: 'patch', history: 'retain', changed },
       };
     }
     this.revisions.set(context.companyId, receipt.revision);
@@ -129,7 +151,7 @@ export class StubPlanningTransport implements PlanningTransport {
     Object.assign(this.data, { [entity]: rows });
   }
 
-  private applyPatch(patch: Patch): void {
+  private applyPatch(patch: PlanningPatch): void {
     for (const { entity, id } of patch.removed) {
       this.replaceRows(
         entity,
@@ -144,7 +166,7 @@ export class StubPlanningTransport implements PlanningTransport {
     }
   }
 
-  private applySingleRow(companyId: string, intent: PlanningIntent, changed: Patch): boolean {
+  private applySingleRow(companyId: string, intent: PlanningIntent): boolean {
     const create = (entity: AppDataKey, id: string, fields: object) => {
       const now = new Date().toISOString();
       const row = {
@@ -156,7 +178,6 @@ export class StubPlanningTransport implements PlanningTransport {
         ...(entity === 'accounts' ? {} : { accountId: companyId }),
       } as Row;
       this.replaceRows(entity, [...this.rows(entity).filter((current) => current.id !== id), row]);
-      changed.upserts.push({ entity, row } as unknown as Patch['upserts'][number]);
     };
     const update = (entity: AppDataKey, id: string, changes: object) => {
       const previous = this.rows(entity).find((row) => row.id === id);
@@ -166,14 +187,12 @@ export class StubPlanningTransport implements PlanningTransport {
         entity,
         this.rows(entity).map((current) => (current.id === id ? row : current)),
       );
-      changed.upserts.push({ entity, row } as unknown as Patch['upserts'][number]);
     };
     const remove = (entity: AppDataKey, id: string) => {
       this.replaceRows(
         entity,
         this.rows(entity).filter((row) => row.id !== id),
       );
-      changed.removed.push({ entity, id });
       return true;
     };
     switch (intent.operation) {

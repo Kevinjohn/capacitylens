@@ -9,7 +9,7 @@ import {
   ListPage,
 } from '@/components/common/ui';
 import { ProjectForm } from './ProjectForm';
-import type { AppData, Client, ID, Project } from '@capacitylens/shared/types/entities';
+import type { Client, ID, Project } from '@capacitylens/shared/types/entities';
 import { useLifecycleActions } from '@/hooks/useLifecycleActions';
 import { m } from '@/i18n';
 import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames';
@@ -17,19 +17,12 @@ import { resolveProjectColor } from '@capacitylens/shared/lib/color';
 import { Fragment, useMemo } from 'react';
 import { Folder, Plus } from 'lucide-react';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { buildProjectArchiveImpactCopy, safeArchiveImpact } from '@/lib/archiveImpactCopy';
 import { createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
 import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
 
-// A concurrently inactive project must render the base confirmation message instead of throwing, so use safeArchiveImpact.
-function buildProjectArchiveMessage(data: AppData, project: Project): string {
+function buildProjectArchiveMessage(project: Project): string {
   const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name;
-  const base = m.list_projects_archive_message({ name });
-  const impact = safeArchiveImpact(data, 'projects', project.id);
-  if (!impact) return base;
-  return impact.phases + impact.allocations > 0
-    ? `${base} ${buildProjectArchiveImpactCopy(impact)}`
-    : base;
+  return m.list_projects_archive_message({ name });
 }
 
 interface ProjectItemsProps {
@@ -124,7 +117,7 @@ export function ProjectList() {
       {confirming && (
         <ConfirmDialog
           title={m.list_projects_archive_title()}
-          message={buildProjectArchiveMessage(data, confirming)}
+          message={buildProjectArchiveMessage(confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive('projects', confirming.id);

@@ -9,33 +9,33 @@ import {
   applyBetaAccountTransfer,
   parseRequestDocument,
   previewBetaAccountTransfer,
+  readRequestDocument,
 } from '#services/beta_account_transfer';
 
-function input(value: unknown, apply: boolean) {
-  const expected = apply ? ['accountId', 'document', 'baseRevision'] : ['accountId', 'document'];
+function input(value: unknown) {
+  const expected = ['accountId', 'document', 'baseRevision'];
   const body = value;
   if (
-    !hasOnlyFields(body, apply ? [...expected, 'confirmationId'] : expected) ||
+    !hasOnlyFields(body, [...expected, 'confirmationId']) ||
     expected.some((key) => !Object.hasOwn(body, key))
   ) {
     return null;
   }
   if (typeof body.accountId !== 'string' || !body.accountId) return null;
   if (
-    apply &&
-    (!Number.isSafeInteger(body.baseRevision) ||
-      (body.baseRevision as number) < 0 ||
-      (body.confirmationId !== undefined && typeof body.confirmationId !== 'string'))
+    !Number.isSafeInteger(body.baseRevision) ||
+    (body.baseRevision as number) < 0 ||
+    (body.confirmationId !== undefined && typeof body.confirmationId !== 'string')
   ) {
     return null;
   }
   const document = parseRequestDocument(body.document);
   if (!document) return null;
   return {
-    accountId: body.accountId as string,
+    accountId: body.accountId,
     document,
-    baseRevision: apply ? (body.baseRevision as number) : undefined,
-    confirmationId: apply ? ((body.confirmationId as string | undefined) ?? '') : undefined,
+    baseRevision: body.baseRevision as number,
+    confirmationId: (body.confirmationId as string | undefined) ?? '',
   };
 }
 
@@ -53,12 +53,22 @@ function failure(ctx: HttpContext, error: unknown) {
 
 export default class TransferController {
   async preview(ctx: HttpContext) {
-    const body = input(ctx.request.body(), false);
-    if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer document.' });
+    const body = ctx.request.body();
+    if (
+      !hasOnlyFields(body, ['accountId', 'document']) ||
+      !Object.hasOwn(body, 'document') ||
+      typeof body.accountId !== 'string' ||
+      !body.accountId
+    ) {
+      return ctx.response.badRequest({ error: 'Invalid beta transfer document.' });
+    }
+    const accountId = body.accountId;
     try {
+      // The preview names why a document is refused, so the browser never validates it itself.
+      const document = readRequestDocument(body.document);
       const result = await withActor(ctx, async (_actor, trx) => {
-        await passwordConfirmationActor(body.accountId as string, trx, 'import');
-        return previewBetaAccountTransfer(trx, body.accountId as string, body.document);
+        await passwordConfirmationActor(accountId, trx, 'import');
+        return previewBetaAccountTransfer(trx, accountId, document);
       });
       return ctx.response.ok(result);
     } catch (error) {
@@ -67,22 +77,22 @@ export default class TransferController {
   }
 
   async apply(ctx: HttpContext) {
-    const body = input(ctx.request.body(), true);
+    const body = input(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
-        const actor = await passwordConfirmationActor(body.accountId as string, trx, 'import');
+        const actor = await passwordConfirmationActor(body.accountId, trx, 'import');
         await passwordConfirmations.consume(kitContextIn(trx), {
-          confirmationId: body.confirmationId as string,
+          confirmationId: body.confirmationId,
           action: 'import',
-          scope: body.accountId as string,
+          scope: body.accountId,
           intent: { baseRevision: body.baseRevision, document: body.document },
         });
         return applyBetaAccountTransfer(
           trx,
-          body.accountId as string,
+          body.accountId,
           body.document,
-          body.baseRevision as number,
+          body.baseRevision,
           actor.userId
         );
       });

@@ -7,7 +7,7 @@ import {
 import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { ISODate, Resource } from '@capacitylens/shared/types/entities';
 import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
-import { resolveScheduledHoursOnDay } from '@/lib/capacity';
+import { resolveScheduledHoursOnDay } from '@capacitylens/shared/lib/capacity';
 
 import { resolveProjectSelection, hasWorkingSpan } from './allocationModalSelection';
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';

@@ -72,7 +72,10 @@ function canReadInactive(role: Role) {
 const IDENTITY = 'identity or account reply with no client, project or time-off rows';
 const COUNTS = 'counts, ids or no body';
 const UNRESTRICTED = 'changes no restricted table and replies with no restricted row';
-const CALLER = 'replies with caller-sent fields or removed ids only';
+const CALLER =
+  'committed write whose reply carries only the revision, restoration handles and archive counts';
+const PREVIEW =
+  "Owner only, refused while viewing as: the caller document's name and counts, the revision and a changed flag";
 
 async function readRevision() {
   const row = await db.from('company_planning_revisions').where('account_id', accountId).first();
@@ -119,6 +122,9 @@ type Exposure =
     }
   | { none: string };
 
+/** A committed write replies with its revision and restoration handles only, never rows. */
+const WRITE_REPLY: string[] = [];
+
 const replies: Record<string, Exposure> = {
   'api.planning.show': {
     write: false,
@@ -152,7 +158,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.client.update': {
     write: true,
-    carries: [MARKER_CLIENT],
+    carries: WRITE_REPLY,
     call: async (fixture) =>
       send(fixture.client.patch(buildCompanyRoute(`clients/${fixture.clientId}`)), fixture.cookie, {
         operation: 'catalogue.update',
@@ -165,7 +171,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.client.unarchive': {
     write: true,
-    carries: [MARKER_CLIENT, MARKER_PROJECT],
+    carries: WRITE_REPLY,
     call: async (fixture) => {
       const entity = { entity: 'clients', id: fixture.clientId };
       await archiveAsOwner(fixture, `clients/${fixture.clientId}/archive`, {
@@ -184,7 +190,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.project.update': {
     write: true,
-    carries: [MARKER_PROJECT],
+    carries: WRITE_REPLY,
     call: async (fixture) =>
       send(
         fixture.client.patch(buildCompanyRoute(`projects/${fixture.projectId}`)),
@@ -201,7 +207,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.project.unarchive': {
     write: true,
-    carries: [MARKER_PROJECT],
+    carries: WRITE_REPLY,
     call: async (fixture) => {
       const entity = { entity: 'projects', id: fixture.projectId };
       await archiveAsOwner(fixture, `projects/${fixture.projectId}/archive`, {
@@ -220,7 +226,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.timeOff.update': {
     write: true,
-    carries: [MARKER_NOTE],
+    carries: WRITE_REPLY,
     call: async (fixture) => {
       const row = await db.from('time_off').where('id', fixture.timeOffId).first();
       const type = row?.type === 'holiday' ? 'sick' : 'holiday';
@@ -237,7 +243,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.resource.unarchive': {
     write: true,
-    carries: [MARKER_NOTE],
+    carries: WRITE_REPLY,
     call: async (fixture) => {
       await archiveAsOwner(fixture, `resources/${fixture.resourceId}/archive`, {
         operation: 'resource.archive',
@@ -255,7 +261,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.restoreGroup': {
     write: true,
-    carries: [MARKER_NOTE],
+    carries: WRITE_REPLY,
     call: async (fixture) => {
       const deleted = await send(
         fixture.client.post(buildCompanyRoute(`time-off/${fixture.timeOffId}/delete`)),
@@ -359,7 +365,7 @@ const replies: Record<string, Exposure> = {
   'api.planning.timeOff.repeat': { none: CALLER },
   'api.resources.anonymise': { none: COUNTS },
   'api.transfer.apply': { none: COUNTS },
-  'api.transfer.preview': { none: COUNTS },
+  'api.transfer.preview': { none: PREVIEW },
 };
 
 /** Marks one client, project and time-off note, and adds an archived private client. */
@@ -485,6 +491,17 @@ test.group('restricted values in replies', (group) => {
             const codeName = codeNamesByMarker[marker];
             if (!hidden.includes(marker)) assert.include(text, marker, where);
             else if (codeName) assert.include(text, `\\"${codeName}\\"`, where);
+          }
+        }
+        // A committed write carries no rows, so no marker appears even for a reader who may see it.
+        if (exposure.write && reply.status() === 200) {
+          for (const marker of [
+            MARKER_CLIENT,
+            MARKER_ARCHIVED_CLIENT,
+            MARKER_PROJECT,
+            MARKER_NOTE,
+          ]) {
+            assert.notInclude(text, marker, where);
           }
         }
       }

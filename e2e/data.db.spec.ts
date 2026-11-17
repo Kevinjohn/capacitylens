@@ -70,7 +70,7 @@ test.describe('Beta company transfer through the server', () => {
   });
 
   const refusals: Array<[string, string, RegExp]> = [
-    ['invalid JSON', '{ "format":', /valid JSON/i],
+    ['invalid JSON', '{ "format":', /not valid CapacityLens JSON/i],
     ['unrelated JSON', '{ "hello": "world" }', /beta-native CapacityLens export/i],
     [
       'redacted document',
@@ -89,7 +89,7 @@ test.describe('Beta company transfer through the server', () => {
     test(`refuses ${name} and preserves the current company`, async ({ page }) => {
       await openApp(page);
       await importFile(page, body);
-      if (name === 'redacted document') {
+      if (name !== 'invalid JSON') {
         const preview = page.getByRole('dialog', { name: 'Import data?' });
         await expect(preview.getByRole('alert')).toContainText(message);
         await page.keyboard.press('Escape');

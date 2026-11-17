@@ -1,3 +1,6 @@
+// This module is the one-company rule's single server home. Every server check of the company
+// limit, or of whether a company exists yet, reads through these functions.
+
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import { AdmissionError } from '#exceptions/admission_error';
 

@@ -161,56 +161,11 @@ describe('planning request access boundaries', () => {
       mutationId: execution?.mutationId ?? 'missing',
       revision: 2,
       restoration: { consumedGroupId: null, replacementGroupId: null },
-      projection: {
-        mode: 'patch',
-        history: 'retain',
-        changed: {
-          upserts: [
-            {
-              entity: 'clients',
-              row: makeClient({ accountId: 'wayne', name: 'Wayne Enterprises' }),
-            },
-          ],
-          removed: [],
-        },
-      },
     });
     await oldRequest;
     expect(fixture.store.getState().data.clients[0]?.name).toBe('Gotham');
     expect(fixture.store.getState().planning.history.past).toEqual([]);
     expect(fixture.store.getState().planning.pending).toBeNull();
     await expect(fixture.controller.execute(draft, update, inverse)).rejects.toThrow(/context/i);
-  });
-
-  it("applies the server's canonical patch before a delayed post-write read finishes", async () => {
-    const fixture = await setup();
-    const canonicalRead = deferred<PlanningSnapshot>();
-    fixture.read.mockImplementationOnce(() => canonicalRead.promise);
-    fixture.execute.mockImplementationOnce(async (...parameters) => ({
-      status: 'committed',
-      mutationId: parameters[1].mutationId,
-      revision: 2,
-      restoration: { consumedGroupId: null, replacementGroupId: null },
-      projection: {
-        mode: 'patch',
-        history: 'retain',
-        changed: {
-          upserts: [
-            { entity: 'clients', row: makeClient({ accountId: 'wayne', name: 'Ferris Aircraft' }) },
-          ],
-          removed: [],
-        },
-      },
-    }));
-    const saving = fixture.controller.execute(fixture.controller.begin(), update, null);
-    await vi.waitFor(() =>
-      expect(fixture.store.getState().planning.outcome?.kind).toBe('acknowledged'),
-    );
-    expect(fixture.store.getState().data.clients[0]?.name).toBe('Ferris Aircraft');
-    expect(fixture.store.getState().planning.pending).not.toBeNull();
-    canonicalRead.resolve(snapshot('Ferris Aircraft', 2));
-    await saving;
-    expect(fixture.store.getState().planning.pending).toBeNull();
-    expect(fixture.store.getState().planning.status).toBe('ready');
   });
 });

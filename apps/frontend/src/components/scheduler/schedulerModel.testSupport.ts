@@ -12,7 +12,7 @@ import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import {
   buildCapacityWindow as capacityForWindowWithWeek,
   resolveUtilization as utilizationWithWeek,
-} from '@/lib/capacity';
+} from '@capacitylens/shared/lib/capacity';
 import { buildEmptyFilters } from '@/store/useStore';
 import {
   makeActivity,

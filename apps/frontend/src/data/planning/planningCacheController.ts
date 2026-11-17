@@ -25,13 +25,7 @@ import {
   isHistoryEligible,
   movedHistory,
 } from './planningHistory';
-import {
-  applyProjection,
-  isProjectionForCompany,
-  isSnapshotForCompany,
-  isValidReceipt,
-  isValidSnapshot,
-} from './planningReceipts';
+import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './planningReceipts';
 
 // A declined restoration confirmation; distinct from any reply the transport can return.
 const DECLINED = Symbol('declined');
@@ -311,7 +305,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     revision: number,
     historyEligible: boolean,
     replacementHandle?: string,
-    receipt?: PlanningMutationSuccess,
   ): void {
     if (!ownsAttempt(owner)) return;
     owner.pending = {
@@ -322,15 +315,9 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         ...(replacementHandle ? { replacementHandle } : {}),
       },
     };
-    const current = store.getState();
-    const canPatch =
-      receipt?.projection.mode === 'patch' &&
-      current.planning.revision === owner.pending.execution.baseRevision;
     store.setState((state) => ({
-      ...(canPatch ? { data: applyProjection(state.data, receipt) } : {}),
       planning: {
         ...state.planning,
-        revision: canPatch ? revision : state.planning.revision,
         status: 'pending',
         pending: owner.pending,
         outcome: { kind: 'acknowledged', mutationId: owner.pending.execution.mutationId, revision },
@@ -458,10 +445,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (!ownsAttempt(owner)) {
       throw new PlanningControllerError('Planning context changed while the request was pending.');
     }
-    if (
-      !isValidReceipt(receipt, pending.execution) ||
-      !isProjectionForCompany(receipt, draft.context.companyId)
-    ) {
+    if (!isValidReceipt(receipt, pending.execution)) {
       await settleUnconfirmed(owner);
       throw new PlanningControllerError(
         'The server receipt was invalid; commitment is unknown.',
@@ -473,9 +457,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     acknowledge(
       owner,
       receipt.revision,
-      receipt.projection.mode === 'patch' && isHistoryEligible(intent, inverse),
+      isHistoryEligible(intent, inverse),
       receipt.restoration.replacementGroupId ?? undefined,
-      receipt,
     );
     await refresh();
     return isCurrent(draft.generation, draft.context) ? receipt : null;

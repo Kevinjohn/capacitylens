@@ -7,6 +7,7 @@ import { getPlanningRevision } from '#services/planning_revision';
 import { withTransaction } from '#services/with_transaction';
 import hash from '@adonisjs/core/services/hash';
 import { seed } from '@capacitylens/shared/data/seed';
+import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
@@ -97,6 +98,10 @@ test.group('beta transfer apply', (group) => {
       .json({ accountId, document: full })
       .send();
     preview.assertStatus(200);
+    assert.deepInclude(preview.body(), {
+      companyName: full.data.accounts[0]!.name,
+      counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, full.data[key].length])),
+    });
     const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
     const confirmationId = await proof(client, cookie, { baseRevision, document: full });
     const result = await apply(client, cookie, full, baseRevision, confirmationId);
@@ -127,6 +132,27 @@ test.group('beta transfer apply', (group) => {
       .send();
     repeatPreview.assertStatus(200);
     assert.isFalse((repeatPreview.body() as { changed: boolean }).changed);
+  });
+
+  test('preview replies with the reason a document is refused', async ({ client, assert }) => {
+    const { cookie } = await resetAuthenticatedData(client);
+    const full = await document();
+    const redacted = buildBetaExport(await readState(accountId, true), {
+      accountId,
+      completeness: 'redacted',
+    });
+    const refusals: [unknown, string][] = [
+      [{ hello: 'world' }, 'format: is not a beta-native CapacityLens export'],
+      [{ ...full, schemaVersion: 3 }, 'schemaVersion: is unsupported'],
+      [redacted, 'completeness: only full exports can be imported'],
+    ];
+    for (const [value, error] of refusals) {
+      const response = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+        .json({ accountId, document: value })
+        .send();
+      response.assertStatus(400);
+      assert.deepEqual(response.body(), { error });
+    }
   });
 
   test('refuses a document whose scheduling IDs belong to another company on this server', async ({
@@ -524,6 +550,11 @@ test.group('beta transfer apply', (group) => {
       .update({ role: 'admin' });
     const roleDenied = await apply(client, cookie, full, baseRevision, roleProof);
     roleDenied.assertStatus(403);
+    const previewDenied = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      .json({ accountId, document: full })
+      .send();
+    previewDenied.assertStatus(403);
+    assert.notProperty(previewDenied.body(), 'companyName');
     const roleProofRow = await db.from('password_confirmations').where('id', roleProof).first();
     assert.isNull(roleProofRow?.consumed_at);
 

@@ -85,7 +85,12 @@ const cases: Array<{
 }> = [
   { intent: { operation: 'allocation.create', allocation }, method: 'POST', path: 'allocations' },
   {
-    intent: { operation: 'allocation.createGroup', allocations: [allocation] },
+    intent: {
+      operation: 'allocation.createGroup',
+      allocation,
+      repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-02' },
+      occurrenceIds: ['occurrence-2'],
+    },
     method: 'POST',
     path: 'allocations/create-group',
   },
@@ -225,7 +230,6 @@ describe('generated planning transport', () => {
         mutationId,
         revision: 6,
         restoration,
-        projection: { mode: 'patch', history: 'retain', changed: { upserts: [], removed: [] } },
       };
       const { transport, requests } = harness(receipt);
       expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
