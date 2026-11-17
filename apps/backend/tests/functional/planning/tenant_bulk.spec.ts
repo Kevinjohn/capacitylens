@@ -43,15 +43,6 @@ test.group('typed bulk writer tenant isolation', (group) => {
       }),
     },
     {
-      name: 'allocation repeat',
-      path: (data: AppData) => `allocations/${data.allocations[0]!.id}/repeat`,
-      intent: (data: AppData) => ({
-        operation: 'allocation.repeat',
-        sourceAllocationId: data.allocations[0]!.id,
-        occurrences: [{ id: randomUUID(), startDate: '2026-11-09', endDate: '2026-11-09' }],
-      }),
-    },
-    {
       name: 'time-off delete-group',
       path: 'time-off/delete-group',
       intent: (data: AppData) => ({
@@ -84,17 +75,19 @@ test.group('typed bulk writer tenant isolation', (group) => {
       configureAuth(cleanup);
       const { cookie } = await signIn(client);
       const beforeOwn = await readState(accountId, true);
-      const path = typeof scenario.path === 'string' ? scenario.path : scenario.path(beforeOwn);
       const intent = scenario.intent(beforeOwn);
       const beforeOther = await readState(otherAccountId, true);
-      const own = await session(client.post(`/api/accounts/${accountId}/${path}`), cookie)
+      const own = await session(client.post(`/api/accounts/${accountId}/${scenario.path}`), cookie)
         .json(requestBody(0, intent))
         .send();
       own.assertStatus(200);
       assert.notDeepEqual(await readState(accountId, true), beforeOwn);
       assert.deepEqual(await readState(otherAccountId, true), beforeOther);
 
-      const foreign = await session(client.post(`/api/accounts/${otherAccountId}/${path}`), cookie)
+      const foreign = await session(
+        client.post(`/api/accounts/${otherAccountId}/${scenario.path}`),
+        cookie
+      )
         .json(requestBody(0, intent))
         .send();
       foreign.assertStatus(403);

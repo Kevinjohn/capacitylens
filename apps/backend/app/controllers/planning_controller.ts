@@ -101,14 +101,6 @@ export default class PlanningController {
     );
   }
 
-  async allocationRepeat(ctx: HttpContext) {
-    return this.execute(
-      ctx,
-      () => ctx.request.validateUsing(allocationMutationValidator),
-      'allocation.repeat'
-    );
-  }
-
   async allocationCreateGroup(ctx: HttpContext) {
     return this.execute(
       ctx,

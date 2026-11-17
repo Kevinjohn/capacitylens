@@ -502,19 +502,6 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationDuplicate']>>>
     }
   }
-  'api.planning.allocation.repeat': {
-    methods: ["POST"]
-    pattern: '/api/accounts/:accountId/allocations/:id/repeat'
-    types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
-      paramsTuple: [ParamValue, ParamValue]
-      params: { accountId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/planning/allocation').allocationMutationValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['allocationRepeat']>>>
-    }
-  }
   'api.planning.timeOff.repeat': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/time-off/repeat'
