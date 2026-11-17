@@ -1,4 +1,4 @@
-import { E2E_SCRIPT_TEST_SLOTS } from '../e2e/e2eTestSlots.mjs';
+import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

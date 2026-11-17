@@ -13,7 +13,7 @@ export function createRetirableListener(
     listen(): Promise<void>;
     waitForQuiescence(timeoutMs: number): Promise<unknown>;
     status(): Record<string, unknown>;
-  }
+  },
 ): {
   shouldReject(socket: Socket): boolean;
   status(): Record<string, unknown>;
@@ -59,12 +59,12 @@ export function createRetirableListener(
         const retiredSockets = bounded(
           waitUntil(() => sockets.size === 0, remaining(), `${options.role} sockets`),
           remaining(),
-          `${options.role} socket retirement`
+          `${options.role} socket retirement`,
         );
         const quiescence = bounded(
           options.waitForQuiescence(Math.max(1, remaining() - 100)),
           remaining(),
-          `${options.role} request drain`
+          `${options.role} request drain`,
         );
         const [, drainState] = await Promise.all([closed, quiescence, retiredSockets]);
         return { ...status(), drain: drainState };
@@ -103,7 +103,7 @@ export function createRetirableListener(
 async function waitUntil(
   predicate: () => boolean,
   timeoutMs: number,
-  label: string
+  label: string,
 ): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (!predicate()) {
@@ -116,7 +116,7 @@ function bounded<T>(promise: Promise<T>, timeoutMs: number, label: string): Prom
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`${label} timed out after ${timeoutMs} ms.`)),
-      timeoutMs
+      timeoutMs,
     );
     promise.then(
       (value) => {
@@ -126,7 +126,7 @@ function bounded<T>(promise: Promise<T>, timeoutMs: number, label: string): Prom
       (error: unknown) => {
         clearTimeout(timer);
         reject(error);
-      }
+      },
     );
   });
 }

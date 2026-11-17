@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { E2E_RUN_PRESETS, resolvePlaywrightRunMode } from './playwrightRunMode.mjs';
+import { parseReportPhaseName } from './playwrightServerScope.ts';
 
 test('server API calls use the claimed lane despite an inherited API override', async () => {
   const previousLane = process.env.CAPACITYLENS_PORT_LANE;
@@ -17,4 +19,38 @@ test('server API calls use the claimed lane despite an inherited API override', 
     if (previousApi === undefined) delete process.env.VITE_CAPACITYLENS_API;
     else process.env.VITE_CAPACITYLENS_API = previousApi;
   }
+});
+
+for (const [name, preset] of Object.entries(E2E_RUN_PRESETS)) {
+  test(`the ${name} preset keeps its projects and server profile aligned`, () => {
+    const mode = resolvePlaywrightRunMode(preset.environment);
+    assert.deepEqual(
+      mode.projects,
+      preset.projects.length > 0 ? preset.projects : ['chromium', 'auth-backed'],
+    );
+    assert.equal(mode.serverProfile, preset === E2E_RUN_PRESETS.standard ? 'standard' : 'workers');
+  });
+}
+
+test('the run mode selects one engine and rejects contradictory browser modes', () => {
+  assert.deepEqual(resolvePlaywrightRunMode({ CAPACITYLENS_WEBKIT_ONLY: '1' }), {
+    projects: ['webkit'],
+    serverProfile: 'workers',
+  });
+  assert.throws(
+    () =>
+      resolvePlaywrightRunMode({ CAPACITYLENS_WEBKIT_ONLY: '1', CAPACITYLENS_FIREFOX_ONLY: '1' }),
+    /cannot be combined|mutually exclusive/,
+  );
+});
+
+test('the report phase is non-empty and rejects lossy or traversal-shaped aliases', () => {
+  assert.equal(parseReportPhaseName(undefined), 'default');
+  assert.equal(parseReportPhaseName(''), 'default');
+  assert.equal(parseReportPhaseName('chromium-server'), 'chromium-server');
+  assert.throws(() => parseReportPhaseName('///'), /letters, numbers, underscores and hyphens/);
+  assert.throws(
+    () => parseReportPhaseName('webkit/1'),
+    /letters, numbers, underscores and hyphens/,
+  );
 });

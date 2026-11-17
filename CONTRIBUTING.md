@@ -334,7 +334,7 @@ that commit, then create a draft with generated notes and edit it before publish
 gh release create <tag> --generate-notes --draft
 ```
 
-[CHANGELOG-ARCHIVE.md](CHANGELOG-ARCHIVE.md) is frozen and holds releases up to 0.75.0-alpha.1.
+Releases up to 0.75.0-alpha.1 are recorded in the frozen [changelog archive](https://github.com/Kevinjohn/capacitylens/blob/88abfe6a0a4b53af533c6b4ba5f74080100653b4/CHANGELOG-ARCHIVE.md); later notes are on the [Releases page](https://github.com/Kevinjohn/capacitylens/releases).
 
 ## Community and security
 

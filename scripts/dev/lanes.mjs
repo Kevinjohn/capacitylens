@@ -10,9 +10,9 @@ import { execFileSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { portInUse } from './devProcesses.mjs';
+import { portInUse } from '../../tooling/devProcesses.mjs';
 import { laneDirectory, listenerDirectory, listenerPid, readLiveClaims } from './laneClaims.mjs';
-import { LANE_CEILING, portsForLane } from './ports.mjs';
+import { LANE_CEILING, portsForLane } from '../../tooling/ports.mjs';
 
 /** Every worktree path of the repository this script belongs to. */
 export function repositoryWorktrees(run = execFileSync) {

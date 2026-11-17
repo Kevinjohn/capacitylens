@@ -1,6 +1,6 @@
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { createResetControlServer } from '#start/e2e_reset_control';
-import { createRetirableListener } from '#start/e2e_retirable_listener';
+import { createResetControlServer } from './e2e_reset_control.ts';
+import { createRetirableListener } from './e2e_retirable_listener.ts';
 
 type RequestHandler = (request: IncomingMessage, response: ServerResponse) => void | Promise<void>;
 
@@ -16,7 +16,7 @@ type RequestEntry = { method: string; path: string; startedAt: number };
 export function installE2eRequestActivity(
   server: Server,
   handler: RequestHandler,
-  options: RequestActivityOptions
+  options: RequestActivityOptions,
 ): { ready: Promise<void>; close(): Promise<void> } | undefined {
   const pending = new Map<symbol, RequestEntry>();
   const listener = options.token
@@ -94,7 +94,7 @@ async function waitForNoRequests(pending: Map<symbol, RequestEntry>, timeoutMs: 
     if (Date.now() >= deadline) {
       const requests = Array.from(pending.values(), ({ method, path }) => ({ method, path }));
       throw new Error(
-        `API pause timed out with ${pending.size} active handlers: ${JSON.stringify(requests)}.`
+        `API pause timed out with ${pending.size} active handlers: ${JSON.stringify(requests)}.`,
       );
     }
     await new Promise((resolve) => setTimeout(resolve, 10));

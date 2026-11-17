@@ -33,18 +33,11 @@ const sharedTestFiles = [
 const parentImportAllowances = {
   'apps/frontend/src/data/buildInfo.ts': ['../../../../package.json'],
   'apps/frontend/src/build/staticSpaRouteDocuments.test.ts': ['../../vite.config'],
-  'apps/frontend/src/bundleBudgetGate.test.ts': ['../../../scripts/build/bundleBudget.mjs'],
   'apps/frontend/src/csp.test.ts': [
     '../../../nginx.conf?raw',
     '../../../nginx-security-headers.conf?raw',
   ],
-  'apps/frontend/src/playwrightServerScope.test.ts': [
-    '../../../scripts/e2e/playwrightServerScope',
-    '../../../scripts/e2e/playwrightRunMode.mjs',
-  ],
-  'apps/frontend/src/pnpmSpawn.test.ts': ['../../../scripts/shared/pnpmSpawn.mjs'],
   'apps/frontend/src/router.test.tsx': ['../../../scripts/build/staticSpaRoutes.mjs'],
-  'apps/frontend/src/serve-dist.test.ts': ['../../../scripts/e2e/serve-dist.mjs'],
   'apps/frontend/src/test/generateDocumentationComponentId.test.ts': [
     '../../../../docs-src/.vitepress/generateDocumentationComponentId.mts',
     '../../../../docs-src/.vitepress/config.mts',
@@ -260,6 +253,23 @@ export default defineConfig([
     files: [file],
     rules: parentImportRules(allowed),
   })),
+
+  // The e2e harness modules start and stop servers, so an unhandled promise there leaves a run
+  // hanging or failing without its cause.
+  {
+    files: ['tooling/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: ['./tsconfig.e2e.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+    },
+  },
 
   // Colocated shared tests use Node; production resolves through the pure package project.
   {

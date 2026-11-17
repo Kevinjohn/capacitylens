@@ -6,14 +6,14 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { assertSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
-import { mirrorChildExit } from './devProcesses.mjs';
+import { mirrorChildExit } from '../../tooling/devProcesses.mjs';
 import { assertLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
 import {
   LANE_CLAIM_ENVIRONMENT_KEY,
   LANE_ENVIRONMENT_KEY,
   SHARE_ENVIRONMENT_KEY,
   portsForLane,
-} from './ports.mjs';
+} from '../../tooling/ports.mjs';
 
 // Refuse an unsupported runtime before a lane is claimed, so nothing is left to release.
 try {
