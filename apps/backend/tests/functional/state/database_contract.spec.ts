@@ -100,30 +100,57 @@ test.group('M1 database contract', (group) => {
     assert.isNotNull(await db.from('request_receipts').where('id', receipts[1]!.id).first());
   });
 
-  test('readiness refuses drifted login-link proof storage', async ({ assert }) => {
+  test('readiness accepts a column added to package storage', async () => {
+    const packageTables = [
+      'memberships',
+      'masquerade_modes',
+      'masquerade_events',
+      'password_confirmations',
+      'account_invitations',
+      'login_link_tokens',
+      'password_reset_tokens',
+      'email_verification_tokens',
+    ];
+    const altered: string[] = [];
+    try {
+      for (const table of packageTables) {
+        await db.rawQuery(`ALTER TABLE ${table} ADD COLUMN package_extra TEXT`);
+        altered.push(table);
+      }
+      await assertSchemaIntegrity();
+      await checkDatabase();
+    } finally {
+      for (const table of altered) {
+        await db.rawQuery(`ALTER TABLE ${table} DROP COLUMN package_extra`);
+      }
+    }
+  });
+
+  test('readiness refuses package storage missing a column the product joins on', async ({
+    assert,
+  }) => {
     await db.rawQuery(
-      'ALTER TABLE login_link_tokens RENAME COLUMN client_challenge TO missing_challenge'
+      'ALTER TABLE account_sessions RENAME COLUMN expires_at TO missing_expires_at'
     );
     try {
-      await assert.rejects(() => assertSchemaIntegrity(), /login_link_tokens columns differ/);
-      await assert.rejects(() => checkDatabase(), /login_link_tokens columns differ/);
+      await assert.rejects(
+        () => assertSchemaIntegrity(),
+        /account_sessions\.expires_at column is missing/
+      );
     } finally {
       await db.rawQuery(
-        'ALTER TABLE login_link_tokens RENAME COLUMN missing_challenge TO client_challenge'
+        'ALTER TABLE account_sessions RENAME COLUMN missing_expires_at TO expires_at'
       );
     }
     await assertSchemaIntegrity();
   });
 
-  test('readiness refuses invitation storage without the Account Kit scope column', async ({
-    assert,
-  }) => {
-    await db.rawQuery('ALTER TABLE account_invitations RENAME COLUMN scope TO missing_scope');
+  test('readiness refuses missing package storage', async ({ assert }) => {
+    await db.rawQuery('ALTER TABLE masquerade_events RENAME TO masquerade_events_moved');
     try {
-      await assert.rejects(() => assertSchemaIntegrity(), /account_invitations columns differ/);
-      await assert.rejects(() => checkDatabase(), /account_invitations columns differ/);
+      await assert.rejects(() => assertSchemaIntegrity(), /masquerade_events is missing/);
     } finally {
-      await db.rawQuery('ALTER TABLE account_invitations RENAME COLUMN missing_scope TO scope');
+      await db.rawQuery('ALTER TABLE masquerade_events_moved RENAME TO masquerade_events');
     }
     await assertSchemaIntegrity();
   });
