@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
 import { updateSettings, PlanningOperationError } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
@@ -97,6 +98,78 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.deepEqual(requested.body().capacity.horizon, capacity.horizon);
   });
 
+  test('read capacity leaves deleted allocations and those of an archived activity out', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const pinned = env.get('CAPACITYLENS_FIXED_TODAY');
+    cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
+    env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
+    const { cookie } = await signIn(client);
+    const stored = await readState(accountId, true);
+    const { resourceId } = newAllocation(stored);
+    // One allocation is deleted; the other is hidden by archiving its activity, because allocations
+    // have no archive of their own.
+    const [deletedActivity, archivedActivity] = stored.activities.filter(
+      (row) => row.accountId === accountId && !row.archivedAt && !row.deletedAt
+    );
+    assert.exists(archivedActivity);
+    type Days = { available: number[]; over: boolean[] };
+    const readWindow = async () => {
+      const response = await session(client.get(planningUrl), cookie).send();
+      response.assertStatus(200);
+      const { capacity } = response.body();
+      return {
+        from: capacity.window.from as string,
+        days: capacity.resources[resourceId] as { window: Days },
+      };
+    };
+    const before = await readWindow();
+    const openDays = before.days.window.over
+      .map((over, index) => (!over && before.days.window.available[index]! > 0 ? index : -1))
+      .filter((index) => index >= 0)
+      .slice(0, 2);
+    assert.lengthOf(openDays, 2);
+    const ids: string[] = [];
+    const activities = [deletedActivity!, archivedActivity!];
+    for (const [revision, index] of openDays.entries()) {
+      const date = addDaysISO(before.from, index);
+      const allocation = {
+        ...newAllocation(stored),
+        resourceId,
+        activityId: activities[revision]!.id,
+        startDate: date,
+        endDate: date,
+        hoursPerDay: 24,
+      };
+      const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+        .json({
+          mutationId: randomUUID(),
+          baseRevision: revision,
+          intent: { operation: 'allocation.create', allocation },
+        })
+        .send();
+      created.assertStatus(200);
+      ids.push(allocation.id);
+    }
+    const booked = await readWindow();
+    assert.deepEqual(
+      openDays.map((index) => booked.days.window.over[index]),
+      [true, true]
+    );
+
+    const now = new Date().toISOString();
+    await db.from('allocations').where('id', ids[0]!).update({ deleted_at: now });
+    await db.from('activities').where('id', archivedActivity!.id).update({ archived_at: now });
+    const after = await readWindow();
+    assert.deepEqual(
+      openDays.map((index) => after.days.window.over[index]),
+      [false, false]
+    );
+  });
+
   test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({
     client,
     assert,
@@ -107,6 +180,8 @@ test.group('authenticated typed planning transactions', (group) => {
     const refusals: Array<[Record<string, string>, string]> = [
       [{ from: '2026-06-02', to: '2026-06-01' }, 'The to date must be on or after the from date.'],
       [{ from: '2026-01-01', to: '2027-01-02' }, 'The range may cover at most 366 days.'],
+      // 2028 is a leap year: from the last day of 2027 to its last day is 367 days.
+      [{ from: '2027-12-31', to: '2028-12-31' }, 'The range may cover at most 366 days.'],
       [{ from: '2026-06-01' }, 'Send both from and to, or neither.'],
       [{ to: '2026-06-01' }, 'Send both from and to, or neither.'],
       [{ from: '2026-02-30', to: '2026-03-01' }, 'The from field must be a datetime value'],
@@ -125,6 +200,12 @@ test.group('authenticated typed planning transactions', (group) => {
       window: { over: boolean[] };
     }>;
     assert.lengthOf(resource!.window.over, 366);
+    const leapYear = await session(
+      client.get(planningUrl).qs({ from: '2028-01-01', to: '2028-12-31' }),
+      cookie
+    ).send();
+    leapYear.assertStatus(200);
+    assert.deepEqual(leapYear.body().capacity.window, { from: '2028-01-01', to: '2028-12-31' });
   });
 
   test('create and move commit once, stale and duplicate identities never commit again', async ({

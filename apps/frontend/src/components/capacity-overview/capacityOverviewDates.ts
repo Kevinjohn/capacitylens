@@ -1,8 +1,9 @@
 import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import { CAPACITY_OVERVIEW_HORIZON_WEEKS } from '@capacitylens/shared/lib/planningWindows';
+import type { CapacityOverviewHorizon } from '@capacitylens/shared/lib/planningWindows';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 
-/** Supported fixed horizons for the capacity overview. */
-export type CapacityOverviewHorizon = '4-weeks' | '8-weeks' | '12-weeks';
+export type { CapacityOverviewHorizon };
 
 /** Stable period identifiers name the current and next weeks, then use the week index for subsequent periods. */
 export type CapacityOverviewPeriodKey = 'this-week' | 'next-week' | `week-${number}`;
@@ -24,15 +25,9 @@ export interface BuildCapacityOverviewPeriodsInput {
   horizon?: CapacityOverviewHorizon;
 }
 
-const HORIZON_WEEKS: Record<CapacityOverviewHorizon, number> = {
-  '4-weeks': 4,
-  '8-weeks': 8,
-  '12-weeks': 12,
-};
-
 /** Number of week columns a horizon displays. */
 export function resolveHorizonWeekCount(horizon: CapacityOverviewHorizon): number {
-  return HORIZON_WEEKS[horizon];
+  return CAPACITY_OVERVIEW_HORIZON_WEEKS[horizon];
 }
 
 function buildPeriodKey(index: number): CapacityOverviewPeriodKey {

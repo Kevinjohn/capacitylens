@@ -228,15 +228,17 @@ test.group('capacity section', () => {
     assert.deepEqual([blocks.allocated[0], blocks.over[0]], [0, false]);
   });
 
-  test('confirmed hours leave tentative allocations out', ({ assert }) => {
+  test('confirmed hours leave tentative allocations out and keep completed ones', ({ assert }) => {
     const { window } = section({
       allocations: [
         allocation({ startDate: '2026-06-01', hoursPerDay: 4 }),
         allocation({ startDate: '2026-06-01', hoursPerDay: 3, status: 'tentative' }),
+        allocation({ startDate: '2026-06-01', hoursPerDay: 2, status: 'completed' }),
       ],
     }).resources['r-diana']!;
-    assert.equal(window.allocated[0], 7);
-    assert.equal(window.confirmedAllocated[0], 4);
+    assert.equal(window.allocated[0], 9);
+    // Completed work happened, so it stays in the confirmed hours.
+    assert.equal(window.confirmedAllocated[0], 6);
   });
 
   test('defaults to the scheduler window and covers the 12-week horizon', ({ assert }) => {
@@ -254,6 +256,20 @@ test.group('capacity section', () => {
     const sunday = build(0);
     assert.deepEqual(sunday.window, { from: '2026-05-03', to: '2026-09-27' });
     assert.deepEqual(sunday.horizon, { from: '2026-06-03', to: '2026-08-22' });
+  });
+
+  test('a Sunday week start with unset working days works Sunday to Thursday', ({ assert }) => {
+    const { horizon } = buildCapacitySection({
+      data: data({
+        resources: [resource('r-diana', { workingDays: [0, 1, 2, 3, 4, 5, 6] })],
+        allocations: [allocation({ startDate: '2026-06-05', endDate: '2026-06-07' })],
+      }),
+      account: account({ weekStartsOn: 0, workingDays: null }),
+      today: '2026-06-03',
+    }).resources['r-diana']!;
+    // Wednesday 3 June is index 0: Friday 5 June is index 2, Sunday 7 June index 4.
+    assert.deepEqual([horizon.available[2], horizon.available[4]], [0, 8]);
+    assert.deepEqual([horizon.allocated[2], horizon.allocated[4]], [0, 4]);
   });
 });
 
@@ -278,36 +294,38 @@ test.group('capacity section on the sample company', (group) => {
     );
     let overDays = 0;
     for (const row of tracked) {
-      const expectedOver = (range: { from: string; to: string }) =>
+      const allocations = stored.allocations.filter((entry) => entry.resourceId === row.id);
+      const straightLine = (range: { from: string; to: string }, rows: Allocation[]) =>
         buildCapacityWindow({
           resource: row,
-          allocations: stored.allocations.filter((entry) => entry.resourceId === row.id),
+          allocations: rows,
           timeOff: stored.timeOff.filter((entry) => entry.resourceId === row.id),
           start: range.from,
           end: range.to,
           effectiveWeek: effectiveWorkingWeek(row, accountWorkingDays),
           closures: stored.closures,
         });
-      const window = expectedOver(result.window);
+      const expected = (range: { from: string; to: string }) => {
+        const all = straightLine(range, allocations);
+        const confirmed = straightLine(
+          range,
+          allocations.filter((entry) => entry.status !== 'tentative')
+        );
+        return {
+          allocated: all.map((day) => day.allocated),
+          confirmedAllocated: confirmed.map((day) => day.allocated),
+          available: all.map((day) => day.available),
+          over: all.map((day) => day.over),
+        };
+      };
+      const window = expected(result.window);
       const actual = result.resources[row.id]!;
-      assert.deepEqual(
-        actual.window,
-        {
-          allocated: window.map((day) => day.allocated),
-          confirmedAllocated: actual.window.confirmedAllocated,
-          available: window.map((day) => day.available),
-          over: window.map((day) => day.over),
-        },
-        row.id
-      );
-      const horizon = expectedOver(result.horizon);
-      assert.deepEqual(
-        actual.horizon.allocated,
-        horizon.map((day) => day.allocated),
-        row.id
-      );
-      overDays += window.filter((day) => day.over).length;
+      assert.deepEqual(actual.window, window, row.id);
+      assert.deepEqual(actual.horizon, expected(result.horizon), row.id);
+      overDays += window.over.filter(Boolean).length;
     }
+    // The sample company books tentative work, so the confirmed comparison is not all hours again.
+    assert.isTrue(stored.allocations.some((entry) => entry.status === 'tentative'));
     // The sample company books someone over capacity, so the comparison covers that case.
     assert.isAbove(overDays, 0);
   });

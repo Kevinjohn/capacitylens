@@ -3,7 +3,12 @@ import {
   buildDayCapacity,
   resolveUtilizationFromCapacity,
 } from '@capacitylens/shared/lib/capacity';
-import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import {
+  addDaysISO,
+  bucketByCoveredDate,
+  eachDayISO,
+  rangesOverlap,
+} from '@capacitylens/shared/lib/dateMath';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
@@ -23,7 +28,6 @@ import {
   createResourceComparator,
 } from '@/lib/resourceGrouping';
 import {
-  bucketByCoveredDate,
   groupByResourceId,
   NO_ALLOCATIONS,
   NO_TIME_OFF,

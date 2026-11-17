@@ -4,7 +4,7 @@ import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { calendarDate } from '#validators/planning/fields';
 
 /** The longest capacity range one planning read computes. */
-export const MAX_PLANNING_READ_DAYS = 366;
+const MAX_PLANNING_READ_DAYS = 366;
 
 const readRange = vine.createRule((value, _options, field) => {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return;

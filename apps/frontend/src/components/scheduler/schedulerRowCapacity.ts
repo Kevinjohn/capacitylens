@@ -4,7 +4,7 @@ import {
   resolveUtilizationFromCapacity,
 } from '@capacitylens/shared/lib/capacity';
 import type { DayCapacity } from '@capacitylens/shared/lib/capacity';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { bucketByCoveredDate, eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type {
@@ -14,12 +14,7 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import {
-  bucketByCoveredDate,
-  NO_ALLOCATIONS,
-  NO_TIME_OFF,
-  NO_CLOSURES,
-} from './schedulerModelIndexing';
+import { NO_ALLOCATIONS, NO_TIME_OFF, NO_CLOSURES } from './schedulerModelIndexing';
 import type { CapacitySource, SchedulerModelOptions } from './schedulerModelTypes';
 
 interface CreateCapacitySourceInput {
