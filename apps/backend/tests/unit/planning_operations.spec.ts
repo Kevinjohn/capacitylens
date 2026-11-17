@@ -159,7 +159,7 @@ test.group('planning operation contracts', () => {
     );
   });
 
-  test('accepts only a timestamp as the expected row timestamp', async ({ assert }) => {
+  test('accepts only a canonical timestamp as the expected row timestamp', async ({ assert }) => {
     const edit = {
       mutationId: uuid,
       baseRevision: 0,
@@ -173,9 +173,15 @@ test.group('planning operation contracts', () => {
       expectedUpdatedAt: '2026-03-02T09:00:00.000Z',
     });
     assert.equal(accepted.expectedUpdatedAt, '2026-03-02T09:00:00.000Z');
-    await assert.rejects(() =>
-      planningMutationValidator.validate({ ...edit, expectedUpdatedAt: 'yesterday' })
-    );
+    for (const expectedUpdatedAt of [
+      'yesterday',
+      '2026-03-02T09:00:00Z',
+      '2026-03-02T10:00:00.000+01:00',
+    ]) {
+      await assert.rejects(() =>
+        planningMutationValidator.validate({ ...edit, expectedUpdatedAt })
+      );
+    }
   });
 
   test('requires a writable update and preserves omission separately from null', async ({

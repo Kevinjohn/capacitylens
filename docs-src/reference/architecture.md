@@ -118,10 +118,11 @@ Then, in order:
    `baseRevision` with `STALE_REVISION`.
 10. Before image: `readStateWithClient` (`apps/backend/app/services/state_repository.ts`).
 11. `executePlanningIntent` (`apps/backend/app/services/planning/execute.ts`) re-checks the write
-    capability, then `writeRow` (`apps/backend/app/services/planning/writer.ts`) applies the
-    privacy gate, existence check, the `expectedUpdatedAt` precondition, `prepareEntityWrite` from
-    `apps/backend/app/services/planning/entity_policy.ts`, the working-day gate when the
-    resource changes, and the SQL update.
+    capability, then `writeEntity` (`apps/backend/app/services/planning/entity_write.ts`) applies
+    the privacy gate, existence check, the `expectedUpdatedAt` precondition, `prepareEntityWrite`
+    from `apps/backend/app/services/planning/entity_policy.ts` and the working-day gate when the
+    resource changes, and `writeRow` (`apps/backend/app/services/planning/writer.ts`) runs the SQL
+    update.
 12. After image: `readStateWithClient` again.
 13. `NO_CHANGE` guard: if the before and after images are semantically equal, the throw rolls the
     update back.
@@ -144,7 +145,7 @@ Then, in order:
 | `VALIDATION_ERROR` | 400 | Malformed body, route and intent disagree, or a domain rule refused |
 | `AUTHORIZATION_DENIED` | 403 | Role, privacy field, settings access or restoration ownership refused |
 | `ACCOUNT_MEMBERSHIP_LOST` | 403 | No active membership, or the company row is gone |
-| `STALE_REVISION` | 409 | `baseRevision` is not the current company revision; nothing was written |
+| `STALE_REVISION` | 409 | `baseRevision` is not the current company revision, or `expectedUpdatedAt` no longer matches the stored row; nothing was written |
 | `MUTATION_ID_REUSED` | 409 | This `mutationId` already committed; look it up instead of resending |
 | `NO_CHANGE` | 400 | The intent would change nothing; no revision, marker or audit |
 | `RESTORATION_CONFIRMATION_REQUIRED` | 409 | Pending restoration groups would be cleared; body has `restorableItemCount` |

@@ -117,6 +117,21 @@ describe('planning write transitions', () => {
     expect(h.execute).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps history when a row-timestamp refusal leaves the revision where it was', async () => {
+    const h = await readyWithHistory();
+    const stale = new PlanningControllerError('The record changed.', 'STALE_REVISION', 409);
+    h.execute.mockRejectedValueOnce(stale);
+    await expect(
+      h.controller.execute(h.controller.begin(), update, inverse, '2026-01-01T00:00:00.000Z'),
+    ).rejects.toMatchObject({ code: 'STALE_REVISION' });
+    expect(h.state().planning).toMatchObject({
+      revision: 2,
+      outcome: { kind: 'refused', mutationId: 'mutation-2', code: 'STALE_REVISION' },
+    });
+    expect(h.state().planning.history.past).toHaveLength(1);
+    expect(isPlanningHistoryReady(h.state().planning)).toBe(true);
+  });
+
   it('keeps rows and history for a validation refusal and allows Undo from the refused state', async () => {
     const h = await readyWithHistory();
     const reads = h.read.mock.calls.length;

@@ -1,5 +1,6 @@
 import vine from '@vinejs/vine';
-import { isValidISODate, parseISOTimestamp } from '@capacitylens/shared/lib/isoDates';
+import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
+import { isIsoTimestamp } from '@kevinjohn/adonisjs-lucid-checked-columns';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
@@ -118,13 +119,18 @@ export const meta = () => ({
   mutationId: uuid(),
   baseRevision: revision(),
   confirmedRestorationCount: revision().optional(),
-  /** The edited row's `updatedAt` when its form opened; an update refuses a row that has moved on. */
+  /** The edited row's `updatedAt` when its form opened; an update refuses a row that has moved on.
+   * Only the canonical `toISOString()` form passes, because the server compares it as a string. */
   expectedUpdatedAt: vine
     .string()
     .use(
       vine.createRule((value, _options, field) => {
-        if (parseISOTimestamp(value) !== null) return;
-        field.report('The {{ field }} field must be a timestamp.', 'timestamp', field);
+        if (isIsoTimestamp(value)) return;
+        field.report(
+          'The {{ field }} field must be a UTC timestamp with milliseconds.',
+          'timestamp',
+          field
+        );
       })()
     )
     .optional(),
