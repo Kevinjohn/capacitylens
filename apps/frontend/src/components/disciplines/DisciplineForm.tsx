@@ -45,7 +45,7 @@ export function DisciplineForm({
     if (!trimmed) return null;
     if (!validatePresetColor(color, fail)) return null;
     const patch = { name: trimmed, color, sortOrder };
-    return discipline ? () => update(discipline.id, patch) : () => add(patch);
+    return discipline ? () => update(discipline.id, patch, discipline.updatedAt) : () => add(patch);
   };
 
   return (

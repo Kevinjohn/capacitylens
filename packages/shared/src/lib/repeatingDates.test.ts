@@ -389,7 +389,7 @@ describe('time-off repeating date policy', () => {
       expect.objectContaining({
         name: 'RepeatingDateError',
         code: 'cutoff-after-limit',
-        message: 'Repeat until cannot be more than 11 calendar months after the allocation start.',
+        message: 'Repeat until cannot be more than 11 calendar months after the first start.',
       }),
     );
   });
@@ -473,11 +473,11 @@ describe('generateRepeatingStartDates validation', () => {
   it('enforces the start, six-month and at-least-one-repeat cutoff boundaries with stable codes', () => {
     expect(maximumRepeatUntilDate('2026-01-31')).toBe('2026-07-31');
     for (const [cutoff, code, message] of [
-      ['2026-01-30', 'cutoff-before-start', 'Repeat until cannot be before the allocation start.'],
+      ['2026-01-30', 'cutoff-before-start', 'Repeat until cannot be before the first start.'],
       [
         '2026-08-01',
         'cutoff-after-limit',
-        'Repeat until cannot be more than 6 calendar months after the allocation start.',
+        'Repeat until cannot be more than 6 calendar months after the first start.',
       ],
       ['2026-02-06', 'no-repeat', 'Repeat until must include at least one repeated occurrence.'],
     ] as const) {

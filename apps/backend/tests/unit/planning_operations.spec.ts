@@ -159,6 +159,31 @@ test.group('planning operation contracts', () => {
     );
   });
 
+  test('accepts only a canonical timestamp as the expected row timestamp', async ({ assert }) => {
+    const edit = {
+      mutationId: uuid,
+      baseRevision: 0,
+      intent: {
+        operation: 'catalogue.update',
+        entity: { entity: 'clients', id: otherUuid, changes: { name: 'Wayne Enterprises' } },
+      },
+    } as const;
+    const accepted = await planningMutationValidator.validate({
+      ...edit,
+      expectedUpdatedAt: '2026-03-02T09:00:00.000Z',
+    });
+    assert.equal(accepted.expectedUpdatedAt, '2026-03-02T09:00:00.000Z');
+    for (const expectedUpdatedAt of [
+      'yesterday',
+      '2026-03-02T09:00:00Z',
+      '2026-03-02T10:00:00.000+01:00',
+    ]) {
+      await assert.rejects(() =>
+        planningMutationValidator.validate({ ...edit, expectedUpdatedAt })
+      );
+    }
+  });
+
   test('requires a writable update and preserves omission separately from null', async ({
     assert,
   }) => {
@@ -346,22 +371,15 @@ test.group('planning operation contracts', () => {
       baseRevision: 8,
       intent: {
         operation: 'timeOff.repeat',
-        entries: [
-          {
-            id: '97710863-4328-4a8f-b2b1-dae930003cdb',
-            resourceId: uuid,
-            startDate: '2026-10-26',
-            endDate: '2026-10-26',
-            type: 'holiday',
-          },
-          {
-            id: 'afc8a820-43fd-4a84-b98c-d42a8a46eb41',
-            resourceId: uuid,
-            startDate: '2026-11-02',
-            endDate: '2026-11-02',
-            type: 'holiday',
-          },
-        ],
+        timeOff: {
+          id: '97710863-4328-4a8f-b2b1-dae930003cdb',
+          resourceId: uuid,
+          startDate: '2026-10-26',
+          endDate: '2026-10-26',
+          type: 'holiday',
+        },
+        repeat: { pattern: { kind: 'monthly-last-weekday' }, until: '2026-11-30' },
+        occurrenceIds: ['afc8a820-43fd-4a84-b98c-d42a8a46eb41'],
       },
     });
     const closure = await planningMutationValidator.validate({
@@ -392,8 +410,10 @@ test.group('planning operation contracts', () => {
     if (resource.intent.operation === 'resource.update') {
       assert.deepEqual(resource.intent.changes, { workingDays: [1, 2, 3, 4, 5] });
     }
-    if (timeOff.intent.operation === 'timeOff.repeat')
-      assert.equal(timeOff.intent.entries.length, 2);
+    if (timeOff.intent.operation === 'timeOff.repeat') {
+      assert.deepEqual(timeOff.intent.repeat.pattern, { kind: 'monthly-last-weekday' });
+      assert.lengthOf(timeOff.intent.occurrenceIds, 1);
+    }
     assert.equal(closure.intent.operation, 'closure.create');
     await assert.rejects(() =>
       planningMutationValidator.validate({
@@ -502,20 +522,25 @@ test.group('planning operation contracts', () => {
     });
   });
 
-  test('malformed repeat entries fail as validation errors, not rule exceptions', async ({
+  test('malformed repeat ids fail as validation errors, not rule exceptions', async ({
     assert,
   }) => {
-    let error: unknown;
-    try {
-      await planningMutationValidator.validate({
-        mutationId: otherUuid,
-        baseRevision: 0,
-        intent: { operation: 'timeOff.repeat', entries: [null] },
-      });
-    } catch (caught) {
-      error = caught;
+    for (const intent of [
+      { operation: 'timeOff.repeat', occurrenceIds: [null] },
+      { operation: 'timeOff.repeat', timeOff: null, occurrenceIds: [uuid] },
+    ]) {
+      let error: unknown;
+      try {
+        await planningMutationValidator.validate({
+          mutationId: otherUuid,
+          baseRevision: 0,
+          intent,
+        });
+      } catch (caught) {
+        error = caught;
+      }
+      assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR');
     }
-    assert.equal((error as { code?: string })?.code, 'E_VALIDATION_ERROR');
   });
 
   test('retains resource-kind defaults and scalar validity', async ({ assert }) => {

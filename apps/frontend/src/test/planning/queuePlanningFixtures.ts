@@ -1,5 +1,6 @@
 import { addDaysISO, daysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
+import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { Allocation, ID, TimeOff } from '@capacitylens/shared/types/entities';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
@@ -80,22 +81,28 @@ export function queueAllocationRestoreResponse(
   );
 }
 
-/** Queue the frontend batch request as a canonical set of independent time-off rows. */
+/** Queue the repeat as the canonical set of independent time-off rows the server would write. */
 export function queueTimeOffRepeatResponse(): void {
   queuePlanningPatch((execution: PlanningExecution) => {
     const intent = execution.intent;
     if (intent.operation !== 'timeOff.repeat') {
       throw new Error(`Expected timeOff.repeat, received ${intent.operation}.`);
     }
+    const { timeOff, repeat, occurrenceIds } = intent;
+    const { drafts } = buildRepeatedTimeOffDrafts(timeOff, repeat.until, repeat.pattern);
+    const ids = [timeOff.id, ...occurrenceIds];
+    if (drafts.length !== ids.length) {
+      throw new Error('The occurrence identities do not match the repeat.');
+    }
     const createdAt = new Date().toISOString();
     return {
       removed: [],
-      upserts: intent.entries.map((entry) => ({
+      upserts: drafts.map((entry, index) => ({
         entity: 'timeOff',
         row: {
           ...NULLABLE_FIELDS.timeOff,
           ...entry,
-          id: String(entry.id),
+          id: String(ids[index]),
           accountId: DEFAULT_ACCOUNT_ID,
           createdAt,
           updatedAt: createdAt,

@@ -84,7 +84,7 @@ describe('store slice composition', () => {
         'deleteAllocation',
         'deleteAllocationSeriesFrom',
         'addTimeOff',
-        'addTimeOffs',
+        'addRepeatedTimeOff',
         'updateTimeOff',
         'deleteTimeOff',
         'addClosure',

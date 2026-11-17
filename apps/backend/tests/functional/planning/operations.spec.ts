@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
+import type { AppData } from '@capacitylens/shared/types/entities';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   accountId,
@@ -449,6 +450,74 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(await rows(), saved);
   });
 
+  test('a repeated time off commits its pattern and deletes and restores as a group', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(accountId, true);
+    const { cookie } = await signIn(client, 'editor');
+    const resourceId = data.resources.find(
+      (row) => row.accountId === accountId && row.kind === 'person'
+    )!.id;
+    const timeOff = {
+      id: randomUUID(),
+      resourceId,
+      startDate: '2026-11-02',
+      endDate: '2026-11-03',
+      type: 'holiday',
+    };
+    const repeatTimeOff = (until: string, occurrenceIds: string[]) =>
+      session(client.post(route('time-off/repeat')), cookie)
+        .json(
+          input(0, {
+            operation: 'timeOff.repeat',
+            timeOff,
+            repeat: { pattern: { kind: 'weeks', interval: 2 }, until },
+            occurrenceIds,
+          })
+        )
+        .send();
+
+    // Eleven calendar months after November end with October.
+    const tooLate = await repeatTimeOff('2027-11-01', [randomUUID()]);
+    tooLate.assertStatus(400);
+    assert.equal(body(tooLate).code, 'VALIDATION_ERROR');
+
+    const ids = [timeOff.id, randomUUID(), randomUUID()];
+    const created = await repeatTimeOff('2026-11-30', ids.slice(1));
+    created.assertStatus(200);
+    const rows = () =>
+      readState(accountId, true).then((state) =>
+        ids.map((id) => state.timeOff.find((row) => row.id === id))
+      );
+    const saved = await rows();
+    assert.deepEqual(
+      saved.map((row) => [row?.startDate, row?.endDate]),
+      [
+        ['2026-11-02', '2026-11-03'],
+        ['2026-11-16', '2026-11-17'],
+        ['2026-11-30', '2026-12-01'],
+      ]
+    );
+    assert.isTrue(saved.every((row) => row?.resourceId === resourceId && row.type === 'holiday'));
+
+    // Undo deletes the minted ids as one group; redo restores that group.
+    const undone = await session(client.post(route('time-off/delete-group')), cookie)
+      .json(input(1, { operation: 'timeOff.deleteGroup', ids }))
+      .send();
+    undone.assertStatus(200);
+    assert.deepEqual(await rows(), [undefined, undefined, undefined]);
+    const restorationGroupId = (undone.body() as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
+    const redone = await session(client.post(route('planning/restore-group')), cookie)
+      .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
+      .send();
+    redone.assertStatus(200);
+    assert.deepEqual(await rows(), saved);
+  });
+
   test('allocation save replies carry the capacity advisory of the rows they wrote', async ({
     client,
     assert,
@@ -538,7 +607,7 @@ test.group('authenticated planning operations', (group) => {
     assert.notProperty(repeated.body(), 'advisory');
   });
 
-  test('time-off repeat rolls back a later invalid entry; closure and settings commit with correct projection', async ({
+  test('time-off repeat rolls back its first entry when the ids do not match; closure and settings commit with correct projection', async ({
     client,
     assert,
     cleanup,
@@ -550,31 +619,28 @@ test.group('authenticated planning operations', (group) => {
       (row) => row.accountId === accountId && row.kind === 'person'
     )!.id;
     const firstId = randomUUID();
-    const badId = randomUUID();
+    // Weekly from 2 November to 9 November makes two occurrences, so one later id, not two.
     const repeat = await session(client.post(route('time-off/repeat')), cookie)
       .json(
         input(0, {
           operation: 'timeOff.repeat',
-          entries: [
-            {
-              id: firstId,
-              resourceId,
-              startDate: '2026-11-02',
-              endDate: '2026-11-02',
-              type: 'holiday',
-            },
-            {
-              id: badId,
-              resourceId: randomUUID(),
-              startDate: '2026-11-09',
-              endDate: '2026-11-09',
-              type: 'holiday',
-            },
-          ],
+          timeOff: {
+            id: firstId,
+            resourceId,
+            startDate: '2026-11-02',
+            endDate: '2026-11-02',
+            type: 'holiday',
+          },
+          repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-09' },
+          occurrenceIds: [randomUUID(), randomUUID()],
         })
       )
       .send();
     repeat.assertStatus(400);
+    assert.equal(
+      (repeat.body() as { error?: string }).error,
+      'The occurrence identities do not match the repeat.'
+    );
     const afterRepeat = await readState(accountId, true);
     assert.isFalse(afterRepeat.timeOff.some((row) => row.id === firstId));
 
@@ -649,6 +715,43 @@ test.group('authenticated planning operations', (group) => {
     assert.lengthOf(await db.from('audit_entries').where('account_id', accountId), 0);
     const current = await session(client.get(planningUrl), cookie).send();
     assert.equal(body(current).revision, 0);
+  });
+
+  test('an edit carrying an out-of-date row timestamp is refused', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const before = await readState(accountId, true);
+    // The browser sends the timestamp it read, so take the row from the planning read.
+    const read = await session(client.get(planningUrl), cookie).send();
+    const row = (read.body() as { data: AppData }).data.clients.find(
+      (entry) => entry.accountId === accountId && !entry.builtin
+    )!;
+    const edit = (expectedUpdatedAt: string) =>
+      session(client.patch(route(`clients/${row.id}`)), cookie)
+        .json({
+          ...input(0, {
+            operation: 'catalogue.update',
+            entity: { entity: 'clients', id: row.id, changes: { name: 'Wayne Enterprises' } },
+          }),
+          expectedUpdatedAt,
+        })
+        .send();
+
+    const stale = await edit('2000-01-01T00:00:00.000Z');
+    stale.assertStatus(409);
+    assert.equal(body(stale).code, 'STALE_REVISION');
+    assert.deepEqual(await readState(accountId, true), before);
+    const unchanged = await session(client.get(planningUrl), cookie).send();
+    assert.equal(body(unchanged).revision, 0);
+
+    const current = await edit(row.updatedAt);
+    current.assertStatus(200);
+    const after = await readState(accountId, true);
+    assert.equal(after.clients.find((entry) => entry.id === row.id)?.name, 'Wayne Enterprises');
   });
 
   test('allows moving a phase without dependent activities', async ({

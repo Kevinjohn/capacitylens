@@ -17,7 +17,7 @@ import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planni
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { existingRow, PlanningOperationError, updateSettings } from './writer.js';
 import { writeEntity } from './entity_write.js';
-import { allocationOccurrences } from './repeat_occurrences.js';
+import { allocationOccurrences, timeOffOccurrences } from './repeat_occurrences.js';
 import {
   deleteAllocations,
   deleteRows,
@@ -27,6 +27,17 @@ import {
 export { PlanningOperationError } from './writer.js';
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
+
+/** A repeat names one id per later occurrence; a different count means the client's repeat differs. */
+function assertOccurrenceIdsMatch(occurrenceIds: readonly string[], later: readonly unknown[]) {
+  if (occurrenceIds.length !== later.length) {
+    throw new PlanningOperationError(
+      400,
+      'VALIDATION_ERROR',
+      'The occurrence identities do not match the repeat.'
+    );
+  }
+}
 
 async function transitionLifecycle(
   trx: TransactionClientContract,
@@ -84,6 +95,8 @@ export interface ExecutePlanningIntentOptions {
   /** The mutable, complete company snapshot; the caller keeps its own before-image. */
   data: AppData;
   identity: RestorationIdentity;
+  /** The edited row's `updatedAt` when its form opened; only single-row updates check it. */
+  expectedUpdatedAt?: string;
 }
 
 /**
@@ -98,6 +111,7 @@ export async function executePlanningIntent({
   capabilities,
   data,
   identity,
+  expectedUpdatedAt,
 }: ExecutePlanningIntentOptions): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
   if (!capabilities.canWrite) {
@@ -106,7 +120,7 @@ export async function executePlanningIntent({
   if (!data.accounts.some((row) => row.id === accountId)) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
-  const writeOptions = { trx, data, accountId, capabilities, identity };
+  const writeOptions = { trx, data, accountId, capabilities, identity, expectedUpdatedAt };
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -130,13 +144,7 @@ export async function executePlanningIntent({
           mode: 'create',
         });
         const later = allocationOccurrences(data, accountId, allocation, repeat).slice(1);
-        if (occurrenceIds.length !== later.length) {
-          throw new PlanningOperationError(
-            400,
-            'VALIDATION_ERROR',
-            'The occurrence identities do not match the repeat.'
-          );
-        }
+        assertOccurrenceIdsMatch(occurrenceIds, later);
         for (const [index, { startDate, endDate }] of later.entries()) {
           const id = occurrenceIds[index] as string;
           await writeEntity({
@@ -272,17 +280,30 @@ export async function executePlanningIntent({
           mode: 'update',
         });
         return unchanged;
-      case 'timeOff.repeat':
-        for (const entry of intent.entries) {
+      case 'timeOff.repeat': {
+        const { timeOff, repeat, occurrenceIds } = intent;
+        // The first occurrence is the entry as sent, so its write refuses what a create refuses.
+        await writeEntity({
+          ...writeOptions,
+          table: 'timeOff',
+          id: timeOff.id,
+          fields: timeOff,
+          mode: 'create',
+        });
+        const later = timeOffOccurrences(timeOff, repeat).slice(1);
+        assertOccurrenceIdsMatch(occurrenceIds, later);
+        for (const [index, { startDate, endDate }] of later.entries()) {
+          const id = occurrenceIds[index] as string;
           await writeEntity({
             ...writeOptions,
             table: 'timeOff',
-            id: entry.id,
-            fields: entry,
+            id,
+            fields: { ...timeOff, id, startDate, endDate },
             mode: 'create',
           });
         }
         return unchanged;
+      }
       case 'timeOff.delete':
       case 'timeOff.deleteGroup': {
         const ids = intent.operation === 'timeOff.delete' ? [intent.id] : intent.ids;

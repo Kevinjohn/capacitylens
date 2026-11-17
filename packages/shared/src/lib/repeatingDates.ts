@@ -268,13 +268,13 @@ export function generateRepeatingStartDates(
   if (repeatUntil < startDate) {
     throw new RepeatingDateError(
       'cutoff-before-start',
-      'Repeat until cannot be before the allocation start.',
+      'Repeat until cannot be before the first start.',
     );
   }
   if (repeatUntil > maximumRepeatUntilDate(startDate, policy)) {
     throw new RepeatingDateError(
       'cutoff-after-limit',
-      `Repeat until cannot be more than ${policy.maximumCalendarMonths} calendar months after the allocation start.`,
+      `Repeat until cannot be more than ${policy.maximumCalendarMonths} calendar months after the first start.`,
     );
   }
   let startDates = applyRepeatingStartDate([], startDate, policy);

@@ -111,7 +111,7 @@ describe('MembersSection — admin affordances', () => {
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
   });
 
-  it('offers masquerade for every other active member, including an owner, and confirms by name', async () => {
+  it('offers masquerade only for other active members ranked at or below the viewer, and confirms by name', async () => {
     const user = userEvent.setup();
     vi.stubGlobal('fetch', mockApi(members));
     renderSection();
@@ -120,16 +120,16 @@ describe('MembersSection — admin affordances', () => {
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     expect(within(selfRow).queryByTestId('member-masquerade')).not.toBeInTheDocument();
-    expect(within(ownerRow).getByTestId('member-masquerade')).toBeInTheDocument();
+    expect(within(ownerRow).queryByTestId('member-masquerade')).not.toBeInTheDocument();
     expect(within(editorRow).getByTestId('member-masquerade')).toBeInTheDocument();
 
-    await user.click(within(ownerRow).getByTestId('member-masquerade'));
+    await user.click(within(editorRow).getByTestId('member-masquerade'));
     const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Confirm you would like to masquerade as theowner@x.io');
+    expect(dialog).toHaveTextContent('Confirm you would like to masquerade as theeditor@x.io');
     await user.click(within(dialog).getByRole('button', { name: 'Start masquerade' }));
     expect(accountTransitionMocks.startMasquerade).toHaveBeenCalledWith(
       DEFAULT_ACCOUNT_ID,
-      'theowner',
+      'theeditor',
     );
   });
   it('names the member and waits for confirmation before suspending', async () => {

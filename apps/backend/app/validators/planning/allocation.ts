@@ -121,7 +121,7 @@ export const allocationIntent = vine
             .maxLength(GENERATED_ALLOCATION_LIMIT - 1),
         })
         .use(uniqueArrayIds('occurrenceIds'))
-        .use(occurrenceIdsExcludeFirst())
+        .use(occurrenceIdsExcludeFirst('allocation'))
     ),
     vine.union.if(
       (value) => operationMatches(value, 'allocation.duplicate'),

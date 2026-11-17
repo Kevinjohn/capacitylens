@@ -26,6 +26,8 @@ interface WriteEntityOptions {
   mode: 'create' | 'update';
   identity: RestorationIdentity;
   permissiveRepeatStart?: boolean;
+  /** An update refuses the write when the stored row's `updatedAt` differs from this value. */
+  expectedUpdatedAt?: string;
 }
 
 function lookupFor(data: AppData): ValidationDataLookup {
@@ -72,6 +74,7 @@ export async function writeEntity({
   mode,
   identity,
   permissiveRepeatStart,
+  expectedUpdatedAt,
 }: WriteEntityOptions) {
   const existing = rowsOf(data, table).find((row) => row.id === id);
   assertMayWriteRestrictedFields(table, fields, capabilities, mode);
@@ -87,6 +90,17 @@ export async function writeEntity({
   }
   if (mode === 'update' && !existing) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
+  }
+  if (
+    mode === 'update' &&
+    expectedUpdatedAt !== undefined &&
+    existing?.updatedAt !== expectedUpdatedAt
+  ) {
+    throw new PlanningOperationError(
+      409,
+      'STALE_REVISION',
+      'The record changed since it was opened.'
+    );
   }
   const candidate: Record<string, unknown> = {
     ...(existing ?? {}),

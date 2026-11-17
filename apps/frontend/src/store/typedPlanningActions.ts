@@ -29,7 +29,7 @@ import {
   buildTimeOffUpdate,
 } from '@/data/planning/planningCommands';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
-import type { CreateResult, Draft, Patch, StoreState } from './types';
+import type { CreateResult, Draft, Patch, RepeatRange, StoreState } from './types';
 import type { StoreInternals } from './storeInternal';
 
 const restoreFromReceipt = { operation: 'planning.restoreGroup', restorationGroupId: '' } as const;
@@ -71,6 +71,9 @@ export function createTypedPlanningActions(
   ) => getOwned(get().data, companyId, key, id);
   const send = async (command: PlanningCommand | null) =>
     command ? get().sendPlanningCommand(command) : undefined;
+  /** Adds the edited row's opening `updatedAt` to an update, when the form supplied one. */
+  const expecting = (command: PlanningCommand | null, expectedUpdatedAt: string | undefined) =>
+    command && expectedUpdatedAt !== undefined ? { ...command, expectedUpdatedAt } : command;
   const created = <
     K extends keyof Pick<
       StoreState['data'],
@@ -111,18 +114,22 @@ export function createTypedPlanningActions(
     key: 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines',
     id: string,
     changes: object,
+    expectedUpdatedAt?: string,
   ) => {
     const companyId = accountId();
     if (blocked()) return;
     const original = owned(key, id, companyId);
     if (!original) return;
     await send(
-      buildCatalogueUpdate({
-        data: get().data,
-        accountId: companyId,
-        original,
-        args: { entity: key, id, changes },
-      }),
+      expecting(
+        buildCatalogueUpdate({
+          data: get().data,
+          accountId: companyId,
+          original,
+          args: { entity: key, id, changes },
+        }),
+        expectedUpdatedAt,
+      ),
     );
   };
   const deleteCatalogue = async (key: 'phases' | 'disciplines', id: string) => {
@@ -149,19 +156,21 @@ export function createTypedPlanningActions(
   };
   return {
     addDiscipline: (input: Draft<Discipline>) => createCatalogue<Discipline>('disciplines', input),
-    updateDiscipline: (id: string, patch: Patch<Discipline>) =>
-      updateCatalogue('disciplines', id, patch),
+    updateDiscipline: (id: string, patch: Patch<Discipline>, expectedUpdatedAt?: string) =>
+      updateCatalogue('disciplines', id, patch, expectedUpdatedAt),
     deleteDiscipline: (id: string) => deleteCatalogue('disciplines', id),
     addClient: (input: Draft<Client>) => createCatalogue<Client>('clients', input),
-    updateClient: (id: string, patch: Patch<Client>) => updateCatalogue('clients', id, patch),
+    updateClient: (id: string, patch: Patch<Client>, expectedUpdatedAt?: string) =>
+      updateCatalogue('clients', id, patch, expectedUpdatedAt),
     addProject: (input: Draft<Project>) => createCatalogue<Project>('projects', input),
-    updateProject: (id: string, patch: Patch<Project>) => updateCatalogue('projects', id, patch),
+    updateProject: (id: string, patch: Patch<Project>, expectedUpdatedAt?: string) =>
+      updateCatalogue('projects', id, patch, expectedUpdatedAt),
     addPhase: (input: Draft<Phase>) => createCatalogue<Phase>('phases', input),
     updatePhase: (id: string, patch: Patch<Phase>) => updateCatalogue('phases', id, patch),
     deletePhase: (id: string) => deleteCatalogue('phases', id),
     addActivity: (input: Draft<Activity>) => createCatalogue<Activity>('activities', input),
-    updateActivity: (id: string, patch: Patch<Activity>) =>
-      updateCatalogue('activities', id, patch),
+    updateActivity: (id: string, patch: Patch<Activity>, expectedUpdatedAt?: string) =>
+      updateCatalogue('activities', id, patch, expectedUpdatedAt),
     deleteActivity: async (id: string) => {
       const companyId = accountId();
       if (blocked() || !owned('activities', id, companyId)) return undefined;
@@ -187,7 +196,7 @@ export function createTypedPlanningActions(
       await send(command);
       return { kind: 'created', value: created('resources', id) };
     },
-    updateResource: async (id: string, patch: Patch<Resource>) => {
+    updateResource: async (id: string, patch: Patch<Resource>, expectedUpdatedAt?: string) => {
       const companyId = accountId();
       if (blocked()) return;
       const original = owned('resources', id, companyId);
@@ -197,55 +206,62 @@ export function createTypedPlanningActions(
           ? patch
           : { ...patch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) };
       await send(
-        buildResourceUpdate({
-          data: get().data,
-          accountId: companyId,
-          original,
-          args: { id, changes },
-        }),
-      );
-    },
-    addTimeOff: createTimeOff,
-    addTimeOffs: async (inputs: readonly Draft<TimeOff>[]): Promise<CreateResult<TimeOff[]>> => {
-      if (inputs.length === 0) throw new Error('At least one time-off entry is required.');
-      const companyId = accountId();
-      if (blocked()) return { kind: 'blocked' };
-      const commands = inputs.map((fields) => {
-        assertResourceExists(get().data, companyId, fields.resourceId);
-        const command = buildTimeOffCreate({
-          data: get().data,
-          accountId: companyId,
-          args: { id: newId(), fields },
-        });
-        if (!command || command.intent.operation !== 'timeOff.create') {
-          throw unprepared(companyId, 'The time-off entry could not be prepared.');
-        }
-        return command.intent.timeOff;
-      });
-      await send({
-        intent: { operation: 'timeOff.repeat', entries: commands },
-        inverse: {
-          operation: 'timeOff.deleteGroup',
-          ids: commands.map((entry) => createdId(entry.id)),
-        },
-      });
-      return {
-        kind: 'created',
-        value: commands.map((entry) => created('timeOff', createdId(entry.id))),
-      };
-    },
-    updateTimeOff: async (id: string, changes: Patch<TimeOff>) => {
-      const companyId = accountId();
-      if (blocked()) return;
-      const original = owned('timeOff', id, companyId);
-      if (original) {
-        await send(
-          buildTimeOffUpdate({
+        expecting(
+          buildResourceUpdate({
             data: get().data,
             accountId: companyId,
             original,
             args: { id, changes },
           }),
+          expectedUpdatedAt,
+        ),
+      );
+    },
+    addTimeOff: createTimeOff,
+    addRepeatedTimeOff: async (
+      input: Draft<TimeOff>,
+      repeat: RepeatRange,
+      count: number,
+    ): Promise<CreateResult<TimeOff[]>> => {
+      if (!Number.isSafeInteger(count) || count < 2) {
+        throw new Error('A repeat needs at least two entries.');
+      }
+      const companyId = accountId();
+      if (blocked()) return { kind: 'blocked' };
+      assertResourceExists(get().data, companyId, input.resourceId);
+      const command = buildTimeOffCreate({
+        data: get().data,
+        accountId: companyId,
+        args: { id: newId(), fields: input },
+      });
+      if (!command || command.intent.operation !== 'timeOff.create') {
+        throw unprepared(companyId, 'The time-off entry could not be prepared.');
+      }
+      const timeOff = command.intent.timeOff;
+      // Later entry ids are minted here too, so Undo can delete the whole set by id.
+      const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
+      const ids = [createdId(timeOff.id), ...occurrenceIds];
+      await send({
+        intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds },
+        inverse: { operation: 'timeOff.deleteGroup', ids },
+      });
+      return { kind: 'created', value: ids.map((id) => created('timeOff', id)) };
+    },
+    updateTimeOff: async (id: string, changes: Patch<TimeOff>, expectedUpdatedAt?: string) => {
+      const companyId = accountId();
+      if (blocked()) return;
+      const original = owned('timeOff', id, companyId);
+      if (original) {
+        await send(
+          expecting(
+            buildTimeOffUpdate({
+              data: get().data,
+              accountId: companyId,
+              original,
+              args: { id, changes },
+            }),
+            expectedUpdatedAt,
+          ),
         );
       }
     },
@@ -267,18 +283,21 @@ export function createTypedPlanningActions(
       await send(command);
       return { kind: 'created', value: created('closures', id) };
     },
-    updateClosure: async (id: string, changes: Patch<Closure>) => {
+    updateClosure: async (id: string, changes: Patch<Closure>, expectedUpdatedAt?: string) => {
       const companyId = accountId();
       if (blocked()) return;
       const original = owned('closures', id, companyId);
       if (original) {
         await send(
-          buildClosureUpdate({
-            data: get().data,
-            accountId: companyId,
-            original,
-            args: { id, changes },
-          }),
+          expecting(
+            buildClosureUpdate({
+              data: get().data,
+              accountId: companyId,
+              original,
+              args: { id, changes },
+            }),
+            expectedUpdatedAt,
+          ),
         );
       }
     },
