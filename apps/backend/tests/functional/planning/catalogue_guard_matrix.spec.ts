@@ -626,4 +626,35 @@ test.group('planning request rule boundaries', (group) => {
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(body(snapshot).revision, 1);
   });
+
+  test('ignores a display name sent on a write', async ({ client, assert, cleanup }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const initial = await readState(accountId, true);
+    const color = initial.clients.find((row) => row.accountId === accountId)!.color;
+    const id = randomUUID();
+    const created = await session(client.post(route('clients')), cookie)
+      .json(
+        input(0, {
+          operation: 'catalogue.create',
+          entity: {
+            entity: 'clients',
+            id,
+            fields: { name: 'Daily Planet', color, displayName: 'Injected' },
+          },
+        })
+      )
+      .send();
+    created.assertStatus(200);
+    const read = await session(client.get(planningUrl), cookie).send();
+    read.assertStatus(200);
+    const row = (
+      read.body() as { data: { clients: Array<{ id: string; displayName?: string }> } }
+    ).data.clients.find((candidate) => candidate.id === id);
+    assert.equal(row?.displayName, 'Daily Planet');
+    assert.notInclude(read.text(), 'Injected');
+    const after = await readState(accountId, true);
+    const stored = after.clients.find((candidate) => candidate.id === id);
+    assert.notProperty(stored!, 'displayName');
+  });
 });

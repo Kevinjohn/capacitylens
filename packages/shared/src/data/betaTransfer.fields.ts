@@ -115,8 +115,14 @@ export const FIELDS = {
   closures: ['id', 'accountId', 'createdAt', 'updatedAt', 'name', 'startDate', 'endDate'],
 } as const satisfies { [K in AppDataKey]: readonly (keyof AppData[K][number])[] };
 
+/** Read-projection fields the server adds for the reader; they are never exported. */
+type ReadProjectionField = 'displayName';
+
 type MissingPortableField = {
-  [K in AppDataKey]: Exclude<keyof AppData[K][number], (typeof FIELDS)[K][number]>;
+  [K in AppDataKey]: Exclude<
+    keyof AppData[K][number],
+    (typeof FIELDS)[K][number] | ReadProjectionField
+  >;
 }[AppDataKey];
 const portableFieldsAreComplete: MissingPortableField extends never ? true : never = true;
 void portableFieldsAreComplete;

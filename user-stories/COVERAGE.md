@@ -279,7 +279,6 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | [US-TBR-01](toolbar/US-TBR-01-zoom.md)               | Zoom the timeline (1/2/4/6/8 weeks)                   | Viewer, Editor, Admin or Owner | Current | Existing  |
 | [US-TBR-02](toolbar/US-TBR-02-pan.md)                | Pan a week back / forward                             | Viewer, Editor, Admin or Owner | Current | Existing  |
 | [US-TBR-03](toolbar/US-TBR-03-today.md)              | Re-centre on Today                                    | Viewer, Editor, Admin or Owner | Current | Existing  |
-| [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md)       | Jump to a specific date (hidden from the toolbar)     | Viewer, Editor, Admin or Owner | Hidden  | Existing  |
 | [US-TBR-05](toolbar/US-TBR-05-draw-mode.md)          | Switch Work / Time-off draw mode                      | Editor, Admin or Owner         | Current | Existing  |
 | [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md)  | Undo / Redo toolbar buttons                           | Editor, Admin or Owner         | Current | Existing  |
 | [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo / Redo with ⌘Z / ⌘⇧Z                             | Editor, Admin or Owner         | Current | Existing  |

@@ -53,10 +53,4 @@ describe('ToolbarDateNavigation', () => {
 
     expect(navigationProps.onZoomChange).toHaveBeenCalledWith(8);
   });
-
-  it('keeps the jump-to-date picker hidden', () => {
-    render(<ToolbarDateNavigation {...props()} />);
-
-    expect(screen.queryByLabelText('Jump to date')).toBeNull();
-  });
 });

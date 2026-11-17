@@ -1,8 +1,7 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useResourceAvatars } from '@/account/useResourceAvatars';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData, Resource } from '@capacitylens/shared/types/entities';
 import type { CapacityDisplayMode } from './capacityOverviewBar';
@@ -11,9 +10,6 @@ import type { CapacityOverviewModel, CapacityOverviewPeriodResult } from './capa
 import { CapacityOverviewTable } from './CapacityOverviewTable';
 import { loadPlanningData, resetStoreWithAccount, makeAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-
-vi.mock('@/account/useResourceAvatars', () => ({ useResourceAvatars: vi.fn() }));
-beforeEach(() => vi.mocked(useResourceAvatars).mockReturnValue(new Map()));
 
 const resource = (id: string, kind: Resource['kind'] = 'person'): Resource => ({
   ...NULLABLE_FIELDS.resources,
@@ -165,7 +161,7 @@ describe('CapacityOverviewTable date style', () => {
 });
 
 describe('CapacityOverviewTable content', () => {
-  it('uses a linked-member image only when a person has no stored image', () => {
+  it("uses a person's stored image and none without one", () => {
     class LoadedImage {
       complete = true;
       naturalWidth = 1;
@@ -174,9 +170,6 @@ describe('CapacityOverviewTable content', () => {
       removeEventListener() {}
     }
     vi.stubGlobal('Image', LoadedImage);
-    vi.mocked(useResourceAvatars).mockReturnValue(
-      new Map([[clarkKent.id, 'https://images.example/linked.png']]),
-    );
     try {
       const { rerender } = renderTable();
       const avatar = () =>
@@ -197,7 +190,7 @@ describe('CapacityOverviewTable content', () => {
           })),
         },
       });
-      expect(avatar()).toHaveAttribute('src', 'https://images.example/linked.png');
+      expect(avatar()).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }

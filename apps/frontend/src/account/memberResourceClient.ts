@@ -3,11 +3,6 @@ import { apiRouteUrl } from '@/api/queryClient';
 import type { BrowserAccountCommand } from './accountCommands';
 import { buildCommandRequestInit, runCommand } from './commandRequest';
 
-/** Build the account-owned URL for the minimum scheduled-person avatar projection. */
-export function resourceAvatarsUrl(companyId: string): string {
-  return apiRouteUrl('api.member-resources.avatars', { params: { accountId: companyId } });
-}
-
 /** Build the account-owned URL for one member/person association. */
 export function memberResourceLinkUrl(companyId: string, principalId: string): string {
   return apiRouteUrl('api.member-resources.set', {
