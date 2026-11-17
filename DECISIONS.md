@@ -262,7 +262,9 @@ This is the short, present-tense record of decisions that constrain future work.
   expiry. Every signed-in session observes the same mode on its next request; focus and visibility
   reconciliation refresh the browser. Company navigation ends the mode globally; signing out ends
   only the current session. Each company request checks both real-actor and target permissions. No
-  failed target check falls back to actor permissions.
+  failed target check falls back to actor permissions. A member may be viewed only by someone whose
+  role in that company ranks at or above theirs, so an Admin cannot view as the Owner. The rank is
+  rechecked on every request; a target promoted above the viewer ends the view for that company.
 - The product transaction revalidates the real actor/session and the company/target access
   captured before it. Already-admitted operator requests may finish after start; already-admitted
   target requests remain read-only after stop. Covered writes require the context captured for the
