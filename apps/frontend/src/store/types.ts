@@ -12,6 +12,7 @@ import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
 import type { Account, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningControllerMetadata } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
+import type { PlanningMutationSuccess } from '@/api/planningContracts';
 
 /** Runtime state for the current masquerade session. */
 export type MasqueradeRuntimeState =
@@ -109,8 +110,9 @@ export interface StoreState extends StoreEntityActions {
   planning: PlanningControllerMetadata;
   /** Advances only when a current planning request confirms that sign-in authority was lost. */
   planningAuthLossVersion: number;
-  /** Submit one typed planning command and resolve after authoritative reconciliation. */
-  sendPlanningCommand: (command: PlanningCommand) => Promise<void>;
+  /** Submit one typed planning command and resolve with the server reply after authoritative
+   * reconciliation, or with nothing when a viewer is blocked from writing. */
+  sendPlanningCommand: (command: PlanningCommand) => Promise<PlanningMutationSuccess | undefined>;
   /** Current user notice, or null. Dismissal and treatment follow Notice. */
   notice: Notice | null;
   /** Latest keyboard capacity announcement and sequence token. The token makes equal

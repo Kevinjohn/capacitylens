@@ -13,8 +13,8 @@ import {
 } from '@/test/allocationModalTestKit';
 
 type CapacityAdvisoryMockInput =
-  | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisory>[0]
-  | Parameters<typeof import('@/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
+  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisory>[0]
+  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
 const capacityAdvisoryMock = vi.hoisted(() =>
   vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
     overDays: 0,
@@ -28,8 +28,8 @@ const lastAdvisoryOthers = () => {
 };
 
 // Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
-vi.mock('@/lib/capacity', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/capacity')>()),
+vi.mock('@capacitylens/shared/lib/capacity', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@capacitylens/shared/lib/capacity')>()),
   buildCapacityAdvisory: capacityAdvisoryMock,
   buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
 }));

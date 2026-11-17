@@ -150,9 +150,7 @@ describe('ClientList archive flow', () => {
     await user.click(screen.getByRole('button', { name: 'Archive Ferris' }));
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent(/Archive client\?/i);
-    expect(dialog).toHaveTextContent(
-      'This also hides 1 project, 1 phase, and 0 allocations from the schedule; restore the client to bring them back.',
-    );
+    expect(dialog).not.toHaveTextContent('also hid');
 
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(requireValue(useStore.getState().data.clients[0], 'active client')).toHaveProperty(
@@ -180,17 +178,6 @@ describe('ClientList archive flow', () => {
     expect(
       within(await screen.findByTestId('archived-clients-section')).getByText('Ferris'),
     ).toBeInTheDocument();
-  });
-
-  it('omits the cascade warning for a client without projects or allocations', async () => {
-    const user = userEvent.setup();
-    await useStore.getState().addClient({ name: 'Childless', color: '#2d75da' });
-    render(<ClientList />);
-
-    await user.click(screen.getByRole('button', { name: 'Archive Childless' }));
-    const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Archive "Childless"?');
-    expect(dialog).not.toHaveTextContent('This also hides');
   });
 
   it('tells Editors they can recover the archived client inline', async () => {

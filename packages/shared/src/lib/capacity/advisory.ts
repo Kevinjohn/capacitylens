@@ -1,16 +1,10 @@
-import { daysInclusive, eachDayISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
-import { effectiveWeekIncludes } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type {
-  Allocation,
-  Closure,
-  ISODate,
-  Resource,
-  TimeOff,
-} from '@capacitylens/shared/types/entities';
-import { addCapacityHours, hasAllocationLoadOnDay, hasOverCapacity } from './primitives';
-import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from './availability';
+import { daysInclusive, eachDayISO, weekdayOf } from '../dateMath.js';
+import { MAX_SPAN_DAYS } from '../schedulingDays.js';
+import { effectiveWeekIncludes } from '../effectiveWorkingWeek.js';
+import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
+import type { Allocation, Closure, ISODate, Resource, TimeOff } from '../../types/entities.js';
+import { addCapacityHours, hasAllocationLoadOnDay, hasOverCapacity } from './primitives.js';
+import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from './availability.js';
 
 /** Capacity impact summary for a proposed allocation. */
 export interface CapacityAdvisory {

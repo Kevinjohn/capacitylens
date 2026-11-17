@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isHalfDay, isOnClosure, isOnTimeOff } from '@/lib/capacity';
+import { isHalfDay, isOnClosure, isOnTimeOff } from '../capacity.js';
 
 import {
   scheduledHoursOnDay,
@@ -10,7 +10,7 @@ import {
   makeAlloc,
   makeTimeOff,
   makeClosure,
-} from '@/test/capacityTestSupport';
+} from './capacity.test.support.js';
 
 describe('resource availability boundaries', () => {
   const boundedResource = makeResource({

@@ -1,4 +1,4 @@
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import {
   resolveAllocatedHoursOnDay as allocatedHoursOnDayWithWeek,
   resolveAvailableHoursOnDay as availableHoursOnDayWithWeek,
@@ -8,9 +8,9 @@ import {
   isWorkingDay as isWorkingDayWithWeek,
   resolveScheduledHoursOnDay as scheduledHoursOnDayWithWeek,
   resolveUtilization as utilizationWithWeek,
-} from '@/lib/capacity';
-import type { DayCapacity, CapacityAllocationInput } from '@/lib/capacity';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+} from '../capacity.js';
+import type { DayCapacity, CapacityAllocationInput } from '../capacity.js';
+import { effectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import type {
   Allocation,
   Closure,
@@ -18,7 +18,7 @@ import type {
   Resource,
   TimeOff,
   Weekday,
-} from '@capacitylens/shared/types/entities';
+} from '../../types/entities.js';
 
 export function valueAt<T>(values: readonly T[], index: number): T {
   const value = values[index];

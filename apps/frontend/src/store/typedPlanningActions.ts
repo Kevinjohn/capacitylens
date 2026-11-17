@@ -69,11 +69,8 @@ export function createTypedPlanningActions(
     id: string,
     companyId: string,
   ) => getOwned(get().data, companyId, key, id);
-  const send = async (command: PlanningCommand | null) => {
-    if (!command) return false;
-    await get().sendPlanningCommand(command);
-    return true;
-  };
+  const send = async (command: PlanningCommand | null) =>
+    command ? get().sendPlanningCommand(command) : undefined;
   const created = <
     K extends keyof Pick<
       StoreState['data'],
@@ -167,8 +164,8 @@ export function createTypedPlanningActions(
       updateCatalogue('activities', id, patch),
     deleteActivity: async (id: string) => {
       const companyId = accountId();
-      if (blocked() || !owned('activities', id, companyId)) return;
-      await send({
+      if (blocked() || !owned('activities', id, companyId)) return undefined;
+      return send({
         intent: { operation: 'catalogue.archive', entity: { entity: 'activities', id } },
         inverse: { operation: 'catalogue.unarchive', entity: { entity: 'activities', id } },
       });

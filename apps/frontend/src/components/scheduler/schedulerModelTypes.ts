@@ -1,5 +1,5 @@
 import type { LaneLayout } from '@/lib/lanePacking';
-import type { DayCapacity } from '@/lib/capacity';
+import type { DayCapacity } from '@capacitylens/shared/lib/capacity';
 import type { DisciplineGroup } from '@/store/selectors';
 import type { ColumnGeometry } from './columnGeometry';
 import type { Filters } from '@/store/useStore';

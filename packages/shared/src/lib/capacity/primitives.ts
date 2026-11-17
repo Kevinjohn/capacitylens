@@ -1,8 +1,8 @@
-import { allocationWorksOnDay } from '@capacitylens/shared/lib/workingWeek';
-import { blockHoursPerDay } from '@capacitylens/shared/lib/schedulingDays';
-import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
-import type { Allocation } from '@capacitylens/shared/types/entities';
+import { allocationWorksOnDay } from '../workingWeek.js';
+import { blockHoursPerDay } from '../schedulingDays.js';
+import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
+import { FULL_DAY_HOURS } from '../../types/entities.js';
+import type { Allocation } from '../../types/entities.js';
 
 /** Add validated hourly load without losing the rounding residual of each addition.
  * The nonoverlapping components retain the exact sum of the supplied binary numbers.
@@ -62,13 +62,16 @@ export function applyCapacityMode({
     : allocations;
 }
 
+// Vite supplies `import.meta.env` in the browser and under Vitest; Node leaves it undefined.
+type DevImportMeta = ImportMeta & { readonly env?: { readonly DEV?: boolean } };
+
 // Capacity arithmetic requires finite, non-negative hours validated at write boundaries.
 // Warn in development rather than wrap each hot-path calculation; NaN would otherwise
 // make conflict comparisons silently false. Effective weekdays govern ordinary load,
 // while ignoreWorkingDays may place work on zero-capacity days.
 /** Warns during development when a capacity calculation is not finite. */
 export function warnOnNonFiniteCapacity(hours: number): void {
-  if (import.meta.env.DEV && !Number.isFinite(hours)) {
+  if ((import.meta as DevImportMeta).env?.DEV && !Number.isFinite(hours)) {
     console.warn(
       `capacity: allocated hours sum is not a finite number (${String(hours)}). Upstream validation ` +
         `(integrity.ts) should have prevented this — over/utilisation results for this resource will be wrong.`,

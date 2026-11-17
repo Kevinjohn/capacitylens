@@ -4,11 +4,11 @@ import type { BarLayout } from './schedulerModel';
 import { m } from '@/i18n';
 import {
   buildCapacityAdvisory,
-  formatCapacityAdvisory,
   applyCapacityMode,
   buildCapacityWindow,
   listTimeOffApplyingTo,
-} from '@/lib/capacity';
+} from '@capacitylens/shared/lib/capacity';
+import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { FULL_DAY_HOURS, isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type { AppData, ID, Weekday } from '@capacitylens/shared/types/entities';

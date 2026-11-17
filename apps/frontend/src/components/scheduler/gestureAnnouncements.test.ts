@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Allocation, ISODate, Resource } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
-import { formatCapacityAdvisory } from '@/lib/capacity';
+import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,

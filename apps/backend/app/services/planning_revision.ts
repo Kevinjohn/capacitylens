@@ -1,3 +1,6 @@
+// Every typed planning mutation carries the `baseRevision` it was drafted against.
+// `assertPlanningBaseRevision` refuses a mismatch with 409 `STALE_REVISION`.
+
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 
 const revisionsByTransaction = new WeakMap<

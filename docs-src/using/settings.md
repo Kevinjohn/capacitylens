@@ -168,8 +168,8 @@ planning records, with their IDs and supported settings. It excludes members, si
 browser preferences. A redacted export can be inspected but cannot replace company data. Invalid
 fields and missing links are refused rather than repaired.
 
-Choose a file and select **Continue** to preview it without changing anything. Review the company
-and record count, then select **Replace data**. In a signed-in installation, confirm this exact
+Choose a file to have the server preview it without changing anything; a refused file shows the
+reason. Review the company and record count, select **Continue**, then select **Replace data**. In a signed-in installation, confirm this exact
 import with your password. A recent sign-in alone is not enough. The confirmation is bound to this
 file and company. Cancel leaves the company unchanged. If the company changed since the preview,
 preview again before retrying.

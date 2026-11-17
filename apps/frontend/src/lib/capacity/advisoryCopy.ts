@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import type { CapacityAdvisory } from './advisory';
+import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity';
 import { plural } from '@/lib/pluralCopy';
 
 /** The surface an advisory is written for. Over/time-off counts exist on every surface; only the

@@ -11,7 +11,7 @@ As an Editor, I want to archive an activity so that its allocations leave active
 ## Acceptance criteria
 
 - Selecting **Archive {name}** opens **Archive activity?** with **Archive** and **Cancel** controls.
-- After confirmation, the activity leaves its active section and its allocations are hidden. When allocations exist, the dialog states their count.
+- After confirmation, the activity leaves its active section and its allocations are hidden. The dialog states no count; after **Archive**, a notice reports the hidden allocations when there are any.
 - **Cancel** closes the dialog without archiving. **Archive** archives the record.
 - The archived record appears in its archived section with a **Restore** control.
 

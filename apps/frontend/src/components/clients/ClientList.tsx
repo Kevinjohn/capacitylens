@@ -10,27 +10,19 @@ import {
   ListPage,
 } from '@/components/common/ui';
 import { ClientForm } from './ClientForm';
-import type { AppData, Client } from '@capacitylens/shared/types/entities';
+import type { Client } from '@capacitylens/shared/types/entities';
 import { useLifecycleActions } from '@/hooks/useLifecycleActions';
 import { m } from '@/i18n';
 import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames';
 import { Fragment, useMemo } from 'react';
 import { Briefcase, Plus } from 'lucide-react';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { buildClientArchiveImpactCopy, safeArchiveImpact } from '@/lib/archiveImpactCopy';
 import { byName } from '@/lib/displayOrder';
 import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
 
-// Render the base archive message if the row became inactive after the dialog opened; safeArchiveImpact prevents a render-time integrity throw.
-function buildClientArchiveMessage(data: AppData, client: Client): string {
+function buildClientArchiveMessage(client: Client): string {
   const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name;
-  const base = m.list_clients_archive_message({ name });
-  const impact = safeArchiveImpact(data, 'clients', client.id);
-  if (!impact) return base;
-  const { projects, phases, allocations } = impact;
-  return projects + phases + allocations > 0
-    ? `${base} ${buildClientArchiveImpactCopy(impact)}`
-    : base;
+  return m.list_clients_archive_message({ name });
 }
 
 interface ClientItemsProps {
@@ -110,7 +102,7 @@ export function ClientList() {
       {confirming && (
         <ConfirmDialog
           title={m.list_clients_archive_title()}
-          message={buildClientArchiveMessage(scoped, confirming)}
+          message={buildClientArchiveMessage(confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive('clients', confirming.id);
