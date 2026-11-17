@@ -62,6 +62,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Displayed utilisation is calculated over the visible 1/2/4/6/8-week window.
 - `overSoon` is calculated over a fixed forward 14-day window from today and never changes with
   zoom or pan.
+- Today is the company's calendar date, resolved by the server in the company time zone and sent
+  with the planning read; the browser never reads its own clock for it.
 - The visible span is chosen from a **Weeks visible** dropdown, not a row of always-on buttons; the
   schedule's top bar is reserved for the controls people reach for every session.
 - The schedule has no jump-to-date picker.

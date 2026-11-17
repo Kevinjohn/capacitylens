@@ -17,13 +17,10 @@ import {
 } from '@/test/fixtures';
 import { usePersonSchedule } from './usePersonSchedule';
 
-const calendarToday = vi.hoisted(() => ({ today: '2026-09-10', timeZone: '' }));
+const calendarToday = vi.hoisted(() => ({ today: '2026-09-10' }));
 
-vi.mock('@/hooks/useCalendarToday', () => ({
-  useCalendarToday: (timeZone: string) => {
-    calendarToday.timeZone = timeZone;
-    return calendarToday.today;
-  },
+vi.mock('@/hooks/useCompanyToday', () => ({
+  useCompanyToday: () => calendarToday.today,
 }));
 
 function wrapper({
@@ -78,7 +75,6 @@ function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
 
 beforeEach(() => {
   calendarToday.today = '2026-09-10';
-  calendarToday.timeZone = '';
   seed();
 });
 
@@ -126,7 +122,7 @@ describe('usePersonSchedule availability', () => {
 });
 
 describe('usePersonSchedule calendar rollover', () => {
-  it('recomputes the drawer window and entries across a timezone-aware year rollover', () => {
+  it('recomputes the drawer window and entries when the company date rolls over a year', () => {
     const oldAllocation = makeAllocation({
       id: 'old-allocation',
       accountId: 'a1',
@@ -153,7 +149,6 @@ describe('usePersonSchedule calendar rollover', () => {
       () => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }),
       { wrapper: wrapper({ role: 'owner' }) },
     );
-    expect(calendarToday.timeZone).toBe('Pacific/Kiritimati');
     expect(result.current).toMatchObject({
       kind: 'available',
       model: {

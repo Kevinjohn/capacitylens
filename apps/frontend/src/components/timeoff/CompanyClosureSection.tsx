@@ -6,7 +6,7 @@ import { m } from '@/i18n';
 import { useEntityListState } from '@/hooks/useEntityListState';
 import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 import { formatShortDateRange } from '@/lib/dateDisplay';
-import { resolveTimeZone, resolveWeekStart } from '@/store/selectors';
+import { resolveWeekStart } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
 import {
@@ -26,7 +26,7 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { ClosureForm } from './ClosureForm';
-import { useCalendarToday } from '@/hooks/useCalendarToday';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { buildClosureList } from './timeOffView';
 
 interface ClosureItemsProps {
@@ -76,7 +76,6 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
 /** Lists company closures available to the active account. */
 export function CompanyClosureSection() {
   const data = useActiveScopedData();
-  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const calendarWeekStartsOn = useStore((state) =>
     resolveWeekStart(state.data, state.activeAccountId),
   );
@@ -84,7 +83,7 @@ export function CompanyClosureSection() {
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
     useEntityListState<Closure>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
-  const today = useCalendarToday(calendarTimeZone);
+  const today = useCompanyToday();
   const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
   const closures = useMemo(
     () => buildClosureList(data.closures, currentWeekStart),

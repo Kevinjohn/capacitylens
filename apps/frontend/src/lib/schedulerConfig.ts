@@ -32,6 +32,9 @@ export const WEEKEND_COLUMN_REM = 1.4;
  * isn't fought mid-gesture, short enough to feel immediate once the user lets go. */
 export const WEEK_SNAP_IDLE_MS = 120;
 
+/** A Monday the scheduler view holds until the first planning read anchors it on the company's week. */
+export const UNANCHORED_WEEK_START = '1970-01-05';
+
 /** How many days the timeline spans forward from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120;
 /** Scrollable history kept to the left of the focus date (default view, Today,

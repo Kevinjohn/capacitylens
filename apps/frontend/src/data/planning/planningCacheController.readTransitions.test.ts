@@ -41,6 +41,18 @@ describe('planning read transitions', () => {
     await expect(h.controller.undo()).resolves.toBe(true);
   });
 
+  it('takes the company date from each same-revision read and keeps history', async () => {
+    const h = await readyWithHistory();
+    h.read.mockResolvedValueOnce({ ...snapshot(2), today: '2026-06-01' });
+    await expect(h.controller.refresh()).resolves.toBe(true);
+    expect(h.state().planning.today).toBe('2026-06-01');
+
+    h.read.mockResolvedValueOnce({ ...snapshot(2), today: '2026-06-02' });
+    await expect(h.controller.refresh()).resolves.toBe(true);
+    expect(h.state().planning.today).toBe('2026-06-02');
+    expect(h.state().planning.history.past).toHaveLength(1);
+  });
+
   it('rejects an older snapshot under the same authority without replacing rows', async () => {
     const h = await ready();
     h.server.revision = 5;

@@ -8,6 +8,7 @@ import {
   intent,
   inverse,
   canonicalData,
+  companyToday,
   success,
   harness,
 } from './planningCacheController.testSupport';
@@ -28,15 +29,30 @@ describe('planning cache controller', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const draft = h.controller.begin();
     const write = h.controller.execute(draft, intent, inverse);
-    await h.readSnapshot({ revision: 2, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 2,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     expect(h.state().planning.history.past).toHaveLength(0);
     release(success('mutation-1', 2));
     await write;
     expect(h.state().planning.history.past).toHaveLength(1);
-    await h.readSnapshot({ revision: 3, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 3,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
 
@@ -46,12 +62,19 @@ describe('planning cache controller', () => {
       revision: 2,
       canWrite: true,
       data: { ...emptyAppData(), accounts: [{ id: 'other-company' }] },
+      today: companyToday,
     },
     {
       revision: 3,
       data: { ...emptyAppData(), accounts: [{ id: 'company-1', name: 'Unverified' }] },
+      today: companyToday,
     },
-    { revision: 4, canWrite: true, data: { ...canonicalData(), accounts: [] } },
+    {
+      revision: 4,
+      canWrite: true,
+      data: { ...canonicalData(), accounts: [] },
+      today: companyToday,
+    },
     {
       revision: 5,
       canWrite: true,
@@ -59,7 +82,10 @@ describe('planning cache controller', () => {
         ...canonicalData(),
         accounts: [...canonicalData().accounts, ...canonicalData().accounts],
       },
+      today: companyToday,
     },
+    { revision: 6, canWrite: true, data: canonicalData(), today: '2026-02-30' },
+    { revision: 7, canWrite: true, data: canonicalData() },
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
     const h = harness({ execute: vi.fn(), read });
@@ -100,7 +126,12 @@ describe('planning cache controller', () => {
       );
       const h = harness({ execute, read: vi.fn<PlanningTransport['read']>() });
       h.controller.setContext(context);
-      await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+      await h.readSnapshot({
+        revision: 1,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      });
       await h.controller.execute(h.controller.begin(), action, inverse);
       expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 2 });
       expect(h.state().planning.history.past).toHaveLength(retainedEntries);

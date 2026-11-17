@@ -8,8 +8,9 @@ import type {
   PlanningIntent,
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
+import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
 import { APP_DATA_KEYS, emptyAppData } from '@capacitylens/shared/types/entities';
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
+import type { AppData, AppDataKey, ISODate } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 
 type Row = { id: string; accountId?: string; [key: string]: unknown };
@@ -36,6 +37,7 @@ export class StubPlanningTransport implements PlanningTransport {
   readonly calls: PlanningIntent[] = [];
   private data = emptyAppData();
   private canWrite = true;
+  private today: ISODate | null = null;
   private revisions = new Map<string, number>();
   private queued: Queued[] = [];
 
@@ -43,6 +45,7 @@ export class StubPlanningTransport implements PlanningTransport {
   reset(companyId: string, data: AppData): void {
     this.data = structuredClone(data);
     this.canWrite = true;
+    this.today = null;
     this.revisions.clear();
     this.revisions.set(companyId, 0);
     this.calls.length = 0;
@@ -81,6 +84,18 @@ export class StubPlanningTransport implements PlanningTransport {
     this.canWrite = canWrite;
   }
 
+  /** Set the company date returned by subsequent reads, in place of the one read from the clock. */
+  setToday(today: ISODate): void {
+    this.today = today;
+  }
+
+  /** The company date a read returns: the set value, or the clock's date in the company's zone. */
+  todayFor(companyId: string): ISODate {
+    if (this.today !== null) return this.today;
+    const account = this.data.accounts.find((row) => row.id === companyId);
+    return resolveCalendarToday(account?.timezone ?? 'Etc/GMT').date;
+  }
+
   async read(context: PlanningClientContext, signal: AbortSignal): Promise<PlanningSnapshot> {
     signal.throwIfAborted();
     const data = emptyAppData();
@@ -90,7 +105,12 @@ export class StubPlanningTransport implements PlanningTransport {
       );
       Object.assign(data, { [entity]: structuredClone(rows) });
     }
-    return { revision: this.revisions.get(context.companyId) ?? 0, canWrite: this.canWrite, data };
+    return {
+      revision: this.revisions.get(context.companyId) ?? 0,
+      canWrite: this.canWrite,
+      data,
+      today: this.todayFor(context.companyId),
+    };
   }
 
   async execute(

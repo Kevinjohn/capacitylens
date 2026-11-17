@@ -1,12 +1,16 @@
 import type { StateCreator } from 'zustand';
 import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import { readCalendarToday } from '@/lib/calendarToday';
 import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
-import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
+import {
+  DEFAULT_RANGE_DAYS,
+  DEFAULT_ZOOM,
+  PAST_BUFFER_DAYS,
+  UNANCHORED_WEEK_START,
+} from '@/lib/schedulerConfig';
 import type { AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
 import type { Filters, SchedulerUI, StoreState } from '@/store/types';
-import { resolveTimeZone, resolveWeekStart } from '@/store/selectors';
+import { resolveWeekStart } from '@/store/selectors';
 
 type SchedulerSliceKeys =
   | 'ui'
@@ -31,23 +35,20 @@ export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focu
   return { originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS), focusDate: weekStart };
 }
 
-/** The same pair for an account's current week, read through its own calendar settings. Used both
- * by "go to today" and by the tenant-boundary resets in useStore, so a company always opens on the
- * week its own time zone / week start says it is. */
+/** The same pair for the week holding the company's date from the server, read through the
+ * account's week start. Used by the tenant-boundary resets in useStore, so a company opens on the week
+ * the server says it is. Undefined while no date has been read; the first read anchors the view. */
 export function readCurrentWeekAnchor(
   data: AppData,
   accountId: ID | null,
-): { originDate: ISODate; focusDate: ISODate } {
-  return buildWeekAnchor(
-    startOfWeekISO(
-      readCalendarToday(resolveTimeZone(data, accountId)),
-      resolveWeekStart(data, accountId),
-    ),
-  );
+  today: ISODate | null,
+): { originDate: ISODate; focusDate: ISODate } | undefined {
+  if (today === null) return undefined;
+  return buildWeekAnchor(startOfWeekISO(today, resolveWeekStart(data, accountId)));
 }
 
 function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {
-  const weekStart = startOfWeekISO(readCalendarToday());
+  const weekStart = UNANCHORED_WEEK_START;
   return {
     zoom: DEFAULT_ZOOM,
     originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
@@ -197,13 +198,15 @@ export function createSchedulerSlice(
       })),
     goToToday: () =>
       set((state) =>
-        recenterOn(
-          state,
-          startOfWeekISO(
-            readCalendarToday(resolveTimeZone(state.data, state.activeAccountId)),
-            resolveWeekStart(state.data, state.activeAccountId),
-          ),
-        ),
+        state.planning.today === null
+          ? {}
+          : recenterOn(
+              state,
+              startOfWeekISO(
+                state.planning.today,
+                resolveWeekStart(state.data, state.activeAccountId),
+              ),
+            ),
       ),
     goToDate: (date) =>
       set((state) =>

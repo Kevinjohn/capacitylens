@@ -5,11 +5,10 @@ import {
   hasDisciplinesEnabled,
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
-  resolveTimeZone,
   resolveWeekStart,
 } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
-import { useCalendarToday } from '@/hooks/useCalendarToday';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 import type { CapacityDisplayMode } from './capacityOverviewBar';
 import type { CapacityOverviewHorizon } from './capacityOverviewDates';
 import { CapacityOverviewTable } from './CapacityOverviewTable';
@@ -25,8 +24,7 @@ export function CapacityOverviewView() {
   const data = useStore((state) => state.data);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const scopedData = useActiveScopedData();
-  const timezone = resolveTimeZone(data, activeAccountId);
-  const today = useCalendarToday(timezone);
+  const today = useCompanyToday();
   const schedulingMode = resolveSchedulingMode(data, activeAccountId);
   const weekStartsOn = resolveWeekStart(data, activeAccountId);
   const activeAccount = useStore((state) =>

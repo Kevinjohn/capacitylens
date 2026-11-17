@@ -1,6 +1,6 @@
 import { useStore } from '@/store/useStore';
 import { startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from '@/store/selectors';
+import { hasPlaceholdersEnabled, resolveWeekStart } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useEntityListState } from '@/hooks/useEntityListState';
 import {
@@ -22,7 +22,7 @@ import { Calendar } from 'lucide-react';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
 import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 import { CompanyClosureSection } from './CompanyClosureSection';
-import { useCalendarToday } from '@/hooks/useCalendarToday';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 
 interface PersonalTimeOffSectionProps {
   groups: TimeOffGroup[];
@@ -133,7 +133,6 @@ export function TimeOffList() {
   const placeholdersEnabled = useStore((state) =>
     hasPlaceholdersEnabled(state.data, state.activeAccountId),
   );
-  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const calendarWeekStartsOn = useStore((state) =>
     resolveWeekStart(state.data, state.activeAccountId),
   );
@@ -142,7 +141,7 @@ export function TimeOffList() {
     useEntityListState<TimeOff>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
 
-  const today = useCalendarToday(calendarTimeZone);
+  const today = useCompanyToday();
   const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
   const groups = useMemo(
     () =>

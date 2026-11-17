@@ -94,6 +94,7 @@ describe('AuthProvider — server mode', () => {
           data: makeAppData({
             accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })],
           }),
+          today: '2026-06-03',
         });
       });
       vi.stubGlobal('fetch', fetchSpy);

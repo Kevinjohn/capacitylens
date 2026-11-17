@@ -73,7 +73,10 @@ function createSetActiveAccountAction(
         activeRoleStatus:
           switching && state.activeRole !== null ? 'pending' : state.activeRoleStatus,
         ...buildAccountNoticeTransition({ switching: switching, unknown: unknown }),
-        ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(state.data, id)),
+        ui: resetSchedulerView(
+          state.ui,
+          readCurrentWeekAnchor(state.data, id, state.planning.today),
+        ),
       };
     });
   };

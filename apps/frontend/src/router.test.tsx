@@ -15,6 +15,12 @@ vi.mock('./components/activities/ActivityList', () => ({
 vi.mock('./components/diagnostics/DiagnosticsView', () => ({
   DiagnosticsView: () => <div>Diagnostics content</div>,
 }));
+vi.mock('./components/scheduler/SchedulerView', () => ({
+  SchedulerView: () => <div>Wayne schedule</div>,
+}));
+vi.mock('./components/clients/ClientList', () => ({
+  ClientList: () => <div>Wayne clients</div>,
+}));
 vi.mock('./components/capacity-overview/CapacityOverviewView', () => ({
   CapacityOverviewView: () => <div>Overview content</div>,
 }));
@@ -56,6 +62,44 @@ describe('activity route selection', () => {
     expect(vi.mocked(ActivityList).mock.lastCall?.[0]).toEqual({
       selectedActivityId: 'planning/review',
     });
+  });
+});
+
+describe('company date routes', () => {
+  it('holds the routed view behind the loader until a read brings the company date', async () => {
+    await resetStoreWithAccount();
+    useStore.setState((state) => ({ planning: { ...state.planning, today: null } }));
+    await act(async () => {
+      await router.navigate('/');
+    });
+
+    render(<RouterProvider router={router} />);
+
+    expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
+
+    await act(() => useStore.getState().refreshPlanning({ fresh: true }));
+    expect(useStore.getState().planning.today).not.toBeNull();
+    expect(screen.getByText('Wayne schedule')).toBeInTheDocument();
+  });
+
+  it('keeps date-independent routes open after a failed read and leaves the alert to the shell', async () => {
+    await resetStoreWithAccount();
+    useStore.setState((state) => ({
+      planning: { ...state.planning, today: null, status: 'error' },
+    }));
+    await act(async () => {
+      await router.navigate('/clients');
+    });
+
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByText('Wayne clients')).toBeInTheDocument();
+
+    await act(async () => {
+      await router.navigate('/');
+    });
+    expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
 

@@ -362,6 +362,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           revision: snapshot.revision,
           canWrite: authority.canWrite,
           data: snapshot.data,
+          today: snapshot.today,
           accessKey: JSON.stringify([
             authority.actorId,
             authority.effectiveActorId,

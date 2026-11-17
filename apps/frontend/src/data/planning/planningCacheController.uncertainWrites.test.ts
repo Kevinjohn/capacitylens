@@ -8,6 +8,7 @@ import {
   intent,
   inverse,
   canonicalData,
+  companyToday,
   success,
   harness,
 } from './planningCacheController.testSupport';
@@ -34,7 +35,12 @@ const lostReplies: Array<{ name: string; lose: (execute: Execute) => void }> = [
 ];
 
 const serverData = canonicalData({ name: 'Wayne Enterprises' });
-const serverSnapshot: PlanningSnapshot = { revision: 3, canWrite: true, data: serverData };
+const serverSnapshot: PlanningSnapshot = {
+  revision: 3,
+  canWrite: true,
+  data: serverData,
+  today: companyToday,
+};
 
 type Read = ReturnType<typeof vi.fn<PlanningTransport['read']>>;
 
@@ -47,7 +53,7 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
     .mockImplementationOnce(async (_context, execution) => success(execution.mutationId, 2));
   const h = harness({ execute, read });
   h.controller.setContext(context);
-  await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+  await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData(), today: companyToday });
   await h.controller.execute(h.controller.begin(), intent, inverse);
   expect(h.state().planning.history.past).toHaveLength(1);
   lose(execute);
@@ -92,7 +98,13 @@ describe('planning write whose reply was lost', () => {
   it('clears undo history even when the server has not yet committed the change', async () => {
     const { h } = await afterLostReply(
       (execute) => execute.mockRejectedValueOnce({ status: 408 }),
-      (read) => read.mockResolvedValueOnce({ revision: 2, canWrite: true, data: canonicalData() }),
+      (read) =>
+        read.mockResolvedValueOnce({
+          revision: 2,
+          canWrite: true,
+          data: canonicalData(),
+          today: companyToday,
+        }),
     );
     expect(h.state().planning).toMatchObject({
       status: 'ready',

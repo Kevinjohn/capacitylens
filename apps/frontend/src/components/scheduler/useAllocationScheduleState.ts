@@ -1,6 +1,5 @@
 import type { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
-import { readCalendarToday } from '@/lib/calendarToday';
 import {
   effectiveWorkingWeek,
   lacksEffectiveWorkingDays,
@@ -32,7 +31,7 @@ interface ScheduleInput {
   selectedResource: Resource | undefined;
   mode: SchedulingMode;
   accountWorkingDays: ReturnType<typeof normalizeAccountWorkingDays>;
-  calendarTimeZone: string;
+  today: ISODate;
   seed: AllocationModalSeed;
 }
 
@@ -77,8 +76,7 @@ function useEffectiveSchedule(input: {
   return { selectedEffectiveWeek, values };
 }
 
-function resolveRepeatRange(startDate: ISODate, calendarTimeZone: string) {
-  const repeatToday = readCalendarToday(calendarTimeZone);
+function resolveRepeatRange(startDate: ISODate, repeatToday: ISODate) {
   return {
     repeatToday,
     repeatUntilMinimum:
@@ -97,10 +95,10 @@ function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
   );
 }
 
-function resolveInitialDates(seed: AllocationModalSeed, calendarTimeZone: string) {
+function resolveInitialDates(seed: AllocationModalSeed, today: ISODate) {
   return {
     startDate: seed.initialStart,
-    endDate: seed.editing?.endDate ?? seed.create?.endDate ?? readCalendarToday(calendarTimeZone),
+    endDate: seed.editing?.endDate ?? seed.create?.endDate ?? today,
   };
 }
 
@@ -114,8 +112,8 @@ function resolveInitialDetails(seed: AllocationModalSeed) {
   };
 }
 
-function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) {
-  const initialDates = resolveInitialDates(seed, calendarTimeZone);
+function useScheduleFields(seed: AllocationModalSeed, today: ISODate) {
+  const initialDates = resolveInitialDates(seed, today);
   const initialDetails = resolveInitialDetails(seed);
   const [startDate, setStartDate] = useState<ISODate>(initialDates.startDate);
   const [endDate, setEndDate] = useState<ISODate>(initialDates.endDate);
@@ -156,12 +154,12 @@ export function useAllocationScheduleState({
   selectedResource,
   mode,
   accountWorkingDays,
-  calendarTimeZone,
+  today,
   seed,
 }: ScheduleInput) {
   const isDays = mode === 'days';
   const isBlocks = !carriesHourlyLoad(mode);
-  const fields = useScheduleFields(seed, calendarTimeZone);
+  const fields = useScheduleFields(seed, today);
   const { noteEdited, ...scheduleFields } = fields;
   const { startDate, endDate, ignoreWorkingDays } = fields;
   const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } = useRepeatUntil<RepeatSelection>(
@@ -189,7 +187,7 @@ export function useAllocationScheduleState({
   const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
   const { repeatToday, repeatUntilMinimum, repeatUntilMaximum } = resolveRepeatRange(
     startDate,
-    calendarTimeZone,
+    today,
   );
 
   const daysOverDisabled =

@@ -1,13 +1,12 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { useState } from 'react';
-import { readCalendarToday } from '@/lib/calendarToday';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 import type { Closure } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
-import { resolveTimeZone } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import { DateField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
@@ -77,8 +76,7 @@ export function ClosureForm({
   const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addClosure);
   const update = useStore((state) => state.updateClosure);
-  const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
-  const today = readCalendarToday(calendarTimeZone);
+  const today = useCompanyToday();
   const [name, setName] = useState(closure?.name ?? '');
   const [startDate, setStartDate] = useState(closure?.startDate ?? today);
   const [endDate, setEndDate] = useState(closure?.endDate ?? today);

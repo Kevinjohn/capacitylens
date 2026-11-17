@@ -5,8 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { AllocationModal } from './AllocationModal';
 import { useStore } from '@/store/useStore';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { readCalendarToday } from '@/lib/calendarToday';
 import { chooseOption } from '@/test/schedulerTestKit';
+import { requireValue } from '@/test/fixtures';
 import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
@@ -414,7 +414,10 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     await user.click(save);
     expect(screen.getByRole('alert')).toHaveTextContent('Choose when the repeat should end.');
 
-    await user.type(repeatUntil, addDaysISO(readCalendarToday('UTC'), -1));
+    await user.type(
+      repeatUntil,
+      addDaysISO(requireValue(useStore.getState().planning.today ?? undefined), -1),
+    );
     await user.click(save);
     expect(screen.getByRole('alert')).toHaveTextContent('Repeat until cannot be before today.');
 

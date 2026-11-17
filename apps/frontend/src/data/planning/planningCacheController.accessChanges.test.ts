@@ -7,6 +7,7 @@ import {
   intent,
   inverse,
   canonicalData,
+  companyToday,
   success,
   harness,
 } from './planningCacheController.testSupport';
@@ -24,7 +25,12 @@ describe('planning cache controller', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 1, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     const first = h.controller.begin();
     await expect(h.controller.execute(first, intent, inverse)).rejects.toMatchObject({
       code: 'AUTHORIZATION_DENIED',
@@ -51,6 +57,7 @@ describe('planning cache controller', () => {
       revision: 1,
       canWrite: true,
       data: canonicalData(),
+      today: companyToday,
       accessKey: 'owner:private',
     });
     await h.controller.execute(h.controller.begin(), intent, inverse);
@@ -61,6 +68,7 @@ describe('planning cache controller', () => {
         revision: 2,
         canWrite: true,
         data: canonicalData(),
+        today: companyToday,
         accessKey: 'editor:public',
       }),
     ).resolves.toBe(true);
@@ -77,7 +85,13 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     const cached = canonicalData();
     await expect(
-      h.readSnapshot({ revision: 4, canWrite: true, data: cached, accessKey: 'owner:private' }),
+      h.readSnapshot({
+        revision: 4,
+        canWrite: true,
+        data: cached,
+        today: companyToday,
+        accessKey: 'owner:private',
+      }),
     ).resolves.toBe(true);
     expect(h.state().data.accounts).toHaveLength(1);
     await expect(
@@ -85,6 +99,7 @@ describe('planning cache controller', () => {
         revision: 3,
         canWrite: true,
         data: canonicalData(),
+        today: companyToday,
         accessKey: 'viewer:public',
       }),
     ).resolves.toBe(false);
@@ -96,7 +111,12 @@ describe('planning cache controller', () => {
   it('keeps a refresh scoped for every 403, including membership loss', async () => {
     const read = vi
       .fn()
-      .mockResolvedValueOnce({ revision: 1, canWrite: true, data: canonicalData() })
+      .mockResolvedValueOnce({
+        revision: 1,
+        canWrite: true,
+        data: canonicalData(),
+        today: companyToday,
+      })
       .mockRejectedValueOnce({ status: 403, code: 'AUTHORIZATION_DENIED' })
       .mockRejectedValueOnce({ status: 403, code: 'ACCOUNT_MEMBERSHIP_LOST' });
     const h = harness({
@@ -125,11 +145,21 @@ describe('canonical planning write capability', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    await h.readSnapshot({ revision: 0, canWrite: true, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 0,
+      canWrite: true,
+      data: canonicalData(),
+      today: companyToday,
+    });
     await h.controller.execute(h.controller.begin(), intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(1);
     const draft = h.controller.begin();
-    await h.readSnapshot({ revision: 1, canWrite: false, data: canonicalData() });
+    await h.readSnapshot({
+      revision: 1,
+      canWrite: false,
+      data: canonicalData(),
+      today: companyToday,
+    });
     expect(h.state().planning.history.past).toHaveLength(0);
     expect(() => h.controller.begin()).toThrow(/read-only/);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();

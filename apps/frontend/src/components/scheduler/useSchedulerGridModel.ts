@@ -4,7 +4,7 @@ import { useActiveScopedData } from '@/store/useScopedData';
 import { carriesHourlyLoad, emptyAppData } from '@capacitylens/shared/types/entities';
 import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { buildSchedulerModel, applyVisibleUtilization } from './schedulerModel';
-import { useCalendarToday } from '@/hooks/useCalendarToday';
+import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { buildVisibleSpanLabels, resolveVisibleWindow } from './visibleSpan';
 import { buildAverageUtilizationLabel } from './schedulerGridModal';
 import type { useSchedulerViewport } from './useSchedulerViewport';
@@ -13,7 +13,6 @@ import {
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
-  resolveTimeZone,
   resolveWeekStart,
 } from '@/store/selectors';
 import {
@@ -176,7 +175,6 @@ export function useSchedulerGridPreferences() {
 
       disciplinesEnabled: hasDisciplinesEnabled(view, id),
       blocksMode: !carriesHourlyLoad(resolveSchedulingMode(view, id)),
-      calendarTimeZone: resolveTimeZone(view, id),
       calendarWeekStartsOn: resolveWeekStart(view, id),
     };
   }, [activeAccount]);
@@ -206,11 +204,10 @@ export function useSchedulerGridPreferences() {
 
 /** Combines visible geometry, scoped data, and preferences for the week grid. */
 export function useSchedulerGridModel(preferences: GridPreferences, viewport: GridViewport) {
-  const { accountPrefs: accountPreferences, ui } = preferences;
+  const { ui } = preferences;
   const { days, leftEdgeIdx: leftEdgeIndex, start, end, geom: geometry } = viewport;
   const partiallyExposesNextColumnState = usePartiallyExposedNextColumn(viewport, ui.zoom);
-  const { calendarTimeZone } = accountPreferences;
-  const today = useCalendarToday(calendarTimeZone);
+  const today = useCompanyToday();
   // overSoon uses a fixed forward window from today, independently of zoom and pan.
   const overStart = today;
   const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1);

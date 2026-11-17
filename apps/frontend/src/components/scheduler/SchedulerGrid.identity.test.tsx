@@ -141,7 +141,12 @@ describe('SchedulerGrid individual schedule drawer', () => {
     await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }));
     expect(screen.getByRole('dialog', { name: "Bruce's schedule" })).toBeVisible();
 
-    act(() => useStore.getState().setActiveAccount('a2'));
+    // The switch clears the company date until a2's read lands; `CompanyDateRoute` holds the grid
+    // behind its loader meanwhile, so the date arrives here in the same render.
+    act(() => {
+      useStore.getState().setActiveAccount('a2');
+      useStore.setState((state) => ({ planning: { ...state.planning, today: '2026-06-03' } }));
+    });
 
     expect(screen.queryByText("Bruce's schedule")).not.toBeInTheDocument();
   });
