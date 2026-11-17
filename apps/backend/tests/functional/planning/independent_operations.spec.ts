@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDates';
+import {
+  GENERATED_ALLOCATION_LIMIT,
+  TIME_OFF_REPEAT_POLICY,
+} from '@capacitylens/shared/lib/repeatingDates';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
@@ -122,6 +125,47 @@ test.group('independent typed planning operations', (group) => {
         .send();
       refused.assertStatus(400);
       assert.equal(body(refused).error, 'Entity IDs must be unique.');
+    }
+    assert.deepEqual(await readState(accountId, true), before);
+  });
+
+  test('refuses time-off occurrence ids past the ceiling, repeated, or reusing the first id', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const before = await readState(accountId, true);
+    const timeOff = {
+      id: randomUUID(),
+      resourceId: before.resources.find((row) => row.kind === 'person')!.id,
+      startDate: '2026-11-02',
+      endDate: '2026-11-02',
+      type: 'holiday',
+    };
+    const repeated = randomUUID();
+    for (const [occurrenceIds, error] of [
+      [
+        Array.from({ length: TIME_OFF_REPEAT_POLICY.maxOccurrences }, () => randomUUID()),
+        'occurrenceIds',
+      ],
+      [[repeated, repeated], 'Entity IDs must be unique.'],
+      [[timeOff.id, randomUUID()], 'Entity IDs must be unique.'],
+    ] as const) {
+      const refused = await session(client.post(route('time-off/repeat')), cookie)
+        .json(
+          input(0, {
+            operation: 'timeOff.repeat',
+            timeOff,
+            repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
+            occurrenceIds,
+          })
+        )
+        .send();
+      refused.assertStatus(400);
+      assert.equal(body(refused).code, 'VALIDATION_ERROR');
+      assert.include(body(refused).error, error);
     }
     assert.deepEqual(await readState(accountId, true), before);
   });
