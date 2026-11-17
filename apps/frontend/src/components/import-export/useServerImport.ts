@@ -5,10 +5,9 @@ import type { ApplyTransferInput, ImportSummary } from '@/data/companyDataReques
 import { runSuspendedReplacement } from '@/store/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
+import type { SetNotice } from '@/store/types';
 import { m } from '@/i18n';
 import { buildSkippedMessage } from './importExportMessages';
-
-type SetNotice = ReturnType<typeof useStore.getState>['setNotice'];
 
 type ImportReport = { setNotice: SetNotice; markReloadRequired: (message: string) => void };
 // `errorRaised` means the fresh read set its own error notice, which the success must not replace.
