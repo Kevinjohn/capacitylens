@@ -359,7 +359,7 @@ const replies: Record<string, Exposure> = {
   'api.planning.timeOff.repeat': { none: CALLER },
   'api.resources.anonymise': { none: COUNTS },
   'api.transfer.apply': { none: COUNTS },
-  'api.transfer.preview': { none: COUNTS },
+  'api.transfer.preview': { none: CALLER },
 };
 
 /** Marks one client, project and time-off note, and adds an archived private client. */
