@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- route config, not a component module */
 import { lazy, Suspense } from 'react';
+import type { ReactNode } from 'react';
 import { createBrowserRouter, Navigate, useLocation } from 'react-router-dom';
 import { PUBLIC_AUTH_ENTRY_PATHS } from './auth/authEntryRoute';
 import { AppShell } from './components/AppShell';
@@ -91,6 +92,22 @@ export function RouteLoading() {
   );
 }
 
+/**
+ * Renders a view that reads the company date only once a planning read has brought it. Until then
+ * it shows the loader, or nothing after a failed read, because the shell's alert names the failure.
+ */
+export function CompanyDateRoute({ children }: { children: ReactNode }) {
+  const today = useStore((state) => state.planning.today);
+  const failed = useStore((state) => state.planning.status === 'error');
+  if (today !== null) return children;
+  if (failed) return null;
+  return (
+    <p role="status" className="p-6 text-sm text-muted-foreground">
+      {m.app_loading()}
+    </p>
+  );
+}
+
 // Disciplines is an optional feature (account.disciplinesEnabled). When off, the nav
 // entry is hidden, guard the route too so a direct URL / bookmark can't reach the page.
 function DisciplineRoute() {
@@ -113,7 +130,13 @@ export function CapacityOverviewRoute() {
       </p>
     );
   }
-  return decision === 'allowed' ? <CapacityOverviewView /> : <Navigate to="/" replace />;
+  return decision === 'allowed' ? (
+    <CompanyDateRoute>
+      <CapacityOverviewView />
+    </CompanyDateRoute>
+  ) : (
+    <Navigate to="/" replace />
+  );
 }
 
 /** Renders diagnostics only for authorized owners or administrators. */
@@ -149,14 +172,28 @@ export const router = createBrowserRouter([
     // Surface render failures through the branded recovery boundary.
     errorElement: <RouteError />,
     children: [
-      { index: true, element: <SchedulerView /> },
+      {
+        index: true,
+        element: (
+          <CompanyDateRoute>
+            <SchedulerView />
+          </CompanyDateRoute>
+        ),
+      },
       { path: 'overview', element: <CapacityOverviewRoute /> },
       { path: 'resources', element: <ResourceList /> },
       { path: 'disciplines', element: <DisciplineRoute /> },
       { path: 'clients', element: <ClientList /> },
       { path: 'projects', element: <ProjectList /> },
       { path: 'activities', element: <ActivityRoute /> },
-      { path: 'timeoff', element: <TimeOffList /> },
+      {
+        path: 'timeoff',
+        element: (
+          <CompanyDateRoute>
+            <TimeOffList />
+          </CompanyDateRoute>
+        ),
+      },
       { path: 'team', element: <TeamAccessView /> },
       { path: 'settings', element: <SettingsView /> },
       { path: 'diagnostics', element: <DiagnosticsRoute /> },

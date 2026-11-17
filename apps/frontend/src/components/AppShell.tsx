@@ -174,10 +174,6 @@ function GatedMain({
     (state) => state.masquerade.kind === 'starting' || state.masquerade.kind === 'ending',
   );
   const planningProblem = useStore((state) => readPlanningProblem(state.planning));
-  // Views read the company date from the planning read, so none renders before one is accepted.
-  const awaitingToday = useStore(
-    (state) => state.activeAccountId !== null && state.planning.today === null,
-  );
   return (
     <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
       <div className="border-b border-line p-2 md:hidden">
@@ -203,7 +199,7 @@ function GatedMain({
         />
       )}
       <GettingStarted />
-      {hydrated && !projectionChanging && !awaitingToday ? (
+      {hydrated && !projectionChanging ? (
         <Suspense fallback={loader}>
           <Outlet context={{ showOrientation: orientation.show } satisfies AppOutletContext} />
         </Suspense>

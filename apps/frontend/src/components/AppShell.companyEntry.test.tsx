@@ -1,16 +1,9 @@
 import { it, expect, vi } from 'vitest';
 import { screen, act, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import {
-  setUpAppShellTests,
-  accountDirectory,
-  renderAppShell,
-  renderAuthenticated,
-} from './AppShell.testSupport';
+import { setUpAppShellTests, accountDirectory, renderAppShell } from './AppShell.testSupport';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
@@ -207,27 +200,4 @@ it('keeps the server-selected company when its active slice is empty', async () 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
   expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
   expect(useStore.getState().notice).toBeNull();
-});
-
-it('holds the routed view behind the loader until a read brings the company date', async () => {
-  useStore.setState((state) => ({ planning: { ...state.planning, today: null } }));
-
-  renderAuthenticated(
-    <MemoryRouter initialEntries={['/']}>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<div>Wayne schedule</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
-  );
-
-  expect(screen.queryByText('Wayne schedule')).not.toBeInTheDocument();
-  expect(
-    screen.getAllByRole('status').some((element) => element.textContent.includes('Loading')),
-  ).toBe(true);
-
-  await act(() => useStore.getState().refreshPlanning({ fresh: true }));
-  expect(useStore.getState().planning.today).not.toBeNull();
-  expect(screen.getByText('Wayne schedule')).toBeInTheDocument();
 });
