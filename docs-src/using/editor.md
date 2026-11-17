@@ -61,7 +61,7 @@ matching archived item; restored records keep their existing planning links.
 
 ## Book work
 
-![Editor allocation form with dates, daily hours, status, note, working-day exception and capacity warning](../screenshots/flows/editor_allocation_form.jpg)
+![Editor allocation form with dates, daily hours, status, note, working-day exception](../screenshots/flows/editor_allocation_form.jpg)
 
 1. On **Schedule**, select **+** beside the person's name, or drag across the dates on their row.
 2. Choose the project and activity, then the dates. Enter the amount in your company's units:
