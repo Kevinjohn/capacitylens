@@ -112,7 +112,7 @@ type CountedSpanProps = Pick<
   | 'errorId'
 >;
 
-function countedSpanHint(props: CountedSpanProps) {
+function getCountedSpanHint(props: CountedSpanProps) {
   if (!props.startDate || !props.endDateHint) return undefined;
   const message = props.isDays
     ? m.form_allocation_ends_hint_hours({
@@ -125,7 +125,7 @@ function countedSpanHint(props: CountedSpanProps) {
 
 function CountedSpanFields(props: CountedSpanProps) {
   return (
-    <AllocationSpanRow columns={props.isDays ? 3 : 2} hint={countedSpanHint(props)}>
+    <AllocationSpanRow columns={props.isDays ? 3 : 2} hint={getCountedSpanHint(props)}>
       <DateField
         label={m.form_allocation_start_date_label()}
         value={props.startDate}

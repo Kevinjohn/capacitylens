@@ -103,7 +103,7 @@ function collectSeriesMetadata(
   return invalidRecords;
 }
 
-function overlapsWindow(
+function isOverlappingWindow(
   row: { startDate: ISODate; endDate: ISODate },
   window: PersonScheduleWindow,
 ): boolean {
@@ -155,7 +155,9 @@ function listAllocationEntries(
     if (allocation.companyId !== input.companyId || allocation.resourceId !== input.resource.id) {
       continue;
     }
-    if (!hasRenderableDateRange(allocation) || !overlapsWindow(allocation, input.window)) continue;
+    if (!hasRenderableDateRange(allocation) || !isOverlappingWindow(allocation, input.window)) {
+      continue;
+    }
     entries.push(buildAllocationEntry(allocation, input, context));
   }
   return entries;
@@ -173,7 +175,7 @@ function listTimeOffEntries(input: BuildPersonScheduleInput): {
       invalidRecords.push({ kind: 'timeOff', sourceId: timeOff.id });
       continue;
     }
-    if (!isCapacityTracked(input.resource) || !overlapsWindow(timeOff, input.window)) continue;
+    if (!isCapacityTracked(input.resource) || !isOverlappingWindow(timeOff, input.window)) continue;
     entries.push({
       kind: 'timeOff',
       key: `timeOff:${timeOff.id}`,

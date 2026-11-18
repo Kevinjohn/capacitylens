@@ -29,11 +29,11 @@ type State =
   | { kind: 'uncertain' };
 
 /** Before the company exists an invitation is the setup link, and setup grants Owner. */
-function roleText(role: string | null) {
+function getRoleText(role: string | null) {
   return role && isAccountRole(role) ? resolveRoleLabel(role) : m.invite_setup_role();
 }
 
-function signupValidationError(name: string, password: string): string | null {
+function validateSignup(name: string, password: string): string | null {
   if (!name.trim()) return m.invite_err_name_required();
   const lengthFailure = passwordLengthFailure(password);
   if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
@@ -48,12 +48,12 @@ export function InviteAccept() {
   return <InviteAcceptForToken key={token ?? ''} token={token} />;
 }
 
-function initialState(token: string | undefined): State {
+function getInitialState(token: string | undefined): State {
   return token ? { kind: 'checking' } : { kind: 'failed', message: m.invite_err_missing_token() };
 }
 
 function useInvitePreview(token: string | undefined) {
-  const [state, setState] = useState<State>(() => initialState(token));
+  const [state, setState] = useState<State>(() => getInitialState(token));
   useEffect(() => {
     if (!token) return;
     let current = true;
@@ -97,7 +97,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const submit = async (event: FormEvent, preview: InvitationPreview) => {
     event.preventDefault();
     if (!token) return;
-    const invalid = signupValidationError(name, password);
+    const invalid = validateSignup(name, password);
     setError(invalid);
     if (invalid) return;
     setState({ kind: 'working', preview });
@@ -180,7 +180,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                       </>
                     )}
                     <dt className="text-muted-foreground">{m.invite_proposed_role_label()}</dt>
-                    <dd data-testid="invite-role">{roleText(state.preview.role)}</dd>
+                    <dd data-testid="invite-role">{getRoleText(state.preview.role)}</dd>
                   </dl>
                   <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
                     {m.invite_signup_intro({ email: state.preview.email })}
