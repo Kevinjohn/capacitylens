@@ -217,7 +217,11 @@ export class StubPlanningTransport implements PlanningTransport {
     const update = (entity: AppDataKey, id: string, changes: object) => {
       const previous = this.rows(entity).find((row) => row.id === id);
       if (!previous) throw new Error(`stub: load ${entity} row ${id} before updating it`);
-      const row = { ...previous, ...changes, updatedAt: new Date().toISOString() };
+      // Like the server's createServerRevision, a write always moves updatedAt forward, even
+      // within the millisecond of the previous write.
+      const after = Date.parse(String(previous.updatedAt)) + 1;
+      const updatedAt = new Date(Number.isNaN(after) ? Date.now() : Math.max(Date.now(), after));
+      const row = { ...previous, ...changes, updatedAt: updatedAt.toISOString() };
       this.replaceRows(
         entity,
         this.rows(entity).map((current) => (current.id === id ? row : current)),
