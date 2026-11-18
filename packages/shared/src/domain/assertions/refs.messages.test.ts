@@ -8,9 +8,9 @@ import {
   project,
   phase,
   activity,
-  person,
+  makePerson,
   makeDiscipline,
-  placeholder,
+  makePlaceholder,
   makeExternal,
   A1,
   A2,
@@ -260,7 +260,7 @@ describe('assertScopedRefs', () => {
       clients: [client('c1', A1)],
       projects: [project('p1', A1, 'c1')],
     };
-    const existing = placeholder('r1', A1, 'p1');
+    const existing = makePlaceholder('r1', A1, 'p1');
 
     expect(() => assertScopedRefs(data, A1, 'resources', { kind: 'person' }, existing)).toThrow(
       'A resource’s kind cannot change after creation.',
@@ -271,7 +271,7 @@ describe('assertScopedRefs', () => {
   });
 
   it('does not make an unrelated edit fail solely because of a legacy non-placeholder binding', () => {
-    const existing = { ...person('r1', A1), projectId: 'legacy-project' };
+    const existing = { ...makePerson('r1', A1), projectId: 'legacy-project' };
     expect(() =>
       assertScopedRefs(base(), A1, 'resources', { name: 'Renamed' }, existing),
     ).not.toThrow();
@@ -459,7 +459,7 @@ describe('assertScopedRefs', () => {
       );
     });
     it('passes an UNCHANGED placeholder projectId even when the project is absent from data', () => {
-      const existing = placeholder('r1', A1, 'p-archived');
+      const existing = makePlaceholder('r1', A1, 'p-archived');
       expect(() =>
         assertScopedRefs(
           base(),
@@ -484,7 +484,7 @@ describe('assertAllocationRefs', () => {
     clients: [client('c1', A1)],
     projects: [project('p1', A1, 'c1')],
     activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
-    resources: [person('r1', A1)],
+    resources: [makePerson('r1', A1)],
   });
   it('passes for a real resource + activity in the account', () => {
     expect(() => assertAllocationRefs(world(), A1, 'r1', 't1', 8)).not.toThrow();
@@ -498,7 +498,7 @@ describe('assertAllocationRefs', () => {
   it('rejects new allocations to archived resources and archived projects', () => {
     const archivedResource: AppData = {
       ...world(),
-      resources: [{ ...person('r1', A1), archivedAt: TS }],
+      resources: [{ ...makePerson('r1', A1), archivedAt: TS }],
     };
     expect(() => assertAllocationRefs(archivedResource, A1, 'r1', 't1', 8)).toThrow(
       'Allocation must reference an active resource in this company.',
@@ -558,7 +558,7 @@ describe('assertAllocationRefs', () => {
         activity({ id: 't1', companyId: A1, projectId: 'p1' }),
         activity({ id: 't2', companyId: A1, projectId: 'p2' }),
       ],
-      resources: [person('r1', A1), { ...person('r2', A1), archivedAt: TS }],
+      resources: [makePerson('r1', A1), { ...makePerson('r2', A1), archivedAt: TS }],
     };
 
     expect(() =>
@@ -586,7 +586,7 @@ describe('assertAllocationRefs', () => {
       clients: [client('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       activities: [activity({ id: 't2', companyId: A1, projectId: 'p2' })],
-      resources: [placeholder('ph', A1, 'p1')],
+      resources: [makePlaceholder('ph', A1, 'p1')],
     };
     expect(() => assertAllocationRefs(data, A1, 'ph', 't2', 8)).toThrow(
       'A placeholder can only be assigned to activities from its bound project.',
@@ -621,9 +621,9 @@ describe('assertAllocationRefs', () => {
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1'), project('foreign', A2, 'c2')],
       activities: [projectActivity, repeatable],
       resources: [
-        person('r1', A1),
-        placeholder('bound', A1, 'p1'),
-        placeholder('unbound', A1, undefined),
+        makePerson('r1', A1),
+        makePlaceholder('bound', A1, 'p1'),
+        makePlaceholder('unbound', A1, undefined),
       ],
     };
 

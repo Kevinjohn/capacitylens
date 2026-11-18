@@ -78,7 +78,7 @@ export const activity = ({ id, companyId, projectId, phaseId }: ActivityOptions)
   projectId,
   ...(phaseId === undefined ? {} : { phaseId }),
 });
-export const person = (id: ID, companyId: ID): Resource => ({
+export const makePerson = (id: ID, companyId: ID): Resource => ({
   ...NULLABLE_FIELDS.resources,
   ...makeMeta(id, companyId),
   kind: 'person',
@@ -96,13 +96,13 @@ export const makeDiscipline = (id: ID, companyId: ID): Discipline => ({
   name: 'Design',
   sortOrder: 0,
 });
-export const placeholder = (id: ID, companyId: ID, projectId?: ID): Resource => ({
-  ...person(id, companyId),
+export const makePlaceholder = (id: ID, companyId: ID, projectId?: ID): Resource => ({
+  ...makePerson(id, companyId),
   kind: 'placeholder',
   ...(projectId === undefined ? {} : { projectId }),
 });
 export const makeExternal = (id: ID, companyId: ID): Resource => ({
-  ...person(id, companyId),
+  ...makePerson(id, companyId),
   kind: 'external',
 });
 export const allocation = ({
