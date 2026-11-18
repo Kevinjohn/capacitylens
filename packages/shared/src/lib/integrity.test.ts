@@ -9,7 +9,7 @@ import {
   validateProjectClient,
   withoutAllocationAttribution,
 } from './integrity.js';
-import { placeholder, unboundPlaceholder, person } from './integrity.test.support.js';
+import { makePlaceholder, makeUnboundPlaceholder, makePerson } from './integrity.test.support.js';
 
 describe('allocationAttributionAllowed', () => {
   it('allows allocation-level project attribution only for repeatable activities', () => {
@@ -97,38 +97,40 @@ describe('validateDateRange', () => {
 
 describe('placeholder binding', () => {
   it('a person can be assigned any project activity', () => {
-    expect(validateAllocationAssignment(person(), 'anything').ok).toBe(true);
+    expect(validateAllocationAssignment(makePerson(), 'anything').ok).toBe(true);
   });
 
   it('a placeholder can only be assigned activities from its bound project', () => {
-    const ph = placeholder({ projectId: 'p1' });
+    const ph = makePlaceholder({ projectId: 'p1' });
     expect(validateAllocationAssignment(ph, 'p1').ok).toBe(true);
     expect(validateAllocationAssignment(ph, 'p2').ok).toBe(false);
   });
 
   it('validateAllocationAssignment explains the rejection', () => {
-    expect(validateAllocationAssignment(placeholder({ projectId: 'p1' }), 'p2').ok).toBe(false);
-    expect(validateAllocationAssignment(unboundPlaceholder(), 'p1').ok).toBe(false);
-    expect(validateAllocationAssignment(placeholder({ projectId: 'p1' }), 'p1').ok).toBe(true);
-    expect(validateAllocationAssignment(person(), 'p1').ok).toBe(true);
+    expect(validateAllocationAssignment(makePlaceholder({ projectId: 'p1' }), 'p2').ok).toBe(false);
+    expect(validateAllocationAssignment(makeUnboundPlaceholder(), 'p1').ok).toBe(false);
+    expect(validateAllocationAssignment(makePlaceholder({ projectId: 'p1' }), 'p1').ok).toBe(true);
+    expect(validateAllocationAssignment(makePerson(), 'p1').ok).toBe(true);
   });
 
   it('distinguishes an UNBOUND placeholder from a wrong-project one by message', () => {
     // An unbound placeholder (no projectId) and one bound to the wrong project both reject,
     // but with different reasons, so the `!resource.projectId` branch and each message string
     // are load-bearing, not interchangeable.
-    expect(validateAllocationAssignment(unboundPlaceholder(), 'p1').errors[0]).toMatch(
+    expect(validateAllocationAssignment(makeUnboundPlaceholder(), 'p1').errors[0]).toMatch(
       /not bound to a project/i,
     );
-    expect(validateAllocationAssignment(placeholder({ projectId: 'p1' }), 'p2').errors[0]).toMatch(
-      /only be assigned to activities from its bound project/i,
-    );
+    expect(
+      validateAllocationAssignment(makePlaceholder({ projectId: 'p1' }), 'p2').errors[0],
+    ).toMatch(/only be assigned to activities from its bound project/i);
   });
 
   it('a general (no-project) activity can be assigned to anyone — people and placeholders', () => {
-    expect(validateAllocationAssignment(person(), undefined).ok).toBe(true);
+    expect(validateAllocationAssignment(makePerson(), undefined).ok).toBe(true);
     // The project restriction does not bite when the activity has no project.
-    expect(validateAllocationAssignment(placeholder({ projectId: 'p1' }), undefined).ok).toBe(true);
-    expect(validateAllocationAssignment(unboundPlaceholder(), undefined).ok).toBe(true);
+    expect(validateAllocationAssignment(makePlaceholder({ projectId: 'p1' }), undefined).ok).toBe(
+      true,
+    );
+    expect(validateAllocationAssignment(makeUnboundPlaceholder(), undefined).ok).toBe(true);
   });
 });
