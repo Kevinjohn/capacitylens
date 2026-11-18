@@ -13,7 +13,7 @@ import {
 test.use({ contextOptions: { reducedMotion: 'reduce' }, viewport: { width: 1440, height: 800 } });
 
 // Idle week snapping floors free scroll to the account’s week start. Navigation snapping is covered separately.
-test.describe('Week snap', () => {
+test.describe('Week snap', { tag: '@engine' }, () => {
   test('a stray scroll nudge snaps back to the week start', async ({ page }) => {
     await openApp(page);
     await setZoom(page, 1);

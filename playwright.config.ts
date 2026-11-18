@@ -19,6 +19,8 @@ const reporters: ReporterDescription[] = process.env.CI
 const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
 const dbSpec = new RegExp(String.raw`\.db\.spec\.${specExtension}$`, 'i');
 const authSpec = new RegExp(String.raw`\.auth\.spec\.${specExtension}$`, 'i');
+// WebKit and Firefox run only the tests whose result can differ between engines; Chromium runs all.
+const engineSensitive = /@engine/;
 
 const authApiServer = {
   command: 'pnpm run start:auth-e2e',
@@ -76,6 +78,7 @@ export default defineConfig({
           {
             name: 'webkit',
             testMatch: dbSpec,
+            grep: engineSensitive,
             use: { ...devices['Desktop Safari'] },
           },
         ]
@@ -85,6 +88,7 @@ export default defineConfig({
           {
             name: 'firefox',
             testMatch: dbSpec,
+            grep: engineSensitive,
             use: { ...devices['Desktop Firefox'] },
           },
         ]

@@ -1,7 +1,7 @@
 import { test, expect } from './dbFixtures';
 import { openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
 
-test.describe('Keyboard & accessibility', () => {
+test.describe('Keyboard & accessibility', { tag: '@engine' }, () => {
   // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
   test('an allocation bar is focusable and Enter opens the editor', async ({ page }) => {
     await openApp(page);

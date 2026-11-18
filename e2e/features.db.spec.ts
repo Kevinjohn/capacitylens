@@ -27,7 +27,7 @@ test.describe('Feature flows', () => {
     // just the project's work ("Show unallocated" opts the dimmed staffing view in).
     await expect(bars).toHaveCount(1);
   });
-  test('undo restores a deleted allocation', async ({ page }) => {
+  test('undo restores a deleted allocation', { tag: '@engine' }, async ({ page }) => {
     await openApp(page);
     const bars = page.getByTestId('allocation-bar');
     await expect(bars).toHaveCount(6);
@@ -54,7 +54,7 @@ test.describe('Feature flows', () => {
     await page.keyboard.press('Meta+z');
     await expect(bars).toHaveCount(n);
   });
-  test('booking time off greys the schedule', async ({ page }) => {
+  test('booking time off greys the schedule', { tag: '@engine' }, async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
     await expect(page.getByTestId('timeoff-block').first()).toBeVisible();
@@ -86,172 +86,186 @@ test.describe('Feature flows', () => {
       path: testInfo.outputPath('capacitylens_collapsed.png'),
     });
   });
-  test('dragging an allocation onto another row reassigns it', async ({ page }, testInfo) => {
-    await openApp(page);
-    // Zoom preserves the seed week’s left edge, so these bars need no manual scroll reset.
-    await setZoom(page, 4);
+  test(
+    'dragging an allocation onto another row reassigns it',
+    { tag: '@engine' },
+    async ({ page }, testInfo) => {
+      await openApp(page);
+      // Zoom preserves the seed week’s left edge, so these bars need no manual scroll reset.
+      await setZoom(page, 4);
 
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
-    await expectEditableBar(bar);
-    const b0 = await box(bar);
-    // Target the resource by its stable ID so seed reordering cannot change the destination.
-    const clarkLane = page.locator('[data-resource-id="r-nike"]');
-    const clark = await box(clarkLane);
-    const cx = b0.x + b0.width / 2;
+      const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+      await expectEditableBar(bar);
+      const b0 = await box(bar);
+      // Target the resource by its stable ID so seed reordering cannot change the destination.
+      const clarkLane = page.locator('[data-resource-id="r-nike"]');
+      const clark = await box(clarkLane);
+      const cx = b0.x + b0.width / 2;
 
-    await page.mouse.move(cx, b0.y + b0.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(cx, clark.y + clark.height / 2, { steps: 10 });
-    await expect(clarkLane).toHaveAttribute('data-droptarget', '');
-    await page.screenshot({
-      path: testInfo.outputPath('capacitylens_drophighlight.png'),
-    });
-    await page.mouse.up();
+      await page.mouse.move(cx, b0.y + b0.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(cx, clark.y + clark.height / 2, { steps: 10 });
+      await expect(clarkLane).toHaveAttribute('data-droptarget', '');
+      await page.screenshot({
+        path: testInfo.outputPath('capacitylens_drophighlight.png'),
+      });
+      await page.mouse.up();
 
-    await expect(
-      clarkLane.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }),
-    ).toBeVisible();
-    await expect(clarkLane).not.toHaveAttribute('data-droptarget', '');
-  });
-  test('rejects a vertical reassignment onto a non-working start date unless explicitly ignored', async ({
-    page,
-  }, testInfo) => {
-    await openApp(page);
-    await setZoom(page, 4);
+      await expect(
+        clarkLane.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }),
+      ).toBeVisible();
+      await expect(clarkLane).not.toHaveAttribute('data-droptarget', '');
+    },
+  );
+  test(
+    'rejects a vertical reassignment onto a non-working start date unless explicitly ignored',
+    { tag: '@engine' },
+    async ({ page }, testInfo) => {
+      await openApp(page);
+      await setZoom(page, 4);
 
-    await page.getByRole('button', { name: 'Add allocation for Diana Prince' }).click();
-    const createDialog = page.getByRole('dialog', { name: 'New allocation' });
-    await selectShadOption(createDialog.getByLabel('Project', { exact: true }), 'p-brand');
-    await selectShadOption(
-      createDialog.getByRole('combobox', { name: 'Activity', exact: true }),
-      't-brand',
-    );
+      await page.getByRole('button', { name: 'Add allocation for Diana Prince' }).click();
+      const createDialog = page.getByRole('dialog', { name: 'New allocation' });
+      await selectShadOption(createDialog.getByLabel('Project', { exact: true }), 'p-brand');
+      await selectShadOption(
+        createDialog.getByRole('combobox', { name: 'Activity', exact: true }),
+        't-brand',
+      );
 
-    await createDialog.getByLabel('Start').fill('2026-06-05');
-    await createDialog.getByLabel('End').fill('2026-06-05');
-    await createDialog.getByRole('button', { name: 'Save' }).click();
-    await expect(createDialog).toBeHidden();
+      await createDialog.getByLabel('Start').fill('2026-06-05');
+      await createDialog.getByLabel('End').fill('2026-06-05');
+      await createDialog.getByRole('button', { name: 'Save' }).click();
+      await expect(createDialog).toBeHidden();
 
-    const dianaLane = page.locator('[data-resource-id="r-pam"]');
-    const bar = dianaLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ });
-    const barBox = await box(bar);
-    const barX = barBox.x + barBox.width / 2;
-    const barY = barBox.y + barBox.height / 2;
-    const barryLane = page.locator('[data-resource-id="r-alex"]');
-    const barryBox = await box(barryLane);
-    const targetY = barryBox.y + barryBox.height / 2;
+      const dianaLane = page.locator('[data-resource-id="r-pam"]');
+      const bar = dianaLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ });
+      const barBox = await box(bar);
+      const barX = barBox.x + barBox.width / 2;
+      const barY = barBox.y + barBox.height / 2;
+      const barryLane = page.locator('[data-resource-id="r-alex"]');
+      const barryBox = await box(barryLane);
+      const targetY = barryBox.y + barryBox.height / 2;
 
-    await page.mouse.move(barX, barY);
-    await page.mouse.down();
-    await page.mouse.move(barX, targetY, { steps: 10 });
-    await expect(barryLane).not.toHaveAttribute('data-droptarget', '');
-    expect(
-      await bar.evaluate((element) => getComputedStyle(element).transitionProperty),
-    ).not.toContain('transform');
-    await page.mouse.up();
+      await page.mouse.move(barX, barY);
+      await page.mouse.down();
+      await page.mouse.move(barX, targetY, { steps: 10 });
+      await expect(barryLane).not.toHaveAttribute('data-droptarget', '');
+      expect(
+        await bar.evaluate((element) => getComputedStyle(element).transitionProperty),
+      ).not.toContain('transform');
+      await page.mouse.up();
 
-    await expect(
-      page.getByText('That allocation cannot start there because it is not a working day.'),
-    ).toBeVisible();
-    await expect(
-      dianaLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ }),
-    ).toBeVisible();
-    await expect(
-      barryLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ }),
-    ).toHaveCount(0);
+      await expect(
+        page.getByText('That allocation cannot start there because it is not a working day.'),
+      ).toBeVisible();
+      await expect(
+        dianaLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ }),
+      ).toBeVisible();
+      await expect(
+        barryLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ }),
+      ).toHaveCount(0);
 
-    await bar.click();
-    const editDialog = page.getByRole('dialog', { name: 'Edit allocation' });
-    await editDialog.getByRole('checkbox', { name: 'Ignore working days' }).check();
-    await editDialog.getByRole('button', { name: 'Save' }).click();
-    await expect(editDialog).toBeHidden();
+      await bar.click();
+      const editDialog = page.getByRole('dialog', { name: 'Edit allocation' });
+      await editDialog.getByRole('checkbox', { name: 'Ignore working days' }).check();
+      await editDialog.getByRole('button', { name: 'Save' }).click();
+      await expect(editDialog).toBeHidden();
 
-    const ignoredBarBox = await box(bar);
-    await page.mouse.move(
-      ignoredBarBox.x + ignoredBarBox.width / 2,
-      ignoredBarBox.y + ignoredBarBox.height / 2,
-    );
-    await page.mouse.down();
-    await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, targetY, { steps: 10 });
-    await expect(barryLane).toHaveAttribute('data-droptarget', '');
-    const committed = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'PATCH' &&
-        /\/api\/companies\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
-    );
-    await page.mouse.up();
-    const receipt = await committed;
-    expect(receipt.ok(), await receipt.text()).toBe(true);
-    await expect(page.getByTestId('undo-button')).toBeEnabled();
-    await expect(
-      barryLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ }),
-    ).toBeVisible();
-    await expect(
-      page.getByText('That allocation cannot start there because it is not a working day.'),
-    ).toBeHidden({ timeout: 15_000 });
-    await page.mouse.move(0, 0);
-    await page.screenshot({ path: testInfo.outputPath('reassignment_working_day_after.png') });
-  });
-  test('drawing in Time off mode opens a prefilled time-off form', async ({ page }) => {
-    await openApp(page);
-    await showScheduleFilters(page);
-    await setZoom(page, 4);
-    // Toolbar draw-mode radio, distinct from the "Time off" nav link.
-    await page.getByRole('radio', { name: 'Time off', exact: true }).click();
+      const ignoredBarBox = await box(bar);
+      await page.mouse.move(
+        ignoredBarBox.x + ignoredBarBox.width / 2,
+        ignoredBarBox.y + ignoredBarBox.height / 2,
+      );
+      await page.mouse.down();
+      await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, targetY, { steps: 10 });
+      await expect(barryLane).toHaveAttribute('data-droptarget', '');
+      const committed = page.waitForResponse(
+        (response) =>
+          response.request().method() === 'PATCH' &&
+          /\/api\/companies\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
+      );
+      await page.mouse.up();
+      const receipt = await committed;
+      expect(receipt.ok(), await receipt.text()).toBe(true);
+      await expect(page.getByTestId('undo-button')).toBeEnabled();
+      await expect(
+        barryLane.getByRole('button', { name: /Brand System.*5 Jun to 5 Jun/ }),
+      ).toBeVisible();
+      await expect(
+        page.getByText('That allocation cannot start there because it is not a working day.'),
+      ).toBeHidden({ timeout: 15_000 });
+      await page.mouse.move(0, 0);
+      await page.screenshot({ path: testInfo.outputPath('reassignment_working_day_after.png') });
+    },
+  );
+  test(
+    'drawing in Time off mode opens a prefilled time-off form',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await showScheduleFilters(page);
+      await setZoom(page, 4);
+      // Toolbar draw-mode radio, distinct from the "Time off" nav link.
+      await page.getByRole('radio', { name: 'Time off', exact: true }).click();
 
-    const lane = page.locator('[data-resource-id="r-nike"]');
-    const b = await box(lane);
-    const y = b.y + b.height / 2;
-    // Start on Clark's next empty working day. The global/personal working-day
-    // contract deliberately rejects a time-off gesture that starts on a blocked day.
-    const monday = await box(page.locator('[data-date="2026-06-08"]'));
-    const x0 = monday.x + monday.width / 2;
-    await page.mouse.move(x0, y);
-    await page.mouse.down();
-    await page.mouse.move(x0 + 72, y, { steps: 6 });
-    await page.mouse.up();
+      const lane = page.locator('[data-resource-id="r-nike"]');
+      const b = await box(lane);
+      const y = b.y + b.height / 2;
+      // Start on Clark's next empty working day. The global/personal working-day
+      // contract deliberately rejects a time-off gesture that starts on a blocked day.
+      const monday = await box(page.locator('[data-date="2026-06-08"]'));
+      const x0 = monday.x + monday.width / 2;
+      await page.mouse.move(x0, y);
+      await page.mouse.down();
+      await page.mouse.move(x0 + 72, y, { steps: 6 });
+      await page.mouse.up();
 
-    const dialog = page.getByRole('dialog', { name: 'Add time off' });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel('Resource')).toHaveText('Clark Kent');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0);
-  });
-  test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
-    await openApp(page, '/settings');
-    await showPlaceholders(page);
-    await page.getByRole('link', { name: 'Schedule' }).click();
-    await setZoom(page, 4);
-    await resetSchedulerScroll(page);
-    await waitForWeekSnap(page);
+      const dialog = page.getByRole('dialog', { name: 'Add time off' });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByLabel('Resource')).toHaveText('Clark Kent');
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0);
+    },
+  );
+  test(
+    'drawing on a placeholder locks the modal to its bound project',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page, '/settings');
+      await showPlaceholders(page);
+      await page.getByRole('link', { name: 'Schedule' }).click();
+      await setZoom(page, 4);
+      await resetSchedulerScroll(page);
+      await waitForWeekSnap(page);
 
-    const lane = page.locator('[data-resource-id="r-ph-designer"]');
-    const b = await box(lane);
-    const y = b.y + b.height / 2;
-    // Start on an empty working day inside the reset window instead of the lane origin, which sits
-    // underneath the sticky resource column.
-    const monday = await box(
-      page.getByTestId('scheduler-day-tier').locator('[data-date="2026-05-11"]'),
-    );
-    const timeline = await box(page.getByTestId('scheduler-resource-header'));
-    const grid = await box(page.getByTestId('scheduler-grid'));
-    const x0 = monday.x + monday.width / 2;
-    const x1 = x0 + monday.width;
-    expect(x0).toBeGreaterThan(timeline.x + timeline.width);
-    expect(x1).toBeLessThan(grid.x + grid.width);
-    await page.mouse.move(x0, y);
-    await page.mouse.down();
-    await page.mouse.move(x1, y, { steps: 6 });
-    await page.mouse.up();
+      const lane = page.locator('[data-resource-id="r-ph-designer"]');
+      const b = await box(lane);
+      const y = b.y + b.height / 2;
+      // Start on an empty working day inside the reset window instead of the lane origin, which sits
+      // underneath the sticky resource column.
+      const monday = await box(
+        page.getByTestId('scheduler-day-tier').locator('[data-date="2026-05-11"]'),
+      );
+      const timeline = await box(page.getByTestId('scheduler-resource-header'));
+      const grid = await box(page.getByTestId('scheduler-grid'));
+      const x0 = monday.x + monday.width / 2;
+      const x1 = x0 + monday.width;
+      expect(x0).toBeGreaterThan(timeline.x + timeline.width);
+      expect(x1).toBeLessThan(grid.x + grid.width);
+      await page.mouse.move(x0, y);
+      await page.mouse.down();
+      await page.mouse.move(x1, y, { steps: 6 });
+      await page.mouse.up();
 
-    await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible();
-    const project = page.getByLabel('Project', { exact: true });
-    // "Locked" = the bound project is preselected and the choices are restricted to it
-    // (+ the general option), but the select stays enabled so the placeholder can still
-    // take general activities. A non-bound project ("Metropolis Rebrand") is not offered.
-    await expect(project).toHaveText(/Project Watchtower/);
-    await expect(project).toBeEnabled();
-    await project.click();
-    await expect(page.getByRole('option', { name: /Metropolis Rebrand/ })).toHaveCount(0);
-  });
+      await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible();
+      const project = page.getByLabel('Project', { exact: true });
+      // "Locked" = the bound project is preselected and the choices are restricted to it
+      // (+ the general option), but the select stays enabled so the placeholder can still
+      // take general activities. A non-bound project ("Metropolis Rebrand") is not offered.
+      await expect(project).toHaveText(/Project Watchtower/);
+      await expect(project).toBeEnabled();
+      await project.click();
+      await expect(page.getByRole('option', { name: /Metropolis Rebrand/ })).toHaveCount(0);
+    },
+  );
 });

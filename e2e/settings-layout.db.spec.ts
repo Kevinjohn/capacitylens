@@ -78,66 +78,74 @@ async function assertReflow(page: Page) {
 }
 
 for (const width of [1280, 390, 320]) {
-  test(`Settings groups reflow and remain accessible at ${width}px, closed and expanded`, async ({
-    page,
-  }) => {
-    // Four full-page axe scans cover the closed and expanded content, so this case needs a longer timeout.
-    test.setTimeout(60_000);
-    await page.setViewportSize({ width, height: 900 });
-    // The portrait hint has its own coverage; exercise Settings underneath it here.
-    if (width < 600) {
-      await page.addInitScript(() =>
-        sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'),
-      );
-    }
-    await openApp(page, '/settings');
-    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-    await expect(page.getByRole('main').getByRole('heading', { level: 2 })).toHaveText(groups);
-    for (const name of disclosures) {
-      await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
-        'aria-expanded',
-        'false',
-      );
-    }
-    await assertReflow(page);
-    await assertAccessible(page);
-
-    for (const name of disclosures) {
-      const trigger = page.getByRole('button', { name, exact: true });
-      await trigger.focus();
-      await page.keyboard.press('Enter');
-      await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  test(
+    `Settings groups reflow and remain accessible at ${width}px, closed and expanded`,
+    { tag: '@engine' },
+    async ({ page }) => {
+      // Four full-page axe scans cover the closed and expanded content, so this case needs a longer timeout.
+      test.setTimeout(60_000);
+      await page.setViewportSize({ width, height: 900 });
+      // The portrait hint has its own coverage; exercise Settings underneath it here.
+      if (width < 600) {
+        await page.addInitScript(() =>
+          sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'),
+        );
+      }
+      await openApp(page, '/settings');
+      await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+      await expect(page.getByRole('main').getByRole('heading', { level: 2 })).toHaveText(groups);
+      for (const name of disclosures) {
+        await expect(page.getByRole('button', { name, exact: true })).toHaveAttribute(
+          'aria-expanded',
+          'false',
+        );
+      }
       await assertReflow(page);
       await assertAccessible(page);
-    }
-    await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0);
-  });
+
+      for (const name of disclosures) {
+        const trigger = page.getByRole('button', { name, exact: true });
+        await trigger.focus();
+        await page.keyboard.press('Enter');
+        await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        await assertReflow(page);
+        await assertAccessible(page);
+      }
+      await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0);
+    },
+  );
 }
 
-test('Settings working-day controls remain accessible in light and dark themes', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await openApp(page, '/settings');
-  await page.getByRole('radio', { name: 'Light', exact: true }).click();
-  await assertAccessible(page);
+test(
+  'Settings working-day controls remain accessible in light and dark themes',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openApp(page, '/settings');
+    await page.getByRole('radio', { name: 'Light', exact: true }).click();
+    await assertAccessible(page);
 
-  await page.getByRole('radio', { name: 'Dark', exact: true }).click();
-  await assertAccessible(page);
-});
+    await page.getByRole('radio', { name: 'Dark', exact: true }).click();
+    await assertAccessible(page);
+  },
+);
 
-test('help restores focus and removed maintenance sections stay hidden', async ({ page }) => {
-  await openApp(page, '/settings');
-  const help = page.getByRole('button', { name: 'About Company details', exact: true });
-  await help.focus();
-  await page.keyboard.press('Enter');
-  const explanation = page.getByRole('dialog', { name: 'Company details', exact: true });
-  await expect(explanation).toBeVisible();
-  await assertAccessible(page);
-  await page.keyboard.press('Escape');
-  await expect(explanation).toBeHidden();
-  await expect(help).toBeFocused();
-  await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0);
-});
+test(
+  'help restores focus and removed maintenance sections stay hidden',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await openApp(page, '/settings');
+    const help = page.getByRole('button', { name: 'About Company details', exact: true });
+    await help.focus();
+    await page.keyboard.press('Enter');
+    const explanation = page.getByRole('dialog', { name: 'Company details', exact: true });
+    await expect(explanation).toBeVisible();
+    await assertAccessible(page);
+    await page.keyboard.press('Escape');
+    await expect(explanation).toBeHidden();
+    await expect(help).toBeFocused();
+    await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0);
+  },
+);

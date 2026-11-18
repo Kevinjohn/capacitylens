@@ -62,46 +62,48 @@ async function expectEqualFullWidthSegments(
   }
 }
 
-test('fills the Activity kind control with equal segments without changing its interactions', async ({
-  page,
-}) => {
-  await openApp(page, '/activities');
-  await page.getByRole('button', { name: 'Add activity' }).click();
+test(
+  'fills the Activity kind control with equal segments without changing its interactions',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await openApp(page, '/activities');
+    await page.getByRole('button', { name: 'Add activity' }).click();
 
-  const dialog = page.getByRole('dialog', { name: 'Add activity' });
-  const group = dialog.getByRole('radiogroup', { name: 'Activity kind' });
-  const segments = group.getByRole('radio');
-  const field = group.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
+    const dialog = page.getByRole('dialog', { name: 'Add activity' });
+    const group = dialog.getByRole('radiogroup', { name: 'Activity kind' });
+    const segments = group.getByRole('radio');
+    const field = group.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
 
-  await expect(segments).toHaveText(['Internal', 'All projects', 'Project-specific']);
-  await expectEqualFullWidthSegments(dialog, field, group, segments, false);
-  await selectShadOption(dialog.getByLabel('Project'), 'p-acme');
-  await expect(dialog.getByLabel('Project')).toBeFocused();
+    await expect(segments).toHaveText(['Internal', 'All projects', 'Project-specific']);
+    await expectEqualFullWidthSegments(dialog, field, group, segments, false);
+    await selectShadOption(dialog.getByLabel('Project'), 'p-acme');
+    await expect(dialog.getByLabel('Project')).toBeFocused();
 
-  const projectSpecific = dialog.getByRole('radio', { name: 'Project-specific' });
-  const crossProject = dialog.getByRole('radio', { name: 'All projects' });
-  await projectSpecific.focus();
-  await page.keyboard.press('ArrowLeft');
-  await expect(crossProject).toBeFocused();
-  await page.keyboard.press('Space');
-  await expect(crossProject).toHaveAttribute('aria-checked', 'true');
-  await expect(dialog.getByLabel('Project')).toHaveCount(0);
+    const projectSpecific = dialog.getByRole('radio', { name: 'Project-specific' });
+    const crossProject = dialog.getByRole('radio', { name: 'All projects' });
+    await projectSpecific.focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(crossProject).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(crossProject).toHaveAttribute('aria-checked', 'true');
+    await expect(dialog.getByLabel('Project')).toHaveCount(0);
 
-  await projectSpecific.click();
-  await expect(projectSpecific).toHaveAttribute('aria-checked', 'true');
-  await expect(dialog.getByLabel('Project')).toContainText('Select project');
+    await projectSpecific.click();
+    await expect(projectSpecific).toHaveAttribute('aria-checked', 'true');
+    await expect(dialog.getByLabel('Project')).toContainText('Select project');
 
-  await dismissLandscapeHint(page);
-  await expectEqualFullWidthSegments(dialog, field, group, segments, true);
-  await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 360);
+    await dismissLandscapeHint(page);
+    await expectEqualFullWidthSegments(dialog, field, group, segments, true);
+    await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 360);
 
-  await dialog.getByRole('radio', { name: 'Internal' }).click();
-  await expect(dialog.getByRole('radio', { name: 'Internal' })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  );
-  await expect(dialog.getByLabel('Project')).toHaveCount(0);
-});
+    await dialog.getByRole('radio', { name: 'Internal' }).click();
+    await expect(dialog.getByRole('radio', { name: 'Internal' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(dialog.getByLabel('Project')).toHaveCount(0);
+  },
+);
 
 test('adds an internal, an all-projects, and a project-specific activity into their three sections', async ({
   page,
@@ -183,33 +185,41 @@ test('edits an activity name', async ({ page }) => {
   await expect(page.getByTestId('activity-row').filter({ hasText: 'CMS Build' })).toBeVisible();
 });
 
-test('archives an activity and hides its allocation bars, and Undo restores it', async ({
-  page,
-}) => {
-  await openApp(page);
-  await setZoom(page, 4);
-  await resetSchedulerScroll(page);
-  await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })).toBeVisible();
+test(
+  'archives an activity and hides its allocation bars, and Undo restores it',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
+    await expect(
+      page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }),
+    ).toBeVisible();
 
-  await page.getByRole('link', { name: 'Activities' }).click();
-  await page
-    .getByTestId('activity-row')
-    .filter({ hasText: 'Wireframes' })
-    .getByRole('button', { name: 'Archive Wireframes' })
-    .click();
-  await page
-    .getByRole('alertdialog', { name: 'Archive activity?' })
-    .getByRole('button', { name: 'Archive' })
-    .click();
-  await expect(page.getByTestId('activity-row').filter({ hasText: 'Wireframes' })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Activities' }).click();
+    await page
+      .getByTestId('activity-row')
+      .filter({ hasText: 'Wireframes' })
+      .getByRole('button', { name: 'Archive Wireframes' })
+      .click();
+    await page
+      .getByRole('alertdialog', { name: 'Archive activity?' })
+      .getByRole('button', { name: 'Archive' })
+      .click();
+    await expect(page.getByTestId('activity-row').filter({ hasText: 'Wireframes' })).toHaveCount(0);
 
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await setZoom(page, 4);
-  await resetSchedulerScroll(page);
-  await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Schedule' }).click();
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
+    await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })).toHaveCount(
+      0,
+    );
 
-  await page.keyboard.press('Meta+z');
-  await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })).toBeVisible();
-  await page.getByRole('link', { name: 'Activities' }).click();
-  await expect(page.getByTestId('activity-row').filter({ hasText: 'Wireframes' })).toBeVisible();
-});
+    await page.keyboard.press('Meta+z');
+    await expect(
+      page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }),
+    ).toBeVisible();
+    await page.getByRole('link', { name: 'Activities' }).click();
+    await expect(page.getByTestId('activity-row').filter({ hasText: 'Wireframes' })).toBeVisible();
+  },
+);

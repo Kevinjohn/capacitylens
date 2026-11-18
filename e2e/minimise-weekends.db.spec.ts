@@ -23,7 +23,7 @@ async function openWithFreeScrollSnapOff(page: import('@playwright/test').Page) 
   await setZoom(page, 1);
 }
 
-test.describe('Minimise weekends', () => {
+test.describe('Minimise weekends', { tag: '@engine' }, () => {
   // Covers US-SET-05. "Minimise weekends" (device-global, default on) shrinks the
   // Sat/Sun columns to a sliver and labels both "S"; off restores full-width Sat/Sun columns.
   // All label assertions are scoped to the date header (role=columnheader "Dates") so a stray
