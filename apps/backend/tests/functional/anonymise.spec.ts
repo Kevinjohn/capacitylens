@@ -41,6 +41,8 @@ async function deleteAllocation(client: ApiClient, cookie: string, resourceId: s
     .json({
       mutationId,
       baseRevision,
+      // Naming a history makes the delete undoable, so the company holds a history to clear.
+      historyId: randomUUID(),
       intent: { operation: 'allocation.delete', id: allocation.id },
     })
     .send();
@@ -195,6 +197,7 @@ test.group('company anonymisation', (group) => {
       0
     );
     assert.isNull(await db.from('deleted_groups').where('group_id', deleted.groupId).first());
+    assert.lengthOf(await db.from('planning_histories').where('company_id', companyId), 0);
     assert.lengthOf(await db.from('deleted_rows').where('group_id', deleted.groupId), 0);
     assert.isNull(await db.from('allocations').where('id', deleted.allocation.id).first());
     assert.lengthOf(
@@ -332,6 +335,7 @@ test.group('company anonymisation', (group) => {
       assert.isNull(savedResource.avatar_url);
     }
     assert.lengthOf(await db.from('deleted_groups').where('company_id', companyId), 0);
+    assert.lengthOf(await db.from('planning_histories').where('company_id', companyId), 0);
     assert.lengthOf(await db.from('deleted_rows').where('group_id', selectedDelete.groupId), 0);
     assert.isNull(await db.from('allocations').where('id', selectedDelete.allocation.id).first());
     assert.isDefined(

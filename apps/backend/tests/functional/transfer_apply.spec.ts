@@ -49,6 +49,8 @@ async function deleteForRestoration(
     .json({
       mutationId,
       baseRevision,
+      // Naming a history makes the delete undoable, so the company holds a history to clear.
+      historyId: randomUUID(),
       intent: { operation: 'allocation.delete', id: allocation.id },
     })
     .send();
@@ -298,6 +300,8 @@ test.group('beta transfer apply', (group) => {
       await db.from('deleted_groups').where('group_id', selectedDelete.groupId).first()
     );
     assert.lengthOf(await db.from('deleted_rows').where('group_id', selectedDelete.groupId), 0);
+    assert.lengthOf(await db.from('planning_histories').where('company_id', companyId), 0);
+    assert.lengthOf(await db.from('planning_histories').where('company_id', 'a-loft'), 1);
     assert.isDefined(
       await db.from('deleted_groups').where('group_id', foreignDelete.groupId).first()
     );

@@ -16,12 +16,22 @@ import type {
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
-import type { planningMutationValidator } from '#validators/planning_operations';
+import type {
+  planningHistoryStepValidator,
+  planningMutationValidator,
+} from '#validators/planning_operations';
 
 // Planning wire contracts: inferred input types, receipts, refusal codes and the failure body.
 
 export type PlanningMutationInput = Infer<typeof planningMutationValidator>;
 export type PlanningIntent = PlanningMutationInput['intent'];
+export type PlanningHistoryStepInput = Infer<typeof planningHistoryStepValidator>;
+
+/** Whether the page that sent the request can step back or forward through its own changes. */
+export interface PlanningHistoryState {
+  canUndo: boolean;
+  canRedo: boolean;
+}
 
 type PlanningRowByEntity = {
   accounts: Account;
@@ -50,6 +60,8 @@ export interface PlanningMutationSuccess {
     | { consumedGroupId: null; replacementGroupId: string }
     | { consumedGroupId: string; replacementGroupId: null }
     | { consumedGroupId: null; replacementGroupId: null };
+  /** The sending page's history after this commit; both false when it named no history. */
+  history?: PlanningHistoryState;
   /** Active descendants this archive hid, measured from the committed before-state. */
   archived?: ArchiveImpact;
   /** Allocation create, update and duplicate: the saved row's capacity advisory. */

@@ -28,7 +28,21 @@ import {
   recordCommittedMutation,
   RestorationConfirmationError,
 } from '#services/planning/restoration';
+import {
+  discardHistory,
+  NO_HISTORY,
+  readHistory,
+  readHistoryState,
+  writeHistory,
+  type HistoryEntries,
+  type HistoryEntry,
+  type HistoryOwner,
+} from '#services/planning/history';
+import { inverseIntent } from '#services/planning/inverse';
 import type {
+  PlanningHistoryState,
+  PlanningHistoryStepInput,
+  PlanningIntent,
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
@@ -43,6 +57,15 @@ export interface PlanningMutationOptions {
   input: PlanningMutationInput;
 }
 
+/** One step back or forward through the caller's own history, in the caller's transaction. */
+export interface PlanningHistoryStepOptions {
+  trx: TransactionClientContract;
+  actor: CurrentActor;
+  companyId: string;
+  input: PlanningHistoryStepInput;
+  step: 'undo' | 'redo';
+}
+
 export interface PlanningSnapshot {
   companyId: string;
   revision: number;
@@ -51,6 +74,8 @@ export interface PlanningSnapshot {
   /** The company's current calendar date in its own time zone. */
   today: ISODate;
   capacity: CapacitySection;
+  /** Whether the reading page can undo or redo; both false when it named no history. */
+  history: PlanningHistoryState;
 }
 
 /** Resolves current product authority, revision, rows and their capacity from the same database
@@ -58,7 +83,8 @@ export interface PlanningSnapshot {
 export async function readPlanning(
   trx: TransactionClientContract,
   companyId: string,
-  window?: CapacityRange
+  window?: CapacityRange,
+  page?: { sessionId: number; historyId?: string }
 ): Promise<PlanningSnapshot> {
   const { authority } = await resolvePlanningAuthority(trx, companyId);
   const revision = await getPlanningRevision(trx, companyId);
@@ -74,6 +100,19 @@ export async function readPlanning(
     today,
     // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
     capacity: buildCapacitySection({ data: visible, account, today, window }),
+    history:
+      page?.historyId === undefined || !authority.canWrite
+        ? NO_HISTORY
+        : await readHistoryState(
+            trx,
+            {
+              companyId,
+              sessionId: page.sessionId,
+              actorId: authority.actorId,
+              historyId: page.historyId,
+            },
+            revision
+          ),
   };
 }
 
@@ -88,12 +127,65 @@ export async function readArchiveRecovery(trx: TransactionClientContract, compan
 }
 
 /** Commits one deliberate operation, its revision, audit entry and identity as one atomic unit. */
-export async function mutatePlanning({
+export function mutatePlanning({ trx, actor, companyId, input }: PlanningMutationOptions) {
+  return commit({ trx, actor, companyId, meta: input, step: 'new', supplied: input.intent });
+}
+
+/** Commits the caller's latest undoable or redoable change as one ordinary mutation. */
+export function stepPlanningHistory({
   trx,
   actor,
   companyId,
   input,
-}: PlanningMutationOptions): Promise<PlanningMutationSuccess> {
+  step,
+}: PlanningHistoryStepOptions) {
+  return commit({ trx, actor, companyId, meta: input, step, supplied: null });
+}
+
+/** The caller's history holds no step in that direction; nothing was attempted or refused. */
+export class EmptyHistoryError extends PlanningOperationError {
+  constructor(message: string) {
+    super(409, null, message);
+  }
+}
+
+/**
+ * Ends the caller's history after the server refused one of its steps. A stored change that can no
+ * longer be applied would otherwise stay on top and block every change beneath it.
+ */
+export async function abandonPlanningHistory({
+  trx,
+  actor,
+  companyId,
+  historyId,
+}: Pick<PlanningHistoryStepOptions, 'trx' | 'actor' | 'companyId'> & { historyId: string }) {
+  const { authority } = await resolvePlanningAuthority(trx, companyId);
+  const owner = { companyId, sessionId: actor.sessionId, actorId: authority.actorId, historyId };
+  const revision = await getPlanningRevision(trx, companyId);
+  if (await readHistory(trx, owner, revision)) await discardHistory(trx, companyId);
+}
+
+interface CommitOptions {
+  trx: TransactionClientContract;
+  actor: CurrentActor;
+  companyId: string;
+  meta: Pick<
+    PlanningMutationInput,
+    'mutationId' | 'baseRevision' | 'confirmedRestorationCount' | 'expectedUpdatedAt' | 'historyId'
+  >;
+  step: 'new' | 'undo' | 'redo';
+  /** The intent of a new change; a history step takes its intent from the stored entry. */
+  supplied: PlanningIntent | null;
+}
+
+async function commit({
+  trx,
+  actor,
+  companyId,
+  meta: input,
+  step,
+  supplied,
+}: CommitOptions): Promise<PlanningMutationSuccess> {
   const { authority, capabilities } = await resolvePlanningAuthority(trx, companyId);
   if (!authority.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
@@ -110,11 +202,28 @@ export async function mutatePlanning({
     await getPlanningRevision(trx, companyId),
     input.mutationId
   );
+  const owner: HistoryOwner | null =
+    input.historyId === undefined
+      ? null
+      : {
+          companyId,
+          sessionId: actor.sessionId,
+          actorId: authority.actorId,
+          historyId: input.historyId,
+        };
+  const current = owner ? await readHistory(trx, owner, input.baseRevision) : null;
+  const entry = step === 'undo' ? current?.past.at(-1) : current?.future.at(-1);
+  const intent = supplied ?? (step === 'undo' ? entry?.inverse : entry?.forward);
+  if (!intent) {
+    throw new EmptyHistoryError(
+      step === 'undo' ? 'There is nothing to undo.' : 'There is nothing to redo.'
+    );
+  }
   const before = await readStateWithClient(trx, companyId, true);
   const restoration = await executePlanningIntent({
     trx,
     companyId,
-    intent: input.intent,
+    intent: intent,
     capabilities,
     data: structuredClone(before),
     identity: {
@@ -127,8 +236,8 @@ export async function mutatePlanning({
   // archiveImpact measures the active projection itself. Passing the full state keeps an active row
   // whose parent is already archived measurable: it hides nothing more, so every count is zero.
   const archived =
-    input.intent.operation === 'catalogue.archive'
-      ? archiveImpact(before, input.intent.entity.entity, input.intent.entity.id)
+    intent.operation === 'catalogue.archive'
+      ? archiveImpact(before, intent.entity.entity, intent.entity.id)
       : undefined;
   const after = await readStateWithClient(trx, companyId, true);
   if (semanticState(before) === semanticState(after)) {
@@ -140,7 +249,8 @@ export async function mutatePlanning({
   }
   // Private names and activity kind can change what a saved before-image may safely reveal.
   // A restoration group is valid only until one of those fields actually changes.
-  if (invalidatesRestoration(input.intent, before, after)) {
+  const endsRecovery = invalidatesRestoration(intent, before, after);
+  if (endsRecovery) {
     const count = await countRestorableItems(trx, companyId);
     if (
       input.confirmedRestorationCount !== undefined &&
@@ -169,7 +279,7 @@ export async function mutatePlanning({
   await writeAudit(trx, {
     companyId,
     actorId: authority.actorId,
-    action: input.intent.operation,
+    action: intent.operation,
     entity: 'planning',
     entityId: input.mutationId,
     fields: [
@@ -179,12 +289,48 @@ export async function mutatePlanning({
       ]),
     ],
   });
+  // A restore cannot be reversed from the rows alone; the entry it came from holds its counterpart.
+  const reverse =
+    intent.operation === 'planning.restoreGroup'
+      ? ((step === 'undo' ? entry?.forward : step === 'redo' ? entry?.inverse : null) ?? null)
+      : inverseIntent(intent, before, companyId, restoration);
+  // Earlier values must not outlive a privacy change, and a change that cannot be reversed ends
+  // the history rather than leaving a gap in it.
+  let history = NO_HISTORY;
+  if (!owner || endsRecovery || !reverse) {
+    await discardHistory(trx, companyId);
+  } else {
+    history = await writeHistory(
+      trx,
+      owner,
+      revision,
+      nextEntries(step, current, { intent, reverse })
+    );
+  }
   return {
     status: 'committed',
     mutationId: input.mutationId,
     revision,
     restoration,
+    history,
     ...(archived ? { archived } : {}),
-    ...buildSaveAdvisory(input.intent, activeOnly(after), companyId),
+    ...buildSaveAdvisory(intent, activeOnly(after), companyId),
+  };
+}
+
+/** Moves the committed change onto the stack its step fills, and off the one it came from. */
+function nextEntries(
+  step: 'new' | 'undo' | 'redo',
+  current: HistoryEntries | null,
+  committed: { intent: PlanningIntent; reverse: PlanningIntent }
+): HistoryEntries {
+  const past = current?.past ?? [];
+  const future = current?.future ?? [];
+  const done: HistoryEntry = { forward: committed.intent, inverse: committed.reverse };
+  if (step === 'new') return { past: [...past, done], future: [] };
+  if (step === 'redo') return { past: [...past, done], future: future.slice(0, -1) };
+  return {
+    past: past.slice(0, -1),
+    future: [...future, { forward: committed.reverse, inverse: committed.intent }],
   };
 }

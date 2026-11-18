@@ -56,6 +56,18 @@ const routes = {
     tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"planning"],[0,"restore-group"]],
     types: placeholder as Registry['api.planning.restoreGroup']['types'],
   },
+  'api.planning.undo': {
+    methods: ["POST"],
+    pattern: '/api/companies/:companyId/planning/undo',
+    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"planning"],[0,"undo"]],
+    types: placeholder as Registry['api.planning.undo']['types'],
+  },
+  'api.planning.redo': {
+    methods: ["POST"],
+    pattern: '/api/companies/:companyId/planning/redo',
+    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"planning"],[0,"redo"]],
+    types: placeholder as Registry['api.planning.redo']['types'],
+  },
   'api.planning.resource.create': {
     methods: ["POST"],
     pattern: '/api/companies/:companyId/resources',

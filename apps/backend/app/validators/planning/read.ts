@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine';
 import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
-import { calendarDate } from '#validators/planning/fields';
+import { calendarDate, uuid } from '#validators/planning/fields';
 
 /** The longest capacity range one planning read computes. */
 const MAX_PLANNING_READ_DAYS = 366;
@@ -21,7 +21,14 @@ const readRange = vine.createRule((value, _options, field) => {
   }
 });
 
-/** The planning read's query: the capacity window, both dates or neither. Other fields are ignored. */
+/** The planning read's query: the capacity window, both dates or neither, and the reading page's
+ * history. Other fields are ignored. */
 export const planningReadValidator = vine.compile(
-  vine.object({ from: calendarDate().optional(), to: calendarDate().optional() }).use(readRange())
+  vine
+    .object({
+      from: calendarDate().optional(),
+      to: calendarDate().optional(),
+      historyId: uuid().optional(),
+    })
+    .use(readRange())
 );

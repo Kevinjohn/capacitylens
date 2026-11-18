@@ -6,6 +6,7 @@ import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { discardRestorationGroups } from '#services/planning/restoration';
+import { discardHistory } from '#services/planning/history';
 
 /** Scrubs planning identity and saved undo images in the caller's transaction. */
 export async function anonymiseResources(
@@ -50,6 +51,7 @@ export async function anonymiseResources(
     }
   }
   await discardRestorationGroups(trx, companyId);
+  await discardHistory(trx, companyId);
   await writeAudit(trx, {
     companyId,
     actorId,

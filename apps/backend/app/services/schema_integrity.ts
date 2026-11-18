@@ -279,6 +279,10 @@ export async function assertSchemaIntegrity() {
         'origin_session_id',
       ],
     ],
+    [
+      'planning_histories',
+      ['company_id', 'session_id', 'actor_id', 'history_id', 'revision', 'entries_json'],
+    ],
     ['account_getting_started_dismissals', ['id', 'company_id', 'created_at', 'updated_at']],
   ] as const) {
     const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
