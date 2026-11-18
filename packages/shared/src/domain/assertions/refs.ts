@@ -56,10 +56,10 @@ type ScopedRefsContext = {
   record: Record<string, unknown>;
   previous: Record<string, unknown> | undefined;
   lookupOptions: { lookup?: ValidationDataLookup };
-  present: (field: string) => boolean;
-  supplied: (field: string) => boolean;
-  unchanged: (field: string) => boolean;
-  need: (field: string, table: ScopedEntityKey, message: string) => void;
+  isPresent: (field: string) => boolean;
+  isSupplied: (field: string) => boolean;
+  isUnchanged: (field: string) => boolean;
+  assertRef: (field: string, table: ScopedEntityKey, message: string) => void;
 };
 
 function createScopedRefsContext(
@@ -72,21 +72,22 @@ function createScopedRefsContext(
   ]
 ): ScopedRefsContext {
   const lookupOptions = lookup === undefined ? {} : { lookup };
-  const present = (field: string) => record[field] !== undefined && record[field] !== null;
-  const supplied = (field: string) => Object.prototype.hasOwnProperty.call(record, field);
+  const isPresent = (field: string) => record[field] !== undefined && record[field] !== null;
+  const isSupplied = (field: string) => Object.prototype.hasOwnProperty.call(record, field);
   // Reading loose field names off the stored row is safe: an absent field is undefined and can
   // only equal an equally absent patch field, which is an unchanged no-op.
   const previous = existing as Record<string, unknown> | undefined;
   // An unchanged id was already proven in-account when it was written.
-  const unchanged = (field: string) => previous !== undefined && record[field] === previous[field];
-  const need = (field: string, table: ScopedEntityKey, message: string) => {
-    if (!present(field)) return;
+  const isUnchanged = (field: string) =>
+    previous !== undefined && record[field] === previous[field];
+  const assertRef = (field: string, table: ScopedEntityKey, message: string) => {
+    if (!isPresent(field)) return;
     const resolved =
       typeof record[field] === 'string'
         ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as
             ScopedEntity | undefined)
         : undefined;
-    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, companyId))) {
+    if (isUnchanged(field) && (resolved === undefined || belongsToAccount(resolved, companyId))) {
       return;
     }
     if (
@@ -97,7 +98,17 @@ function createScopedRefsContext(
       throwDomainError('reference_wrong_account', message);
     }
   };
-  return { data, companyId, record, previous, lookupOptions, present, supplied, unchanged, need };
+  return {
+    data,
+    companyId,
+    record,
+    previous,
+    lookupOptions,
+    isPresent,
+    isSupplied,
+    isUnchanged,
+    assertRef,
+  };
 }
 
 function assertRequiredRef(
@@ -110,32 +121,32 @@ function assertRequiredRef(
     boolean | undefined,
   ]
 ): void {
-  if (context.present(field)) {
-    context.need(field, table, message);
+  if (context.isPresent(field)) {
+    context.assertRef(field, table, message);
     return;
   }
-  if (existing === undefined || fullRow === true || context.supplied(field)) {
+  if (existing === undefined || fullRow === true || context.isSupplied(field)) {
     throwDomainError('reference_wrong_account', message);
   }
 }
 
 function assertActivityKind(context: ScopedRefsContext): void {
-  if (!context.present('kind')) return;
-  const { record, present } = context;
-  if (record.kind === 'project' && !present('projectId')) {
+  if (!context.isPresent('kind')) return;
+  const { record, isPresent } = context;
+  if (record.kind === 'project' && !isPresent('projectId')) {
     throwDomainError(
       'activity_project_required',
       'A project-specific activity must be assigned to a project.',
     );
   }
   if (record.kind !== 'internal' && record.kind !== 'repeatable') return;
-  if (present('projectId')) {
+  if (isPresent('projectId')) {
     throwDomainError(
       'activity_project_forbidden',
       'An internal or all-projects activity cannot belong to a project.',
     );
   }
-  if (present('phaseId')) {
+  if (isPresent('phaseId')) {
     throwDomainError(
       'activity_phase_forbidden',
       'An internal or all-projects activity cannot belong to a phase.',
@@ -144,15 +155,15 @@ function assertActivityKind(context: ScopedRefsContext): void {
 }
 
 function assertActivityPhase(context: ScopedRefsContext): void {
-  const { data, companyId, record, lookupOptions, present, unchanged } = context;
-  if (!present('phaseId')) return;
+  const { data, companyId, record, lookupOptions, isPresent, isUnchanged } = context;
+  if (!isPresent('phaseId')) return;
   const phase =
     typeof record.phaseId === 'string'
       ? (resolveValidationRow({ data, table: 'phases', id: record.phaseId, ...lookupOptions }) as
           AppData['phases'][number] | undefined)
       : undefined;
   const ownedPhase = phase && belongsToAccount(phase, companyId) ? phase : undefined;
-  if (unchanged('phaseId') && unchanged('projectId')) {
+  if (isUnchanged('phaseId') && isUnchanged('projectId')) {
     if (phase && !ownedPhase) {
       throwDomainError(
         'activity_phase_wrong_account',
@@ -164,7 +175,7 @@ function assertActivityPhase(context: ScopedRefsContext): void {
   if (!ownedPhase) {
     throwDomainError('activity_phase_wrong_account', 'Activity phase must belong to this company.');
   }
-  if (!present('projectId')) {
+  if (!isPresent('projectId')) {
     throwDomainError(
       'activity_phase_project_required',
       'An activity with a phase must also belong to that phase’s project.',
@@ -180,20 +191,20 @@ function assertActivityPhase(context: ScopedRefsContext): void {
 
 function assertActivityRefs(context: ScopedRefsContext): void {
   assertActivityKind(context);
-  context.need('projectId', 'projects', 'Activity must reference a project in this company.');
+  context.assertRef('projectId', 'projects', 'Activity must reference a project in this company.');
   assertActivityPhase(context);
 }
 
 // Resource reference policy intentionally combines kind-dependent project and avatar invariants.
 
 function assertResourceRefs(context: ScopedRefsContext): void {
-  const { record, previous, supplied, need } = context;
-  const mergedKind = supplied('kind') ? record.kind : previous?.kind;
-  const mergedProjectId = supplied('projectId') ? record.projectId : previous?.projectId;
-  const projectBindingChanged = supplied('kind') || supplied('projectId');
+  const { record, previous, isSupplied, assertRef } = context;
+  const mergedKind = isSupplied('kind') ? record.kind : previous?.kind;
+  const mergedProjectId = isSupplied('projectId') ? record.projectId : previous?.projectId;
+  const projectBindingChanged = isSupplied('kind') || isSupplied('projectId');
   const hasProject = mergedProjectId !== undefined && mergedProjectId !== null;
   const hasKind = mergedKind !== undefined && mergedKind !== null;
-  const mergedAvatarUrl = supplied('avatarUrl') ? record.avatarUrl : previous?.avatarUrl;
+  const mergedAvatarUrl = isSupplied('avatarUrl') ? record.avatarUrl : previous?.avatarUrl;
   if (mergedAvatarUrl != null) {
     if (mergedKind !== 'person') {
       throwDomainError('resource_avatar_url_forbidden', 'Only a person can have an avatar URL.');
@@ -212,8 +223,8 @@ function assertResourceRefs(context: ScopedRefsContext): void {
       'Only a placeholder can be assigned to a project.',
     );
   }
-  need('disciplineId', 'disciplines', 'Resource discipline must belong to this company.');
-  need('projectId', 'projects', 'Placeholder project must belong to this company.');
+  assertRef('disciplineId', 'disciplines', 'Resource discipline must belong to this company.');
+  assertRef('projectId', 'projects', 'Placeholder project must belong to this company.');
 }
 
 // Resource kind is immutable on ordinary updates; malformed stored kinds are rejected.

@@ -31,7 +31,7 @@ export function isWeekendAware(
  * over-marker (`allocatedHoursOnDay`) and its advisory mirror (`capacityAdvisory`) so the two can't
  * disagree on which days an allocation works. `dayIsWorkingWeekday` tells whether the date's
  * weekday belongs to the working week, passed in so the caller derives it once per day, not once per allocation. */
-export function allocationWorksOnDay(
+export function canAllocationWorkOnDay(
   workingDays: Weekday[] | undefined,
   ignoreWorkingDays: boolean | undefined,
   dayIsWorkingWeekday: boolean,

@@ -37,14 +37,14 @@ interface TimeOffOptions {
 }
 
 export const TS = '2026-01-01T00:00:00.000Z';
-export const meta = (id: ID, companyId: ID) => ({
+export const makeMeta = (id: ID, companyId: ID) => ({
   id,
   companyId,
   createdAt: TS,
   updatedAt: TS,
 });
 
-export const account = (id: ID, name = 'Co'): Account => ({
+export const makeAccount = (id: ID, name = 'Co'): Account => ({
   ...NULLABLE_FIELDS.accounts,
   id,
   name,
@@ -54,33 +54,33 @@ export const account = (id: ID, name = 'Co'): Account => ({
 });
 export const client = (id: ID, companyId: ID, name = 'Ferris'): Client => ({
   ...NULLABLE_FIELDS.clients,
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   name,
   color: '#3b82f6',
 });
 export const project = (id: ID, companyId: ID, clientId: ID): Project => ({
   ...NULLABLE_FIELDS.projects,
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   name: 'Web',
   clientId,
   color: '#3b82f6',
 });
 export const phase = (id: ID, companyId: ID, projectId: ID): Phase => ({
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   name: 'Discovery',
   projectId,
 });
 export const activity = ({ id, companyId, projectId, phaseId }: ActivityOptions): Activity => ({
   ...NULLABLE_FIELDS.activities,
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   name: 'Activity',
   kind: 'project',
   projectId,
   ...(phaseId === undefined ? {} : { phaseId }),
 });
-export const person = (id: ID, companyId: ID): Resource => ({
+export const makePerson = (id: ID, companyId: ID): Resource => ({
   ...NULLABLE_FIELDS.resources,
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   kind: 'person',
   role: 'Designer',
   employmentType: 'permanent',
@@ -90,19 +90,19 @@ export const person = (id: ID, companyId: ID): Resource => ({
   halfDays: [],
   color: '#3b82f6',
 });
-export const discipline = (id: ID, companyId: ID): Discipline => ({
+export const makeDiscipline = (id: ID, companyId: ID): Discipline => ({
   ...NULLABLE_FIELDS.disciplines,
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   name: 'Design',
   sortOrder: 0,
 });
-export const placeholder = (id: ID, companyId: ID, projectId?: ID): Resource => ({
-  ...person(id, companyId),
+export const makePlaceholder = (id: ID, companyId: ID, projectId?: ID): Resource => ({
+  ...makePerson(id, companyId),
   kind: 'placeholder',
   ...(projectId === undefined ? {} : { projectId }),
 });
-export const external = (id: ID, companyId: ID): Resource => ({
-  ...person(id, companyId),
+export const makeExternal = (id: ID, companyId: ID): Resource => ({
+  ...makePerson(id, companyId),
   kind: 'external',
 });
 export const allocation = ({
@@ -113,7 +113,7 @@ export const allocation = ({
   overrides: o = {},
 }: AllocationOptions): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   resourceId,
   activityId,
   startDate: '2026-01-01',
@@ -129,7 +129,7 @@ export const timeOff = ({
   overrides: o = {},
 }: TimeOffOptions): TimeOff => ({
   ...NULLABLE_FIELDS.timeOff,
-  ...meta(id, companyId),
+  ...makeMeta(id, companyId),
   resourceId,
   startDate: '2026-01-01',
   endDate: '2026-01-03',
@@ -141,5 +141,5 @@ export const A1 = 'acct-1';
 export const A2 = 'acct-2';
 export const base = (): AppData => ({
   ...emptyAppData(),
-  accounts: [account(A1), account(A2)],
+  accounts: [makeAccount(A1), makeAccount(A2)],
 });

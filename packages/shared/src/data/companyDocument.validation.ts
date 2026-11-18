@@ -25,7 +25,7 @@ import { FIELDS } from './companyDocument.fields.js';
 import type { Row } from './companyDocument.fields.js';
 
 const weekdays = [0, 1, 2, 3, 4, 5, 6];
-const nullable = (value: unknown, test: (candidate: unknown) => boolean) =>
+const isNullOr = (value: unknown, test: (candidate: unknown) => boolean) =>
   value === null || test(value);
 const isString = (value: unknown) => typeof value === 'string';
 const isBoolean = (value: unknown) => typeof value === 'boolean';
@@ -74,19 +74,19 @@ function assertNullableText(
   path: string,
   options: { multiline?: boolean } = {},
 ): void {
-  assert(nullable(value[field], isString), `${path}.${field}`, 'must be a string or null');
+  assert(isNullOr(value[field], isString), `${path}.${field}`, 'must be a string or null');
   if (typeof value[field] === 'string') {
     assertText(value, field, path, { allowEmpty: true, ...options });
   }
 }
 
 function assertNullableId(value: Row, field: string, path: string): void {
-  assert(nullable(value[field], isId), `${path}.${field}`, 'must be a bounded id or null');
+  assert(isNullOr(value[field], isId), `${path}.${field}`, 'must be a bounded id or null');
 }
 
 function assertNullableTimestamp(value: Row, field: string, path: string): void {
   assert(
-    nullable(value[field], isTimestamp),
+    isNullOr(value[field], isTimestamp),
     `${path}.${field}`,
     'must be a valid ISO timestamp or null',
   );
@@ -106,12 +106,12 @@ function assertAccountRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assertColor(row, 'color', path);
   assert(
-    nullable(row.schedulingMode, (v) => isOneOf(v, ['hourly', 'days', 'blocks'])),
+    isNullOr(row.schedulingMode, (v) => isOneOf(v, ['hourly', 'days', 'blocks'])),
     `${path}.schedulingMode`,
     'is invalid',
   );
   assert(
-    nullable(row.timezone, (v) => {
+    isNullOr(row.timezone, (v) => {
       if (typeof v !== 'string') return false;
       try {
         new Intl.DateTimeFormat('en', { timeZone: v });
@@ -124,12 +124,12 @@ function assertAccountRow(row: Row, path: string): void {
     'must be a valid time zone or null',
   );
   assert(
-    nullable(row.weekStartsOn, (v) => v === 0 || v === 1),
+    isNullOr(row.weekStartsOn, (v) => v === 0 || v === 1),
     `${path}.weekStartsOn`,
     'must be 0, 1 or null',
   );
   assert(
-    nullable(row.workingDays, isDayList),
+    isNullOr(row.workingDays, isDayList),
     `${path}.workingDays`,
     'must be a unique weekday list or null',
   );
@@ -146,17 +146,17 @@ function assertAccountRow(row: Row, path: string): void {
     'inlineActivityCreateEnabled',
     'showTaskFieldInSchedule',
   ]) {
-    assert(nullable(row[field], isBoolean), `${path}.${field}`, 'must be boolean or null');
+    assert(isNullOr(row[field], isBoolean), `${path}.${field}`, 'must be boolean or null');
   }
   assert(
-    nullable(row.capacityOverviewAccess, (v) =>
+    isNullOr(row.capacityOverviewAccess, (v) =>
       isOneOf(v, ['owner_admin', 'owner_admin_editor', 'everyone']),
     ),
     `${path}.capacityOverviewAccess`,
     'is invalid',
   );
   assert(
-    nullable(row.dateStyle, (v) =>
+    isNullOr(row.dateStyle, (v) =>
       isOneOf(v, ['day-month', 'day-ordinal-month', 'month-day', 'month-day-ordinal']),
     ),
     `${path}.dateStyle`,
@@ -166,7 +166,7 @@ function assertAccountRow(row: Row, path: string): void {
 
 function assertDisciplineRow(row: Row, path: string): void {
   assertText(row, 'name', path);
-  assert(nullable(row.color, isPresetColor), `${path}.color`, 'must be a preset colour or null');
+  assert(isNullOr(row.color, isPresetColor), `${path}.color`, 'must be a preset colour or null');
   assert(Number.isSafeInteger(row.sortOrder), `${path}.sortOrder`, 'must be a safe integer');
 }
 
@@ -174,7 +174,7 @@ function assertResourceRow(row: Row, path: string): void {
   assert(isOneOf(row.kind, RESOURCE_KINDS), `${path}.kind`, 'is invalid');
   assertNullableText(row, 'name', path);
   assertText(row, 'role', path, { allowEmpty: true });
-  assert(nullable(row.avatarUrl, isString), `${path}.avatarUrl`, 'must be a string or null');
+  assert(isNullOr(row.avatarUrl, isString), `${path}.avatarUrl`, 'must be a string or null');
   assertNullableId(row, 'disciplineId', path);
   assert(
     isOneOf(row.employmentType, ['permanent', 'freelancer', 'contractor']),
@@ -201,10 +201,10 @@ function assertResourceRow(row: Row, path: string): void {
   );
   assertNullableId(row, 'projectId', path);
   assertColor(row, 'color', path, row.kind === 'external' ? NEUTRAL_COLOR : undefined);
-  assert(nullable(row.isFavourite, isBoolean), `${path}.isFavourite`, 'must be boolean or null');
+  assert(isNullOr(row.isFavourite, isBoolean), `${path}.isFavourite`, 'must be boolean or null');
   for (const field of ['firstAvailableDate', 'lastAvailableDate']) {
     assert(
-      nullable(row[field], isValidISODate),
+      isNullOr(row[field], isValidISODate),
       `${path}.${field}`,
       'must be a valid date or null',
     );
@@ -268,9 +268,9 @@ function assertResourceRow(row: Row, path: string): void {
 function assertClientRow(row: Row, path: string, { nameMaximum }: RowLimits): void {
   assertText(row, 'name', path, { maxLength: nameMaximum });
   assertColor(row, 'color', path, row.builtin === true ? INTERNAL_CLIENT_COLOR : undefined);
-  assert(nullable(row.isPrivate, isBoolean), `${path}.isPrivate`, 'must be boolean or null');
+  assert(isNullOr(row.isPrivate, isBoolean), `${path}.isPrivate`, 'must be boolean or null');
   if (own(row, 'codeName')) assertNullableText(row, 'codeName', path);
-  assert(nullable(row.builtin, isBoolean), `${path}.builtin`, 'must be boolean or null');
+  assert(isNullOr(row.builtin, isBoolean), `${path}.builtin`, 'must be boolean or null');
   assertNullableTimestamp(row, 'archivedAt', path);
   assertNullableTimestamp(row, 'deletedAt', path);
   if (row.builtin === true) {
@@ -286,7 +286,7 @@ function assertProjectRow(row: Row, path: string, { nameMaximum }: RowLimits): v
   assertText(row, 'name', path, { maxLength: nameMaximum });
   assert(isId(row.clientId), `${path}.clientId`, 'must be a bounded id');
   assertColor(row, 'color', path);
-  assert(nullable(row.isPrivate, isBoolean), `${path}.isPrivate`, 'must be boolean or null');
+  assert(isNullOr(row.isPrivate, isBoolean), `${path}.isPrivate`, 'must be boolean or null');
   if (own(row, 'codeName')) assertNullableText(row, 'codeName', path);
   assertNullableTimestamp(row, 'archivedAt', path);
   assertNullableTimestamp(row, 'deletedAt', path);
@@ -339,7 +339,7 @@ function assertAllocationRow(row: Row, path: string): void {
   assertNullableText(row, 'note', path, { multiline: true });
   assertNullableText(row, 'task', path);
   assert(
-    nullable(row.ignoreWorkingDays, isBoolean),
+    isNullOr(row.ignoreWorkingDays, isBoolean),
     `${path}.ignoreWorkingDays`,
     'must be boolean or null',
   );

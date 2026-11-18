@@ -15,7 +15,7 @@ export interface ValidationResult {
 
 type ValidationIssue = { code: DomainErrorCode; message: string };
 
-const toResult = (issues: ValidationIssue[]): ValidationResult => ({
+const buildValidationResult = (issues: ValidationIssue[]): ValidationResult => ({
   ok: issues.length === 0,
   errors: issues.map((issue) => issue.message),
   codes: issues.map((issue) => issue.code),
@@ -23,7 +23,7 @@ const toResult = (issues: ValidationIssue[]): ValidationResult => ({
 
 /** A project must belong to a client. */
 export function validateProjectClient(clientId: ID | undefined | null): ValidationResult {
-  return toResult(
+  return buildValidationResult(
     clientId
       ? []
       : [
@@ -51,10 +51,12 @@ export function validateDateRange(
   endDate?: ISODate | null,
 ): ValidationResult {
   if (!startDate || !endDate) {
-    return toResult([{ code: 'date_required', message: 'Start and end dates are required.' }]);
+    return buildValidationResult([
+      { code: 'date_required', message: 'Start and end dates are required.' },
+    ]);
   }
   if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
-    return toResult([
+    return buildValidationResult([
       {
         code: 'date_invalid',
         message: 'Dates must be valid calendar dates (YYYY-MM-DD).',
@@ -62,7 +64,7 @@ export function validateDateRange(
     ]);
   }
   if (endDate < startDate) {
-    return toResult([
+    return buildValidationResult([
       {
         code: 'date_reversed',
         message: 'End date cannot be before the start date.',
@@ -71,14 +73,14 @@ export function validateDateRange(
   }
   // Enforce the span bound before callers can allocate one entry per day.
   if (daysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
-    return toResult([
+    return buildValidationResult([
       {
         code: 'date_span_too_long',
         message: `Date span cannot exceed ${MAX_SPAN_DAYS.toLocaleString('en-GB')} calendar days.`,
       },
     ]);
   }
-  return toResult([]);
+  return buildValidationResult([]);
 }
 
 /** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
@@ -141,5 +143,5 @@ export function validateAllocationAssignment(
       });
     }
   }
-  return toResult(issues);
+  return buildValidationResult(issues);
 }

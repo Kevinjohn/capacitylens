@@ -1,7 +1,7 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import type { Resource } from '../types/entities.js';
 
-export const placeholder = (over: Partial<Resource> = {}): Resource => ({
+export const makePlaceholder = (over: Partial<Resource> = {}): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id: 'ph1',
   companyId: 'acct-test',
@@ -19,14 +19,14 @@ export const placeholder = (over: Partial<Resource> = {}): Resource => ({
   halfDays: over.halfDays ?? [],
 });
 
-export const unboundPlaceholder = (): Resource => {
-  const resource = placeholder();
+export const makeUnboundPlaceholder = (): Resource => {
+  const resource = makePlaceholder();
   resource.projectId = null;
   return resource;
 };
 
-export const person = (over: Partial<Resource> = {}): Resource => {
-  const base = placeholder(over);
+export const makePerson = (over: Partial<Resource> = {}): Resource => {
+  const base = makePlaceholder(over);
   base.projectId = null;
   return { ...base, kind: 'person', ...over };
 };

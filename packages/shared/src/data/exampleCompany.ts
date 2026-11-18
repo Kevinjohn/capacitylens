@@ -134,38 +134,43 @@ interface BookingSpec {
 
 interface BuildBookingsInput {
   stamp: Stamp;
-  workday: (day: number) => ISODate;
+  buildWorkday: (day: number) => ISODate;
   dickId: ID;
   barbaraId: ID;
   work: ReturnType<typeof buildWork>;
 }
 
-function buildBookings({ stamp, workday, dickId, barbaraId, work }: BuildBookingsInput) {
-  const booking = ({ days, ...rest }: BookingSpec) => ({
+function buildBookings({ stamp, buildWorkday, dickId, barbaraId, work }: BuildBookingsInput) {
+  const createBooking = ({ days, ...rest }: BookingSpec) => ({
     ...NULLABLE_FIELDS.allocations,
     id: newId(),
-    startDate: workday(days[0]),
-    endDate: workday(days[1]),
+    startDate: buildWorkday(days[0]),
+    endDate: buildWorkday(days[1]),
     ...rest,
     ...stamp,
   });
-  const dickBooking = (spec: Omit<BookingSpec, 'resourceId'>) =>
-    booking({ resourceId: dickId, ...spec });
+  const createDickBooking = (spec: Omit<BookingSpec, 'resourceId'>) =>
+    createBooking({ resourceId: dickId, ...spec });
   return [
-    dickBooking({
+    createDickBooking({
       activityId: work.wireframes.id,
       days: [0, 3],
       hoursPerDay: 8,
       status: 'confirmed',
     }),
-    dickBooking({ activityId: work.admin.id, days: [4, 4], hoursPerDay: 4, status: 'confirmed' }),
-    dickBooking({
+    createDickBooking({
+      activityId: work.admin.id,
+      days: [4, 4],
+      hoursPerDay: 4,
+      status: 'confirmed',
+    }),
+    createDickBooking({
       activityId: work.wireframes.id,
       days: [5, 7],
       hoursPerDay: 6,
       status: 'tentative',
     }),
-    booking({
+    createBooking({
       resourceId: barbaraId,
       activityId: work.build.id,
       days: [1, 6],
@@ -185,7 +190,7 @@ export function buildExampleCompany({
   const weekStart = startOfWeekISO(referenceDate, weekStartsOn);
   const monday = weekStartsOn === 0 ? addDaysISO(weekStart, 1) : weekStart;
   // Working day `n` of the fortnight, skipping the weekend between the two weeks.
-  const workday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5));
+  const buildWorkday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5));
   const stamp = { companyId, createdAt: now, updatedAt: now };
   const { design, development } = buildDisciplines(stamp);
   const dick = buildPerson(stamp, design, { name: 'Dick Grayson', role: 'Designer' });
@@ -199,14 +204,20 @@ export function buildExampleCompany({
     projects: [work.project],
     phases: [work.phase],
     activities: [work.wireframes, work.build, work.admin],
-    allocations: buildBookings({ stamp, workday, dickId: dick.id, barbaraId: barbara.id, work }),
+    allocations: buildBookings({
+      stamp,
+      buildWorkday,
+      dickId: dick.id,
+      barbaraId: barbara.id,
+      work,
+    }),
     timeOff: [
       {
         ...NULLABLE_FIELDS.timeOff,
         id: newId(),
         resourceId: barbara.id,
-        startDate: workday(8),
-        endDate: workday(9),
+        startDate: buildWorkday(8),
+        endDate: buildWorkday(9),
         type: 'holiday' as const,
         ...stamp,
       },

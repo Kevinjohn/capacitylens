@@ -40,7 +40,7 @@ export function normalizeCodeName(value: string): string {
 }
 
 /** Code names always render inside straight double quotation marks. */
-export function quoteCodeName(value: string, id?: unknown): string {
+export function buildQuotedCodeName(value: string, id?: unknown): string {
   return `"${normalizeCodeName(value) || privateCodeNameFallback(id)}"`;
 }
 
@@ -72,7 +72,7 @@ export function redactPrivateName<T extends PrivateNamedEntity>(entity: T): T {
   // marks are not provenance: malformed persisted input may itself contain a quoted private name.
   if (entity.codeName === null && projectedPrivateNames.get(entity) === entity.name) return entity;
   const codeName = typeof entity.codeName === 'string' ? entity.codeName : '';
-  const redacted = { ...entity, name: quoteCodeName(codeName, entity.id) };
+  const redacted = { ...entity, name: buildQuotedCodeName(codeName, entity.id) };
   redacted.codeName = null;
   projectedPrivateNames.set(redacted, redacted.name);
   return redacted;

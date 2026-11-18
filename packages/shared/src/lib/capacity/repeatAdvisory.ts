@@ -1,5 +1,5 @@
 import { daysInclusive, weekdayOf } from '../dateMath.js';
-import { startsOnNonEffectiveWeekday } from '../effectiveWorkingWeek.js';
+import { isStartOnNonEffectiveWeekday } from '../effectiveWorkingWeek.js';
 import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import { MAX_SPAN_DAYS } from '../schedulingDays.js';
 import { isCapacityTracked } from '../../types/entities.js';
@@ -83,7 +83,7 @@ export function buildRepeatingAllocationAdvisory({
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
     if (
-      startsOnNonEffectiveWeekday(
+      isStartOnNonEffectiveWeekday(
         effectiveWeek,
         draft.ignoreWorkingDays ?? undefined,
         weekdayOf(draft.startDate),

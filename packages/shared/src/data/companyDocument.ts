@@ -56,12 +56,12 @@ function renameScope(data: unknown, from: string, to: string): unknown {
   return renamed;
 }
 
-function toWire(document: unknown): unknown {
+function buildWireDocument(document: unknown): unknown {
   if (!isRecord(document)) return document;
   return { ...document, data: renameScope(document.data, 'companyId', 'accountId') };
 }
 
-function fromWire(document: CompanyExportDocument): CompanyExportDocument {
+function buildCompanyDocument(document: CompanyExportDocument): CompanyExportDocument {
   return {
     ...document,
     data: renameScope(document.data, 'accountId', 'companyId') as AppData,
@@ -172,12 +172,12 @@ export function buildCompanyExport(
       options.companyId,
     ),
   };
-  return fromWire(assertDocument(document));
+  return buildCompanyDocument(assertDocument(document));
 }
 
 /** Serialize the named portable fields as formatted JSON after validating the entire document. */
 export function serializeCompanyExport(document: CompanyExportDocument): string {
-  const validated = assertDocument(toWire(document));
+  const validated = assertDocument(buildWireDocument(document));
   return JSON.stringify(validated, null, 2);
 }
 
@@ -189,7 +189,7 @@ export function parseCompanyExport(json: string): CompanyExportDocument {
   } catch (cause) {
     throw new CompanyDocumentError('document', 'is not valid JSON', { cause });
   }
-  return fromWire(assertDocument(raw));
+  return buildCompanyDocument(assertDocument(raw));
 }
 
 /** Validate a full source document and bind its company scope to the selected destination. */
@@ -202,7 +202,7 @@ export function prepareCompanyImport(
     'context',
     'companyId and memberResourceLinks are required',
   );
-  const validated = fromWire(assertDocument(toWire(document)));
+  const validated = buildCompanyDocument(assertDocument(buildWireDocument(document)));
   assert(validated.completeness === 'full', 'completeness', 'only full exports can be imported');
   const data = validated.data;
   const importedAccount = data.accounts[0];

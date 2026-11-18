@@ -38,13 +38,13 @@ export const MAX_PASSWORD_INPUT_CODE_UNITS = MAX_PASSWORD_LENGTH * 2;
 export type PasswordLengthFailure = 'too-short' | 'too-long';
 
 /** Count the length unit CapacityLens calls a password "character": a Unicode code point. */
-export function passwordCharacterCount(password: string): number {
+export function countPasswordCharacters(password: string): number {
   return Array.from(password).length;
 }
 
 /** Return the precise password-length policy failure, if any. */
 export function passwordLengthFailure(password: string): PasswordLengthFailure | null {
-  const length = passwordCharacterCount(password);
+  const length = countPasswordCharacters(password);
   if (length < MIN_PASSWORD_LENGTH) return 'too-short';
   if (length > MAX_PASSWORD_LENGTH) return 'too-long';
   return null;

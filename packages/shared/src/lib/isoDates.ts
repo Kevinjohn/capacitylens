@@ -7,7 +7,7 @@ import type { ISODate } from '../types/entities.js';
  * share one leap rule; two copies could drift on a century year (1900 vs 2000).
  * @throws RangeError when month is not an integer from 1 through 12; callers must range-check it first.
  */
-export function daysInMonth(year: number, month: number): number {
+export function countDaysInMonth(year: number, month: number): number {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
   if (days === undefined) throw new RangeError('Month must be between 1 and 12.');
@@ -28,7 +28,7 @@ export function isValidISODate(value: unknown): value is ISODate {
   const month = Number(match[2]);
   const day = Number(match[3]);
   if (year < 1 || month < 1 || month > 12 || day < 1) return false;
-  return day <= daysInMonth(year, month);
+  return day <= countDaysInMonth(year, month);
 }
 
 const ISO_TIMESTAMP_RE =
@@ -41,7 +41,7 @@ interface TimestampOffsetParts {
   offsetMinuteText: string | undefined;
 }
 
-function timestampOffsetMinutes({
+function parseTimestampOffsetMinutes({
   zone,
   sign,
   offsetHourText,
@@ -84,7 +84,12 @@ export function parseISOTimestamp(value: unknown): number | null {
   const milliseconds = Number((fraction ?? '').padEnd(3, '0') || '0');
   if (hour > 23 || minute > 59 || second > 59) return null;
 
-  const offsetMinutes = timestampOffsetMinutes({ zone, sign, offsetHourText, offsetMinuteText });
+  const offsetMinutes = parseTimestampOffsetMinutes({
+    zone,
+    sign,
+    offsetHourText,
+    offsetMinuteText,
+  });
   if (offsetMinutes === null) return null;
 
   const localAsUtc = Date.parse(

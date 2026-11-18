@@ -15,7 +15,7 @@ export const INTERNAL_CLIENT_COLOR = '#2d75da';
 /** The deterministic id an account's Internal client is created with. Identification at runtime
  * is still by the `builtin` flag: an imported Internal client keeps its exported id, which need not
  * match this formula. */
-export function internalClientIdFor(companyId: ID): ID {
+export function buildInternalClientId(companyId: ID): ID {
   return `internal:${companyId}`;
 }
 
@@ -25,7 +25,7 @@ export function internalClientIdFor(companyId: ID): ID {
 export function buildInternalClient(
   companyId: ID,
   now: ISOTimestamp,
-  id: ID = internalClientIdFor(companyId),
+  id: ID = buildInternalClientId(companyId),
 ): Client {
   return {
     ...NULLABLE_FIELDS.clients,

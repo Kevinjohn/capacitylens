@@ -218,7 +218,7 @@ export function resolveAllocationLoadForWeekday({
     ) {
       continue;
     }
-    // `none` must stay explicit: passing [] to allocationWorksOnDay would mean calendar-day load.
+    // `none` must stay explicit: passing [] to canAllocationWorkOnDay would mean calendar-day load.
     // Ignore working days bypasses both calendars; a normal allocation with no effective days
     // loads nothing anywhere.
     if (

@@ -5,7 +5,7 @@ import {
   GENERATED_ALLOCATION_LIMIT,
   TIME_OFF_REPEAT_POLICY,
   defaultRepeatUntilDate,
-  defaultTimeOffRepeatUntilDate,
+  resolveDefaultTimeOffRepeatUntilDate,
   generateRepeatingStartDates,
   maximumRepeatUntilDate,
   maximumTimeOffRepeatUntilDate,
@@ -331,7 +331,7 @@ describe('time-off repeating date policy', () => {
     ['9999-12-31', '9999-12-31'],
   ] as const)('sets both the maximum and suggested cutoff for %s', (startDate, expected) => {
     expect(maximumTimeOffRepeatUntilDate(startDate)).toBe(expected);
-    expect(defaultTimeOffRepeatUntilDate(startDate)).toBe(expected);
+    expect(resolveDefaultTimeOffRepeatUntilDate(startDate)).toBe(expected);
   });
 
   it('allows a full time-off year while retaining the allocation six-month default', () => {
