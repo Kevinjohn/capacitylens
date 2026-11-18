@@ -10,7 +10,7 @@ import {
   serializeCompanyExport,
 } from './companyDocument.js';
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
-import { internalClientIdFor } from './internalClient.js';
+import { buildInternalClientId } from './internalClient.js';
 
 const original = seed();
 const companyId = original.accounts[0]?.id ?? '';
@@ -30,7 +30,7 @@ describe('beta-native transfer', () => {
       source.clients.find((row) => row.companyId === companyId && row.builtin),
       'Internal client',
     );
-    internal.id = internalClientIdFor(companyId);
+    internal.id = buildInternalClientId(companyId);
     const exported = buildCompanyExport(source, { companyId, completeness: 'full' });
     const parsed = parseCompanyExport(serializeCompanyExport(exported));
     expect(parsed.data.clients.find((row) => row.builtin)?.id).toBe(internal.id);
