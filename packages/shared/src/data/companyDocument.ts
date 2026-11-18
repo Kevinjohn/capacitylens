@@ -167,7 +167,10 @@ export function buildCompanyExport(
     format: COMPANY_EXPORT_FORMAT,
     schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
     completeness: options.completeness,
-    data: projectCompanyData(renameScope(data, 'companyId', 'accountId') as AppData, options.companyId),
+    data: projectCompanyData(
+      renameScope(data, 'companyId', 'accountId') as AppData,
+      options.companyId,
+    ),
   };
   return fromWire(validateDocument(document));
 }

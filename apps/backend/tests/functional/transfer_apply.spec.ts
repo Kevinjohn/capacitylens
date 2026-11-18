@@ -19,6 +19,7 @@ import {
 import { freshDatabase } from '../helpers/fresh_database.js';
 import type { ApiClient } from '@japa/api-client';
 import { signIn } from '../helpers/identities.js';
+import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
 const password = 'fixture-password-2026';
@@ -76,7 +77,7 @@ async function apply(
   return asDataOwner(client.post('/api/transfer/apply'), cookie)
     .json({
       companyId,
-      document: documentValue,
+      document: asExportFile(documentValue),
       baseRevision,
       ...(confirmationId ? { confirmationId } : {}),
     })
@@ -102,7 +103,7 @@ test.group('beta transfer apply', (group) => {
     const identities = await db.from('users').select('*');
     const admissions = await db.from('account_admissions').select('*');
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-      .json({ companyId, document: full })
+      .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
     assert.deepInclude(preview.body(), {
@@ -110,7 +111,10 @@ test.group('beta transfer apply', (group) => {
       counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, full.data[key].length])),
     });
     const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
-    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
     assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
@@ -135,7 +139,7 @@ test.group('beta transfer apply', (group) => {
     assert.deepEqual(await db.from('account_admissions').select('*'), admissions);
     assert.deepEqual(full, original);
     const repeatPreview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-      .json({ companyId, document: full })
+      .json({ companyId, document: asExportFile(full) })
       .send();
     repeatPreview.assertStatus(200);
     assert.isFalse((repeatPreview.body() as { changed: boolean }).changed);
@@ -155,7 +159,7 @@ test.group('beta transfer apply', (group) => {
     ];
     for (const [value, error] of refusals) {
       const response = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-        .json({ companyId, document: value })
+        .json({ companyId, document: asExportFile(value) })
         .send();
       response.assertStatus(400);
       assert.deepEqual(response.body(), { error });
@@ -172,11 +176,14 @@ test.group('beta transfer apply', (group) => {
     const otherBefore = await readState('a-loft', true);
     const baseRevision = await revision();
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-      .json({ companyId, document: foreign })
+      .json({ companyId, document: asExportFile(foreign) })
       .send();
     preview.assertStatus(409);
     assert.deepInclude(preview.body(), { code: 'IMPORT_ID_COLLISION' });
-    const confirmationId = await proof(client, cookie, { baseRevision, document: foreign });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(foreign),
+    });
     const result = await apply(client, cookie, foreign, baseRevision, confirmationId);
     result.assertStatus(409);
     assert.deepInclude(result.body(), { code: 'IMPORT_ID_COLLISION' });
@@ -194,7 +201,7 @@ test.group('beta transfer apply', (group) => {
     const baseRevision = await revision();
     const missing = await apply(client, cookie, full, baseRevision);
     missing.assertStatus(403);
-    const validProof = await proof(client, cookie, { baseRevision, document: full });
+    const validProof = await proof(client, cookie, { baseRevision, document: asExportFile(full) });
     const unchanged = await apply(client, cookie, full, baseRevision, validProof);
     unchanged.assertStatus(200);
     assert.deepInclude(unchanged.body(), { changed: false, revision: baseRevision });
@@ -226,12 +233,15 @@ test.group('beta transfer apply', (group) => {
       updated_at: new Date().toISOString(),
     });
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-      .json({ companyId, document: full })
+      .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
     assert.equal((preview.body() as { changed: boolean }).changed, true);
     const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
-    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
     assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
@@ -277,7 +287,10 @@ test.group('beta transfer apply', (group) => {
     ] as const;
     const before = await Promise.all(preservedTables.map((table) => db.from(table).select('*')));
     const baseRevision = await revision();
-    const confirmationId = await proof(client, cookie, { baseRevision, document: selected });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(selected),
+    });
     const result = await apply(client, cookie, selected, baseRevision, confirmationId);
     result.assertStatus(200);
     assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
@@ -333,7 +346,10 @@ test.group('beta transfer apply', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     const other = structuredClone(full);
     other.data.accounts[0]!.name += ' changed';
     const wrongDocument = await apply(client, cookie, other, baseRevision, confirmationId);
@@ -344,7 +360,12 @@ test.group('beta transfer apply', (group) => {
     const wrongProof = await apply(client, cookie, full, baseRevision, wrongAction);
     wrongProof.assertStatus(403);
     const wrongCompany = await asDataOwner(client.post('/api/transfer/apply'), cookie)
-      .json({ companyId: 'a-loft', document: full, baseRevision, confirmationId: confirmationId })
+      .json({
+        companyId: 'a-loft',
+        document: asExportFile(full),
+        baseRevision,
+        confirmationId: confirmationId,
+      })
       .send();
     wrongCompany.assertStatus(403);
     assert.deepEqual(await readState(companyId, true), full.data);
@@ -371,11 +392,14 @@ test.group('beta transfer apply', (group) => {
     assert.isAbove(bytes, 1024 * 1024);
     assert.isBelow(bytes, 5 * 1024 * 1024);
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-      .json({ companyId, document: full })
+      .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
     const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
-    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
     const after = await readState(companyId, true);
@@ -390,7 +414,7 @@ test.group('beta transfer apply', (group) => {
     const full = await document();
     const before = await readState(companyId, true);
     const baseRevision = await revision();
-    const staleProof = await proof(client, cookie, { baseRevision, document: full });
+    const staleProof = await proof(client, cookie, { baseRevision, document: asExportFile(full) });
     await withTransaction((trx) =>
       trx
         .table('company_planning_revisions')
@@ -403,7 +427,7 @@ test.group('beta transfer apply', (group) => {
     const redacted = buildCompanyExport(before, { companyId, completeness: 'redacted' });
     const redactedProof = await proof(client, cookie, {
       baseRevision: baseRevision + 1,
-      document: redacted,
+      document: asExportFile(redacted),
     });
     const redactedResponse = await apply(client, cookie, redacted, baseRevision + 1, redactedProof);
     redactedResponse.assertStatus(400);
@@ -418,7 +442,7 @@ test.group('beta transfer apply', (group) => {
     });
     const danglingProof = await proof(client, cookie, {
       baseRevision: baseRevision + 1,
-      document: full,
+      document: asExportFile(full),
     });
     const dangling = await apply(client, cookie, full, baseRevision + 1, danglingProof);
     dangling.assertStatus(400);
@@ -448,7 +472,7 @@ test.group('beta transfer apply', (group) => {
     documentWithPrototypeKey.data.clients[0] = clientWithPrototypeKey;
 
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-      .json({ companyId, document: documentWithPrototypeKey })
+      .json({ companyId, document: asExportFile(documentWithPrototypeKey) })
       .send();
 
     preview.assertStatus(200);
@@ -485,7 +509,10 @@ test.group('beta transfer apply', (group) => {
     const baseRevision = await revision();
     assert.isNotNull(retainedBefore.deleted_at);
     assert.equal(retainedBefore.deletion_group_id, deletion.groupId);
-    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     await db.rawQuery(
       "CREATE TRIGGER fail_transfer_audit BEFORE INSERT ON audit_entries WHEN NEW.action = 'import' BEGIN SELECT RAISE(ABORT, 'forced transfer failure'); END"
     );
@@ -543,14 +570,14 @@ test.group('beta transfer apply', (group) => {
       .json({
         action: 'import',
         companyId,
-        intent: { baseRevision, document: full },
+        intent: { baseRevision, document: asExportFile(full) },
         password: 'incorrect-password',
       })
       .send();
     denied.assertStatus(403);
     assert.lengthOf(await db.from('password_confirmations'), 0);
 
-    const roleProof = await proof(client, cookie, { baseRevision, document: full });
+    const roleProof = await proof(client, cookie, { baseRevision, document: asExportFile(full) });
     await db
       .from('memberships')
       .where({ scope_id: companyId, user_id: userId })
@@ -558,7 +585,7 @@ test.group('beta transfer apply', (group) => {
     const roleDenied = await apply(client, cookie, full, baseRevision, roleProof);
     roleDenied.assertStatus(403);
     const previewDenied = await asDataOwner(client.post('/api/transfer/preview'), cookie)
-      .json({ companyId, document: full })
+      .json({ companyId, document: asExportFile(full) })
       .send();
     previewDenied.assertStatus(403);
     assert.notProperty(previewDenied.body(), 'companyName');
@@ -569,7 +596,10 @@ test.group('beta transfer apply', (group) => {
       .from('memberships')
       .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'owner' });
-    const sessionProof = await proof(client, cookie, { baseRevision, document: full });
+    const sessionProof = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     await db.from('account_sessions').where('user_id', userId).delete();
     const sessionDenied = await apply(client, cookie, full, baseRevision, sessionProof);
     sessionDenied.assertStatus(401);
@@ -602,7 +632,12 @@ test.group('beta transfer apply', (group) => {
     };
     try {
       const request = asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
-        .json({ action: 'import', companyId, intent: { baseRevision, document: full }, password })
+        .json({
+          action: 'import',
+          companyId,
+          intent: { baseRevision, document: asExportFile(full) },
+          password,
+        })
         .send();
       await checking.promise;
       await kit.emailPasswordManagement.changePassword({
@@ -635,7 +670,10 @@ test.group('beta transfer apply', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     const { cookie: secondCookie } = await signIn(client, 'bruce.wayne@wayne.example', password);
     const wrongSession = await apply(client, secondCookie, full, baseRevision, confirmationId);
     wrongSession.assertStatus(403);
@@ -659,7 +697,10 @@ test.group('beta transfer apply', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const confirmationId = await proof(client, cookie, { baseRevision, document: full });
+    const confirmationId = await proof(client, cookie, {
+      baseRevision,
+      document: asExportFile(full),
+    });
     const responses = await Promise.all([
       apply(client, cookie, full, baseRevision, confirmationId),
       apply(client, cookie, full, baseRevision, confirmationId),

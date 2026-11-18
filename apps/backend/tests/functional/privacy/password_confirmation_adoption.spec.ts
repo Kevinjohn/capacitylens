@@ -21,6 +21,7 @@ import {
   signIn,
 } from '../../helpers/identities.js';
 import { freshDatabase } from '../../helpers/fresh_database.js';
+import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
@@ -201,10 +202,12 @@ test.group('package proof adoption boundaries', (group) => {
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
     const scope = 'x'.repeat(256);
-    const document = buildCompanyExport(await readState(companyId, true), {
-      companyId,
-      completeness: 'full',
-    });
+    const document = asExportFile(
+      buildCompanyExport(await readState(companyId, true), {
+        companyId,
+        completeness: 'full',
+      })
+    );
     const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, companyId));
     const responses = [
       await issue(client, cookie, { ...body, companyId: scope }),

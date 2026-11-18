@@ -7,6 +7,7 @@ import { withTransaction } from '#services/with_transaction';
 import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { createIdentity, fixturePassword, signIn } from '../../helpers/identities.js';
+import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
 
@@ -24,7 +25,7 @@ test.group('password confirmation bindings', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
     const baseRevision = await revision();
-    const document = buildCompanyExport(before, { companyId, completeness: 'full' });
+    const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
     document.data.accounts[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
       const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
@@ -96,7 +97,7 @@ test.group('password confirmation bindings', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const before = await readState(companyId, true);
     const baseRevision = await revision();
-    const document = buildCompanyExport(before, { companyId, completeness: 'full' });
+    const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
     const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
       .json({
         action: 'import',

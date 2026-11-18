@@ -10,6 +10,7 @@ import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '../../helpers/identities.js';
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
+import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
 const otherAccountId = 'a-loft';
@@ -70,7 +71,7 @@ async function setRole(userId: string, role: Role) {
 
 async function stateFor(client: ApiClient, cookie: string, targetCompanyId = companyId) {
   return withSession(
-    trusted(client.get(`/api/state?targetCompanyId=${encodeURIComponent(targetCompanyId)}`)),
+    trusted(client.get(`/api/state?companyId=${encodeURIComponent(targetCompanyId)}`)),
     cookie
   ).send();
 }
@@ -86,10 +87,12 @@ async function writeDismissal(client: ApiClient, cookie: string) {
 }
 
 async function importSeed(client: ApiClient, cookie: string) {
-  const document = buildCompanyExport(await readState(companyId, true), {
-    companyId,
-    completeness: 'full',
-  });
+  const document = asExportFile(
+    buildCompanyExport(await readState(companyId, true), {
+      companyId,
+      completeness: 'full',
+    })
+  );
   return withSession(trusted(client.post('/api/transfer/apply')), cookie)
     .json({ companyId, document, baseRevision: 0 })
     .send();
