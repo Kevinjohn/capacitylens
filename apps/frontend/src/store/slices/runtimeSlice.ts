@@ -5,11 +5,11 @@ import {
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
   readStoredWeekSnapOverride,
-  readStoredUtilizationPrefs,
+  readStoredUtilisationPrefs,
   writeStoredBarLabelPrefs,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
-  writeStoredUtilizationPrefs,
+  writeStoredUtilisationPrefs,
 } from '@/lib/displayPrefs';
 import { applyThemeToDom, readStoredTheme, writeStoredTheme } from '@/lib/theme';
 import type { StoreState } from '@/store/types';
@@ -24,7 +24,7 @@ type RuntimeSliceKeys =
   | 'dirtyFormSources'
   | 'draggingAllocationId'
   | 'theme'
-  | 'utilizationPrefs'
+  | 'utilisationPrefs'
   | 'barLabelPrefs'
   | 'sidebarOpen'
   | 'minimiseWeekends'
@@ -41,7 +41,7 @@ type RuntimeSliceKeys =
   | 'setDirtyFormSource'
   | 'setDraggingAllocation'
   | 'setTheme'
-  | 'setUtilizationPref'
+  | 'setUtilisationPref'
   | 'setBarLabelPref'
   | 'setSidebarOpen'
   | 'setMinimiseWeekends'
@@ -53,7 +53,7 @@ type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
 type PersistedFlagKey = 'sidebarOpen' | 'minimiseWeekends';
 
-const legacyDirtyFormSource = Symbol('setDirtyForm');
+const defaultDirtyFormSource = Symbol('setDirtyForm');
 
 const createPersistedFlagSetter = <K extends PersistedFlagKey>(
   set: Parameters<StateCreator<StoreState, [], [], RuntimeSlice>>[0],
@@ -76,7 +76,7 @@ function readRuntimeInitialState() {
     dirtyFormSources: new Set<symbol>(),
     draggingAllocationId: null,
     theme: readStoredTheme(),
-    utilizationPrefs: readStoredUtilizationPrefs(),
+    utilisationPrefs: readStoredUtilisationPrefs(),
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? readDefaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
@@ -113,11 +113,9 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
     // clearing one contribution can never erase another still-dirty owner.
     setDirtyForm: (value) =>
-      set((state) =>
-        applyDirtyFormSource({ state: state, source: legacyDirtyFormSource, dirty: value }),
-      ),
+      set((state) => applyDirtyFormSource({ state, source: defaultDirtyFormSource, dirty: value })),
     setDirtyFormSource: ({ source, dirty }) =>
-      set((state) => applyDirtyFormSource({ state: state, source: source, dirty: dirty })),
+      set((state) => applyDirtyFormSource({ state, source, dirty })),
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
     setTheme: (preference) => {
       writeStoredTheme(preference);
@@ -126,11 +124,11 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     },
     // The two pref maps stay written out: a shared factory over them needs a double cast to keep
     // the mapped key/value pair typed, which costs more clarity than the four lines it saves.
-    setUtilizationPref: ({ key, value }) =>
+    setUtilisationPref: ({ key, value }) =>
       set((state) => {
-        const next = { ...state.utilizationPrefs, [key]: value };
-        writeStoredUtilizationPrefs(next);
-        return { utilizationPrefs: next };
+        const next = { ...state.utilisationPrefs, [key]: value };
+        writeStoredUtilisationPrefs(next);
+        return { utilisationPrefs: next };
       }),
     setBarLabelPref: ({ key, value }) =>
       set((state) => {
@@ -139,7 +137,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
         return { barLabelPrefs: next };
       }),
     setSidebarOpen: createPersistedFlagSetter(set, 'sidebarOpen', (open) =>
-      writeStoredSidebarOpen({ open }),
+      writeStoredSidebarOpen(open),
     ),
     setMinimiseWeekends: createPersistedFlagSetter(
       set,

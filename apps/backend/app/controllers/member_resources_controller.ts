@@ -28,7 +28,7 @@ export default class MemberResourcesController {
         ctx.request.header('x-account-command-id'),
         ctx.request.header('idempotency-key')
       );
-      const { companyId: companyId, userId } = ctx.params;
+      const { companyId, userId } = ctx.params;
       const result = await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
         return runAccountCommand(trx, {
@@ -69,7 +69,7 @@ export default class MemberResourcesController {
         ctx.request.header('x-account-command-id'),
         ctx.request.header('idempotency-key')
       );
-      const { companyId: companyId, userId } = ctx.params;
+      const { companyId, userId } = ctx.params;
       await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
         return runAccountCommand(trx, {

@@ -228,7 +228,7 @@ export async function restoreGroup(
       }
       if (entity === 'phases') assertScopedRefs(dependencies, companyId, 'phases', row);
       if (entity === 'timeOff') {
-        assertResourceExists(dependencies, companyId, String(row.resourceId));
+        assertResourceExists({ data: dependencies, companyId, resourceId: String(row.resourceId) });
       }
     });
   }

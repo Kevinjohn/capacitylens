@@ -111,7 +111,7 @@ export function clearStoredAccountCommands(): void {
 }
 
 /** Bind implicit retry ceremonies to the authenticated principal verified by `/api/auth/me`.
- * A same-user reload keeps its unknown-outcome recovery handle. A missing legacy owner or a
+ * A same-user reload keeps its unknown-outcome recovery handle. A missing owner or a
  * different principal clears every bearer before the authenticated application is rendered. */
 export function bindStoredAccountCommandsToIdentity(identity: string): void {
   let storedIdentity: string | null = null;

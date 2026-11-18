@@ -101,7 +101,7 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
  * Scrub a Resource's name and role for anonymisation, preserving all other fields.
  * Returns a new Resource with a deterministic token from {@link shortIdTag}, for every resource kind.
  * This standalone transform sets no tombstones; callers scrub dependent notes and avatars.
- * Extend this scrub if Resource gains personal fields such as email or ssoUserId. Authentication-member
+ * Extend this scrub if Resource gains personal fields such as an email address. Authentication-member
  * erasure remains a separate server concern because those fields do not exist on a Resource.
  */
 export function obfuscateResource(resource: Resource): Resource {

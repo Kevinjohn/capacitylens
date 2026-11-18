@@ -10,16 +10,14 @@ describe('primaryShortcut', () => {
   it.each(['Macintosh', 'iPhone', 'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X)'])(
     'uses Apple glyphs for %s',
     (userAgent) => {
-      expect(buildPrimaryShortcut({ key: 'z', shift: false, userAgent: userAgent })).toBe('⌘Z');
-      expect(buildPrimaryShortcut({ key: 'z', shift: true, userAgent: userAgent })).toBe('⌘⇧Z');
+      expect(buildPrimaryShortcut({ key: 'z', shift: false, userAgent })).toBe('⌘Z');
+      expect(buildPrimaryShortcut({ key: 'z', shift: true, userAgent })).toBe('⌘⇧Z');
     },
   );
 
   it.each(['Windows NT 10.0', 'X11; Linux x86_64', ''])('uses Ctrl labels for %s', (userAgent) => {
-    expect(buildPrimaryShortcut({ key: 'z', shift: false, userAgent: userAgent })).toBe('Ctrl+Z');
-    expect(buildPrimaryShortcut({ key: 'z', shift: true, userAgent: userAgent })).toBe(
-      'Ctrl+Shift+Z',
-    );
+    expect(buildPrimaryShortcut({ key: 'z', shift: false, userAgent })).toBe('Ctrl+Z');
+    expect(buildPrimaryShortcut({ key: 'z', shift: true, userAgent })).toBe('Ctrl+Shift+Z');
   });
 
   it('defaults shift to false when the caller omits it', () => {

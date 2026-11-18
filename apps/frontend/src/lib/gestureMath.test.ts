@@ -9,11 +9,11 @@ const range: DateRange = { startDate: '2026-05-10', endDate: '2026-05-12' };
 
 describe('applyGesture: move', () => {
   it('shifts both ends by the delta', () => {
-    expect(applyGesture({ mode: 'move', range: range, deltaDays: 2 })).toEqual({
+    expect(applyGesture({ mode: 'move', range, deltaDays: 2 })).toEqual({
       startDate: '2026-05-12',
       endDate: '2026-05-14',
     });
-    expect(applyGesture({ mode: 'move', range: range, deltaDays: -3 })).toEqual({
+    expect(applyGesture({ mode: 'move', range, deltaDays: -3 })).toEqual({
       startDate: '2026-05-07',
       endDate: '2026-05-09',
     });
@@ -177,18 +177,18 @@ describe('applyGesture: move across resources with different working weeks', () 
 
 describe('applyGesture: resize-start', () => {
   it('moves the start edge', () => {
-    expect(applyGesture({ mode: 'resize-start', range: range, deltaDays: -2 })).toEqual({
+    expect(applyGesture({ mode: 'resize-start', range, deltaDays: -2 })).toEqual({
       startDate: '2026-05-08',
       endDate: '2026-05-12',
     });
-    expect(applyGesture({ mode: 'resize-start', range: range, deltaDays: 1 })).toEqual({
+    expect(applyGesture({ mode: 'resize-start', range, deltaDays: 1 })).toEqual({
       startDate: '2026-05-11',
       endDate: '2026-05-12',
     });
   });
 
   it('never lets the start pass the end (min 1 day)', () => {
-    expect(applyGesture({ mode: 'resize-start', range: range, deltaDays: 5 })).toEqual({
+    expect(applyGesture({ mode: 'resize-start', range, deltaDays: 5 })).toEqual({
       startDate: '2026-05-12',
       endDate: '2026-05-12',
     });
@@ -197,18 +197,18 @@ describe('applyGesture: resize-start', () => {
 
 describe('applyGesture: resize-end', () => {
   it('moves the end edge', () => {
-    expect(applyGesture({ mode: 'resize-end', range: range, deltaDays: 3 })).toEqual({
+    expect(applyGesture({ mode: 'resize-end', range, deltaDays: 3 })).toEqual({
       startDate: '2026-05-10',
       endDate: '2026-05-15',
     });
-    expect(applyGesture({ mode: 'resize-end', range: range, deltaDays: -1 })).toEqual({
+    expect(applyGesture({ mode: 'resize-end', range, deltaDays: -1 })).toEqual({
       startDate: '2026-05-10',
       endDate: '2026-05-11',
     });
   });
 
   it('never lets the end precede the start (min 1 day)', () => {
-    expect(applyGesture({ mode: 'resize-end', range: range, deltaDays: -5 })).toEqual({
+    expect(applyGesture({ mode: 'resize-end', range, deltaDays: -5 })).toEqual({
       startDate: '2026-05-10',
       endDate: '2026-05-10',
     });

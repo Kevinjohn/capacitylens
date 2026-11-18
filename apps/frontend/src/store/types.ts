@@ -5,7 +5,7 @@ export * from '@/lib/entityDrafts';
 export * from './filters';
 export * from './StoreEntityActions';
 import type { WeeksZoom } from '@/lib/schedulerConfig';
-import type { BarLabelPreferences, UtilizationPreferences } from '@/lib/displayPrefs';
+import type { BarLabelPreferences, UtilisationPreferences } from '@/lib/displayPrefs';
 import type { ThemePreference } from '@/lib/theme';
 import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
@@ -81,7 +81,7 @@ type SetAccountSummariesOptions = {
   ambiguous?: boolean | undefined;
 };
 type SetDirtyFormSourceOptions = { source: symbol; dirty: boolean };
-type SetUtilizationPrefOptions = { key: keyof UtilizationPreferences; value: boolean };
+type SetUtilisationPrefOptions = { key: keyof UtilisationPreferences; value: boolean };
 type SetBarLabelPrefOptions = { key: keyof BarLabelPreferences; value: boolean };
 
 /** Shows a notice with the given tone (default `info`), or clears it with null. */
@@ -137,9 +137,9 @@ export interface StoreState extends StoreEntityActions {
   theme: ThemePreference;
   /** Utilisation display toggles. Device-global like `theme`, persisted to their
    * own localStorage key, not part of account data. */
-  utilizationPrefs: UtilizationPreferences;
+  utilisationPrefs: UtilisationPreferences;
   /** Allocation-bar label toggles (client/project context before the activity name).
-   * Device-global like `utilizationPrefs`, own localStorage key. */
+   * Device-global like `utilisationPrefs`, own localStorage key. */
   barLabelPrefs: BarLabelPreferences;
   /** Sidebar open (labels) vs collapsed (icon rail). Device-global like `theme`,
    * own localStorage key; the first-run default is viewport-derived (collapsed
@@ -200,7 +200,7 @@ export interface StoreState extends StoreEntityActions {
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
   setTheme: (pref: ThemePreference) => void;
   /** Toggle a single utilisation display preference: persist and update state. */
-  setUtilizationPref: (options: SetUtilizationPrefOptions) => void;
+  setUtilisationPref: (options: SetUtilisationPrefOptions) => void;
   /** Toggle a single bar-label display preference: persist and update state. */
   setBarLabelPref: (options: SetBarLabelPrefOptions) => void;
   /** Open/collapse the sidebar: persist the choice and update state. */

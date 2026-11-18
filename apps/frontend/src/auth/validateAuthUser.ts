@@ -1,9 +1,5 @@
 import type { AuthUser } from './authContext';
 
-interface ParseAuthUserInput {
-  value: unknown;
-}
-
 function isOptionalString(value: unknown) {
   return value === undefined || typeof value === 'string';
 }
@@ -13,7 +9,7 @@ function isOptionalImage(value: unknown) {
 }
 
 /** Validates an untrusted user payload before exposing it to auth context. */
-export function parseAuthUser({ value }: ParseAuthUserInput): AuthUser | null {
+export function parseAuthUser(value: unknown): AuthUser | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const user = value as Record<string, unknown>;
   const hasValidId = typeof user.id === 'string' && user.id.trim().length > 0;

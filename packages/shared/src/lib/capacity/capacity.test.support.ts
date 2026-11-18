@@ -7,7 +7,7 @@ import {
   buildDayCapacity as dayCapacityWithWeek,
   isWorkingDay as isWorkingDayWithWeek,
   resolveScheduledHoursOnDay as scheduledHoursOnDayWithWeek,
-  resolveUtilization as utilizationWithWeek,
+  resolveUtilisation as utilisationWithWeek,
 } from '../capacity.js';
 import type { DayCapacity, CapacityAllocationInput } from '../capacity.js';
 import { effectiveWorkingWeek } from '../effectiveWorkingWeek.js';
@@ -57,7 +57,7 @@ export interface CapacityForWindowTestInput {
   accountWorkingDays?: Weekday[] | undefined;
 }
 
-export interface UtilizationTestInput {
+export interface UtilisationTestInput {
   resource: Resource;
   allocations: Allocation[];
   timeOff: TimeOff[];
@@ -107,9 +107,9 @@ export const availableHoursOnDay = ({
   accountWorkingDays,
 }: AvailableHoursOnDayTestInput) =>
   availableHoursOnDayWithWeek({
-    resource: resource,
-    date: date,
-    timeOff: timeOff,
+    resource,
+    date,
+    timeOff,
     effectiveWeek: weekFor(resource, accountWorkingDays),
     closures: [],
   });
@@ -120,9 +120,9 @@ export const allocatedHoursOnDay = ({
   accountWorkingDays,
 }: AllocatedHoursOnDayTestInput) =>
   allocatedHoursOnDayWithWeek({
-    resource: resource,
-    date: date,
-    allocations: allocations,
+    resource,
+    date,
+    allocations,
     effectiveWeek: weekFor(resource, accountWorkingDays),
   });
 export const dayCapacity = ({
@@ -133,10 +133,10 @@ export const dayCapacity = ({
   accountWorkingDays,
 }: DayCapacityTestInput) =>
   dayCapacityWithWeek({
-    resource: resource,
-    date: date,
-    allocations: allocations,
-    timeOff: timeOff,
+    resource,
+    date,
+    allocations,
+    timeOff,
     effectiveWeek: weekFor(resource, accountWorkingDays),
     closures: [],
   });
@@ -149,15 +149,15 @@ export const capacityForWindow = ({
   accountWorkingDays,
 }: CapacityForWindowTestInput) =>
   capacityForWindowWithWeek({
-    resource: resource,
-    allocations: allocations,
-    timeOff: timeOff,
-    start: start,
-    end: end,
+    resource,
+    allocations,
+    timeOff,
+    start,
+    end,
     effectiveWeek: weekFor(resource, accountWorkingDays),
     closures: [],
   });
-export const utilization = ({
+export const utilisation = ({
   resource,
   allocations,
   timeOff,
@@ -165,15 +165,15 @@ export const utilization = ({
   end,
   accountWorkingDays,
   closures = [],
-}: UtilizationTestInput) =>
-  utilizationWithWeek({
-    resource: resource,
-    allocations: allocations,
-    timeOff: timeOff,
-    start: start,
-    end: end,
+}: UtilisationTestInput) =>
+  utilisationWithWeek({
+    resource,
+    allocations,
+    timeOff,
+    start,
+    end,
     effectiveWeek: weekFor(resource, accountWorkingDays),
-    closures: closures,
+    closures,
   });
 export const capacityAdvisory = ({
   resource,
@@ -184,12 +184,12 @@ export const capacityAdvisory = ({
   closures = [],
 }: CapacityAdvisoryTestInput) =>
   capacityAdvisoryWithWeek({
-    resource: resource,
-    proposal: proposal,
-    otherAllocations: otherAllocations,
-    timeOff: timeOff,
+    resource,
+    proposal,
+    otherAllocations,
+    timeOff,
     effectiveWeek: weekFor(resource, accountWorkingDays),
-    closures: closures,
+    closures,
   });
 export const isWorkingDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   isWorkingDayWithWeek(weekFor(resource, accountWorkingDays), date);

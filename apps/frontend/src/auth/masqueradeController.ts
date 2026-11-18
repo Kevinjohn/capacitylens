@@ -271,7 +271,7 @@ export class MasqueradeController {
     const cold =
       this.store.activeAccountId === null || (runtime.kind === 'starting' && !this.resumeWrites);
     const ended = await this.endProjection({
-      reason: reason,
+      reason,
       finish: async (state) => {
         if (cold) {
           const outcome = await this.dependencies.switchAccount(null);

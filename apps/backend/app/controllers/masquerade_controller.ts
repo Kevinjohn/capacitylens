@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { currentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
-import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
+import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { hasOnlyFields } from '#services/request_helpers';
 import { getSignedInSession } from '#services/auth/current_actor';
@@ -58,7 +58,7 @@ export default class MasqueradeController {
         if (companyId) {
           const mode = await currentMasquerade(ctx, db.connection(), companyId);
           if (mode.active) return ctx.response.ok(mode);
-          if (!(await activeCompanyRole(signIn.userId, companyId, undefined))) {
+          if (!(await getActiveCompanyRole(signIn.userId, companyId, undefined))) {
             throw new IdentityAuthorityError('Company membership is unavailable.');
           }
           return ctx.response.ok({ ...mode, companyId });

@@ -14,7 +14,7 @@ export const PAST_BUFFER_DAYS = 28;
  * uses the current zoom and scroll window; per-day conflict markers cover the
  * materialized timeline. These windows remain independent.
  */
-export const UTILIZATION_WINDOW_DAYS = 14;
+export const UTILISATION_WINDOW_DAYS = 14;
 
 /** Supported fixed horizons for the capacity overview. */
 export type CapacityOverviewHorizon = '4-weeks' | '8-weeks' | '12-weeks';

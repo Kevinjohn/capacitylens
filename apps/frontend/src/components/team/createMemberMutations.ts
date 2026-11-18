@@ -7,10 +7,6 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import type { MemberActionDependencies } from './MemberActionDependencies';
 import type { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
 
-interface ChangeSignInTrackingInput {
-  next: boolean;
-}
-
 /** Authorized request and refresh callbacks needed for member changes. */
 export interface MemberMutationDependencies extends Pick<
   MemberActionDependencies,
@@ -24,11 +20,11 @@ export interface MemberMutationDependencies extends Pick<
 }
 
 function createSignInTrackingMutation(dependencies: MemberMutationDependencies) {
-  return ({ next }: ChangeSignInTrackingInput) =>
+  return (next: boolean) =>
     dependencies.withMemberAction('member-sign-in-tracking', async (companyId) => {
       try {
         const result = await teamAccessClient.setMemberSignInTracking({
-          companyId: companyId,
+          companyId,
           enabled: next,
         });
         if (!dependencies.isActiveAccount(companyId)) return;

@@ -52,7 +52,7 @@ A function name starts with a verb, and the verb tells the caller what comes bac
 anything happens on the way. Read these two calls from `app/services/auth/authorization.ts`:
 
 ```ts
-const role = await activeCompanyRole(userId, companyId, trx); // Role | null: absence is a value
+const role = await getActiveCompanyRole(userId, companyId, trx); // Role | null: absence is a value
 await assertCompanyAction(companyId, 'write', trx); // throws if refused
 ```
 
@@ -73,11 +73,14 @@ await assertCompanyAction(companyId, 'write', trx); // throws if refused
 | `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance.ts`            |
 | `make`             | Test fixtures only.                                                                                  | `makeResource` in `apps/frontend/src/test/fixtures.ts`                            |
 | `use`              | A React hook.                                                                                        | `useScopedData` in `apps/frontend/src/store/useScopedData.ts`                     |
+| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withTransaction` in `apps/backend/app/services/with_transaction.ts`              |
 
 Functions that do something rather than answer something use a plain domain verb (`remove`,
 `revoke`, `send`, `record`, `transform`) and say which. Two verbs stay out: `find`, because `get`
 already says "or nothing", and `handle`, because a callback is named for what it does. A prop is
-`onSubmit`; the function passed to it is `submit` or `saveDraft`.
+`onSubmit`; the function passed to it is `submit` or `saveDraft`. Schema-field factories in
+`apps/backend/app/validators` are exempt: they read as a schema, so `uuid()` and `calendarDate()`
+are named for the field they build.
 
 Variables say what they hold, not what type they are: `resources`, not `resourceList`; a map is
 named by its key, `resourcesById`; a count ends in `Count`. Booleans read as a yes/no question
@@ -88,7 +91,9 @@ and `b` inside a comparator.
 
 Parameters are at most three, subject first. A fourth parameter, or a boolean flag in any
 position, turns the list into one options object with a named type ending in `Options` or
-`Input`. Dependencies (the transaction, the clock, the fetch) are parameters, never imports of a
+`Input`. A function's only parameter stays positional,
+even a boolean: it is the subject, not a flag.
+Dependencies (the transaction, the clock, the fetch) are parameters, never imports of a
 singleton; a clock parameter may default to the current time so production callers need not pass
 it. A backend service that serves a request takes the verified actor and the transaction from its
 controller, and only controllers and middleware read the request; a service that wraps a package

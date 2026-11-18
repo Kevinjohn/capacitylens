@@ -86,9 +86,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     );
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), search: 'zed ' },
       preferences: {
@@ -111,9 +111,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
 
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), search: 'stryker' },
       preferences: {
@@ -139,9 +139,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     );
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), search: 'zibblequork' },
       preferences: {
@@ -183,9 +183,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     );
     const greyModel = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -205,9 +205,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(() =>
       buildSchedulerModel({
         data: d,
-        geom: geom,
-        days: days,
-        visibleWindow: { start: start, end: end },
+        geom,
+        days,
+        visibleWindow: { start, end },
         capacity: null,
         filters: buildEmptyFilters(),
         preferences: {
@@ -247,9 +247,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     );
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -450,7 +450,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ]);
     expect(r1.dayStates[4]).toMatchObject({ unavailable: true, timeOffConflict: false });
     expect(r1.dayStates[5]).toMatchObject({ unavailable: true, timeOffConflict: false });
-    expect(r1.utilization).toBe(0);
+    expect(r1.utilisation).toBe(0);
     expect(r1.overSoon).toBe(false);
     expect(r2.dayStates[2]).toMatchObject({
       unavailable: true,

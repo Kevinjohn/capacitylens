@@ -28,8 +28,8 @@ B --> C["Schedule shows the selected figures in this browser"]
 
 ```mermaid
 flowchart TD
-  view["SettingsAppearanceSection renders utilisation switches"] --> setter["runtimeSlice.setUtilizationPref updates state"]
-  setter --> storage["displayPrefs.writeStoredUtilizationPrefs writes localStorage"]
+  view["SettingsAppearanceSection renders utilisation switches"] --> setter["runtimeSlice.setUtilisationPref updates state"]
+  setter --> storage["displayPrefs.writeStoredUtilisationPrefs writes localStorage"]
   setter --> overview["SchedulerGridHeader and SchedulerGridRow read utilisation preferences"]
 ```
 

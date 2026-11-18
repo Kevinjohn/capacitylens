@@ -43,9 +43,9 @@ export function buildGesturePreviewDates({
   return {
     kind: 'ready',
     dates: applyGesture({
-      mode: mode,
+      mode,
       range: { startDate: allocation.startDate, endDate: allocation.endDate },
-      deltaDays: deltaDays,
+      deltaDays,
       options: {
         ...(previewDays !== undefined ? { workingDays: previewDays } : {}),
         ...(sourceDays !== undefined ? { sourceWorkingDays: sourceDays } : {}),

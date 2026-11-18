@@ -120,7 +120,15 @@ describe('assertResourceKindAllowsDependents with a lookup', () => {
   it('asks the lookup for loaded allocations instead of scanning data', () => {
     const lookup = lookupOver(data({ allocations: [allocation('r1', 't1')] }));
     expect(
-      codeOf(() => assertResourceKindAllowsDependents(data(), A1, 'r1', 'external', lookup)),
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: data(),
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'external',
+          lookup,
+        }),
+      ),
     ).toBe('resource_external_dependents');
     expect(lookup.resourceHasLoadedAllocation).toHaveBeenCalledWith(A1, 'r1');
   });
@@ -128,19 +136,42 @@ describe('assertResourceKindAllowsDependents with a lookup', () => {
   it('asks the lookup for time off instead of scanning data', () => {
     const lookup = lookupOver(data({ timeOff: [timeOff('r1')] }));
     expect(
-      codeOf(() => assertResourceKindAllowsDependents(data(), A1, 'r1', 'external', lookup)),
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: data(),
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'external',
+          lookup,
+        }),
+      ),
     ).toBe('resource_external_dependents');
     expect(lookup.resourceHasTimeOff).toHaveBeenCalledWith(A1, 'r1');
   });
 
   it('trusts the lookup over dependents present only in data', () => {
     const stored = data({ allocations: [allocation('r1', 't1')], timeOff: [timeOff('r1')] });
-    expect(codeOf(() => assertResourceKindAllowsDependents(stored, A1, 'r1', 'external'))).toBe(
-      'resource_external_dependents',
-    );
+    expect(
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: stored,
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'external',
+        }),
+      ),
+    ).toBe('resource_external_dependents');
     const lookup = lookupOver(data());
     expect(
-      codeOf(() => assertResourceKindAllowsDependents(stored, A1, 'r1', 'external', lookup)),
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: stored,
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'external',
+          lookup,
+        }),
+      ),
     ).toBeUndefined();
   });
 });
@@ -152,7 +183,14 @@ describe('assertResourceProjectAllowsDependents with a lookup', () => {
     const lookup = lookupOver(data({ allocations: [allocation('ph-p1', 't1')] }));
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(data(), A1, 'ph-p1', rebound, placeholder, lookup),
+        assertResourceProjectAllowsDependents({
+          data: data(),
+          companyId: A1,
+          resourceId: 'ph-p1',
+          merged: rebound,
+          existing: placeholder,
+          lookup,
+        }),
       ),
     ).toBe('placeholder_project_dependents');
     expect(lookup.allocationsForResource).toHaveBeenCalledWith(A1, 'ph-p1');
@@ -163,7 +201,13 @@ describe('assertResourceProjectAllowsDependents with a lookup', () => {
     const lookup = lookupOver(data({ allocations: [allocation('ph-p1', 't1')] }));
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(data(), A1, 'ph-p1', rebound, undefined, lookup),
+        assertResourceProjectAllowsDependents({
+          data: data(),
+          companyId: A1,
+          resourceId: 'ph-p1',
+          merged: rebound,
+          lookup,
+        }),
       ),
     ).toBe('placeholder_project_dependents');
   });
@@ -172,19 +216,25 @@ describe('assertResourceProjectAllowsDependents with a lookup', () => {
     const stored = data({ allocations: [allocation('ph-p1', 't1')] });
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(stored, A1, 'ph-p1', rebound, placeholder),
+        assertResourceProjectAllowsDependents({
+          data: stored,
+          companyId: A1,
+          resourceId: 'ph-p1',
+          merged: rebound,
+          existing: placeholder,
+        }),
       ),
     ).toBe('placeholder_project_dependents');
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(
-          stored,
-          A1,
-          'ph-p1',
-          rebound,
-          placeholder,
-          lookupOver(data()),
-        ),
+        assertResourceProjectAllowsDependents({
+          data: stored,
+          companyId: A1,
+          resourceId: 'ph-p1',
+          merged: rebound,
+          existing: placeholder,
+          lookup: lookupOver(data()),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -197,7 +247,16 @@ describe('assertActivityProjectAllowsDependents with a lookup', () => {
   it('reads the activity’s allocations and their resources through the lookup', () => {
     const lookup = lookupOver(data({ allocations: [allocation('ph-p1', 't1')] }));
     expect(
-      codeOf(() => assertActivityProjectAllowsDependents(data(), A1, 't1', moved, stored, lookup)),
+      codeOf(() =>
+        assertActivityProjectAllowsDependents({
+          data: data(),
+          companyId: A1,
+          activityId: 't1',
+          merged: moved,
+          existing: stored,
+          lookup,
+        }),
+      ),
     ).toBe('activity_project_dependents');
     expect(lookup.allocationsForActivity).toHaveBeenCalledWith(A1, 't1');
     expect(lookup.row).toHaveBeenCalledWith('resources', 'ph-p1');
@@ -207,7 +266,13 @@ describe('assertActivityProjectAllowsDependents with a lookup', () => {
     const lookup = lookupOver(data({ allocations: [allocation('ph-p1', 't1')] }));
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(data(), A1, 't1', moved, undefined, lookup),
+        assertActivityProjectAllowsDependents({
+          data: data(),
+          companyId: A1,
+          activityId: 't1',
+          merged: moved,
+          lookup,
+        }),
       ),
     ).toBe('activity_project_dependents');
   });
@@ -215,18 +280,26 @@ describe('assertActivityProjectAllowsDependents with a lookup', () => {
   it('trusts the lookup over allocations present only in data', () => {
     const withWork = data({ allocations: [allocation('ph-p1', 't1')] });
     expect(
-      codeOf(() => assertActivityProjectAllowsDependents(withWork, A1, 't1', moved, stored)),
+      codeOf(() =>
+        assertActivityProjectAllowsDependents({
+          data: withWork,
+          companyId: A1,
+          activityId: 't1',
+          merged: moved,
+          existing: stored,
+        }),
+      ),
     ).toBe('activity_project_dependents');
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(
-          withWork,
-          A1,
-          't1',
-          moved,
-          stored,
-          lookupOver(data()),
-        ),
+        assertActivityProjectAllowsDependents({
+          data: withWork,
+          companyId: A1,
+          activityId: 't1',
+          merged: moved,
+          existing: stored,
+          lookup: lookupOver(data()),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -237,28 +310,37 @@ describe('assertResourceExists with a lookup', () => {
 
   it('rejects a resource the lookup reports as inactive even when data has it active', () => {
     const lookup = lookupOver(archived());
-    expect(codeOf(() => assertResourceExists(data(), A1, 'r1', undefined, lookup))).toBe(
-      'time_off_resource_inactive',
-    );
+    expect(
+      codeOf(() => assertResourceExists({ data: data(), companyId: A1, resourceId: 'r1', lookup })),
+    ).toBe('time_off_resource_inactive');
     expect(lookup.row).toHaveBeenCalledWith('resources', 'r1');
   });
 
   it('accepts a resource the lookup reports as active even when data has it archived', () => {
-    expect(codeOf(() => assertResourceExists(archived(), A1, 'r1'))).toBe(
-      'time_off_resource_inactive',
-    );
     expect(
-      codeOf(() => assertResourceExists(archived(), A1, 'r1', undefined, lookupOver(data()))),
+      codeOf(() => assertResourceExists({ data: archived(), companyId: A1, resourceId: 'r1' })),
+    ).toBe('time_off_resource_inactive');
+    expect(
+      codeOf(() =>
+        assertResourceExists({
+          data: archived(),
+          companyId: A1,
+          resourceId: 'r1',
+          lookup: lookupOver(data()),
+        }),
+      ),
     ).toBeUndefined();
   });
 
   it('resolves a resource present only in the lookup', () => {
     const lookup = lookupOver(data({ resources: [person('r-new')] }));
-    expect(codeOf(() => assertResourceExists(data(), A1, 'r-new', undefined, lookup))).toBe(
-      undefined,
-    );
-    expect(codeOf(() => assertResourceExists(data(), A1, 'r-new'))).toBe(
-      'time_off_resource_invalid',
-    );
+    expect(
+      codeOf(() =>
+        assertResourceExists({ data: data(), companyId: A1, resourceId: 'r-new', lookup }),
+      ),
+    ).toBe(undefined);
+    expect(
+      codeOf(() => assertResourceExists({ data: data(), companyId: A1, resourceId: 'r-new' })),
+    ).toBe('time_off_resource_invalid');
   });
 });

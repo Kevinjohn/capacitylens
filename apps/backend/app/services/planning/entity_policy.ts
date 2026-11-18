@@ -18,7 +18,7 @@ import { DomainError } from '@capacitylens/shared/domain/errors';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
-import { validateEntityRow, requiredFields } from '#validators/entities/index';
+import { assertEntityRow, requiredFields } from '#validators/entities/index';
 import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
 import { assertEntityDomain } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
@@ -302,7 +302,7 @@ export async function prepareEntityWrite(
   if (table === 'resources' && existing) assertResourceKind(candidate, existing);
   try {
     const visible = buildValidationView(table, candidate, existing, context);
-    const validated = await validateEntityRow(table, visible);
+    const validated = await assertEntityRow(table, visible);
     const preserved: Record<string, unknown> = {};
     for (const field of hidden) {
       if (Object.hasOwn(candidate, field)) preserved[field] = candidate[field];

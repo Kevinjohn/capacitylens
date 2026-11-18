@@ -35,7 +35,7 @@ flowchart TD
 flowchart TD
   A["Schedule opens"] --> B["useSchedulerGridModel builds grid model"]
   B --> C["buildSchedulerModel groups resources and derives day states"]
-  C --> D["applyVisibleUtilization updates visible-window utilisation and lanes"]
+  C --> D["applyVisibleUtilisation updates visible-window utilisation and lanes"]
   D --> E["SchedulerGridRows renders resource rows and ResourceLane cues"]
 ```
 

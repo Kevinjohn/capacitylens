@@ -7,7 +7,7 @@ import {
   MIN_DAY_WIDTH,
   PAST_BUFFER_DAYS,
   resolveColumnFit,
-  UTILIZATION_WINDOW_DAYS,
+  UTILISATION_WINDOW_DAYS,
   WEEKDAY_LABEL_MIN_WIDTH,
   WEEKEND_COLUMN_REM,
   WEEK_SNAP_IDLE_MS,
@@ -68,7 +68,7 @@ describe('resolveColumnFit', () => {
     expect(FALLBACK_TIMELINE_WIDTH).toBeGreaterThan(WEEKDAY_LABEL_MIN_WIDTH);
     expect(WEEKEND_COLUMN_REM).toBeGreaterThan(0);
     expect(WEEK_SNAP_IDLE_MS).toBeGreaterThan(0);
-    expect(DEFAULT_RANGE_DAYS).toBeGreaterThan(UTILIZATION_WINDOW_DAYS);
+    expect(DEFAULT_RANGE_DAYS).toBeGreaterThan(UTILISATION_WINDOW_DAYS);
     expect(PAST_BUFFER_DAYS % 7).toBe(0);
   });
 });

@@ -9,7 +9,7 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import type { AdmissionAuthorizeCallbacks } from '@kevinjohn/adonisjs-account-kit/admission';
 import type { Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
-import { activeCompanyRole } from '#services/auth/authorization';
+import { getActiveCompanyRole } from '#services/auth/authorization';
 import { writeAudit } from '#services/audit';
 import { installationCompanyId } from '#models/installation_company';
 
@@ -30,7 +30,7 @@ export async function isAdmitted(userId: string, trx?: Trx) {
 // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
 async function getCompanyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
   const companyId = await installationCompanyId(trx ?? db);
-  return companyId ? activeCompanyRole(userId, companyId, trx) : null;
+  return companyId ? getActiveCompanyRole(userId, companyId, trx) : null;
 }
 
 async function canManageInvitations(userId: string, trx: Trx | undefined) {

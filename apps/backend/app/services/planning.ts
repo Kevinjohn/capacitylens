@@ -223,7 +223,7 @@ async function commit({
   const restoration = await executePlanningIntent({
     trx,
     companyId,
-    intent: intent,
+    intent,
     capabilities,
     data: structuredClone(before),
     identity: {
