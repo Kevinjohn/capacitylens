@@ -137,7 +137,7 @@ export function createTypedPlanningActions(
   const createTimeOff = async (input: Draft<TimeOff>): Promise<CreateResult<TimeOff>> => {
     const companyId = requireAccount();
     if (blocked()) return { kind: 'blocked' };
-    assertResourceExists(get().data, companyId, input.resourceId);
+    assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
     const id = newId();
     const command = buildTimeOffCreate({
       data: get().data,
@@ -221,7 +221,7 @@ export function createTypedPlanningActions(
       }
       const companyId = requireAccount();
       if (blocked()) return { kind: 'blocked' };
-      assertResourceExists(get().data, companyId, input.resourceId);
+      assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
       const command = buildTimeOffCreate({
         data: get().data,
         companyId,
