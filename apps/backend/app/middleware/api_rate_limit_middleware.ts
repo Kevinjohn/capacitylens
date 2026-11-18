@@ -1,12 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
 import limiter from '@adonisjs/limiter/services/main';
-import { configuredApiLimit, requestClientKey } from '#services/auth/request_limit';
+import { readApiLimit, requestClientKey } from '#services/auth/request_limit';
 
 export default class ApiRateLimitMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const path = ctx.request.url();
-    const count = configuredApiLimit();
+    const count = readApiLimit();
     if (!count || !path.startsWith('/api/') || path.startsWith('/api/health')) return next();
     try {
       await limiter

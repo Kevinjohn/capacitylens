@@ -68,7 +68,7 @@ const admittedRoutes = new Set([
 ]);
 
 /** The gate's requirement for a route name, or `undefined` when the name is in no set. */
-export function classifiedRouteAccess(name: string): RouteAccess | undefined {
+export function getClassifiedRouteAccess(name: string): RouteAccess | undefined {
   if (publicRoutes.has(name)) return 'public';
   if (limitedRoutes.has(name)) return 'limited';
   if (admittedRoutes.has(name) || name.startsWith('api.planning.')) return 'admitted';
@@ -81,5 +81,5 @@ export function classifiedRouteAccess(name: string): RouteAccess | undefined {
  */
 export function routeAccess(name: string | undefined): RouteAccess {
   if (name === undefined) return 'public';
-  return classifiedRouteAccess(name) ?? 'admitted';
+  return getClassifiedRouteAccess(name) ?? 'admitted';
 }
