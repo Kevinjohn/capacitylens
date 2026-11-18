@@ -396,7 +396,7 @@ export function assertAllocationRefs(
   }
   // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
   // and the database FK make this impossible, but this validator is also the last line of defence
-  // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
+  // for corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
   const resolvedProjectId = assertAllocationProject(
     { data, companyId, projectId, existing, lookupOptions },

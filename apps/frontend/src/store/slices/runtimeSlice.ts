@@ -53,7 +53,7 @@ type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
 type PersistedFlagKey = 'sidebarOpen' | 'minimiseWeekends';
 
-const legacyDirtyFormSource = Symbol('setDirtyForm');
+const defaultDirtyFormSource = Symbol('setDirtyForm');
 
 const createPersistedFlagSetter = <K extends PersistedFlagKey>(
   set: Parameters<StateCreator<StoreState, [], [], RuntimeSlice>>[0],
@@ -113,7 +113,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
     // clearing one contribution can never erase another still-dirty owner.
     setDirtyForm: (value) =>
-      set((state) => applyDirtyFormSource({ state, source: legacyDirtyFormSource, dirty: value })),
+      set((state) => applyDirtyFormSource({ state, source: defaultDirtyFormSource, dirty: value })),
     setDirtyFormSource: ({ source, dirty }) =>
       set((state) => applyDirtyFormSource({ state, source, dirty })),
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),

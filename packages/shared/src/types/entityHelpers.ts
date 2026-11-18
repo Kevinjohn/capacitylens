@@ -26,7 +26,7 @@ export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntit
   return data;
 }
 
-/** Clamp computed gesture hours and legacy repair values into [0, MAX_HOURS_PER_DAY].
+/** Clamp computed gesture hours into [0, MAX_HOURS_PER_DAY].
  * Ordinary allocation writes validate supplied values instead of repairing them. */
 export function clampHoursPerDay(hours: number): number {
   return Number.isFinite(hours) ? Math.max(0, Math.min(hours, MAX_HOURS_PER_DAY)) : 0;

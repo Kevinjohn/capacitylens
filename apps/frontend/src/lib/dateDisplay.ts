@@ -31,8 +31,8 @@ let activeDateStyle: DateStyle = DEFAULT_DATE_STYLE;
 
 /** Sets the validated date style used by synchronous formatters. */
 export function setActiveDateStyle(style: DateStyle): void {
-  // Treat unknown styles as the default so legacy or hand-edited rows cannot break
-  // date rendering.
+  // Treat unknown styles as the default so a hand-edited row cannot break date
+  // rendering.
   activeDateStyle = DATE_STYLES.includes(style) ? style : DEFAULT_DATE_STYLE;
 }
 

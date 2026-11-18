@@ -13,7 +13,7 @@ export { CompanyDocumentError };
 
 /** Stable identifier for the beta-native interchange format. */
 export const COMPANY_EXPORT_FORMAT = 'capacitylens-beta' as const;
-/** Beta interchange schema version, independent of database and legacy export versions. */
+/** Beta interchange schema version, independent of the database schema. */
 export const COMPANY_EXPORT_SCHEMA_VERSION = 2 as const;
 
 export interface CompanyExportDocument {

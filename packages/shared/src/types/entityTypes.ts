@@ -246,7 +246,7 @@ export interface Allocation extends ScopedEntity {
   /** Set only for `repeatable`-activity allocations to attribute this booking to a project.
    * Null means unattributed; `project` and `internal` activities must not carry it. */
   projectId: ID | null;
-  /** System-owned identity shared by allocations created in one repeat batch. Null = one-off or legacy repeat. */
+  /** System-owned identity shared by allocations created in one repeat batch. Null = one-off. */
   seriesId: ID | null;
   // Both date bounds include the named day.
   startDate: ISODate;

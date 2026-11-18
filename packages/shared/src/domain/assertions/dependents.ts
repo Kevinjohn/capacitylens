@@ -107,7 +107,7 @@ function assertResourceKindAllowsDependents({
 // A resource edit must not turn an allocation that is valid for the stored resource into one that
 // violates the placeholder project rule. This covers both rebinding an existing placeholder and
 // converting another resource kind into a placeholder after work has already been assigned.
-// Only newly introduced invalidity is rejected. Legacy/corrupt assignments therefore do not make
+// Only newly introduced invalidity is rejected. Corrupt assignments therefore do not make
 // an unrelated edit the repair boundary, while a project/kind edit that repairs them remains
 // available. Import retains its separate reconciling contract.
 /** Reject a resource project/kind edit that newly invalidates an existing allocation’s placeholder assignment.

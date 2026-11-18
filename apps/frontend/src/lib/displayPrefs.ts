@@ -19,8 +19,8 @@ interface CreateBooleanPreferenceInput {
   fallback: boolean;
 }
 
-// Boolean records read only declared fields so legacy or unknown preference keys
-// cannot widen the shape. Sidebar choice remains tri-state to preserve first-run defaults.
+// Boolean records read only declared fields so unknown preference keys cannot
+// widen the shape. Sidebar choice remains tri-state to preserve first-run defaults.
 
 function readBooleanPreference({ key, fallback }: ReadBooleanPreferenceInput): boolean {
   try {
@@ -53,7 +53,7 @@ function mergeBooleanRecord<T extends Record<keyof T, boolean>>(
   return merged;
 }
 
-// Read only declared preference fields so legacy or unknown keys cannot widen the
+// Read only declared preference fields so unknown keys cannot widen the
 // runtime shape; unavailable or malformed storage keeps the documented defaults.
 function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(
   key: string,
@@ -113,7 +113,7 @@ export const DEFAULT_UTILISATION_PREFS: UtilisationPreferences = {
 const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`;
 
 /** Read the saved preferences, falling back to the defaults for anything missing
- * or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
+ * or when storage is unavailable. Tolerant of partial stored shapes. */
 export function readStoredUtilisationPrefs(): UtilisationPreferences {
   return readBooleanRecordPreference(STORAGE_KEY, DEFAULT_UTILISATION_PREFS);
 }

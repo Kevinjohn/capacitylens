@@ -32,7 +32,7 @@ const createAccountFieldSelector =
     data.accounts.find((account) => account.id === activeAccountId)?.[key] ?? fallback;
 
 // Mirror one company date convention into synchronous formatters. Unknown stored
-// styles fall back so legacy or hand-edited rows cannot break date rendering.
+// styles fall back so a hand-edited row cannot break date rendering.
 const rawDateStyle = createAccountFieldSelector('dateStyle', DEFAULT_DATE_STYLE);
 /** Resolve the date display style for the active account. */
 export function resolveDateStyle(data: AppData, activeAccountId: ID | null): DateStyle {
