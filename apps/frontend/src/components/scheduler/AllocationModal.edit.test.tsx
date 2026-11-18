@@ -296,7 +296,13 @@ describe('AllocationModal edit', () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
     );
-    queueAllocationGroupResponse('series-weekly');
+    queueAllocationGroupResponse(
+      [
+        ['2026-06-08', '2026-06-09'],
+        ['2026-06-15', '2026-06-16'],
+      ],
+      'series-weekly',
+    );
     const [selected, later] = requireCreated(
       await useStore.getState().addRepeatedAllocation(
         {
