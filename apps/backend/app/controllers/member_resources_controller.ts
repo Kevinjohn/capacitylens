@@ -3,12 +3,12 @@ import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
-import { invalidAdmission } from '#services/admission/errors';
+import { refuseInvalidAdmission } from '#services/admission/errors';
 import { renderAdmissionFailure } from '#services/admission/http';
 import { hasOnlyFields } from '#services/request_helpers';
 
 function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
-  if (!hasOnlyFields(value, keys)) invalidAdmission();
+  if (!hasOnlyFields(value, keys)) refuseInvalidAdmission();
   return value;
 }
 
@@ -22,7 +22,7 @@ export default class MemberResourcesController {
         !body.resourceId ||
         !(body.expectedRevision === null || typeof body.expectedRevision === 'string')
       ) {
-        invalidAdmission();
+        refuseInvalidAdmission();
       }
       const command = parseAccountCommand(
         ctx.request.header('x-account-command-id'),
@@ -62,7 +62,9 @@ export default class MemberResourcesController {
   async clearLink(ctx: HttpContext) {
     try {
       const body = bodyOf(ctx.request.body(), ['expectedRevision']);
-      if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) invalidAdmission();
+      if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) {
+        refuseInvalidAdmission();
+      }
       const command = parseAccountCommand(
         ctx.request.header('x-account-command-id'),
         ctx.request.header('idempotency-key')

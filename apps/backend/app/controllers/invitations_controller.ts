@@ -14,7 +14,7 @@ import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { isInvitableRole } from '#services/account_kit/policy';
 import { getInstallationCompany, installationCompanyId } from '#models/installation_company';
-import { invalidAdmission, missingAdmission } from '#services/admission/errors';
+import { refuseInvalidAdmission, refuseMissingAdmission } from '#services/admission/errors';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
 import { isCommittedFailure } from '#services/account_kit/committed';
@@ -51,10 +51,12 @@ function mailUnavailable(ctx: HttpContext) {
 export default class InvitationsController {
   /** Confirms the caller manages invitations for this installation's company. */
   private async manager(ctx: HttpContext, companyId: unknown) {
-    if (typeof companyId !== 'string' || !companyId) invalidAdmission();
+    if (typeof companyId !== 'string' || !companyId) refuseInvalidAdmission();
     return withActor(ctx, async (_actor, trx) => {
       const { actorId } = await assertCompanyAction(companyId, 'invitations:manage', trx);
-      if ((await installationCompanyId(trx)) !== companyId) missingAdmission('Company not found.');
+      if ((await installationCompanyId(trx)) !== companyId) {
+        refuseMissingAdmission('Company not found.');
+      }
       return actorId;
     });
   }
@@ -62,10 +64,10 @@ export default class InvitationsController {
   async create(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
     if (!hasOnlyFields(body, ['companyId', 'role', 'email']) || !isInvitableRole(body.role)) {
-      invalidAdmission();
+      refuseInvalidAdmission();
     }
     const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : '';
-    if (!isAccountEmail(email)) invalidAdmission('Invalid invitation email.');
+    if (!isAccountEmail(email)) refuseInvalidAdmission('Invalid invitation email.');
     const actorId = await this.manager(ctx, body.companyId);
     if (!isMailConfigured()) return mailUnavailable(ctx);
     try {
@@ -103,7 +105,7 @@ export default class InvitationsController {
 
   async resend(ctx: HttpContext) {
     const id = invitationId(ctx.params.id);
-    if (!id) invalidAdmission();
+    if (!id) refuseInvalidAdmission();
     const actorId = await this.manager(ctx, ctx.params.companyId);
     // Resending replaces the link, so without mail it would only invalidate a printed one.
     if (!isMailConfigured()) return mailUnavailable(ctx);
@@ -118,7 +120,7 @@ export default class InvitationsController {
 
   async revoke(ctx: HttpContext) {
     const id = invitationId(ctx.params.id);
-    if (!id) invalidAdmission();
+    if (!id) refuseInvalidAdmission();
     const actorId = await this.manager(ctx, ctx.params.companyId);
     await accountKit.invitations.revoke({ actorId, invitationId: id });
     return ctx.response.noContent();
@@ -147,7 +149,7 @@ export default class InvitationsController {
   async signUp(ctx: HttpContext) {
     proofHeaders(ctx);
     const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['name', 'password'])) invalidAdmission();
+    if (!hasOnlyFields(body, ['name', 'password'])) refuseInvalidAdmission();
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     if (
       !name ||
@@ -155,7 +157,7 @@ export default class InvitationsController {
       typeof body.password !== 'string' ||
       passwordLengthFailure(body.password)
     ) {
-      invalidAdmission('Invalid sign-up details.');
+      refuseInvalidAdmission('Invalid sign-up details.');
     }
     let email: string;
     try {
