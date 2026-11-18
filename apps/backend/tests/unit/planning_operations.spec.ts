@@ -57,7 +57,7 @@ test.group('planning operation contracts', () => {
           endDate: '2026-10-23',
           hoursPerDay: 7.5,
           status: 'confirmed',
-          accountId: uuid,
+          companyId: uuid,
           createdAt: '2026-10-19T00:00:00.000Z',
           seriesId: uuid,
           clientOnlyField: 'ignored',

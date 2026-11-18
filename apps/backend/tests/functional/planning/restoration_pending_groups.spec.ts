@@ -4,7 +4,7 @@ import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
-import { accountId, configureAuth, resetPlanningFixture, session, signIn } from './helpers.js';
+import { companyId, configureAuth, resetPlanningFixture, session, signIn } from './helpers.js';
 import {
   send,
   deleteOne,
@@ -30,12 +30,12 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await deleteOne(client, cookie, allocationId!, 1);
     deleted.assertStatus(200);
     const groupId = deleted.body().restoration.replacementGroupId;
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const target = before.projects.find((row) => !row.isPrivate)!;
     const foreignGroup = randomUUID();
     await db.table('deleted_groups').insert({
       group_id: foreignGroup,
-      account_id: 'a-loft',
+      company_id: 'a-loft',
       actor_id: 'other-actor',
       session_id: await fixtureSession('other-actor'),
       mutation_id: randomUUID(),
@@ -45,7 +45,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const settings = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/settings`,
+      `/api/companies/${companyId}/settings`,
       2,
       {
         operation: 'settings.update',
@@ -59,7 +59,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const ordinary = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/projects/${target.id}`,
+      `/api/companies/${companyId}/projects/${target.id}`,
       3,
       {
         operation: 'catalogue.update',
@@ -77,7 +77,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const changed = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/projects/${target.id}`,
+      `/api/companies/${companyId}/projects/${target.id}`,
       4,
       {
         operation: 'catalogue.update',
@@ -95,7 +95,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.patch(`/api/companies/${accountId}/projects/${target.id}`),
+      client.patch(`/api/companies/${companyId}/projects/${target.id}`),
       cookie
     )
       .json({
@@ -129,12 +129,12 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await deleteOne(client, cookie, allocationId!, 1);
     deleted.assertStatus(200);
     const groupId = deleted.body().restoration.replacementGroupId;
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const activity = before.activities.find((row) => row.kind === 'internal')!;
     const renamed = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/activities/${activity.id}`,
+      `/api/companies/${companyId}/activities/${activity.id}`,
       2,
       {
         operation: 'catalogue.update',
@@ -152,7 +152,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const changed = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/activities/${activity.id}`,
+      `/api/companies/${companyId}/activities/${activity.id}`,
       3,
       {
         operation: 'catalogue.update',
@@ -166,7 +166,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.patch(`/api/companies/${accountId}/activities/${activity.id}`),
+      client.patch(`/api/companies/${companyId}/activities/${activity.id}`),
       cookie
     )
       .json({
@@ -194,7 +194,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const [allocationId] = await createAllocations(client, cookie, 1);
     const deletion = await deleteOne(client, cookie, allocationId!, 1);
     deletion.assertStatus(200);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const target = before.projects.find((row) => !row.isPrivate)!;
     const retainedAllocation = await db.from('allocations').where('id', allocationId!).first();
     assert.isNotNull(retainedAllocation?.deleted_at);
@@ -208,7 +208,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     ] as const) {
       await db.table('deleted_groups').insert({
         group_id: id,
-        account_id: accountId,
+        company_id: companyId,
         actor_id: 'another-actor',
         session_id: await fixtureSession('another-actor'),
         mutation_id: randomUUID(),
@@ -257,7 +257,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       },
     };
     const request = (confirmedRestorationCount?: number, baseRevision = 2) =>
-      session(client.patch(`/api/companies/${accountId}/projects/${target.id}`), cookie)
+      session(client.patch(`/api/companies/${companyId}/projects/${target.id}`), cookie)
         .json({
           mutationId,
           baseRevision,
@@ -268,7 +268,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const refused = await request();
     refused.assertStatus(409);
     assert.equal(refused.body().restorableItemCount, 3);
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.equal(await currentRevision(client, cookie), 2);
     assert.isNull(await db.from('planning_mutations').where('mutation_id', mutationId).first());
     // An expired sign-in's groups stop counting before pruning removes them, and neither changes
@@ -282,21 +282,21 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     stale.assertStatus(409);
     assert.equal(stale.body().code, 'RESTORATION_CONFIRMATION_STALE');
     assert.equal(stale.body().restorableItemCount, 1);
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     const staleRevision = await request(1, 1);
     staleRevision.assertStatus(409);
     assert.equal(staleRevision.body().code, 'STALE_REVISION');
     assert.isUndefined(staleRevision.body().restorableItemCount);
     await db
       .from('memberships')
-      .where({ scope_id: accountId, user_id: userId })
+      .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'viewer' });
     const forbidden = await request(1);
     forbidden.assertStatus(403);
     assert.isUndefined(forbidden.body().restorableItemCount);
     await db
       .from('memberships')
-      .where({ scope_id: accountId, user_id: userId })
+      .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'owner' });
     const confirmed = await request(1);
     confirmed.assertStatus(200);
@@ -314,7 +314,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await deleteOne(client, cookie, allocationId!, 1);
     deleted.assertStatus(200);
     const groupId = deleted.body().restoration.replacementGroupId;
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const target = before.projects.find((row) => !row.isPrivate)!;
     await db.rawQuery(
       "CREATE TRIGGER reject_privacy_commit BEFORE INSERT ON planning_mutations BEGIN SELECT RAISE(ABORT, 'test rejection'); END"
@@ -323,7 +323,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       const refused = await send(
         client,
         cookie,
-        `/api/companies/${accountId}/projects/${target.id}`,
+        `/api/companies/${companyId}/projects/${target.id}`,
         2,
         {
           operation: 'catalogue.update',
@@ -339,7 +339,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       );
       refused.assertStatus(500);
       assert.isDefined(await group(groupId));
-      const afterRefusal = await readState(accountId, true);
+      const afterRefusal = await readState(companyId, true);
       assert.equal(
         afterRefusal.projects.find((row) => row.id === target.id)?.codeName,
         target.codeName

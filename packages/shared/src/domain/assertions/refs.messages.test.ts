@@ -415,7 +415,7 @@ describe('assertScopedRefs', () => {
     it('passes an UNCHANGED projectId+phaseId pair even when both are absent from data', () => {
       const existing = activity({
         id: 't1',
-        accountId: A1,
+        companyId: A1,
         projectId: 'p-archived',
         phaseId: 'ph-archived',
       });
@@ -425,7 +425,7 @@ describe('assertScopedRefs', () => {
     it('rejects an unchanged phaseId when the resolved legacy phase belongs to another account', () => {
       const existing = activity({
         id: 't1',
-        accountId: A1,
+        companyId: A1,
         projectId: 'p1',
         phaseId: 'cross-account-phase',
       });
@@ -452,7 +452,7 @@ describe('assertScopedRefs', () => {
         clients: [client('c1', A1)],
         projects: [project('p1', A1, 'c1')],
       };
-      const existing = activity({ id: 't1', accountId: A1, projectId: 'p1', phaseId: 'ph-old' });
+      const existing = activity({ id: 't1', companyId: A1, projectId: 'p1', phaseId: 'ph-old' });
       const merged = { ...existing, phaseId: 'ph-new' };
       expect(() => assertScopedRefs(data, A1, 'activities', merged, existing)).toThrow(
         'Activity phase must belong to this company.',
@@ -483,7 +483,7 @@ describe('assertAllocationRefs', () => {
     ...base(),
     clients: [client('c1', A1)],
     projects: [project('p1', A1, 'c1')],
-    activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
+    activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
     resources: [person('r1', A1)],
   });
   it('passes for a real resource + activity in the account', () => {
@@ -555,8 +555,8 @@ describe('assertAllocationRefs', () => {
       ...world(),
       projects: [project('p1', A1, 'c1'), { ...project('p2', A1, 'c1'), archivedAt: TS }],
       activities: [
-        activity({ id: 't1', accountId: A1, projectId: 'p1' }),
-        activity({ id: 't2', accountId: A1, projectId: 'p2' }),
+        activity({ id: 't1', companyId: A1, projectId: 'p1' }),
+        activity({ id: 't2', companyId: A1, projectId: 'p2' }),
       ],
       resources: [person('r1', A1), { ...person('r2', A1), archivedAt: TS }],
     };
@@ -585,7 +585,7 @@ describe('assertAllocationRefs', () => {
       ...base(),
       clients: [client('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
-      activities: [activity({ id: 't2', accountId: A1, projectId: 'p2' })],
+      activities: [activity({ id: 't2', companyId: A1, projectId: 'p2' })],
       resources: [placeholder('ph', A1, 'p1')],
     };
     expect(() => assertAllocationRefs(data, A1, 'ph', 't2', 8)).toThrow(
@@ -608,7 +608,7 @@ describe('assertAllocationRefs', () => {
   });
   it('enforces repeatable-only attribution, project ownership/liveness and placeholder scope', () => {
     const repeatable: Activity = {
-      ...activity({ id: 'repeatable', accountId: A1, projectId: 'p1' }),
+      ...activity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
       kind: 'repeatable' as const,
     };
     repeatable.projectId = null;
@@ -648,7 +648,7 @@ describe('assertAllocationRefs', () => {
 
   it('allows an unchanged archived allocation attribution but rejects changing to it', () => {
     const repeatable: Activity = {
-      ...activity({ id: 'repeatable', accountId: A1, projectId: 'p1' }),
+      ...activity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
       kind: 'repeatable' as const,
     };
     repeatable.projectId = null;

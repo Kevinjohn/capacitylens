@@ -25,10 +25,10 @@ async function setupMembers(request: APIRequestContext) {
     signUpUserWithId(ADMIN, 'Clark Kent'),
     signUpUserWithId(EDITOR, 'Diana Prince'),
   ]);
-  const accountId = await bootstrapOrg(request, owner.cookie, COMPANY);
-  seedFixtureMember(accountId, admin.email, 'admin');
-  seedFixtureMember(accountId, editor.email, 'editor');
-  return { owner, admin, editor, accountId };
+  const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
+  seedFixtureMember(companyId, admin.email, 'admin');
+  seedFixtureMember(companyId, editor.email, 'editor');
+  return { owner, admin, editor, companyId };
 }
 
 async function selectAdmin(page: Page, adminUserId: string, editorUserId: string): Promise<void> {
@@ -55,10 +55,10 @@ async function openTeamAccess(context: BrowserContext, email: string): Promise<P
 async function readRoles(
   request: APIRequestContext,
   cookie: string,
-  accountId: string,
+  companyId: string,
   userIds: readonly string[],
 ) {
-  const response = await request.get(`${API}/api/companies/${accountId}/members`, {
+  const response = await request.get(`${API}/api/companies/${companyId}/members`, {
     headers: { cookie },
   });
   expect(response.status()).toBe(200);
@@ -70,7 +70,7 @@ test('the Owner confirms one immediate handover and both memberships refresh', a
   request,
   newObservedContext,
 }) => {
-  const { owner, admin, editor, accountId } = await setupMembers(request);
+  const { owner, admin, editor, companyId } = await setupMembers(request);
   const ownerContext = await newObservedContext({ reducedMotion: 'reduce' });
   const adminContext = await newObservedContext({ reducedMotion: 'reduce' });
   try {
@@ -79,7 +79,7 @@ test('the Owner confirms one immediate handover and both memberships refresh', a
     await expect(ownerPage.getByTestId('current-access')).toContainText('Owner');
     await expect(adminPage.getByTestId('current-access')).toContainText('Admin');
     await expect(adminPage.getByTestId('ownership-transfer-card')).toHaveCount(0);
-    const refused = await request.post(`${API}/api/companies/${accountId}/ownership-transfer`, {
+    const refused = await request.post(`${API}/api/companies/${companyId}/ownership-transfer`, {
       headers: await masqueradeContextHeaders(request, editor.cookie),
       data: { toUserId: admin.userId },
     });
@@ -96,7 +96,7 @@ test('the Owner confirms one immediate handover and both memberships refresh', a
     await ownerPage.getByTestId('password-confirmation-submit').click();
 
     await expect
-      .poll(() => readRoles(request, owner.cookie, accountId, [admin.userId, owner.userId]))
+      .poll(() => readRoles(request, owner.cookie, companyId, [admin.userId, owner.userId]))
       .toEqual(['owner', 'admin']);
     await expect(ownerPage.getByTestId('current-access')).toContainText('Admin');
     await expect(ownerPage.getByTestId('ownership-transfer-card')).toHaveCount(0);

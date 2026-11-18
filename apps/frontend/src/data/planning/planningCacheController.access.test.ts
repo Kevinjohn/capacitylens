@@ -29,7 +29,7 @@ function snapshot(name: string, revision = 1): PlanningSnapshot {
     accessKey: 'owner',
     data: makeAppData({
       accounts: [makeAccount({ id: 'wayne', name: 'Wayne Enterprises' })],
-      clients: [makeClient({ accountId: 'wayne', name })],
+      clients: [makeClient({ companyId: 'wayne', name })],
     }),
     today: '2026-06-03',
     capacity: emptyCapacity(),

@@ -22,7 +22,7 @@ export const masqueradeRequests = {
   masqueradeStatus(companyId?: string): Promise<Response> {
     const route = apiRouteUrl('api.masquerade.status', {});
     const url = companyId
-      ? `${route}${route.includes('?') ? '&' : '?'}accountId=${encodeURIComponent(companyId)}`
+      ? `${route}${route.includes('?') ? '&' : '?'}companyId=${encodeURIComponent(companyId)}`
       : route;
     return apiFetch(url, { credentials: 'include' });
   },

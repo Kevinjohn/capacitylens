@@ -19,12 +19,12 @@ export async function createInitialCompany(
   }
 ) {
   const name = input.name;
-  const accountId = crypto.randomUUID();
+  const companyId = crypto.randomUUID();
   const now = input.now ?? new Date().toISOString();
   await trx.table('accounts').insert(
     encodeRow('accounts', {
       ...NULLABLE_FIELDS.accounts,
-      id: accountId,
+      id: companyId,
       name,
       color: FALLBACK_PRESET_COLOR,
       schedulingMode: 'days',
@@ -44,15 +44,15 @@ export async function createInitialCompany(
     .insert(
       encodeRow(
         'clients',
-        buildInternalClient(accountId, now) as unknown as Record<string, unknown>
+        buildInternalClient(companyId, now) as unknown as Record<string, unknown>
       )
     );
   await establishInitialCompanyAuthority(trx, {
-    accountId,
+    companyId,
     ownerId: input.ownerId,
     actorId: input.actorId,
     now,
   });
 
-  return { accountId, ownerId: input.ownerId };
+  return { companyId, ownerId: input.ownerId };
 }

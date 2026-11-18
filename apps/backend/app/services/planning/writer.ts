@@ -42,14 +42,14 @@ export function existingRow<K extends AppDataKey>(
 export async function writeRow({
   trx,
   data,
-  accountId,
+  companyId,
   table,
   row,
   existing,
 }: {
   trx: TransactionClientContract;
   data: AppData;
-  accountId: string;
+  companyId: string;
   table: ScopedEntityKey;
   row: Record<string, unknown>;
   existing: Row | undefined;
@@ -57,7 +57,7 @@ export async function writeRow({
   if (existing) {
     await trx
       .from(tables[table])
-      .where({ id: row.id, account_id: accountId })
+      .where({ id: row.id, company_id: companyId })
       .update(encodeRow(tables[table], row));
     Object.assign(existing, row);
   } else {
@@ -74,7 +74,7 @@ export async function writeRow({
 export async function updateSettings(
   trx: TransactionClientContract,
   data: AppData,
-  accountId: string,
+  companyId: string,
   changes: Record<string, unknown>,
   capabilities: PlanningCapabilities
 ) {
@@ -85,7 +85,7 @@ export async function updateSettings(
       'This setting requires an administrator.'
     );
   }
-  const existing = existingRow(data, 'accounts', accountId);
+  const existing = existingRow(data, 'accounts', companyId);
   const candidate = { ...existing, ...changes };
   try {
     assertFrozenAccountFields(changes, candidate, existing);
@@ -97,6 +97,6 @@ export async function updateSettings(
   candidate.updatedAt = now;
   const validated = await validateEntityRow('accounts', candidate);
   if (typeof validated.name === 'string') validated.name = cleanText(validated.name);
-  await trx.from('accounts').where('id', accountId).update(encodeRow('accounts', validated));
+  await trx.from('accounts').where('id', companyId).update(encodeRow('accounts', validated));
   Object.assign(existing, validated);
 }

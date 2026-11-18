@@ -543,7 +543,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
             row: {
               ...allocation,
               ...intent.occurrence,
-              accountId: ACC,
+              companyId: ACC,
               createdAt: timestamp,
               updatedAt: timestamp,
             },

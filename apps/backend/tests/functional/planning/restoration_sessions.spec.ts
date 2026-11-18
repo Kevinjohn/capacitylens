@@ -4,7 +4,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  accountId,
+  companyId,
   configureAuth,
   resetPlanningFixture,
   session,
@@ -53,7 +53,7 @@ test.group('session-bound allocation restoration', (suite) => {
     });
     const loftRevision = await currentRevision(client, owner.cookie, 'a-loft');
     const loftBefore = await readState('a-loft', true);
-    const studioBefore = await readState(accountId, true);
+    const studioBefore = await readState(companyId, true);
     const attempts = [
       await restore(client, editor.cookie, groupId, 2),
       await restore(client, otherSession, groupId, 2),
@@ -63,13 +63,13 @@ test.group('session-bound allocation restoration', (suite) => {
       refused.assertStatus(403);
       assert.equal(refused.body().code, 'AUTHORIZATION_DENIED');
     }
-    assert.deepEqual(await readState(accountId, true), studioBefore);
+    assert.deepEqual(await readState(companyId, true), studioBefore);
     assert.deepEqual(await readState('a-loft', true), loftBefore);
     assert.isNull(await consumedAt(groupId));
     assert.equal(await currentRevision(client, owner.cookie), 2);
     assert.equal(await currentRevision(client, owner.cookie, 'a-loft'), loftRevision);
     assert.lengthOf(
-      await db.from('planning_mutations').whereIn('account_id', [accountId, 'a-loft']),
+      await db.from('planning_mutations').whereIn('company_id', [companyId, 'a-loft']),
       2
     );
     const restored = await restore(client, owner.cookie, groupId, 2);
@@ -97,11 +97,11 @@ test.group('session-bound allocation restoration', (suite) => {
     invalidated.assertStatus(401);
     const later = await signInAgain(client, owner.email);
     const revision = await currentRevision(client, later);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const refused = await restore(client, later, groupId, revision);
     refused.assertStatus(403);
     assert.equal(refused.body().code, 'AUTHORIZATION_DENIED');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.isUndefined(await stored(id!));
   });
 

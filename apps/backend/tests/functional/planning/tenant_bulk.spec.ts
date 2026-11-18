@@ -4,7 +4,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import { readState } from '#tests/helpers/state_fixture';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
@@ -76,14 +76,14 @@ test.group('typed bulk writer tenant isolation', (group) => {
     }) => {
       configureAuth(cleanup);
       const { cookie } = await signIn(client);
-      const beforeOwn = await readState(accountId, true);
+      const beforeOwn = await readState(companyId, true);
       const intent = scenario.intent(beforeOwn);
       const beforeOther = await readState(otherAccountId, true);
-      const own = await session(client.post(`/api/companies/${accountId}/${scenario.path}`), cookie)
+      const own = await session(client.post(`/api/companies/${companyId}/${scenario.path}`), cookie)
         .json(requestBody(0, intent))
         .send();
       own.assertStatus(200);
-      assert.notDeepEqual(await readState(accountId, true), beforeOwn);
+      assert.notDeepEqual(await readState(companyId, true), beforeOwn);
       assert.deepEqual(await readState(otherAccountId, true), beforeOther);
 
       const foreign = await session(
@@ -104,10 +104,10 @@ test.group('typed bulk writer tenant isolation', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const initial = await readState(accountId, true);
+    const initial = await readState(companyId, true);
     const id = initial.allocations[0]!.id;
     const removed = await session(
-      client.post(`/api/companies/${accountId}/allocations/delete-group`),
+      client.post(`/api/companies/${companyId}/allocations/delete-group`),
       cookie
     )
       .json(requestBody(0, { operation: 'allocation.deleteGroup', ids: [id] }))
@@ -116,16 +116,16 @@ test.group('typed bulk writer tenant isolation', (group) => {
     const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId;
     const intent = { operation: 'planning.restoreGroup', restorationGroupId: groupId };
-    const beforeOwn = await readState(accountId, true);
+    const beforeOwn = await readState(companyId, true);
     const beforeOther = await readState(otherAccountId, true);
     const restored = await session(
-      client.post(`/api/companies/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${companyId}/planning/restore-group`),
       cookie
     )
       .json(requestBody(1, intent))
       .send();
     restored.assertStatus(200);
-    assert.notDeepEqual(await readState(accountId, true), beforeOwn);
+    assert.notDeepEqual(await readState(companyId, true), beforeOwn);
     assert.deepEqual(await readState(otherAccountId, true), beforeOther);
 
     const foreign = await session(

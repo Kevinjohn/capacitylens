@@ -9,7 +9,7 @@ import {
   redactPrivateName,
 } from './privateNames.js';
 
-const meta = { accountId: 'a1', createdAt: 't', updatedAt: 't' };
+const meta = { companyId: 'a1', createdAt: 't', updatedAt: 't' };
 const privateClient: Client = {
   ...NULLABLE_FIELDS.clients,
   ...meta,

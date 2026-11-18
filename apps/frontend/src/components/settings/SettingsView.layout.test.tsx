@@ -105,7 +105,7 @@ describe('SettingsView — grouped information architecture', () => {
   it('retains the existing permission exceptions during a masquerade transition', () => {
     useStore.getState().setMasquerade({
       kind: 'starting',
-      pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+      pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
       generation: 1,
     });
     try {

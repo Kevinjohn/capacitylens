@@ -17,12 +17,12 @@ import { withActor } from '#services/auth/current_actor';
 export default class PlanningController {
   async show(ctx: HttpContext) {
     try {
-      const accountId = String(ctx.params.companyId);
+      const companyId = String(ctx.params.companyId);
       const { from, to } = await ctx.request.validateUsing(planningReadValidator, {
         data: ctx.request.qs(),
       });
       const window = from !== undefined && to !== undefined ? { from, to } : undefined;
-      return await withActor(ctx, (_actor, trx) => readPlanning(trx, accountId, window));
+      return await withActor(ctx, (_actor, trx) => readPlanning(trx, companyId, window));
     } catch (error) {
       return sendRefusal(error, ctx);
     }
@@ -30,8 +30,8 @@ export default class PlanningController {
 
   async archive(ctx: HttpContext) {
     try {
-      const accountId = String(ctx.params.companyId);
-      return await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, accountId));
+      const companyId = String(ctx.params.companyId);
+      return await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, companyId));
     } catch (error) {
       return sendRefusal(error, ctx);
     }
@@ -75,8 +75,8 @@ export default class PlanningController {
           'The operation target does not match this resource route.'
         );
       }
-      const accountId = String(ctx.params.companyId);
-      return await withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, accountId, input }));
+      const companyId = String(ctx.params.companyId);
+      return await withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, companyId, input }));
     } catch (error) {
       return sendRefusal(error, ctx);
     }

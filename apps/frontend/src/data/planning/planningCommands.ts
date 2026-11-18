@@ -30,7 +30,7 @@ export interface PlanningCommand {
 
 interface CommandContext {
   data: AppData;
-  accountId: string;
+  companyId: string;
 }
 
 interface CreateCommandContext extends CommandContext {
@@ -55,19 +55,19 @@ type OwnedRow<K extends AppDataKey> = K extends 'accounts' ? Account : AppData[K
 function ownedRow<K extends AppDataKey>(
   data: AppData,
   key: K,
-  accountId: string,
+  companyId: string,
   id: string,
 ): OwnedRow<K> | undefined {
   if (key === 'accounts') {
     return data.accounts.find((row) => row.id === id) as OwnedRow<K> | undefined;
   }
   return data[key].find(
-    (row) => 'accountId' in row && row.accountId === accountId && row.id === id,
+    (row) => 'companyId' in row && row.companyId === companyId && row.id === id,
   ) as OwnedRow<K> | undefined;
 }
 
-function accountExists(data: AppData, accountId: string): boolean {
-  return data.accounts.some((account) => account.id === accountId);
+function accountExists(data: AppData, companyId: string): boolean {
+  return data.accounts.some((account) => account.id === companyId);
 }
 
 function diffFields(
@@ -94,10 +94,10 @@ function diffFields(
 export function buildAllocationCreate(
   context: CreateCommandContext & { args: { id: string; fields: Draft<Allocation> } },
 ): PlanningCommand | null {
-  const { data, accountId, args } = context;
-  if (!accountExists(data, accountId)) return null;
+  const { data, companyId, args } = context;
+  if (!accountExists(data, companyId)) return null;
   const activity = data.activities.find(
-    (row) => row.accountId === accountId && row.id === args.fields.activityId,
+    (row) => row.companyId === companyId && row.id === args.fields.activityId,
   );
   if (!activity) return null;
   const allocation = {
@@ -126,15 +126,15 @@ export function buildAllocationDuplicate(
     args: { sourceId: string; id: string; fields: Draft<Allocation> };
   },
 ): PlanningCommand | null {
-  const { data, accountId, original, args } = context;
+  const { data, companyId, original, args } = context;
   if (
     original.id !== args.sourceId ||
-    original.accountId !== accountId ||
-    !ownedRow(data, 'allocations', accountId, args.sourceId)
+    original.companyId !== companyId ||
+    !ownedRow(data, 'allocations', companyId, args.sourceId)
   ) {
     return null;
   }
-  const command = buildAllocationCreate({ data, accountId, args });
+  const command = buildAllocationCreate({ data, companyId, args });
   if (!command || command.intent.operation !== 'allocation.create') return null;
   const created = command.intent.allocation;
   const copyFields = [
@@ -177,9 +177,9 @@ const ALLOCATION_FIELDS = [
 export function buildAllocationUpdate(
   context: UpdateCommandContext<Allocation> & { args: { id: string; changes: Patch<Allocation> } },
 ): PlanningCommand | null {
-  const { data, accountId, original, args } = context;
-  const current = ownedRow(data, 'allocations', accountId, args.id);
-  if (!current || original.id !== args.id || original.accountId !== accountId) return null;
+  const { data, companyId, original, args } = context;
+  const current = ownedRow(data, 'allocations', companyId, args.id);
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
   const diff = diffFields(original, args.changes, ALLOCATION_FIELDS, [
     'projectId',
     'note',
@@ -191,7 +191,7 @@ export function buildAllocationUpdate(
   const activityId = changes.activityId ?? current.activityId;
   if (Object.hasOwn(changes, 'activityId') || Object.hasOwn(changes, 'projectId')) {
     const activity = data.activities.find(
-      (row) => row.accountId === accountId && row.id === activityId,
+      (row) => row.companyId === companyId && row.id === activityId,
     );
     if (!activity) return null;
     if (
@@ -220,11 +220,11 @@ export function buildAllocationUpdate(
 export function buildTimeOffCreate(
   context: CreateCommandContext & { args: { id: string; fields: Draft<TimeOff> } },
 ): PlanningCommand | null {
-  const { data, accountId, args } = context;
+  const { data, companyId, args } = context;
   if (
-    !accountExists(data, accountId) ||
+    !accountExists(data, companyId) ||
     !data.resources.some(
-      (resource) => resource.accountId === accountId && resource.id === args.fields.resourceId,
+      (resource) => resource.companyId === companyId && resource.id === args.fields.resourceId,
     )
   ) {
     return null;
@@ -255,9 +255,9 @@ const TIME_OFF_FIELDS = [
 export function buildTimeOffUpdate(
   context: UpdateCommandContext<TimeOff> & { args: { id: string; changes: Patch<TimeOff> } },
 ): PlanningCommand | null {
-  const { data, accountId, original, args } = context;
-  const current = ownedRow(data, 'timeOff', accountId, args.id);
-  if (!current || original.id !== args.id || original.accountId !== accountId) return null;
+  const { data, companyId, original, args } = context;
+  const current = ownedRow(data, 'timeOff', companyId, args.id);
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
   const diff = diffFields(original, args.changes, TIME_OFF_FIELDS, ['note']);
   if (!diff) return null;
   return {
@@ -278,8 +278,8 @@ export function buildTimeOffUpdate(
 export function buildClosureCreate(
   context: CreateCommandContext & { args: { fields: Draft<Closure> } },
 ): PlanningCommand | null {
-  const { data, accountId, args } = context;
-  if (!accountExists(data, accountId)) return null;
+  const { data, companyId, args } = context;
+  if (!accountExists(data, companyId)) return null;
   return {
     intent: {
       operation: 'closure.create',
@@ -304,9 +304,9 @@ const CLOSURE_FIELDS = [
 export function buildClosureUpdate(
   context: UpdateCommandContext<Closure> & { args: { id: string; changes: Patch<Closure> } },
 ): PlanningCommand | null {
-  const { data, accountId, original, args } = context;
-  const current = ownedRow(data, 'closures', accountId, args.id);
-  if (!current || original.id !== args.id || original.accountId !== accountId) return null;
+  const { data, companyId, original, args } = context;
+  const current = ownedRow(data, 'closures', companyId, args.id);
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
   const diff = diffFields(original, args.changes, CLOSURE_FIELDS);
   if (!diff) return null;
   return {
@@ -327,8 +327,8 @@ export function buildClosureUpdate(
 export function buildResourceCreate(
   context: CreateCommandContext & { args: { id: string; fields: Draft<Resource> } },
 ): PlanningCommand | null {
-  const { data, accountId, args } = context;
-  if (!accountExists(data, accountId)) return null;
+  const { data, companyId, args } = context;
+  if (!accountExists(data, companyId)) return null;
   const input = args.fields;
   const kindDefaults =
     input.kind === 'external' ? externalCapacityDefaults() : placeholderCapacityDefaults();
@@ -380,9 +380,9 @@ const RESOURCE_FIELDS = [
 export function buildResourceUpdate(
   context: UpdateCommandContext<Resource> & { args: { id: string; changes: Patch<Resource> } },
 ): PlanningCommand | null {
-  const { data, accountId, original, args } = context;
-  const current = ownedRow(data, 'resources', accountId, args.id);
-  if (!current || original.id !== args.id || original.accountId !== accountId) return null;
+  const { data, companyId, original, args } = context;
+  const current = ownedRow(data, 'resources', companyId, args.id);
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
   const normalized: Patch<Resource> = { ...args.changes };
   if (args.changes.kind === 'external') {
     Object.assign(normalized, externalCapacityDefaults(), {
@@ -447,8 +447,8 @@ type CatalogueCreateFields =
 export function buildCatalogueCreate(
   context: CreateCommandContext & { args: { id: string } & CatalogueCreateFields },
 ): PlanningCommand | null {
-  const { data, accountId, args } = context;
-  if (!accountExists(data, accountId)) return null;
+  const { data, companyId, args } = context;
+  if (!accountExists(data, companyId)) return null;
   let entity: Extract<PlanningIntent, { operation: 'catalogue.create' }>['entity'];
   switch (args.entity) {
     case 'clients':
@@ -527,15 +527,15 @@ const CATALOGUE_FIELDS: Record<CatalogueEntity, readonly string[]> = {
 export function buildCatalogueUpdate(
   context: CommandContext & { original: CatalogueRow; args: CatalogueChanges },
 ): PlanningCommand | null {
-  const { data, accountId, original, args } = context;
+  const { data, companyId, original, args } = context;
   const key = args.entity;
-  const current = ownedRow(data, key, accountId, args.id);
-  if (!current || original.id !== args.id || original.accountId !== accountId) return null;
+  const current = ownedRow(data, key, companyId, args.id);
+  if (!current || original.id !== args.id || original.companyId !== companyId) return null;
   const requested = { ...args.changes };
   if (key === 'activities') {
     const requestedKind = args.changes.kind;
     const currentActivity = data.activities.find(
-      (row) => row.accountId === accountId && row.id === args.id,
+      (row) => row.companyId === companyId && row.id === args.id,
     );
     if (!currentActivity) return null;
     const effectiveKind = requestedKind ?? currentActivity.kind;
@@ -596,9 +596,9 @@ type SettingsFields = Pick<
 export function buildSettingsUpdate(
   context: CommandContext & { original: Account; args: Pick<Patch<Account>, keyof SettingsFields> },
 ): PlanningCommand | null {
-  const { data, accountId, original, args } = context;
-  const current = data.accounts.find((account) => account.id === accountId);
-  if (!current || original.id !== accountId) return null;
+  const { data, companyId, original, args } = context;
+  const current = data.accounts.find((account) => account.id === companyId);
+  if (!current || original.id !== companyId) return null;
   const allowedFields = [
     'name',
     'color',

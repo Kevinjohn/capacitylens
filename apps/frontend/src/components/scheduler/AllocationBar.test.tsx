@@ -32,7 +32,7 @@ beforeEach(async () => {
 function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
   return makeAllocationBase({
     id: 'alloc-1',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     resourceId: 'res-1',

@@ -28,7 +28,7 @@ void appDataKeysAreComplete;
 /** The AppData arrays holding account-scoped entities (everything except `accounts`). */
 export type ScopedEntityKey = Exclude<AppDataKey, 'accounts'>;
 
-/** Every table whose rows carry `accountId`. */
+/** Every table whose rows carry `companyId`. */
 export const SCOPED_KEYS = [
   'disciplines',
   'resources',

@@ -49,7 +49,7 @@ beforeEach(async () => {
       ],
       closures: [
         makeClosure({
-          accountId: INACTIVE_ACCOUNT_ID,
+          companyId: INACTIVE_ACCOUNT_ID,
           startDate: '2026-06-03',
           endDate: '2026-06-03',
         }),
@@ -75,7 +75,7 @@ describe('SchedulerGrid draw gate', () => {
   it('opens over a closure omitted for an invalid date range', async () => {
     const corrupt = makeClosure({
       id: 'closure-corrupt',
-      accountId: ACTIVE_ACCOUNT_ID,
+      companyId: ACTIVE_ACCOUNT_ID,
       startDate: '2026-02-30',
       endDate: '2026-06-07',
     });
@@ -96,7 +96,7 @@ describe('SchedulerGrid draw gate', () => {
   it('opens over time off omitted for an invalid date range', async () => {
     const corrupt = makeTimeOff({
       id: 'time-off-corrupt',
-      accountId: ACTIVE_ACCOUNT_ID,
+      companyId: ACTIVE_ACCOUNT_ID,
       startDate: '2026-02-30',
       endDate: '2026-06-07',
     });

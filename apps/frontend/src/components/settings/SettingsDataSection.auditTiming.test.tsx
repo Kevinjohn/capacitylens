@@ -52,7 +52,7 @@ it.each(
 )(
   'retains the action outcome after a delayed $outcome read (audit warning: $warning)',
   async ({ outcome, warning }) => {
-    const accountId = requireValue(
+    const companyId = requireValue(
       useStore.getState().activeAccountId ?? undefined,
       'active company',
     );
@@ -111,12 +111,12 @@ it.each(
       fireEvent.click(screen.getByTestId('add-example-data'));
       await waitFor(() => expect(writes).toHaveBeenCalledOnce());
       const canonicalData = structuredClone(useStore.getState().data);
-      canonicalData.resources = [makeResource({ accountId, name: 'Bruce Wayne' })];
+      canonicalData.resources = [makeResource({ companyId, name: 'Bruce Wayne' })];
       const canonicalSnapshot: PlanningSnapshot = {
         data: canonicalData,
         revision: revision + 1,
         canWrite: true,
-        today: getStubPlanningTransport().todayFor(accountId),
+        today: getStubPlanningTransport().todayFor(companyId),
         capacity: emptyCapacity(),
       };
       vi.spyOn(getPlanningTransportHandle(), 'read').mockImplementationOnce(async () => {

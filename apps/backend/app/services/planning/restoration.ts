@@ -47,7 +47,7 @@ function assertRestorationCandidate(assertion: () => void) {
 export async function deleteRows(
   trx: TransactionClientContract,
   data: AppData,
-  accountId: string,
+  companyId: string,
   table: DeletableTable,
   ids: string[],
   identity: RestorationIdentity,
@@ -57,7 +57,7 @@ export async function deleteRows(
   const groupId = randomUUID();
   await trx.table('deleted_groups').insert({
     group_id: groupId,
-    account_id: accountId,
+    company_id: companyId,
     actor_id: identity.actorId,
     session_id: identity.sessionId,
     mutation_id: identity.mutationId,
@@ -101,17 +101,17 @@ export async function deleteRows(
     const column = link.entity === 'activities' ? 'phase_id' : 'discipline_id';
     const detached = await trx
       .from(tables[link.entity])
-      .where({ id: link.rowId, account_id: accountId, [column]: link.parentId })
+      .where({ id: link.rowId, company_id: companyId, [column]: link.parentId })
       .update({ [column]: null });
     if (affectedRows(detached) !== 1) conflict();
   }
   for (let start = 0; start < ids.length; start += 500) {
     const selected = ids.slice(start, start + 500);
-    const deleted = await retainedQuery(trx, accountId, table).whereIn('id', selected).softDelete();
+    const deleted = await retainedQuery(trx, companyId, table).whereIn('id', selected).softDelete();
     if (deleted !== selected.length) conflict();
     const attached = await trx
       .from(tables[table])
-      .where('account_id', accountId)
+      .where('company_id', companyId)
       .whereIn('id', selected)
       .whereNotNull('deleted_at')
       .whereNull('deletion_group_id')
@@ -125,22 +125,22 @@ export async function deleteRows(
 export const deleteAllocations = (
   trx: TransactionClientContract,
   data: AppData,
-  accountId: string,
+  companyId: string,
   ids: string[],
   identity: RestorationIdentity
-) => deleteRows(trx, data, accountId, 'allocations', ids, identity);
+) => deleteRows(trx, data, companyId, 'allocations', ids, identity);
 
 /** Consumes the caller's group once, restoring parents before selectively relinking survivors. */
 export async function restoreGroup(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   groupId: string,
   identity: RestorationIdentity,
   now = new Date().toISOString()
 ) {
   const owner = {
     group_id: groupId,
-    account_id: accountId,
+    company_id: companyId,
     actor_id: identity.actorId,
     session_id: identity.sessionId,
   };
@@ -159,7 +159,7 @@ export async function restoreGroup(
     const origin = await trx
       .from('planning_mutations')
       .where({
-        account_id: accountId,
+        company_id: companyId,
         actor_id: identity.actorId,
         origin_session_id: identity.sessionId,
         restoration_group_id: groupId,
@@ -182,7 +182,7 @@ export async function restoreGroup(
     if (payload.kind === 'row') {
       const entity = item.entity as DeletableTable;
       if (!isRetainedTable(entity)) conflict();
-      const stored = await retainedQuery(trx, accountId, entity)
+      const stored = await retainedQuery(trx, companyId, entity)
         .onlyTrashed()
         .where('id', String(item.row_id))
         .where('deletion_group_id', groupId)
@@ -198,8 +198,8 @@ export async function restoreGroup(
     }
   }
   if (rows.length === 0) conflict();
-  const dependencies = await readStateWithClient(trx, accountId, true);
-  const account = dependencies.accounts.find((row) => row.id === accountId);
+  const dependencies = await readStateWithClient(trx, companyId, true);
+  const account = dependencies.accounts.find((row) => row.id === companyId);
   const accountWorkingDays = normalizeAccountWorkingDays(
     account?.workingDays,
     account?.weekStartsOn === 0 ? 0 : 1
@@ -210,10 +210,10 @@ export async function restoreGroup(
         // Retained rows are read as plain records, so they do not overlap the entity type.
         const allocation = row as unknown as Allocation;
         const activity = dependencies.activities.find((item) => item.id === allocation.activityId);
-        if (activity) assertScopedRefs(dependencies, accountId, 'activities', { ...activity });
+        if (activity) assertScopedRefs(dependencies, companyId, 'activities', { ...activity });
         assertAllocationRefs(
           dependencies,
-          accountId,
+          companyId,
           allocation.resourceId,
           allocation.activityId,
           allocation.hoursPerDay,
@@ -226,28 +226,28 @@ export async function restoreGroup(
         }
         assertAllocationPlacement({ allocation, resource, accountWorkingDays });
       }
-      if (entity === 'phases') assertScopedRefs(dependencies, accountId, 'phases', row);
+      if (entity === 'phases') assertScopedRefs(dependencies, companyId, 'phases', row);
       if (entity === 'timeOff') {
-        assertResourceExists(dependencies, accountId, String(row.resourceId));
+        assertResourceExists(dependencies, companyId, String(row.resourceId));
       }
     });
   }
   for (const { entity, id, row } of rows) {
-    if (row.accountId !== accountId || row.id !== id) conflict();
+    if (row.companyId !== companyId || row.id !== id) conflict();
     const cleared = await trx
       .from(tables[entity])
-      .where({ id, account_id: accountId, deletion_group_id: groupId })
+      .where({ id, company_id: companyId, deletion_group_id: groupId })
       .whereNotNull('deleted_at')
       .update({ deletion_group_id: null });
     if (affectedRows(cleared) !== 1) conflict();
-    const restored = await retainedQuery(trx, accountId, entity)
+    const restored = await retainedQuery(trx, companyId, entity)
       .onlyTrashed()
       .where('id', id)
       .whereNull('deletion_group_id')
       .restore();
     if (restored !== 1) conflict();
   }
-  const current = await readStateWithClient(trx, accountId, true);
+  const current = await readStateWithClient(trx, companyId, true);
   for (const { entity, rowId, parentId } of links) {
     const field = entity === 'activities' ? 'phaseId' : 'disciplineId';
     const column = entity === 'activities' ? 'phase_id' : 'discipline_id';
@@ -261,11 +261,11 @@ export async function restoreGroup(
     }
     const candidate = { ...child, [field]: parentId };
     assertRestorationCandidate(() => {
-      assertScopedRefs(current, accountId, entity, candidate, child);
+      assertScopedRefs(current, companyId, entity, candidate, child);
     });
     await trx
       .from(tables[entity])
-      .where({ id: rowId, account_id: accountId })
+      .where({ id: rowId, company_id: companyId })
       .whereNull(column)
       .update({ [column]: parentId, updated_at: createServerRevision(child.updatedAt) });
     Object.assign(child, candidate);
@@ -278,24 +278,24 @@ export async function restoreGroup(
  */
 export async function reclaimRetainedId(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   table: RetainedTable,
   id: string,
   identity: RestorationIdentity
 ) {
   const prior = await trx
     .from(tables[table])
-    .select('account_id', 'deleted_at', 'deletion_group_id')
+    .select('company_id', 'deleted_at', 'deletion_group_id')
     .where('id', id)
     .first();
   if (!prior) return;
-  if (prior.account_id !== accountId || !prior.deleted_at || !prior.deletion_group_id) {
+  if (prior.company_id !== companyId || !prior.deleted_at || !prior.deletion_group_id) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
-  if (!(await ownsUnconsumedGroup(trx, accountId, String(prior.deletion_group_id), identity))) {
+  if (!(await ownsUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
-  const purged = await retainedQuery(trx, accountId, table)
+  const purged = await retainedQuery(trx, companyId, table)
     .onlyTrashed()
     .where('id', id)
     .where('deletion_group_id', String(prior.deletion_group_id))
@@ -308,7 +308,7 @@ export async function reclaimRetainedId(
 /** Whether the caller's own session holds the unconsumed group that retained a row. */
 export async function ownsUnconsumedGroup(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   groupId: string,
   identity: Pick<RestorationIdentity, 'actorId' | 'sessionId'>
 ) {
@@ -316,7 +316,7 @@ export async function ownsUnconsumedGroup(
     .from('deleted_groups')
     .where({
       group_id: groupId,
-      account_id: accountId,
+      company_id: companyId,
       actor_id: identity.actorId,
       session_id: identity.sessionId,
     })
@@ -327,19 +327,19 @@ export async function ownsUnconsumedGroup(
 }
 
 /** Ends every restoration group the company holds; their saved rows are deleted with them. */
-export async function discardRestorationGroups(trx: TransactionClientContract, accountId: string) {
-  await trx.from('deleted_groups').where('account_id', accountId).delete();
+export async function discardRestorationGroups(trx: TransactionClientContract, companyId: string) {
+  await trx.from('deleted_groups').where('company_id', companyId).delete();
 }
 
 /** Whether this company already committed a mutation with this identity. */
 export async function isMutationCommitted(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   mutationId: string
 ) {
   const marker = await trx
     .from('planning_mutations')
-    .where({ account_id: accountId, mutation_id: mutationId })
+    .where({ company_id: companyId, mutation_id: mutationId })
     .select('mutation_id')
     .first();
   return Boolean(marker);
@@ -349,7 +349,7 @@ export async function isMutationCommitted(
 export async function recordCommittedMutation(
   trx: TransactionClientContract,
   marker: {
-    accountId: string;
+    companyId: string;
     mutationId: string;
     actorId: string;
     revision: number;
@@ -358,7 +358,7 @@ export async function recordCommittedMutation(
   }
 ) {
   await trx.table('planning_mutations').insert({
-    account_id: marker.accountId,
+    company_id: marker.companyId,
     mutation_id: marker.mutationId,
     actor_id: marker.actorId,
     revision: marker.revision,
@@ -373,14 +373,14 @@ export async function recordCommittedMutation(
  */
 export async function countRestorableItems(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   now = new Date().toISOString()
 ) {
   const markers = await trx
     .from('deleted_rows')
     .join('deleted_groups', 'deleted_groups.group_id', 'deleted_rows.group_id')
     .join('account_sessions', 'account_sessions.id', 'deleted_groups.session_id')
-    .where('deleted_groups.account_id', accountId)
+    .where('deleted_groups.company_id', companyId)
     .whereNull('deleted_groups.consumed_at')
     .where('account_sessions.expires_at', '>', now)
     .whereRaw("json_extract(deleted_rows.payload_json, '$.kind') = ?", ['row'])
@@ -388,7 +388,7 @@ export async function countRestorableItems(
   let total = 0;
   for (const marker of markers) {
     if (!isRetainedTable(marker.entity)) continue;
-    const row = await retainedQuery(trx, accountId, marker.entity)
+    const row = await retainedQuery(trx, companyId, marker.entity)
       .onlyTrashed()
       .where('id', marker.row_id)
       .where('deletion_group_id', marker.group_id)

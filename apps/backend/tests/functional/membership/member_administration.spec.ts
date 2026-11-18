@@ -47,7 +47,7 @@ test.group('company member administration', (group) => {
     );
     const setupRevision = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     assert.equal(Number(setupRevision?.revision), 1);
     const editor = await signUpAndIn(client, {
@@ -85,7 +85,7 @@ test.group('company member administration', (group) => {
     assert.deepEqual(changed.body(), { userId: editorId, role: 'admin' });
     const changedRevision = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     assert.equal(Number(changedRevision?.revision), 2);
     assert.isNotNull(
@@ -103,7 +103,7 @@ test.group('company member administration', (group) => {
     });
     const audits = await db
       .from('audit_entries')
-      .where({ account_id: 'a-studio', action: 'member.role_changed', entity_id: editorId });
+      .where({ company_id: 'a-studio', action: 'member.role_changed', entity_id: editorId });
     assert.lengthOf(audits, 1);
     const unchanged = await signed(client.patch(path), ownerCookie)
       .headers({
@@ -115,7 +115,7 @@ test.group('company member administration', (group) => {
     unchanged.assertStatus(200);
     const unchangedRevision = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     assert.equal(Number(unchangedRevision?.revision), 2);
     const ownerId = await userId('bruce.wayne@wayne.example');
@@ -202,7 +202,7 @@ test.group('company member administration', (group) => {
     assert.lengthOf(
       await db
         .from('audit_entries')
-        .where({ account_id: 'a-studio' })
+        .where({ company_id: 'a-studio' })
         .whereIn('action', ['member.role_changed', 'member.status_changed']),
       2
     );
@@ -312,16 +312,16 @@ test.group('company member administration', (group) => {
     assert.include(member, { role: 'editor', status: 'active' });
     const revision = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     assert.equal(Number(revision?.revision), 1);
     assert.isNull(
       await db
         .from('company_settings')
-        .where({ account_id: 'a-studio', key: 'member-sign-in-tracking' })
+        .where({ company_id: 'a-studio', key: 'member-sign-in-tracking' })
         .first()
     );
-    assert.lengthOf(await db.from('audit_entries').where('account_id', 'a-studio'), 0);
+    assert.lengthOf(await db.from('audit_entries').where('company_id', 'a-studio'), 0);
     assert.deepEqual(
       await db.from('request_receipts').where('scope_id', 'a-studio').orderBy('id'),
       receipts

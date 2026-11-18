@@ -194,7 +194,7 @@ export function useAccountSummaries(): void {
   const accountRouteKey = api.api.accounts.index.queryKey({});
   useQuery<AccountSummary[] | null>({
     queryKey: scopeQueryKey(
-      { principalId: user?.id ?? null, accountId: activeAccountId, masqueradeGeneration },
+      { principalId: user?.id ?? null, companyId: activeAccountId, masqueradeGeneration },
       ['account-summaries', membershipRevision, ...accountRouteKey],
     ),
     enabled: !masqueradeActive && activeAccountId === null,

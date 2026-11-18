@@ -26,7 +26,7 @@ export function useInactiveAccountData(): {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const [serverData, setServerData] = useState<{
-    accountId: string;
+    companyId: string;
     reloadKey: number;
     requestIdentity: object;
     data: AppData;
@@ -62,8 +62,8 @@ export function useInactiveAccountData(): {
 
   useEffect(
     () =>
-      subscribeToInactiveDataChanges((accountId) => {
-        if (accountId === useStore.getState().activeAccountId) reload();
+      subscribeToInactiveDataChanges((companyId) => {
+        if (companyId === useStore.getState().activeAccountId) reload();
       }),
     [reload],
   );
@@ -81,7 +81,7 @@ export function useInactiveAccountData(): {
           generation.current === requestGeneration &&
           useStore.getState().activeAccountId === activeAccountId
         ) {
-          setServerData({ accountId: activeAccountId, reloadKey, requestIdentity, data });
+          setServerData({ companyId: activeAccountId, reloadKey, requestIdentity, data });
         }
       })
       .catch((error: unknown) => {
@@ -101,7 +101,7 @@ export function useInactiveAccountData(): {
   }, [activeAccountId, mayViewInactive, reloadKey, requestIdentity, setNotice]);
 
   if (!mayViewInactive) return { data: null, mayViewInactive, reload };
-  if (serverData?.accountId !== activeAccountId || serverData.requestIdentity !== requestIdentity) {
+  if (serverData?.companyId !== activeAccountId || serverData.requestIdentity !== requestIdentity) {
     return { data: null, mayViewInactive, reload };
   }
   return { data: serverData.data, mayViewInactive, reload };

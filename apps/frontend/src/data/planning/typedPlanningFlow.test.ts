@@ -45,7 +45,7 @@ describe('typed planning flow', () => {
     if (!original) throw new Error('Expected account.');
     const command = buildSettingsUpdate({
       data: state().data,
-      accountId: companyId,
+      companyId: companyId,
       original,
       args: { dateStyle: 'month-day', timezone: 'Europe/London' },
     });
@@ -76,7 +76,7 @@ describe('typed planning flow', () => {
       projects: [
         makeProject({
           id: 'p1',
-          accountId: companyId,
+          companyId: companyId,
           name: 'Planning',
           clientId: 'c1',
           color: '#da2d92',
@@ -85,7 +85,7 @@ describe('typed planning flow', () => {
       phases: [
         {
           id: 'phase-1',
-          accountId: companyId,
+          companyId: companyId,
           projectId: 'p1',
           name: 'Design',
           createdAt: 't',
@@ -95,7 +95,7 @@ describe('typed planning flow', () => {
       activities: [
         makeActivity({
           id: 'activity-1',
-          accountId: companyId,
+          companyId: companyId,
           name: 'Wireframes',
           kind: 'project',
           projectId: 'p1',
@@ -168,7 +168,7 @@ describe('typed planning flow', () => {
     const id = 'resource-1';
     const command = buildResourceCreate({
       data: state().data,
-      accountId: companyId,
+      companyId: companyId,
       args: {
         id,
         fields: {
@@ -203,7 +203,7 @@ describe('typed planning flow', () => {
   it('honors the server history directive after a privacy change', async () => {
     const client = makeClient({
       id: 'client-1',
-      accountId: companyId,
+      companyId: companyId,
       name: 'Wayne Enterprises',
     });
     const initial = makeAppData({
@@ -241,7 +241,7 @@ describe('typed planning flow', () => {
   });
 
   it('keeps a failed draft out of canonical rows while recording its sent intent', async () => {
-    const client = makeClient({ id: 'client-1', accountId: companyId });
+    const client = makeClient({ id: 'client-1', companyId: companyId });
     const initial = makeAppData({
       accounts: [makeAccount({ id: companyId })],
       clients: [client],

@@ -82,14 +82,14 @@ test.group('disposable development demo', (group) => {
     assert.equal(audit.action, 'company.initialized');
     assert.equal(audit.actor_id, owner.id);
     assert.lengthOf(
-      await db.from('clients').where('account_id', 'a-studio').where('builtin', 'true'),
+      await db.from('clients').where('company_id', 'a-studio').where('builtin', 'true'),
       1
     );
     const allocations = await db.from('allocations').orderBy('id');
     assert.deepEqual(
       allocations.map((row) => [row.id, row.start_date, row.end_date]),
       seedForCurrentWeek()
-        .allocations.filter((row) => row.accountId === 'a-studio')
+        .allocations.filter((row) => row.companyId === 'a-studio')
         .sort((a, b) => a.id.localeCompare(b.id))
         .map((row) => [row.id, row.startDate, row.endDate])
     );

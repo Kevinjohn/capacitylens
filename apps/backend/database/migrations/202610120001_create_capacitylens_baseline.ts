@@ -41,8 +41,8 @@ const scoped = (
     : never
 ) => {
   metadata(table);
-  table.string('account_id').notNullable().references('id').inTable('accounts').onDelete('CASCADE');
-  table.index(['account_id']);
+  table.string('company_id').notNullable().references('id').inTable('accounts').onDelete('CASCADE');
+  table.index(['company_id']);
 };
 
 export default class extends BaseSchema {
@@ -239,10 +239,10 @@ export default class extends BaseSchema {
       table.integer('points', 9).notNullable().defaultTo(0);
       table.bigint('expire').unsigned();
     });
-    // Audit history outlives company deletion, so account_id carries no foreign key.
+    // Audit history outlives company deletion, so company_id carries no foreign key.
     this.schema.createTable('audit_entries', (table) => {
       table.string('id').primary();
-      table.string('account_id').notNullable();
+      table.string('company_id').notNullable();
       table.string('actor_id').nullable();
       table.string('action').notNullable();
       table.string('entity').notNullable();
@@ -250,7 +250,7 @@ export default class extends BaseSchema {
       table.json('details').nullable();
       table.timestamp('created_at').notNullable();
       table.timestamp('updated_at').notNullable();
-      table.index(['account_id']);
+      table.index(['company_id']);
     });
     // Access Control package storage (its published migration shape), keyed by the string ids.
     this.schema.createTable('memberships', (table) => {
@@ -277,12 +277,12 @@ export default class extends BaseSchema {
     });
     this.schema.createTable('account_member_resources', (table) => {
       metadata(table);
-      table.string('account_id').notNullable();
+      table.string('company_id').notNullable();
       table.string('user_id').notNullable();
       table.string('resource_id').notNullable();
       table.string('revision').notNullable();
-      table.unique(['account_id', 'user_id']);
-      table.unique(['account_id', 'resource_id']);
+      table.unique(['company_id', 'user_id']);
+      table.unique(['company_id', 'resource_id']);
     });
     this.schema.createTable('ownership_transfers', (table) => {
       scoped(table);
@@ -316,7 +316,7 @@ export default class extends BaseSchema {
     this.schema.createTable('command_results', (table) => {
       metadata(table);
       table
-        .string('account_id')
+        .string('company_id')
         .nullable()
         .references('id')
         .inTable('accounts')
@@ -333,7 +333,7 @@ export default class extends BaseSchema {
     this.schema.createTable('deleted_groups', (table) => {
       table.string('group_id').primary();
       table
-        .string('account_id')
+        .string('company_id')
         .notNullable()
         .references('id')
         .inTable('accounts')
@@ -349,7 +349,7 @@ export default class extends BaseSchema {
       table.string('mutation_id').notNullable();
       table.timestamp('created_at').notNullable();
       table.timestamp('consumed_at').nullable();
-      table.index(['account_id']);
+      table.index(['company_id']);
       table.index(['session_id']);
     });
     this.schema.createTable('deleted_rows', (table) => {
@@ -376,7 +376,7 @@ export default class extends BaseSchema {
         .inTable('account_sessions')
         .onDelete('CASCADE');
       table
-        .string('account_id')
+        .string('company_id')
         .notNullable()
         .references('id')
         .inTable('accounts')
@@ -393,13 +393,13 @@ export default class extends BaseSchema {
       scoped(table);
       table.string('key').notNullable();
       table.json('value').nullable();
-      table.unique(['account_id', 'key']);
+      table.unique(['company_id', 'key']);
     });
 
     this.schema.createTable('account_getting_started_dismissals', (table) => {
       table.string('id').primary();
       table
-        .string('account_id')
+        .string('company_id')
         .notNullable()
         .unique()
         .references('id')
@@ -584,13 +584,13 @@ export default class extends BaseSchema {
     });
 
     this.schema.createTable('company_planning_revisions', (table) => {
-      table.string('account_id').primary().references('id').inTable('accounts').onDelete('CASCADE');
+      table.string('company_id').primary().references('id').inTable('accounts').onDelete('CASCADE');
       table.integer('revision').notNullable().defaultTo(0);
       table.check('revision >= 0');
     });
     this.schema.createTable('planning_mutations', (table) => {
       table
-        .string('account_id')
+        .string('company_id')
         .notNullable()
         .references('id')
         .inTable('accounts')
@@ -598,30 +598,30 @@ export default class extends BaseSchema {
       table.string('mutation_id').notNullable();
       table.string('actor_id').notNullable();
       table.integer('revision').notNullable();
-      table.primary(['account_id', 'mutation_id']);
+      table.primary(['company_id', 'mutation_id']);
       table.check('revision >= 0');
       table.string('restoration_group_id').nullable();
       // The sign-in that may restore; no foreign key, so the marker outlives that sign-in.
       table.integer('origin_session_id').nullable();
-      table.index(['account_id', 'actor_id', 'origin_session_id', 'restoration_group_id']);
+      table.index(['company_id', 'actor_id', 'origin_session_id', 'restoration_group_id']);
     });
 
     for (const [table, column, target] of relationships) {
       for (const operation of ['INSERT', 'UPDATE'] as const) {
         this.schema.raw(
-          `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND account_id = NEW.account_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
+          `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND company_id = NEW.company_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
         );
       }
     }
     // SQLite runs same-timing triggers newest first. Create this guard after relationship checks so
-    // changing account_id always reports and enforces the immutable tenant boundary directly.
+    // changing company_id always reports and enforces the immutable tenant boundary directly.
     for (const table of scopedTables) {
       this.schema.raw(
-        `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF account_id ON ${table} WHEN NEW.account_id <> OLD.account_id BEGIN SELECT RAISE(ABORT, 'account_id is immutable'); END`
+        `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`
       );
     }
     this.schema.raw(
-      "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
+      "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE company_id = OLD.company_id AND resource_id = OLD.id; END"
     );
   }
 }

@@ -4,7 +4,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   planningUrl,
@@ -15,7 +15,7 @@ import {
 
 const body = (response: { body(): unknown }) =>
   response.body() as { code: string; revision: number; message?: string };
-const route = (path: string) => `/api/companies/${accountId}/${path}`;
+const route = (path: string) => `/api/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -35,7 +35,7 @@ test.group('planning request rule boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const initial = await readState(accountId, true);
+    const initial = await readState(companyId, true);
     const clientId = randomUUID();
     const validClient = await session(client.post(route('clients')), cookie)
       .json(
@@ -90,10 +90,10 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     paddedPreset.assertStatus(200);
     assert.equal(body(paddedPreset).revision, 3);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     assert.equal(before.clients.find((row) => row.name === 'Padded preset')?.color, '#E02727');
-    const auditsBefore = await db.from('audit_entries').where('account_id', accountId);
-    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
     for (const entity of ['clients', 'projects'] as const) {
       const fields =
@@ -140,10 +140,10 @@ test.group('planning request rule boundaries', (group) => {
       assert.equal(body(refused).code, 'VALIDATION_ERROR');
     }
 
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
@@ -157,7 +157,7 @@ test.group('planning request rule boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const initial = await readState(accountId, true);
+    const initial = await readState(companyId, true);
     const activity = initial.activities.find((row) => row.phaseId !== null)!;
     const otherProject = initial.projects.find((row) => row.id !== activity.projectId)!;
     const valid = await session(client.patch(route(`activities/${activity.id}`)), cookie)
@@ -170,9 +170,9 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     valid.assertStatus(200);
     assert.equal(body(valid).revision, 1);
-    const before = await readState(accountId, true);
-    const auditsBefore = await db.from('audit_entries').where('account_id', accountId);
-    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const before = await readState(companyId, true);
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
     const wrongProject = await session(client.patch(route(`activities/${activity.id}`)), cookie)
       .json(
@@ -226,10 +226,10 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     wrongKind.assertStatus(400);
     assert.equal(body(wrongKind).code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
@@ -243,24 +243,24 @@ test.group('planning request rule boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const person = before.resources.find((row) => row.kind === 'person')!;
     const placeholder = before.resources.find((row) => row.kind === 'placeholder')!;
     const priorUpdatedAt = '2098-01-01T00:00:00.000Z';
     await db
       .from('resources')
-      .where({ id: person.id, account_id: accountId })
+      .where({ id: person.id, company_id: companyId })
       .update({ updated_at: priorUpdatedAt });
     const valid = await session(client.patch(route(`resources/${person.id}`)), cookie)
       .json(input(0, { operation: 'resource.update', id: person.id, changes: { role: 'Lead' } }))
       .send();
     valid.assertStatus(200);
     assert.equal(body(valid).revision, 1);
-    const canonicalBeforeRefusals = await readState(accountId, true);
+    const canonicalBeforeRefusals = await readState(companyId, true);
     const updatedPerson = canonicalBeforeRefusals.resources.find((row) => row.id === person.id)!;
     assert.isAbove(Date.parse(updatedPerson.updatedAt), Date.parse(priorUpdatedAt));
-    const auditsBefore = await db.from('audit_entries').where('account_id', accountId);
-    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
     const invalidCases = [
       { id: person.id, changes: { workingDays: [] } },
@@ -286,10 +286,10 @@ test.group('planning request rule boundaries', (group) => {
     changedKind.assertStatus(400);
     assert.equal(body(changedKind).code, 'VALIDATION_ERROR');
 
-    assert.deepEqual(await readState(accountId, true), canonicalBeforeRefusals);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
@@ -303,7 +303,7 @@ test.group('planning request rule boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const initial = await readState(accountId, true);
+    const initial = await readState(companyId, true);
     const allocatedPerson = initial.resources.find(
       (resource) =>
         resource.kind === 'person' &&
@@ -313,8 +313,8 @@ test.group('planning request rule boundaries', (group) => {
         !initial.timeOff.some((entry) => entry.resourceId === resource.id)
     );
     assert.isDefined(allocatedPerson);
-    const initialAudits = await db.from('audit_entries').where('account_id', accountId);
-    const initialMutations = await db.from('planning_mutations').where('account_id', accountId);
+    const initialAudits = await db.from('audit_entries').where('company_id', companyId);
+    const initialMutations = await db.from('planning_mutations').where('company_id', companyId);
 
     const allocationRefusal = await session(
       client.patch(route(`resources/${allocatedPerson!.id}`)),
@@ -330,10 +330,10 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     allocationRefusal.assertStatus(400);
     assert.equal(body(allocationRefusal).code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), initial);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), initialAudits);
+    assert.deepEqual(await readState(companyId, true), initial);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), initialAudits);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       initialMutations
     );
     const initialSnapshot = await session(client.get(planningUrl), cookie).send();
@@ -383,7 +383,7 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     createdTimeOff.assertStatus(200);
     assert.equal(body(createdTimeOff).revision, 2);
-    const beforeTimeOffRefusal = await readState(accountId, true);
+    const beforeTimeOffRefusal = await readState(companyId, true);
     assert.equal(
       beforeTimeOffRefusal.allocations.some(
         (allocation) => allocation.resourceId === timeOffOnlyPersonId
@@ -394,8 +394,8 @@ test.group('planning request rule boundaries', (group) => {
       beforeTimeOffRefusal.timeOff.some((entry) => entry.resourceId === timeOffOnlyPersonId),
       true
     );
-    const timeOffAudits = await db.from('audit_entries').where('account_id', accountId);
-    const timeOffMutations = await db.from('planning_mutations').where('account_id', accountId);
+    const timeOffAudits = await db.from('audit_entries').where('company_id', companyId);
+    const timeOffMutations = await db.from('planning_mutations').where('company_id', companyId);
 
     const timeOffRefusal = await session(
       client.patch(route(`resources/${timeOffOnlyPersonId}`)),
@@ -411,10 +411,10 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     timeOffRefusal.assertStatus(400);
     assert.equal(body(timeOffRefusal).code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), beforeTimeOffRefusal);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), timeOffAudits);
+    assert.deepEqual(await readState(companyId, true), beforeTimeOffRefusal);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), timeOffAudits);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       timeOffMutations
     );
     const timeOffSnapshot = await session(client.get(planningUrl), cookie).send();
@@ -428,7 +428,7 @@ test.group('planning request rule boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const baseAllocation = newAllocation(before);
     const external = before.resources.find((row) => row.kind === 'external')!;
     const placeholder = before.resources.find((row) => row.kind === 'placeholder')!;
@@ -457,9 +457,9 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     validTimeOff.assertStatus(200);
     assert.equal(body(validTimeOff).revision, 2);
-    const canonicalBeforeRefusals = await readState(accountId, true);
-    const auditsBefore = await db.from('audit_entries').where('account_id', accountId);
-    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const canonicalBeforeRefusals = await readState(companyId, true);
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
     const invalidAllocations = [
       { ...baseAllocation, hoursPerDay: 25 },
@@ -544,10 +544,10 @@ test.group('planning request rule boundaries', (group) => {
       assert.equal(body(refused).code, 'VALIDATION_ERROR');
     }
 
-    assert.deepEqual(await readState(accountId, true), canonicalBeforeRefusals);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), canonicalBeforeRefusals);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
@@ -561,9 +561,9 @@ test.group('planning request rule boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
-    const auditsBefore = await db.from('audit_entries').where('account_id', accountId);
-    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const before = await readState(companyId, true);
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
     const invalidSettings = [{ workingDays: [] }, { workingDays: [1, 9] }, { color: '#7cd9e4' }];
     for (const changes of invalidSettings) {
@@ -574,10 +574,10 @@ test.group('planning request rule boundaries', (group) => {
       assert.equal(body(refused).code, 'VALIDATION_ERROR');
     }
 
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
@@ -601,10 +601,10 @@ test.group('planning request rule boundaries', (group) => {
       )
       .send();
     created.assertStatus(200);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const closure = before.closures[0]!;
-    const auditsBefore = await db.from('audit_entries').where('account_id', accountId);
-    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const auditsBefore = await db.from('audit_entries').where('company_id', companyId);
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
     const refusedUpdate = await session(client.patch(route(`closures/${closure.id}`)), cookie)
       .json(
@@ -617,10 +617,10 @@ test.group('planning request rule boundaries', (group) => {
       .send();
     refusedUpdate.assertStatus(400);
     assert.equal(body(refusedUpdate).code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditsBefore);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditsBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
@@ -630,8 +630,8 @@ test.group('planning request rule boundaries', (group) => {
   test('ignores a display name sent on a write', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const initial = await readState(accountId, true);
-    const color = initial.clients.find((row) => row.accountId === accountId)!.color;
+    const initial = await readState(companyId, true);
+    const color = initial.clients.find((row) => row.companyId === companyId)!.color;
     const id = randomUUID();
     const created = await session(client.post(route('clients')), cookie)
       .json(
@@ -653,7 +653,7 @@ test.group('planning request rule boundaries', (group) => {
     ).data.clients.find((candidate) => candidate.id === id);
     assert.equal(row?.displayName, 'Daily Planet');
     assert.notInclude(read.text(), 'Injected');
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     const stored = after.clients.find((candidate) => candidate.id === id);
     assert.notProperty(stored!, 'displayName');
   });

@@ -46,7 +46,7 @@ describe('browser account client', () => {
       command,
     });
     await invitationRequests.createInvitation(
-      { accountId: 'company / one', role: 'viewer', email: 'selina@wayne.test' },
+      { companyId: 'company / one', role: 'viewer', email: 'selina@wayne.test' },
       command,
     );
     await invitationRequests.revokeInvitation('company / one', 'invite / one', command);

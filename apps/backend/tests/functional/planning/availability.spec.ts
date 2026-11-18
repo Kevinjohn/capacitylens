@@ -3,7 +3,7 @@ import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
@@ -11,7 +11,7 @@ import {
   signIn,
 } from './helpers.js';
 
-const route = (path: string) => `/api/companies/${accountId}/${path}`;
+const route = (path: string) => `/api/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -31,7 +31,7 @@ test.group('typed resource availability', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const allocation = before.allocations[0]!;
     const boundary = await session(
       client.patch(route(`resources/${allocation.resourceId}`)),
@@ -58,7 +58,7 @@ test.group('typed resource availability', (group) => {
       )
       .send();
     edit.assertStatus(200);
-    const afterEdit = await readState(accountId, true);
+    const afterEdit = await readState(companyId, true);
     const saved = afterEdit.allocations.find((row) => row.id === allocation.id)!;
     assert.equal(saved.note, 'Keep context');
     assert.equal(saved.startDate, allocation.startDate);
@@ -72,7 +72,7 @@ test.group('typed resource availability', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const resourceId = newAllocation(data).resourceId;
     const calendar = await session(client.patch(route('settings')), cookie)
       .json(input(0, { operation: 'settings.update', changes: { workingDays: [1, 2, 3, 4] } }))
@@ -108,7 +108,7 @@ test.group('typed resource availability', (group) => {
       .send();
     inclusive.assertStatus(400);
     assert.equal((inclusive.body() as { code: string }).code, 'VALIDATION_ERROR');
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     assert.isDefined(after.allocations.find((row) => row.id === candidate.id));
     assert.isUndefined(
       after.allocations.find(
@@ -127,7 +127,7 @@ test.group('typed resource availability', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const resourceId = newAllocation(data).resourceId;
     const bounded = await session(client.patch(route(`resources/${resourceId}`)), cookie)
       .json(
@@ -139,7 +139,7 @@ test.group('typed resource availability', (group) => {
       )
       .send();
     bounded.assertStatus(200);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const inside = {
       ...newAllocation(data),
       resourceId,
@@ -158,6 +158,6 @@ test.group('typed resource availability', (group) => {
       .send();
     refused.assertStatus(400);
     assert.equal((refused.body() as { code: string }).code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
   });
 });

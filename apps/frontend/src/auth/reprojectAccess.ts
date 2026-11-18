@@ -3,7 +3,7 @@ import { refreshAccountSummaries } from './useAccountSummaries';
 
 /** Reload every actor-dependent read model while server writes remain suspended. */
 export async function reprojectAccess(
-  accountId: string,
+  companyId: string,
   includeAccountSummaries = true,
 ): Promise<boolean> {
   useStore.getState().invalidateMemberships();
@@ -14,7 +14,7 @@ export async function reprojectAccess(
     if (summaries === null) return false;
   }
   return (
-    useStore.getState().activeAccountId === accountId &&
+    useStore.getState().activeAccountId === companyId &&
     useStore.getState().refreshPlanning({ fresh: true })
   );
 }

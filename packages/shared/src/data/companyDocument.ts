@@ -25,7 +25,7 @@ export interface CompanyExportDocument {
 
 /** The destination facts needed to validate imported scheduling rows. */
 export interface CompanyImportContext {
-  accountId: string;
+  companyId: string;
   memberResourceLinks: readonly { memberId: string; resourceId: string }[];
 }
 
@@ -36,6 +36,39 @@ export interface PreparedCompanyImport {
 }
 
 type Row = Record<string, unknown>;
+
+/**
+ * Renames each scoped row's company field; the export names it `accountId`, the domain `companyId`.
+ * Anything that is not a well-formed table is passed through for validation to report.
+ */
+function renameScope(data: unknown, from: string, to: string): unknown {
+  if (!isRecord(data)) return data;
+  const renamed: Row = { ...data };
+  for (const key of SCOPED_KEYS) {
+    const rows = data[key];
+    if (!Array.isArray(rows)) continue;
+    renamed[key] = rows.map((row: unknown) => {
+      if (!isRecord(row) || !own(row, from)) return row;
+      const { [from]: companyId, ...rest } = row;
+      return { ...rest, [to]: companyId };
+    });
+  }
+  return renamed;
+}
+
+function toWire(document: unknown): unknown {
+  if (!isRecord(document)) return document;
+  return { ...document, data: renameScope(document.data, 'companyId', 'accountId') };
+}
+
+function fromWire(document: CompanyExportDocument): CompanyExportDocument {
+  return {
+    ...document,
+    data: renameScope(document.data, 'accountId', 'companyId') as AppData,
+  };
+}
+
+// Validates the interchange shape: the returned rows still carry `accountId`.
 
 function validateDocument(value: unknown): CompanyExportDocument {
   assert(isRecord(value), 'document', 'must be an object');
@@ -92,7 +125,7 @@ function validateDocument(value: unknown): CompanyExportDocument {
   assert(account, 'data.accounts', 'must contain exactly one account');
   const accountId = account.id;
   for (const key of scoped) {
-    (data[key] as Array<{ accountId: string }>).forEach((row, i) =>
+    (data[key] as unknown as Array<{ accountId: string }>).forEach((row, i) =>
       assert(
         row.accountId === accountId,
         `data.${key}[${i}].accountId`,
@@ -128,20 +161,20 @@ function validateDocument(value: unknown): CompanyExportDocument {
  */
 export function buildCompanyExport(
   data: AppData,
-  options: { accountId: string; completeness: 'full' | 'redacted' },
+  options: { companyId: string; completeness: 'full' | 'redacted' },
 ): CompanyExportDocument {
   const document = {
     format: COMPANY_EXPORT_FORMAT,
     schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
     completeness: options.completeness,
-    data: projectCompanyData(data, options.accountId),
+    data: projectCompanyData(renameScope(data, 'companyId', 'accountId') as AppData, options.companyId),
   };
-  return validateDocument(document);
+  return fromWire(validateDocument(document));
 }
 
 /** Serialize the named portable fields as formatted JSON after validating the entire document. */
 export function serializeCompanyExport(document: CompanyExportDocument): string {
-  const validated = validateDocument(document);
+  const validated = validateDocument(toWire(document));
   return JSON.stringify(validated, null, 2);
 }
 
@@ -153,28 +186,28 @@ export function parseCompanyExport(json: string): CompanyExportDocument {
   } catch (cause) {
     throw new CompanyDocumentError('document', 'is not valid JSON', { cause });
   }
-  return validateDocument(raw);
+  return fromWire(validateDocument(raw));
 }
 
 /** Validate a full source document and bind its company scope to the selected destination. */
 export function prepareCompanyImport(
-  document: unknown,
+  document: CompanyExportDocument,
   context: CompanyImportContext,
 ): PreparedCompanyImport {
   assert(
-    isRecord(context) && isId(context.accountId) && Array.isArray(context.memberResourceLinks),
+    isRecord(context) && isId(context.companyId) && Array.isArray(context.memberResourceLinks),
     'context',
-    'accountId and memberResourceLinks are required',
+    'companyId and memberResourceLinks are required',
   );
-  const validated = validateDocument(document);
+  const validated = fromWire(validateDocument(toWire(document)));
   assert(validated.completeness === 'full', 'completeness', 'only full exports can be imported');
   const data = validated.data;
   const importedAccount = data.accounts[0];
   assert(importedAccount, 'data.accounts', 'must contain exactly one account');
   // Validate source scope before rebinding; scheduling IDs and their relationships stay portable.
-  importedAccount.id = context.accountId;
+  importedAccount.id = context.companyId;
   for (const key of SCOPED_KEYS) {
-    for (const row of data[key]) row.accountId = context.accountId;
+    for (const row of data[key]) row.companyId = context.companyId;
   }
   const personIds = new Set(
     data.resources.filter((row) => row.kind === 'person').map((row) => row.id),

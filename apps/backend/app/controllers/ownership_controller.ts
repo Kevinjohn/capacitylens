@@ -26,11 +26,11 @@ export default class OwnershipController {
       ctx.request.header('x-account-command-id'),
       ctx.request.header('idempotency-key')
     );
-    const accountId = ctx.params.companyId;
+    const companyId = ctx.params.companyId;
     const { toUserId } = ctx.request.body();
     const confirmationId = ctx.request.body().confirmationId ?? '';
     const receipt = await withActor(ctx, (actor, trx) =>
-      transferOwnership({ trx, actor, accountId, toUserId, confirmationId, command })
+      transferOwnership({ trx, actor, companyId, toUserId, confirmationId, command })
     );
     return ctx.response.ok(receipt);
   }

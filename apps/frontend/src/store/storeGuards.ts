@@ -12,7 +12,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
   // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
   // account must either exist in the published data or in the server-authorised summaries while a
   // switch is loading its slice. Typed command context and revision checks still gate writes; this
-  // guard only prevents stamping an orphan accountId into the slice.
+  // guard only prevents stamping an orphan companyId into the slice.
   const requireAccount = (): ID => {
     const state = get();
     const id = state.activeAccountId;

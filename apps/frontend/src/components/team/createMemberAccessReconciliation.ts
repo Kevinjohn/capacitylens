@@ -12,7 +12,7 @@ type MemberAccessDependencies = Pick<
 };
 
 async function reloadAuthorizedDirectory({
-  accountId,
+  companyId,
   message,
   isActiveAccount,
   setNotice,
@@ -21,15 +21,15 @@ async function reloadAuthorizedDirectory({
   MemberAccessDependencies,
   'isActiveAccount' | 'setNotice' | 'replaceAuthorizedDirectory'
 > & {
-  accountId: string;
+  companyId: string;
   message: string;
 }): Promise<{ kind: 'ready' } | { kind: 'stale' } | { kind: 'failed'; error: unknown }> {
   try {
     const [memberResult, inviteResult] = await Promise.all([
-      teamAccessClient.listMembers(accountId),
-      teamAccessClient.listInvitations(accountId),
+      teamAccessClient.listMembers(companyId),
+      teamAccessClient.listInvitations(companyId),
     ]);
-    if (!isActiveAccount(accountId)) return { kind: 'stale' };
+    if (!isActiveAccount(companyId)) return { kind: 'stale' };
     if (memberResult.kind !== 'ok' || inviteResult.kind !== 'ok') {
       return { kind: 'failed', error: new Error(m.settings_members_err_authoritative_reload()) };
     }
@@ -51,16 +51,16 @@ export function createMemberAccessReconciliation({
   replaceAuthorizedDirectory,
 }: MemberAccessDependencies) {
   const reconcileUnknownMutation = async (message: string): Promise<void> => {
-    const accountId = requestAccountId();
-    if (!isActiveAccount(accountId)) return;
+    const companyId = requestAccountId();
+    if (!isActiveAccount(companyId)) return;
     const reloadResult = await reloadAuthorizedDirectory({
-      accountId,
+      companyId,
       message,
       isActiveAccount,
       setNotice,
       replaceAuthorizedDirectory,
     });
-    if (reloadResult.kind !== 'failed' || !isActiveAccount(accountId)) return;
+    if (reloadResult.kind !== 'failed' || !isActiveAccount(companyId)) return;
     fail(
       null,
       m.settings_members_reconcile_reload_failed({

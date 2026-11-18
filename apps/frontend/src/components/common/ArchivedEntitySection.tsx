@@ -183,7 +183,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
   const { data, mayViewInactive } = useInactiveAccountData();
   const actions = useLifecycleActions();
   const [anonymising, setAnonymising] = useState<{
-    accountId: string | null;
+    companyId: string | null;
     row: LifecycleRow;
   } | null>(null);
   const mayAnonymise = useCan('resources:anonymise');
@@ -203,7 +203,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
     );
   const onAnonymise = (model: ArchivedRowModel) => {
     if (entity === 'resources' && mayAnonymise && !locked()) {
-      setAnonymising({ accountId: activeAccountId, row: model.row });
+      setAnonymising({ companyId: activeAccountId, row: model.row });
     }
   };
 
@@ -227,7 +227,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
         onAnonymise={onAnonymise}
         mayAnonymise={mayAnonymise}
       />
-      {anonymising && anonymising.accountId === activeAccountId && (
+      {anonymising && anonymising.companyId === activeAccountId && (
         <ConfirmDialog
           title={m.settings_archived_anonymise_title()}
           message={m.settings_archived_anonymise_message({ name: rowName(anonymising.row) })}

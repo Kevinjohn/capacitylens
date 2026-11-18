@@ -39,7 +39,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
   const suffix = crypto.randomUUID();
   const first = await signUpUser(`bruce-wayne-fixture-${suffix}@capacitylens.dev`, 'Bruce Wayne');
   const firstId = await bootstrapOrg(request, first.cookie, `Wayne Enterprises ${suffix}`);
-  const firstRead = await request.get(`${AUTH_API}/api/state?accountId=${firstId}`, {
+  const firstRead = await request.get(`${AUTH_API}/api/state?companyId=${firstId}`, {
     headers: { cookie: first.cookie },
   });
   expect(firstRead.status()).toBe(200);
@@ -47,7 +47,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
   expect(firstState.clients).toEqual([
     expect.objectContaining({
       id: `internal:${firstId}`,
-      accountId: firstId,
+      companyId: firstId,
       name: 'Internal',
       builtin: true,
     }),
@@ -59,17 +59,17 @@ test('native company fixtures preserve baseline data and unrelated principals ac
   const second = await signUpUser(`tony-stark-fixture-${suffix}@capacitylens.dev`, 'Tony Stark');
   const secondId = await bootstrapOrg(request, second.cookie, `Stark Industries ${suffix}`);
   expect(secondId).not.toBe(firstId);
-  const firstAfter = await request.get(`${AUTH_API}/api/state?accountId=${firstId}`, {
+  const firstAfter = await request.get(`${AUTH_API}/api/state?companyId=${firstId}`, {
     headers: { cookie: first.cookie },
   });
   expect(firstAfter.status()).toBe(200);
   expect(await firstAfter.json()).toEqual(firstState);
-  const secondState = await request.get(`${AUTH_API}/api/state?accountId=${secondId}`, {
+  const secondState = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
     headers: { cookie: second.cookie },
   });
   expect(secondState.status()).toBe(200);
   expect((await secondState.json()).accounts).toEqual([expect.objectContaining({ id: secondId })]);
-  const foreignRead = await request.get(`${AUTH_API}/api/state?accountId=${secondId}`, {
+  const foreignRead = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
     headers: { cookie: first.cookie },
   });
   expect(foreignRead.status()).toBe(403);
@@ -112,7 +112,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
     }
     const inaccessibleAccountId = baselineBeforeCycle?.account.id ?? firstId;
     const hiddenBaseline = await request.get(
-      `${AUTH_API}/api/state?accountId=${inaccessibleAccountId}`,
+      `${AUTH_API}/api/state?companyId=${inaccessibleAccountId}`,
       {
         headers: { cookie: user.cookie },
       },
@@ -125,7 +125,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       `Cleanup Company ${cycle} ${suffix}`,
     );
     const temporaryState = await request.get(
-      `${AUTH_API}/api/state?accountId=${temporaryAccountId}`,
+      `${AUTH_API}/api/state?companyId=${temporaryAccountId}`,
       {
         headers: { cookie: user.cookie },
       },
@@ -167,7 +167,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       (await request.get(`${AUTH_API}/api/auth/me`, { headers: { cookie: user.cookie } })).status(),
     ).toBe(200);
     const hiddenRestoredBaseline = await request.get(
-      `${AUTH_API}/api/state?accountId=${restoredBaseline.account.id}`,
+      `${AUTH_API}/api/state?companyId=${restoredBaseline.account.id}`,
       {
         headers: { cookie: user.cookie },
       },

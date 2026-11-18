@@ -43,18 +43,18 @@ function inspectDatabase(path, expectedResourceName) {
   }
 }
 
-function assertAllocationInDatabase(path, accountId, allocation) {
+function assertAllocationInDatabase(path, companyId, allocation) {
   const database = new DatabaseSync(path, { readOnly: true });
   try {
     const row = database
       .prepare(
-        'SELECT account_id, resource_id, activity_id, start_date, end_date, hours_per_day, status FROM allocations WHERE id = ?',
+        'SELECT company_id, resource_id, activity_id, start_date, end_date, hours_per_day, status FROM allocations WHERE id = ?',
       )
       .get(allocation.id);
     assert.deepEqual(
       { ...row },
       {
-        account_id: accountId,
+        company_id: companyId,
         resource_id: allocation.resourceId,
         activity_id: allocation.activityId,
         start_date: allocation.startDate,
@@ -69,11 +69,11 @@ function assertAllocationInDatabase(path, accountId, allocation) {
 }
 
 /** Seed only the target's confirmation, admission and Viewer membership in the stopped smoke database. */
-export function seedSmokeViewer(path, { accountId, actorUserId, targetUserId, targetEmail }) {
+export function seedSmokeViewer(path, { companyId, actorUserId, targetUserId, targetEmail }) {
   assert.notEqual(actorUserId, targetUserId);
   const database = new DatabaseSync(path);
   try {
-    const account = database.prepare('SELECT id FROM accounts WHERE id = ?').get(accountId);
+    const account = database.prepare('SELECT id FROM accounts WHERE id = ?').get(companyId);
     const target = database.prepare('SELECT id, email FROM users WHERE id = ?').get(targetUserId);
     assert.ok(account, 'Smoke Viewer fixture account is missing');
     assert.ok(target, 'Smoke Viewer fixture identity is missing');
@@ -104,7 +104,7 @@ export function seedSmokeViewer(path, { accountId, actorUserId, targetUserId, ta
         `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
          VALUES (?, ?, 'viewer', 'active', ?, ?)`,
       )
-      .run(accountId, targetUserId, now, now);
+      .run(companyId, targetUserId, now, now);
   } finally {
     database.close();
   }
@@ -302,7 +302,7 @@ export async function runPackagedSmoke({
       body: JSON.stringify({ name: 'Wayne Enterprises' }),
     });
     assert.equal(initialize.status, 201, 'Authenticated browser company setup failed');
-    const { accountId } = await initialize.json();
+    const { companyId } = await initialize.json();
     const secondInitialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: 'POST',
       headers: {
@@ -318,11 +318,11 @@ export async function runPackagedSmoke({
       (await fetchOk(`${baseUrl}/api/companies`, { headers: { cookie } })).body,
     );
     assert.equal(companies.length, 1);
-    assert.equal(companies[0].id, accountId);
+    assert.equal(companies[0].id, companyId);
     assert.equal(companies[0].role, 'owner');
     const initializedState = JSON.parse(
       (
-        await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, {
+        await fetchOk(`${baseUrl}/api/state?companyId=${encodeURIComponent(companyId)}`, {
           headers: { cookie },
         })
       ).body,
@@ -356,7 +356,7 @@ export async function runPackagedSmoke({
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     child = null;
     seedSmokeViewer(databasePath, {
-      accountId,
+      companyId,
       actorUserId: session.user.id,
       targetUserId: viewerIdentity.user.id,
       targetEmail: viewerCredentials.email,
@@ -400,12 +400,12 @@ export async function runPackagedSmoke({
     const { resource, allocation } = await writeSmokeSchedule(
       baseUrl,
       cookie,
-      accountId,
+      companyId,
       fixture,
       idleMode.contextToken,
     );
 
-    const started = await fetch(`${baseUrl}/api/companies/${accountId}/masquerade`, {
+    const started = await fetch(`${baseUrl}/api/companies/${companyId}/masquerade`, {
       method: 'POST',
       headers: {
         cookie,
@@ -434,16 +434,16 @@ export async function runPackagedSmoke({
     assert.equal(otherSessionMode.targetUserId, viewerIdentity.user.id);
     assert.equal(otherSessionMode.contextToken, activeMode.contextToken);
     const memberRead = await fetchOk(
-      `${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`,
+      `${baseUrl}/api/state?companyId=${encodeURIComponent(companyId)}`,
       {
         headers: { cookie: secondOwnerCookie },
       },
     );
     const memberState = JSON.parse(memberRead.body);
-    assert.equal(memberState.accounts[0].id, accountId);
+    assert.equal(memberState.accounts[0].id, companyId);
     assert.equal(memberState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
 
-    const refusedWrite = await fetch(`${baseUrl}/api/companies/${accountId}/clients`, {
+    const refusedWrite = await fetch(`${baseUrl}/api/companies/${companyId}/clients`, {
       method: 'POST',
       headers: {
         cookie: secondOwnerCookie,
@@ -478,7 +478,7 @@ export async function runPackagedSmoke({
     );
 
     const restartContext = endedInFirstSession.contextToken;
-    const expiringStart = await fetch(`${baseUrl}/api/companies/${accountId}/masquerade`, {
+    const expiringStart = await fetch(`${baseUrl}/api/companies/${companyId}/masquerade`, {
       method: 'POST',
       headers: {
         cookie,
@@ -501,7 +501,7 @@ export async function runPackagedSmoke({
       log += chunk;
     });
     await waitUntilReady(baseUrl, child);
-    const expiredStart = await fetch(`${baseUrl}/api/companies/${accountId}/masquerade`, {
+    const expiredStart = await fetch(`${baseUrl}/api/companies/${companyId}/masquerade`, {
       method: 'POST',
       headers: {
         cookie: secondOwnerCookie,
@@ -523,7 +523,7 @@ export async function runPackagedSmoke({
     assert.equal(expiredMode.active, false);
 
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
-    assertAllocationInDatabase(databasePath, accountId, allocation);
+    assertAllocationInDatabase(databasePath, companyId, allocation);
     if (acceptBrowser)
       await acceptBrowser({
         baseUrl,
@@ -545,7 +545,7 @@ export async function runPackagedSmoke({
     assert.ok(afterExplicit.includes(explicitName));
     verifyBackup(backend, environment, backupDir, explicitName);
     assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
-    assertAllocationInDatabase(explicitPath, accountId, allocation);
+    assertAllocationInDatabase(explicitPath, companyId, allocation);
 
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     child = startServer(backend, environment, (chunk) => {
@@ -554,7 +554,7 @@ export async function runPackagedSmoke({
     await waitUntilReady(baseUrl, child);
     const state = JSON.parse(
       (
-        await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, {
+        await fetchOk(`${baseUrl}/api/state?companyId=${encodeURIComponent(companyId)}`, {
           headers: { cookie },
         })
       ).body,
@@ -583,7 +583,7 @@ export async function runPackagedSmoke({
     const restoreUpgrade = runAce(backend, restoredEnvironment, ['app:upgrade']);
     assert.equal(restoreUpgrade.status, 0, restoreUpgrade.output);
     assert.equal(inspectDatabase(restoredPath, RESOURCE_NAME).length, MIGRATION_COUNT);
-    assertAllocationInDatabase(restoredPath, accountId, allocation);
+    assertAllocationInDatabase(restoredPath, companyId, allocation);
     child = startServer(backend, restoredEnvironment, (chunk) => {
       log += chunk;
     });
@@ -594,7 +594,7 @@ export async function runPackagedSmoke({
     assert.equal(restoredSession.user.email, credentials.email);
     const restoredState = JSON.parse(
       (
-        await fetchOk(`${baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`, {
+        await fetchOk(`${baseUrl}/api/state?companyId=${encodeURIComponent(companyId)}`, {
           headers: { cookie },
         })
       ).body,
@@ -608,9 +608,9 @@ export async function runPackagedSmoke({
       allocation.hoursPerDay,
     );
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
-    assertAllocationInDatabase(databasePath, accountId, allocation);
+    assertAllocationInDatabase(databasePath, companyId, allocation);
     assert.equal(inspectDatabase(explicitPath, RESOURCE_NAME).length, MIGRATION_COUNT);
-    assertAllocationInDatabase(explicitPath, accountId, allocation);
+    assertAllocationInDatabase(explicitPath, companyId, allocation);
     assert.deepEqual(await stopServer(child), { code: 0, signal: null });
     passed = true;
     console.log(

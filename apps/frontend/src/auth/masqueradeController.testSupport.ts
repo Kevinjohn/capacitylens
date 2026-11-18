@@ -7,7 +7,7 @@ import type { MasqueradeControllerDependencies } from './masqueradeController';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
 export const state: MasqueradeState & { contextToken: string } = {
-  accountId: 'a-studio',
+  companyId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',

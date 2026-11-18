@@ -33,22 +33,22 @@ function useDisplayPreferences() {
 
 function readSchedulingSettings(
   data: ReturnType<(typeof useStore)['getState']>['data'],
-  accountId: string | null,
+  companyId: string | null,
 ) {
-  const weekStartsOn = resolveWeekStart(data, accountId);
+  const weekStartsOn = resolveWeekStart(data, companyId);
   return {
-    schedulingMode: resolveSchedulingMode(data, accountId),
+    schedulingMode: resolveSchedulingMode(data, companyId),
     weekStartsOn,
-    workingDays: listAccountWorkingDays(data, accountId),
+    workingDays: listAccountWorkingDays(data, companyId),
     workingDayOrder: orderedWeekdays(weekStartsOn),
-    timezone: resolveTimeZone(data, accountId),
-    disciplinesEnabled: hasDisciplinesEnabled(data, accountId),
-    placeholdersEnabled: hasPlaceholdersEnabled(data, accountId),
-    externalEnabled: hasExternalResourcesEnabled(data, accountId),
-    inlineActivityCreateEnabled: canCreateInlineActivity(data, accountId),
-    showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(data, accountId),
-    capacityOverviewAccess: resolveCapacityOverviewAccess(data, accountId),
-    dateStyle: resolveDateStyle(data, accountId),
+    timezone: resolveTimeZone(data, companyId),
+    disciplinesEnabled: hasDisciplinesEnabled(data, companyId),
+    placeholdersEnabled: hasPlaceholdersEnabled(data, companyId),
+    externalEnabled: hasExternalResourcesEnabled(data, companyId),
+    inlineActivityCreateEnabled: canCreateInlineActivity(data, companyId),
+    showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(data, companyId),
+    capacityOverviewAccess: resolveCapacityOverviewAccess(data, companyId),
+    dateStyle: resolveDateStyle(data, companyId),
   };
 }
 

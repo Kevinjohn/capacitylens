@@ -22,9 +22,9 @@ import {
 } from '../../helpers/identities.js';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
-const body = { action: 'anonymise', accountId, intent: {}, password: fixturePassword };
+const body = { action: 'anonymise', companyId, intent: {}, password: fixturePassword };
 function issue(client: ApiClient, cookie: string, input = body) {
   return asDataOwner(client.post('/api/auth/password-confirmation'), cookie).json(input).send();
 }
@@ -122,7 +122,7 @@ test.group('package proof adoption boundaries', (group) => {
         code: 'PASSWORD_CONFIRMATION_DENIED',
       });
     }
-    const success = await issue(client, browser.cookie, { ...body, accountId: 'a-loft' });
+    const success = await issue(client, browser.cookie, { ...body, companyId: 'a-loft' });
     success.assertStatus(200);
     const blocked = await issue(client, second.cookie);
     blocked.assertStatus(429);
@@ -201,15 +201,15 @@ test.group('package proof adoption boundaries', (group) => {
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
     const scope = 'x'.repeat(256);
-    const document = buildCompanyExport(await readState(accountId, true), {
-      accountId,
+    const document = buildCompanyExport(await readState(companyId, true), {
+      companyId,
       completeness: 'full',
     });
-    const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, accountId));
+    const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, companyId));
     const responses = [
-      await issue(client, cookie, { ...body, accountId: scope }),
+      await issue(client, cookie, { ...body, companyId: scope }),
       await asDataOwner(client.post('/api/transfer/apply'), cookie)
-        .json({ accountId: scope, document, baseRevision, confirmationId: 'missing' })
+        .json({ companyId: scope, document, baseRevision, confirmationId: 'missing' })
         .send(),
     ];
     for (const response of responses) {

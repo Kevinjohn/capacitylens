@@ -31,7 +31,7 @@ describe('CapacityOverviewView', () => {
       data: makeAppData({
         accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
-          makeResource({ id: 'clark', accountId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
+          makeResource({ id: 'clark', companyId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
         ],
       }),
     });
@@ -44,7 +44,7 @@ describe('CapacityOverviewView', () => {
       data: makeAppData({
         accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
-          makeResource({ id: 'clark', accountId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
+          makeResource({ id: 'clark', companyId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
         ],
       }),
     });
@@ -156,7 +156,7 @@ describe('CapacityOverviewView', () => {
       data: makeAppData({
         accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
-          makeResource({ id: 'clark', accountId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
+          makeResource({ id: 'clark', companyId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
         ],
       }),
     });

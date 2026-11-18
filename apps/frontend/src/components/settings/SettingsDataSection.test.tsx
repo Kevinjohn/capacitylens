@@ -36,7 +36,7 @@ function renderSection({ role = 'owner' }: { role?: Role | null } = {}) {
   );
 }
 
-const owned = { accountId: DEFAULT_ACCOUNT_ID };
+const owned = { companyId: DEFAULT_ACCOUNT_ID };
 const section = () => screen.queryByTestId('settings-example-data');
 const originalPlanning = {
   refreshPlanning: useStore.getState().refreshPlanning,
@@ -88,7 +88,7 @@ describe('Settings example data', () => {
             id: 'internal',
             name: 'Internal',
             builtin: true,
-            accountId: DEFAULT_ACCOUNT_ID,
+            companyId: DEFAULT_ACCOUNT_ID,
           }),
         ],
       },

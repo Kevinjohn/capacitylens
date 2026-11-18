@@ -30,20 +30,20 @@ async function setupMembersApi(request: APIRequestContext) {
     signUp(ADMIN),
     signUpUserWithId(EDITOR),
   ]);
-  const accountId = await bootstrapOrg(request, owner.cookie, `Members Studio ${STAMP}`);
+  const companyId = await bootstrapOrg(request, owner.cookie, `Members Studio ${STAMP}`);
   for (const [who, role] of [
     [admin, 'admin'],
     [editor, 'editor'],
   ] as const) {
-    seedFixtureMember(accountId, who.email, role);
+    seedFixtureMember(companyId, who.email, role);
   }
-  const grant = await request.patch(`${API}/api/companies/${accountId}/members/${editor.userId}`, {
+  const grant = await request.patch(`${API}/api/companies/${companyId}/members/${editor.userId}`, {
     headers: await masqueradeContextHeaders(request, admin.cookie),
     data: { role: 'owner' },
   });
   expect(grant.status()).toBe(400);
   const touchOwner = await request.patch(
-    `${API}/api/companies/${accountId}/members/${owner.userId}`,
+    `${API}/api/companies/${companyId}/members/${owner.userId}`,
     {
       headers: await masqueradeContextHeaders(request, admin.cookie),
       data: { role: 'editor' },
@@ -51,13 +51,13 @@ async function setupMembersApi(request: APIRequestContext) {
   );
   expect(touchOwner.status()).toBe(403);
   // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
-  const adminTransfer = await request.post(`${API}/api/companies/${accountId}/ownership-transfer`, {
+  const adminTransfer = await request.post(`${API}/api/companies/${companyId}/ownership-transfer`, {
     headers: await masqueradeContextHeaders(request, admin.cookie),
     data: { toUserId: editor.userId },
   });
   expect(adminTransfer.status()).toBe(403);
   const selfSuspend = await request.patch(
-    `${API}/api/companies/${accountId}/members/${owner.userId}/status`,
+    `${API}/api/companies/${companyId}/members/${owner.userId}/status`,
     {
       headers: await masqueradeContextHeaders(request, owner.cookie),
       data: { status: 'suspended' },
@@ -65,7 +65,7 @@ async function setupMembersApi(request: APIRequestContext) {
   );
   expect(selfSuspend.status()).toBe(403);
   const selfRole = await request.patch(
-    `${API}/api/companies/${accountId}/members/${owner.userId}`,
+    `${API}/api/companies/${companyId}/members/${owner.userId}`,
     {
       headers: await masqueradeContextHeaders(request, owner.cookie),
       data: { role: 'editor' },
@@ -79,7 +79,7 @@ async function setupMembersApi(request: APIRequestContext) {
     },
   );
   expect(crossTenant.status()).toBe(403);
-  return { owner, admin, editor, accountId };
+  return { owner, admin, editor, companyId };
 }
 
 /** Without mail delivery the server refuses to invite, and the dialog says why instead of saving a link. */
@@ -99,7 +99,7 @@ async function manageAdminMembers(
   request: APIRequestContext,
   scenario: Awaited<ReturnType<typeof setupMembersApi>>,
 ) {
-  const { admin, editor, accountId } = scenario;
+  const { admin, editor, companyId } = scenario;
   await page.goto('/');
   await page.getByRole('heading', { name: 'Sign in' }).waitFor();
   await page.getByLabel('Email').fill(ADMIN);
@@ -134,7 +134,7 @@ async function manageAdminMembers(
   await page.getByRole('dialog').getByTestId('member-role-save').click();
   await expect
     .poll(async () => {
-      const res = await request.get(`${API}/api/companies/${accountId}/members`, {
+      const res = await request.get(`${API}/api/companies/${companyId}/members`, {
         headers: { cookie: admin.cookie },
       });
       const members = (await res.json()).members as Array<{ userId: string; role: string }>;
@@ -157,10 +157,10 @@ async function assertOwnershipIsNotAMemberRowAction(
   request: APIRequestContext,
   owner: { cookie: string },
   editor: { userId: string },
-  accountId: string,
+  companyId: string,
 ) {
   await expect(ownerPage.getByTestId('member-make-owner')).toHaveCount(0);
-  const retired = await request.post(`${API}/api/companies/${accountId}/transfer-ownership`, {
+  const retired = await request.post(`${API}/api/companies/${companyId}/transfer-ownership`, {
     headers: await masqueradeContextHeaders(request, owner.cookie),
     data: { toUserId: editor.userId },
   });
@@ -173,7 +173,7 @@ async function manageOwnerMembers(
   request: APIRequestContext,
   scenario: Awaited<ReturnType<typeof setupMembersApi>>,
 ) {
-  const { owner, editor, accountId } = scenario;
+  const { owner, editor, companyId } = scenario;
   const ownerContext = await newObservedContext({ reducedMotion: 'reduce' });
   const ownerPage = await ownerContext.newPage();
   await ownerPage.goto('/');
@@ -202,14 +202,14 @@ async function manageOwnerMembers(
   await expect(inactiveTarget).toContainText('Suspended');
   await expect
     .poll(async () => {
-      const res = await request.get(`${API}/api/companies/${accountId}/members`, {
+      const res = await request.get(`${API}/api/companies/${companyId}/members`, {
         headers: { cookie: owner.cookie },
       });
       const members = (await res.json()).members as Array<{ userId: string; status: string }>;
       return members.find((member) => member.userId === editor.userId)?.status;
     })
     .toBe('suspended');
-  const suspendedRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
+  const suspendedRead = await request.get(`${API}/api/state?companyId=${companyId}`, {
     headers: { cookie: editor.cookie },
   });
   expect(suspendedRead.status()).toBe(403);
@@ -228,7 +228,7 @@ async function manageOwnerMembers(
     request,
     owner,
     editor,
-    accountId,
+    companyId,
   );
 }
 
@@ -237,9 +237,9 @@ test('admin manages members but not owner-only ops; ownership changes only by tr
   request,
   newObservedContext,
 }) => {
-  const { owner, admin, editor, accountId } = await setupMembersApi(request);
+  const { owner, admin, editor, companyId } = await setupMembersApi(request);
 
-  await manageAdminMembers(page, request, { owner, admin, editor, accountId });
+  await manageAdminMembers(page, request, { owner, admin, editor, companyId });
 
-  await manageOwnerMembers(newObservedContext, request, { owner, admin, editor, accountId });
+  await manageOwnerMembers(newObservedContext, request, { owner, admin, editor, companyId });
 });

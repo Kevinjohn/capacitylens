@@ -1,5 +1,12 @@
 import type { AppData, AppDataKey } from '../types/entities.js';
 
+/**
+ * A row field as the interchange format names it: rows carry their company as `accountId` in the
+ * export, which documents already written must keep reading.
+ */
+type WireField<T> =
+  Exclude<keyof T, 'companyId'> | ('companyId' extends keyof T ? 'accountId' : never);
+
 /** Declares every portable field for each beta export table. */
 export const FIELDS = {
   accounts: [
@@ -113,14 +120,14 @@ export const FIELDS = {
     'note',
   ],
   closures: ['id', 'accountId', 'createdAt', 'updatedAt', 'name', 'startDate', 'endDate'],
-} as const satisfies { [K in AppDataKey]: readonly (keyof AppData[K][number])[] };
+} as const satisfies { [K in AppDataKey]: readonly WireField<AppData[K][number]>[] };
 
 /** Read-projection fields the server adds for the reader; they are never exported. */
 type ReadProjectionField = 'displayName';
 
 type MissingPortableField = {
   [K in AppDataKey]: Exclude<
-    keyof AppData[K][number],
+    WireField<AppData[K][number]>,
     (typeof FIELDS)[K][number] | ReadProjectionField
   >;
 }[AppDataKey];

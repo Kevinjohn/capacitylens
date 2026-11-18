@@ -25,8 +25,8 @@ vi.mock('@/api/queryClient', async (original) => ({
 }));
 
 let serverData = makeAppData();
-const archivedRecovery = (accountId: string): ArchiveRecovery => ({
-  accountId,
+const archivedRecovery = (companyId: string): ArchiveRecovery => ({
+  companyId,
   rows: [
     {
       entity: 'resources',
@@ -59,7 +59,7 @@ beforeEach(async () => {
   request.mockReset();
   const resource = makeResource({
     id: 'resource-archive',
-    accountId: DEFAULT_ACCOUNT_ID,
+    companyId: DEFAULT_ACCOUNT_ID,
     name: 'Diana Prince',
     role: 'Designer',
     avatarUrl: 'https://images.example/diana.png',
@@ -149,7 +149,7 @@ describe('archived resource actions', () => {
     setPlanningRole('editor');
     request
       .mockResolvedValueOnce(archivedRecovery(DEFAULT_ACCOUNT_ID))
-      .mockResolvedValueOnce({ accountId: DEFAULT_ACCOUNT_ID, rows: [] });
+      .mockResolvedValueOnce({ companyId: DEFAULT_ACCOUNT_ID, rows: [] });
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={new QueryClient()}>

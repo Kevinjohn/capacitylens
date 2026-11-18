@@ -77,7 +77,7 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
   return {
     ...NULLABLE_FIELDS.resources,
     id: 'r1',
-    accountId: 'a1',
+    companyId: 'a1',
     createdAt: 't',
     updatedAt: 't',
     kind: 'person',
@@ -98,7 +98,7 @@ export function makeClient(overrides: Partial<Client> = {}): Client {
   return {
     ...NULLABLE_FIELDS.clients,
     id: 'c1',
-    accountId: 'a1',
+    companyId: 'a1',
     createdAt: 't',
     updatedAt: 't',
     name: 'Ferris',
@@ -112,7 +112,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
   return {
     ...NULLABLE_FIELDS.projects,
     id: 'p1',
-    accountId: 'a1',
+    companyId: 'a1',
     createdAt: 't',
     updatedAt: 't',
     name: 'Lightning',
@@ -127,7 +127,7 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
     ...NULLABLE_FIELDS.activities,
     id: 't1',
-    accountId: 'a1',
+    companyId: 'a1',
     createdAt: 't',
     updatedAt: 't',
     name: 'Wireframes',
@@ -142,7 +142,7 @@ export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation 
   return {
     ...NULLABLE_FIELDS.allocations,
     id: 'a1',
-    accountId: 'a1',
+    companyId: 'a1',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'r1',
@@ -160,7 +160,7 @@ export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
   return {
     ...NULLABLE_FIELDS.timeOff,
     id: 'to1',
-    accountId: 'a1',
+    companyId: 'a1',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'r1',
@@ -175,7 +175,7 @@ export function makeTimeOff(overrides: Partial<TimeOff> = {}): TimeOff {
 export function makeClosure(overrides: Partial<Closure> = {}): Closure {
   return {
     id: 'closure1',
-    accountId: 'a1',
+    companyId: 'a1',
     createdAt: 't',
     updatedAt: 't',
     name: 'Christmas shutdown',
@@ -215,18 +215,18 @@ export function loadPlanningData(data: AppData): void {
 /** Reset test data and authority, then wait for the selected canonical company snapshot. */
 export function resetStoreWithData(
   data: AppData,
-  accountId: ID = data.accounts[0]?.id ?? DEFAULT_ACCOUNT_ID,
+  companyId: ID = data.accounts[0]?.id ?? DEFAULT_ACCOUNT_ID,
 ): Promise<boolean> {
-  const account = data.accounts.find(({ id }) => id === accountId);
-  if (!account) throw new Error(`The fixture data must contain account ${accountId}.`);
+  const account = data.accounts.find(({ id }) => id === companyId);
+  if (!account) throw new Error(`The fixture data must contain account ${companyId}.`);
   useStore.getState().clearPlanning();
-  resetPlanningTransport(accountId, data, useStore);
+  resetPlanningTransport(companyId, data, useStore);
   useStore.getState().setAccountSummaries({
-    list: [{ id: accountId, name: account.name, role: 'owner' }],
+    list: [{ id: companyId, name: account.name, role: 'owner' }],
   });
   useStore.getState().setNotice(null);
   useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
-  useStore.getState().setActiveAccount(accountId);
+  useStore.getState().setActiveAccount(companyId);
   useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
   return useStore.getState().refreshPlanning({ fresh: true });
 }
@@ -258,9 +258,9 @@ export function unarchiveForTest(
 /** Reset the store to a clean single-account state with that account active.
  * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
  * settles once the planning cache has read the account, so allocation writes can begin. */
-export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
-  const account = makeAccount({ id: accountId });
-  return resetStoreWithData(makeAppData({ accounts: [account] }), accountId);
+export function resetStoreWithAccount(companyId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
+  const account = makeAccount({ id: companyId });
+  return resetStoreWithData(makeAppData({ accounts: [account] }), companyId);
 }
 
 /** Change test-only canonical rows while preserving the store's planning revision and history. */
@@ -278,22 +278,22 @@ export function replaceFixtureData(data: AppData): void {
   }
 }
 
-type SetPlaceholdersEnabledOptions = { on: boolean; accountId?: ID };
+type SetPlaceholdersEnabledOptions = { on: boolean; companyId?: ID };
 /** Set the test account placeholder setting. */
 export async function setPlaceholdersEnabled({
   on,
-  accountId = DEFAULT_ACCOUNT_ID,
+  companyId = DEFAULT_ACCOUNT_ID,
 }: SetPlaceholdersEnabledOptions): Promise<void> {
-  await useStore.getState().updateAccount(accountId, { placeholdersEnabled: on });
+  await useStore.getState().updateAccount(companyId, { placeholdersEnabled: on });
 }
 
-type SetExternalEnabledOptions = { on: boolean; accountId?: ID };
+type SetExternalEnabledOptions = { on: boolean; companyId?: ID };
 /** Set the test account external resource setting. */
 export async function setExternalEnabled({
   on,
-  accountId = DEFAULT_ACCOUNT_ID,
+  companyId = DEFAULT_ACCOUNT_ID,
 }: SetExternalEnabledOptions): Promise<void> {
-  await useStore.getState().updateAccount(accountId, { externalEnabled: on });
+  await useStore.getState().updateAccount(companyId, { externalEnabled: on });
 }
 
 /** Creates a fresh JSON Response for one mocked request. Bodies are single-use, so

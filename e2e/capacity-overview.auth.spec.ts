@@ -29,8 +29,8 @@ test('the account access setting gates viewer navigation and direct routes', asy
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
   const accountName = `Overview Studio ${STAMP}`;
-  const accountId = await bootstrapOrg(request, owner.cookie, accountName);
-  seedFixtureMember(accountId, viewer.email, 'viewer');
+  const companyId = await bootstrapOrg(request, owner.cookie, accountName);
+  seedFixtureMember(companyId, viewer.email, 'viewer');
 
   await signIn(page, VIEWER);
   await expect(page.getByRole('link', { name: 'Overview' })).toHaveCount(0);
@@ -49,7 +49,7 @@ test('the account access setting gates viewer navigation and direct routes', asy
   await sendPlanningFixtureCommand(
     request,
     owner.cookie,
-    accountId,
+    companyId,
     'settings',
     { operation: 'settings.update', changes: { capacityOverviewAccess: 'everyone' } },
     'patch',

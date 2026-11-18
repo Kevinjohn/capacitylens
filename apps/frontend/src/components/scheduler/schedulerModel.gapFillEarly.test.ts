@@ -19,7 +19,7 @@ function buildBlockTimeOffRows() {
   d.timeOff = [
     {
       id: 'to-r1-tuesday',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -30,7 +30,7 @@ function buildBlockTimeOffRows() {
     },
     {
       id: 'to-r2-wednesday',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r2',
@@ -77,7 +77,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.resources.push(
       makeResource({
         id: 'r-zed',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         name: 'Zed',
         role: 'Zed',
         disciplineId: 'd-design',
@@ -129,7 +129,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.resources.push(
       makeResource({
         id: 'ph-named',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         kind: 'placeholder',
         name: 'Zibblequork',
         role: 'Designer',
@@ -166,7 +166,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.activities.push({
       ...NULLABLE_FIELDS.activities,
       id: 't-int',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Admin',
@@ -175,7 +175,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.allocations.push(
       makeAllocation({
         id: 'a-int',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         activityId: 't-int',
         startDate: '2026-06-05',
         endDate: '2026-06-05',
@@ -224,7 +224,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.timeOff.push(
       {
         id: 'to1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         resourceId: 'r1',
@@ -235,7 +235,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       },
       {
         id: 'to2',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         resourceId: 'r1',
@@ -287,7 +287,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.timeOff.push({
       ...NULLABLE_FIELDS.timeOff,
       id: 'to-r1-monday',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -355,7 +355,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.timeOff.push(
       {
         id: 'to-r1-tuesday',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         resourceId: 'r1',
@@ -366,7 +366,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       },
       {
         id: 'to-r2-wednesday',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         resourceId: 'r2',

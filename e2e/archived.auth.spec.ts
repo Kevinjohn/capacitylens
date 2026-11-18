@@ -17,13 +17,13 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
 }) => {
   const email = `bruce-wayne-lifecycle-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email, 'Bruce Wayne');
-  const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Lifecycle Studio ${suffix}`);
+  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Lifecycle Studio ${suffix}`);
   const resources = [
     { id: crypto.randomUUID(), name: 'Barry Allen' },
     { id: crypto.randomUUID(), name: 'Clark Kent' },
   ];
   for (const resource of resources) {
-    await createFixturePerson(request, owner.cookie, accountId, { ...resource, role: 'Planner' });
+    await createFixturePerson(request, owner.cookie, companyId, { ...resource, role: 'Planner' });
   }
 
   await page.goto('/');
@@ -83,7 +83,7 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
   await waitForAppLanding(page, page.locator('#main'));
 
   const stateResponse = await request.get(
-    `${AUTH_API}/api/state?accountId=${accountId}&includeInactive=1`,
+    `${AUTH_API}/api/state?companyId=${companyId}&includeInactive=1`,
     {
       headers: { cookie: owner.cookie },
     },
@@ -93,7 +93,7 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
     accounts: Array<{ id: string }>;
     resources: Array<{ id: string; name: string; role: string; avatarUrl: string | null }>;
   };
-  expect(state.accounts.some((account) => account.id === accountId)).toBe(true);
+  expect(state.accounts.some((account) => account.id === companyId)).toBe(true);
   for (const resource of resources) {
     const scrubbed = state.resources.find((row) => row.id === resource.id);
     expect(scrubbed?.name).toMatch(/^Removed person/);
@@ -110,13 +110,13 @@ test('an Editor rediscovers an archived resource after reload and restores it in
   const stamp = Date.now();
   const owner = await signUpUser(`archive-owner-${stamp}@capacitylens.dev`);
   const editor = await signUpUser(`archive-editor-${stamp}@capacitylens.dev`);
-  const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Archive ${stamp}`);
-  await createFixturePerson(request, owner.cookie, accountId, {
+  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Archive ${stamp}`);
+  await createFixturePerson(request, owner.cookie, companyId, {
     id: crypto.randomUUID(),
     name: 'Barry Allen',
     role: 'Designer',
   });
-  seedFixtureMember(accountId, editor.email, 'editor');
+  seedFixtureMember(companyId, editor.email, 'editor');
   await page.goto('/');
   await page.getByLabel('Email').fill(editor.email);
   await page.getByLabel('Password').fill(AUTH_PASSWORD);

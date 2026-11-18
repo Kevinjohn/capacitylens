@@ -70,15 +70,15 @@ export async function resetAuthenticatedClient(client: ApiClient, seed: boolean 
 }
 
 /** Gives a fixture principal explicit standing in a company inserted directly by a test. */
-export async function grantDataOwner(userId: string, accountId: string) {
+export async function grantDataOwner(userId: string, companyId: string) {
   const existing = await db
     .from('memberships')
-    .where({ user_id: userId, scope_id: accountId })
+    .where({ user_id: userId, scope_id: companyId })
     .first();
   if (existing) return;
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    scope_id: accountId,
+    scope_id: companyId,
     user_id: userId,
     role: 'owner',
     status: 'active',
@@ -133,7 +133,7 @@ export async function createFixtureCompanyForOwner(
       created_at: now,
       updated_at: now,
     });
-    await trx.table('company_planning_revisions').insert({ account_id: id, revision: 1 });
+    await trx.table('company_planning_revisions').insert({ company_id: id, revision: 1 });
   });
   return id;
 }

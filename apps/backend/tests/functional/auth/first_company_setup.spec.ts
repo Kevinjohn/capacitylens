@@ -78,10 +78,10 @@ test.group('authenticated first company setup', (group) => {
     reused.assertStatus(400);
     const setup = await setUp(client, cookie, '  Wayne   Enterprises ');
     setup.assertStatus(201);
-    const accountId = setup.body().accountId;
+    const companyId = setup.body().companyId;
     assert.equal((await db.from('accounts').first())!.name, 'Wayne Enterprises');
     assert.deepInclude((await db.from('memberships').first())!, {
-      scope_id: accountId,
+      scope_id: companyId,
       user_id: userId,
       role: 'owner',
       status: 'active',
@@ -89,7 +89,7 @@ test.group('authenticated first company setup', (group) => {
     const clients = await db.from('clients');
     assert.lengthOf(clients, 1);
     assert.deepInclude(clients[0]!, {
-      account_id: accountId,
+      company_id: companyId,
       name: 'Internal',
       builtin: 'true',
     });
@@ -98,7 +98,7 @@ test.group('authenticated first company setup', (group) => {
       actor_id: userId,
       action: 'company.initialized',
     });
-    const state = await asDataOwner(client.get('/api/state').qs({ accountId }), cookie).send();
+    const state = await asDataOwner(client.get('/api/state').qs({ companyId }), cookie).send();
     state.assertStatus(200);
     assert.deepEqual(state.body().accounts[0].workingDays, [1, 2, 3, 4, 5]);
     const after = await asDataOwner(client.get('/api/auth/me'), cookie).send();
@@ -118,7 +118,7 @@ test.group('authenticated first company setup', (group) => {
       .send();
     setup.assertStatus(201);
     const state = await asDataOwner(
-      client.get('/api/state').qs({ accountId: setup.body().accountId }),
+      client.get('/api/state').qs({ companyId: setup.body().companyId }),
       cookie
     ).send();
     state.assertStatus(200);

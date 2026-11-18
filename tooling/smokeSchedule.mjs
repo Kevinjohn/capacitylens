@@ -18,16 +18,16 @@ async function fetchOk(url, options = {}) {
 }
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
-export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, contextToken) {
+export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, contextToken) {
   const account = fixture.accounts.find((row) => row.id === 'a-studio');
   assert.ok(account);
   const resource = {
-    ...fixture.resources.find((row) => row.kind === 'person' && row.accountId === 'a-studio'),
+    ...fixture.resources.find((row) => row.kind === 'person' && row.companyId === 'a-studio'),
     id: randomUUID(),
     name: RESOURCE_NAME,
   };
   assert.ok(resource.id);
-  const createdResource = await fetchOk(`${baseUrl}/api/companies/${accountId}/resources`, {
+  const createdResource = await fetchOk(`${baseUrl}/api/companies/${companyId}/resources`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -70,7 +70,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, co
     projectId: null,
     phaseId: null,
   };
-  const createdActivity = await fetchOk(`${baseUrl}/api/companies/${accountId}/activities`, {
+  const createdActivity = await fetchOk(`${baseUrl}/api/companies/${companyId}/activities`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -103,7 +103,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, co
     hoursPerDay: 7.5,
     status: 'confirmed',
   };
-  const createdAllocation = await fetchOk(`${baseUrl}/api/companies/${accountId}/allocations`, {
+  const createdAllocation = await fetchOk(`${baseUrl}/api/companies/${companyId}/allocations`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -118,5 +118,5 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, co
     }),
   });
   assert.equal(JSON.parse(createdAllocation.body).revision, 4);
-  return { accountId, resource, activity, allocation };
+  return { companyId, resource, activity, allocation };
 }

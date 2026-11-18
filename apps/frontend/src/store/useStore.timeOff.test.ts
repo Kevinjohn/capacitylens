@@ -71,7 +71,7 @@ describe('atomic time-off creation: happy path', () => {
     expect(publishedBatchSizes.every((size) => size === 2)).toBe(true);
     expect(created).toHaveLength(2);
     expect(new Set(created.map((timeOff) => timeOff.id)).size).toBe(2);
-    expect(created.every((timeOff) => timeOff.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
+    expect(created.every((timeOff) => timeOff.companyId === DEFAULT_ACCOUNT_ID)).toBe(true);
     expect(created.map((timeOff) => [timeOff.startDate, timeOff.endDate])).toEqual([
       ['2026-06-01', '2026-06-02'],
       ['2026-06-08', '2026-06-09'],
@@ -129,7 +129,7 @@ describe('atomic time-off creation: resource validation', () => {
     const { draft, resource } = await timeOffSetup();
     const foreignResource: Resource = makeResource({
       id: 'foreign-resource',
-      accountId: 'foreign-account',
+      companyId: 'foreign-account',
     });
     useStore.setState({
       data: { ...state().data, resources: [...state().data.resources, foreignResource] },

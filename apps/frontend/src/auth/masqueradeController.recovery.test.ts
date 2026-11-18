@@ -31,7 +31,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
 });
 
 const state: MasqueradeState & { contextToken: string } = {
-  accountId: 'a-studio',
+  companyId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',
@@ -45,32 +45,32 @@ const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
 function controllerWithNativeSlice(bootstrapFailure = false) {
   const nativeData = makeAppData({
-    accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })],
+    accounts: [makeAccount({ id: state.companyId, name: 'Wayne Enterprises' })],
   });
   useStore.setState({ data: nativeData });
-  getStubPlanningTransport().reset(state.accountId, nativeData);
+  getStubPlanningTransport().reset(state.companyId, nativeData);
   const bootstrapTransport = new StubPlanningTransport();
-  bootstrapTransport.reset(state.accountId, nativeData);
+  bootstrapTransport.reset(state.companyId, nativeData);
   const api = {
     status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
     start: vi.fn(async () => state),
     end: vi.fn(async () => {}),
   };
-  const switchAccount = vi.fn(async (accountId: string | null) => {
-    useStore.getState().setActiveAccount(accountId);
+  const switchAccount = vi.fn(async (companyId: string | null) => {
+    useStore.getState().setActiveAccount(companyId);
     return { kind: 'reloaded' as const };
   });
   const controller = new MasqueradeController({
     flush: vi.fn(async () => ({ kind: 'clean' as const })),
     suspend: () => useStore.getState().suspendPlanningCommands(),
     reproject: reprojectAccess,
-    readBootstrapAccount: async (accountId) => {
+    readBootstrapAccount: async (companyId) => {
       if (bootstrapFailure) throw new Error('Bootstrap company read failed');
       const snapshot = await bootstrapTransport.read(
-        { companyId: accountId, identity: 'bootstrap' },
+        { companyId: companyId, identity: 'bootstrap' },
         new AbortController().signal,
       );
-      return snapshot.data.accounts.find((candidate) => candidate.id === accountId)?.name ?? null;
+      return snapshot.data.accounts.find((candidate) => candidate.id === companyId)?.name ?? null;
     },
     switchAccount,
     api,

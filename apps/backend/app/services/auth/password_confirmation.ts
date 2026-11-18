@@ -47,7 +47,7 @@ export function refuseWhileViewing(actor: CurrentActor) {
 
 /** Resolves live authority for a password confirmation request or spend inside `withActor`. */
 export async function passwordConfirmationActor(
-  accountId: string,
+  companyId: string,
   trx: TransactionClientContract,
   kind: PasswordConfirmationKind
 ): Promise<CurrentActor> {
@@ -55,10 +55,10 @@ export async function passwordConfirmationActor(
   refuseWhileViewing(actor);
   // The company id arrives in a request body with no length bound, and the membership lookup
   // rejects an overlong id as a fault. This probe turns any unknown id into the proof refusal.
-  if (!(await trx.from('accounts').where('id', accountId).select('id').first())) {
+  if (!(await trx.from('accounts').where('id', companyId).select('id').first())) {
     throw new PasswordConfirmationError();
   }
-  if (!mayConfirmPassword(await activeCompanyRole(actor.userId, accountId, trx), kind)) {
+  if (!mayConfirmPassword(await activeCompanyRole(actor.userId, companyId, trx), kind)) {
     throw new PasswordConfirmationError();
   }
   return actor;

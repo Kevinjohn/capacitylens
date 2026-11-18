@@ -51,21 +51,21 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
 
 /** Shows account setup guidance based on the active account state. */
 export function GettingStarted() {
-  const accountId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeAccountId);
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const canWrite = useCan('planning:write');
   // Company onboarding is outside the read-only member projection, including its transitions.
-  if (!accountId || masqueradeKind !== 'inactive') return null;
+  if (!companyId || masqueradeKind !== 'inactive') return null;
   // Readers never see the panel, so they must not read its state or receive its load notice.
   if (!canWrite) return null;
-  return <GettingStartedForAccount key={accountId} accountId={accountId} />;
+  return <GettingStartedForAccount key={companyId} companyId={companyId} />;
 }
 
 function shouldOpenChecklistByDefault(pathname: string): boolean {
   return pathname === '/';
 }
 
-function GettingStartedForAccount({ accountId }: { accountId: string }) {
+function GettingStartedForAccount({ companyId }: { companyId: string }) {
   const setNotice = useStore((state) => state.setNotice);
   const activeRole = useRole();
   const { pathname } = useLocation();
@@ -84,7 +84,7 @@ function GettingStartedForAccount({ accountId }: { accountId: string }) {
     setConfirmOpen,
     saving,
     dismiss,
-  } = useCompanyDismissal(accountId, pathname, setNotice);
+  } = useCompanyDismissal(companyId, pathname, setNotice);
   const done = Object.values(steps).filter(Boolean).length;
   const requestDismiss = () => setConfirmOpen(true);
   if (done === 5 || !loaded || dismissed) return null;
@@ -218,7 +218,7 @@ const NO_STEPS: GettingStartedSteps = {
 };
 
 function useCompanyDismissal(
-  accountId: string,
+  companyId: string,
   pathname: string,
   setNotice: (message: string, tone: 'error') => void,
 ) {
@@ -236,7 +236,7 @@ function useCompanyDismissal(
     if (dismissedRef.current) return;
     const controller = new AbortController();
     void gettingStartedClient
-      .read(accountId, controller.signal)
+      .read(companyId, controller.signal)
       .then(({ dismissed: companyDismissed, steps: companySteps }) => {
         if (!controller.signal.aborted && !dismissedRef.current) {
           setDismissed(companyDismissed);
@@ -254,13 +254,13 @@ function useCompanyDismissal(
         setNotice(m.gs_load_failed(), 'error');
       });
     return () => controller.abort();
-  }, [accountId, pathname, loadAttempt, planningRevision, setNotice]);
+  }, [companyId, pathname, loadAttempt, planningRevision, setNotice]);
 
   const dismiss = async () => {
     if (saving) return;
     setSaving(true);
     try {
-      await gettingStartedClient.dismiss(accountId);
+      await gettingStartedClient.dismiss(companyId);
       dismissedRef.current = true;
       setDismissed(true);
       setConfirmOpen(false);

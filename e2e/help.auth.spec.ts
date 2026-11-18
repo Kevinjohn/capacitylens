@@ -23,10 +23,10 @@ test('every company role can open Help; a Viewer can start the read-only tour', 
   context,
 }) => {
   const owner = await signUpUser(USERS.owner, NAMES.owner);
-  const accountId = await bootstrapOrg(request, owner.cookie, COMPANY);
+  const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
   for (const role of ['admin', 'editor', 'viewer'] as const) {
     const member = await signUpUser(USERS[role], NAMES[role]);
-    seedFixtureMember(accountId, member.email, role);
+    seedFixtureMember(companyId, member.email, role);
   }
 
   for (const email of Object.values(USERS)) {

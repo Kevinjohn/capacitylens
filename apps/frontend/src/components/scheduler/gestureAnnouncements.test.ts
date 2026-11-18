@@ -17,7 +17,7 @@ const overOne = m.scheduler_sr_announce_over_one({ name: NAME, count: 1 });
 const over = (count: number) => m.scheduler_sr_announce_over_other({ name: NAME, count });
 
 const person = (id: string, overrides: Partial<Resource> = {}): Resource =>
-  makeResource({ id, accountId: A, name: NAME, ...overrides });
+  makeResource({ id, companyId: A, name: NAME, ...overrides });
 let seeded: Resource[] = [];
 
 function seed(rows: Resource[]): void {

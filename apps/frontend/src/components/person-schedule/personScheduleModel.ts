@@ -28,7 +28,7 @@ import type {
 
 /** Scoped scheduling data and visible window needed for a person projection. */
 export interface BuildPersonScheduleInput {
-  accountId: ID;
+  companyId: ID;
   resource: Resource;
   data: AppData;
   window: PersonScheduleWindow;
@@ -70,7 +70,7 @@ function createProjectionContext(input: BuildPersonScheduleInput): ProjectionCon
     activitiesById,
     projectsById,
     clientsById,
-    internalClient: internalClientFor(input.data.clients, input.accountId),
+    internalClient: internalClientFor(input.data.clients, input.companyId),
     colorMaps: {
       activities: activitiesById,
       projects: projectsById,
@@ -83,18 +83,18 @@ function createProjectionContext(input: BuildPersonScheduleInput): ProjectionCon
 
 function collectSeriesMetadata(
   allocations: Allocation[],
-  accountId: ID,
+  companyId: ID,
   seriesEndByKey: Map<string, ISODate>,
 ): PersonScheduleInvalidRecord[] {
   const invalidRecords: PersonScheduleInvalidRecord[] = [];
   for (const allocation of allocations) {
-    if (allocation.accountId !== accountId) continue;
+    if (allocation.companyId !== companyId) continue;
     if (!hasRenderableDateRange(allocation)) {
       invalidRecords.push({ kind: 'allocation', sourceId: allocation.id });
       continue;
     }
     if (!allocation.seriesId) continue;
-    const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
+    const key = `${allocation.companyId}\u0000${allocation.seriesId}`;
     const current = seriesEndByKey.get(key);
     if (current === undefined || allocation.endDate > current) {
       seriesEndByKey.set(key, allocation.endDate);
@@ -124,7 +124,7 @@ function buildAllocationEntry(
     internalClient: context.internalClient,
   });
   const seriesEnd = allocation.seriesId
-    ? context.seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
+    ? context.seriesEndByKey.get(`${allocation.companyId}\u0000${allocation.seriesId}`)
     : undefined;
   return {
     kind: 'allocation',
@@ -152,7 +152,7 @@ function listAllocationEntries(
 ): PersonScheduleEntry[] {
   const entries: PersonScheduleEntry[] = [];
   for (const allocation of input.data.allocations) {
-    if (allocation.accountId !== input.accountId || allocation.resourceId !== input.resource.id) {
+    if (allocation.companyId !== input.companyId || allocation.resourceId !== input.resource.id) {
       continue;
     }
     if (!hasRenderableDateRange(allocation) || !overlapsWindow(allocation, input.window)) continue;
@@ -168,7 +168,7 @@ function listTimeOffEntries(input: BuildPersonScheduleInput): {
   const entries: PersonScheduleEntry[] = [];
   const invalidRecords: PersonScheduleInvalidRecord[] = [];
   for (const timeOff of input.data.timeOff) {
-    if (timeOff.accountId !== input.accountId || timeOff.resourceId !== input.resource.id) continue;
+    if (timeOff.companyId !== input.companyId || timeOff.resourceId !== input.resource.id) continue;
     if (!hasRenderableDateRange(timeOff)) {
       invalidRecords.push({ kind: 'timeOff', sourceId: timeOff.id });
       continue;
@@ -192,7 +192,7 @@ export function buildPersonSchedule(input: BuildPersonScheduleInput): PersonSche
   const context = createProjectionContext(input);
   const allocationInvalidRecords = collectSeriesMetadata(
     input.data.allocations,
-    input.accountId,
+    input.companyId,
     context.seriesEndByKey,
   );
   const timeOff = listTimeOffEntries(input);
@@ -201,7 +201,7 @@ export function buildPersonSchedule(input: BuildPersonScheduleInput): PersonSche
   );
   return {
     model: {
-      accountId: input.accountId,
+      companyId: input.companyId,
       resourceId: input.resource.id,
       title: input.title,
       window: input.window,

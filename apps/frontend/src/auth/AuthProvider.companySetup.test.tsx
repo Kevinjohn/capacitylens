@@ -28,7 +28,7 @@ it('gates tenant hydration behind authenticated company setup and opens scheduli
   const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
       created = true;
-      return me(201, { accountId: 'wayne' });
+      return me(201, { companyId: 'wayne' });
     }
     return me(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example', name: 'Bruce Wayne' },

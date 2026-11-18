@@ -45,11 +45,11 @@ async function signInAsEditor(page: Page) {
 async function seedClosureAccount(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const editor = await signUpUser(EDITOR);
-  const accountId = await bootstrapOrg(request, owner.cookie, ORG);
+  const companyId = await bootstrapOrg(request, owner.cookie, ORG);
   await sendPlanningFixtureCommand(
     request,
     owner.cookie,
-    accountId,
+    companyId,
     'settings',
     {
       operation: 'settings.update',
@@ -58,12 +58,12 @@ async function seedClosureAccount(request: APIRequestContext) {
     'patch',
   );
 
-  await createFixturePerson(request, owner.cookie, accountId, {
+  await createFixturePerson(request, owner.cookie, companyId, {
     id: IDS.person,
     name: 'Barbara Gordon',
     role: 'Designer',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'resources', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'resources', {
     operation: 'resource.create',
     id: IDS.external,
     fields: {
@@ -81,14 +81,14 @@ async function seedClosureAccount(request: APIRequestContext) {
     },
   });
 
-  seedFixtureMember(accountId, editor.email, 'editor');
-  return { accountId, editorCookie: editor.cookie };
+  seedFixtureMember(companyId, editor.email, 'editor');
+  return { companyId, editorCookie: editor.cookie };
 }
 
 async function createClosure(
   page: Page,
   request: APIRequestContext,
-  accountId: string,
+  companyId: string,
   editorCookie: string,
 ) {
   await page.getByRole('link', { name: 'Time off' }).click();
@@ -106,7 +106,7 @@ async function createClosure(
   let closureId = '';
   await expect
     .poll(async () => {
-      const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+      const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
       const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
@@ -180,7 +180,7 @@ async function editClosure(page: Page) {
 async function assertEditedAndDeletedClosure(
   page: Page,
   request: APIRequestContext,
-  accountId: string,
+  companyId: string,
   editorCookie: string,
   closureId: string,
 ) {
@@ -202,7 +202,7 @@ async function assertEditedAndDeletedClosure(
   await expect(page.getByTestId('company-closure-row')).toHaveCount(0);
   await expect
     .poll(async () => {
-      const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+      const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
       const state = (await response.json()) as { closures: Array<{ id: string }> };
@@ -219,7 +219,7 @@ async function assertEditedAndDeletedClosure(
   await expect(page.getByTestId('scheduler-closure-band')).toHaveCount(1);
   await expect
     .poll(async () => {
-      const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+      const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
       const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
@@ -232,11 +232,11 @@ test('an editor creates, edits, deletes and restores a literal company closure b
   page,
   request,
 }) => {
-  const { accountId, editorCookie } = await seedClosureAccount(request);
+  const { companyId, editorCookie } = await seedClosureAccount(request);
 
   await signInAsEditor(page);
-  const closureId = await createClosure(page, request, accountId, editorCookie);
+  const closureId = await createClosure(page, request, companyId, editorCookie);
   await assertClosureBand(page);
   await editClosure(page);
-  await assertEditedAndDeletedClosure(page, request, accountId, editorCookie, closureId);
+  await assertEditedAndDeletedClosure(page, request, companyId, editorCookie, closureId);
 });

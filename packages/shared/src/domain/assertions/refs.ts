@@ -26,15 +26,15 @@ import type { ValidationDataLookup } from '../validationLookup.js';
 
 const knownResourceKinds: ReadonlySet<unknown> = new Set(RESOURCE_KINDS);
 
-/** Require the target row to belong to accountId before an update or delete.
+/** Require the target row to belong to companyId before an update or delete.
  * Returns null for a stale id so callers can preserve the no-op contract; otherwise returns the owned row.
  * @throws DomainError for a cross-account row; nothing may be changed. */
 export function getOwned<K extends ScopedEntityKey>(
-  ...[data, accountId, key, id]: [data: AppData, accountId: ID, key: K, id: ID]
+  ...[data, companyId, key, id]: [data: AppData, companyId: ID, key: K, id: ID]
 ): AppData[K][number] | null {
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
   if (!row) return null;
-  if (!belongsToAccount(row, accountId)) {
+  if (!belongsToAccount(row, companyId)) {
     throwDomainError('record_wrong_account', 'That record does not belong to the active company.');
   }
   return row as AppData[K][number];
@@ -42,7 +42,7 @@ export function getOwned<K extends ScopedEntityKey>(
 
 type ScopedRefsArgs = [
   data: AppData,
-  accountId: ID,
+  companyId: ID,
   key: ScopedEntityKey,
   record: Record<string, unknown>,
   existing?: ScopedEntity | Record<string, unknown>,
@@ -52,7 +52,7 @@ type ScopedRefsArgs = [
 
 type ScopedRefsContext = {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   record: Record<string, unknown>;
   previous: Record<string, unknown> | undefined;
   lookupOptions: { lookup?: ValidationDataLookup };
@@ -63,7 +63,7 @@ type ScopedRefsContext = {
 };
 
 function createScopedRefsContext(
-  ...[data, accountId, record, existing, lookup]: [
+  ...[data, companyId, record, existing, lookup]: [
     AppData,
     ID,
     Record<string, unknown>,
@@ -86,18 +86,18 @@ function createScopedRefsContext(
         ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as
             ScopedEntity | undefined)
         : undefined;
-    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, accountId))) {
+    if (unchanged(field) && (resolved === undefined || belongsToAccount(resolved, companyId))) {
       return;
     }
     if (
       resolved === undefined ||
-      !belongsToAccount(resolved, accountId) ||
+      !belongsToAccount(resolved, companyId) ||
       !isEffectivelyActive({ data, table, row: resolved, ...lookupOptions })
     ) {
       throwDomainError('reference_wrong_account', message);
     }
   };
-  return { data, accountId, record, previous, lookupOptions, present, supplied, unchanged, need };
+  return { data, companyId, record, previous, lookupOptions, present, supplied, unchanged, need };
 }
 
 function assertRequiredRef(
@@ -144,14 +144,14 @@ function assertActivityKind(context: ScopedRefsContext): void {
 }
 
 function assertActivityPhase(context: ScopedRefsContext): void {
-  const { data, accountId, record, lookupOptions, present, unchanged } = context;
+  const { data, companyId, record, lookupOptions, present, unchanged } = context;
   if (!present('phaseId')) return;
   const phase =
     typeof record.phaseId === 'string'
       ? (resolveValidationRow({ data, table: 'phases', id: record.phaseId, ...lookupOptions }) as
           AppData['phases'][number] | undefined)
       : undefined;
-  const ownedPhase = phase && belongsToAccount(phase, accountId) ? phase : undefined;
+  const ownedPhase = phase && belongsToAccount(phase, companyId) ? phase : undefined;
   if (unchanged('phaseId') && unchanged('projectId')) {
     if (phase && !ownedPhase) {
       throwDomainError(
@@ -233,16 +233,16 @@ function assertResourceKindImmutable(
   }
 }
 
-/** Check catalog references within accountId without checking the record’s own tenancy.
+/** Check catalog references within companyId without checking the record’s own tenancy.
  * Allocation and time-off references have separate validators. Existing must be the owned stored row.
  * Unchanged references may be absent from an active-only client slice; their missing/inactive target checks are skipped, but a resolved foreign-account target still fails.
  * Creates and full project/phase rows require their parent; partial updates may omit the parent but cannot clear it.
  * Ordinary resource updates cannot change kind.
  * @throws DomainError on a violation; callers must not persist the write. */
 export function assertScopedRefs(
-  ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
+  ...[data, companyId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
-  const context = createScopedRefsContext(data, accountId, record, existing, lookup);
+  const context = createScopedRefsContext(data, companyId, record, existing, lookup);
   if (key === 'resources') assertResourceKindImmutable(context.previous, record);
   switch (key) {
     case 'projects':
@@ -293,7 +293,7 @@ export function assertScopedRefs(
 // only zero load. Requiring `hoursPerDay` makes every allocation write check that rule.
 type AllocationRefsArgs = [
   data: AppData,
-  accountId: ID,
+  companyId: ID,
   resourceId: ID,
   activityId: ID,
   hoursPerDay: number,
@@ -304,7 +304,7 @@ type AllocationRefsArgs = [
 
 type AllocationRefsContext = {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   projectId: ID | null | undefined;
   existing:
     | (Pick<Allocation, 'resourceId' | 'activityId'> & Partial<Pick<Allocation, 'projectId'>>)
@@ -316,7 +316,7 @@ function assertAllocationProject(
   context: AllocationRefsContext,
   activity: Activity,
 ): ID | undefined {
-  const { data, accountId, projectId, existing, lookupOptions } = context;
+  const { data, companyId, projectId, existing, lookupOptions } = context;
   if (projectId != null && !allocationAttributionAllowed(activity.kind)) {
     throwDomainError(
       'allocation_project_forbidden',
@@ -332,7 +332,7 @@ function assertAllocationProject(
         data,
         table: 'projects',
         id: resolvedProjectId,
-        accountId,
+        companyId,
         ...lookupOptions,
       })
     : undefined;
@@ -351,11 +351,11 @@ function assertAllocationProject(
   return resolvedProjectId;
 }
 
-/** Assert an allocation's resource, activity, project and hours are valid for `accountId`. Throws a `DomainError` on a violation. */
+/** Assert an allocation's resource, activity, project and hours are valid for `companyId`. Throws a `DomainError` on a violation. */
 export function assertAllocationRefs(
   ...[
     data,
-    accountId,
+    companyId,
     resourceId,
     activityId,
     hoursPerDay,
@@ -369,14 +369,14 @@ export function assertAllocationRefs(
     data,
     table: 'resources',
     id: resourceId,
-    accountId,
+    companyId,
     ...lookupOptions,
   });
   const activity = resolveOwnedRow<Activity>({
     data,
     table: 'activities',
     id: activityId,
-    accountId,
+    companyId,
     ...lookupOptions,
   });
   if (!resource || !activity) {
@@ -399,7 +399,7 @@ export function assertAllocationRefs(
   // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
   // one instead of silently accepting the allocation because `project` resolved to undefined.
   const resolvedProjectId = assertAllocationProject(
-    { data, accountId, projectId, existing, lookupOptions },
+    { data, companyId, projectId, existing, lookupOptions },
     activity,
   );
   if (

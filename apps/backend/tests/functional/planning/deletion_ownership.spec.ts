@@ -34,11 +34,11 @@ const models = {
   time_off: TimeOff,
 } as const;
 
-async function group(accountId: string, sessionId: number) {
+async function group(companyId: string, sessionId: number) {
   const groupId = randomUUID();
   await db.table('deleted_groups').insert({
     group_id: groupId,
-    account_id: accountId,
+    company_id: companyId,
     actor_id: 'u-bruce',
     session_id: sessionId,
     mutation_id: randomUUID(),
@@ -60,7 +60,7 @@ test.group('planning deletion ownership', (suite) => {
     const now = new Date().toISOString();
     await db.table('closures').insert({
       id: randomUUID(),
-      account_id: 'a-studio',
+      company_id: 'a-studio',
       name: 'Gotham Founders Day',
       start_date: '2026-11-02',
       end_date: '2026-11-02',
@@ -113,7 +113,7 @@ test.group('planning deletion ownership', (suite) => {
     const rowBefore = await db.from('allocations').where('id', row.id).first();
     await assert.rejects(() =>
       db.from('deleted_groups').where('group_id', ownGroupId).update({
-        account_id: 'a-loft',
+        company_id: 'a-loft',
         consumed_at: new Date().toISOString(),
       })
     );
@@ -308,14 +308,14 @@ test.group('planning deletion ownership', (suite) => {
       const native = new NativeDatabase(env.get('CAPACITYLENS_DB')!);
       try {
         native.pragma('foreign_keys = ON');
-        const project = data.projects.find((row) => row.accountId === 'a-loft')!;
+        const project = data.projects.find((row) => row.companyId === 'a-loft')!;
         native.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
       } finally {
         native.close();
       }
       const client = data.clients.find(
         (row) =>
-          row.accountId === 'a-studio' &&
+          row.companyId === 'a-studio' &&
           data.projects.some((project) => project.clientId === row.id)
       )!;
       await db

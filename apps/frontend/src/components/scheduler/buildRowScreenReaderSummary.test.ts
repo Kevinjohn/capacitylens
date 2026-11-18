@@ -7,7 +7,7 @@ import type { Resource } from '@capacitylens/shared/types/entities';
 const person: Resource = {
   ...NULLABLE_FIELDS.resources,
   id: 'r1',
-  accountId: 'a1',
+  companyId: 'a1',
   kind: 'person',
   name: 'Bruce Wayne',
   role: 'Designer',

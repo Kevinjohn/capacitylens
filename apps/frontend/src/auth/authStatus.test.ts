@@ -128,7 +128,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
         kind: 'active',
         generation: 8,
         state: {
-          accountId: 'a-studio',
+          companyId: 'a-studio',
           targetUserId: 'u-viewer',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
@@ -157,7 +157,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { masqueradeController } = await import('./masqueradeControllerInstance');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: true,
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
@@ -192,7 +192,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const adopt = vi.spyOn(masqueradeController, 'adoptStatus');
     const activeStatus = {
       active: true as const,
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer' as const,

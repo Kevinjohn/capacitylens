@@ -177,7 +177,7 @@ export function admitFixtureIdentity(email: string): void {
  * @throws When the principal is absent or database writes fail.
  */
 export function seedFixtureMember(
-  accountId: string,
+  companyId: string,
   email: string,
   role: 'admin' | 'editor' | 'viewer',
 ): void {
@@ -190,7 +190,7 @@ export function seedFixtureMember(
     db.prepare(
       `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
        VALUES (?, ?, ?, 'active', ?, ?)`,
-    ).run(accountId, principal.id, role, new Date().toISOString(), new Date().toISOString());
+    ).run(companyId, principal.id, role, new Date().toISOString(), new Date().toISOString());
   } finally {
     db.close();
   }
@@ -212,20 +212,20 @@ export function revokeFixtureSessions(email: string): void {
 }
 
 function ensureAuthE2EFixtureCompanyTable(db: DatabaseSync): void {
-  db.exec('CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (account_id TEXT PRIMARY KEY)');
+  db.exec('CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (company_id TEXT PRIMARY KEY)');
 }
 
-function removeAuthE2EAccount(db: DatabaseSync, accountId: string): void {
-  db.prepare('DELETE FROM audit_entries WHERE account_id = ?').run(accountId);
-  db.prepare('DELETE FROM account_member_resources WHERE account_id = ?').run(accountId);
-  db.prepare('DELETE FROM memberships WHERE scope_id = ?').run(accountId);
-  db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId);
+function removeAuthE2EAccount(db: DatabaseSync, companyId: string): void {
+  db.prepare('DELETE FROM audit_entries WHERE company_id = ?').run(companyId);
+  db.prepare('DELETE FROM account_member_resources WHERE company_id = ?').run(companyId);
+  db.prepare('DELETE FROM memberships WHERE scope_id = ?').run(companyId);
+  db.prepare('DELETE FROM accounts WHERE id = ?').run(companyId);
 }
 
 function insertAuthE2ECompany(
   db: DatabaseSync,
   input: {
-    accountId: string;
+    companyId: string;
     name: string;
     ownerId: string;
     now: string;
@@ -233,8 +233,8 @@ function insertAuthE2ECompany(
     recordInitialization: boolean;
   },
 ): void {
-  const { accountId, name, ownerId, now, track, recordInitialization } = input;
-  const internal = buildInternalClient(accountId, now);
+  const { companyId, name, ownerId, now, track, recordInitialization } = input;
+  const internal = buildInternalClient(companyId, now);
   db.prepare(
     `INSERT INTO accounts (
        id, name, color, scheduling_mode, timezone, week_starts_on, working_days, language,
@@ -242,7 +242,7 @@ function insertAuthE2ECompany(
        show_task_field_in_schedule, capacity_overview_access, date_style, created_at, updated_at
      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
-    accountId,
+    companyId,
     name,
     FALLBACK_PRESET_COLOR,
     'days',
@@ -261,27 +261,27 @@ function insertAuthE2ECompany(
     now,
   );
   db.prepare(
-    `INSERT INTO clients (id, account_id, name, color, builtin, created_at, updated_at)
+    `INSERT INTO clients (id, company_id, name, color, builtin, created_at, updated_at)
      VALUES (?, ?, ?, ?, 'true', ?, ?)`,
-  ).run(internal.id, accountId, internal.name, internal.color, now, now);
+  ).run(internal.id, companyId, internal.name, internal.color, now, now);
   db.prepare(
     `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
      VALUES (?, ?, 'owner', 'active', ?, ?)`,
-  ).run(accountId, ownerId, now, now);
-  db.prepare('INSERT INTO company_planning_revisions (account_id, revision) VALUES (?, 1)').run(
-    accountId,
+  ).run(companyId, ownerId, now, now);
+  db.prepare('INSERT INTO company_planning_revisions (company_id, revision) VALUES (?, 1)').run(
+    companyId,
   );
   if (track)
-    db.prepare('INSERT INTO auth_e2e_fixture_companies (account_id) VALUES (?)').run(accountId);
+    db.prepare('INSERT INTO auth_e2e_fixture_companies (company_id) VALUES (?)').run(companyId);
   if (recordInitialization) {
     db.prepare(
-      `INSERT INTO audit_entries (id, account_id, actor_id, action, entity, entity_id, details, created_at, updated_at)
+      `INSERT INTO audit_entries (id, company_id, actor_id, action, entity, entity_id, details, created_at, updated_at)
        VALUES (?, ?, ?, 'company.initialized', 'account', ?, ?, ?, ?)`,
     ).run(
       crypto.randomUUID(),
-      accountId,
+      companyId,
       ownerId,
-      accountId,
+      companyId,
       JSON.stringify({ changedFields: ['company', 'owner'] }),
       now,
       now,
@@ -302,7 +302,7 @@ function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
          AND memberships.role = 'owner'
          AND memberships.status = 'active'
          AND NOT EXISTS (
-           SELECT 1 FROM auth_e2e_fixture_companies WHERE account_id = accounts.id
+           SELECT 1 FROM auth_e2e_fixture_companies WHERE company_id = accounts.id
          )`,
     )
     .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<{ id: string }>;
@@ -312,7 +312,7 @@ function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
 }
 
 function removeTemporaryBaselineCompany(db: DatabaseSync): void {
-  for (const accountId of temporaryBaselineAccountIds(db)) removeAuthE2EAccount(db, accountId);
+  for (const companyId of temporaryBaselineAccountIds(db)) removeAuthE2EAccount(db, companyId);
 }
 
 /** Restores the disposable one-company server state after scenario companies are removed. */
@@ -323,7 +323,7 @@ function ensureTemporaryBaselineCompany(db: DatabaseSync): void {
   if (!owner) throw new Error('The real Auth E2E baseline owner is unavailable.');
   const now = new Date().toISOString();
   insertAuthE2ECompany(db, {
-    accountId: crypto.randomUUID(),
+    companyId: crypto.randomUUID(),
     name: AUTH_E2E_BASELINE_COMPANY,
     ownerId: owner.id,
     now,
@@ -359,10 +359,10 @@ export function readAuthE2EBaselineSnapshot(): {
     if (typeof account.id !== 'string')
       throw new Error('The retained Auth E2E baseline company has no ID.');
     const client = db
-      .prepare("SELECT * FROM clients WHERE account_id = ? AND builtin = 'true'")
+      .prepare("SELECT * FROM clients WHERE company_id = ? AND builtin = 'true'")
       .get(account.id) as Record<string, unknown> | undefined;
     const revision = db
-      .prepare('SELECT revision FROM company_planning_revisions WHERE account_id = ?')
+      .prepare('SELECT revision FROM company_planning_revisions WHERE company_id = ?')
       .get(account.id) as { revision: number } | undefined;
     const owner = db
       .prepare(
@@ -381,7 +381,7 @@ export function readAuthE2EBaselineSnapshot(): {
       .get() as { id: string; email: string; memberships: number } | undefined;
     const history = db
       .prepare(
-        "SELECT COUNT(*) AS count FROM audit_entries WHERE account_id = ? AND action = 'company.initialized'",
+        "SELECT COUNT(*) AS count FROM audit_entries WHERE company_id = ? AND action = 'company.initialized'",
       )
       .get(account.id) as { count: number } | undefined;
     if (
@@ -475,13 +475,13 @@ export async function bootstrapOrg(
     if (foreignKeysEnabled.foreign_keys !== 1)
       throw new Error('Auth E2E fixture creation requires SQLite foreign keys.');
     ensureAuthE2EFixtureCompanyTable(db);
-    const accountId = crypto.randomUUID();
+    const companyId = crypto.randomUUID();
     const now = new Date().toISOString();
     db.exec('BEGIN IMMEDIATE');
     try {
       removeTemporaryBaselineCompany(db);
       insertAuthE2ECompany(db, {
-        accountId,
+        companyId,
         name: companyName,
         ownerId: userId,
         now,
@@ -493,7 +493,7 @@ export async function bootstrapOrg(
       db.exec('ROLLBACK');
       throw error;
     }
-    return accountId;
+    return companyId;
   } finally {
     db.close();
   }
@@ -505,14 +505,14 @@ export function clearAuthE2ECompanies(): void {
   try {
     db.exec('PRAGMA foreign_keys = ON');
     ensureAuthE2EFixtureCompanyTable(db);
-    const rows = db.prepare('SELECT account_id FROM auth_e2e_fixture_companies').all() as Array<{
-      account_id: string;
+    const rows = db.prepare('SELECT company_id FROM auth_e2e_fixture_companies').all() as Array<{
+      company_id: string;
     }>;
     db.exec('BEGIN IMMEDIATE');
     try {
-      for (const { account_id: accountId } of rows) {
-        removeAuthE2EAccount(db, accountId);
-        db.prepare('DELETE FROM auth_e2e_fixture_companies WHERE account_id = ?').run(accountId);
+      for (const { company_id: companyId } of rows) {
+        removeAuthE2EAccount(db, companyId);
+        db.prepare('DELETE FROM auth_e2e_fixture_companies WHERE company_id = ?').run(companyId);
       }
       ensureTemporaryBaselineCompany(db);
       db.exec('COMMIT');
@@ -529,20 +529,20 @@ export function clearAuthE2ECompanies(): void {
 export async function sendPlanningFixtureCommand(
   request: APIRequestContext,
   cookie: string,
-  accountId: string,
+  companyId: string,
   path: string,
   intent: Record<string, unknown>,
   method: 'post' | 'patch' = 'post',
 ): Promise<unknown> {
   const headers = { cookie, 'sec-fetch-site': 'same-origin' };
-  const snapshot = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
+  const snapshot = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
     headers,
   });
   expect(snapshot.status(), `read planning revision for ${path}`).toBe(200);
   const revision = ((await snapshot.json()) as { revision?: unknown }).revision;
   if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
     throw new Error('The fixture planning read did not return a revision.');
-  const url = `${AUTH_API}/api/companies/${accountId}/${path}`;
+  const url = `${AUTH_API}/api/companies/${companyId}/${path}`;
   const options = {
     headers: await masqueradeContextHeaders(request, cookie),
     data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
@@ -557,10 +557,10 @@ export async function sendPlanningFixtureCommand(
 export async function createFixturePerson(
   request: APIRequestContext,
   cookie: string,
-  accountId: string,
+  companyId: string,
   person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
 ): Promise<void> {
-  await sendPlanningFixtureCommand(request, cookie, accountId, 'resources', {
+  await sendPlanningFixtureCommand(request, cookie, companyId, 'resources', {
     operation: 'resource.create',
     id: person.id,
     fields: {

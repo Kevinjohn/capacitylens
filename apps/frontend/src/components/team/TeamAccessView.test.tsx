@@ -121,7 +121,7 @@ describe('TeamAccessView access presentation', () => {
         kind: 'active',
         generation: 1,
         state: {
-          accountId: 'a-studio',
+          companyId: 'a-studio',
           targetUserId: 'target-user',
           targetName: 'Kara Danvers',
           effectiveRole: 'admin',

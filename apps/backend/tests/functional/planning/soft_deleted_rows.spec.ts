@@ -72,19 +72,19 @@ test.group('soft-deleted rows', (group) => {
     const deletedResource = state.resources[0]!;
     await db
       .from('clients')
-      .where({ id: clientRow.id, account_id: 'a-studio' })
+      .where({ id: clientRow.id, company_id: 'a-studio' })
       .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
     await db
       .from('projects')
-      .where({ id: project.id, account_id: 'a-studio' })
+      .where({ id: project.id, company_id: 'a-studio' })
       .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
     await db
       .from('activities')
-      .where({ id: deletedActivity.id, account_id: 'a-studio' })
+      .where({ id: deletedActivity.id, company_id: 'a-studio' })
       .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
     await db
       .from('resources')
-      .where({ id: deletedResource.id, account_id: 'a-studio' })
+      .where({ id: deletedResource.id, company_id: 'a-studio' })
       .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
 
     const trashed = await Client.query()
@@ -141,9 +141,9 @@ test.group('soft-deleted rows', (group) => {
     await resetAuthenticatedData(client, true);
     const state = await readState(undefined, true);
     const [deletedLocal, activeLocal] = state.allocations.filter(
-      (row) => row.accountId === 'a-studio'
+      (row) => row.companyId === 'a-studio'
     );
-    const otherTenant = state.allocations.find((row) => row.accountId === 'a-loft')!;
+    const otherTenant = state.allocations.find((row) => row.companyId === 'a-loft')!;
     const before = await db.from('allocations').where('id', deletedLocal!.id).first();
 
     const softDeleted = await db.transaction((trx) =>

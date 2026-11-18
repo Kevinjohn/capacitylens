@@ -270,7 +270,7 @@ test.group('M1 database contract', (group) => {
     for (const [table, rows] of Object.entries(state)) {
       if (table === 'accounts') continue;
       assert.isTrue(
-        (rows as Array<{ accountId: string }>).every((row) => row.accountId === accountIds.dc),
+        (rows as Array<{ companyId: string }>).every((row) => row.companyId === accountIds.dc),
         `${table} contains only the requested tenant`
       );
     }
@@ -314,7 +314,7 @@ test.group('M1 database contract', (group) => {
     await db.table('clients').insert(
       names.map((name, index) => ({
         id: `m1-string-client-${index}`,
-        account_id: accountIds.dc,
+        company_id: accountIds.dc,
         name,
         color: '#111111',
         created_at: stamp,
@@ -470,8 +470,8 @@ test.group('M1 database contract', (group) => {
     ];
     for (const [index, table] of scopedTables.entries()) {
       await assert.rejects(
-        () => db.from(table).where('id', ids[index]!).update({ account_id: accountIds.marvel }),
-        /account_id is immutable/
+        () => db.from(table).where('id', ids[index]!).update({ company_id: accountIds.marvel }),
+        /company_id is immutable/
       );
     }
   });
@@ -484,8 +484,8 @@ test.group('M1 database contract', (group) => {
     for (const table of scopedTables) {
       const sql = byName.get(`${table}_account_immutable`);
       assert.isDefined(sql, `${table} account immutability trigger exists`);
-      assert.match(sql!, /BEFORE\s+UPDATE\s+OF\s+account_id/i);
-      assert.match(sql!, /NEW\.account_id\s*<>\s*OLD\.account_id/i);
+      assert.match(sql!, /BEFORE\s+UPDATE\s+OF\s+company_id/i);
+      assert.match(sql!, /NEW\.company_id\s*<>\s*OLD\.company_id/i);
       assert.match(sql!, /RAISE\s*\(\s*ABORT/i);
     }
     for (const [relationship, table, column, target] of [
@@ -513,7 +513,7 @@ test.group('M1 database contract', (group) => {
           sql!,
           new RegExp(`FROM\\s+${target}\\s+WHERE\\s+id\\s*=\\s*NEW\\.${column}`, 'i')
         );
-        assert.match(sql!, /account_id\s*=\s*NEW\.account_id/i);
+        assert.match(sql!, /company_id\s*=\s*NEW\.company_id/i);
         assert.match(sql!, /RAISE\s*\(\s*ABORT\s*,\s*'cross-account reference'/i);
       }
     }
@@ -523,7 +523,7 @@ test.group('M1 database contract', (group) => {
     assert.match(cleanupSql!, /OLD\.kind\s*=\s*'person'/i);
     assert.match(cleanupSql!, /NEW\.kind\s*<>\s*'person'/i);
     assert.match(cleanupSql!, /DELETE\s+FROM\s+account_member_resources/i);
-    assert.match(cleanupSql!, /account_id\s*=\s*OLD\.account_id/i);
+    assert.match(cleanupSql!, /company_id\s*=\s*OLD\.company_id/i);
     assert.match(cleanupSql!, /resource_id\s*=\s*OLD\.id/i);
   });
 
@@ -533,7 +533,7 @@ test.group('M1 database contract', (group) => {
     await db.table('account_member_resources').insert([
       {
         id: 'm1-dc-member-resource',
-        account_id: accountIds.dc,
+        company_id: accountIds.dc,
         user_id: 'm1-dc-user',
         resource_id: 'm1-dc-resource',
         revision: stamp,
@@ -542,7 +542,7 @@ test.group('M1 database contract', (group) => {
       },
       {
         id: 'm1-marvel-member-resource',
-        account_id: accountIds.marvel,
+        company_id: accountIds.marvel,
         user_id: 'm1-marvel-user',
         resource_id: 'm1-marvel-resource',
         revision: stamp,
@@ -562,7 +562,7 @@ test.group('M1 database contract', (group) => {
     assert,
   }) => {
     const association = {
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       revision: stamp,
       created_at: stamp,
       updated_at: stamp,
@@ -697,12 +697,12 @@ test.group('M1 database contract', (group) => {
     await db.from('accounts').where('id', accountIds.dc).delete();
     for (const table of scopedTables) {
       assert.equal(
-        await rowCount(table, { account_id: accountIds.dc }),
+        await rowCount(table, { company_id: accountIds.dc }),
         0,
         `${table} rows should cascade`
       );
       assert.isAbove(
-        await rowCount(table, { account_id: accountIds.marvel }),
+        await rowCount(table, { company_id: accountIds.marvel }),
         0,
         `${table} keeps Marvel rows or seeded content`
       );
@@ -762,13 +762,13 @@ test.group('M1 database contract', (group) => {
       .where('type', 'index')
       .where('tbl_name', 'clients')
       .whereNotNull('sql')
-      .whereLike('sql', '%account_id%')
+      .whereLike('sql', '%company_id%')
       .first();
-    assert.isDefined(index?.sql, 'the clients.account_id tenant index exists');
+    assert.isDefined(index?.sql, 'the clients.company_id tenant index exists');
     await db.rawQuery(`DROP INDEX "${String(index!.name)}"`);
     try {
-      await assert.rejects(() => assertSchemaIntegrity(), /clients\.account_id index is missing/);
-      await assert.rejects(() => checkDatabase(), /clients\.account_id index is missing/);
+      await assert.rejects(() => assertSchemaIntegrity(), /clients\.company_id index is missing/);
+      await assert.rejects(() => checkDatabase(), /clients\.company_id index is missing/);
     } finally {
       await db.rawQuery(String(index!.sql));
     }

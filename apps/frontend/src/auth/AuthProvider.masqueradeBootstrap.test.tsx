@@ -29,7 +29,7 @@ describe('AuthProvider — server mode', () => {
   it('bootstraps an active masquerade from its validated real principal without calling auth/me', async () => {
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       targetUserId: 'target-user',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
@@ -60,7 +60,7 @@ describe('AuthProvider — server mode', () => {
   it('bootstraps a cold active member view only after its scoped canonical company read', async () => {
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       targetUserId: 'target-user',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
@@ -84,7 +84,7 @@ describe('AuthProvider — server mode', () => {
           throw new Error(`Unexpected read: ${url}`);
         }
         return me(200, {
-          accountId: 'a-studio',
+          companyId: 'a-studio',
           revision: 1,
           authority: {
             actorId: 'real-principal',

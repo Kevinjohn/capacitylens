@@ -22,7 +22,7 @@ test.group('tenant scope', (group) => {
     await db.table('clients').multiInsert([
       {
         id: 'c-wayne',
-        account_id: 'a-studio',
+        company_id: 'a-studio',
         name: 'Wayne',
         color: '#111',
         created_at: now,
@@ -30,7 +30,7 @@ test.group('tenant scope', (group) => {
       },
       {
         id: 'c-stark',
-        account_id: 'a-loft',
+        company_id: 'a-loft',
         name: 'Stark',
         color: '#222',
         created_at: now,

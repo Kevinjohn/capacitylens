@@ -18,8 +18,8 @@ function receipt(mutationId: string, revision: number): PlanningMutationSuccess 
 
 it('reads a reset snapshot scoped to its company at that company revision', async () => {
   const transport = createTestPlanningTransport();
-  const client = makeClient({ id: 'c1', accountId: context.companyId });
-  const other = makeClient({ id: 'c2', accountId: 'acct-two' });
+  const client = makeClient({ id: 'c1', companyId: context.companyId });
+  const other = makeClient({ id: 'c2', companyId: 'acct-two' });
   getStubPlanningTransport().reset(
     context.companyId,
     makeAppData({
@@ -38,7 +38,7 @@ it('reads a reset snapshot scoped to its company at that company revision', asyn
 it('records the sent intent and applies an unvalidated single-row change', async () => {
   const transport = createTestPlanningTransport();
   getStubPlanningTransport().reset(context.companyId, makeAppData());
-  const client = makeClient({ id: 'new-client', accountId: context.companyId });
+  const client = makeClient({ id: 'new-client', companyId: context.companyId });
 
   const response = await transport.execute(
     context,
@@ -70,7 +70,7 @@ it('returns a queued response, preserves its canonical read data and exposes its
   const transport = createTestPlanningTransport();
   const stub = getStubPlanningTransport();
   stub.reset(context.companyId, makeAppData());
-  const client = makeClient({ id: 'canonical-client', accountId: context.companyId });
+  const client = makeClient({ id: 'canonical-client', companyId: context.companyId });
   const queued = receipt('queued', 7);
   stub.respondNext(queued, makeAppData({ clients: [client] }));
 

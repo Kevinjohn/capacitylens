@@ -21,14 +21,14 @@ const owner: PlanningCapabilities = {
 
 async function executePlanningIntent(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   intent: PlanningIntent,
   capabilities: PlanningCapabilities
 ) {
-  const data = await readStateWithClient(trx, accountId, true);
+  const data = await readStateWithClient(trx, companyId, true);
   return applyPlanningIntent({
     trx,
-    accountId,
+    companyId,
     intent,
     capabilities,
     data,
@@ -71,7 +71,7 @@ test.group('typed planning writers', (group) => {
     assert.equal(row?.name, 'Founders Day');
     assert.equal(row?.startDate, '2026-10-20');
     assert.equal(row?.endDate, '2026-10-21');
-    assert.equal(row?.accountId, 'a-studio');
+    assert.equal(row?.companyId, 'a-studio');
   });
 
   test('rejects an invalid reference without persisting the row', async ({ assert }) => {

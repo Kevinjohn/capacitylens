@@ -128,7 +128,7 @@ test('operator setup creates the first Owner, one company and its default client
     const accounts = (await companies.json()) as { id: string; role: string }[];
     expect(accounts).toHaveLength(1);
     expect(accounts[0]!.role).toBe('owner');
-    const state = await page.request.get(`${origin}/api/state?accountId=${accounts[0]!.id}`);
+    const state = await page.request.get(`${origin}/api/state?companyId=${accounts[0]!.id}`);
     const data = await state.json();
     expect(data.accounts[0].name).toBe('Wayne Enterprises');
     expect(data.accounts[0].weekStartsOn).toBe(0);

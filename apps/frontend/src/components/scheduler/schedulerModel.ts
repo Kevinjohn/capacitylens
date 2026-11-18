@@ -182,7 +182,7 @@ function createSchedulerRowBuilder({
   const allocationsByResource = groupByResourceId(data.allocations, {
     visit: (allocation) => {
       if (!allocation.seriesId || !isValidISODate(allocation.endDate)) return;
-      const key = `${allocation.accountId}\u0000${allocation.seriesId}`;
+      const key = `${allocation.companyId}\u0000${allocation.seriesId}`;
       const current = seriesEndByKey.get(key);
       if (current === undefined || allocation.endDate > current) {
         seriesEndByKey.set(key, allocation.endDate);

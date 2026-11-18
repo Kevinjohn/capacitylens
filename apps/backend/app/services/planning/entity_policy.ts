@@ -268,7 +268,7 @@ function assertRequired(table: ScopedEntityKey, candidate: Record<string, unknow
 
 export interface EntityWriteOptions {
   lookup: ValidationDataLookup;
-  hasOtherBuiltinClient(accountId: string, clientId: string): boolean;
+  hasOtherBuiltinClient(companyId: string, clientId: string): boolean;
 }
 
 /** Prepare one complete entity row for a typed write against the current transaction projection. */
@@ -285,10 +285,10 @@ export async function prepareEntityWrite(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde, colon or hyphen.'
     );
   }
-  if (typeof row.accountId !== 'string' || row.accountId.length === 0) {
-    throw new EntityWriteError('A string accountId is required.');
+  if (typeof row.companyId !== 'string' || row.companyId.length === 0) {
+    throw new EntityWriteError('A string companyId is required.');
   }
-  if (existing && existing.accountId !== row.accountId) {
+  if (existing && existing.companyId !== row.companyId) {
     throw new EntityWriteError('Not found.', 404);
   }
   const hidden = hiddenFields(table, context, existing);

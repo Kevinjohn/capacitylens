@@ -37,7 +37,7 @@ function defaultDisciplines(): AppData['disciplines'] {
     {
       ...NULLABLE_FIELDS.disciplines,
       id: 'd-design',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Design',
@@ -46,7 +46,7 @@ function defaultDisciplines(): AppData['disciplines'] {
     {
       ...NULLABLE_FIELDS.disciplines,
       id: 'd-dev',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Development',
@@ -60,19 +60,19 @@ export function dataset(disciplines: AppData['disciplines'] = defaultDisciplines
   return {
     ...emptyAppData(),
     disciplines,
-    clients: [makeClient({ accountId: 'acct-test', name: 'Ferris', color: '#1' })],
+    clients: [makeClient({ companyId: 'acct-test', name: 'Ferris', color: '#1' })],
     projects: [
-      makeProject({ accountId: 'acct-test', name: 'P1', color: '#2' }),
-      makeProject({ id: 'p2', accountId: 'acct-test', name: 'P2', color: '#3' }),
+      makeProject({ companyId: 'acct-test', name: 'P1', color: '#2' }),
+      makeProject({ id: 'p2', companyId: 'acct-test', name: 'P2', color: '#3' }),
     ],
     activities: [
-      makeActivity({ accountId: 'acct-test', name: 'T1' }),
-      makeActivity({ id: 't2', accountId: 'acct-test', name: 'T2', projectId: 'p2' }),
+      makeActivity({ companyId: 'acct-test', name: 'T1' }),
+      makeActivity({ id: 't2', companyId: 'acct-test', name: 'T2', projectId: 'p2' }),
     ],
     resources: [
       makeResource({
         id: 'r1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         name: 'Designer Dana',
         role: 'Designer',
         disciplineId: 'd-design',
@@ -80,7 +80,7 @@ export function dataset(disciplines: AppData['disciplines'] = defaultDisciplines
       }),
       makeResource({
         id: 'r2',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         name: 'Dev Sam',
         role: 'Developer',
         disciplineId: 'd-dev',
@@ -88,17 +88,17 @@ export function dataset(disciplines: AppData['disciplines'] = defaultDisciplines
       }),
     ],
     allocations: [
-      makeAllocation({ accountId: 'acct-test' }),
+      makeAllocation({ companyId: 'acct-test' }),
       makeAllocation({
         id: 'a2',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         activityId: 't2',
         startDate: '2026-06-03',
         endDate: '2026-06-04',
         hoursPerDay: 4,
         status: 'tentative',
       }),
-      makeAllocation({ id: 'a3', accountId: 'acct-test', resourceId: 'r2', activityId: 't2' }),
+      makeAllocation({ id: 'a3', companyId: 'acct-test', resourceId: 'r2', activityId: 't2' }),
     ],
     timeOff: [],
   };
@@ -131,7 +131,7 @@ export function withExternal(): AppData {
   data.resources.push(
     makeResource({
       id: 'ext1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       kind: 'external',
       name: 'Kord Industries',
       role: 'Partner studio',
@@ -141,7 +141,7 @@ export function withExternal(): AppData {
   data.allocations.push({
     ...NULLABLE_FIELDS.allocations,
     id: 'aext',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'ext1',
@@ -154,7 +154,7 @@ export function withExternal(): AppData {
   data.timeOff.push({
     ...NULLABLE_FIELDS.timeOff,
     id: 'toext',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'ext1',
@@ -169,7 +169,7 @@ export function makeDisciplines(): AppData['disciplines'] {
   return [
     {
       id: 'd-design',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Design',
@@ -178,7 +178,7 @@ export function makeDisciplines(): AppData['disciplines'] {
     },
     {
       id: 'd-dev',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Development',

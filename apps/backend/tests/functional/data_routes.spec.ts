@@ -36,7 +36,7 @@ test.group('M2b data routes', (group) => {
     assert,
   }) => {
     client = await reset(client, true);
-    const candidate = await db.from('resources').where('account_id', 'a-studio').first();
+    const candidate = await db.from('resources').where('company_id', 'a-studio').first();
     await db
       .from('resources')
       .where('id', candidate.id)
@@ -46,9 +46,9 @@ test.group('M2b data routes', (group) => {
         .from('memberships')
         .where({ user_id: dataOwnerId, scope_id: 'a-studio' })
         .update({ role });
-      const explicit = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+      const explicit = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
       explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200);
-      const active = await client.get('/api/state?accountId=a-studio').send();
+      const active = await client.get('/api/state?companyId=a-studio').send();
       active.assertStatus(200);
       const ids = active.body().resources.map((row: { id: string }) => row.id);
       assert.isFalse(ids.includes(candidate.id), role);
@@ -80,7 +80,7 @@ test.group('M2b data routes', (group) => {
     const candidates = await db
       .from('resources')
       .select('id')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .limit(2);
     assert.lengthOf(candidates, 2);
     await db
@@ -91,10 +91,10 @@ test.group('M2b data routes', (group) => {
       .from('resources')
       .where('id', candidates[1]!.id)
       .update({ deleted_at: '2026-10-13T00:00:00.000Z' });
-    const inactive = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+    const inactive = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
     inactive.assertStatus(200);
     const body = inactive.body() as ReturnType<typeof seed>;
-    assert.isTrue(body.resources.every((row) => row.accountId === 'a-studio'));
+    assert.isTrue(body.resources.every((row) => row.companyId === 'a-studio'));
     assert.isTrue(body.accounts.every((row) => row.id === 'a-studio'));
     assert.includeMembers(
       body.resources.map((row) => row.id),
@@ -110,14 +110,14 @@ test.group('M2b data routes', (group) => {
     const candidate = await db
       .from('resources')
       .select('id')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     await db
       .from('resources')
       .where('id', candidate.id)
       .update({ archived_at: '2026-10-13T00:00:00.000Z' });
-    const fullResponse = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
-    const activeResponse = await client.get('/api/state?accountId=a-studio').send();
+    const fullResponse = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
+    const activeResponse = await client.get('/api/state?companyId=a-studio').send();
     const full = fullResponse.body() as ReturnType<typeof seed>;
     const active = activeResponse.body() as ReturnType<typeof seed>;
     assert.isAtMost(active.resources.length, full.resources.length);
@@ -167,7 +167,7 @@ test.group('M2b data routes', (group) => {
       last_seen_at: stamp,
       expires_at: stamp,
     });
-    const result = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+    const result = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
     result.assertStatus(200);
     assert.isAbove((result.body() as ReturnType<typeof seed>).resources.length, 0);
     const serialized = JSON.stringify(result.body());
@@ -207,9 +207,9 @@ test.group('M2b data routes', (group) => {
   }) => {
     client = await reset(client, true);
     const now = new Date().toISOString();
-    const studio = (table: string) => db.from(table).where('account_id', 'a-studio');
-    const read = async (accountId = 'a-studio') => {
-      const reply = await client.get(`/api/companies/${accountId}/getting-started`).send();
+    const studio = (table: string) => db.from(table).where('company_id', 'a-studio');
+    const read = async (companyId = 'a-studio') => {
+      const reply = await client.get(`/api/companies/${companyId}/getting-started`).send();
       reply.assertStatus(200);
       // The generated reply type omits the nested steps interface; the route returns it.
       return (reply.body() as { dismissed: boolean; steps?: Record<string, boolean> }).steps;
@@ -278,7 +278,7 @@ test.group('M2b data routes', (group) => {
       encodeRow('resources', {
         ...person,
         id: 'r-example-other',
-        accountId: otherAccountId,
+        companyId: otherAccountId,
         disciplineId: null,
       })
     );
@@ -292,7 +292,7 @@ test.group('M2b data routes', (group) => {
     second.assertStatus(409);
     const audit = await db
       .from('audit_entries')
-      .where({ account_id: account.id, action: 'exampleData' });
+      .where({ company_id: account.id, action: 'exampleData' });
     assert.lengthOf(audit, 1);
   });
 
@@ -307,7 +307,7 @@ test.group('M2b data routes', (group) => {
     const resource = {
       ...seed().resources[0]!,
       id: 'r-existing',
-      accountId: account.id,
+      companyId: account.id,
       disciplineId: null,
     };
     await db.table('resources').insert(encodeRow('resources', resource));
@@ -327,7 +327,7 @@ test.group('M2b data routes', (group) => {
     const resource = {
       ...seed().resources[0]!,
       id: 'r-archived',
-      accountId: account.id,
+      companyId: account.id,
       disciplineId: null,
       archivedAt: new Date().toISOString(),
     };
@@ -351,14 +351,14 @@ test.group('M2b data routes', (group) => {
       const clientRow = {
         ...seed().clients.find((row) => row.builtin !== true)!,
         id: 'c-example',
-        accountId: account.id,
+        companyId: account.id,
       };
       await db.table('clients').insert(encodeRow('clients', clientRow));
       if (kind === 'project') {
         const project = {
           ...seed().projects[0]!,
           id: 'p-example',
-          accountId: account.id,
+          companyId: account.id,
           clientId: clientRow.id,
         };
         await db.table('projects').insert(encodeRow('projects', project));

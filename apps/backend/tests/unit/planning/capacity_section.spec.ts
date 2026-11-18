@@ -23,7 +23,7 @@ import { resetPlanningFixture } from '../../functional/planning/helpers.js';
 // 2026-06-01 is a Monday.
 
 const ACCOUNT = 'a-themyscira';
-const stamp = { accountId: ACCOUNT, createdAt: 't', updatedAt: 't' };
+const stamp = { companyId: ACCOUNT, createdAt: 't', updatedAt: 't' };
 
 function account(changes: Partial<Account> = {}): Account {
   return {

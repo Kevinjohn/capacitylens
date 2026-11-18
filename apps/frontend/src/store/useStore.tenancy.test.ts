@@ -33,7 +33,7 @@ function twoAccountData(): AppData {
       {
         ...NULLABLE_FIELDS.clients,
         id: 'cB',
-        accountId: B,
+        companyId: B,
         name: 'B Client',
         color: '#111111',
         createdAt: 't',
@@ -44,7 +44,7 @@ function twoAccountData(): AppData {
       {
         ...NULLABLE_FIELDS.projects,
         id: 'pB',
-        accountId: B,
+        companyId: B,
         name: 'B Project',
         clientId: 'cB',
         color: '#222222',
@@ -56,7 +56,7 @@ function twoAccountData(): AppData {
       {
         ...NULLABLE_FIELDS.activities,
         id: 'tB',
-        accountId: B,
+        companyId: B,
         name: 'B Activity',
         kind: 'project',
         projectId: 'pB',
@@ -68,7 +68,7 @@ function twoAccountData(): AppData {
       {
         ...NULLABLE_FIELDS.resources,
         id: 'rB',
-        accountId: B,
+        companyId: B,
         kind: 'person',
         role: 'Dev',
         employmentType: 'permanent',
@@ -144,7 +144,7 @@ describe('active-account permission publication', () => {
     expect(new Set(rolesPublishedForB)).toEqual(new Set(['viewer']));
     expect(s().activeRole).toBe('viewer');
     expect(s().data.clients.some((client) => client.name.includes('must not land'))).toBe(false);
-    expect(s().data.clients.find((client) => client.id === 'cB')?.accountId).toBe(B);
+    expect(s().data.clients.find((client) => client.id === 'cB')?.companyId).toBe(B);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
 
@@ -226,7 +226,7 @@ describe('foreign-key refs must stay in the active account', () => {
     const t = await requireCreated(
       s().addActivity({ name: 'An Activity', kind: 'project', projectId: p.id }),
     );
-    expect(t.accountId).toBe(A);
+    expect(t.companyId).toBe(A);
     const project = assertDefined(
       s().data.projects.find((x) => x.id === p.id),
       `project ${p.id}`,

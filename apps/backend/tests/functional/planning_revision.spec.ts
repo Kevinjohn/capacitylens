@@ -37,7 +37,7 @@ test.group('company planning revision storage', (group) => {
     );
     assert.equal(await withTransaction((trx) => getPlanningRevision(trx, 'a-studio')), 0);
     assert.isNull(
-      await db.from('company_planning_revisions').where('account_id', 'a-studio').first()
+      await db.from('company_planning_revisions').where('company_id', 'a-studio').first()
     );
   });
 });

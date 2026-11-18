@@ -174,7 +174,7 @@ it.each(
   const held = deferred<Response>();
   holdDirectory = held.promise;
   try {
-    const accountId = useStore.getState().activeAccountId;
+    const companyId = useStore.getState().activeAccountId;
     if (kind === 'observed sign-out') {
       fireEvent(
         window,
@@ -182,7 +182,7 @@ it.each(
       );
       await screen.findByTestId('principal');
       await act(async () => {
-        await resetStoreWithAccount(accountId ?? undefined);
+        await resetStoreWithAccount(companyId ?? undefined);
       });
     } else await refreshed(kind === 'same principal' ? 'bruce' : 'diana');
     holdDirectory = null;

@@ -14,26 +14,26 @@ test.group('retired persistence routes', (group) => {
     assert,
   }) => {
     const session = await resetAuthenticatedData(client, false);
-    const accountId = await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises');
+    const companyId = await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises');
     const owner = authenticatedDataClient(client, session.cookie);
 
     const requests = [
       owner.post('/api/batch').json({ ops: [] }),
       owner.post('/api/orgs').json({ name: 'Stark Industries' }),
       owner.post('/api/companies').json({ name: 'Stark Industries' }),
-      owner.patch(`/api/companies/${accountId}`).json({ name: 'Other name' }),
-      owner.delete(`/api/companies/${accountId}`),
+      owner.patch(`/api/companies/${companyId}`).json({ name: 'Other name' }),
+      owner.delete(`/api/companies/${companyId}`),
     ];
     for (const request of requests) {
       const response = await request.send();
       response.assertStatus(404);
     }
 
-    const read = await owner.get(`/api/state?accountId=${accountId}`).send();
+    const read = await owner.get(`/api/state?companyId=${companyId}`).send();
     read.assertStatus(200);
     assert.deepEqual(
       read.body().accounts.map((account: { id: string }) => account.id),
-      [accountId]
+      [companyId]
     );
   });
 

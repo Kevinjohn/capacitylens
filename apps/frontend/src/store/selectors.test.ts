@@ -27,7 +27,7 @@ function data(): AppData {
       {
         ...NULLABLE_FIELDS.disciplines,
         id: 'd2',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         name: 'Dev',
@@ -36,7 +36,7 @@ function data(): AppData {
       {
         ...NULLABLE_FIELDS.disciplines,
         id: 'd1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         name: 'Design',
@@ -46,7 +46,7 @@ function data(): AppData {
     resources: [
       makeResource({
         id: 'r1',
-        accountId: DEFAULT_ACCOUNT_ID,
+        companyId: DEFAULT_ACCOUNT_ID,
         name: 'A',
         role: 'x',
         disciplineId: 'd1',
@@ -54,19 +54,19 @@ function data(): AppData {
       }),
       makeResource({
         id: 'r2',
-        accountId: DEFAULT_ACCOUNT_ID,
+        companyId: DEFAULT_ACCOUNT_ID,
         name: 'B',
         role: 'x',
         disciplineId: 'd2',
         color: '#2',
       }),
-      makeResource({ id: 'r3', accountId: DEFAULT_ACCOUNT_ID, name: 'C', role: 'x', color: '#3' }),
+      makeResource({ id: 'r3', companyId: DEFAULT_ACCOUNT_ID, name: 'C', role: 'x', color: '#3' }),
     ],
     projects: [
       {
         ...NULLABLE_FIELDS.projects,
         id: 'p1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         name: 'P',
@@ -78,7 +78,7 @@ function data(): AppData {
       {
         ...NULLABLE_FIELDS.activities,
         id: 't1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         name: 'T1',
@@ -88,7 +88,7 @@ function data(): AppData {
       {
         ...NULLABLE_FIELDS.activities,
         id: 't2',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         name: 'T2',
@@ -157,7 +157,7 @@ const accountData = (values: Partial<Account> = {}): AppData => ({
 
 const accountFeatureCases: Array<{
   name: string;
-  selector: (data: AppData, accountId: ID | null) => unknown;
+  selector: (data: AppData, companyId: ID | null) => unknown;
   fallback: unknown;
   explicit: unknown[];
   values: (value: unknown) => Partial<Account>;
@@ -268,7 +268,7 @@ describe('calendar primitive selectors', () => {
 describe('hasResourceEngagementGrouping', () => {
   const resources = (...rows: Parameters<typeof makeResource>[0][]): AppData => ({
     ...emptyAppData(),
-    resources: rows.map((row, index) => makeResource({ id: `r${index}`, accountId: 'a1', ...row })),
+    resources: rows.map((row, index) => makeResource({ id: `r${index}`, companyId: 'a1', ...row })),
   });
 
   it('keeps a Studio-only company flat', () => {

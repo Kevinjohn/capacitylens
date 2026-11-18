@@ -19,7 +19,7 @@ it('shows a fail-closed banner while a member view is starting', () => {
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
   });
 
   renderAppShell({});
@@ -33,9 +33,9 @@ it('offers projection recovery after the server has prepared a starting member v
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
     state: {
-      accountId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_ACCOUNT_ID,
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
@@ -57,9 +57,9 @@ it('hides old actor route data during a member-view projection while keeping rec
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
     state: {
-      accountId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_ACCOUNT_ID,
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
@@ -94,9 +94,9 @@ it('offers Retry and End when an authenticated cold member view has no selected 
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { accountId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
     state: {
-      accountId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_ACCOUNT_ID,
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',

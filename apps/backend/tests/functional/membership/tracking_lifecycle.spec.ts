@@ -15,10 +15,10 @@ async function userId(email: string) {
   return String(user.id);
 }
 
-async function observation(accountId: string, principalId: string) {
+async function observation(companyId: string, principalId: string) {
   return db
     .from('company_settings')
-    .where({ account_id: accountId, key: `member-sign-in:${principalId}` })
+    .where({ company_id: companyId, key: `member-sign-in:${principalId}` })
     .first();
 }
 
@@ -117,15 +117,15 @@ test.group('member sign-in tracking lifecycle', (group) => {
     assert.isNull(await observation('a-studio', memberId));
     assert.isNull(await observation('a-loft', memberId));
 
-    const trackingPath = (accountId: string) =>
-      `/api/companies/${accountId}/member-sign-in-tracking`;
+    const trackingPath = (companyId: string) =>
+      `/api/companies/${companyId}/member-sign-in-tracking`;
     const enableStudio = await signed(client.put(trackingPath('a-studio')), ownerCookie)
       .json({ enabled: true })
       .send();
     enableStudio.assertStatus(200);
     const firstWindow = await db
       .from('company_settings')
-      .where({ account_id: 'a-studio', key: 'member-sign-in-tracking' })
+      .where({ company_id: 'a-studio', key: 'member-sign-in-tracking' })
       .first();
     assert.isNotNull(await observation('a-studio', await userId('bruce.wayne@wayne.example')));
     assert.isNull(await observation('a-loft', memberId));
@@ -140,7 +140,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     repeatedEnable.assertStatus(200);
     const repeatedWindow = await db
       .from('company_settings')
-      .where({ account_id: 'a-studio', key: 'member-sign-in-tracking' })
+      .where({ company_id: 'a-studio', key: 'member-sign-in-tracking' })
       .first();
     assert.equal(repeatedWindow.created_at, firstWindow.created_at);
     assert.isNotNull(await observation('a-studio', memberId));
@@ -162,7 +162,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     assert.isNull(
       await db
         .from('company_settings')
-        .where({ account_id: 'a-studio', key: 'member-sign-in-tracking' })
+        .where({ company_id: 'a-studio', key: 'member-sign-in-tracking' })
         .first()
     );
     assert.isNotNull(await observation('a-loft', memberId));

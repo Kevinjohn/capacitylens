@@ -11,11 +11,11 @@ export const gettingStartedClient = {
    * @throws An `Error` for a refused request or an off-spec body.
    */
   async read(
-    accountId: string,
+    companyId: string,
     signal?: AbortSignal,
   ): Promise<{ dismissed: boolean; steps: GettingStartedSteps }> {
     const response = await apiFetch(
-      apiRouteUrl('api.getting-started.show', { params: { companyId: accountId } }),
+      apiRouteUrl('api.getting-started.show', { params: { companyId: companyId } }),
       {
         credentials: 'include',
         ...(signal ? { signal } : {}),
@@ -46,9 +46,9 @@ export const gettingStartedClient = {
    *
    * @throws An `Error` when the server refuses the change.
    */
-  async dismiss(accountId: string): Promise<void> {
+  async dismiss(companyId: string): Promise<void> {
     const response = await apiFetch(
-      apiRouteUrl('api.getting-started.update', { params: { companyId: accountId } }),
+      apiRouteUrl('api.getting-started.update', { params: { companyId: companyId } }),
       {
         method: 'PUT',
         credentials: 'include',

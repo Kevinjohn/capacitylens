@@ -27,7 +27,7 @@ import {
 const TS = '2026-01-01T00:00:00.000Z';
 const A1 = 'a-studio';
 
-const meta = (id: ID) => ({ id, accountId: A1, createdAt: TS, updatedAt: TS });
+const meta = (id: ID) => ({ id, companyId: A1, createdAt: TS, updatedAt: TS });
 const person = (id: ID, overrides: Partial<Resource> = {}): Resource => ({
   ...NULLABLE_FIELDS.resources,
   ...meta(id),
@@ -81,26 +81,26 @@ function data(overrides: Partial<AppData> = {}): AppData {
 }
 
 function lookupOver(view: AppData) {
-  const owned = (row: { accountId: ID }, accountId: ID) => row.accountId === accountId;
+  const owned = (row: { companyId: ID }, companyId: ID) => row.companyId === companyId;
   return {
     row: vi.fn((table: AppDataKey, id: ID) =>
       (view[table] as unknown as (Record<string, unknown> & { id: ID })[]).find(
         (row) => row.id === id,
       ),
     ),
-    allocationsForResource: vi.fn((accountId: ID, resourceId: ID) =>
-      view.allocations.filter((a) => owned(a, accountId) && a.resourceId === resourceId),
+    allocationsForResource: vi.fn((companyId: ID, resourceId: ID) =>
+      view.allocations.filter((a) => owned(a, companyId) && a.resourceId === resourceId),
     ),
-    allocationsForActivity: vi.fn((accountId: ID, activityId: ID) =>
-      view.allocations.filter((a) => owned(a, accountId) && a.activityId === activityId),
+    allocationsForActivity: vi.fn((companyId: ID, activityId: ID) =>
+      view.allocations.filter((a) => owned(a, companyId) && a.activityId === activityId),
     ),
-    resourceHasLoadedAllocation: vi.fn((accountId: ID, resourceId: ID) =>
+    resourceHasLoadedAllocation: vi.fn((companyId: ID, resourceId: ID) =>
       view.allocations.some(
-        (a) => owned(a, accountId) && a.resourceId === resourceId && a.hoursPerDay !== 0,
+        (a) => owned(a, companyId) && a.resourceId === resourceId && a.hoursPerDay !== 0,
       ),
     ),
-    resourceHasTimeOff: vi.fn((accountId: ID, resourceId: ID) =>
-      view.timeOff.some((t) => owned(t, accountId) && t.resourceId === resourceId),
+    resourceHasTimeOff: vi.fn((companyId: ID, resourceId: ID) =>
+      view.timeOff.some((t) => owned(t, companyId) && t.resourceId === resourceId),
     ),
     accountWorkingDays: vi.fn((): Weekday[] => [1, 2, 3, 4, 5]),
   } satisfies ValidationDataLookup;

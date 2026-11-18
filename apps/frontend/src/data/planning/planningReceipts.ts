@@ -28,7 +28,7 @@ export function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: stri
     snapshot.data.accounts.length === 1 &&
     snapshot.data.accounts.every((account) => isRecord(account) && account.id === companyId) &&
     SCOPED_KEYS.every((key) =>
-      snapshot.data[key].every((row) => isRecord(row) && row.accountId === companyId),
+      snapshot.data[key].every((row) => isRecord(row) && row.companyId === companyId),
     )
   );
 }

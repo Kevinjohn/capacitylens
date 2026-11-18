@@ -18,7 +18,7 @@ import type { CapacityOverviewModel } from './capacityOverviewModel';
 
 const ACCOUNT_ID = 'account-1';
 const BASE = {
-  accountId: ACCOUNT_ID,
+  companyId: ACCOUNT_ID,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };

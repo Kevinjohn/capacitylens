@@ -8,11 +8,11 @@ import { tables } from '#services/product_tables';
 
 /** Reads one company fixture or combines explicit company reads of every stored company. */
 export async function readState(
-  accountId?: string,
-  includeInactive = accountId === undefined
+  companyId?: string,
+  includeInactive = companyId === undefined
 ): Promise<AppData> {
   const client = db.connection();
-  if (accountId !== undefined) return readStateWithClient(client, accountId, includeInactive);
+  if (companyId !== undefined) return readStateWithClient(client, companyId, includeInactive);
   const accounts = await client.from('accounts').select('id');
   const slices: AppData[] = [];
   for (const account of accounts) {
@@ -74,8 +74,8 @@ export async function resetState(seedRequested: boolean | 'single') {
   });
 }
 
-function filterCompanyRows<T extends { accountId: string }>(rows: T[], accountId: string): T[] {
-  return rows.filter((row) => row.accountId === accountId);
+function filterCompanyRows<T extends { companyId: string }>(rows: T[], companyId: string): T[] {
+  return rows.filter((row) => row.companyId === companyId);
 }
 
 export const replaceWithSeed = () => resetState(true);

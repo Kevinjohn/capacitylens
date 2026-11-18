@@ -26,7 +26,7 @@ describe('MasqueradeController', () => {
 
     await expect(controller.end()).resolves.toBe(true);
     expect(dependencies.api.status).toHaveBeenCalledOnce();
-    expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);
+    expect(dependencies.reproject).toHaveBeenCalledWith(state.companyId);
     expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
   });
@@ -56,13 +56,13 @@ describe('MasqueradeController', () => {
       expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: replacement }),
     );
     expect(dependencies.api.status).toHaveBeenCalledOnce();
-    expect(dependencies.reproject).toHaveBeenLastCalledWith(state.accountId, false);
+    expect(dependencies.reproject).toHaveBeenLastCalledWith(state.companyId, false);
   });
 
   it("preserves a failed cold End attempt's retry ownership after server confirms it remains active", async () => {
     useStore.getState().clearPlanning();
     loadPlanningData(
-      makeAppData({ accounts: [makeAccount({ id: state.accountId, name: 'Wayne Enterprises' })] }),
+      makeAppData({ accounts: [makeAccount({ id: state.companyId, name: 'Wayne Enterprises' })] }),
     );
     const { controller, dependencies } = harness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
@@ -96,7 +96,7 @@ describe('MasqueradeController', () => {
     });
     useStore.getState().setMasquerade({
       kind: 'starting',
-      pending: { accountId: state.accountId, targetUserId: state.targetUserId },
+      pending: { companyId: state.companyId, targetUserId: state.targetUserId },
       state,
       generation: 0,
     });

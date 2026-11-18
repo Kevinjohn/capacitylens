@@ -105,7 +105,7 @@ export const teamAccessClient = {
 
   /** Emails a new invitation. A 202 means it was stored but the email could not be sent. */
   async createInvitation(input: {
-    accountId: string;
+    companyId: string;
     role: InvitationRole;
     email: string;
   }): Promise<TeamAccessResult<{ emailed: boolean }>> {

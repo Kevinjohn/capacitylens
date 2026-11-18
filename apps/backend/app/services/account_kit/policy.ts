@@ -29,8 +29,8 @@ export async function isAdmitted(userId: string, trx?: Trx) {
 
 // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
 async function companyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
-  const accountId = await installationCompanyId(trx ?? db);
-  return accountId ? activeCompanyRole(userId, accountId, trx) : null;
+  const companyId = await installationCompanyId(trx ?? db);
+  return companyId ? activeCompanyRole(userId, companyId, trx) : null;
 }
 
 async function mayManageInvitations(userId: string, trx: Trx | undefined) {
@@ -60,7 +60,7 @@ export async function onCredentialsChangedTransaction(
 ) {
   for (const membership of await access.memberships.listForUser(String(user.id), trx)) {
     await writeAudit(trx, {
-      accountId: String(membership.scopeId),
+      companyId: String(membership.scopeId),
       actorId: String(user.id),
       action: 'identity.credentials_changed',
       entity: 'user',

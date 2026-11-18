@@ -86,7 +86,7 @@ describe('planning write transitions', () => {
       outcome: { kind: 'unconfirmed', mutationId: 'mutation-1' },
     });
     expect(h.state().data.clients[0]).toMatchObject({
-      accountId: 'wayne',
+      companyId: 'wayne',
       name: 'Wayne Enterprises',
     });
     expect(h.execute).toHaveBeenCalledOnce();

@@ -10,7 +10,7 @@ type Availability = {
 };
 
 async function persistedAvailability(request: APIRequestContext): Promise<Availability> {
-  const response = await request.get(`${API}/api/state?accountId=a-studio&includeInactive=1`);
+  const response = await request.get(`${API}/api/state?companyId=a-studio&includeInactive=1`);
   expect(response.status()).toBe(200);
   const state = (await response.json()) as { resources: Availability[] };
   const resource = state.resources.find(({ id }) => id === 'r-tyler');

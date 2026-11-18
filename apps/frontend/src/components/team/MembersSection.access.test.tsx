@@ -149,7 +149,7 @@ describe('MembersSection — directory error retention', () => {
         kind: 'active',
         generation: 2,
         state: {
-          accountId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_ACCOUNT_ID,
           targetUserId: 'target-user',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
@@ -273,7 +273,7 @@ describe('MembersSection — directory error retention', () => {
     await waitFor(() => expect(result.current.directory.kind).toBe('error'));
     expect(result.current.directory).toMatchObject({
       kind: 'error',
-      accountId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_ACCOUNT_ID,
       content: { kind: 'unavailable' },
     });
   });
@@ -325,7 +325,7 @@ describe('MembersSection — transient directory state', () => {
     await waitFor(() => expect(result.current.directory.kind).toBe('error'));
     expect(result.current.directory).toMatchObject({
       kind: 'error',
-      accountId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_ACCOUNT_ID,
       content: { kind: 'authorized', snapshot: readyDirectory.snapshot },
     });
   });

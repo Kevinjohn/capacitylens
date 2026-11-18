@@ -24,7 +24,7 @@ function buildLensActivitiesData(): AppData {
     {
       ...NULLABLE_FIELDS.activities,
       id: 't-int',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Admin',
@@ -33,7 +33,7 @@ function buildLensActivitiesData(): AppData {
     {
       ...NULLABLE_FIELDS.activities,
       id: 't-rep',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Design',
@@ -44,7 +44,7 @@ function buildLensActivitiesData(): AppData {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'a-int',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -57,7 +57,7 @@ function buildLensActivitiesData(): AppData {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'a-rep',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r2',

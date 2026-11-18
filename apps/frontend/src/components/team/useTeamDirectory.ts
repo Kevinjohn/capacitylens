@@ -30,12 +30,12 @@ interface DirectorySnapshot {
 }
 
 type DirectoryState =
-  | { kind: 'hidden'; accountId: string | null }
-  | { kind: 'loading'; accountId: string | null }
-  | { kind: 'ready'; accountId: string; snapshot: DirectorySnapshot }
+  | { kind: 'hidden'; companyId: string | null }
+  | { kind: 'loading'; companyId: string | null }
+  | { kind: 'ready'; companyId: string; snapshot: DirectorySnapshot }
   | {
       kind: 'error';
-      accountId: string;
+      companyId: string;
       content: { kind: 'authorized'; snapshot: DirectorySnapshot } | { kind: 'unavailable' };
     };
 
@@ -46,29 +46,29 @@ type SetDirectory = Dispatch<SetStateAction<DirectoryState>>;
 // still starts on generation 0, so a revisit shows the cached directory while it refetches.
 let lastRequestedReadGeneration = 0;
 
-function directorySnapshot(state: DirectoryState, accountId: string): DirectorySnapshot | null {
-  if (state.accountId !== accountId) return null;
+function directorySnapshot(state: DirectoryState, companyId: string): DirectorySnapshot | null {
+  if (state.companyId !== companyId) return null;
   if (state.kind === 'ready') return state.snapshot;
   return state.kind === 'error' && state.content.kind === 'authorized'
     ? state.content.snapshot
     : null;
 }
 
-function errorDirectory(state: DirectoryState, accountId: string): DirectoryState {
-  const snapshot = directorySnapshot(state, accountId);
+function errorDirectory(state: DirectoryState, companyId: string): DirectoryState {
+  const snapshot = directorySnapshot(state, companyId);
   return {
     kind: 'error',
-    accountId,
+    companyId,
     content: snapshot === null ? { kind: 'unavailable' } : { kind: 'authorized', snapshot },
   };
 }
 
 function replaceInvites(
   state: DirectoryState,
-  accountId: string,
+  companyId: string,
   invites: TeamInvitation[],
 ): DirectoryState {
-  const snapshot = directorySnapshot(state, accountId);
+  const snapshot = directorySnapshot(state, companyId);
   if (snapshot === null) return state;
   const nextSnapshot = { ...snapshot, invites };
   if (state.kind === 'ready') return { ...state, snapshot: nextSnapshot };
@@ -94,7 +94,7 @@ function useScopedDirectoryQueries({
   scope: ApiQueryScope;
 }) {
   const { enabled, activeAccountId } = options;
-  const scopeId = JSON.stringify([scope.principalId, scope.accountId, scope.masqueradeGeneration]);
+  const scopeId = JSON.stringify([scope.principalId, scope.companyId, scope.masqueradeGeneration]);
   const memberRouteKey = api.api.members.index.queryKey({
     params: { companyId: activeAccountId ?? '' },
   });
@@ -128,7 +128,7 @@ function useMemberQueryEffects({
 }: {
   activeAccountId: string | null;
   fail: FieldError['fail'];
-  authorizedAccountRef: { current: { scopeId: string; accountId: string } | null };
+  authorizedAccountRef: { current: { scopeId: string; companyId: string } | null };
   setDirectory: SetDirectory;
   membersQuery: ReturnType<typeof useScopedDirectoryQueries>['membersQuery'];
   scopeId: string;
@@ -142,16 +142,16 @@ function useMemberQueryEffects({
     if (result.kind === 'rejected' && result.status === 403) {
       if (
         authorizedAccountRef.current?.scopeId === scopeId &&
-        authorizedAccountRef.current.accountId === activeAccountId
+        authorizedAccountRef.current.companyId === activeAccountId
       ) {
         setDirectory({
           kind: 'error',
-          accountId: activeAccountId,
+          companyId: activeAccountId,
           content: { kind: 'unavailable' },
         });
         fail(null, m.settings_members_err_access_changed());
       } else {
-        setDirectory({ kind: 'hidden', accountId: activeAccountId });
+        setDirectory({ kind: 'hidden', companyId: activeAccountId });
       }
       return;
     }
@@ -165,10 +165,10 @@ function useMemberQueryEffects({
       fail(null, failureMessage(result, m.settings_members_err_load({ status: result.status })));
       return;
     }
-    authorizedAccountRef.current = { scopeId, accountId: activeAccountId };
+    authorizedAccountRef.current = { scopeId, companyId: activeAccountId };
     setDirectory((previous) => ({
       kind: 'ready',
-      accountId: activeAccountId,
+      companyId: activeAccountId,
       snapshot: {
         members: result.value.members,
         signInTrackingEnabled: result.value.signInTrackingEnabled,
@@ -237,13 +237,13 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const scope: ApiQueryScope = {
     principalId: user?.id ?? null,
-    accountId: activeAccountId,
+    companyId: activeAccountId,
     masqueradeGeneration,
   };
-  const scopeId = JSON.stringify([scope.principalId, scope.accountId, scope.masqueradeGeneration]);
+  const scopeId = JSON.stringify([scope.principalId, scope.companyId, scope.masqueradeGeneration]);
   const [directoryState, setDirectoryState] = useState({
     scopeId,
-    directory: { kind: 'loading', accountId: activeAccountId } as DirectoryState,
+    directory: { kind: 'loading', companyId: activeAccountId } as DirectoryState,
   });
   const setDirectory = useCallback<SetDirectory>(
     (next) =>
@@ -251,13 +251,13 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
         const previous: DirectoryState =
           current.scopeId === scopeId
             ? current.directory
-            : { kind: 'loading', accountId: activeAccountId };
+            : { kind: 'loading', companyId: activeAccountId };
         return { scopeId, directory: typeof next === 'function' ? next(previous) : next };
       }),
     [activeAccountId, scopeId],
   );
   // Remember which principal projection returned an authorized company directory.
-  const authorizedAccountRef = useRef<{ scopeId: string; accountId: string } | null>(null);
+  const authorizedAccountRef = useRef<{ scopeId: string; companyId: string } | null>(null);
   // Each reload requests a new read generation. Only a successful members read applied for that
   // generation accepts it; failures and other snapshot replacements leave it unaccepted.
   const [reloadKey, setReloadKey] = useState(0);
@@ -299,7 +299,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     directory:
       directoryState.scopeId === scopeId
         ? directoryState.directory
-        : ({ kind: 'loading', accountId: activeAccountId } satisfies DirectoryState),
+        : ({ kind: 'loading', companyId: activeAccountId } satisfies DirectoryState),
     setDirectory,
     reload,
     acceptedReadGeneration,
@@ -312,7 +312,7 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeAccountId } = options;
   const { directory, setDirectory, reload, acceptedReadGeneration, reloadInvites } =
     useDirectoryRead(options);
-  const currentAccountLoaded = directory.accountId === activeAccountId;
+  const currentAccountLoaded = directory.companyId === activeAccountId;
   const replaceAuthorizedDirectory = useCallback(
     (next: TeamDirectory, invites: TeamInvitation[]) => {
       setDirectory((previous) => {
@@ -333,9 +333,9 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
 
   return {
     directory:
-      currentAccountLoaded && directory.accountId !== null
+      currentAccountLoaded && directory.companyId !== null
         ? directory
-        : ({ kind: 'loading', accountId: activeAccountId } satisfies DirectoryState),
+        : ({ kind: 'loading', companyId: activeAccountId } satisfies DirectoryState),
     replaceAuthorizedDirectory,
     reload,
     acceptedReadGeneration,

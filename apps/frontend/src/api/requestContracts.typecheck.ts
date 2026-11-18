@@ -16,7 +16,7 @@ export function checkOrdinaryRequestContracts() {
     query: { status: 'approved', cursor: 'opaque' },
   };
   const state: RequestArgs<Routes['api.state']> = {
-    query: { accountId: 'a-studio', includeInactive: '1' },
+    query: { companyId: 'a-studio', includeInactive: '1' },
   };
   const missingPassword: RequestArgs<Routes['api.auth.sign-in']> = {
     // @ts-expect-error Sign-in requires a password.
@@ -32,12 +32,12 @@ export function checkOrdinaryRequestContracts() {
   };
   const invalidInactive: RequestArgs<Routes['api.state']> = {
     // @ts-expect-error State's inactive flag is the literal wire value.
-    query: { accountId: 'a-studio', includeInactive: true },
+    query: { companyId: 'a-studio', includeInactive: true },
   };
   // @ts-expect-error The generated read query refuses boolean inactive flags at the browser seam.
-  apiReadRouteUrl('api.state', { query: { accountId: 'a-studio', includeInactive: true } });
+  apiReadRouteUrl('api.state', { query: { companyId: 'a-studio', includeInactive: true } });
   // @ts-expect-error Admission status cannot be supplied as a state query.
-  apiReadRouteUrl('api.state', { query: { accountId: 'a-studio', status: 'pending' } });
+  apiReadRouteUrl('api.state', { query: { companyId: 'a-studio', status: 'pending' } });
   // @ts-expect-error Sign-in is a generated POST route, never GET.
   client.get('/api/auth/sign-in', {});
   return {

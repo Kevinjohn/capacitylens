@@ -28,7 +28,7 @@ import {
 const TS = '2026-01-01T00:00:00.000Z';
 const A1 = 'a-studio';
 
-const meta = (id: ID) => ({ id, accountId: A1, createdAt: TS, updatedAt: TS });
+const meta = (id: ID) => ({ id, companyId: A1, createdAt: TS, updatedAt: TS });
 const account: Account = {
   ...NULLABLE_FIELDS.accounts,
   id: A1,

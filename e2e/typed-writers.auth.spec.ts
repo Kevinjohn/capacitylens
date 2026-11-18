@@ -32,7 +32,7 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   const suffix = Date.now();
   const email = `bruce-wayne-writers-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email);
-  const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Writers Studio ${suffix}`);
+  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Writers Studio ${suffix}`);
 
   await page.goto('/');
   await page.getByRole('heading', { name: 'Sign in' }).waitFor();
@@ -51,7 +51,7 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   ).toBeVisible();
 
   const state = async () => {
-    const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+    const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
@@ -71,23 +71,23 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   await monthDay.click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === accountId)?.dateStyle)
+    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
     .toBe('month-day');
 
   await page.getByRole('link', { name: 'Schedule' }).click();
   await page.getByTestId('undo-button').click();
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === accountId)?.dateStyle)
+    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
     .toBeNull();
   await page.getByTestId('redo-button').click();
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === accountId)?.dateStyle)
+    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
     .toBe('month-day');
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
   expect((await state()).clients.some((row) => row.name === 'Wayne Foundation')).toBe(true);
-  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${accountId}/clients` });
-  expect(writes).toContainEqual({ method: 'PATCH', path: `/api/companies/${accountId}/settings` });
+  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${companyId}/clients` });
+  expect(writes).toContainEqual({ method: 'PATCH', path: `/api/companies/${companyId}/settings` });
   expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
 });
 
@@ -98,17 +98,17 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   const suffix = Date.now();
   const email = `diana-prince-writers-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email);
-  const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`);
+  const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`);
   await sendPlanningFixtureCommand(
     request,
     owner.cookie,
-    accountId,
+    companyId,
     'settings',
     { operation: 'settings.update', changes: { disciplinesEnabled: true } },
     'patch',
   );
   const resourceId = crypto.randomUUID();
-  await createFixturePerson(request, owner.cookie, accountId, {
+  await createFixturePerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Diana Prince',
     role: 'Designer',
@@ -125,7 +125,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   const writes = recordPlanningWrites(page);
 
   const state = async () => {
-    const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+    const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
@@ -214,16 +214,16 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
     .toBe('Watchtower briefing');
   expect(writes).toContainEqual({
     method: 'POST',
-    path: `/api/companies/${accountId}/disciplines`,
+    path: `/api/companies/${companyId}/disciplines`,
   });
   expect(writes).toContainEqual({
     method: 'PATCH',
-    path: `/api/companies/${accountId}/disciplines/${disciplineId}`,
+    path: `/api/companies/${companyId}/disciplines/${disciplineId}`,
   });
-  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${accountId}/time-off` });
+  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${companyId}/time-off` });
   expect(writes).toContainEqual({
     method: 'PATCH',
-    path: `/api/companies/${accountId}/time-off/${timeOffId}`,
+    path: `/api/companies/${companyId}/time-off/${timeOffId}`,
   });
   expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
 });
@@ -236,14 +236,14 @@ for (const repeat of [false, true]) {
     const suffix = `${Date.now()}-${repeat ? 'repeat' : 'single'}`;
     const owner = await signUpUser(`timeoff-owner-${suffix}@capacitylens.dev`);
     const editor = await signUpUser(`timeoff-editor-${suffix}@capacitylens.dev`);
-    const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`);
+    const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`);
     const resourceId = crypto.randomUUID();
-    await createFixturePerson(request, owner.cookie, accountId, {
+    await createFixturePerson(request, owner.cookie, companyId, {
       id: resourceId,
       name: 'Barbara Gordon',
       role: 'Designer',
     });
-    seedFixtureMember(accountId, editor.email, 'editor');
+    seedFixtureMember(companyId, editor.email, 'editor');
 
     // The Time off page lists entries from the current week onward; the fixed dates below stay
     // visible only with the frozen browser date.
@@ -267,7 +267,7 @@ for (const repeat of [false, true]) {
       await dialog.getByTestId('timeoff-repeat-until').fill('2026-11-09');
       await expect(dialog.getByTestId('timeoff-repeat-preview')).toContainText('Creates 2 entries');
     }
-    const path = `/api/companies/${accountId}/time-off${repeat ? '/repeat' : ''}`;
+    const path = `/api/companies/${companyId}/time-off${repeat ? '/repeat' : ''}`;
     const responsePromise = page.waitForResponse(
       (response) => response.url().endsWith(path) && response.request().method() === 'POST',
     );
@@ -279,7 +279,7 @@ for (const repeat of [false, true]) {
       .filter({ hasText: 'Barbara Gordon' })
       .getByTestId('timeoff-row');
     await expect(row).toHaveCount(repeat ? 2 : 1);
-    const stored = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+    const stored = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
       headers: { cookie: owner.cookie },
     });
     expect(stored.status()).toBe(200);

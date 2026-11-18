@@ -207,14 +207,14 @@ describe('store scheduler UI', () => {
   it.each([0, 1] as const)(
     're-anchors the first canonical snapshot to the selected account week start (%s)',
     async (weekStartsOn) => {
-      const accountId = 'late-account';
-      s().setAccountSummaries({ list: [{ id: accountId, name: 'Late account', role: 'owner' }] });
+      const companyId = 'late-account';
+      s().setAccountSummaries({ list: [{ id: companyId, name: 'Late account', role: 'owner' }] });
       updatePlanningFixtureSource(
         makeAppData({
-          accounts: [makeAccount({ id: accountId, weekStartsOn })],
+          accounts: [makeAccount({ id: companyId, weekStartsOn })],
         }),
       );
-      s().setActiveAccount(accountId);
+      s().setActiveAccount(companyId);
       s().goToDate('2031-09-10');
       await s().refreshPlanning();
 
@@ -230,15 +230,15 @@ describe('store scheduler UI', () => {
   });
 
   it('the date format is account data: undoable and mirrored to the formatters', async () => {
-    const accountId = s().activeAccountId;
-    if (!accountId) throw new Error('Expected an active account.');
-    await s().updateAccount(accountId, { dateStyle: 'month-day' });
-    expect(resolveDateStyle(s().data, accountId)).toBe('month-day');
+    const companyId = s().activeAccountId;
+    if (!companyId) throw new Error('Expected an active account.');
+    await s().updateAccount(companyId, { dateStyle: 'month-day' });
+    expect(resolveDateStyle(s().data, companyId)).toBe('month-day');
 
     expect(formatDayMonth('2026-09-09')).toBe('Sep 9');
 
     await s().undoPlanning();
-    expect(resolveDateStyle(s().data, accountId)).toBe('day-month');
+    expect(resolveDateStyle(s().data, companyId)).toBe('day-month');
     expect(formatDayMonth('2026-09-09')).toBe('9 Sep');
   });
 

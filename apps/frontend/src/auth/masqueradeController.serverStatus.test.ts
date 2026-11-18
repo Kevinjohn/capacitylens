@@ -14,8 +14,8 @@ describe('MasqueradeController', () => {
   it('invalidates a captured reconciliation when its company or identity changes', async () => {
     await resetStoreWithAccount('a-studio');
     const { controller } = harness({
-      switchAccount: vi.fn(async (accountId: string | null) => {
-        useStore.getState().setActiveAccount(accountId);
+      switchAccount: vi.fn(async (companyId: string | null) => {
+        useStore.getState().setActiveAccount(companyId);
         return { kind: 'reloaded' as const };
       }),
     });
@@ -76,7 +76,7 @@ describe('MasqueradeController', () => {
       },
     });
 
-    const starting = controller.start(state.accountId, state.targetUserId);
+    const starting = controller.start(state.companyId, state.targetUserId);
     await vi.waitFor(() => expect(dependencies.api.start).toHaveBeenCalledOnce());
     await controller.adoptStatus({ active: true, ...newer });
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: newer });
@@ -108,7 +108,7 @@ describe('MasqueradeController', () => {
       expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: remote }),
     );
     expect(dependencies.api.status).toHaveBeenCalledOnce();
-    expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId, false);
+    expect(dependencies.reproject).toHaveBeenCalledWith(state.companyId, false);
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: remote });
   });
 });
@@ -121,7 +121,7 @@ describe('MasqueradeController shared-session reconciliation', () => {
     await controller.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe('inactive'));
 
-    expect(dependencies.reproject).toHaveBeenCalledWith(state.accountId);
+    expect(dependencies.reproject).toHaveBeenCalledWith(state.companyId);
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: true });
   });
 

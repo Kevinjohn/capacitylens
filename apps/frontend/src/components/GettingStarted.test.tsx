@@ -150,7 +150,7 @@ describe('Getting started', () => {
       const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(readReply(false)));
       vi.stubGlobal('fetch', fetchMock);
       const state = {
-        accountId: 'a-studio',
+        companyId: 'a-studio',
         targetUserId: 'u-editor',
         targetName: 'Clark Kent',
         effectiveRole: 'editor' as const,
@@ -163,7 +163,7 @@ describe('Getting started', () => {
         kind === 'starting'
           ? {
               kind,
-              pending: { accountId: state.accountId, targetUserId: state.targetUserId },
+              pending: { companyId: state.companyId, targetUserId: state.targetUserId },
               generation: 1,
             }
           : { kind, state, generation: 1 },
@@ -194,7 +194,7 @@ describe('Getting started', () => {
     act(() =>
       useStore.getState().setMasquerade({
         kind: 'starting',
-        pending: { accountId: 'a-studio', targetUserId: 'u-editor' },
+        pending: { companyId: 'a-studio', targetUserId: 'u-editor' },
         generation: 1,
       }),
     );

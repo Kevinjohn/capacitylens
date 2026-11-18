@@ -8,14 +8,14 @@ describe('built-in Internal client', () => {
   it('seed gives every account exactly one builtin Internal client', () => {
     const data = seed();
     for (const account of data.accounts) {
-      const internal = data.clients.filter((c) => c.builtin === true && c.accountId === account.id);
+      const internal = data.clients.filter((c) => c.builtin === true && c.companyId === account.id);
       expect(internal).toHaveLength(1);
       expect(internal[0]?.name).toBe(INTERNAL_CLIENT_NAME);
     }
   });
   it('buildInternalClient uses the deterministic id and reserved name/colour with builtin:true', () => {
     const c = buildInternalClient('a9', TS);
-    expect(c).toMatchObject({ accountId: 'a9', name: INTERNAL_CLIENT_NAME, builtin: true });
+    expect(c).toMatchObject({ companyId: 'a9', name: INTERNAL_CLIENT_NAME, builtin: true });
     expect(c.id).toBe('internal:a9');
   });
 });

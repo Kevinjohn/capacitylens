@@ -15,7 +15,7 @@ const editor = {
 
 const secretRow = (fields: readonly string[]) => ({
   id: 'row-1',
-  accountId: 'a-gotham',
+  companyId: 'a-gotham',
   isPrivate: true,
   ...Object.fromEntries(fields.map((field) => [field, `SECRET ${field}`])),
 });

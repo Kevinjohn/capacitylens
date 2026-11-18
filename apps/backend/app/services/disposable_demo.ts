@@ -28,7 +28,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
         key === 'accounts'
           ? [company]
           : data[key as keyof typeof tables].filter(
-              (row) => 'accountId' in row && row.accountId === company.id
+              (row) => 'companyId' in row && row.companyId === company.id
             );
       if (rows.length > 0) {
         await trx
@@ -39,7 +39,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
       }
     }
     await establishInitialCompanyAuthority(trx, {
-      accountId: company.id,
+      companyId: company.id,
       ownerId,
       actorId: ownerId,
       now: new Date().toISOString(),

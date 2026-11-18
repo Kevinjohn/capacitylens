@@ -7,7 +7,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-tyler-1',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-tyler',
@@ -20,7 +20,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-tyler-2',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-tyler',
@@ -33,7 +33,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-nike-1',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-nike',
@@ -46,7 +46,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-alex-1',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-alex',
@@ -59,7 +59,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-ph-1',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-ph-designer',
@@ -73,7 +73,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-ext-1',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-ext-northstar',
@@ -87,7 +87,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-pam-1',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-pam',
@@ -102,7 +102,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-alex-design',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-alex',
@@ -115,7 +115,7 @@ const ALLOCATIONS: AppData['allocations'] = [
   {
     ...NULLABLE_FIELDS.allocations,
     id: 'a-jo-1',
-    accountId: LOFT,
+    companyId: LOFT,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     resourceId: 'r-jo',

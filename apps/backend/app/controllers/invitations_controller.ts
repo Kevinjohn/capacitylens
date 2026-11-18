@@ -50,30 +50,30 @@ function mailUnavailable(ctx: HttpContext) {
 
 export default class InvitationsController {
   /** Confirms the caller manages invitations for this installation's company. */
-  private async manager(ctx: HttpContext, accountId: unknown) {
-    if (typeof accountId !== 'string' || !accountId) invalidAdmission();
+  private async manager(ctx: HttpContext, companyId: unknown) {
+    if (typeof companyId !== 'string' || !companyId) invalidAdmission();
     return withActor(ctx, async (_actor, trx) => {
-      const { actorId } = await assertCompanyAction(accountId, 'invitations:manage', trx);
-      if ((await installationCompanyId(trx)) !== accountId) missingAdmission('Company not found.');
+      const { actorId } = await assertCompanyAction(companyId, 'invitations:manage', trx);
+      if ((await installationCompanyId(trx)) !== companyId) missingAdmission('Company not found.');
       return actorId;
     });
   }
 
   async create(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['accountId', 'role', 'email']) || !isInvitableRole(body.role)) {
+    if (!hasOnlyFields(body, ['companyId', 'role', 'email']) || !isInvitableRole(body.role)) {
       invalidAdmission();
     }
     const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : '';
     if (!isAccountEmail(email)) invalidAdmission('Invalid invitation email.');
-    const actorId = await this.manager(ctx, body.accountId);
+    const actorId = await this.manager(ctx, body.companyId);
     if (!isMailConfigured()) return mailUnavailable(ctx);
     try {
       const invitation = await accountKit.invitations.send({
         actorId,
         email,
         role: body.role,
-        scope: body.accountId as string,
+        scope: body.companyId as string,
       });
       return ctx.response.created({ ...projection(invitation), emailed: true });
     } catch (error) {
@@ -129,12 +129,12 @@ export default class InvitationsController {
     proofHeaders(ctx);
     const invitation = await accountKit.invitations.inspect({ token: ctx.params.token });
     if (!invitation) return ctx.response.notFound(invalidLink);
-    const { accountId, accountName } = await installationCompany(db);
+    const { companyId, accountName } = await installationCompany(db);
     return ctx.response.ok({
-      accountId,
+      companyId,
       accountName,
       // Before the company exists the role is only bootstrap metadata; setup grants Owner.
-      role: accountId ? invitation.role : null,
+      role: companyId ? invitation.role : null,
       email: invitation.email,
     });
   }

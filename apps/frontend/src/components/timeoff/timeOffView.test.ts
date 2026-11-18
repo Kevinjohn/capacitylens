@@ -16,7 +16,7 @@ function resource(id: string, name: string, kind: Resource['kind'] = 'person'): 
   return {
     ...NULLABLE_FIELDS.resources,
     id,
-    accountId: 'a-studio',
+    companyId: 'a-studio',
     createdAt: timestamp,
     updatedAt: timestamp,
     kind,
@@ -34,7 +34,7 @@ function resource(id: string, name: string, kind: Resource['kind'] = 'person'): 
 function entry({ id, resourceId, startDate, endDate }: EntryInput): TimeOff {
   return {
     id,
-    accountId: 'a-studio',
+    companyId: 'a-studio',
     createdAt: timestamp,
     updatedAt: timestamp,
     resourceId,
@@ -158,7 +158,7 @@ describe('buildTimeOffGroups', () => {
 describe('buildClosureList', () => {
   const closure = (id: string, startDate: string, endDate: string): Closure => ({
     id,
-    accountId: 'a-studio',
+    companyId: 'a-studio',
     createdAt: timestamp,
     updatedAt: timestamp,
     name: id,

@@ -50,14 +50,14 @@ const originalAddActivity = useStore.getState().addActivity;
 /** Builds the base account data for allocation modal tests. */
 export function base(): AppData {
   return makeAppData({
-    clients: [makeClient({ accountId: ACC, color: '#2d75da' })],
+    clients: [makeClient({ companyId: ACC, color: '#2d75da' })],
     projects: [
-      makeProject({ accountId: ACC }),
-      makeProject({ id: 'p2', accountId: ACC, name: 'Other', color: '#06b6d4' }),
+      makeProject({ companyId: ACC }),
+      makeProject({ id: 'p2', companyId: ACC, name: 'Other', color: '#06b6d4' }),
     ],
     activities: [
-      makeActivity({ accountId: ACC }),
-      makeActivity({ id: 't2', accountId: ACC, name: 'Other activity', projectId: 'p2' }),
+      makeActivity({ companyId: ACC }),
+      makeActivity({ id: 't2', companyId: ACC, name: 'Other activity', projectId: 'p2' }),
     ],
   });
 }

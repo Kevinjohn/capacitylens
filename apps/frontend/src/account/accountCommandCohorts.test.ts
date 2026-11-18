@@ -55,7 +55,7 @@ const ok = () => new Response(null, { status: 201 });
 const unknown = () => new Response(null, { status: 503 });
 const createInvitation = () =>
   invitationRequests.createInvitation({
-    accountId: 'a-studio',
+    companyId: 'a-studio',
     role: 'viewer',
     email: 'selina@wayne.test',
   });
@@ -78,7 +78,7 @@ describe('implicit account command cohorts', () => {
       const original = crypto.subtle.digest.bind(crypto.subtle);
       const held = deferred<ArrayBuffer>();
       const digest = vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(() => held.promise);
-      const body = { accountId: 'a-studio', role: 'viewer' as const, email: 'selina@wayne.test' };
+      const body = { companyId: 'a-studio', role: 'viewer' as const, email: 'selina@wayne.test' };
       mocks.apiFetch.mockResolvedValueOnce(ok());
       const pending = invitationRequests.createInvitation(body);
       try {
@@ -98,7 +98,7 @@ describe('implicit account command cohorts', () => {
           await expect(pending).resolves.toMatchObject({ status: 201 });
           expect(mocks.apiFetch).toHaveBeenCalledOnce();
           expect(JSON.parse(String(mocks.apiFetch.mock.calls[0]?.[1]?.body))).toEqual({
-            accountId: 'a-studio',
+            companyId: 'a-studio',
             role: 'viewer',
             email: 'selina@wayne.test',
           });
@@ -168,14 +168,14 @@ describe('implicit account command cohorts', () => {
       .mockImplementationOnce(() => definitive.promise);
 
     const uncertainCall = invitationRequests.createInvitation({
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       role: 'viewer',
       email: 'selina@wayne.test',
     });
     await waitForRequests(1);
     const uncertainHeaders = commandHeadersAt(0);
     const definitiveCall = invitationRequests.createInvitation({
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       role: 'editor',
       email: 'selina@wayne.test',
     });
@@ -189,13 +189,13 @@ describe('implicit account command cohorts', () => {
 
     mocks.apiFetch.mockResolvedValueOnce(unknown()).mockResolvedValueOnce(ok());
     await invitationRequests.createInvitation({
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       role: 'viewer',
       email: 'selina@wayne.test',
     });
     expect(commandHeadersAt(2)).toEqual(uncertainHeaders);
     await invitationRequests.createInvitation({
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       role: 'editor',
       email: 'selina@wayne.test',
     });

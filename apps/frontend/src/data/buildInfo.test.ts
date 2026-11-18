@@ -238,7 +238,7 @@ describe('diagnostics client facts', () => {
               newestSnapshotAt: '2026-09-10T12:00:00.000Z',
               target: 'https://backups.example',
             },
-            accountId: id,
+            companyId: id,
           },
         },
         '2026-09-11T10:11:12.123Z',

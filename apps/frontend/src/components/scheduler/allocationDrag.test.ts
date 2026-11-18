@@ -292,7 +292,7 @@ describe('reconcileReassignedHours', () => {
   const res = (kind: Resource['kind'], workingHoursPerDay = 8): Resource =>
     makeResource({
       id: 'r',
-      accountId: 'a',
+      companyId: 'a',
       kind,
       role: 'R',
       workingHoursPerDay,

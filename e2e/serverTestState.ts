@@ -208,7 +208,7 @@ export async function prepareServerTemplate(target: ServerTarget): Promise<void>
         );
         bindFixtureOwner(db);
         db.exec(
-          "INSERT OR IGNORE INTO company_planning_revisions (account_id, revision) VALUES ('a-studio', 0)",
+          "INSERT OR IGNORE INTO company_planning_revisions (company_id, revision) VALUES ('a-studio', 0)",
         );
         db.exec('COMMIT');
       } catch (error) {
@@ -290,7 +290,7 @@ export async function serverState(
   >
 > {
   const response = await request.get(
-    `${target.api}/api/state?accountId=a-studio&includeInactive=1`,
+    `${target.api}/api/state?companyId=a-studio&includeInactive=1`,
     {
       maxRetries: 1,
     },

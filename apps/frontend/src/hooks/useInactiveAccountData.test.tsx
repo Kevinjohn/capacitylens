@@ -10,15 +10,15 @@ import { makeAccount, makeClient } from '@/test/fixtures';
 import { useInactiveAccountData } from './useInactiveAccountData';
 import { permissionValue } from '@/test/permissionGrants';
 
-function payload(accountId: string, name: string) {
+function payload(companyId: string, name: string) {
   return {
     ...emptyAppData(),
-    accounts: [makeAccount({ id: accountId })],
+    accounts: [makeAccount({ id: companyId })],
     clients: [
-      buildInternalClient(accountId, '2026-01-01T00:00:00.000Z'),
+      buildInternalClient(companyId, '2026-01-01T00:00:00.000Z'),
       makeClient({
-        id: `client-${accountId}`,
-        accountId,
+        id: `client-${companyId}`,
+        companyId,
         name,
         color: '#2d75da',
         createdAt: '2026-01-01T00:00:00.000Z',

@@ -58,7 +58,7 @@ describe('same-origin API requests', () => {
 describe('account query cache scope', () => {
   it('partitions route keys by principal, company, and masquerade generation', () => {
     expect(
-      scopeQueryKey({ principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 2 }, [
+      scopeQueryKey({ principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 }, [
         'api.members.index',
         { params: { companyId: 'wayne' } },
       ] as const),
@@ -75,18 +75,18 @@ describe('account query cache scope', () => {
   it.each([
     [
       'principal',
-      { principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 0 },
-      { principalId: 'alfred', accountId: 'wayne', masqueradeGeneration: 0 },
+      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 0 },
+      { principalId: 'alfred', companyId: 'wayne', masqueradeGeneration: 0 },
     ],
     [
       'company',
-      { principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 0 },
-      { principalId: 'bruce', accountId: 'stark', masqueradeGeneration: 0 },
+      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 0 },
+      { principalId: 'bruce', companyId: 'stark', masqueradeGeneration: 0 },
     ],
     [
       'masquerade generation',
-      { principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 1 },
-      { principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 2 },
+      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 1 },
+      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 },
     ],
   ])('clears data when the %s changes', (_label, previous, next) => {
     const queryClient = new QueryClient();
@@ -98,7 +98,7 @@ describe('account query cache scope', () => {
 
   it('keeps cached data when the entire identity scope is unchanged', () => {
     const queryClient = new QueryClient();
-    const scope = { principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 1 } as const;
+    const scope = { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 1 } as const;
     queryClient.setQueryData(['private'], { name: 'Wayne Enterprises' });
 
     expect(clearQueryCacheForScopeChange(queryClient, scope, scope)).toBe(false);
@@ -141,7 +141,7 @@ describe('QueryCacheLifecycle', () => {
       useStore.setState({
         masquerade: {
           kind: 'starting',
-          pending: { accountId: 'wayne', targetUserId: 'target' },
+          pending: { companyId: 'wayne', targetUserId: 'target' },
           generation: 1,
         },
       }),

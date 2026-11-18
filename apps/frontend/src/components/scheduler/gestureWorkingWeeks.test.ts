@@ -8,7 +8,7 @@ const calendar = (resources: Resource[]) => ({ resources, accountWorkingDays: WO
 describe('hasEffectiveDaysFor', () => {
   it('allows a resource with effective working days', () => {
     const resources = [
-      makeResource({ id: 'person', accountId: DEFAULT_ACCOUNT_ID, workingDays: WORKDAYS }),
+      makeResource({ id: 'person', companyId: DEFAULT_ACCOUNT_ID, workingDays: WORKDAYS }),
     ];
 
     expect(
@@ -22,7 +22,7 @@ describe('hasEffectiveDaysFor', () => {
 
   it('rejects a resource whose effective working week is collapsed', () => {
     const resources = [
-      makeResource({ id: 'person', accountId: DEFAULT_ACCOUNT_ID, workingDays: [] }),
+      makeResource({ id: 'person', companyId: DEFAULT_ACCOUNT_ID, workingDays: [] }),
     ];
 
     expect(
@@ -36,7 +36,7 @@ describe('hasEffectiveDaysFor', () => {
 
   it('allows a collapsed resource when the allocation ignores working days', () => {
     const resources = [
-      makeResource({ id: 'person', accountId: DEFAULT_ACCOUNT_ID, workingDays: [] }),
+      makeResource({ id: 'person', companyId: DEFAULT_ACCOUNT_ID, workingDays: [] }),
     ];
 
     expect(

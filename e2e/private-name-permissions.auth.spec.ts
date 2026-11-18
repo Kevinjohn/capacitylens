@@ -76,25 +76,25 @@ async function assertPrivateNamesForMember(
 }
 
 function seedMembers(
-  accountId: string,
+  companyId: string,
   members: ReadonlyArray<{
     role: 'editor' | 'viewer';
     user: { cookie: string; email: string };
   }>,
 ) {
   for (const { role, user } of members) {
-    seedFixtureMember(accountId, user.email, role);
+    seedFixtureMember(companyId, user.email, role);
   }
 }
 
 async function seedPrivateNames(
   request: import('@playwright/test').APIRequestContext,
-  accountId: string,
+  companyId: string,
   ownerCookie: string,
 ) {
   const clientId = crypto.randomUUID();
   const projectId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, ownerCookie, accountId, 'clients', {
+  await sendPlanningFixtureCommand(request, ownerCookie, companyId, 'clients', {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -102,7 +102,7 @@ async function seedPrivateNames(
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  await sendPlanningFixtureCommand(request, ownerCookie, accountId, 'projects', {
+  await sendPlanningFixtureCommand(request, ownerCookie, companyId, 'projects', {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -133,9 +133,9 @@ test('non-owners see protected code names without owner controls', async ({
     { role: 'viewer', user: viewerUser },
   ] as const;
 
-  const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
-  seedMembers(accountId, members);
-  await seedPrivateNames(request, accountId, owner.cookie);
+  const companyId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
+  seedMembers(companyId, members);
+  await seedPrivateNames(request, companyId, owner.cookie);
 
   for (const { role, user } of members) {
     await assertPrivateNamesForMember(page, context, role, user.email);

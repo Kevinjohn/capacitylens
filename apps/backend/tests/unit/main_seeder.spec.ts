@@ -23,7 +23,7 @@ test('db:seed preserves existing product changes and audit history', ({ assert }
       .run('Wayne Operations', account.id);
     database
       .prepare(
-        'INSERT INTO audit_entries (id,account_id,action,entity,created_at,updated_at) VALUES (?,?,?,?,?,?)'
+        'INSERT INTO audit_entries (id,company_id,action,entity,created_at,updated_at) VALUES (?,?,?,?,?,?)'
       )
       .run('seed-survival', account.id, 'operator.note', 'installation', now, now);
     const before = Object.fromEntries(

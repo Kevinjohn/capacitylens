@@ -16,7 +16,7 @@ export class OwnershipTransferError extends RefusalError {}
 export interface OwnershipTransferInput {
   trx: TransactionClientContract;
   actor: CurrentActor;
-  accountId: string;
+  companyId: string;
   toUserId: string;
   confirmationId: string;
   command: AccountCommandIdentity;
@@ -26,7 +26,7 @@ export interface OwnershipTransferInput {
 export async function transferOwnership({
   trx,
   actor,
-  accountId,
+  companyId,
   toUserId,
   confirmationId,
   command,
@@ -38,7 +38,7 @@ export async function transferOwnership({
       refuseWhileViewing(actor);
       // A membership proves its company exists, so an unknown company is refused like any other
       // company the caller does not belong to.
-      currentRole = await activeCompanyRole(actor.userId, accountId, trx);
+      currentRole = await activeCompanyRole(actor.userId, companyId, trx);
       if (!currentRole) throw new IdentityAuthorityError('Forbidden.');
     },
     authorizeReplay: (_context, receipt) => {
@@ -55,7 +55,7 @@ export async function transferOwnership({
       if (actor.userId === toUserId) {
         throw new OwnershipTransferError('Choose another administrator.', 409, 'TARGET_INELIGIBLE');
       }
-      const target = await access.memberships.find(accountId, toUserId, trx);
+      const target = await access.memberships.find(companyId, toUserId, trx);
       if (!target) throw new OwnershipTransferError('Member not found.', 404, 'NOT_FOUND');
       // The package accepts any active member; CapacityLens hands ownership to an Admin only.
       if (target.status !== 'active' || target.role !== 'admin') {
@@ -68,27 +68,27 @@ export async function transferOwnership({
       // The package checks only the actor and nominee, so a second stored Owner would survive it.
       const owners = await trx
         .from(access.config.membershipsTable)
-        .where({ scope_id: accountId, role: 'owner', status: 'active' })
+        .where({ scope_id: companyId, role: 'owner', status: 'active' })
         .count('* as count')
         .first();
       if (Number(owners?.count) !== 1) throw new Error('Company Owner invariant failed.');
       await passwordConfirmations.consume(kitContextIn(trx), {
         confirmationId: authorization,
         action: 'transfer-ownership',
-        scope: accountId,
+        scope: companyId,
         intent: { toUserId },
       });
     },
     work: async () => {
       await access.memberships.transferOwnership({
         actor: { id: actor.userId },
-        scopeId: accountId,
+        scopeId: companyId,
         toUserId,
         trx,
       });
-      await advancePlanningRevision(trx, accountId);
+      await advancePlanningRevision(trx, companyId);
       await writeAudit(trx, {
-        accountId,
+        companyId,
         actorId: actor.userId,
         action: 'ownership.transferred',
         entity: 'membership',
@@ -98,7 +98,7 @@ export async function transferOwnership({
       return { fromUserId: actor.userId, toUserId };
     },
     actorId: actor.userId,
-    scopeId: accountId,
+    scopeId: companyId,
     payload: { toUserId },
     command,
     authorization: confirmationId,

@@ -63,7 +63,7 @@
   "disciplines": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "color": "#2d75da",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -74,7 +74,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "color": "#3ace6b",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -85,7 +85,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "color": "#ed841b",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -96,7 +96,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-loft",
+        "company_id": "a-loft",
         "color": "#2d75da",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -108,7 +108,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "color": "#2d75da",
       "created_at": "2026-05-01T00:00:00.000Z",
       "deleted_at": true,
@@ -122,7 +122,7 @@
   "resources": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "avatar_url": null,
         "color": "#2d75da",
@@ -145,7 +145,7 @@
         "working_hours_per_day": 8
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "avatar_url": null,
         "color": "#ed841b",
@@ -168,7 +168,7 @@
         "working_hours_per_day": 8
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "avatar_url": null,
         "color": "#3ace6b",
@@ -191,7 +191,7 @@
         "working_hours_per_day": 8
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "avatar_url": null,
         "color": "#2d75da",
@@ -214,7 +214,7 @@
         "working_hours_per_day": 8
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "avatar_url": null,
         "color": "#2d75da",
@@ -237,7 +237,7 @@
         "working_hours_per_day": 8
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "avatar_url": null,
         "color": "#9ca3af",
@@ -260,7 +260,7 @@
         "working_hours_per_day": 8
       },
       {
-        "account_id": "a-loft",
+        "company_id": "a-loft",
         "archived_at": null,
         "avatar_url": null,
         "color": "#2d75da",
@@ -284,7 +284,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "archived_at": true,
       "avatar_url": true,
       "color": "#2d75da",
@@ -310,7 +310,7 @@
   "clients": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "builtin": "true",
         "code_name": null,
@@ -323,7 +323,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-loft",
+        "company_id": "a-loft",
         "archived_at": null,
         "builtin": "true",
         "code_name": null,
@@ -336,7 +336,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "builtin": null,
         "code_name": null,
@@ -349,7 +349,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "builtin": null,
         "code_name": null,
@@ -362,7 +362,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-loft",
+        "company_id": "a-loft",
         "archived_at": null,
         "builtin": null,
         "code_name": null,
@@ -376,7 +376,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "archived_at": true,
       "builtin": "true",
       "code_name": true,
@@ -392,7 +392,7 @@
   "projects": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "client_id": "c-acme",
         "code_name": null,
@@ -405,7 +405,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "client_id": "c-globex",
         "code_name": null,
@@ -418,7 +418,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-loft",
+        "company_id": "a-loft",
         "archived_at": null,
         "client_id": "c-loft-northwind",
         "code_name": null,
@@ -432,7 +432,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "archived_at": true,
       "client_id": "c-acme",
       "code_name": true,
@@ -448,7 +448,7 @@
   "phases": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
         "deletion_group_id": null,
@@ -458,7 +458,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
         "deletion_group_id": null,
@@ -469,7 +469,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "created_at": "2026-05-01T00:00:00.000Z",
       "deleted_at": true,
       "deletion_group_id": true,
@@ -482,7 +482,7 @@
   "activities": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -494,7 +494,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -506,7 +506,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -518,7 +518,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -530,7 +530,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -542,7 +542,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -554,7 +554,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -566,7 +566,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-loft",
+        "company_id": "a-loft",
         "archived_at": null,
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -579,7 +579,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "archived_at": true,
       "created_at": "2026-05-01T00:00:00.000Z",
       "deleted_at": true,
@@ -594,7 +594,7 @@
   "allocations": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-wires",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -613,7 +613,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-visual",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -632,7 +632,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-cms",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -651,7 +651,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-cms",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -670,7 +670,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-visual",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -689,7 +689,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-visual",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -708,7 +708,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-brand",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -727,7 +727,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "activity_id": "t-design",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -746,7 +746,7 @@
         "updated_at": "2026-05-01T00:00:00.000Z"
       },
       {
-        "account_id": "a-loft",
+        "company_id": "a-loft",
         "activity_id": "t-loft-screens",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
@@ -766,7 +766,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "activity_id": "t-wires",
       "created_at": "2026-05-01T00:00:00.000Z",
       "deleted_at": true,
@@ -788,7 +788,7 @@
   "time_off": {
     "seed": [
       {
-        "account_id": "a-studio",
+        "company_id": "a-studio",
         "created_at": "2026-05-01T00:00:00.000Z",
         "deleted_at": null,
         "deletion_group_id": null,
@@ -802,7 +802,7 @@
       }
     ],
     "filled": {
-      "account_id": "a-studio",
+      "company_id": "a-studio",
       "created_at": "2026-05-01T00:00:00.000Z",
       "deleted_at": true,
       "deletion_group_id": true,
@@ -818,7 +818,7 @@
   "closures": {
     "seed": [],
     "filled": {
-      "account_id": true,
+      "company_id": true,
       "created_at": true,
       "deleted_at": true,
       "deletion_group_id": true,

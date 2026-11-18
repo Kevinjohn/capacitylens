@@ -25,13 +25,13 @@ export interface MemberMutationDependencies extends Pick<
 
 function createSignInTrackingMutation(dependencies: MemberMutationDependencies) {
   return ({ next }: ChangeSignInTrackingInput) =>
-    dependencies.withMemberAction('member-sign-in-tracking', async (accountId) => {
+    dependencies.withMemberAction('member-sign-in-tracking', async (companyId) => {
       try {
         const result = await teamAccessClient.setMemberSignInTracking({
-          companyId: accountId,
+          companyId: companyId,
           enabled: next,
         });
-        if (!dependencies.isActiveAccount(accountId)) return;
+        if (!dependencies.isActiveAccount(companyId)) return;
         if (result.kind !== 'ok') {
           dependencies.fail(
             null,
@@ -60,10 +60,10 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
 function createRoleMutation(dependencies: MemberMutationDependencies) {
   return async (member: Member, nextRole: Role) => {
     if (nextRole === member.role) return;
-    await dependencies.withMemberAction(`role:${member.userId}`, async (accountId) => {
+    await dependencies.withMemberAction(`role:${member.userId}`, async (companyId) => {
       try {
-        const result = await teamAccessClient.changeMemberRole(accountId, member.userId, nextRole);
-        if (!dependencies.isActiveAccount(accountId)) return;
+        const result = await teamAccessClient.changeMemberRole(companyId, member.userId, nextRole);
+        if (!dependencies.isActiveAccount(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
             await dependencies.reconcileUnknownMutation(m.settings_members_unknown_role_change());
@@ -96,14 +96,14 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
 function createStatusMutation(dependencies: MemberMutationDependencies) {
   return async (member: Member, nextStatus: MembershipStatus) => {
     if (nextStatus === member.status) return;
-    await dependencies.withMemberAction(`status:${member.userId}`, async (accountId) => {
+    await dependencies.withMemberAction(`status:${member.userId}`, async (companyId) => {
       try {
         const result = await teamAccessClient.changeMemberStatus(
-          accountId,
+          companyId,
           member.userId,
           nextStatus,
         );
-        if (!dependencies.isActiveAccount(accountId)) return;
+        if (!dependencies.isActiveAccount(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
             await dependencies.reconcileUnknownMutation(m.settings_members_unknown_status_change());

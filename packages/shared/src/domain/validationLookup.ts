@@ -23,13 +23,13 @@ interface OwnedRowOptions {
   data: AppData;
   table: AppDataKey;
   id: ID;
-  accountId: ID;
+  companyId: ID;
   lookup?: ValidationDataLookup;
 }
 
 interface ValidationAllocationsForOptions {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   side: 'resource' | 'activity';
   id: ID;
   lookup?: ValidationDataLookup;
@@ -49,12 +49,12 @@ interface IsEffectivelyActiveOptions {
  */
 export interface ValidationDataLookup {
   row(table: AppDataKey, id: ID): (Record<string, unknown> & { id: ID }) | undefined;
-  allocationsForResource(accountId: ID, resourceId: ID): readonly Allocation[];
-  allocationsForActivity(accountId: ID, activityId: ID): readonly Allocation[];
-  resourceHasLoadedAllocation(accountId: ID, resourceId: ID): boolean;
-  resourceHasTimeOff(accountId: ID, resourceId: ID): boolean;
+  allocationsForResource(companyId: ID, resourceId: ID): readonly Allocation[];
+  allocationsForActivity(companyId: ID, activityId: ID): readonly Allocation[];
+  resourceHasLoadedAllocation(companyId: ID, resourceId: ID): boolean;
+  resourceHasTimeOff(companyId: ID, resourceId: ID): boolean;
   /** Resolve the account's canonical working-day set for shared scheduling validation. */
-  accountWorkingDays(accountId: ID): Weekday[];
+  accountWorkingDays(companyId: ID): Weekday[];
 }
 
 /** Find a row by table and id through the lookup when given, otherwise by scanning `data`. Pure. */
@@ -76,7 +76,7 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
   data,
   table,
   id,
-  accountId,
+  companyId,
   lookup,
 }: OwnedRowOptions): T | undefined => {
   const row = resolveValidationRow({
@@ -85,26 +85,26 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
     id,
     ...(lookup === undefined ? {} : { lookup }),
   }) as T | undefined;
-  return row && belongsToAccount(row, accountId) ? row : undefined;
+  return row && belongsToAccount(row, companyId) ? row : undefined;
 };
 
 /** The account's allocations on one end of the pair, beside {@link resolveValidationRow}: the indexed
  * server-batch lookup when a large transaction supplies one, otherwise a scan of the local array. */
 export const listValidationAllocations = ({
   data,
-  accountId,
+  companyId,
   side,
   id,
   lookup,
 }: ValidationAllocationsForOptions): readonly Allocation[] => {
   if (lookup) {
     return side === 'resource'
-      ? lookup.allocationsForResource(accountId, id)
-      : lookup.allocationsForActivity(accountId, id);
+      ? lookup.allocationsForResource(companyId, id)
+      : lookup.allocationsForActivity(companyId, id);
   }
   return data.allocations.filter(
     (allocation) =>
-      belongsToAccount(allocation, accountId) &&
+      belongsToAccount(allocation, companyId) &&
       (side === 'resource' ? allocation.resourceId : allocation.activityId) === id,
   );
 };
@@ -140,7 +140,7 @@ export const isEffectivelyActive = ({
       // The one named seam for the single cast the ancestry walk needs: an interface-typed entity
       // carries no implicit index signature, so TypeScript can't see it as the loose
       // LifecycleAncestryRow the walk reads by field name. Every field the walk touches
-      // (id / accountId / tombstones / FK ids) is present on these rows.
+      // (id / companyId / tombstones / FK ids) is present on these rows.
       row as unknown as LifecycleAncestryRow,
       (parentTable, id) => resolveValidationRow({ data, table: parentTable, id, ...lookupOptions }),
     ).kind === 'visible'

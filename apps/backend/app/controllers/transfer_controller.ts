@@ -13,7 +13,7 @@ import {
 } from '#services/company_import';
 
 function input(value: unknown) {
-  const expected = ['accountId', 'document', 'baseRevision'];
+  const expected = ['companyId', 'document', 'baseRevision'];
   const body = value;
   if (
     !hasOnlyFields(body, [...expected, 'confirmationId']) ||
@@ -21,7 +21,7 @@ function input(value: unknown) {
   ) {
     return null;
   }
-  if (typeof body.accountId !== 'string' || !body.accountId) return null;
+  if (typeof body.companyId !== 'string' || !body.companyId) return null;
   if (
     !Number.isSafeInteger(body.baseRevision) ||
     (body.baseRevision as number) < 0 ||
@@ -32,7 +32,7 @@ function input(value: unknown) {
   const document = parseRequestDocument(body.document);
   if (!document) return null;
   return {
-    accountId: body.accountId,
+    companyId: body.companyId,
     document,
     baseRevision: body.baseRevision as number,
     confirmationId: (body.confirmationId as string | undefined) ?? '',
@@ -57,20 +57,20 @@ export default class TransferController {
   async preview(ctx: HttpContext) {
     const body = ctx.request.body();
     if (
-      !hasOnlyFields(body, ['accountId', 'document']) ||
+      !hasOnlyFields(body, ['companyId', 'document']) ||
       !Object.hasOwn(body, 'document') ||
-      typeof body.accountId !== 'string' ||
-      !body.accountId
+      typeof body.companyId !== 'string' ||
+      !body.companyId
     ) {
       return ctx.response.badRequest({ error: 'Invalid beta transfer document.' });
     }
-    const accountId = body.accountId;
+    const companyId = body.companyId;
     try {
       // The preview names why a document is refused, so the browser never validates it itself.
       const document = readRequestDocument(body.document);
       const result = await withActor(ctx, async (_actor, trx) => {
-        await passwordConfirmationActor(accountId, trx, 'import');
-        return previewCompanyImport(trx, accountId, document);
+        await passwordConfirmationActor(companyId, trx, 'import');
+        return previewCompanyImport(trx, companyId, document);
       });
       return ctx.response.ok(result);
     } catch (error) {
@@ -83,16 +83,16 @@ export default class TransferController {
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
-        const actor = await passwordConfirmationActor(body.accountId, trx, 'import');
+        const actor = await passwordConfirmationActor(body.companyId, trx, 'import');
         await passwordConfirmations.consume(kitContextIn(trx), {
           confirmationId: body.confirmationId,
           action: 'import',
-          scope: body.accountId,
+          scope: body.companyId,
           intent: { baseRevision: body.baseRevision, document: body.document },
         });
         return applyCompanyImport(
           trx,
-          body.accountId,
+          body.companyId,
           body.document,
           body.baseRevision,
           actor.userId

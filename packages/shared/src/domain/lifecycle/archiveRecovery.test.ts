@@ -13,14 +13,14 @@ function requireFixture<T>(value: T | undefined): T {
   return value;
 }
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const archivedAt = '2026-10-01T00:00:00.000Z';
 function fixture() {
   const data = emptyAppData();
   data.clients = [
     {
       ...FIXTURE_CLIENT,
-      accountId,
+      companyId,
       id: 'client',
       name: 'Secret client',
       isPrivate: true,
@@ -32,7 +32,7 @@ function fixture() {
   data.projects = [
     {
       ...FIXTURE_PROJECT,
-      accountId,
+      companyId,
       id: 'project',
       clientId: 'client',
       name: 'Secret project',
@@ -42,11 +42,11 @@ function fixture() {
       deletedAt: null,
     },
   ];
-  data.phases = [{ ...FIXTURE_PHASE, accountId, id: 'phase', projectId: 'project' }];
+  data.phases = [{ ...FIXTURE_PHASE, companyId, id: 'phase', projectId: 'project' }];
   data.activities = [
     {
       ...FIXTURE_ACTIVITY,
-      accountId,
+      companyId,
       id: 'activity',
       name: 'Research',
       projectId: null,
@@ -58,7 +58,7 @@ function fixture() {
   data.resources = [
     {
       ...FIXTURE_RESOURCE,
-      accountId,
+      companyId,
       id: 'person',
       name: 'Bruce Wayne',
       role: 'Secret role',
@@ -71,7 +71,7 @@ function fixture() {
 describe('identity-only archive recovery', () => {
   it('returns explicit identity keys and redacts direct and ancestor names for non-Owners', () => {
     const data = fixture();
-    const editor = archiveRecovery(data, accountId, 'editor');
+    const editor = archiveRecovery(data, companyId, 'editor');
     expect(editor.rows.map((row) => row.entity).sort()).toEqual([
       'activities',
       'clients',
@@ -91,15 +91,15 @@ describe('identity-only archive recovery', () => {
       archived: false,
       parent: { entity: 'projects', id: 'project', label: '"Gotham"' },
     });
-    expect(archiveRecovery(data, accountId, 'admin')).toEqual(editor);
+    expect(archiveRecovery(data, companyId, 'admin')).toEqual(editor);
     expect(
-      archiveRecovery(data, accountId, 'owner').rows.find((row) => row.id === 'client')?.label,
+      archiveRecovery(data, companyId, 'owner').rows.find((row) => row.id === 'client')?.label,
     ).toBe('Secret client');
   });
   it('omits any deleted ancestry even when an archived project masks its deleted client', () => {
     const data = fixture();
     requireFixture(data.clients[0]).deletedAt = archivedAt;
-    expect(archiveRecovery(data, accountId, 'owner').rows.map((row) => row.id)).toEqual(['person']);
+    expect(archiveRecovery(data, companyId, 'owner').rows.map((row) => row.id)).toEqual(['person']);
   });
   it('omits foreign rows, built-in clients and active visible rows; keeps independently archived children', () => {
     const data = fixture();
@@ -107,24 +107,24 @@ describe('identity-only archive recovery', () => {
     data.resources.push({
       ...requireFixture(data.resources[0]),
       id: 'foreign',
-      accountId: 'a-loft',
+      companyId: 'a-loft',
     });
     data.resources.push({ ...requireFixture(data.resources[0]), id: 'active', archivedAt: null });
     requireFixture(data.activities[0]).archivedAt = archivedAt;
-    const rows = archiveRecovery(data, accountId, 'editor').rows;
+    const rows = archiveRecovery(data, companyId, 'editor').rows;
     expect(rows.map((row) => row.id).sort()).toEqual(['activity', 'client', 'person', 'project']);
     expect(rows.find((row) => row.id === 'activity')?.archived).toBe(true);
     requireFixture(data.projects[0]).archivedAt = null;
     requireFixture(data.clients[0]).archivedAt = null;
     expect(
-      archiveRecovery(data, accountId, 'editor').rows.find((row) => row.id === 'activity')?.parent,
+      archiveRecovery(data, companyId, 'editor').rows.find((row) => row.id === 'activity')?.parent,
     ).toBeNull();
   });
   it('uses safe malformed private labels and deterministic name/id order', () => {
     const data = fixture();
     requireFixture(data.clients[0]).codeName = '';
     data.resources.push({ ...requireFixture(data.resources[0]), id: 'aaa' });
-    const rows = archiveRecovery(data, accountId, 'editor').rows;
+    const rows = archiveRecovery(data, companyId, 'editor').rows;
     expect(JSON.stringify(rows)).not.toContain('Secret');
     expect(rows.filter((row) => row.entity === 'resources').map((row) => row.id)).toEqual([
       'aaa',
@@ -141,13 +141,13 @@ describe('identity-only archive recovery', () => {
       { ...resource, id: 'placeholder', kind: 'placeholder', name: '', role: 'Designer' },
     ];
     expect(
-      archiveRecovery(data, accountId, 'editor')
+      archiveRecovery(data, companyId, 'editor')
         .rows.filter((row) => row.entity === 'resources')
         .map((row) => row.group)
         .sort(),
     ).toEqual(['external', 'placeholders', 'studio', 'supplementary']);
     expect(
-      archiveRecovery(data, accountId, 'editor').rows.find((row) => row.id === 'placeholder')
+      archiveRecovery(data, companyId, 'editor').rows.find((row) => row.id === 'placeholder')
         ?.label,
     ).toBe('Designer');
   });

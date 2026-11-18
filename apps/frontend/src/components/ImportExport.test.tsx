@@ -18,10 +18,10 @@ const originalPlanning = {
   suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
 };
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 
 function document() {
-  return companyDocument(accountId);
+  return companyDocument(companyId);
 }
 
 /** A preview reply as the server sends it for {@link document}. */
@@ -95,7 +95,7 @@ beforeEach(async () => {
   refreshOverride.result = { kind: 'reloaded' };
   planningProbe.suspends = 0;
   planningProbe.releases = 0;
-  await resetStoreWithAccount(accountId);
+  await resetStoreWithAccount(companyId);
   loadPlanningData(seed());
   sessionStorage.clear();
   window.history.replaceState(null, '', '/settings');
@@ -170,7 +170,7 @@ describe('beta import and export', () => {
       useStore.getState().setActiveAccount('a-loft');
       await useStore.getState().refreshPlanning();
       if (returnToA) {
-        useStore.getState().setActiveAccount(accountId);
+        useStore.getState().setActiveAccount(companyId);
         await useStore.getState().refreshPlanning();
       }
       const successorRelease = useStore.getState().suspendPlanningCommands();
@@ -202,7 +202,7 @@ describe('beta import and export', () => {
     const body = '{"exported":true}';
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
-      expect(url).toMatch(new RegExp(`/api/companies/${accountId}/export$`));
+      expect(url).toMatch(new RegExp(`/api/companies/${companyId}/export$`));
       return new Response(body);
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -299,11 +299,11 @@ describe('beta import and export', () => {
     );
     expect(requests[1]?.body).toMatchObject({
       action: 'import',
-      accountId,
+      companyId,
     });
     expect(requests[1]?.body.intent).toEqual({ baseRevision: 7, document: incoming });
     expect(requests[2]?.body).toMatchObject({
-      accountId,
+      companyId,
       baseRevision: 7,
       confirmationId: 'proof-7',
     });

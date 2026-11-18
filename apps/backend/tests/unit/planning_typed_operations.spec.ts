@@ -20,7 +20,7 @@ async function execute(intent: PlanningIntent) {
     const data = await readStateWithClient(trx, 'a-studio', true);
     await executePlanningIntent({
       trx,
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       intent,
       capabilities: owner,
       data,
@@ -177,7 +177,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     assert.equal(afterRepeatedArchive.archivedAt, archived.archivedAt);
     assert.equal(afterRepeatedArchive.updatedAt, archived.updatedAt);
 
-    await db.from('clients').where({ id: client.id, account_id: 'a-studio' }).update({
+    await db.from('clients').where({ id: client.id, company_id: 'a-studio' }).update({
       deleted_at: '2026-10-20T12:00:00.000Z',
     });
     const tombstoneUnarchive = await refused({

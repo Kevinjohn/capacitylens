@@ -9,7 +9,7 @@ import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   planningUrl,
@@ -19,7 +19,7 @@ import {
   trusted,
 } from './helpers.js';
 
-const route = (path: string) => `/api/companies/${accountId}/${path}`;
+const route = (path: string) => `/api/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -46,7 +46,7 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
     // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
     const first = { ...newAllocation(data), startDate: '2026-10-01', endDate: '2026-10-01' };
@@ -64,14 +64,14 @@ test.group('independent typed planning operations', (group) => {
 
     committed.assertStatus(200);
     assert.equal(body(committed).revision, 1);
-    const saved = await readState(accountId, true);
+    const saved = await readState(companyId, true);
     const created = [first.id, laterId].map((id) => saved.allocations.find((row) => row.id === id));
     assert.isDefined(created[0]);
     assert.isDefined(created[1]);
     assert.isNotEmpty(created[0]!.seriesId);
     assert.equal(created[1]!.seriesId, created[0]!.seriesId);
     assert.equal(created[1]!.startDate, '2026-11-01');
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
   });
 
   test('refuses more occurrence ids than the shared ceiling allows', async ({
@@ -81,7 +81,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const refused = await session(client.post(route('allocations/create-group')), cookie)
       .json(
         input(0, {
@@ -96,7 +96,7 @@ test.group('independent typed planning operations', (group) => {
     refused.assertStatus(400);
     assert.equal(body(refused).code, 'VALIDATION_ERROR');
     assert.include(body(refused).error, 'occurrenceIds');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
   });
 
   test('refuses a repeated occurrence id or one that reuses the first id', async ({
@@ -106,7 +106,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const allocation = newAllocation(before);
     const repeated = randomUUID();
     for (const occurrenceIds of [
@@ -126,7 +126,7 @@ test.group('independent typed planning operations', (group) => {
       refused.assertStatus(400);
       assert.equal(body(refused).error, 'Entity IDs must be unique.');
     }
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
   });
 
   test('refuses time-off occurrence ids past the ceiling, repeated, or reusing the first id', async ({
@@ -136,7 +136,7 @@ test.group('independent typed planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const timeOff = {
       id: randomUUID(),
       resourceId: before.resources.find((row) => row.kind === 'person')!.id,
@@ -167,7 +167,7 @@ test.group('independent typed planning operations', (group) => {
       assert.equal(body(refused).code, 'VALIDATION_ERROR');
       assert.include(body(refused).error, error);
     }
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
   });
 
   test('refuses occurrence ids that do not match the repeat before persisting any occurrence', async ({
@@ -176,10 +176,10 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
     const first = newAllocation(data);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     // Weekly from 2 November to 16 November makes three occurrences, so two later ids.
     for (const count of [1, 3]) {
       const refused = await session(client.post(route('allocations/create-group')), cookie)
@@ -197,12 +197,12 @@ test.group('independent typed planning operations', (group) => {
       assert.equal(body(refused).code, 'VALIDATION_ERROR');
       assert.equal(body(refused).error, 'The occurrence identities do not match the repeat.');
     }
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       0
     );
   });
@@ -213,11 +213,11 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
-    const clientId = data.clients.find((row) => row.accountId === accountId && !row.builtin)!.id;
+    const clientId = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.id;
     const resourceId = data.resources.find(
-      (row) => row.accountId === accountId && row.kind === 'person' && !row.archivedAt
+      (row) => row.companyId === companyId && row.kind === 'person' && !row.archivedAt
     )!.id;
     const transitions = [
       {
@@ -271,24 +271,24 @@ test.group('independent typed planning operations', (group) => {
       assert.equal(Boolean(row!.archived_at), index === 0 || index === 2);
       const marker = await db
         .from('planning_mutations')
-        .where({ account_id: accountId, mutation_id: mutationId })
+        .where({ company_id: companyId, mutation_id: mutationId })
         .first();
       assert.equal(Number(marker?.revision), index + 1);
       const audit = await db
         .from('audit_entries')
-        .where({ account_id: accountId, entity: 'planning', entity_id: marker!.mutation_id })
+        .where({ company_id: companyId, entity: 'planning', entity_id: marker!.mutation_id })
         .first();
       assert.equal(audit?.action, transition.operation);
     }
 
-    const final = await readState(accountId, true);
+    const final = await readState(companyId, true);
     assert.isNull(final.clients.find((row) => row.id === clientId)!.archivedAt);
     assert.isNull(final.resources.find((row) => row.id === resourceId)!.archivedAt);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 4);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 4);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 4);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       4
     );
   });
@@ -299,9 +299,9 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
-    const clientId = data.clients.find((row) => row.accountId === accountId && !row.builtin)!.id;
+    const clientId = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.id;
     const missingId = randomUUID();
 
     const alreadyActive = await session(client.post(route(`clients/${clientId}/unarchive`)), cookie)
@@ -339,20 +339,20 @@ test.group('independent typed planning operations', (group) => {
 
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 1);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       1
     );
   });
 
   test('a client archive reports the active rows it hid', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const { cookie } = await signIn(client);
     const target = before.clients.find(
       (row) =>
-        row.accountId === accountId &&
+        row.companyId === companyId &&
         !row.builtin &&
         before.projects.some((project) => project.clientId === row.id)
     )!;
@@ -362,10 +362,10 @@ test.group('independent typed planning operations', (group) => {
       )
       .send();
     archived.assertStatus(200);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff') =>
-      activeOnly(before)[key].filter((row) => row.accountId === accountId).length -
-      activeOnly(after)[key].filter((row) => row.accountId === accountId).length;
+      activeOnly(before)[key].filter((row) => row.companyId === companyId).length -
+      activeOnly(after)[key].filter((row) => row.companyId === companyId).length;
     const reported = (archived.body() as { archived?: Record<string, number> }).archived;
     assert.deepEqual(reported, {
       projects: hidden('projects'),
@@ -385,9 +385,9 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
-    const internal = data.clients.find((row) => row.accountId === accountId && row.builtin)!;
+    const internal = data.clients.find((row) => row.companyId === companyId && row.builtin)!;
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
 
@@ -409,9 +409,9 @@ test.group('independent typed planning operations', (group) => {
 
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       0
     );
   });
@@ -422,9 +422,9 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
-    const internal = data.clients.find((row) => row.accountId === accountId && row.builtin)!;
+    const internal = data.clients.find((row) => row.companyId === companyId && row.builtin)!;
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
 
@@ -441,9 +441,9 @@ test.group('independent typed planning operations', (group) => {
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
     const refusedSnapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(refusedSnapshot.body().revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       0
     );
 
@@ -484,13 +484,13 @@ test.group('independent typed planning operations', (group) => {
       createdClients.filter((row) => row.builtin).map((row) => row.id),
       [internal.id]
     );
-    const createdMarker = await db.from('planning_mutations').where('account_id', accountId);
+    const createdMarker = await db.from('planning_mutations').where('company_id', companyId);
     assert.lengthOf(createdMarker, 1);
     assert.equal(createdMarker[0].mutation_id, createInput.mutationId);
     assert.equal(Number(createdMarker[0].revision), 1);
     const createdAudit = await db
       .from('audit_entries')
-      .where({ account_id: accountId, entity: 'planning' });
+      .where({ company_id: companyId, entity: 'planning' });
     assert.lengthOf(createdAudit, 1);
     assert.equal(createdAudit[0].entity_id, createInput.mutationId);
     assert.equal(createdAudit[0].action, 'catalogue.create');
@@ -535,7 +535,7 @@ test.group('independent typed planning operations', (group) => {
       canonicalClients.filter((row) => row.builtin).map((row) => row.id),
       [internal.id]
     );
-    const markers = await db.from('planning_mutations').where('account_id', accountId);
+    const markers = await db.from('planning_mutations').where('company_id', companyId);
     assert.lengthOf(markers, 2);
     assert.sameMembers(
       markers.map((row) => row.mutation_id),
@@ -545,7 +545,7 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(Number(renamedMarker!.revision), 2);
     const audits = await db
       .from('audit_entries')
-      .where({ account_id: accountId, entity: 'planning' });
+      .where({ company_id: companyId, entity: 'planning' });
     assert.lengthOf(audits, 2);
     assert.deepInclude(
       audits.find((row) => row.entity_id === renameInput.mutationId)!,
@@ -563,7 +563,7 @@ test.group('independent typed planning operations', (group) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const allCompanies = await readState();
-    const foreignProject = allCompanies.projects.find((row) => row.accountId === 'a-loft')!;
+    const foreignProject = allCompanies.projects.find((row) => row.companyId === 'a-loft')!;
     const before = await db.from('projects').where({ id: foreignProject.id }).first();
     assert.isDefined(before);
 
@@ -584,7 +584,7 @@ test.group('independent typed planning operations', (group) => {
     assert.deepEqual(await db.from('projects').where({ id: foreignProject.id }).first(), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 
   test('anonymous planning cannot read or write persisted allocations', async ({
@@ -594,17 +594,17 @@ test.group('independent typed planning operations', (group) => {
     const snapshot = await trusted(client.get(planningUrl)).send();
     snapshot.assertStatus(401);
 
-    const allocation = newAllocation(await readState(accountId, true));
-    const before = await readState(accountId, true);
+    const allocation = newAllocation(await readState(companyId, true));
+    const before = await readState(companyId, true);
     const write = await trusted(client.post(route('allocations')))
       .json(input(0, { operation: 'allocation.create', allocation }))
       .send();
     write.assertStatus(401);
     assert.deepEqual(write.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       0
     );
   });
@@ -615,8 +615,8 @@ test.group('independent typed planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
-    const template = data.clients.find((row) => row.accountId === accountId && !row.builtin)!;
+    const data = await readState(companyId, true);
+    const template = data.clients.find((row) => row.companyId === companyId && !row.builtin)!;
     const id = `client:${randomUUID()}`;
     const templateRow = await db.from('clients').where({ id: template.id }).first();
     await db.table('clients').insert({

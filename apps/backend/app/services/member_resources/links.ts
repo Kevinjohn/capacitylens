@@ -8,26 +8,26 @@ import { writeAudit } from '#services/audit';
 
 type Trx = TransactionClientContract;
 
-async function currentLink(trx: Trx, accountId: string, userId: string) {
+async function currentLink(trx: Trx, companyId: string, userId: string) {
   return trx
     .from('account_member_resources')
-    .where({ account_id: accountId, user_id: userId })
+    .where({ company_id: companyId, user_id: userId })
     .first();
 }
 
-async function assertEligibleMember(trx: Trx, accountId: string, userId: string) {
-  if (!(await getActiveMembership(userId, accountId, trx))) {
+async function assertEligibleMember(trx: Trx, companyId: string, userId: string) {
+  if (!(await getActiveMembership(userId, companyId, trx))) {
     conflictingAdmission('Only an active company member can be linked.');
   }
 }
 
-async function resource(trx: Trx, accountId: string, resourceId: string) {
-  return trx.from('resources').where({ account_id: accountId, id: resourceId }).first();
+async function resource(trx: Trx, companyId: string, resourceId: string) {
+  return trx.from('resources').where({ company_id: companyId, id: resourceId }).first();
 }
 
 /** Checks the scheduled person is still available to link. */
-async function assertAvailablePerson(trx: Trx, accountId: string, resourceId: string) {
-  const row = await resource(trx, accountId, resourceId);
+async function assertAvailablePerson(trx: Trx, companyId: string, resourceId: string) {
+  const row = await resource(trx, companyId, resourceId);
   if (row?.kind !== 'person' || row.archived_at || row.deleted_at) {
     conflictingAdmission('The selected scheduled person is no longer available.');
   }
@@ -37,7 +37,7 @@ async function assertAvailablePerson(trx: Trx, accountId: string, resourceId: st
 export async function setMemberResourceLink(
   trx: Trx,
   input: {
-    accountId: string;
+    companyId: string;
     userId: string;
     resourceId: string;
     expectedRevision: string | null;
@@ -45,16 +45,16 @@ export async function setMemberResourceLink(
     now?: string;
   }
 ) {
-  const { accountId, userId, resourceId, expectedRevision, actorId } = input;
+  const { companyId, userId, resourceId, expectedRevision, actorId } = input;
   const now = input.now ?? new Date().toISOString();
-  await assertEligibleMember(trx, accountId, userId);
-  await assertAvailablePerson(trx, accountId, resourceId);
-  const current = await currentLink(trx, accountId, userId);
+  await assertEligibleMember(trx, companyId, userId);
+  await assertAvailablePerson(trx, companyId, resourceId);
+  const current = await currentLink(trx, companyId, userId);
   if ((current?.revision ?? null) !== expectedRevision) {
     conflictingAdmission('The member resource link changed. Refresh and retry.');
   }
   if (current && current.resource_id !== resourceId) {
-    const previous = await resource(trx, accountId, String(current.resource_id));
+    const previous = await resource(trx, companyId, String(current.resource_id));
     if (previous?.kind !== 'person' || previous.archived_at || previous.deleted_at) {
       conflictingAdmission(
         'The current scheduled person is unavailable; unlink it before changing the link.'
@@ -63,7 +63,7 @@ export async function setMemberResourceLink(
   }
   const occupied = await trx
     .from('account_member_resources')
-    .where({ account_id: accountId, resource_id: resourceId })
+    .where({ company_id: companyId, resource_id: resourceId })
     .first();
   if (occupied && occupied.user_id !== userId) {
     conflictingAdmission('That scheduled person is already linked to another member.');
@@ -75,12 +75,12 @@ export async function setMemberResourceLink(
   if (current) {
     await trx
       .from('account_member_resources')
-      .where({ account_id: accountId, user_id: userId, revision: expectedRevision })
+      .where({ company_id: companyId, user_id: userId, revision: expectedRevision })
       .update({ resource_id: resourceId, revision, updated_at: now });
   } else {
     await trx.table('account_member_resources').insert({
       id: crypto.randomUUID(),
-      account_id: accountId,
+      company_id: companyId,
       user_id: userId,
       resource_id: resourceId,
       revision,
@@ -88,11 +88,11 @@ export async function setMemberResourceLink(
       updated_at: now,
     });
   }
-  await advancePlanningRevision(trx, accountId);
+  await advancePlanningRevision(trx, companyId);
   await writeAudit(
     trx,
     {
-      accountId,
+      companyId,
       actorId,
       action: 'member-resource.linked',
       entity: 'membership',
@@ -107,21 +107,21 @@ export async function setMemberResourceLink(
 /** Clears a member/person association only at the expected revision. */
 export async function clearMemberResourceLink(
   trx: Trx,
-  input: { accountId: string; userId: string; expectedRevision: string; actorId: string }
+  input: { companyId: string; userId: string; expectedRevision: string; actorId: string }
 ) {
-  const { accountId, userId, expectedRevision, actorId } = input;
-  const member = await access.memberships.find(accountId, userId, trx);
+  const { companyId, userId, expectedRevision, actorId } = input;
+  const member = await access.memberships.find(companyId, userId, trx);
   if (!member) conflictingAdmission('The company member no longer exists.');
   const changed = await trx
     .from('account_member_resources')
-    .where({ account_id: accountId, user_id: userId, revision: expectedRevision })
+    .where({ company_id: companyId, user_id: userId, revision: expectedRevision })
     .delete();
   if (affectedRows(changed) !== 1) {
     conflictingAdmission('The member resource link changed. Refresh and retry.');
   }
-  await advancePlanningRevision(trx, accountId);
+  await advancePlanningRevision(trx, companyId);
   await writeAudit(trx, {
-    accountId,
+    companyId,
     actorId,
     action: 'member-resource.unlinked',
     entity: 'membership',

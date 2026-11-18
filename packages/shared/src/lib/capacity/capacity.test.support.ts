@@ -199,7 +199,7 @@ export const makeResource = (
 ): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id: 'r1',
-  accountId: 'acct-test',
+  companyId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',
@@ -218,7 +218,7 @@ export const makeAlloc = (
 ): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
   id: 'a1',
-  accountId: 'acct-test',
+  companyId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   resourceId: 'r1',
@@ -233,7 +233,7 @@ export const makeAlloc = (
 export const makeTimeOff = (over: Partial<TimeOff> = { ...NULLABLE_FIELDS.timeOff }): TimeOff => ({
   ...NULLABLE_FIELDS.timeOff,
   id: 'to1',
-  accountId: 'acct-test',
+  companyId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   resourceId: 'r1',
@@ -245,7 +245,7 @@ export const makeTimeOff = (over: Partial<TimeOff> = { ...NULLABLE_FIELDS.timeOf
 
 export const makeClosure = (over: Partial<Closure> = {}): Closure => ({
   id: 'closure1',
-  accountId: 'acct-test',
+  companyId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   name: 'Company shutdown',

@@ -18,7 +18,7 @@ import { rowsOf, writeRow } from './writer.js';
 interface WriteEntityOptions {
   trx: TransactionClientContract;
   data: AppData;
-  accountId: string;
+  companyId: string;
   table: ScopedEntityKey;
   id: string;
   fields: Record<string, unknown>;
@@ -33,23 +33,23 @@ interface WriteEntityOptions {
 function lookupFor(data: AppData): ValidationDataLookup {
   return {
     row: (table, id) => rowsOf(data, table).find((row) => row.id === id),
-    allocationsForResource: (accountId, resourceId) =>
+    allocationsForResource: (companyId, resourceId) =>
       data.allocations.filter(
-        (row) => row.accountId === accountId && row.resourceId === resourceId
+        (row) => row.companyId === companyId && row.resourceId === resourceId
       ),
-    allocationsForActivity: (accountId, activityId) =>
+    allocationsForActivity: (companyId, activityId) =>
       data.allocations.filter(
-        (row) => row.accountId === accountId && row.activityId === activityId
+        (row) => row.companyId === companyId && row.activityId === activityId
       ),
-    resourceHasLoadedAllocation: (accountId, resourceId) =>
+    resourceHasLoadedAllocation: (companyId, resourceId) =>
       data.allocations.some(
         (row) =>
-          row.accountId === accountId && row.resourceId === resourceId && row.hoursPerDay !== 0
+          row.companyId === companyId && row.resourceId === resourceId && row.hoursPerDay !== 0
       ),
-    resourceHasTimeOff: (accountId, resourceId) =>
-      data.timeOff.some((row) => row.accountId === accountId && row.resourceId === resourceId),
-    accountWorkingDays: (accountId): Weekday[] => {
-      const account = data.accounts.find((row) => row.id === accountId);
+    resourceHasTimeOff: (companyId, resourceId) =>
+      data.timeOff.some((row) => row.companyId === companyId && row.resourceId === resourceId),
+    accountWorkingDays: (companyId): Weekday[] => {
+      const account = data.accounts.find((row) => row.id === companyId);
       return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
     },
   };
@@ -66,7 +66,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
 export async function writeEntity({
   trx,
   data,
-  accountId,
+  companyId,
   table,
   id,
   fields,
@@ -106,22 +106,22 @@ export async function writeEntity({
     ...(existing ?? {}),
     ...fields,
     id,
-    accountId,
+    companyId,
   };
   if (!existing) applyCreateDefaults(table, candidate);
   const lookup = lookupFor(data);
   const clean = await prepareEntityWrite(table, candidate, existing, data, capabilities, {
     lookup,
-    hasOtherBuiltinClient: (companyId, clientId) =>
+    hasOtherBuiltinClient: (targetCompanyId, clientId) =>
       data.clients.some(
-        (row) => row.accountId === companyId && row.id !== clientId && row.builtin === true
+        (row) => row.companyId === targetCompanyId && row.id !== clientId && row.builtin === true
       ),
   });
   if (table === 'allocations' && !permissiveRepeatStart) {
-    assertAllocationStartsOnWorkingDay(clean, existing, lookup, accountId);
+    assertAllocationStartsOnWorkingDay(clean, existing, lookup, companyId);
   }
   if (mode === 'create' && isRetainedTable(table)) {
-    await reclaimRetainedId(trx, accountId, table, id, identity);
+    await reclaimRetainedId(trx, companyId, table, id, identity);
   }
-  return writeRow({ trx, data, accountId, table, row: clean, existing });
+  return writeRow({ trx, data, companyId, table, row: clean, existing });
 }

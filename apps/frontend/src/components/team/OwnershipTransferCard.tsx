@@ -163,7 +163,7 @@ export function OwnershipTransferCard() {
       {confirmationTarget && activeAccountId && (
         <PasswordConfirmationDialog
           action="transfer-ownership"
-          accountId={activeAccountId}
+          companyId={activeAccountId}
           intent={{ toUserId: confirmationTarget }}
           onConfirmed={(id) => {
             const target = confirmationTarget;

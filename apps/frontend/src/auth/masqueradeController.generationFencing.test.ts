@@ -18,7 +18,7 @@ describe('MasqueradeController transitions', () => {
       .mockResolvedValueOnce(true);
     const { controller, resume } = harness({ reproject });
 
-    const starting = controller.start(state.accountId, state.targetUserId);
+    const starting = controller.start(state.companyId, state.targetUserId);
     await vi.waitFor(() =>
       expect(useStore.getState().masquerade).toMatchObject({ kind: 'starting', state }),
     );
@@ -42,7 +42,7 @@ describe('MasqueradeController generation fencing', () => {
       .mockImplementationOnce(() => retryProjection.promise)
       .mockResolvedValueOnce(true);
     const { controller } = harness({ reproject });
-    await controller.start(state.accountId, state.targetUserId);
+    await controller.start(state.companyId, state.targetUserId);
 
     const retrying = controller.retryProjection();
     await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));

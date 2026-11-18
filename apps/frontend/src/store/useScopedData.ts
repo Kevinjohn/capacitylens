@@ -11,17 +11,17 @@ const activeCache = new WeakMap<AppData, AppData>();
 /** Memoizes a tenant slice by data identity and account ID so hooks and imperative
  * readers share one stable projection.
  */
-export function resolveSharedScopedData(data: AppData, accountId: string | null): AppData {
-  if (!accountId) return emptyScopedData;
+export function resolveSharedScopedData(data: AppData, companyId: string | null): AppData {
+  if (!companyId) return emptyScopedData;
   let scopedDataByAccountId = scopedCache.get(data);
   if (!scopedDataByAccountId) {
     scopedDataByAccountId = new Map();
     scopedCache.set(data, scopedDataByAccountId);
   }
-  let scoped = scopedDataByAccountId.get(accountId);
+  let scoped = scopedDataByAccountId.get(companyId);
   if (!scoped) {
-    scoped = scopeData(data, accountId);
-    scopedDataByAccountId.set(accountId, scoped);
+    scoped = scopeData(data, companyId);
+    scopedDataByAccountId.set(companyId, scoped);
   }
   return scoped;
 }

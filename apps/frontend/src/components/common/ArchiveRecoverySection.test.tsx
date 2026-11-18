@@ -16,7 +16,7 @@ const row: ArchiveRecoveryRow = {
 };
 beforeEach(() => {
   unarchive.mockReset().mockResolvedValue(undefined);
-  recovery.mockReturnValue({ data: { accountId: 'a-studio', rows: [row] }, error: null });
+  recovery.mockReturnValue({ data: { companyId: 'a-studio', rows: [row] }, error: null });
 });
 describe('identity archive rows', () => {
   it('keeps direct restore and encoded parent navigation distinct', async () => {

@@ -10,11 +10,11 @@ import { discardRestorationGroups } from '#services/planning/restoration';
 /** Scrubs planning identity and saved undo images in the caller's transaction. */
 export async function anonymiseResources(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   actorId: string,
   resourceId?: string
 ) {
-  const state = await readStateWithClient(trx, accountId, true);
+  const state = await readStateWithClient(trx, companyId, true);
   const resources = resourceId
     ? state.resources.filter((resource) => resource.id === resourceId)
     : state.resources;
@@ -23,7 +23,7 @@ export async function anonymiseResources(
     const scrubbed = obfuscateResource(resource as Resource);
     await trx
       .from('resources')
-      .where({ id: resource.id, account_id: accountId })
+      .where({ id: resource.id, company_id: companyId })
       .update(
         encodeRow('resources', {
           ...scrubbed,
@@ -38,26 +38,26 @@ export async function anonymiseResources(
       const noted = await trx
         .from(table)
         .select('id', 'updated_at')
-        .where('account_id', accountId)
+        .where('company_id', companyId)
         .whereIn('resource_id', ids.slice(start, start + 500))
         .whereNotNull('note');
       for (const dependent of noted) {
         await trx
           .from(table)
-          .where({ id: dependent.id, account_id: accountId })
+          .where({ id: dependent.id, company_id: companyId })
           .update({ note: null, updated_at: createServerRevision(dependent.updated_at) });
       }
     }
   }
-  await discardRestorationGroups(trx, accountId);
+  await discardRestorationGroups(trx, companyId);
   await writeAudit(trx, {
-    accountId,
+    companyId,
     actorId,
     action: 'anonymise',
     entity: resourceId ? 'resources' : 'accounts',
-    entityId: resourceId ?? accountId,
+    entityId: resourceId ?? companyId,
     fields: ['name', 'role', 'avatarUrl', 'allocations.note', 'timeOff.note'],
   });
-  await advancePlanningRevision(trx, accountId);
+  await advancePlanningRevision(trx, companyId);
   return true;
 }

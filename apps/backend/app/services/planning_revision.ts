@@ -20,16 +20,16 @@ function revisionsFor(trx: TransactionClientContract) {
 /** Reads the current company planning revision, treating pre-migration rows as revision zero. */
 export async function getPlanningRevision(
   trx: TransactionClientContract,
-  accountId: string
+  companyId: string
 ): Promise<number> {
   const row = await trx
     .from('company_planning_revisions')
-    .where('account_id', accountId)
+    .where('company_id', companyId)
     .select('revision')
     .first();
   const revision = row ? Number(row.revision) : 0;
   if (!Number.isSafeInteger(revision) || revision < 0) {
-    throw new Error(`Invalid planning revision for company ${accountId}.`);
+    throw new Error(`Invalid planning revision for company ${companyId}.`);
   }
   return revision;
 }
@@ -37,33 +37,33 @@ export async function getPlanningRevision(
 /** Advances a company's planning revision once per supplied transaction. */
 export function advancePlanningRevision(
   trx: TransactionClientContract,
-  accountId: string
+  companyId: string
 ): Promise<number> {
   const revisions = revisionsFor(trx);
-  const existing = revisions.get(accountId);
+  const existing = revisions.get(companyId);
   if (existing) return existing;
 
   const pending = (async () => {
     const current = await trx
       .from('company_planning_revisions')
-      .where('account_id', accountId)
+      .where('company_id', companyId)
       .select('revision')
       .first();
     if (current) {
       const revision = Number(current.revision);
       if (!Number.isSafeInteger(revision) || revision < 0 || revision === Number.MAX_SAFE_INTEGER) {
-        throw new Error(`Invalid planning revision for company ${accountId}.`);
+        throw new Error(`Invalid planning revision for company ${companyId}.`);
       }
       await trx
         .from('company_planning_revisions')
-        .where('account_id', accountId)
+        .where('company_id', companyId)
         .increment('revision', 1);
       return revision + 1;
     }
-    await trx.table('company_planning_revisions').insert({ account_id: accountId, revision: 1 });
+    await trx.table('company_planning_revisions').insert({ company_id: companyId, revision: 1 });
     return 1;
   })();
-  revisions.set(accountId, pending);
+  revisions.set(companyId, pending);
   return pending;
 }
 

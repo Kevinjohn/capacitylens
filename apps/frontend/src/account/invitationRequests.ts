@@ -24,8 +24,8 @@ export const invitationRequests = {
   ): Promise<Response> {
     const capturedContext = getMasqueradeContextToken();
     const payload = { ...body };
-    const accountId = payload.accountId;
-    const operationKey = await buildPayloadOperationKey(`invitation-create:${accountId}`, payload);
+    const companyId = payload.companyId;
+    const operationKey = await buildPayloadOperationKey(`invitation-create:${companyId}`, payload);
     if (getMasqueradeContextToken() !== capturedContext) {
       return Response.json(
         {

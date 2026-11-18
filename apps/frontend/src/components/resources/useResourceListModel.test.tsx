@@ -16,7 +16,7 @@ it('presents an unassigned person neutrally while preserving stored blue and dis
       disciplines: [
         {
           id: 'design',
-          accountId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_ACCOUNT_ID,
           name: 'Design',
           sortOrder: 0,
           color: '#da2d92',

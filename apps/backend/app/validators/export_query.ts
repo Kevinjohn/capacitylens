@@ -4,13 +4,13 @@ import vine from '@vinejs/vine';
 export const exportQueryValidator = vine.compile(
   vine
     .object({
-      accountId: vine.string().regex(/\S/),
+      companyId: vine.string().regex(/\S/),
       includeInactive: vine.literal('1').optional(),
     })
     .use(
       vine.createRule((value, _options, field) => {
         if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-        if (Object.keys(value).some((key) => key !== 'accountId' && key !== 'includeInactive')) {
+        if (Object.keys(value).some((key) => key !== 'companyId' && key !== 'includeInactive')) {
           field.report('Unsupported export query field.', 'unknownField', field);
         }
       })()

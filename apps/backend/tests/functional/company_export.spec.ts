@@ -25,7 +25,7 @@ async function reset(client: ApiClient) {
 
 /** Archives one a-studio resource so that only an Owner or Admin export carries it. */
 async function archiveResource() {
-  const candidate = await db.from('resources').where('account_id', 'a-studio').first();
+  const candidate = await db.from('resources').where('company_id', 'a-studio').first();
   await db
     .from('resources')
     .where('id', candidate.id)
@@ -33,8 +33,8 @@ async function archiveResource() {
   return String(candidate.id);
 }
 
-async function setRole(role: Role, accountId = 'a-studio') {
-  await db.from('memberships').where({ user_id: userId, scope_id: accountId }).update({ role });
+async function setRole(role: Role, companyId = 'a-studio') {
+  await db.from('memberships').where({ user_id: userId, scope_id: companyId }).update({ role });
 }
 
 test.group('company export download', (group) => {
@@ -58,7 +58,7 @@ test.group('company export download', (group) => {
         buildCompanyExport(
           transformState(await readState('a-studio', inactive), 'a-studio', role),
           {
-            accountId: 'a-studio',
+            companyId: 'a-studio',
             completeness: role === 'owner' ? 'full' : 'redacted',
           }
         )
@@ -104,7 +104,7 @@ test.group('company export download', (group) => {
     client = await reset(client);
     const placeholder = await db
       .from('resources')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .whereNot('kind', 'person')
       .first();
     await db

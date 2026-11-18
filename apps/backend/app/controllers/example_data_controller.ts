@@ -7,14 +7,14 @@ import { assertCompanyAction } from '#services/auth/authorization';
 export default class ExampleDataController {
   async store(ctx: HttpContext) {
     const { params, response, logger } = ctx;
-    const accountId = params.companyId;
+    const companyId = params.companyId;
     try {
       const added = await withActor(ctx, async (_actor, trx) => {
-        const actor = await assertCompanyAction(accountId, 'members:manage', trx);
-        return addExampleData(trx, accountId, actor.actorId);
+        const actor = await assertCompanyAction(companyId, 'members:manage', trx);
+        return addExampleData(trx, companyId, actor.actorId);
       });
       try {
-        logger.info({ accountId, added }, 'Example data committed');
+        logger.info({ companyId, added }, 'Example data committed');
       } catch {
         // The audit and data are already committed; logging is diagnostic only.
       }

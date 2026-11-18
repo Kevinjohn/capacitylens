@@ -7,7 +7,7 @@ export function createSchedule(): Pick<AppData, 'timeOff' | 'closures'> {
     timeOff: [
       {
         id: 'to-tyler',
-        accountId: STUDIO,
+        companyId: STUDIO,
         createdAt: SEED_TIMESTAMP,
         updatedAt: SEED_TIMESTAMP,
         resourceId: 'r-tyler',

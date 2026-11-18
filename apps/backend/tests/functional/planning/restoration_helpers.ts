@@ -3,9 +3,9 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
-import { accountId, newAllocation, session } from './helpers.js';
+import { companyId, newAllocation, session } from './helpers.js';
 
-export const allocationsUrl = `/api/companies/${accountId}/allocations`;
+export const allocationsUrl = `/api/companies/${companyId}/allocations`;
 export const note = 'Gotham night shift briefing';
 
 export interface Reply {
@@ -70,7 +70,7 @@ export const restore = (
   restorationGroupId: string,
   baseRevision: number,
   mutationId?: string,
-  account = accountId
+  account = companyId
 ) =>
   send(
     client,
@@ -83,7 +83,7 @@ export const restore = (
 
 /** Creates `count` allocations in one mutation: one create, or a weekly repeat of `count` occurrences. */
 export async function createAllocations(client: ApiClient, cookie: string, count: number) {
-  const data = await readState(accountId, true);
+  const data = await readState(companyId, true);
   const allocation = { ...newAllocation(data), note, task: 'Watchtower rota' };
   const occurrenceIds = Array.from({ length: count - 1 }, () => randomUUID());
   const created =
@@ -106,30 +106,30 @@ export async function createAllocations(client: ApiClient, cookie: string, count
 }
 
 export async function stored(id: string) {
-  const state = await readState(accountId, true);
+  const state = await readState(companyId, true);
   return state.allocations.find((row) => row.id === id);
 }
 
 /** Allocation ids in the planning read the browser replaces its slice from. */
 export async function readAllocationIds(client: ApiClient, cookie: string) {
-  const snapshot = await session(client.get(`/api/companies/${accountId}/planning`), cookie).send();
+  const snapshot = await session(client.get(`/api/companies/${companyId}/planning`), cookie).send();
   snapshot.assertStatus(200);
   return (snapshot.body() as { data: { allocations: Array<{ id: string }> } }).data.allocations.map(
     (row) => row.id
   );
 }
 
-export async function currentRevision(client: ApiClient, cookie: string, account = accountId) {
+export async function currentRevision(client: ApiClient, cookie: string, account = companyId) {
   const snapshot = await session(client.get(`/api/companies/${account}/planning`), cookie).send();
   snapshot.assertStatus(200);
   return Number((snapshot.body() as { revision: number }).revision);
 }
 
-export const markers = () => db.from('planning_mutations').where('account_id', accountId);
+export const markers = () => db.from('planning_mutations').where('company_id', companyId);
 export const planningAudit = () =>
   db
     .from('audit_entries')
-    .where({ account_id: accountId, entity: 'planning' })
+    .where({ company_id: companyId, entity: 'planning' })
     .select('entity_id', 'action');
 export const group = (groupId: string) =>
   db.from('deleted_groups').where('group_id', groupId).first();

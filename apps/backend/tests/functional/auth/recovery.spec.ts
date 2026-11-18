@@ -16,7 +16,7 @@ import {
   expectStatus,
 } from '../../helpers/identities.js';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
 const editor = 'clark.kent@wayne.example';
 const newPassword = 'recovered-password-2026';
@@ -35,11 +35,11 @@ const inspect = async (client: ApiClient, token: string) => {
 
 async function company() {
   const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
+  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
   const editorId = await createIdentity(editor, { name: 'Clark Kent' });
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    scope_id: accountId,
+    scope_id: companyId,
     user_id: editorId,
     role: 'editor',
     status: 'active',
@@ -115,7 +115,7 @@ test.group('password recovery', (group) => {
     const token = mail.tokenFor(editor);
     const { cookie } = await signIn(client, owner);
     const changed = await asDataOwner(
-      client.patch(`/api/companies/${accountId}/members/${editorId}`),
+      client.patch(`/api/companies/${companyId}/members/${editorId}`),
       cookie
     )
       .headers({

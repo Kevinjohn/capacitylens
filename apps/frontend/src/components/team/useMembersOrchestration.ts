@@ -127,18 +127,18 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     if (!input.activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return input.activeAccountId;
   };
-  const isActiveAccount = (accountId: string): boolean =>
+  const isActiveAccount = (companyId: string): boolean =>
     mounted.current &&
-    useStore.getState().activeAccountId === accountId &&
+    useStore.getState().activeAccountId === companyId &&
     getMasqueradeContextToken() === actionContext;
   const withMemberAction = async (
     key: string,
-    body: (accountId: string) => Promise<void>,
+    body: (companyId: string) => Promise<void>,
   ): Promise<void> => {
-    const accountId = requestAccountId();
+    const companyId = requestAccountId();
     if (!actionLock.beginAction(key)) return;
     try {
-      await body(accountId);
+      await body(companyId);
     } finally {
       actionLock.endAction();
     }

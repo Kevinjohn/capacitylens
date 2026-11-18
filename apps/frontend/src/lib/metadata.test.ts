@@ -21,7 +21,7 @@ import type { AllocationStatus, Resource, TimeOffType } from '@capacitylens/shar
 const makeResource = (over: Partial<Resource> = { ...NULLABLE_FIELDS.resources }): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id: 'r1',
-  accountId: 'acct-test',
+  companyId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',

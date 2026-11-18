@@ -21,7 +21,7 @@ function buildDanglingActivityData() {
   d.allocations.push({
     ...NULLABLE_FIELDS.allocations,
     id: 'a-ghost2',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'r1',
@@ -104,7 +104,7 @@ function buildCompanyClosureData(): AppData {
   d.resources.push(
     makeResource({
       id: 'placeholder-1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       kind: 'placeholder',
       name: 'Design placeholder',
       role: 'Designer',
@@ -114,7 +114,7 @@ function buildCompanyClosureData(): AppData {
   d.allocations.push({
     ...NULLABLE_FIELDS.allocations,
     id: 'ignored-r2-saturday',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'r2',
@@ -128,7 +128,7 @@ function buildCompanyClosureData(): AppData {
   d.closures.push(
     {
       id: 'company-wednesday',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Company shutdown',
@@ -137,7 +137,7 @@ function buildCompanyClosureData(): AppData {
     },
     {
       id: 'company-saturday',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Weekend shutdown',
@@ -148,7 +148,7 @@ function buildCompanyClosureData(): AppData {
   d.timeOff.push({
     ...NULLABLE_FIELDS.timeOff,
     id: 'personal-r1-wednesday',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'r1',
@@ -320,7 +320,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
       id: 'a-ghost',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -576,7 +576,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.resources = [
       makeResource({
         id: 'ph1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         kind: 'placeholder',
         role: 'Designer',
         disciplineId: 'd-design',
@@ -584,7 +584,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       }),
       makeResource({
         id: 'r1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         name: 'Dana',
         role: 'Designer',
         disciplineId: 'd-design',
@@ -592,7 +592,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       }),
       makeResource({
         id: 'ph2',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         kind: 'placeholder',
         role: 'Designer',
         disciplineId: 'd-design',
@@ -600,7 +600,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       }),
       makeResource({
         id: 'r2',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         name: 'Sam',
         role: 'Designer',
         disciplineId: 'd-design',

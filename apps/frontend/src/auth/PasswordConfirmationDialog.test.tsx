@@ -18,7 +18,7 @@ function renderDialog(action: 'transfer-ownership' | 'import' | 'anonymise' = 'i
   render(
     <PasswordConfirmationDialog
       action={action}
-      accountId="account-1"
+      companyId="account-1"
       intent={{ revision: 4 }}
       onConfirmed={onConfirmed}
       onCancel={vi.fn()}

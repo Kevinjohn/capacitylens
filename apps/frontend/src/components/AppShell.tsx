@@ -103,7 +103,7 @@ function GatedApp({
   const { user } = useAuth();
   const orientation = useProductOrientation({
     userId: user?.id ?? null,
-    accountId: activeAccountId,
+    companyId: activeAccountId,
   });
 
   return (

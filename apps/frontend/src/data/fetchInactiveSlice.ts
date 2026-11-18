@@ -44,9 +44,9 @@ export class InactiveSliceShapeError extends Error {
  *
  * @throws InactiveSliceHttpError for non-success HTTP status; InactiveSliceShapeError for a missing or non-array table or the wrong company. Transport and decoding errors propagate.
  */
-export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): Promise<AppData> {
+export async function fetchInactiveSlice(companyId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await apiFetch(
-    apiReadRouteUrl('api.state', { query: { accountId, includeInactive: '1' } }),
+    apiReadRouteUrl('api.state', { query: { companyId, includeInactive: '1' } }),
     { credentials: 'include', ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) slice is the heaviest read the app makes, the bulk
     // tier, not the interactive 15s, so a large tenant's archived records aren't aborted mid-flight.
@@ -59,7 +59,7 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
   }
   const accounts = body.accounts as unknown[];
   const account = accounts[0];
-  if (accounts.length !== 1 || !isRecord(account) || account.id !== accountId) {
+  if (accounts.length !== 1 || !isRecord(account) || account.id !== companyId) {
     throw new InactiveSliceShapeError();
   }
   return body as unknown as AppData;

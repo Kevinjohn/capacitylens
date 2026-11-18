@@ -58,7 +58,7 @@ function publishPlanning(
   const data = emptyAppData();
   data.accounts = next.data.accounts.filter((account) => account.id === companyId);
   for (const key of SCOPED_KEYS) {
-    const rows = next.data[key].filter((row) => row.accountId === companyId);
+    const rows = next.data[key].filter((row) => row.companyId === companyId);
     Object.assign(data, { [key]: rows });
   }
   const account = data.accounts.find((row) => row.id === companyId);

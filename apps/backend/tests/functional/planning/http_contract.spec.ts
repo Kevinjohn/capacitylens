@@ -7,7 +7,7 @@ import env from '#start/env';
 import { updateSettings, PlanningOperationError } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  accountId,
+  companyId,
   planningUrl,
   configureAuth,
   newAllocation,
@@ -32,7 +32,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const { cookie, userId } = await signIn(client, 'editor');
     const hidden = await db
       .from('clients')
-      .where({ account_id: accountId })
+      .where({ company_id: companyId })
       .whereNull('builtin')
       .first();
     await db
@@ -41,7 +41,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .update({ name: 'Wayne secret', is_private: 'true', code_name: 'Nightwing' });
     const response = await session(client.get(planningUrl), cookie).send();
     response.assertStatus(200);
-    assert.equal(response.body().accountId, accountId);
+    assert.equal(response.body().companyId, companyId);
     assert.equal(response.body().revision, 0);
     assert.match(response.body().today, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(response.body().authority.actorId, userId);
@@ -51,7 +51,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.isTrue(
       response
         .body()
-        .data.clients.every((row: { accountId: string }) => row.accountId === accountId)
+        .data.clients.every((row: { companyId: string }) => row.companyId === companyId)
     );
     const foreign = await session(client.get('/api/companies/a-loft/planning'), cookie).send();
     foreign.assertStatus(403);
@@ -71,7 +71,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
     env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
     const { cookie } = await signIn(client, 'viewer');
-    const data = await readState(accountId, false);
+    const data = await readState(companyId, false);
 
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
@@ -108,12 +108,12 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
     env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
     const { cookie } = await signIn(client);
-    const stored = await readState(accountId, true);
+    const stored = await readState(companyId, true);
     const { resourceId } = newAllocation(stored);
     // One allocation is deleted; the other is hidden by archiving its activity, because allocations
     // have no archive of their own.
     const [deletedActivity, archivedActivity] = stored.activities.filter(
-      (row) => row.accountId === accountId && !row.archivedAt && !row.deletedAt
+      (row) => row.companyId === companyId && !row.archivedAt && !row.deletedAt
     );
     assert.exists(archivedActivity);
     type Days = { available: number[]; over: boolean[] };
@@ -144,7 +144,7 @@ test.group('authenticated typed planning transactions', (group) => {
         endDate: date,
         hoursPerDay: 24,
       };
-      const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+      const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
         .json({
           mutationId: randomUUID(),
           baseRevision: revision,
@@ -214,7 +214,7 @@ test.group('authenticated typed planning transactions', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
     const allocation = newAllocation(data);
     const mutationId = randomUUID();
@@ -223,7 +223,7 @@ test.group('authenticated typed planning transactions', (group) => {
       baseRevision: 0,
       intent: { operation: 'allocation.create', allocation },
     };
-    const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+    const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
       .json(input)
       .send();
     created.assertStatus(200);
@@ -242,13 +242,13 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.isTrue(
       read.body().data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
-    const duplicate = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+    const duplicate = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
       .json(input)
       .send();
     duplicate.assertStatus(409);
     assert.equal(duplicate.body().code, 'MUTATION_ID_REUSED');
     const stale = await session(
-      client.patch(`/api/companies/${accountId}/allocations/${allocation.id}`),
+      client.patch(`/api/companies/${companyId}/allocations/${allocation.id}`),
       cookie
     )
       .json({
@@ -264,7 +264,7 @@ test.group('authenticated typed planning transactions', (group) => {
     stale.assertStatus(409);
     assert.equal(stale.body().code, 'STALE_REVISION');
     const moved = await session(
-      client.patch(`/api/companies/${accountId}/allocations/${allocation.id}`),
+      client.patch(`/api/companies/${companyId}/allocations/${allocation.id}`),
       cookie
     )
       .json({
@@ -279,9 +279,9 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     moved.assertStatus(200);
     assert.equal(moved.body().revision, 2);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 2);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 2);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       2
     );
   });
@@ -290,15 +290,15 @@ test.group('authenticated typed planning transactions', (group) => {
     assert,
   }) => {
     // HTTP settings strip language; a different stored locale exposes the service's frozen-field guard.
-    await db.from('accounts').where('id', accountId).update({ language: 'fr' });
-    const before = await readState(accountId, true);
+    await db.from('accounts').where('id', companyId).update({ language: 'fr' });
+    const before = await readState(companyId, true);
     await assert.rejects(
       async () => {
         await db.transaction(async (trx) => {
           await updateSettings(
             trx,
             structuredClone(before),
-            accountId,
+            companyId,
             { language: 'en' },
             {
               role: 'owner',
@@ -312,7 +312,7 @@ test.group('authenticated typed planning transactions', (group) => {
       PlanningOperationError,
       'Language, week start and time zone are set when the company is created and cannot be changed.'
     );
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
   });
 
   test('duplicate endpoint copies source fields into a new dated allocation once', async ({
@@ -322,8 +322,8 @@ test.group('authenticated typed planning transactions', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
-    const source = before.allocations.find((row) => row.accountId === accountId)!;
+    const before = await readState(companyId, true);
+    const source = before.allocations.find((row) => row.companyId === companyId)!;
     const id = randomUUID();
     const input = {
       mutationId: randomUUID(),
@@ -335,14 +335,14 @@ test.group('authenticated typed planning transactions', (group) => {
       },
     };
     const response = await session(
-      client.post(`/api/companies/${accountId}/allocations/${source.id}/duplicate`),
+      client.post(`/api/companies/${companyId}/allocations/${source.id}/duplicate`),
       cookie
     )
       .json(input)
       .send();
     response.assertStatus(200);
     assert.equal(response.body().revision, 1);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     const copy = after.allocations.find((row) => row.id === id)!;
     assert.isDefined(copy);
     for (const field of [
@@ -365,16 +365,16 @@ test.group('authenticated typed planning transactions', (group) => {
       source
     );
     const replay = await session(
-      client.post(`/api/companies/${accountId}/allocations/${source.id}/duplicate`),
+      client.post(`/api/companies/${companyId}/allocations/${source.id}/duplicate`),
       cookie
     )
       .json(input)
       .send();
     replay.assertStatus(409);
     assert.equal(replay.body().code, 'MUTATION_ID_REUSED');
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       1
     );
   });
@@ -389,7 +389,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const { userId: suspendedUserId } = await signIn(client);
     const people = await db
       .from('resources')
-      .where({ account_id: accountId, kind: 'person' })
+      .where({ company_id: companyId, kind: 'person' })
       .whereNull('archived_at')
       .whereNull('deleted_at')
       .orderBy('id')
@@ -412,7 +412,7 @@ test.group('authenticated typed planning transactions', (group) => {
         id: randomUUID(),
         created_at: now,
         updated_at: now,
-        account_id: accountId,
+        company_id: companyId,
         user_id: memberId,
         resource_id: resourceId,
         revision: randomUUID(),
@@ -420,11 +420,11 @@ test.group('authenticated typed planning transactions', (group) => {
     }
     await db
       .from('memberships')
-      .where({ scope_id: accountId, user_id: suspendedUserId })
+      .where({ scope_id: companyId, user_id: suspendedUserId })
       .update({ status: 'suspended' });
     const foreign = await db
       .from('resources')
-      .where({ account_id: 'a-loft', kind: 'person' })
+      .where({ company_id: 'a-loft', kind: 'person' })
       .first();
     await db
       .from('resources')
@@ -451,8 +451,8 @@ test.group('authenticated typed planning transactions', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const allocation = newAllocation(await readState(accountId, true));
-    const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+    const allocation = newAllocation(await readState(companyId, true));
+    const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 0,
@@ -460,8 +460,8 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     created.assertStatus(200);
-    const before = await readState(accountId, true);
-    const occupied = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+    const before = await readState(companyId, true);
+    const occupied = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 1,
@@ -472,7 +472,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(occupied.body().code, 'VALIDATION_ERROR');
     const missingId = randomUUID();
     const missing = await session(
-      client.patch(`/api/companies/${accountId}/allocations/${missingId}`),
+      client.patch(`/api/companies/${companyId}/allocations/${missingId}`),
       cookie
     )
       .json({
@@ -487,10 +487,10 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     missing.assertStatus(400);
     assert.equal(missing.body().code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       1
     );
   });
@@ -502,11 +502,11 @@ test.group('authenticated typed planning transactions', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
-    const allocation = data.allocations.find((row) => row.accountId === accountId)!;
-    const before = await readState(accountId, true);
+    const data = await readState(companyId, true);
+    const allocation = data.allocations.find((row) => row.companyId === companyId)!;
+    const before = await readState(companyId, true);
     const response = await session(
-      client.patch(`/api/companies/${accountId}/allocations/${allocation.id}`),
+      client.patch(`/api/companies/${companyId}/allocations/${allocation.id}`),
       cookie
     )
       .json({
@@ -521,10 +521,10 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     response.assertStatus(400);
     assert.equal(response.body().code, 'NO_CHANGE');
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
-      await db.from('audit_entries').where({ account_id: accountId, entity: 'planning' }),
+      await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       0
     );
     const current = await session(client.get(planningUrl), cookie).send();

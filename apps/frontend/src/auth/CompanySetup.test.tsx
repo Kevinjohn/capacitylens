@@ -11,7 +11,7 @@ it('asks for company name and calendar convention and preserves it after a retry
     .mockResolvedValueOnce(
       new Response(JSON.stringify({ error: 'Setup unavailable. Try again.' }), { status: 503 }),
     )
-    .mockResolvedValueOnce(new Response(JSON.stringify({ accountId: 'wayne' }), { status: 201 }));
+    .mockResolvedValueOnce(new Response(JSON.stringify({ companyId: 'wayne' }), { status: 201 }));
   vi.stubGlobal('fetch', fetch);
   render(<CompanySetup onCreated={complete} onConflict={async () => false} onSignOut={vi.fn()} />);
   expect(screen.getAllByRole('textbox')).toHaveLength(1);
@@ -59,7 +59,7 @@ it('reconciles a concurrent winner once and leaves an unconfirmed refusal visibl
 });
 
 it('sends the selected Sunday week and IANA zone', async () => {
-  const fetch = vi.fn().mockResolvedValue(Response.json({ accountId: 'wayne' }, { status: 201 }));
+  const fetch = vi.fn().mockResolvedValue(Response.json({ companyId: 'wayne' }, { status: 201 }));
   vi.stubGlobal('fetch', fetch);
   render(<CompanySetup onCreated={vi.fn()} onConflict={async () => false} onSignOut={vi.fn()} />);
   fireEvent.change(screen.getByLabelText('Company name'), {
@@ -82,7 +82,7 @@ it('sends the selected Sunday week and IANA zone', async () => {
 });
 
 it('accepts 100 astral name characters and refuses 101 without truncating', async () => {
-  const fetch = vi.fn().mockResolvedValue(Response.json({ accountId: 'wayne' }, { status: 201 }));
+  const fetch = vi.fn().mockResolvedValue(Response.json({ companyId: 'wayne' }, { status: 201 }));
   vi.stubGlobal('fetch', fetch);
   render(<CompanySetup onCreated={vi.fn()} onConflict={async () => false} onSignOut={vi.fn()} />);
   const name = screen.getByLabelText('Company name');

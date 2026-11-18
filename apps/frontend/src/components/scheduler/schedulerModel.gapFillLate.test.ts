@@ -13,7 +13,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
       id: 'a-overlap',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -53,7 +53,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
       id: 'aext2',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'ext1',

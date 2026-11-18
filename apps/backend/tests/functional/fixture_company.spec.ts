@@ -16,13 +16,13 @@ test.group('isolated company fixtures', (group) => {
     const owner = await resetAuthenticatedData(client, false);
     const firstId = await createFixtureCompanyForOwner(owner.userId, 'Wayne Enterprises');
     const first = await db.from('accounts').where('id', firstId).firstOrFail();
-    const firstInternal = await db.from('clients').where('account_id', firstId).firstOrFail();
+    const firstInternal = await db.from('clients').where('company_id', firstId).firstOrFail();
     const secondId = await createFixtureCompanyForOwner(owner.userId, 'Stark Industries');
 
     assert.notEqual(secondId, firstId);
     assert.deepEqual(await db.from('accounts').where('id', firstId).firstOrFail(), first);
     assert.deepEqual(
-      await db.from('clients').where('account_id', firstId).firstOrFail(),
+      await db.from('clients').where('company_id', firstId).firstOrFail(),
       firstInternal
     );
     assert.equal(firstInternal.id, `internal:${firstId}`);

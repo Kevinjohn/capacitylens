@@ -10,17 +10,17 @@ const previousScopeByCache = new WeakMap<QueryClient, ApiQueryScope>();
 /** Clears server data when its principal, active account, or masquerade projection changes. */
 export function QueryCacheLifecycle({ cache = queryClient }: { cache?: QueryClient }) {
   const { user } = useAuth();
-  const accountId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeAccountId);
   const masqueradeGeneration = useStore((state) =>
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const principalId = user?.id ?? null;
   useEffect(() => {
-    const scope = { principalId, accountId, masqueradeGeneration };
+    const scope = { principalId, companyId, masqueradeGeneration };
     const previousScope = previousScopeByCache.get(cache);
     if (previousScope) clearQueryCacheForScopeChange(cache, previousScope, scope);
     previousScopeByCache.set(cache, scope);
-  }, [cache, principalId, accountId, masqueradeGeneration]);
+  }, [cache, principalId, companyId, masqueradeGeneration]);
 
   return null;
 }

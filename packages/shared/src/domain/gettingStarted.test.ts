@@ -13,7 +13,7 @@ import type {
 import { FIXTURE_RESOURCE_EXTERNAL } from '../data/fixtures.js';
 
 const NOW = '2026-06-03T12:00:00.000Z';
-const entity = { accountId: 'a1', createdAt: NOW, updatedAt: NOW };
+const entity = { companyId: 'a1', createdAt: NOW, updatedAt: NOW };
 const client = (over: Partial<Client> = { ...NULLABLE_FIELDS.clients }): Client => ({
   ...NULLABLE_FIELDS.clients,
   id: 'c1',

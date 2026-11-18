@@ -135,7 +135,7 @@ async function insertPrivateClient() {
   const now = new Date().toISOString();
   await db.table('clients').insert({
     id: crypto.randomUUID(),
-    account_id: 'a-studio',
+    company_id: 'a-studio',
     name: privateClientName,
     code_name: 'Nightwing',
     color: '#123456',
@@ -247,7 +247,7 @@ test.group('native read-only masquerade', (group) => {
       };
       assert.deepEqual(grantOf(started.body()), readOnly);
       const status = await asSession(
-        client.get('/api/masquerade?accountId=a-studio'),
+        client.get('/api/masquerade?companyId=a-studio'),
         cookie
       ).send();
       status.assertStatus(200);
@@ -369,7 +369,7 @@ test.group('native read-only masquerade', (group) => {
       const saved = await normalWrite;
       saved.assertStatus(200);
       assert.isDefined(
-        await db.from('account_getting_started_dismissals').where('account_id', 'a-studio').first()
+        await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
       );
       const status = await asSession(client.get('/api/masquerade'), cookie).send();
       status.assertStatus(200);
@@ -437,7 +437,7 @@ test.group('native read-only masquerade', (group) => {
       refused.assertStatus(403);
       assert.equal((refused.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
       assert.isNull(
-        await db.from('account_getting_started_dismissals').where('account_id', 'a-studio').first()
+        await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
       );
     } finally {
       release.resolve();
@@ -454,7 +454,7 @@ test.group('native read-only masquerade', (group) => {
     const now = new Date().toISOString();
     await db.table('clients').insert({
       id: privateClientId,
-      account_id: 'a-studio',
+      company_id: 'a-studio',
       name: 'Wayne Confidential Client',
       code_name: 'Nightwing',
       color: '#123456',
@@ -462,20 +462,20 @@ test.group('native read-only masquerade', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const ownerRead = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    const ownerRead = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     ownerRead.assertStatus(200);
     assert.include(JSON.stringify(ownerRead.body()), 'Wayne Confidential Client');
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
     const state = started.body() as {
-      accountId: string;
+      companyId: string;
       targetUserId: string;
       effectiveRole: string;
       token: string;
       contextToken: string;
       expiresAt: string;
     };
-    assert.equal(state.accountId, 'a-studio');
+    assert.equal(state.companyId, 'a-studio');
     assert.equal(state.targetUserId, targetId);
     assert.equal(state.effectiveRole, 'viewer');
     assert.equal(state.contextToken, state.token);
@@ -527,16 +527,16 @@ test.group('native read-only masquerade', (group) => {
       .send();
     deniedAnonymise.assertStatus(403);
     assert.lengthOf(await db.from('audit_entries').where('action', 'anonymise'), auditCount);
-    const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    const read = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     read.assertStatus(200);
     assert.notInclude(JSON.stringify(read.body()), 'Wayne Confidential Client');
     assert.include(JSON.stringify(read.body()), 'Nightwing');
     const inactiveExport = await asSession(
-      client.get('/api/state?accountId=a-studio&includeInactive=1'),
+      client.get('/api/state?companyId=a-studio&includeInactive=1'),
       cookie
     ).send();
     inactiveExport.assertStatus(403);
-    const foreign = await asSession(client.get('/api/state?accountId=a-loft'), cookie).send();
+    const foreign = await asSession(client.get('/api/state?companyId=a-loft'), cookie).send();
     foreign.assertStatus(403);
     const account = await asSession(client.get('/api/companies'), cookie).send();
     account.assertStatus(403);
@@ -585,7 +585,7 @@ test.group('native read-only masquerade', (group) => {
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
     assert.equal((started.body() as { effectiveRole: string }).effectiveRole, 'editor');
-    const editorRead = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    const editorRead = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     editorRead.assertStatus(200);
     const examples = [
       asSession(
@@ -645,7 +645,7 @@ test.group('native read-only masquerade', (group) => {
     // The body parser runs before route policy, so a malformed write is refused as malformed.
     malformed.assertStatus(400);
     assert.notExists(
-      await db.from('account_getting_started_dismissals').where('account_id', 'a-studio').first()
+      await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
     );
     const signedOut = await asSession(
       client.post('/api/auth/sign-out').header('sec-fetch-site', 'same-origin'),
@@ -677,18 +677,18 @@ test.group('native read-only masquerade', (group) => {
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
     const elsewhere = await asSession(
-      client.get('/api/masquerade?accountId=a-loft'),
+      client.get('/api/masquerade?companyId=a-loft'),
       cookie
     ).send();
     elsewhere.assertStatus(200);
     const body = elsewhere.body() as {
       active: boolean;
-      accountId: string;
+      companyId: string;
       targetUserId: string;
       contextToken: string;
     };
     assert.isTrue(body.active);
-    assert.equal(body.accountId, 'a-studio');
+    assert.equal(body.companyId, 'a-studio');
     assert.equal(body.targetUserId, targetId);
     assert.equal(body.contextToken, (started.body() as { contextToken: string }).contextToken);
   });
@@ -756,9 +756,9 @@ test.group('native read-only masquerade', (group) => {
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: ownerId })
       .update({ role: 'viewer' });
-    const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    const read = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     read.assertStatus(409);
-    const exported = await asSession(client.get('/api/export?accountId=a-studio'), cookie).send();
+    const exported = await asSession(client.get('/api/export?companyId=a-studio'), cookie).send();
     assert.oneOf(exported.status(), [403, 404]);
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
@@ -1005,7 +1005,7 @@ test.group('native read-only masquerade', (group) => {
     const revoked = await asSession(client.get('/api/masquerade'), cookie).send();
     revoked.assertStatus(200);
     assert.deepEqual(revoked.body(), { active: false, contextToken: null });
-    const deniedRead = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    const deniedRead = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     deniedRead.assertStatus(401);
     const anonymousStart = await client
       .post('/api/companies/a-studio/masquerade')
@@ -1091,7 +1091,7 @@ test.group('native read-only masquerade', (group) => {
     const { cookie, companyOwnerId } = await adminFixture(client);
     const refused = await startView(client, cookie, companyOwnerId);
     refused.assertStatus(403);
-    const status = await asSession(client.get('/api/masquerade?accountId=a-studio'), cookie).send();
+    const status = await asSession(client.get('/api/masquerade?companyId=a-studio'), cookie).send();
     status.assertStatus(200);
     assert.isFalse((status.body() as { active: boolean }).active);
   });
@@ -1118,7 +1118,7 @@ test.group('native read-only masquerade', (group) => {
     // The first refused read ends the mode, so each read gets its own view.
     for (const [index, path] of [
       '/api/companies/a-studio/planning',
-      '/api/state?accountId=a-studio',
+      '/api/state?companyId=a-studio',
       '/api/companies/a-studio/export',
     ].entries()) {
       await db
@@ -1140,7 +1140,7 @@ test.group('native read-only masquerade', (group) => {
       read.assertStatus(409);
       assert.notInclude(read.text(), privateClientName, path);
       const status = await asSession(
-        client.get('/api/masquerade?accountId=a-studio'),
+        client.get('/api/masquerade?companyId=a-studio'),
         cookie
       ).send();
       status.assertStatus(200);
@@ -1212,7 +1212,7 @@ test.group('native read-only masquerade', (group) => {
     await promoteToOwner(targetId, companyOwnerId);
     // The query names no route company, so admission accepts the view through a-tower and only
     // the in-transaction check sees that the target outranks the Admin in a-studio.
-    const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    const read = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     read.assertStatus(403);
     assert.notInclude(read.text(), privateClientName);
   });
@@ -1236,12 +1236,12 @@ test.group('native read-only masquerade', (group) => {
     started.assertStatus(200);
     await promoteToOwner(targetId, companyOwnerId);
     // a-studio sorts first, so the status search reaches it before a-tower.
-    for (const path of ['/api/masquerade?accountId=a-studio', '/api/masquerade']) {
+    for (const path of ['/api/masquerade?companyId=a-studio', '/api/masquerade']) {
       const status = await asSession(client.get(path), cookie).send();
       status.assertStatus(200);
       assert.deepInclude(
         status.body(),
-        { active: true, accountId: 'a-tower', effectiveRole: 'editor' },
+        { active: true, companyId: 'a-tower', effectiveRole: 'editor' },
         path
       );
     }

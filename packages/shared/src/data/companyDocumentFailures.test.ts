@@ -15,20 +15,20 @@ function requireValue<T>(value: T | undefined | null): T {
   return value;
 }
 
-const context = { accountId: 'a-studio', memberResourceLinks: [] };
+const context = { companyId: 'a-studio', memberResourceLinks: [] };
 const freshDocument = () => {
   const source = seed();
-  const account = requireValue(source.accounts.find((row) => row.id === context.accountId));
+  const account = requireValue(source.accounts.find((row) => row.id === context.companyId));
   source.closures.push({
     id: 'gotham-closure',
-    accountId: context.accountId,
+    companyId: context.companyId,
     name: 'Gotham holiday',
     startDate: '2026-12-25',
     endDate: '2026-12-25',
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
   });
-  return buildCompanyExport(source, { accountId: context.accountId, completeness: 'full' });
+  return buildCompanyExport(source, { companyId: context.companyId, completeness: 'full' });
 };
 type CorruptDocument = (document: CompanyExportDocument) => void;
 
@@ -202,7 +202,8 @@ describe('Beta transfer failure boundaries', () => {
     const row = requireValue(document.data.clients.find((item) => !item.builtin));
     row.name = 'N'.repeat(101);
     row.isPrivate = false;
-    expect(() => parseCompanyExport(JSON.stringify(document))).toThrow(/name/);
+    const file = JSON.stringify(document).replaceAll('"companyId":', '"accountId":');
+    expect(() => parseCompanyExport(file)).toThrow(/data\.clients\[\d+\]\.name/);
   });
 
   it.each(['closure/one', '_closure', 'götham', 'x'.repeat(129)])(
@@ -253,10 +254,10 @@ describe('Beta transfer failure boundaries', () => {
   });
 
   it('cannot supply destination scope or member links through document extras', () => {
-    const document = { ...freshDocument(), accountId: 'a-loft', memberResourceLinks: [] };
+    const document = { ...freshDocument(), companyId: 'a-loft', memberResourceLinks: [] };
     expect(() =>
       prepareCompanyImport(document, {
-        accountId: 'a-studio',
+        companyId: 'a-studio',
         memberResourceLinks: [{ memberId: 'bruce-member', resourceId: 'missing-person' }],
       }),
     ).toThrow(/missing-person/);

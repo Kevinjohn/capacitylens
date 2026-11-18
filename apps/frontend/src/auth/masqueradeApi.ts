@@ -15,10 +15,10 @@ import { parseAccessGrant } from './accessGrant';
 function parseMasqueradeState(value: unknown, accountIdFallback?: string): MasqueradeState | null {
   if (!isRecord(value)) return null;
   const state = value;
-  const accountId = typeof state.accountId === 'string' ? state.accountId : accountIdFallback;
+  const companyId = typeof state.companyId === 'string' ? state.companyId : accountIdFallback;
   if (
-    typeof accountId !== 'string' ||
-    accountId.length === 0 ||
+    typeof companyId !== 'string' ||
+    companyId.length === 0 ||
     typeof state.targetUserId !== 'string' ||
     state.targetUserId.length === 0 ||
     typeof state.targetName !== 'string' ||
@@ -31,7 +31,7 @@ function parseMasqueradeState(value: unknown, accountIdFallback?: string): Masqu
   ) {
     return null;
   }
-  return { ...(state as unknown as MasqueradeState), accountId };
+  return { ...(state as unknown as MasqueradeState), companyId };
 }
 
 function parseBootstrapPrincipal(
@@ -84,8 +84,8 @@ async function assertMasqueradeState(response: Response): Promise<MasqueradeStat
 
 /** Reads and changes the current user’s temporary account masquerade. */
 export const masqueradeApi = {
-  async status(accountId?: string): Promise<MasqueradeBootstrapStatus> {
-    const response = await masqueradeRequests.masqueradeStatus(accountId);
+  async status(companyId?: string): Promise<MasqueradeBootstrapStatus> {
+    const response = await masqueradeRequests.masqueradeStatus(companyId);
     const body = await readMasqueradeBody(
       response,
       `Masquerade status could not be read (${response.status}).`,
@@ -104,7 +104,7 @@ export const masqueradeApi = {
       }
       return { active: false, contextToken };
     }
-    const state = parseMasqueradeState(body, accountId);
+    const state = parseMasqueradeState(body, companyId);
     if (!state || (body as { active?: unknown }).active !== true) {
       throw new Error(
         extractApiErrorMessage(body) ?? 'The server returned an invalid masquerade status.',
@@ -125,9 +125,9 @@ export const masqueradeApi = {
     return { active: true, ...state, contextToken, principal };
   },
 
-  async start(accountId: string, targetUserId: string): Promise<MasqueradeState> {
+  async start(companyId: string, targetUserId: string): Promise<MasqueradeState> {
     const body: StartMasqueradePayload = { targetUserId };
-    return assertMasqueradeState(await masqueradeRequests.startMasquerade(accountId, body));
+    return assertMasqueradeState(await masqueradeRequests.startMasquerade(companyId, body));
   },
 
   async end(token: string, reason: ClientMasqueradeEndReason): Promise<void> {

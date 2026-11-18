@@ -89,12 +89,12 @@ test.group('direct member resource association', (group) => {
     });
     const person = (
       id: string,
-      accountId: string,
+      companyId: string,
       archivedAt: string | null = null,
       deletedAt: string | null = null
     ) => ({
       id,
-      account_id: accountId,
+      company_id: companyId,
       kind: 'person',
       name: id,
       role: 'Designer',
@@ -120,7 +120,7 @@ test.group('direct member resource association', (group) => {
     await db.table('account_member_resources').insert([
       {
         id: 'link-clark',
-        account_id: 'a-studio',
+        company_id: 'a-studio',
         user_id: clarkId,
         resource_id: 'r-active',
         revision: 'rev-clark',
@@ -129,7 +129,7 @@ test.group('direct member resource association', (group) => {
       },
       {
         id: 'link-diana',
-        account_id: 'a-studio',
+        company_id: 'a-studio',
         user_id: dianaId,
         resource_id: 'r-archived',
         revision: 'rev-diana',
@@ -138,7 +138,7 @@ test.group('direct member resource association', (group) => {
       },
       {
         id: 'link-barbara',
-        account_id: 'a-studio',
+        company_id: 'a-studio',
         user_id: barbaraId,
         resource_id: 'r-deleted',
         revision: 'rev-barbara',
@@ -148,7 +148,7 @@ test.group('direct member resource association', (group) => {
     ]);
     await db.table('account_member_resources').insert({
       id: 'link-stark',
-      account_id: 'a-loft',
+      company_id: 'a-loft',
       user_id: dianaId,
       resource_id: 'r-stark',
       revision: 'rev-stark',
@@ -205,9 +205,9 @@ test.group('direct member resource association', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const person = (id: string, accountId: string, kind = 'person') => ({
+    const person = (id: string, companyId: string, kind = 'person') => ({
       id,
-      account_id: accountId,
+      company_id: companyId,
       kind,
       name: id,
       role: 'Designer',
@@ -243,12 +243,12 @@ test.group('direct member resource association', (group) => {
     wrongKind.assertStatus(409);
     const revisionRowBeforeLink = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     const revisionBeforeLink = Number(revisionRowBeforeLink?.revision);
     const auditCountBeforeLink = await db
       .from('audit_entries')
-      .where({ account_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
+      .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
       .count('* as total');
     assert.equal(Number(auditCountBeforeLink[0].total), 0);
     const createLinkCommand = () =>
@@ -272,13 +272,13 @@ test.group('direct member resource association', (group) => {
     const revision = (linked.body() as { revision: string }).revision;
     const revisionRowAfterLink = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     const revisionAfterLink = Number(revisionRowAfterLink?.revision);
     assert.equal(revisionAfterLink, revisionBeforeLink + 1);
     const auditCountAfterLink = await db
       .from('audit_entries')
-      .where({ account_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
+      .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
       .count('* as total');
     assert.equal(Number(auditCountAfterLink[0].total), 1);
     const repeatLink = () =>
@@ -302,12 +302,12 @@ test.group('direct member resource association', (group) => {
     assert.deepEqual(replay.body(), linked.body());
     const revisionRowAfterNoop = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     assert.equal(Number(revisionRowAfterNoop?.revision), revisionAfterLink);
     const auditCountAfterNoop = await db
       .from('audit_entries')
-      .where({ account_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
+      .where({ company_id: 'a-studio', action: 'member-resource.linked', entity_id: ownerId })
       .count('* as total');
     assert.equal(Number(auditCountAfterNoop[0].total), Number(auditCountAfterLink[0].total));
     const stale = await put(ownerId, 'r-barry', null);
@@ -334,12 +334,12 @@ test.group('direct member resource association', (group) => {
     replayCleared.assertStatus(204);
     const revisionRowAfterClear = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     assert.equal(Number(revisionRowAfterClear?.revision), revisionAfterLink + 1);
     assert.lengthOf(
       await db.from('audit_entries').where({
-        account_id: 'a-studio',
+        company_id: 'a-studio',
         action: 'member-resource.unlinked',
         entity_id: ownerId,
       }),

@@ -12,16 +12,16 @@ export default class AnonymiseController {
     if (!hasOnlyFields(body, [])) {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
-    const { companyId: accountId, id } = ctx.params;
+    const { companyId: companyId, id } = ctx.params;
     const applied = await withActor(ctx, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
       try {
-        await assertCompanyAction(accountId, 'resources:anonymise', trx);
+        await assertCompanyAction(companyId, 'resources:anonymise', trx);
       } catch (error) {
         if (error instanceof IdentityAuthorityError) return 'forbidden';
         throw error;
       }
-      return anonymiseResources(trx, accountId, actor.userId, id);
+      return anonymiseResources(trx, companyId, actor.userId, id);
     });
     if (applied === 'forbidden') return ctx.response.forbidden({ error: 'Forbidden.' });
     if (!applied) return ctx.response.notFound({ error: 'Not found.' });
@@ -33,16 +33,16 @@ export default class AnonymiseController {
     if (!hasOnlyFields(body, ['confirmationId']) || typeof body.confirmationId !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
-    const { companyId: accountId } = ctx.params;
+    const { companyId: companyId } = ctx.params;
     await withActor(ctx, async (_actor, trx) => {
-      const actor = await passwordConfirmationActor(accountId, trx, 'anonymise');
+      const actor = await passwordConfirmationActor(companyId, trx, 'anonymise');
       await passwordConfirmations.consume(kitContextIn(trx), {
         confirmationId: body.confirmationId as string,
         action: 'anonymise',
-        scope: accountId,
+        scope: companyId,
         intent: {},
       });
-      await anonymiseResources(trx, accountId, actor.userId);
+      await anonymiseResources(trx, companyId, actor.userId);
     });
     return ctx.response.noContent();
   }
