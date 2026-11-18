@@ -97,7 +97,7 @@ function requireCommand(command: PlanningCommand | null): PlanningCommand {
   return command;
 }
 
-function createdRows(get: StoreApi<StoreState>['getState'], ids: readonly ID[]): Allocation[] {
+function getCreatedRows(get: StoreApi<StoreState>['getState'], ids: readonly ID[]): Allocation[] {
   const rows = ids.map((id) => get().data.allocations.find((allocation) => allocation.id === id));
   if (rows.some((row) => !row)) throw new Error('Allocation creation produced no row.');
   return rows as Allocation[];
@@ -137,7 +137,7 @@ export function createAllocationSlice(
         const receipt = await send(
           requireCommand(buildAllocationCreate({ ...prepared, args: draft })),
         );
-        const [created] = createdRows(get, [draft.id]);
+        const [created] = getCreatedRows(get, [draft.id]);
         if (!created) throw new Error('Allocation creation produced no row.');
         return { kind: 'created', value: created, ...readSaveAdvisory(receipt) };
       },
@@ -163,7 +163,7 @@ export function createAllocationSlice(
             occurrenceIds,
           },
         });
-        return { kind: 'created', value: createdRows(get, ids), ...readSaveAdvisory(receipt) };
+        return { kind: 'created', value: getCreatedRows(get, ids), ...readSaveAdvisory(receipt) };
       },
       duplicateAllocation: async (sourceId, input) => {
         const prepared = prepareNew([input]);
@@ -180,7 +180,7 @@ export function createAllocationSlice(
             }),
           ),
         );
-        const [created] = createdRows(get, [draft.id]);
+        const [created] = getCreatedRows(get, [draft.id]);
         if (!created) throw new Error('Allocation creation produced no row.');
         return { kind: 'created', value: created, ...readSaveAdvisory(receipt) };
       },
