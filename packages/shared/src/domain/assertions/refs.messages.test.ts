@@ -9,9 +9,9 @@ import {
   phase,
   activity,
   person,
-  discipline,
+  makeDiscipline,
   placeholder,
-  external,
+  makeExternal,
   A1,
   A2,
   base,
@@ -365,7 +365,7 @@ describe('assertScopedRefs', () => {
   });
 
   it('validates a resource’s disciplineId FK with its own message (dangling discipline throws)', () => {
-    const data = { ...base(), disciplines: [discipline('d1', A2)] };
+    const data = { ...base(), disciplines: [makeDiscipline('d1', A2)] };
     expect(() => assertScopedRefs(data, A1, 'resources', { disciplineId: 'd1' })).toThrow(
       'Resource discipline must belong to this company.',
     );
@@ -594,12 +594,12 @@ describe('assertAllocationRefs', () => {
   });
 
   it('rejects a non-zero load on an external / 3rd-party resource (no capacity)', () => {
-    const data: AppData = { ...world(), resources: [external('ext', A1)] };
+    const data: AppData = { ...world(), resources: [makeExternal('ext', A1)] };
     expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 8)).toThrow('can’t carry hours');
   });
 
   it('allows a zero load on an external resource (the external rule is always enforced)', () => {
-    const data: AppData = { ...world(), resources: [external('ext', A1)] };
+    const data: AppData = { ...world(), resources: [makeExternal('ext', A1)] };
     expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 0)).not.toThrow();
   });
 

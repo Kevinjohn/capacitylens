@@ -86,14 +86,16 @@ function assertResourceKindAllowsDependentsWithOptions({
   // A loaded allocation or any time-off both vanish from the scheduler once the resource is external.
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
-  const owns = (entity: Allocation | TimeOff) =>
+  const isOwnedByResource = (entity: Allocation | TimeOff) =>
     entity.resourceId === resourceId && belongsToAccount(entity, companyId);
   const hasLoadedAllocation = lookup
     ? lookup.resourceHasLoadedAllocation(companyId, resourceId)
-    : data.allocations.some((allocation) => owns(allocation) && allocation.hoursPerDay !== 0);
+    : data.allocations.some(
+        (allocation) => isOwnedByResource(allocation) && allocation.hoursPerDay !== 0,
+      );
   const hasTimeOff = lookup
     ? lookup.resourceHasTimeOff(companyId, resourceId)
-    : data.timeOff.some((timeOff) => owns(timeOff));
+    : data.timeOff.some((timeOff) => isOwnedByResource(timeOff));
   if (hasLoadedAllocation || hasTimeOff) {
     throwDomainError(
       'resource_external_dependents',

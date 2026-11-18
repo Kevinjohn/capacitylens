@@ -12,13 +12,13 @@ import {
 } from './dependents.js';
 import {
   TS,
-  meta,
+  makeMeta,
   client,
   project,
   activity,
   person,
   placeholder,
-  external,
+  makeExternal,
   allocation,
   timeOff,
   A1,
@@ -88,7 +88,7 @@ describe('assertResourceExists', () => {
     );
   });
   it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
-    const data = { ...base(), resources: [external('ext', A1)] };
+    const data = { ...base(), resources: [makeExternal('ext', A1)] };
     expect(() => assertResourceExists(data, A1, 'ext')).toThrow(
       'Time off can’t be recorded for an external / 3rd-party resource.',
     );
@@ -149,7 +149,7 @@ describe('assertResourceKindAllowsDependents', () => {
       resources: [person('r1', A1)],
       closures: [
         {
-          ...meta('closure', A1),
+          ...makeMeta('closure', A1),
           name: 'Company shutdown',
           startDate: '2026-01-01',
           endDate: '2026-01-03',
@@ -242,7 +242,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       activities: [
         {
           ...NULLABLE_FIELDS.activities,
-          ...meta('general', A1),
+          ...makeMeta('general', A1),
           name: 'Admin',
           kind: 'repeatable',
         },
@@ -266,7 +266,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     const existing = placeholder('ph', A1, 'p1');
     const repeatable: Activity = {
       ...NULLABLE_FIELDS.activities,
-      ...meta('shared', A1),
+      ...makeMeta('shared', A1),
       name: 'Shared',
       kind: 'repeatable',
     };
@@ -301,7 +301,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   it('validates the post-clear effective project when repeatable work becomes project-specific', () => {
     const existing: Activity = {
       ...NULLABLE_FIELDS.activities,
-      ...meta('shared', A1),
+      ...makeMeta('shared', A1),
       name: 'Shared',
       kind: 'repeatable',
     };
