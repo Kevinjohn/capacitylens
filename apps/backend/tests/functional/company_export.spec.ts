@@ -6,7 +6,10 @@ import {
 } from '../helpers/authenticated_data_fixture.js';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
-import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import {
+  buildCompanyExport,
+  serializeCompanyExport,
+} from '@capacitylens/shared/data/companyDocument';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { transformState } from '#transformers/state_transformer';
 import { readState } from '#tests/helpers/state_fixture';
@@ -51,11 +54,14 @@ test.group('company export download', (group) => {
         role
       );
       const inactive = role === 'owner' || role === 'admin';
-      const expected = serializeBetaExport(
-        buildBetaExport(transformState(await readState('a-studio', inactive), 'a-studio', role), {
-          accountId: 'a-studio',
-          completeness: role === 'owner' ? 'full' : 'redacted',
-        })
+      const expected = serializeCompanyExport(
+        buildCompanyExport(
+          transformState(await readState('a-studio', inactive), 'a-studio', role),
+          {
+            accountId: 'a-studio',
+            completeness: role === 'owner' ? 'full' : 'redacted',
+          }
+        )
       );
       assert.equal(response.text(), expected, role);
       assert.include(response.text(), '"dateStyle": "month-day"', role);

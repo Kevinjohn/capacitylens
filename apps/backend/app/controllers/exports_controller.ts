@@ -9,10 +9,10 @@ import access from '#config/access_control';
 import { resolvePlanningAuthority } from '#services/planning/authority';
 import { sendRefusal } from '#services/planning/http_refusal';
 import {
-  BetaTransferError,
-  buildBetaExport,
-  serializeBetaExport,
-} from '@capacitylens/shared/data/betaTransfer';
+  CompanyDocumentError,
+  buildCompanyExport,
+  serializeCompanyExport,
+} from '@capacitylens/shared/data/companyDocument';
 
 export default class ExportsController {
   async show(ctx: HttpContext) {
@@ -46,8 +46,8 @@ export default class ExportsController {
           accountId,
           access.can(authority.role, 'members:manage')
         );
-        return serializeBetaExport(
-          buildBetaExport(transformState(rows, accountId, authority.role), {
+        return serializeCompanyExport(
+          buildCompanyExport(transformState(rows, accountId, authority.role), {
             accountId,
             completeness: authority.canSeePrivateNames ? 'full' : 'redacted',
           })
@@ -58,7 +58,7 @@ export default class ExportsController {
       return ctx.response.send(text);
     } catch (error) {
       // A document that fails validation is refused as the import path refuses one.
-      if (error instanceof BetaTransferError) {
+      if (error instanceof CompanyDocumentError) {
         return ctx.response.badRequest({ error: error.message });
       }
       return sendRefusal(error, ctx);

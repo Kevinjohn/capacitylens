@@ -1,7 +1,10 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
 import db from '@adonisjs/lucid/services/db';
-import { buildBetaExport, type BetaExportDocument } from '@capacitylens/shared/data/betaTransfer';
+import {
+  buildCompanyExport,
+  type CompanyExportDocument,
+} from '@capacitylens/shared/data/companyDocument';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
 import { withTransaction } from '#services/with_transaction';
@@ -21,7 +24,7 @@ const accountId = 'a-studio';
 const password = 'fixture-password-2026';
 
 async function document() {
-  return buildBetaExport(await readState(accountId, true), { accountId, completeness: 'full' });
+  return buildCompanyExport(await readState(accountId, true), { accountId, completeness: 'full' });
 }
 
 async function revision() {
@@ -62,7 +65,7 @@ async function proof(client: ApiClient, cookie: string, intent: unknown, action 
 async function apply(
   client: ApiClient,
   cookie: string,
-  documentValue: BetaExportDocument,
+  documentValue: CompanyExportDocument,
   baseRevision: number,
   confirmationId?: string
 ) {
@@ -87,7 +90,7 @@ test.group('beta transfer apply', (group) => {
     client,
     assert,
   }) => {
-    const full = buildBetaExport(seed(), { accountId: 'a-loft', completeness: 'full' });
+    const full = buildCompanyExport(seed(), { accountId: 'a-loft', completeness: 'full' });
     const original = structuredClone(full);
     const { cookie, userId } = await resetAuthenticatedData(client, false);
     await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', accountId);
@@ -137,7 +140,7 @@ test.group('beta transfer apply', (group) => {
   test('preview replies with the reason a document is refused', async ({ client, assert }) => {
     const { cookie } = await resetAuthenticatedData(client);
     const full = await document();
-    const redacted = buildBetaExport(await readState(accountId, true), {
+    const redacted = buildCompanyExport(await readState(accountId, true), {
       accountId,
       completeness: 'redacted',
     });
@@ -160,7 +163,7 @@ test.group('beta transfer apply', (group) => {
     assert,
   }) => {
     const { cookie } = await resetAuthenticatedData(client, true);
-    const foreign = buildBetaExport(seed(), { accountId: 'a-loft', completeness: 'full' });
+    const foreign = buildCompanyExport(seed(), { accountId: 'a-loft', completeness: 'full' });
     const before = await readState(accountId, true);
     const otherBefore = await readState('a-loft', true);
     const baseRevision = await revision();
@@ -393,7 +396,7 @@ test.group('beta transfer apply', (group) => {
     stale.assertStatus(409);
     const staleProofRow = await db.from('password_confirmations').where('id', staleProof).first();
     assert.isNull(staleProofRow?.consumed_at);
-    const redacted = buildBetaExport(before, { accountId, completeness: 'redacted' });
+    const redacted = buildCompanyExport(before, { accountId, completeness: 'redacted' });
     const redactedProof = await proof(client, cookie, {
       baseRevision: baseRevision + 1,
       document: redacted,
@@ -437,7 +440,7 @@ test.group('beta transfer apply', (group) => {
     const clientWithPrototypeKey = JSON.parse(
       `${serializedClient.slice(0, -1)},"__proto__":{"polluted":true}}`
     );
-    const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as BetaExportDocument;
+    const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as CompanyExportDocument;
     documentWithPrototypeKey.data.clients[0] = clientWithPrototypeKey;
 
     const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)

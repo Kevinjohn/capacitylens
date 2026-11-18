@@ -6,7 +6,7 @@ As an Owner, I want to preview and replace company data so that I can restore a 
 **Access:** Owner
 **Entry:** Settings → Data and support → Import and export → Import JSON
 **Documentation:** [Settings](../../docs-src/using/settings.md#import-and-export)
-**Source:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [BetaImportPreview.tsx](../../apps/frontend/src/components/import-export/BetaImportPreview.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx)
+**Source:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx)
 
 ## Acceptance criteria
 
@@ -37,10 +37,10 @@ flowchart TD
 flowchart TD
   file["ImportExport selects JSON file"] --> parse["usePendingImport.readFile reads JSON"]
   parse --> serverBoundary["TransferController.preview validates the document and replies with the reason or the summary and base revision"]
-  serverBoundary --> preview["BetaImportPreview renders the reply without replacing"]
+  serverBoundary --> preview["ImportPreview renders the reply without replacing"]
   preview --> confirm["Continue opens the replace confirmation, then PasswordConfirmationDialog"]
-  confirm --> apply["useServerImport posts api.transfer.apply; TransferController.apply consumes confirmation and calls applyBetaAccountTransfer"]
+  confirm --> apply["useServerImport posts api.transfer.apply; TransferController.apply consumes confirmation and calls applyCompanyImport"]
   apply --> refresh["useServerImport refreshes canonical planning data"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [BetaImportPreview.tsx](../../apps/frontend/src/components/import-export/BetaImportPreview.tsx), [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [transfer_routes.ts](../../apps/backend/start/transfer_routes.ts), [transfer_controller.ts](../../apps/backend/app/controllers/transfer_controller.ts), [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [transfer_routes.ts](../../apps/backend/start/transfer_routes.ts), [transfer_controller.ts](../../apps/backend/app/controllers/transfer_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)

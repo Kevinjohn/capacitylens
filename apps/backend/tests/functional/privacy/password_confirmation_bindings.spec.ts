@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { getPlanningRevision } from '#services/planning_revision';
 import { readState } from '#tests/helpers/state_fixture';
 import { withTransaction } from '#services/with_transaction';
@@ -24,7 +24,7 @@ test.group('password confirmation bindings', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const before = await readState(accountId, true);
     const baseRevision = await revision();
-    const document = buildBetaExport(before, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(before, { accountId, completeness: 'full' });
     document.data.accounts[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
       const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
@@ -96,7 +96,7 @@ test.group('password confirmation bindings', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const before = await readState(accountId, true);
     const baseRevision = await revision();
-    const document = buildBetaExport(before, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(before, { accountId, completeness: 'full' });
     const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
       .json({
         action: 'import',

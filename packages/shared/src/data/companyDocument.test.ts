@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { seed } from './seed.js';
 import {
-  BETA_EXPORT_FORMAT,
-  BETA_EXPORT_SCHEMA_VERSION,
-  BetaTransferError,
-  buildBetaExport,
-  parseBetaExport,
-  prepareBetaImport,
-  serializeBetaExport,
-} from './betaTransfer.js';
+  COMPANY_EXPORT_FORMAT,
+  COMPANY_EXPORT_SCHEMA_VERSION,
+  CompanyDocumentError,
+  buildCompanyExport,
+  parseCompanyExport,
+  prepareCompanyImport,
+  serializeCompanyExport,
+} from './companyDocument.js';
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import { internalClientIdFor } from './internalClient.js';
 
@@ -31,10 +31,10 @@ describe('beta-native transfer', () => {
       'Internal client',
     );
     internal.id = internalClientIdFor(accountId);
-    const exported = buildBetaExport(source, { accountId, completeness: 'full' });
-    const parsed = parseBetaExport(serializeBetaExport(exported));
+    const exported = buildCompanyExport(source, { accountId, completeness: 'full' });
+    const parsed = parseCompanyExport(serializeCompanyExport(exported));
     expect(parsed.data.clients.find((row) => row.builtin)?.id).toBe(internal.id);
-    expect(prepareBetaImport(parsed, context).data.clients.find((row) => row.builtin)?.id).toBe(
+    expect(prepareCompanyImport(parsed, context).data.clients.find((row) => row.builtin)?.id).toBe(
       internal.id,
     );
   });
@@ -81,16 +81,16 @@ describe('beta-native transfer', () => {
     source.timeOff.push({ ...templateTimeOff, id: 'to-placeholder', resourceId: placeholder.id });
     const archived = fixture(source.projects[0], 'project');
     archived.archivedAt = archived.updatedAt;
-    const built = buildBetaExport(source, { accountId, completeness: 'full' });
-    const parsed = parseBetaExport(serializeBetaExport(built));
-    const prepared = prepareBetaImport(parsed, context);
+    const built = buildCompanyExport(source, { accountId, completeness: 'full' });
+    const parsed = parseCompanyExport(serializeCompanyExport(built));
+    const prepared = prepareCompanyImport(parsed, context);
     expect(prepared.data).toEqual(built.data);
-    expect(buildBetaExport(prepared.data, { accountId, completeness: 'full' }).data).toEqual(
+    expect(buildCompanyExport(prepared.data, { accountId, completeness: 'full' }).data).toEqual(
       built.data,
     );
     expect(prepared.imported).toBe(APP_DATA_KEYS.reduce((n, key) => n + built.data[key].length, 0));
-    expect(parsed.format).toBe(BETA_EXPORT_FORMAT);
-    expect(parsed.schemaVersion).toBe(BETA_EXPORT_SCHEMA_VERSION);
+    expect(parsed.format).toBe(COMPANY_EXPORT_FORMAT);
+    expect(parsed.schemaVersion).toBe(COMPANY_EXPORT_SCHEMA_VERSION);
     expect(parsed.data.accounts[0]?.id).toBe(accountId);
     expect(built.data.closures).toHaveLength(1);
     expect(built.data.clients.find((row) => row.id === privateClient.id)?.codeName).toBe(
@@ -101,18 +101,23 @@ describe('beta-native transfer', () => {
     );
   });
 
+  it('keeps the wire literals existing exports carry', () => {
+    expect(COMPANY_EXPORT_FORMAT).toBe('capacitylens-beta');
+    expect(COMPANY_EXPORT_SCHEMA_VERSION).toBe(2);
+  });
+
   it('projects named portable fields while preserving source objects', () => {
     const source = structuredClone(original) as typeof original & {
       resources: Array<(typeof original.resources)[number] & { Vine?: string }>;
     };
     fixture(source.resources[0], 'resource').Vine = 'secret future property';
-    const exported = buildBetaExport(source, { accountId, completeness: 'full' });
+    const exported = buildCompanyExport(source, { accountId, completeness: 'full' });
     expect(exported.data.resources[0]).not.toHaveProperty('Vine');
     expect(source.resources[0]).toHaveProperty('Vine', 'secret future property');
   });
 
   it('rejects malformed data, missing nullable fields, duplicates, wrong scope and unsupported wrappers', () => {
-    const document = buildBetaExport(original, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(original, { accountId, completeness: 'full' });
     const cases: Array<[string, (doc: typeof document) => void]> = [
       [
         'date',
@@ -169,17 +174,17 @@ describe('beta-native transfer', () => {
     for (const [name, corrupt] of cases) {
       const changed = structuredClone(document);
       corrupt(changed);
-      expect(() => prepareBetaImport(changed, context), name).toThrow(BetaTransferError);
+      expect(() => prepareCompanyImport(changed, context), name).toThrow(CompanyDocumentError);
     }
-    expect(() => parseBetaExport(JSON.stringify({ schemaVersion: 24, data: original }))).toThrow(
-      BetaTransferError,
+    expect(() => parseCompanyExport(JSON.stringify({ schemaVersion: 24, data: original }))).toThrow(
+      CompanyDocumentError,
     );
   });
 
   it('accepts zero-hour planning allocations and keeps external resources on their domain defaults', () => {
     const source = structuredClone(original);
     fixture(source.allocations[0], 'allocation').hoursPerDay = 0;
-    const document = buildBetaExport(source, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(source, { accountId, completeness: 'full' });
     expect(
       document.data.allocations.find(({ id }) => id === source.allocations[0]?.id)?.hoursPerDay,
     ).toBe(0);
@@ -191,43 +196,43 @@ describe('beta-native transfer', () => {
     );
     if (!externalBooking) throw new Error('Expected the fixture external allocation');
     externalBooking.hoursPerDay = 1;
-    expect(() => buildBetaExport(source, { accountId, completeness: 'full' })).toThrow(
+    expect(() => buildCompanyExport(source, { accountId, completeness: 'full' })).toThrow(
       /zero hours/i,
     );
   });
 
   it('refuses serializer input containing a row from another account', () => {
-    const document = buildBetaExport(original, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(original, { accountId, completeness: 'full' });
     const foreign = fixture(
       original.resources.find(({ accountId: owner }) => owner !== accountId),
       'foreign resource',
     );
     document.data.resources.push(structuredClone(foreign));
-    expect(() => serializeBetaExport(document)).toThrow(/accountId/i);
+    expect(() => serializeCompanyExport(document)).toThrow(/accountId/i);
   });
 
   it('keeps malformed JSON errors display-safe while retaining the parser cause', () => {
     let error: unknown;
     try {
-      parseBetaExport('{"private":"do not echo"');
+      parseCompanyExport('{"private":"do not echo"');
     } catch (caught) {
       error = caught;
     }
-    expect(error).toBeInstanceOf(BetaTransferError);
+    expect(error).toBeInstanceOf(CompanyDocumentError);
     expect((error as Error).message).not.toContain('do not echo');
     expect((error as Error).cause).toBeInstanceOf(SyntaxError);
   });
 
   it('requires a full export and rejects redacted imports', () => {
-    const redacted = buildBetaExport(original, { accountId, completeness: 'redacted' });
-    expect(() => prepareBetaImport(redacted, context)).toThrow(/full/i);
+    const redacted = buildCompanyExport(original, { accountId, completeness: 'redacted' });
+    expect(() => prepareCompanyImport(redacted, context)).toThrow(/full/i);
   });
 
   it('restores an unchanged full document into a new company without changing scheduling IDs or links', () => {
-    const document = buildBetaExport(original, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(original, { accountId, completeness: 'full' });
     const before = structuredClone(document);
     const destinationId = 'new-company';
-    const prepared = prepareBetaImport(document, { ...context, accountId: destinationId });
+    const prepared = prepareCompanyImport(document, { ...context, accountId: destinationId });
     expect(prepared.data.accounts).toEqual([{ ...document.data.accounts[0], id: destinationId }]);
     for (const key of APP_DATA_KEYS) {
       if (key === 'accounts') continue;
@@ -250,21 +255,21 @@ describe('beta-native transfer', () => {
     privateClient.isPrivate = true;
     privateClient.name = 'Private alias';
     privateClient.codeName = null;
-    const redacted = buildBetaExport(source, { accountId, completeness: 'redacted' });
-    const json = serializeBetaExport(redacted);
+    const redacted = buildCompanyExport(source, { accountId, completeness: 'redacted' });
+    const json = serializeCompanyExport(redacted);
     expect(json).toContain('"name": "Private alias"');
     expect(json).not.toContain('Private name');
     expect(
-      parseBetaExport(json).data.clients.find((row) => row.id === privateClient.id)?.codeName,
+      parseCompanyExport(json).data.clients.find((row) => row.id === privateClient.id)?.codeName,
     ).toBeNull();
   });
 
   it('rejects an imported member link to a non-person resource', () => {
-    const document = buildBetaExport(original, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(original, { accountId, completeness: 'full' });
     const external = document.data.resources.find((row) => row.kind === 'external');
     if (!external) throw new Error('Expected the fixture external resource');
     expect(() =>
-      prepareBetaImport(document, {
+      prepareCompanyImport(document, {
         accountId,
         memberResourceLinks: [{ memberId: 'member', resourceId: external.id }],
       }),
@@ -272,7 +277,7 @@ describe('beta-native transfer', () => {
   });
 
   it('requires placeholder bookings to resolve to their bound project', () => {
-    const document = buildBetaExport(original, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(original, { accountId, completeness: 'full' });
     const placeholder = document.data.resources.find((row) => row.kind === 'placeholder');
     const differentProjectActivity = document.data.activities.find(
       (row) => row.kind === 'project' && row.projectId !== placeholder?.projectId,
@@ -283,18 +288,18 @@ describe('beta-native transfer', () => {
     }
     booking.activityId = differentProjectActivity.id;
     booking.projectId = null;
-    expect(() => prepareBetaImport(document, context)).toThrow(/bound project/i);
+    expect(() => prepareCompanyImport(document, context)).toThrow(/bound project/i);
   });
 
   it('rejects missing Internal client and dangling member resource links without mutation', () => {
-    const document = buildBetaExport(original, { accountId, completeness: 'full' });
+    const document = buildCompanyExport(original, { accountId, completeness: 'full' });
     document.data.clients = document.data.clients.filter((row) => row.builtin !== true);
     const before = structuredClone(document);
-    expect(() => prepareBetaImport(document, context)).toThrow(/Internal/i);
+    expect(() => prepareCompanyImport(document, context)).toThrow(/Internal/i);
     expect(document).toEqual(before);
-    const valid = buildBetaExport(original, { accountId, completeness: 'full' });
+    const valid = buildCompanyExport(original, { accountId, completeness: 'full' });
     expect(() =>
-      prepareBetaImport(valid, {
+      prepareCompanyImport(valid, {
         ...context,
         memberResourceLinks: [{ memberId: 'm', resourceId: 'nope' }],
       }),

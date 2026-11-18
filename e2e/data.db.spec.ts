@@ -1,13 +1,16 @@
 import { test, expect } from './dbFixtures';
 import type { Page } from '@playwright/test';
 import { openApp } from './browserTestSupport';
-import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import {
+  buildCompanyExport,
+  serializeCompanyExport,
+} from '@capacitylens/shared/data/companyDocument';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 
 const ACCOUNT_ID = 'a-studio';
 
 function restoredDocument() {
-  const document = buildBetaExport(seedForCurrentWeek(), {
+  const document = buildCompanyExport(seedForCurrentWeek(), {
     accountId: ACCOUNT_ID,
     completeness: 'full',
   });
@@ -37,7 +40,7 @@ test.describe('Beta company transfer through the server', () => {
     page,
   }) => {
     await openApp(page);
-    await importFile(page, serializeBetaExport(restoredDocument()));
+    await importFile(page, serializeCompanyExport(restoredDocument()));
     await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
     const dialog = page.getByRole('alertdialog', { name: 'Import data?' });
@@ -53,7 +56,7 @@ test.describe('Beta company transfer through the server', () => {
     page,
   }) => {
     await openApp(page);
-    await importFile(page, serializeBetaExport(restoredDocument()));
+    await importFile(page, serializeCompanyExport(restoredDocument()));
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: 'Replace data' }).click();
     await page.getByLabel('Password', { exact: true }).fill('auth-e2e-password-2026');
@@ -74,8 +77,11 @@ test.describe('Beta company transfer through the server', () => {
     ['unrelated JSON', '{ "hello": "world" }', /beta-native CapacityLens export/i],
     [
       'redacted document',
-      serializeBetaExport(
-        buildBetaExport(seedForCurrentWeek(), { accountId: ACCOUNT_ID, completeness: 'redacted' }),
+      serializeCompanyExport(
+        buildCompanyExport(seedForCurrentWeek(), {
+          accountId: ACCOUNT_ID,
+          completeness: 'redacted',
+        }),
       ),
       /full|redacted/i,
     ],

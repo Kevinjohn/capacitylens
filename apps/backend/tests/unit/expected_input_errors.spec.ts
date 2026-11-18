@@ -1,16 +1,16 @@
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
-import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { seed } from '@capacitylens/shared/data/seed';
 import GettingStartedController from '#controllers/getting_started_controller';
-import { parseRequestDocument } from '#services/beta_account_transfer';
+import { parseRequestDocument } from '#services/company_import';
 
 // Expected invalid input becomes a 400; anything else must reach the exception handler and reporting.
 
 test.group('Expected input errors', () => {
   test('a request document parses, or is null only when it is invalid input', ({ assert }) => {
-    const document = buildBetaExport(seed(), { accountId: 'a-studio', completeness: 'full' });
+    const document = buildCompanyExport(seed(), { accountId: 'a-studio', completeness: 'full' });
     assert.equal(parseRequestDocument(document)?.format, document.format);
     assert.isNull(parseRequestDocument({ format: 'something else' }));
     assert.isNull(parseRequestDocument(undefined));

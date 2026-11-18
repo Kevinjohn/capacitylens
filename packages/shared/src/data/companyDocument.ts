@@ -2,45 +2,49 @@ import { APP_DATA_KEYS, SCOPED_KEYS } from '../types/entityKeys.js';
 import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
-import { assert, fail, isId, isOneOf, own } from './betaTransfer.errors.js';
-import { FIELDS } from './betaTransfer.fields.js';
-import { projectBetaData } from './betaTransfer.projection.js';
-import { validateRow } from './betaTransfer.validation.js';
-import { validateBetaReferences } from './betaTransfer.references.js';
-import { BetaTransferError } from './betaTransfer.errors.js';
+import { assert, fail, isId, isOneOf, own } from './companyDocument.errors.js';
+import { FIELDS } from './companyDocument.fields.js';
+import { projectCompanyData } from './companyDocument.projection.js';
+import { validateRow } from './companyDocument.validation.js';
+import { validateCompanyReferences } from './companyDocument.references.js';
+import { CompanyDocumentError } from './companyDocument.errors.js';
 
-export { BetaTransferError };
+export { CompanyDocumentError };
 
 /** Stable identifier for the beta-native interchange format. */
-export const BETA_EXPORT_FORMAT = 'capacitylens-beta' as const;
+export const COMPANY_EXPORT_FORMAT = 'capacitylens-beta' as const;
 /** Beta interchange schema version, independent of database and legacy export versions. */
-export const BETA_EXPORT_SCHEMA_VERSION = 2 as const;
+export const COMPANY_EXPORT_SCHEMA_VERSION = 2 as const;
 
-export interface BetaExportDocument {
-  format: typeof BETA_EXPORT_FORMAT;
-  schemaVersion: typeof BETA_EXPORT_SCHEMA_VERSION;
+export interface CompanyExportDocument {
+  format: typeof COMPANY_EXPORT_FORMAT;
+  schemaVersion: typeof COMPANY_EXPORT_SCHEMA_VERSION;
   completeness: 'full' | 'redacted';
   data: AppData;
 }
 
 /** The destination facts needed to validate imported scheduling rows. */
-export interface BetaImportContext {
+export interface CompanyImportContext {
   accountId: string;
   memberResourceLinks: readonly { memberId: string; resourceId: string }[];
 }
 
 /** A validated full import, ready for an atomic account replacement. */
-export interface PreparedBetaImport {
+export interface PreparedCompanyImport {
   data: AppData;
   imported: number;
 }
 
 type Row = Record<string, unknown>;
 
-function validateDocument(value: unknown): BetaExportDocument {
+function validateDocument(value: unknown): CompanyExportDocument {
   assert(isRecord(value), 'document', 'must be an object');
-  assert(value.format === BETA_EXPORT_FORMAT, 'format', 'is not a beta-native CapacityLens export');
-  assert(value.schemaVersion === BETA_EXPORT_SCHEMA_VERSION, 'schemaVersion', 'is unsupported');
+  assert(
+    value.format === COMPANY_EXPORT_FORMAT,
+    'format',
+    'is not a beta-native CapacityLens export',
+  );
+  assert(value.schemaVersion === COMPANY_EXPORT_SCHEMA_VERSION, 'schemaVersion', 'is unsupported');
   assert(
     isOneOf(value.completeness, ['full', 'redacted']),
     'completeness',
@@ -109,10 +113,10 @@ function validateDocument(value: unknown): BetaExportDocument {
       });
     }
   }
-  validateBetaReferences(data);
+  validateCompanyReferences(data);
   return {
-    format: BETA_EXPORT_FORMAT,
-    schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
+    format: COMPANY_EXPORT_FORMAT,
+    schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
     completeness: value.completeness as 'full' | 'redacted',
     data,
   };
@@ -122,41 +126,41 @@ function validateDocument(value: unknown): BetaExportDocument {
  * Build a portable projection for an account. The caller must authorize and redact the
  * supplied data before calling; completeness is metadata and does not grant visibility.
  */
-export function buildBetaExport(
+export function buildCompanyExport(
   data: AppData,
   options: { accountId: string; completeness: 'full' | 'redacted' },
-): BetaExportDocument {
+): CompanyExportDocument {
   const document = {
-    format: BETA_EXPORT_FORMAT,
-    schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
+    format: COMPANY_EXPORT_FORMAT,
+    schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
     completeness: options.completeness,
-    data: projectBetaData(data, options.accountId),
+    data: projectCompanyData(data, options.accountId),
   };
   return validateDocument(document);
 }
 
 /** Serialize the named portable fields as formatted JSON after validating the entire document. */
-export function serializeBetaExport(document: BetaExportDocument): string {
+export function serializeCompanyExport(document: CompanyExportDocument): string {
   const validated = validateDocument(document);
   return JSON.stringify(validated, null, 2);
 }
 
 /** Parse and strictly validate a beta-native export, projecting away undeclared properties. */
-export function parseBetaExport(json: string): BetaExportDocument {
+export function parseCompanyExport(json: string): CompanyExportDocument {
   let raw: unknown;
   try {
     raw = JSON.parse(json) as unknown;
   } catch (cause) {
-    throw new BetaTransferError('document', 'is not valid JSON', { cause });
+    throw new CompanyDocumentError('document', 'is not valid JSON', { cause });
   }
   return validateDocument(raw);
 }
 
 /** Validate a full source document and bind its company scope to the selected destination. */
-export function prepareBetaImport(
+export function prepareCompanyImport(
   document: unknown,
-  context: BetaImportContext,
-): PreparedBetaImport {
+  context: CompanyImportContext,
+): PreparedCompanyImport {
   assert(
     isRecord(context) && isId(context.accountId) && Array.isArray(context.memberResourceLinks),
     'context',
