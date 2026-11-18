@@ -1,4 +1,8 @@
 import { test } from '@japa/runner';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { prepareDirectory } from '@kevinjohn/adonisjs-sqlite-backup';
 import { parseBackupConfig, MAX_BACKUP_KEEP } from '#config/backup';
 
 test('backup config disables without a directory and preserves retention defaults, warnings and bounds', ({
@@ -39,4 +43,17 @@ test('backup config disables without a directory and preserves retention default
   assert.include(warnings[5]!, '100.5');
   assert.include(warnings[5]!, 'using 100');
   assert.include(warnings[6]!, 'using 10000');
+});
+
+test('a backup directory written with a trailing slash is created when it is missing', ({
+  assert,
+  cleanup,
+}) => {
+  const root = mkdtempSync(join(tmpdir(), 'capacitylens-backup-config-'));
+  cleanup(() => rmSync(root, { recursive: true, force: true }));
+  const { directory } = parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: `${root}/backups//` });
+  assert.equal(directory, `${root}/backups`);
+  prepareDirectory(directory);
+  assert.isTrue(statSync(directory).isDirectory());
+  assert.equal(parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/' }).directory, '/');
 });

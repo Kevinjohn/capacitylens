@@ -9,8 +9,10 @@ export function parseBackupConfig(
   environment: Record<string, string | undefined>,
   log: (message: string) => void = () => {}
 ): BackupConfig {
-  const dir = environment.CAPACITYLENS_BACKUP_DIR;
-  if (!dir) return defineConfig({ directory: dir });
+  const configured = environment.CAPACITYLENS_BACKUP_DIR;
+  if (!configured) return defineConfig({ directory: configured });
+  // The package refuses a trailing slash on a directory that does not exist yet.
+  const dir = configured.replace(/\/+$/, '') || '/';
   const raw = environment.CAPACITYLENS_BACKUP_KEEP;
   const parseKeep = () => {
     const fallback = 48;
