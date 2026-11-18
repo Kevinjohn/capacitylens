@@ -108,7 +108,7 @@ export interface StoreState extends StoreEntityActions {
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   accountSummariesRequestId: number;
-  /** Planning cache metadata, including the typed allocation Undo/Redo history. Page-local. */
+  /** Planning cache metadata, including the server-reported Undo/Redo availability. Page-local. */
   planning: PlanningControllerMetadata;
   /** Advances only when a current planning request confirms that sign-in authority was lost. */
   planningAuthLossVersion: number;
@@ -227,9 +227,9 @@ export interface StoreState extends StoreEntityActions {
   suspendPlanningCommands: () => (() => void) | null;
   /** Whether the active canonical planning view is settled enough for a bulk replacement. */
   planningReadyForReplacement: () => boolean;
-  /** Undo the latest typed allocation change as one typed planning write. */
+  /** Ask the server to undo this page's latest change, as one planning write. */
   undoPlanning: () => Promise<boolean>;
-  /** Redo the latest undone typed allocation change as one typed planning write. */
+  /** Ask the server to redo this page's latest undone change, as one planning write. */
   redoPlanning: () => Promise<boolean>;
 
   /** Set how many weeks the schedule shows. */

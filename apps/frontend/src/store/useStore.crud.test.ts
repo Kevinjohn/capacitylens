@@ -254,46 +254,32 @@ describe('store UI + history extras', () => {
   it('a new mutation clears the redo stack', async () => {
     await s().addClient({ name: 'A', color: '#1' });
     await s().undoPlanning();
-    expect(s().planning.history.future).toHaveLength(1);
+    expect(s().planning.history.canRedo).toBe(true);
     await s().addClient({ name: 'B', color: '#2' });
-    expect(s().planning.history.future).toHaveLength(0);
-  });
-
-  it('bounds typed history at 50 entries and drops the oldest entries', async () => {
-    for (let index = 0; index < 60; index += 1) {
-      await s().addClient({ name: `Client ${index}`, color: '#1' });
-    }
-
-    expect(s().planning.history.past).toHaveLength(50);
-    for (let index = 0; index < 50; index += 1) await s().undoPlanning();
-    expect(s().data.clients.filter((client) => client.archivedAt === null)).toHaveLength(10);
-    expect(s().planning.history.past).toHaveLength(0);
-
-    expect(await s().undoPlanning()).toBe(false);
-    expect(s().data.clients.filter((client) => client.archivedAt === null)).toHaveLength(10);
+    expect(s().planning.history.canRedo).toBe(false);
   });
 
   it('informs a viewer when undo and redo are refused', async () => {
     await s().addClient({ name: 'A', color: '#1' });
     await s().undoPlanning();
     const afterUndo = s().data;
-    const futureAfterUndo = s().planning.history.future;
+    const historyAfterUndo = s().planning.history;
 
     s().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     expect(await s().redoPlanning()).toBe(false);
     expect(s().data).toBe(afterUndo);
-    expect(s().planning.history.future).toBe(futureAfterUndo);
+    expect(s().planning.history).toBe(historyAfterUndo);
     expect(s().notice).toMatchObject({ tone: 'error' });
 
     s().setActiveRole('editor', 'resolved', grantFor('editor').permissions);
     await s().redoPlanning();
     const afterRedo = s().data;
-    const pastAfterRedo = s().planning.history.past;
+    const historyAfterRedo = s().planning.history;
     s().setNotice(null);
     s().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     expect(await s().undoPlanning()).toBe(false);
     expect(s().data).toBe(afterRedo);
-    expect(s().planning.history.past).toBe(pastAfterRedo);
+    expect(s().planning.history).toBe(historyAfterRedo);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
 });

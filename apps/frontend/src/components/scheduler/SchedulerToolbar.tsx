@@ -14,12 +14,8 @@ import { useToolbarSearch } from './useToolbarSearch';
 function useToolbarHistory() {
   const undo = useStore((state) => state.undoPlanning);
   const redo = useStore((state) => state.redoPlanning);
-  const canUndo = useStore(
-    (state) => isPlanningHistoryReady(state.planning) && state.planning.history.past.length > 0,
-  );
-  const canRedo = useStore(
-    (state) => isPlanningHistoryReady(state.planning) && state.planning.history.future.length > 0,
-  );
+  const canUndo = useStore((state) => isPlanningHistoryReady(state.planning, 'undo'));
+  const canRedo = useStore((state) => isPlanningHistoryReady(state.planning, 'redo'));
   const setNotice = useStore((state) => state.setNotice);
   const runHistoryAction = (action: () => Promise<unknown>) => {
     action().catch((error: unknown) => {

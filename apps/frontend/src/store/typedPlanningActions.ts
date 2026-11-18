@@ -32,8 +32,6 @@ import type { PlanningCommand } from '@/data/planning/planningCommands';
 import type { CreateResult, Draft, Patch, RepeatRange, StoreState } from './types';
 import type { StoreInternals } from './storeInternal';
 
-const restoreFromReceipt = { operation: 'planning.restoreGroup', restorationGroupId: '' } as const;
-
 function createdId(value: unknown): string {
   if (typeof value !== 'string') throw new Error('The planning row has no id.');
   return value;
@@ -134,10 +132,7 @@ export function createTypedPlanningActions(
   const deleteCatalogue = async (key: 'phases' | 'disciplines', id: string) => {
     const companyId = requireAccount();
     if (blocked() || !owned(key, id, companyId)) return;
-    await send({
-      intent: { operation: 'catalogue.delete', entity: { entity: key, id } },
-      inverse: restoreFromReceipt,
-    });
+    await send({ intent: { operation: 'catalogue.delete', entity: { entity: key, id } } });
   };
   const createTimeOff = async (input: Draft<TimeOff>): Promise<CreateResult<TimeOff>> => {
     const companyId = requireAccount();
@@ -175,7 +170,6 @@ export function createTypedPlanningActions(
       if (blocked() || !owned('activities', id, companyId)) return undefined;
       return send({
         intent: { operation: 'catalogue.archive', entity: { entity: 'activities', id } },
-        inverse: { operation: 'catalogue.unarchive', entity: { entity: 'activities', id } },
       });
     },
     addResource: async (input: Draft<Resource>): Promise<CreateResult<Resource>> => {
@@ -237,13 +231,10 @@ export function createTypedPlanningActions(
         throw unprepared(companyId, 'The time-off entry could not be prepared.');
       }
       const timeOff = command.intent.timeOff;
-      // Later entry ids are minted here too, so Undo can delete the whole set by id.
+      // Later entry ids are minted here too, so every created row can be returned by id.
       const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
       const ids = [createdId(timeOff.id), ...occurrenceIds];
-      await send({
-        intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds },
-        inverse: { operation: 'timeOff.deleteGroup', ids },
-      });
+      await send({ intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds } });
       return { kind: 'created', value: ids.map((id) => created('timeOff', id)) };
     },
     updateTimeOff: async (id: string, changes: Patch<TimeOff>, expectedUpdatedAt?: string) => {
@@ -267,7 +258,7 @@ export function createTypedPlanningActions(
     deleteTimeOff: async (id: string) => {
       const companyId = requireAccount();
       if (blocked() || !owned('timeOff', id, companyId)) return;
-      await send({ intent: { operation: 'timeOff.delete', id }, inverse: restoreFromReceipt });
+      await send({ intent: { operation: 'timeOff.delete', id } });
     },
     addClosure: async (input: Draft<Closure>): Promise<CreateResult<Closure>> => {
       const companyId = requireAccount();
@@ -303,7 +294,7 @@ export function createTypedPlanningActions(
     deleteClosure: async (id: string) => {
       const companyId = requireAccount();
       if (blocked() || !owned('closures', id, companyId)) return;
-      await send({ intent: { operation: 'closure.delete', id }, inverse: restoreFromReceipt });
+      await send({ intent: { operation: 'closure.delete', id } });
     },
     updateAccount: async (id: string, patch: Patch<Account>) => {
       const companyId = requireAccount();

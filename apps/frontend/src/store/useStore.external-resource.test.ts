@@ -33,7 +33,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
       status: 'confirmed',
     });
 
-    const before = s().planning.history.past.length;
+    const before = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -45,7 +45,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
       changes: { kind: 'external' },
     });
     expect(s().data.resources[0]?.kind).toBe('person');
-    expect(s().planning.history.past).toHaveLength(before);
+    expect(s().planning.history).toEqual(before);
   });
   it('preserves a server refusal when an external conversion would hide time off', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
@@ -56,7 +56,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
       type: 'holiday',
     });
 
-    const before = s().planning.history.past.length;
+    const before = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(r.id, { kind: 'external' })).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -68,7 +68,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
       changes: { kind: 'external' },
     });
     expect(s().data.resources[0]?.kind).toBe('person');
-    expect(s().planning.history.past).toHaveLength(before);
+    expect(s().planning.history).toEqual(before);
   });
   it('preserves a server refusal for an immutable kind with and without dependents', async () => {
     const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
@@ -82,7 +82,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
         name: 'Free',
       }),
     );
-    const beforeFree = s().planning.history.past.length;
+    const beforeFree = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(free.id, { kind: 'external' })).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -94,7 +94,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
       changes: { kind: 'external' },
     });
     expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe('person');
-    expect(s().planning.history.past).toHaveLength(beforeFree);
+    expect(s().planning.history).toEqual(beforeFree);
 
     const z = await requireCreated(
       s().addResource({
@@ -110,7 +110,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
       hoursPerDay: 0,
       status: 'confirmed',
     });
-    const beforeZero = s().planning.history.past.length;
+    const beforeZero = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(z.id, { kind: 'external' })).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -122,7 +122,7 @@ describe('updateResource rejects a kind-flip-to-external that would orphan depen
       changes: { kind: 'external' },
     });
     expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe('person');
-    expect(s().planning.history.past).toHaveLength(beforeZero);
+    expect(s().planning.history).toEqual(beforeZero);
   });
   it('editing an external resource’s OTHER fields (name) with no dependents still SUCCEEDS', async () => {
     const ext = await requireCreated(
@@ -161,7 +161,7 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
       status: 'confirmed',
     });
 
-    const historyBefore = s().planning.history.past.length;
+    const historyBefore = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateResource(ph.id, { projectId: p2.id })).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -173,7 +173,7 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
       changes: { projectId: p2.id },
     });
     expect(s().data.resources.find((resource) => resource.id === ph.id)?.projectId).toBe(p1.id);
-    expect(s().planning.history.past).toHaveLength(historyBefore);
+    expect(s().planning.history).toEqual(historyBefore);
   });
 
   it('rejects an activity project change atomically', async () => {
@@ -199,7 +199,7 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
       status: 'confirmed',
     });
 
-    const historyBefore = s().planning.history.past.length;
+    const historyBefore = s().planning.history;
     refuseNextPlanningMutation();
     await expect(s().updateActivity(t.id, { projectId: p2.id })).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -212,6 +212,6 @@ describe('parent edits cannot invalidate existing placeholder allocations', () =
     expect(s().data.activities.find((activityRow) => activityRow.id === t.id)?.projectId).toBe(
       p1.id,
     );
-    expect(s().planning.history.past).toHaveLength(historyBefore);
+    expect(s().planning.history).toEqual(historyBefore);
   });
 });

@@ -18,7 +18,8 @@ interface Harness {
   store: StoreApi<PlanningCacheState>;
   controller: ReturnType<typeof createPlanningCacheController>;
   transport: PlanningTransport;
-  executions: Array<{ mutationId: string; baseRevision: number; intent: PlanningIntent }>;
+  /** Every write, undo and redo the controller sent, in order. */
+  executions: Array<{ mutationId: string; baseRevision: number; intent?: PlanningIntent }>;
   drafts: Map<string, ReturnType<ReturnType<typeof createPlanningCacheController>['begin']>>;
   active: Promise<unknown> | null;
 }
@@ -36,16 +37,15 @@ function view(state: PlanningCacheState) {
     revision: state.planning.revision,
     status: state.planning.status,
     error: state.planning.error instanceof Error ? state.planning.error.message : null,
-    history: {
-      past: state.planning.history.past.length,
-      future: state.planning.history.future.length,
-      tipRevision: state.planning.history.tipRevision,
-    },
+    history: { ...state.planning.history },
     pending: state.planning.pending
       ? {
           mutationId: state.planning.pending.execution.mutationId,
           baseRevision: state.planning.pending.execution.baseRevision,
-          operation: state.planning.pending.execution.intent.operation,
+          operation:
+            state.planning.pending.kind === 'new'
+              ? state.planning.pending.execution.intent.operation
+              : state.planning.pending.kind,
         }
       : null,
     outcome: state.planning.outcome?.kind ?? null,
@@ -81,10 +81,18 @@ export async function initializePlanningServerHarness(key: string, companyId: st
   const realTransport = createPlanningTransport();
   const executions: Harness['executions'] = [];
   const transport: PlanningTransport = {
-    read: (context, signal, window) => realTransport.read(context, signal, window),
+    read: (context, signal, request) => realTransport.read(context, signal, request),
     execute: (context, execution, signal) => {
       executions.push(execution);
       return realTransport.execute(context, execution, signal);
+    },
+    undo: (context, step, signal) => {
+      executions.push(step);
+      return realTransport.undo(context, step, signal);
+    },
+    redo: (context, step, signal) => {
+      executions.push(step);
+      return realTransport.redo(context, step, signal);
     },
   };
   const controller = createPlanningCacheController({
@@ -120,26 +128,18 @@ export async function planningHarnessRefresh(key: string) {
   return { refreshed: await harness.controller.refresh(), state: view(harness.store.getState()) };
 }
 
-export async function planningHarnessExecute(
-  key: string,
-  intent: PlanningIntent,
-  inverse: PlanningIntent | null = null,
-) {
+export async function planningHarnessExecute(key: string, intent: PlanningIntent) {
   const harness = requireHarness(key);
   const draft = harness.controller.begin();
-  const receipt = await harness.controller.execute(draft, intent, inverse);
+  const receipt = await harness.controller.execute(draft, intent);
   return { receipt, state: view(harness.store.getState()) };
 }
 
-export function planningHarnessStart(
-  key: string,
-  intent: PlanningIntent,
-  inverse: PlanningIntent | null = null,
-) {
+export function planningHarnessStart(key: string, intent: PlanningIntent) {
   const harness = requireHarness(key);
   if (harness.active) throw new Error('A planning test request is already running.');
   const draft = harness.controller.begin();
-  const pending = harness.controller.execute(draft, intent, inverse);
+  const pending = harness.controller.execute(draft, intent);
   const execution = harness.store.getState().planning.pending?.execution;
   if (!execution) throw new Error('The planning request did not publish its pending state.');
   harness.active = pending.then(
@@ -184,13 +184,12 @@ export async function planningHarnessExecuteDraft(
   key: string,
   token: string,
   intent: PlanningIntent,
-  inverse: PlanningIntent | null = null,
 ) {
   const harness = requireHarness(key);
   const draft = harness.drafts.get(token);
   if (!draft) throw new Error(`Planning draft '${token}' was not captured.`);
   try {
-    const receipt = await harness.controller.execute(draft, intent, inverse);
+    const receipt = await harness.controller.execute(draft, intent);
     return {
       result: { kind: 'resolved' as const, receipt },
       state: view(harness.store.getState()),

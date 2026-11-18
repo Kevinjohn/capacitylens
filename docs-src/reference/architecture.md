@@ -182,11 +182,12 @@ product writer advances the revision, and export, import and anonymisation read 
 
 One `createPlanningCacheController` in
 `apps/frontend/src/data/planning/planningCacheController.ts` owns the confirmed planning cache,
-page-local Undo/Redo history (50 entries) and the single pending write. The store
+the page's in-memory history id and the single pending write. The server holds the Undo/Redo history
+for that id; each read reports only whether Undo and Redo are available. The store
 wires it in `apps/frontend/src/store/slices/planningSessionSlice.ts`; nothing else writes planning rows
 in the browser, and nothing is persisted.
 
-- `apps/frontend/src/data/planning/planningCommands.ts` builds intent and inverse pairs from a
+- `apps/frontend/src/data/planning/planningCommands.ts` builds the intent for a
   gesture. A build with no difference returns `null` and nothing is sent.
 - Runtime planning uses HTTP in `apps/frontend/src/data/planning/planningTransport.ts`. Unit tests
   use an explicit response stub without planning rules; shared domain, backend and browser tests
@@ -201,16 +202,17 @@ Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused` and `er
 | --- | --- | --- |
 | any | new company, identity or view-as context | `loading` (`idle` with no context) |
 | ready, refused, error | background read starts | `loading` |
-| loading | read succeeds | `ready`; history kept only at the same revision and access |
+| loading | read succeeds | `ready`; Undo and Redo availability as the read reports it |
 | loading, ready | read fails (network, 5xx, 403) | `error`; rows and history kept |
 | any | 401 | `idle`; cache and history cleared |
 | ready, refused | write sent | `pending` |
-| pending | valid receipt, then canonical read | `ready`; history moves |
+| pending | valid receipt, then canonical read | `ready`; the read reports the moved history |
 | pending | `STALE_REVISION` or other 409 | `refused`, then refetch |
 | pending | `NO_CHANGE`, `VALIDATION_ERROR`, 403 | `refused`; rows and history kept |
 | pending | `RESTORATION_CONFIRMATION_REQUIRED` | dialog; one resend with the count, or back on cancel |
-| pending | network failure, 408, 5xx, invalid receipt or `MUTATION_ID_REUSED` | `loading` with an `unconfirmed` outcome and history cleared, then read; `ready`, or `error` if the read fails |
-| ready, refused | Undo or Redo with an eligible entry | `pending` with a fresh `mutationId` |
+| pending | network failure, 408, 5xx, invalid receipt or `MUTATION_ID_REUSED` | `loading` with an `unconfirmed` outcome and a new history id, then read; `ready`, or `error` if the read fails |
+| ready, refused | Undo or Redo the last read reported | `pending` with a fresh `mutationId` |
+| pending | Undo or Redo refused | as a write, then refetch to show the ended history |
 
 These transitions are pinned in `apps/frontend/src/data/planning/planningCacheController.test.ts`,
 `apps/frontend/src/data/planning/planningCacheController.access.test.ts`,
@@ -245,8 +247,8 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Time-off intents | `…/time-off`; time-off screen | `app/services/planning/execute.ts`, `app/services/planning/restoration.ts` | `withActor` in `mutatePlanning` | As allocation, plus note visibility | `projectionChanges`; notes nulled by role | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning/restoration_catalogue.spec.ts`, `tests/functional/planning_operations.spec.ts` |
 | Closure intents | `…/closures`; time-off screen | `app/services/planning/execute.ts` | `withActor` in `mutatePlanning` | As allocation | `projectionChanges` | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning_operations.spec.ts` |
 | Settings intent | `PATCH …/settings`; settings | `app/services/planning/writer.ts` `updateSettings` | `withActor` in `mutatePlanning` | As allocation; capacity overview access needs Owner or Admin | `projectionChanges` | `AUTHORIZATION_DENIED`, `NO_CHANGE`, codeless 409 frozen setting | `tests/functional/planning/settings_frozen.spec.ts`, `tests/functional/planning_operations.spec.ts` |
-| Restore group | `POST …/planning/restore-group`; Undo | `app/services/planning/restoration.ts` `restoreGroup` | `withActor`; group consumption and reinsertion share it | As allocation, plus same actor and session as the deleting one | `projectionChanges` and the consumed handle | `AUTHORIZATION_DENIED`, `STALE_REVISION`, codeless 409 | `tests/functional/planning/restoration_allocations.spec.ts`, `tests/functional/planning/restoration_sessions.spec.ts`, `tests/functional/planning/retained_restoration.spec.ts` |
-| Undo and redo | `POST …/planning/undo`, `…/planning/redo`; not yet called by the browser | `app/services/planning.ts` `stepPlanningHistory`, `app/services/planning/history.ts`, `app/services/planning/inverse.ts` | `withActor`; the stored intent commits as an ordinary mutation; a refused step ends its history in a second `withActor` | As the stored intent, plus same actor, session, page history and revision as the last write | `canUndo` and `canRedo` only; stored intents never leave the server | `AUTHORIZATION_DENIED`, `STALE_REVISION`, codeless 409 | `tests/functional/planning/history.spec.ts`, `tests/functional/privacy/restricted_replies.spec.ts` |
+| Restore group | `POST …/planning/restore-group`; no browser caller | `app/services/planning/restoration.ts` `restoreGroup` | `withActor`; group consumption and reinsertion share it | As allocation, plus same actor and session as the deleting one | `projectionChanges` and the consumed handle | `AUTHORIZATION_DENIED`, `STALE_REVISION`, codeless 409 | `tests/functional/planning/restoration_allocations.spec.ts`, `tests/functional/planning/restoration_sessions.spec.ts`, `tests/functional/planning/retained_restoration.spec.ts` |
+| Undo and redo | `POST …/planning/undo`, `…/planning/redo`; scheduler Undo and Redo | `app/services/planning.ts` `stepPlanningHistory`, `app/services/planning/history.ts`, `app/services/planning/inverse.ts` | `withActor`; the stored intent commits as an ordinary mutation; a refused step ends its history in a second `withActor` | As the stored intent, plus same actor, session, page history and revision as the last write | `canUndo` and `canRedo` only; stored intents never leave the server | `AUTHORIZATION_DENIED`, `STALE_REVISION`, codeless 409 | `tests/functional/planning/history.spec.ts`, `tests/functional/privacy/restricted_replies.spec.ts` |
 | Sign-in, session, revocation | `/api/auth/*`; sign-in and reset screens | Account Kit; `app/services/auth/password_sign_in.ts`, `app/controllers/credential_controller.ts` | Kit `login`, `logout`, password change and reset transactions; tracking in `withActor` | Kit session, revision and registry check under the account lock on every request | `app/services/auth/user_projection.ts` | 401, 429, `SIGN_UP_CLOSED`, `CURRENT_PASSWORD_INCORRECT`, `INVALID_TOKEN` | `tests/functional/auth/password_sessions.spec.ts`, `tests/functional/auth/recovery.spec.ts` |
 | Admission | `/api/admission*`; limited screens | Kit `AccountAdmission`; `app/services/account_kit/policy.ts`, `app/services/membership/admission_membership.ts` | Kit admission transaction; completion in `withActor` | Live role holds `invitations:manage`; admission rechecked in `withActor` on the next request | `decision` in `/api/auth/me` and `/api/admission` | `ADMISSION_REQUIRED`, `COMPANY_SETUP_REQUIRED`, `MEMBERSHIP_SUSPENDED` | `tests/functional/auth/admission.spec.ts` |
 | Invitations | `/api/invites*`; Team & access, invite screen | Kit invitations; `app/controllers/invitations_controller.ts` | Kit transactions; acceptance inserts the membership inside the Kit's; mail after commit | `assertCompanyAction` `invitations:manage`, re-checked by Kit callbacks; Owner never invitable | Controller `projection`; `no-store` on token routes | `MAIL_UNAVAILABLE`, `INVALID_TOKEN`, `IDENTITY_AUTHORITY_DENIED`, 202 committed | `tests/functional/auth/invitations.spec.ts` |

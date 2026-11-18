@@ -2,7 +2,11 @@ import { readProductHttpFailure } from '@/api/productHttpError';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { client } from '@/api/queryClient';
 import { PlanningControllerError } from './planningErrors';
-import type { PlanningClientContext, PlanningTransport } from './planningCacheTypes';
+import type {
+  PlanningClientContext,
+  PlanningHistoryStep,
+  PlanningTransport,
+} from './planningCacheTypes';
 
 type PlanningClient = typeof client;
 
@@ -323,14 +327,6 @@ async function sendOperation(
           signal,
         }),
       );
-    case 'planning.restoreGroup':
-      return requireReply(
-        await apiClient.request('api.planning.restoreGroup', {
-          params,
-          body: { ...execution, intent },
-          signal,
-        }),
-      );
   }
   throw new PlanningControllerError(
     'This planning operation is not available.',
@@ -339,16 +335,33 @@ async function sendOperation(
   );
 }
 
+/**
+ * The request for one undo or redo. The generated declarations for those two routes name no body,
+ * because their controller validates it in a step helper the route generator does not follow; the
+ * server still requires it, so it is added by spreading rather than through the declared type.
+ */
+function historyStepArgs(
+  context: PlanningClientContext,
+  step: PlanningHistoryStep,
+  signal: AbortSignal,
+) {
+  const body: PlanningHistoryStep = { ...step };
+  return { params: { companyId: context.companyId }, signal, ...{ body } };
+}
+
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
 export function createPlanningTransport(apiClient: PlanningClient = client): PlanningTransport {
   return {
-    async read(context, signal, window) {
+    async read(context, signal, { window, historyId } = {}) {
       try {
         const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { companyId: context.companyId },
-            query: window ? { from: window.from, to: window.to } : {},
+            query: {
+              ...(window ? { from: window.from, to: window.to } : {}),
+              ...(historyId === undefined ? {} : { historyId }),
+            },
             signal,
           }),
         );
@@ -365,6 +378,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           data: snapshot.data,
           today: snapshot.today,
           capacity: snapshot.capacity,
+          history: snapshot.history,
           accessKey: JSON.stringify([
             authority.actorId,
             authority.effectiveActorId,
@@ -385,6 +399,30 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           context,
           execution,
           signal,
+        );
+      } catch (error) {
+        throw planningError(error);
+      }
+    },
+    async undo(context, step, signal) {
+      try {
+        return requireReply(
+          await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
+            'api.planning.undo',
+            historyStepArgs(context, step, signal),
+          ),
+        );
+      } catch (error) {
+        throw planningError(error);
+      }
+    },
+    async redo(context, step, signal) {
+      try {
+        return requireReply(
+          await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
+            'api.planning.redo',
+            historyStepArgs(context, step, signal),
+          ),
         );
       } catch (error) {
         throw planningError(error);

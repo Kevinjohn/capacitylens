@@ -5,7 +5,6 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  inverse,
   canonicalData,
   companyToday,
   success,
@@ -34,12 +33,12 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
     });
     const first = h.controller.begin();
-    await expect(h.controller.execute(first, intent, inverse)).rejects.toMatchObject({
+    await expect(h.controller.execute(first, intent)).rejects.toMatchObject({
       code: 'AUTHORIZATION_DENIED',
     });
     expect(h.state().planning.context).toEqual(context);
     const second = h.controller.begin();
-    await expect(h.controller.execute(second, intent, inverse)).rejects.toMatchObject({
+    await expect(h.controller.execute(second, intent)).rejects.toMatchObject({
       code: 'ACCOUNT_MEMBERSHIP_LOST',
     });
     expect(h.state().planning.context).toEqual(context);
@@ -63,9 +62,9 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
       accessKey: 'owner:private',
     });
-    await h.controller.execute(h.controller.begin(), intent, inverse);
+    await h.controller.execute(h.controller.begin(), intent);
     const draft = h.controller.begin();
-    expect(h.state().planning.history.past).toHaveLength(1);
+    expect(h.state().planning.history.canUndo).toBe(true);
     await expect(
       h.readSnapshot({
         revision: 2,
@@ -76,8 +75,8 @@ describe('planning cache controller', () => {
         accessKey: 'editor:public',
       }),
     ).resolves.toBe(true);
-    expect(h.state().planning.history.past).toHaveLength(0);
-    await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();
+    expect(h.state().planning.history.canUndo).toBe(false);
+    await expect(h.controller.execute(draft, intent)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
@@ -159,8 +158,8 @@ describe('canonical planning write capability', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    await h.controller.execute(h.controller.begin(), intent, inverse);
-    expect(h.state().planning.history.past).toHaveLength(1);
+    await h.controller.execute(h.controller.begin(), intent);
+    expect(h.state().planning.history.canUndo).toBe(true);
     const draft = h.controller.begin();
     await h.readSnapshot({
       revision: 1,
@@ -169,9 +168,9 @@ describe('canonical planning write capability', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    expect(h.state().planning.history.past).toHaveLength(0);
+    expect(h.state().planning.history.canUndo).toBe(false);
     expect(() => h.controller.begin()).toThrow(/read-only/);
-    await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();
+    await expect(h.controller.execute(draft, intent)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });

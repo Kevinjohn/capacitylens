@@ -87,10 +87,10 @@ describe('planning authority publication', () => {
     );
     await useStore.getState().refreshPlanning();
     await seedTypedAllocation();
-    expect(useStore.getState().planning.history.past).toHaveLength(4);
+    expect(useStore.getState().planning.history.canUndo).toBe(true);
     await useStore.getState().undoPlanning();
-    expect(useStore.getState().planning.history.past).toHaveLength(3);
-    expect(useStore.getState().planning.history.future).toHaveLength(1);
+    expect(useStore.getState().planning.history.canUndo).toBe(true);
+    expect(useStore.getState().planning.history.canRedo).toBe(true);
 
     failure.read = new PlanningControllerError('Sign in again.', undefined, 401);
     const beforeAuthLoss = useStore.getState().planningAuthLossVersion;
@@ -100,8 +100,8 @@ describe('planning authority publication', () => {
     expect(state.data.allocations).toEqual([]);
     expect(state.data.clients).toEqual([]);
     expect(state.data.resources).toEqual([]);
-    expect(state.planning.history.past).toEqual([]);
-    expect(state.planning.history.future).toEqual([]);
+    expect(state.planning.history.canUndo).toBe(false);
+    expect(state.planning.history.canRedo).toBe(false);
     expect(state.planning.context).toBeNull();
     expect(state.activeAccountId).toBeNull();
     expect(state.planningAuthLossVersion).toBe(beforeAuthLoss + 1);
@@ -110,7 +110,7 @@ describe('planning authority publication', () => {
   it('keeps rows and history and shows a refusal when a change loses company membership', async () => {
     const allocation = await seedTypedAllocation();
     const data = useStore.getState().data;
-    const planningPast = useStore.getState().planning.history.past;
+    const history = useStore.getState().planning.history;
     const authLossVersion = useStore.getState().planningAuthLossVersion;
     failure.execute = new PlanningControllerError(
       'You no longer belong to this company.',
@@ -124,7 +124,7 @@ describe('planning authority publication', () => {
 
     const state = useStore.getState();
     expect(state.data).toBe(data);
-    expect(state.planning.history.past).toBe(planningPast);
+    expect(state.planning.history).toBe(history);
     expect(state.planning.context).not.toBeNull();
     expect(state.activeAccountId).not.toBeNull();
     expect(state.planningAuthLossVersion).toBe(authLossVersion);

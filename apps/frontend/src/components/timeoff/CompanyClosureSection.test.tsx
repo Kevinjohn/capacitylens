@@ -115,21 +115,17 @@ describe('CompanyClosureSection', () => {
         endDate: '2026-08-05',
       }),
     );
-    const restoreGroupId = 'closure-restore-group';
     render(<CompanyClosureSection />);
 
     await user.click(screen.getByRole('button', { name: /Delete Summer shutdown closure/ }));
     const dialog = screen.getByRole('alertdialog', { name: 'Delete closure?' });
     queuePlanningPatch(() => ({ upserts: [], removed: [{ entity: 'closures', id: closure.id }] }), {
-      replacementGroupId: restoreGroupId,
+      replacementGroupId: 'closure-restore-group',
     });
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     expect(useStore.getState().data.closures).toHaveLength(0);
 
-    queuePlanningPatch(() => ({ upserts: [{ entity: 'closures', row: closure }], removed: [] }), {
-      consumedGroupId: restoreGroupId,
-    });
-    await useStore.getState().undoPlanning();
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
     expect(useStore.getState().data.closures).toHaveLength(1);
   });
 

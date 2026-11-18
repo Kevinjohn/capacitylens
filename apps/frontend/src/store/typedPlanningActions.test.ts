@@ -89,11 +89,7 @@ describe('typed planning domain rejections', () => {
       useStore.getState().data.accounts.find((row) => row.id === account.id)?.workingDays,
     ).toEqual([1, 3, 5]);
     await useStore.getState().updateAccount(account.id, { workingDays: [2, 4] });
-    expect(useStore.getState().planning.history.past.at(-1)?.inverse).toMatchObject({
-      operation: 'settings.update',
-      changes: { workingDays: [1, 3, 5] },
-    });
-    await useStore.getState().undoPlanning();
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
     expect(
       useStore.getState().data.accounts.find((row) => row.id === account.id)?.workingDays,
     ).toEqual([1, 3, 5]);
@@ -133,7 +129,7 @@ describe('typed planning domain rejections', () => {
       fields: { kind: 'placeholder', engagement: 'supplementary' },
     });
     const placeholder = await requireCreated(useStore.getState().addResource(draft));
-    const historyBefore = useStore.getState().planning.history.past.length;
+    const historyBefore = useStore.getState().planning.history;
     refuseNextPlanningMutation();
     await expect(
       useStore.getState().updateResource(placeholder.id, { engagement: 'supplementary' }),
@@ -147,7 +143,7 @@ describe('typed planning domain rejections', () => {
     await expect(
       useStore.getState().updateResource(placeholder.id, { workingDays: [0, 6], halfDays: [6] }),
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
-    expect(useStore.getState().planning.history.past).toHaveLength(historyBefore);
+    expect(useStore.getState().planning.history).toEqual(historyBefore);
     expect(
       useStore.getState().data.resources.find((row) => row.id === placeholder.id),
     ).toMatchObject({

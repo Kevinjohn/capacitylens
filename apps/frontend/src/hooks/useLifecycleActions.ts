@@ -57,17 +57,11 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
             const command: PlanningCommand =
               entity === 'resources'
                 ? verb === 'archive'
-                  ? { intent: { operation: 'resource.archive', id }, inverse: null }
-                  : { intent: { operation: 'resource.unarchive', id }, inverse: null }
+                  ? { intent: { operation: 'resource.archive', id } }
+                  : { intent: { operation: 'resource.unarchive', id } }
                 : verb === 'archive'
-                  ? {
-                      intent: { operation: 'catalogue.archive', entity: { entity, id } },
-                      inverse: null,
-                    }
-                  : {
-                      intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
-                      inverse: null,
-                    };
+                  ? { intent: { operation: 'catalogue.archive', entity: { entity, id } } }
+                  : { intent: { operation: 'catalogue.unarchive', entity: { entity, id } } };
             const receipt = await useStore.getState().sendPlanningCommand(command);
             if (activeAccountId) notifyInactiveDataChanged(activeAccountId);
             if (entity !== 'resources' && verb === 'archive' && receipt?.archived) {

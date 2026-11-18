@@ -10,7 +10,7 @@ const ready: PlanningControllerMetadata = {
   today: '2026-06-03',
   capacity: null,
   status: 'ready',
-  history: { past: [], future: [], tipRevision: 4 },
+  history: { canUndo: true, canRedo: false },
   pending: null,
   outcome: null,
   error: null,
@@ -33,19 +33,19 @@ describe('planning readiness', () => {
             baseRevision: 4,
             intent: { operation: 'allocation.delete', id: 'a1' },
           },
-          inverse: null,
-          historyEntry: null,
           kind: 'new',
         },
       }),
     ).toBe(false);
   });
 
-  it('admits undo and redo only at the acknowledged history tip', () => {
-    expect(isPlanningHistoryReady(ready)).toBe(true);
+  it('admits undo and redo only in the direction the server reported, when a change could start', () => {
+    expect(isPlanningHistoryReady(ready, 'undo')).toBe(true);
+    expect(isPlanningHistoryReady(ready, 'redo')).toBe(false);
     expect(
-      isPlanningHistoryReady({ ...ready, history: { ...ready.history, tipRevision: 3 } }),
-    ).toBe(false);
-    expect(isPlanningHistoryReady({ ...ready, canWrite: false })).toBe(false);
+      isPlanningHistoryReady({ ...ready, history: { canUndo: false, canRedo: true } }, 'redo'),
+    ).toBe(true);
+    expect(isPlanningHistoryReady({ ...ready, canWrite: false }, 'undo')).toBe(false);
+    expect(isPlanningHistoryReady({ ...ready, status: 'loading' }, 'undo')).toBe(false);
   });
 });

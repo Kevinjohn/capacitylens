@@ -6,7 +6,6 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  inverse,
   canonicalData,
   companyToday,
   success,
@@ -35,7 +34,7 @@ describe('planning cache controller', () => {
 
     const draft = h.controller.begin();
     setMasqueradeContextToken('new-active-context');
-    await h.controller.execute(draft, intent, inverse);
+    await h.controller.execute(draft, intent);
 
     expect(execute.mock.calls[0]?.[0]).toEqual({
       ...context,
@@ -88,7 +87,7 @@ describe('planning cache controller', () => {
     await readPromise;
     expect(h.state().data).toEqual(emptyAppData());
     expect(h.state().planning.revision).toBeNull();
-    expect(h.state().planning.history.past).toHaveLength(0);
+    expect(h.state().planning.history.canUndo).toBe(false);
   });
 
   it('ignores an old success after switching away and back to an otherwise identical context', async () => {
@@ -113,9 +112,7 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const write = h.controller
-      .execute(h.controller.begin(), intent, inverse)
-      .catch(() => undefined);
+    const write = h.controller.execute(h.controller.begin(), intent).catch(() => undefined);
     h.controller.setContext({ identity: anonymousIdentity, companyId: 'company-2' });
     h.controller.setContext(anonymous);
     await h.readSnapshot({
@@ -129,7 +126,7 @@ describe('planning cache controller', () => {
     await write;
     expect(h.state().planning.revision).toBe(7);
     expect(h.state().planning.outcome).toBeNull();
-    expect(h.state().planning.history.past).toHaveLength(0);
+    expect(h.state().planning.history.canUndo).toBe(false);
   });
 
   it('copies client context so caller mutation cannot rebind the active company', () => {
@@ -163,7 +160,7 @@ describe('planning receipt completion context', () => {
           capacity: emptyCapacity(),
           accessKey: 'owner',
         });
-        await h.controller.execute(h.controller.begin(), intent, inverse);
+        await h.controller.execute(h.controller.begin(), intent);
         if (action === 'redo') await h.controller.undo();
         const baseRevision = h.state().planning.revision;
         if (baseRevision === null) throw new Error('Expected an initialized planning revision.');
@@ -172,7 +169,7 @@ describe('planning receipt completion context', () => {
         read.mockImplementationOnce(() => delayed.promise);
         const completion =
           action === 'execute'
-            ? h.controller.execute(h.controller.begin(), intent, inverse)
+            ? h.controller.execute(h.controller.begin(), intent)
             : h.controller[action]();
         await vi.waitFor(() =>
           expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision }),
@@ -191,11 +188,10 @@ describe('planning receipt completion context', () => {
         });
         await expect(completion).resolves.toBe(action === 'execute' ? null : false);
         expect(h.state().planning.pending).toBeNull();
-        expect(h.state().planning.history.past).toEqual([]);
-        expect(h.state().planning.history.future).toEqual([]);
+        expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
         expect(h.state().planning.outcome).toBeNull();
         expect(h.state().planning.error).toBeNull();
-        expect(execute).toHaveBeenCalledTimes(action === 'redo' ? 3 : 2);
+        expect(execute).toHaveBeenCalledTimes(action === 'execute' ? 2 : 1);
       },
     );
   }

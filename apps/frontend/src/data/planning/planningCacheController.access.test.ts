@@ -16,11 +16,6 @@ const update = {
   id: 'allocation-1',
   changes: { startDate: '2026-10-21' },
 } as const;
-const inverse = {
-  operation: 'allocation.update',
-  id: 'allocation-1',
-  changes: { startDate: '2026-10-20' },
-} as const;
 
 function snapshot(name: string, revision = 1): PlanningSnapshot {
   return {
@@ -33,6 +28,7 @@ function snapshot(name: string, revision = 1): PlanningSnapshot {
     }),
     today: '2026-06-03',
     capacity: emptyCapacity(),
+    history: { canUndo: true, canRedo: false },
   };
 }
 
@@ -54,16 +50,10 @@ async function setup() {
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
-    transport: { read, execute },
+    transport: { read, execute, undo: vi.fn(), redo: vi.fn() },
   });
   controller.setContext(context);
   await controller.refresh();
-  store.setState((state) => ({
-    planning: {
-      ...state.planning,
-      history: { past: [{ forward: update, inverse }], future: [], tipRevision: 1 },
-    },
-  }));
   return { store, controller, read, execute };
 }
 
@@ -71,7 +61,7 @@ type Fixture = Awaited<ReturnType<typeof setup>>;
 
 async function startRequest(fixture: Fixture, stage: RequestStage): Promise<unknown> {
   if (stage === 'read') return fixture.controller.refresh();
-  return fixture.controller.execute(fixture.controller.begin(), update, inverse);
+  return fixture.controller.execute(fixture.controller.begin(), update);
 }
 
 function rejectStage(fixture: Fixture, stage: RequestStage, error: Error) {
@@ -101,8 +91,8 @@ describe('planning request access boundaries', () => {
         if (state.planning.context === null) {
           publications.push(
             state.data.clients.length === 0 &&
-              state.planning.history.past.length === 0 &&
-              state.planning.history.future.length === 0 &&
+              !state.planning.history.canUndo &&
+              !state.planning.history.canRedo &&
               state.planning.pending === null,
           );
         }
@@ -151,9 +141,7 @@ describe('planning request access boundaries', () => {
     const pending = deferred<Success>();
     fixture.execute.mockImplementationOnce(() => pending.promise);
     const draft = fixture.controller.begin();
-    const oldRequest = fixture.controller
-      .execute(draft, update, inverse)
-      .catch((error: unknown) => error);
+    const oldRequest = fixture.controller.execute(draft, update).catch((error: unknown) => error);
     const execution = fixture.store.getState().planning.pending?.execution;
     expect(execution).toBeDefined();
     fixture.read.mockResolvedValueOnce({ ...snapshot('Gotham', 2), accessKey: 'editor' });
@@ -166,8 +154,8 @@ describe('planning request access boundaries', () => {
     });
     await oldRequest;
     expect(fixture.store.getState().data.clients[0]?.name).toBe('Gotham');
-    expect(fixture.store.getState().planning.history.past).toEqual([]);
+    expect(fixture.store.getState().planning.history).toEqual({ canUndo: false, canRedo: false });
     expect(fixture.store.getState().planning.pending).toBeNull();
-    await expect(fixture.controller.execute(draft, update, inverse)).rejects.toThrow(/context/i);
+    await expect(fixture.controller.execute(draft, update)).rejects.toThrow(/context/i);
   });
 });

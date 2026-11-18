@@ -8,17 +8,13 @@ import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { makeAccount } from '@/test/fixtures';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
 
 export const context = { identity: 'actor-1', companyId: 'company-1' };
 export const intent = {
   operation: 'allocation.update',
   id: 'allocation-1',
   changes: { startDate: '2026-10-21' },
-} as const;
-export const inverse = {
-  operation: 'allocation.update',
-  id: 'allocation-1',
-  changes: { startDate: '2026-10-20' },
 } as const;
 const makeState = (): PlanningCacheState => createPlanningCacheState();
 /** The company date every canonical read in these tests carries. */
@@ -34,7 +30,15 @@ export const success = (mutationId: string, revision: number): PlanningMutationS
   restoration: { consumedGroupId: null, replacementGroupId: null },
 });
 
-export function harness(transport: PlanningTransport) {
+/**
+ * A controller over `transport`. Reads come from queued snapshots, then the transport, then the
+ * latest known server state; each carries the history the server model reports for the reading page
+ * unless the snapshot names its own. Undo and Redo default to that model when the transport has none.
+ */
+export function harness(
+  transport: Pick<PlanningTransport, 'read' | 'execute'> &
+    Partial<Pick<PlanningTransport, 'undo' | 'redo'>>,
+) {
   const store = createStore<PlanningCacheState>(() => makeState());
   const snapshots: PlanningSnapshot[] = [];
   let serverSnapshot: PlanningSnapshot = {
@@ -44,18 +48,33 @@ export function harness(transport: PlanningTransport) {
     today: companyToday,
     capacity: emptyCapacity(),
   };
-  const read = vi.fn(
-    async (clientContext: Parameters<PlanningTransport['read']>[0], signal: AbortSignal) => {
-      const snapshot = snapshots.shift();
-      if (snapshot) {
-        serverSnapshot = snapshot;
-        return snapshot;
-      }
-      const result: unknown = await transport.read(clientContext, signal);
-      if (typeof result === 'object' && result !== null) return result as PlanningSnapshot;
-      return serverSnapshot;
-    },
-  );
+  const history = createServerHistoryModel();
+  const withHistory = (snapshot: PlanningSnapshot, historyId: string | undefined) =>
+    snapshot.history || typeof snapshot.revision !== 'number'
+      ? snapshot
+      : { ...snapshot, history: history.report(historyId, snapshot.revision) };
+  const read = vi.fn<PlanningTransport['read']>(async (clientContext, signal, request) => {
+    const snapshot = snapshots.shift();
+    if (snapshot) {
+      serverSnapshot = snapshot;
+      return withHistory(snapshot, request?.historyId);
+    }
+    const result: unknown = await transport.read(clientContext, signal, request);
+    if (typeof result === 'object' && result !== null) {
+      return withHistory(result as PlanningSnapshot, request?.historyId);
+    }
+    return withHistory(serverSnapshot, request?.historyId);
+  });
+  const step =
+    (kind: 'undo' | 'redo'): PlanningTransport['undo'] =>
+    async (clientContext, historyStep, signal) => {
+      const own = transport[kind];
+      if (own) return own(clientContext, historyStep, signal);
+      const revision = historyStep.baseRevision + 1;
+      history.step(kind, historyStep.historyId, historyStep.baseRevision, revision);
+      serverSnapshot = { ...serverSnapshot, revision };
+      return success(historyStep.mutationId, revision);
+    };
   let id = 0;
   const controller = createPlanningCacheController({
     readMasqueradeContextToken: getMasqueradeContextToken,
@@ -68,14 +87,20 @@ export function harness(transport: PlanningTransport) {
         const receipt = await transport.execute(...args);
         // A malformed reply may carry no receipt; pass it through for the controller to judge.
         const revision = (receipt as PlanningMutationSuccess | null)?.revision;
-        if (revision !== undefined) serverSnapshot = { ...serverSnapshot, revision };
+        if (revision !== undefined) {
+          serverSnapshot = { ...serverSnapshot, revision };
+          history.committed(args[1].historyId, args[1].baseRevision, revision);
+        }
         return receipt;
       },
+      undo: step('undo'),
+      redo: step('redo'),
     },
     createMutationId: vi.fn(() => `mutation-${++id}`),
   });
   return {
     controller,
+    read,
     state: store.getState,
     async readSnapshot(snapshot: PlanningSnapshot) {
       snapshots.push(snapshot);

@@ -160,7 +160,6 @@ describe('active-account permission publication', () => {
     await s().addClient({ name: 'Must not land', color: '#111111' });
     await s().sendPlanningCommand({
       intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'cB' } },
-      inverse: null,
     });
     await expect(s().undoPlanning()).resolves.toBe(false);
     await expect(s().redoPlanning()).resolves.toBe(false);
@@ -183,7 +182,6 @@ describe('active-account permission publication', () => {
     await expect(
       s().sendPlanningCommand({
         intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'cB' } },
-        inverse: null,
       }),
     ).rejects.toThrow(/read-only/i);
     expect(transport.calls).toEqual([]);
@@ -196,15 +194,13 @@ describe('ownership guard on update/delete', () => {
     await s().updateAccount(A, { name: 'Changed once' });
     await s().undoPlanning();
     const dataBefore = s().data;
-    const pastBefore = s().planning.history.past;
-    const futureBefore = s().planning.history.future;
+    const historyBefore = s().planning.history;
 
     await expect(s().updateAccount('missing-account', { name: 'Gone' })).rejects.toThrow(
       /active company/i,
     );
     expect(s().data).toBe(dataBefore);
-    expect(s().planning.history.past).toBe(pastBefore);
-    expect(s().planning.history.future).toBe(futureBefore);
+    expect(s().planning.history).toBe(historyBefore);
   });
   it('treats a stale / non-existent id as a silent no-op (does not throw)', async () => {
     // A drag committed after an undo, or a double Delete keypress, can target an id

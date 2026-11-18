@@ -1,11 +1,6 @@
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
-import type {
-  PlanningExecution,
-  PlanningHistoryEntry,
-  PlanningIntent,
-  PlanningMutationSuccess,
-} from '@/api/planningContracts';
+import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 
 /** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */
 export interface PlanningSnapshot {
@@ -18,6 +13,23 @@ export interface PlanningSnapshot {
   today: ISODate;
   /** The server's per-day capacity figures for the requested window and the overview horizon. */
   capacity: CapacitySection;
+  /** Whether the reading page's server-held history can step back or forward; absent means neither. */
+  history?: PlanningHistory;
+}
+
+/** What a planning read asks for: the capacity window, absent for the server's default, and the
+ * page's history id, so the server reports that history's undo and redo availability. The planning
+ * controller always names its history; a read outside it names none and is told neither is available. */
+export interface PlanningReadRequest {
+  window?: CapacityRange;
+  historyId?: string;
+}
+
+/** One undo or redo of the page's server-held history; the server holds the intent it applies. */
+export interface PlanningHistoryStep {
+  mutationId: string;
+  baseRevision: number;
+  historyId: string;
 }
 
 /** Client identity is deliberately opaque; company id distinguishes its planning projection. */
@@ -37,7 +49,8 @@ export interface PlanningClientContext {
  * `NO_CHANGE`, and any other status below 500, are refused. Only a server request to confirm cleanup
  * must be a `PlanningControllerError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
  * `restorableItemCount`. A transport must not set `uncertain`; the controller sets it on failures it
- * has already recorded. A `read` failure ends the scope on 401 and is otherwise recorded
+ * has already recorded. `undo` and `redo` follow the same contract, except that the server never
+ * asks them to confirm cleanup. A `read` failure ends the scope on 401 and is otherwise recorded
  * on the planning state.
  */
 export interface PlanningTransport {
@@ -46,37 +59,44 @@ export interface PlanningTransport {
     execution: PlanningExecution,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
-  /** `window` is the capacity window to read; the server uses its default window when absent. */
+  undo(
+    context: PlanningClientContext,
+    step: PlanningHistoryStep,
+    signal: AbortSignal,
+  ): Promise<PlanningMutationSuccess>;
+  redo(
+    context: PlanningClientContext,
+    step: PlanningHistoryStep,
+    signal: AbortSignal,
+  ): Promise<PlanningMutationSuccess>;
   read(
     context: PlanningClientContext,
     signal: AbortSignal,
-    window?: CapacityRange,
+    request?: PlanningReadRequest,
   ): Promise<PlanningSnapshot>;
 }
 
+/** Undo and redo availability for this page, as the server last reported it. */
 export interface PlanningHistory {
-  past: PlanningHistoryEntry[];
-  future: PlanningHistoryEntry[];
-  /** Revision at the acknowledged history tip; metadata only, never a data snapshot. */
-  tipRevision: number | null;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 export type PlanningStatus = 'idle' | 'loading' | 'ready' | 'pending' | 'refused' | 'error';
 
 export type PlanningMutationOutcome =
-  | { kind: 'pending'; execution: PlanningExecution }
+  | { kind: 'pending'; execution: PlanningExecution | PlanningHistoryStep }
   | { kind: 'acknowledged'; mutationId: string; revision: number }
   | { kind: 'refused'; mutationId: string; code?: string }
   | { kind: 'unconfirmed'; mutationId: string };
 
-export interface PlanningPendingMutation {
-  execution: PlanningExecution;
-  inverse: PlanningIntent | null;
-  historyEntry: PlanningHistoryEntry | null;
-  kind: 'new' | 'undo' | 'redo';
+export type PlanningPendingMutation = (
+  | { kind: 'new'; execution: PlanningExecution }
+  | { kind: 'undo' | 'redo'; execution: PlanningHistoryStep }
+) & {
   /** Commitment is durable while the mandatory canonical read is pending or fails. */
-  commitment?: { revision: number; historyEligible: boolean; replacementHandle?: string };
-}
+  commitment?: { revision: number };
+};
 
 export interface PlanningControllerMetadata {
   context: PlanningClientContext | null;
@@ -122,6 +142,8 @@ export interface PlanningControllerOptions {
   /** The capacity window each read asks for, captured when the read is sent. */
   readCapacityWindow?: () => CapacityRange | undefined;
   createMutationId?: () => string;
+  /** Mints the page's in-memory history id; a new id starts a new, empty history. */
+  createHistoryId?: () => string;
   onAuthLoss?: () => void;
   confirmRestorationCleanup?: (count: number, signal: AbortSignal) => Promise<boolean>;
 }

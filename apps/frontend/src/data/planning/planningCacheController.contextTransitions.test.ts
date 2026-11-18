@@ -23,8 +23,10 @@ describe('planning context transitions', () => {
     expect(signal?.aborted).toBe(false);
     read.resolve(snapshot(2));
     await expect(refreshing).resolves.toBe(true);
-    expect(h.state().planning.history.past).toHaveLength(1);
     expect(h.state().data.clients).toHaveLength(1);
+    // The page kept its history id, so the server still reports its change as undoable.
+    await expect(h.controller.refresh()).resolves.toBe(true);
+    expect(h.state().planning.history.canUndo).toBe(true);
   });
 
   it('aborts in-flight requests when the context is cleared', async () => {

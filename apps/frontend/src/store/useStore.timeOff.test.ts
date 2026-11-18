@@ -11,11 +11,7 @@ import {
 import { useStore } from './useStore';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import {
-  queueTimeOffDeleteGroupResponse,
-  queueTimeOffRestoreResponse,
-  queueTimeOffRepeatResponse,
-} from '@/test/planning/queuePlanningFixtures';
+import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningFixtures';
 import { grantFor } from '@/test/permissionGrants';
 
 const state = () => useStore.getState();
@@ -79,7 +75,7 @@ describe('atomic time-off creation: happy path', () => {
     expect(created.map((timeOff) => timeOff.note)).toEqual(['Family trip', 'Family trip']);
     expect(created.every((timeOff) => !Object.hasOwn(timeOff, 'seriesId'))).toBe(true);
     expect(state().data.timeOff).toEqual(created);
-    expect(state().planning.history.past).toHaveLength(2);
+    expect(state().planning.history.canUndo).toBe(true);
   });
 });
 
@@ -120,7 +116,7 @@ describe('atomic time-off creation: atomic validation', () => {
     });
     expect(dataPublications).toBe(0);
     expect(state().data.timeOff).toHaveLength(0);
-    expect(state().planning.history.past).toHaveLength(1);
+    expect(state().planning.history.canUndo).toBe(true);
   });
 });
 
@@ -171,27 +167,17 @@ describe('atomic time-off creation: resource validation', () => {
 describe('atomic time-off creation: history', () => {
   it('uses one undo/redo step for the complete batch and keeps addTimeOff working', async () => {
     const { draft } = await timeOffSetup();
-    const historyBeforeBatch = state().planning.history.past.length;
     queueTimeOffRepeatResponse();
     const created = await requireCreated(
       state().addRepeatedTimeOff(draft(), weekly('2026-06-15'), 3),
     );
-    expect(state().planning.history.past).toHaveLength(historyBeforeBatch + 1);
+    expect(state().planning.history).toEqual({ canUndo: true, canRedo: false });
 
-    const ids = created.map(({ id }) => id);
-    queueTimeOffDeleteGroupResponse(ids, 'group-timeoff-undo');
-    await state().undoPlanning();
-    expect(getStubPlanningTransport().calls.at(-1)).toEqual({
-      operation: 'timeOff.deleteGroup',
-      ids,
-    });
+    await expect(state().undoPlanning()).resolves.toBe(true);
+    expect(getStubPlanningTransport().historySteps).toEqual(['undo']);
     expect(state().data.timeOff).toHaveLength(0);
-    queueTimeOffRestoreResponse(created, 'group-timeoff-undo');
-    await state().redoPlanning();
-    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
-      operation: 'planning.restoreGroup',
-      restorationGroupId: 'group-timeoff-undo',
-    });
+    await expect(state().redoPlanning()).resolves.toBe(true);
+    expect(getStubPlanningTransport().historySteps).toEqual(['undo', 'redo']);
     const redone = state().data.timeOff;
     expect(redone.map((timeOff) => ({ ...timeOff, updatedAt: null }))).toEqual(
       created.map((timeOff) => ({ ...timeOff, updatedAt: null })),
@@ -200,22 +186,20 @@ describe('atomic time-off creation: history', () => {
       state().addTimeOff(draft({ startDate: '2026-06-15', endDate: '2026-06-15' })),
     );
     expect(state().data.timeOff.at(-1)).toEqual(single);
-    expect(state().planning.history.past).toHaveLength(historyBeforeBatch + 2);
+    expect(state().planning.history).toEqual({ canUndo: true, canRedo: false });
   });
 });
 
 describe('atomic time-off creation: viewer guard', () => {
   it('applies the Viewer guard to the whole batch without data or history mutation', async () => {
     const { draft } = await timeOffSetup();
-    const pastBefore = state().planning.history.past;
-    const futureBefore = state().planning.history.future;
+    const historyBefore = state().planning.history;
     state().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     const returned = await state().addRepeatedTimeOff(draft(), weekly('2026-06-08'), 2);
 
     expect(returned).toEqual({ kind: 'blocked' });
     expect(state().data.timeOff).toHaveLength(0);
-    expect(state().planning.history.past).toBe(pastBefore);
-    expect(state().planning.history.future).toBe(futureBefore);
+    expect(state().planning.history).toBe(historyBefore);
     expect(state().notice).toMatchObject({ tone: 'error' });
   });
 });

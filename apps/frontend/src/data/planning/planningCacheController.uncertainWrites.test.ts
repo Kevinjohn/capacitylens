@@ -6,7 +6,6 @@ import { readPlanningProblem } from './planningNotices';
 import {
   context,
   intent,
-  inverse,
   canonicalData,
   companyToday,
   success,
@@ -62,12 +61,12 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
     today: companyToday,
     capacity: emptyCapacity(),
   });
-  await h.controller.execute(h.controller.begin(), intent, inverse);
-  expect(h.state().planning.history.past).toHaveLength(1);
+  await h.controller.execute(h.controller.begin(), intent);
+  expect(h.state().planning.history.canUndo).toBe(true);
   lose(execute);
   nextReads(read);
   const readsBefore = read.mock.calls.length;
-  await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject({
+  await expect(h.controller.execute(h.controller.begin(), intent)).rejects.toMatchObject({
     uncertain: true,
   });
   return { h, execute, reads: read.mock.calls.length - readsBefore };
@@ -89,14 +88,14 @@ describe('planning write whose reply was lost', () => {
         pending: null,
         error: null,
         outcome: { kind: 'unconfirmed', mutationId: 'mutation-2' },
-        history: { past: [], future: [] },
+        history: { canUndo: false, canRedo: false },
       });
       expect(readPlanningProblem(h.state().planning)).toBe('unconfirmed');
 
       execute.mockImplementationOnce(async (_context, execution) =>
         success(execution.mutationId, 4),
       );
-      await h.controller.execute(h.controller.begin(), intent, inverse);
+      await h.controller.execute(h.controller.begin(), intent);
       expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 4 });
       expect(readPlanningProblem(h.state().planning)).toBeNull();
       expect(execute).toHaveBeenCalledTimes(3);
@@ -104,7 +103,7 @@ describe('planning write whose reply was lost', () => {
   );
 
   it('clears undo history even when the server has not yet committed the change', async () => {
-    const { h } = await afterLostReply(
+    const { h, execute } = await afterLostReply(
       (execute) => execute.mockRejectedValueOnce({ status: 408 }),
       (read) =>
         read.mockResolvedValueOnce({
@@ -119,8 +118,12 @@ describe('planning write whose reply was lost', () => {
       status: 'ready',
       revision: 2,
       outcome: { kind: 'unconfirmed', mutationId: 'mutation-2' },
-      history: { past: [], future: [] },
+      history: { canUndo: false, canRedo: false },
     });
+    // The lost write named the page's history; the read after it names a new, empty one.
+    const lostHistoryId = execute.mock.calls[1]?.[1].historyId;
+    expect(lostHistoryId).toEqual(expect.any(String));
+    expect(h.read.mock.calls.at(-1)?.[2]?.historyId).not.toBe(lostHistoryId);
   });
 
   it('shows the read failure first, then the unconfirmed change once a read succeeds', async () => {

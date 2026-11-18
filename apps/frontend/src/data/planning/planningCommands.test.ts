@@ -70,7 +70,6 @@ describe('planning command builders', () => {
           ignoreWorkingDays: null,
         },
       },
-      inverse: { operation: 'allocation.delete', id: stableId },
     });
   });
 
@@ -106,7 +105,6 @@ describe('planning command builders', () => {
       sourceAllocationId: original.id,
       occurrence: { id: stableId, startDate: fields.startDate, endDate: fields.endDate },
     });
-    expect(copy?.inverse).toEqual({ operation: 'allocation.delete', id: stableId });
     const edited = buildAllocationDuplicate({
       data,
       companyId,
@@ -123,7 +121,7 @@ describe('planning command builders', () => {
     });
   });
 
-  it('sends only changed allocation fields and builds the inverse from the draft original', () => {
+  it('sends only changed allocation fields, compared with the draft original', () => {
     const original = makeAllocation({ id: 'allocation-1', companyId, note: 'old', hoursPerDay: 8 });
     const current = { ...original, note: 'server changed' };
     const command = buildAllocationUpdate({
@@ -135,7 +133,6 @@ describe('planning command builders', () => {
 
     expect(command).toEqual({
       intent: { operation: 'allocation.update', id: original.id, changes: { note: null } },
-      inverse: { operation: 'allocation.update', id: original.id, changes: { note: 'old' } },
     });
   });
 
@@ -163,7 +160,6 @@ describe('planning command builders', () => {
       }),
     ).toEqual({
       intent: { operation: 'allocation.update', id: original.id, changes: { note: 'after' } },
-      inverse: { operation: 'allocation.update', id: original.id, changes: { note: 'before' } },
     });
   });
 
@@ -213,10 +209,6 @@ describe('planning command builders', () => {
         operation: 'catalogue.update',
         entity: { entity: 'clients', id: client.id, changes: { name: 'Updated client' } },
       },
-      inverse: {
-        operation: 'catalogue.update',
-        entity: { entity: 'clients', id: client.id, changes: { name: client.name } },
-      },
     });
 
     const project = makeProject({ id: 'project-1', companyId, isPrivate: null });
@@ -235,21 +227,17 @@ describe('planning command builders', () => {
         operation: 'catalogue.update',
         entity: { entity: 'projects', id: project.id, changes: { name: 'Updated project' } },
       },
-      inverse: {
-        operation: 'catalogue.update',
-        entity: { entity: 'projects', id: project.id, changes: { name: project.name } },
-      },
     });
   });
 
   it.each([
-    { original: null, requested: true, inverse: null },
-    { original: true, requested: false, inverse: true },
-    { original: true, requested: null, inverse: true },
-    { original: false, requested: true, inverse: false },
+    { original: null, requested: true },
+    { original: true, requested: false },
+    { original: true, requested: null },
+    { original: false, requested: true },
   ])(
     'preserves real client privacy changes from $original to $requested',
-    ({ original, requested, inverse }) => {
+    ({ original, requested }) => {
       const client = makeClient({ id: 'client-1', companyId, isPrivate: original });
       const command = buildCatalogueUpdate({
         data: makeAppData({ clients: [client] }),
@@ -261,10 +249,6 @@ describe('planning command builders', () => {
       expect(command?.intent).toEqual({
         operation: 'catalogue.update',
         entity: { entity: 'clients', id: client.id, changes: { isPrivate: requested } },
-      });
-      expect(command?.inverse).toEqual({
-        operation: 'catalogue.update',
-        entity: { entity: 'clients', id: client.id, changes: { isPrivate: inverse } },
       });
     },
   );
@@ -297,7 +281,6 @@ describe('planning command builders', () => {
       id: stableId,
       fields: { engagement: 'studio', workingDays: [1, 2, 3, 4, 5], halfDays: [] },
     });
-    expect(resource?.inverse).toEqual({ operation: 'resource.archive', id: stableId });
 
     const timeOff = buildTimeOffCreate({
       data,
@@ -323,7 +306,6 @@ describe('planning command builders', () => {
           type: 'holiday',
         },
       },
-      inverse: { operation: 'timeOff.delete', id: stableId },
     });
   });
 
@@ -348,7 +330,7 @@ describe('planning command builders', () => {
     }
   });
 
-  it('builds explicit time-off and resource updates with draft-based inverses', () => {
+  it('builds explicit time-off and resource updates against the draft', () => {
     const timeOff = makeTimeOff({ id: 'time-off-1', companyId, note: 'old note' });
     expect(
       buildTimeOffUpdate({
@@ -363,11 +345,6 @@ describe('planning command builders', () => {
         id: timeOff.id,
         changes: { type: 'sick', note: null },
       },
-      inverse: {
-        operation: 'timeOff.update',
-        id: timeOff.id,
-        changes: { type: 'holiday', note: 'old note' },
-      },
     });
 
     const resource = makeResource({ id: 'resource-1', companyId, role: 'Designer' });
@@ -380,11 +357,10 @@ describe('planning command builders', () => {
       }),
     ).toEqual({
       intent: { operation: 'resource.update', id: resource.id, changes: { role: 'Lead designer' } },
-      inverse: { operation: 'resource.update', id: resource.id, changes: { role: 'Designer' } },
     });
   });
 
-  it('preserves supplied activity fields for authoritative validation and gives closures an exact delete inverse', () => {
+  it('preserves supplied activity fields for authoritative validation and creates closures by id', () => {
     const data = makeAppData({ accounts: [makeAccount({ id: companyId })] });
     expect(
       buildCatalogueCreate({
@@ -415,7 +391,6 @@ describe('planning command builders', () => {
           },
         },
       },
-      inverse: { operation: 'catalogue.archive', entity: { entity: 'activities', id: stableId } },
     });
 
     const closure = buildClosureCreate({
@@ -426,10 +401,10 @@ describe('planning command builders', () => {
         fields: { name: 'Office closed', startDate: '2026-12-24', endDate: '2026-12-27' },
       },
     });
-    expect(closure?.inverse).toEqual({ operation: 'closure.delete', id: stableId });
+    expect(closure?.intent).toMatchObject({ operation: 'closure.create', id: stableId });
   });
 
-  it('uses original closure and company settings values for inverses', () => {
+  it('sends only the changed closure and company settings fields', () => {
     const closure = makeClosure({ id: 'closure-1', companyId });
     const changed = buildClosureUpdate({
       data: makeAppData({ closures: [closure] }),
@@ -437,10 +412,8 @@ describe('planning command builders', () => {
       original: closure,
       args: { id: closure.id, changes: { name: 'New shutdown' } },
     });
-    expect(changed?.inverse).toEqual({
-      operation: 'closure.update',
-      id: closure.id,
-      changes: { name: closure.name },
+    expect(changed).toEqual({
+      intent: { operation: 'closure.update', id: closure.id, changes: { name: 'New shutdown' } },
     });
 
     const account = makeAccount({ id: companyId, name: 'Before' });
@@ -452,7 +425,6 @@ describe('planning command builders', () => {
     });
     expect(settings).toEqual({
       intent: { operation: 'settings.update', changes: { name: 'After' } },
-      inverse: { operation: 'settings.update', changes: { name: 'Before' } },
     });
 
     const nullableSetting = makeAccount({ id: companyId, timezone: 'Etc/GMT' });

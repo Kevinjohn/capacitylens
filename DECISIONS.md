@@ -104,8 +104,9 @@ This is the short, present-tense record of decisions that constrain future work.
   same transaction; reusing a committed identity returns 409. When a write's reply is lost, the
   browser refetches, shows the server's state, clears undo history and asks the person to check
   that their change is there. It never replays the write.
-- Undo and redo are typed inverse operations held page-locally in the browser. Deleted planning
-  rows remain in their own tables under package-managed soft deletion, bound to a session, actor
+- Undo and redo are held on the server in one history row per company for its last writer, keyed
+  to that writer's sign-in, the page's history id and the company revision. The row holds up to 50
+  changes, and its stored inverses never leave the server. Deleted planning rows remain in their own tables under package-managed soft deletion, bound to a session, actor
   and company through the recovery ledger. Restore is one atomic operation under current authority;
   internal deletion fields and hidden values never leave the server.
   Restoration groups are removed in the same transaction as anonymisation and import.
@@ -118,8 +119,10 @@ This is the short, present-tense record of decisions that constrain future work.
   deleted records: “This change clears N restorable items”. Links to surviving rows are excluded.
   Zero-item and no-change saves skip the warning. Cancellation leaves data and recovery unchanged;
   confirmation stays bound to the original company revision and current cleanup count.
-  Undo and redo write audit rows. History survives a same-revision refetch and is cleared by an
-  external revision change, a context change or a reload. There is no cross-device undo.
+  Undo and redo write audit rows. History survives a same-revision refetch and is cleared by anyone
+  else's change, a context change, a reload, a lost reply, a privacy, code-name or activity-kind
+  change, anonymisation, import, a change with no inverse and a refused step. There is no
+  cross-device undo.
 - Ordinary writes reject invalid supplied input; nothing is repaired on the way in. Blind writers
   cannot echo hidden names or notes, so an unrelated edit preserves protected stored values.
   Unknown request fields are stripped by the validator.
