@@ -163,73 +163,83 @@ async function scrollSchedulerForwardOneWeek(page: Page, grid: Locator) {
 }
 
 test.describe('Scheduler', () => {
-  test('shows seeded resources, grouping and capacity cues', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByText('Bruce Wayne')).toBeVisible();
-    await expect(page.getByTestId('discipline-group').filter({ hasText: 'Design' })).toBeVisible();
-    // Seed over-allocates Bruce on 3-4 June; weekends/time off are unavailable.
-    const overMarker = page.getByTestId('over-marker').first();
-    await expect(overMarker).toBeVisible();
-    // The over-capacity day reads as a clear, saturated red background (the dedicated
-    // `danger-cell` token), not a faint blush. Resolve the computed fill to true sRGB bytes
-    // by painting it onto a canvas and reading the pixel back, robust whether the engine
-    // serialises the `color-mix(in oklab,…)` result as `rgb(…)`, `oklab(…)`, or `color(…)`.
-    const rgba = await overMarker.evaluate((el) => {
-      const bg = getComputedStyle(el).backgroundColor;
-      const c = document.createElement('canvas');
-      c.width = c.height = 1;
-      const ctx = c.getContext('2d')!;
-      // Opaque base so a (regressed) translucent fill blends toward white, not black,
-      // a near-invisible alpha tint then reads as a near-white pixel and fails the gate.
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, 1, 1);
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, 1, 1);
-      const data = ctx.getImageData(0, 0, 1, 1).data;
-      const channel = (index: number) => {
-        const value = data[index];
-        if (value === undefined) throw new Error(`Rendered pixel must include channel ${index}`);
-        return value;
-      };
-      return { r: channel(0), g: channel(1), b: channel(2), a: channel(3) };
-    });
-    expect(rgba.a).toBe(255);
-    // Real saturation: R must lead the other channels by a wide margin. Light `danger-cell`
-    // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) fails.
-    expect(rgba.r - Math.max(rgba.g, rgba.b)).toBeGreaterThan(60);
-    await expect(page.getByTestId('unavailable-day').first()).toBeVisible();
-    await expect(page.getByTestId('utilization').first()).toBeVisible();
-  });
-  test('draws a new allocation on an empty part of a lane', async ({ page }) => {
-    await openApp(page);
-    await setZoom(page, 4);
+  test(
+    'shows seeded resources, grouping and capacity cues',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await expect(page.getByText('Bruce Wayne')).toBeVisible();
+      await expect(
+        page.getByTestId('discipline-group').filter({ hasText: 'Design' }),
+      ).toBeVisible();
+      // Seed over-allocates Bruce on 3-4 June; weekends/time off are unavailable.
+      const overMarker = page.getByTestId('over-marker').first();
+      await expect(overMarker).toBeVisible();
+      // The over-capacity day reads as a clear, saturated red background (the dedicated
+      // `danger-cell` token), not a faint blush. Resolve the computed fill to true sRGB bytes
+      // by painting it onto a canvas and reading the pixel back, robust whether the engine
+      // serialises the `color-mix(in oklab,…)` result as `rgb(…)`, `oklab(…)`, or `color(…)`.
+      const rgba = await overMarker.evaluate((el) => {
+        const bg = getComputedStyle(el).backgroundColor;
+        const c = document.createElement('canvas');
+        c.width = c.height = 1;
+        const ctx = c.getContext('2d')!;
+        // Opaque base so a (regressed) translucent fill blends toward white, not black,
+        // a near-invisible alpha tint then reads as a near-white pixel and fails the gate.
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, 1, 1);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, 1, 1);
+        const data = ctx.getImageData(0, 0, 1, 1).data;
+        const channel = (index: number) => {
+          const value = data[index];
+          if (value === undefined) throw new Error(`Rendered pixel must include channel ${index}`);
+          return value;
+        };
+        return { r: channel(0), g: channel(1), b: channel(2), a: channel(3) };
+      });
+      expect(rgba.a).toBe(255);
+      // Real saturation: R must lead the other channels by a wide margin. Light `danger-cell`
+      // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) fails.
+      expect(rgba.r - Math.max(rgba.g, rgba.b)).toBeGreaterThan(60);
+      await expect(page.getByTestId('unavailable-day').first()).toBeVisible();
+      await expect(page.getByTestId('utilization').first()).toBeVisible();
+    },
+  );
+  test(
+    'draws a new allocation on an empty part of a lane',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await setZoom(page, 4);
 
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
-    const before = await page.getByTestId('allocation-bar').count();
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(6);
+      const before = await page.getByTestId('allocation-bar').count();
 
-    await resetSchedulerScroll(page);
-    // Drawing on a lane needs the same resolved role as editing a bar (#1928).
-    await expectEditableBar(page.getByTestId('allocation-bar').first());
-    const lane = page.getByTestId('resource-lane').first();
-    const b = await box(lane);
-    const y = b.y + b.height / 2;
-    // The far-left of the lane (timeline origin) is empty for the first resource.
-    await page.mouse.move(b.x + 6, y);
-    await page.mouse.down();
-    await page.mouse.move(b.x + 6 + 48 * 2, y, { steps: 8 });
-    await page.mouse.up();
+      await resetSchedulerScroll(page);
+      // Drawing on a lane needs the same resolved role as editing a bar (#1928).
+      await expectEditableBar(page.getByTestId('allocation-bar').first());
+      const lane = page.getByTestId('resource-lane').first();
+      const b = await box(lane);
+      const y = b.y + b.height / 2;
+      // The far-left of the lane (timeline origin) is empty for the first resource.
+      await page.mouse.move(b.x + 6, y);
+      await page.mouse.down();
+      await page.mouse.move(b.x + 6 + 48 * 2, y, { steps: 8 });
+      await page.mouse.up();
 
-    await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible();
-    await selectShadOption(page.getByLabel('Project', { exact: true }), 'p-acme');
-    await selectShadOption(
-      page.getByRole('combobox', { name: 'Activity', exact: true }),
-      't-wires',
-    );
-    await page.getByRole('button', { name: 'Save' }).click();
+      await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible();
+      await selectShadOption(page.getByLabel('Project', { exact: true }), 'p-acme');
+      await selectShadOption(
+        page.getByRole('combobox', { name: 'Activity', exact: true }),
+        't-wires',
+      );
+      await page.getByRole('button', { name: 'Save' }).click();
 
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
-  });
-  test('drags a bar to move it later', async ({ page }, testInfo) => {
+      await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1);
+    },
+  );
+  test('drags a bar to move it later', { tag: '@engine' }, async ({ page }, testInfo) => {
     await openApp(page);
     await setZoom(page, 4);
 
@@ -261,7 +271,7 @@ test.describe('Scheduler', () => {
     expect(hoverX).toBeGreaterThanOrEqual(hint.x);
     expect(hoverX).toBeLessThanOrEqual(hint.x + hint.width);
   });
-  test('resizes a bar via its end handle', async ({ page }) => {
+  test('resizes a bar via its end handle', { tag: '@engine' }, async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
 
@@ -280,133 +290,151 @@ test.describe('Scheduler', () => {
 
     await expect.poll(async () => (await box(bar)).width).toBeGreaterThan(b0.width + 20);
   });
-  test('zooming to more weeks shrinks the day columns (same bar gets narrower)', async ({
-    page,
-  }, testInfo) => {
-    await openApp(page);
-    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+  test(
+    'zooming to more weeks shrinks the day columns (same bar gets narrower)',
+    { tag: '@engine' },
+    async ({ page }, testInfo) => {
+      await openApp(page);
+      await expect(page.getByTestId('scheduler-grid')).toBeVisible();
+      const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
 
-    await setZoom(page, 1);
-    await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('1 week');
-    const wide = await box(bar);
-    await page.screenshot({
-      path: testInfo.outputPath('capacitylens_1week.png'),
-    });
+      await setZoom(page, 1);
+      await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('1 week');
+      const wide = await box(bar);
+      await page.screenshot({
+        path: testInfo.outputPath('capacitylens_1week.png'),
+      });
 
-    await setZoom(page, 8);
-    await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('8 weeks');
-    const narrow = await box(bar);
-    await page.screenshot({
-      path: testInfo.outputPath('capacitylens_8week.png'),
-    });
+      await setZoom(page, 8);
+      await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText('8 weeks');
+      const narrow = await box(bar);
+      await page.screenshot({
+        path: testInfo.outputPath('capacitylens_8week.png'),
+      });
 
-    expect(narrow.width).toBeLessThan(wide.width);
-  });
-  test('clicking Today re-centres the timeline after scrolling away', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 800 });
-    // Turn the free-scroll week snap off first. With it armed, the 120ms idle timer
-    // (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe on
-    // slow runners, so a mid-week precondition can never be made stable. With it off the park
-    // sticks, and the Monday landing after Today is attributable to Today's re-anchor alone.
-    await disableWeekSnap(page);
-    await openApp(page);
-    await setZoom(page, 1);
-    const grid = page.getByTestId('scheduler-grid');
-    await expect(grid).toBeVisible();
+      expect(narrow.width).toBeLessThan(wide.width);
+    },
+  );
+  test(
+    'clicking Today re-centres the timeline after scrolling away',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 800 });
+      // Turn the free-scroll week snap off first. With it armed, the 120ms idle timer
+      // (WEEK_SNAP_IDLE_MS) re-floors the left edge to a Monday between our park and the probe on
+      // slow runners, so a mid-week precondition can never be made stable. With it off the park
+      // sticks, and the Monday landing after Today is attributable to Today's re-anchor alone.
+      await disableWeekSnap(page);
+      await openApp(page);
+      await setZoom(page, 1);
+      const grid = page.getByTestId('scheduler-grid');
+      await expect(grid).toBeVisible();
 
-    // Scroll far to the right, then keep nudging by half a weekday column until the left edge sits
-    // mid-week (a fixed pixel offset can coincidentally align to a Monday, minimised weekend
-    // columns make the week pitch non-uniform, so no single offset is safe on every start date).
-    // The mid-week precondition is what proves Today actively re-anchors to the week start, rather
-    // than the view having merely stayed put on a Monday.
-    const { weekdayWidth } = await probe(page);
-    await grid.evaluate((el) => {
-      (el as HTMLElement).scrollLeft = 5000;
-    });
-    for (let attempt = 0; attempt < 10 && /Mon$/.test((await probe(page)).leftDate); attempt += 1) {
-      await grid.evaluate(
-        (el, dx) => {
-          (el as HTMLElement).scrollLeft += dx;
-        },
-        Math.max(1, Math.round(weekdayWidth / 2)),
-      );
-    }
-    // Let the idle timer elapse; the snap is off, so the mid-week park must stick.
-    await waitForWeekSnap(page);
-    const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft);
-    expect(scrolled).toBeGreaterThan(800);
-    expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
+      // Scroll far to the right, then keep nudging by half a weekday column until the left edge sits
+      // mid-week (a fixed pixel offset can coincidentally align to a Monday, minimised weekend
+      // columns make the week pitch non-uniform, so no single offset is safe on every start date).
+      // The mid-week precondition is what proves Today actively re-anchors to the week start, rather
+      // than the view having merely stayed put on a Monday.
+      const { weekdayWidth } = await probe(page);
+      await grid.evaluate((el) => {
+        (el as HTMLElement).scrollLeft = 5000;
+      });
+      for (
+        let attempt = 0;
+        attempt < 10 && /Mon$/.test((await probe(page)).leftDate);
+        attempt += 1
+      ) {
+        await grid.evaluate(
+          (el, dx) => {
+            (el as HTMLElement).scrollLeft += dx;
+          },
+          Math.max(1, Math.round(weekdayWidth / 2)),
+        );
+      }
+      // Let the idle timer elapse; the snap is off, so the mid-week park must stick.
+      await waitForWeekSnap(page);
+      const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft);
+      expect(scrolled).toBeGreaterThan(800);
+      expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
 
-    await page.getByRole('button', { name: 'Today', exact: true }).click();
+      await page.getByRole('button', { name: 'Today', exact: true }).click();
 
-    await expect
-      .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
-      .toBeLessThan(scrolled - 400);
-    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
-  });
+      await expect
+        .poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft))
+        .toBeLessThan(scrolled - 400);
+      await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
+    },
+  );
   // Today and repeated Next actions move the visible window into another month, allowing this test
   // to verify that the header follows the window.
-  test('paning forward moves the timeline into the next month', async ({ page }) => {
-    await openApp(page);
-    await expect(page.getByTestId('scheduler-grid')).toBeVisible();
+  test(
+    'paning forward moves the timeline into the next month',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await expect(page.getByTestId('scheduler-grid')).toBeVisible();
 
-    await goToSeedWeek(page);
-    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jun 2026');
+      await goToSeedWeek(page);
+      await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jun 2026');
 
-    // Five weeks on from 1 June is Mon 6 July, the first left edge that is fully in July.
-    for (let week = 0; week < 5; week += 1)
-      await page.getByRole('button', { name: 'Next' }).click();
-    await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jul 2026');
-    expect(await settledSchedulerLeftDate(page)).toContain('Mon');
-  });
-  test('vertically centres month labels across zoom levels and root font sizes', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await goToSeedWeek(page);
+      // Five weeks on from 1 June is Mon 6 July, the first left edge that is fully in July.
+      for (let week = 0; week < 5; week += 1)
+        await page.getByRole('button', { name: 'Next' }).click();
+      await expect.poll(() => schedulerLeftMonthLabel(page)).toBe('Jul 2026');
+      expect(await settledSchedulerLeftDate(page)).toContain('Mon');
+    },
+  );
+  test(
+    'vertically centres month labels across zoom levels and root font sizes',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await goToSeedWeek(page);
 
-    await setZoom(page, 1);
-    const defaultTierHeight = await expectMonthLabelsVerticallyCentred(page);
-    for (const weeks of [2, 4, 6, 8] as const) {
-      await setZoom(page, weeks);
-      const tierHeight = await expectMonthLabelsVerticallyCentred(page);
-      expect(tierHeight).toBe(defaultTierHeight);
-    }
-    await expect(page.getByText('Jun 2026')).toBeVisible();
-    await expect(page.getByText('Jul 2026')).toBeVisible();
+      await setZoom(page, 1);
+      const defaultTierHeight = await expectMonthLabelsVerticallyCentred(page);
+      for (const weeks of [2, 4, 6, 8] as const) {
+        await setZoom(page, weeks);
+        const tierHeight = await expectMonthLabelsVerticallyCentred(page);
+        expect(tierHeight).toBe(defaultTierHeight);
+      }
+      await expect(page.getByText('Jun 2026')).toBeVisible();
+      await expect(page.getByText('Jul 2026')).toBeVisible();
 
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = '20px';
-    });
-    expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
-  });
-  test('aligns wide month labels to their first visible day and keeps compact labels separate', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await goToSeedWeek(page);
-    // Mon 29 Jun gives both June and July a meaningful visible segment at 1- and 2-week zoom.
-    for (let week = 0; week < 4; week += 1)
-      await page.getByRole('button', { name: 'Next' }).click();
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = '20px';
+      });
+      expect(await expectMonthLabelsVerticallyCentred(page)).toBeGreaterThan(defaultTierHeight);
+    },
+  );
+  test(
+    'aligns wide month labels to their first visible day and keeps compact labels separate',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await goToSeedWeek(page);
+      // Mon 29 Jun gives both June and July a meaningful visible segment at 1- and 2-week zoom.
+      for (let week = 0; week < 4; week += 1)
+        await page.getByRole('button', { name: 'Next' }).click();
 
-    for (const weeks of [1, 2] as const) {
-      await setZoom(page, weeks);
+      for (const weeks of [1, 2] as const) {
+        await setZoom(page, weeks);
+        await expectWideMonthLabelsAlignedToVisibleStarts(page);
+      }
+
+      for (const weeks of [4, 6, 8] as const) {
+        await setZoom(page, weeks);
+        await expectCompactMonthLabelsDoNotOverlap(page);
+      }
+
+      await page.evaluate(() => {
+        document.documentElement.style.fontSize = '20px';
+      });
+      await setZoom(page, 2);
       await expectWideMonthLabelsAlignedToVisibleStarts(page);
-    }
-
-    for (const weeks of [4, 6, 8] as const) {
-      await setZoom(page, weeks);
-      await expectCompactMonthLabelsDoNotOverlap(page);
-    }
-
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = '20px';
-    });
-    await setZoom(page, 2);
-    await expectWideMonthLabelsAlignedToVisibleStarts(page);
-  });
-  test('shows a detail popover on hover (US-SCH-15)', async ({ page }) => {
+    },
+  );
+  test('shows a detail popover on hover (US-SCH-15)', { tag: '@engine' }, async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
     await goToSeedWeek(page);
@@ -417,148 +445,158 @@ test.describe('Scheduler', () => {
     await expect(pop).not.toContainText('Confirmed');
   });
 
-  test('centres allocation details over the visible part of a clipped bar (US-SCH-15)', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await setZoom(page, 4);
-    await goToSeedWeek(page);
+  test(
+    'centres allocation details over the visible part of a clipped bar (US-SCH-15)',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await setZoom(page, 4);
+      await goToSeedWeek(page);
 
-    const grid = page.getByTestId('scheduler-grid');
-    const resourceHeader = page.getByTestId('scheduler-resource-header');
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
-    const timeline = await box(resourceHeader);
-    await scrollSchedulerForwardOneWeek(page, grid);
+      const grid = page.getByTestId('scheduler-grid');
+      const resourceHeader = page.getByTestId('scheduler-resource-header');
+      const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+      const timeline = await box(resourceHeader);
+      await scrollSchedulerForwardOneWeek(page, grid);
 
-    await expectEditableBar(bar);
-    const clippedBar = await box(bar);
-    const gridBox = await box(grid);
-    const visibleLeft = Math.max(clippedBar.x, timeline.x + timeline.width);
-    const visibleRight = Math.min(clippedBar.x + clippedBar.width, gridBox.x + gridBox.width);
-    expect(clippedBar.x).toBeLessThan(timeline.x + timeline.width);
-    expect(visibleRight).toBeGreaterThan(visibleLeft);
-    const anchor = bar.getByTestId('allocation-popover-anchor');
-    await expectAnchorCenteredOverVisibleSpan(anchor, visibleLeft, visibleRight);
+      await expectEditableBar(bar);
+      const clippedBar = await box(bar);
+      const gridBox = await box(grid);
+      const visibleLeft = Math.max(clippedBar.x, timeline.x + timeline.width);
+      const visibleRight = Math.min(clippedBar.x + clippedBar.width, gridBox.x + gridBox.width);
+      expect(clippedBar.x).toBeLessThan(timeline.x + timeline.width);
+      expect(visibleRight).toBeGreaterThan(visibleLeft);
+      const anchor = bar.getByTestId('allocation-popover-anchor');
+      await expectAnchorCenteredOverVisibleSpan(anchor, visibleLeft, visibleRight);
 
-    await page.mouse.move((visibleLeft + visibleRight) / 2, clippedBar.y + clippedBar.height / 2);
+      await page.mouse.move((visibleLeft + visibleRight) / 2, clippedBar.y + clippedBar.height / 2);
 
-    const popover = page.getByTestId('allocation-popover');
-    await expect(popover).toBeVisible();
-    await expectPopoverToTrackAnchor(page, anchor, popover);
-  });
+      const popover = page.getByTestId('allocation-popover');
+      await expect(popover).toBeVisible();
+      await expectPopoverToTrackAnchor(page, anchor, popover);
+    },
+  );
 
-  test('anchors allocation details to the visible part of a right-clipped bar (US-SCH-15)', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await setZoom(page, 4);
-    await goToSeedWeek(page);
-    await dismissLandscapeHint(page);
-    await page.setViewportSize({ width: 320, height: 720 });
+  test(
+    'anchors allocation details to the visible part of a right-clipped bar (US-SCH-15)',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await setZoom(page, 4);
+      await goToSeedWeek(page);
+      await dismissLandscapeHint(page);
+      await page.setViewportSize({ width: 320, height: 720 });
 
-    const grid = page.getByTestId('scheduler-grid');
-    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
-    await expectEditableBar(bar);
-    const barBox = await box(bar);
-    const gridBox = await box(grid);
-    const visibleLeft = barBox.x;
-    const visibleRight = gridBox.x + gridBox.width;
-    expect(barBox.x + barBox.width).toBeGreaterThan(visibleRight);
+      const grid = page.getByTestId('scheduler-grid');
+      const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' });
+      await expectEditableBar(bar);
+      const barBox = await box(bar);
+      const gridBox = await box(grid);
+      const visibleLeft = barBox.x;
+      const visibleRight = gridBox.x + gridBox.width;
+      expect(barBox.x + barBox.width).toBeGreaterThan(visibleRight);
 
-    const anchorBox = await box(bar.getByTestId('allocation-popover-anchor'));
-    expect(
-      Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2),
-    ).toBeLessThanOrEqual(2);
+      const anchorBox = await box(bar.getByTestId('allocation-popover-anchor'));
+      expect(
+        Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2),
+      ).toBeLessThanOrEqual(2);
 
-    await page.mouse.move((visibleLeft + visibleRight) / 2, barBox.y + barBox.height / 2);
+      await page.mouse.move((visibleLeft + visibleRight) / 2, barBox.y + barBox.height / 2);
 
-    const popover = page.getByTestId('allocation-popover');
-    await expect(popover).toBeVisible();
-    await expectPopoverToTrackAnchor(page, bar.getByTestId('allocation-popover-anchor'), popover);
-  });
+      const popover = page.getByTestId('allocation-popover');
+      await expect(popover).toBeVisible();
+      await expectPopoverToTrackAnchor(page, bar.getByTestId('allocation-popover-anchor'), popover);
+    },
+  );
   test('shows overall and per-discipline utilisation summaries (US-SCH-14)', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('overall-utilization')).toContainText('%');
     await expect(page.getByTestId('discipline-group').first()).toContainText(/avg utilisation/);
   });
-  test('the week-range toggle redraws utilisation over the visible window (US-SCH-14)', async ({
-    page,
-  }) => {
-    await openApp(page);
-    // Own the visible window explicitly instead of relying on the global frozen clock plus the
-    // grid's first-measure scroll effect. A slow CI render can otherwise leave this test looking
-    // at a zero-utilisation window outside the June seed even though the same fixture is stable
-    // locally. June 1 is the shared left edge this zoom comparison is actually meant to exercise.
-    await goToSeedWeek(page);
-    await expect(page.getByText('Jun 2026')).toBeVisible();
-    const overall = page.getByTestId('overall-utilization');
-    const pct = async () =>
-      Number.parseInt((await overall.textContent())?.replace('%', '') ?? '', 10);
+  test(
+    'the week-range toggle redraws utilisation over the visible window (US-SCH-14)',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      // Own the visible window explicitly instead of relying on the global frozen clock plus the
+      // grid's first-measure scroll effect. A slow CI render can otherwise leave this test looking
+      // at a zero-utilisation window outside the June seed even though the same fixture is stable
+      // locally. June 1 is the shared left edge this zoom comparison is actually meant to exercise.
+      await goToSeedWeek(page);
+      await expect(page.getByText('Jun 2026')).toBeVisible();
+      const overall = page.getByTestId('overall-utilization');
+      const pct = async () =>
+        Number.parseInt((await overall.textContent())?.replace('%', '') ?? '', 10);
 
-    // Per-person % for a known seeded resource row (Bruce Wayne). Its utilisation lives in the row
-    // header's `utilization` testid, scoped to Bruce's scheduler-row so it can't pick up another
-    // person's cell. Bruce is front-loaded in the seed (8h/day Mon–Thu of the frozen-clock week +
-    // a tentative bar) → dense week 1 that idle later weeks dilute as the span widens.
-    const bruceUtil = page
-      .getByTestId('scheduler-row')
-      .filter({ hasText: 'Bruce Wayne' })
-      .getByTestId('utilization');
-    const brucePct = async () =>
-      Number.parseInt((await bruceUtil.textContent())?.replace('%', '') ?? '', 10);
+      // Per-person % for a known seeded resource row (Bruce Wayne). Its utilisation lives in the row
+      // header's `utilization` testid, scoped to Bruce's scheduler-row so it can't pick up another
+      // person's cell. Bruce is front-loaded in the seed (8h/day Mon–Thu of the frozen-clock week +
+      // a tentative bar) → dense week 1 that idle later weeks dilute as the span widens.
+      const bruceUtil = page
+        .getByTestId('scheduler-row')
+        .filter({ hasText: 'Bruce Wayne' })
+        .getByTestId('utilization');
+      const brucePct = async () =>
+        Number.parseInt((await bruceUtil.textContent())?.replace('%', '') ?? '', 10);
 
-    // Read the overall + Bruce % for a given zoom after it settles: click the toggle, wait for the
-    // label to track the zoom, then poll both numbers to a stable value (two equal reads in a row),
-    // the visible window re-anchors via a rAF after the scroll settles, so a bare read can race that.
-    const readAtZoom = async (
-      weeks: 1 | 2 | 4 | 8,
-    ): Promise<{ overall: number; bruce: number }> => {
-      await setZoom(page, weeks);
-      await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText(
-        weeks === 1 ? '1 week' : `${weeks} weeks`,
-      );
-      await expect(page.getByText(`Utilisation · ${weeks}w`)).toBeVisible();
-      await expect(bruceUtil).toBeVisible();
-      let prev = { overall: NaN, bruce: NaN };
-      await expect
-        .poll(async () => {
-          const next = { overall: await pct(), bruce: await brucePct() };
-          // On a slower runner the account shell can render an initial 0%/0% frame before the
-          // seeded scheduler model settles. Two fast reads of that placeholder are not evidence
-          // that the zoom calculation has finished, so require the known seeded rows to carry
-          // real utilisation before accepting a stable pair.
-          const populated = next.overall > 0 && next.bruce > 0;
-          const stable = populated && next.overall === prev.overall && next.bruce === prev.bruce;
-          prev = next;
-          return stable;
-        })
-        .toBe(true);
-      return prev;
-    };
+      // Read the overall + Bruce % for a given zoom after it settles: click the toggle, wait for the
+      // label to track the zoom, then poll both numbers to a stable value (two equal reads in a row),
+      // the visible window re-anchors via a rAF after the scroll settles, so a bare read can race that.
+      const readAtZoom = async (
+        weeks: 1 | 2 | 4 | 8,
+      ): Promise<{ overall: number; bruce: number }> => {
+        await setZoom(page, weeks);
+        await expect(page.getByRole('combobox', { name: 'Weeks visible' })).toHaveText(
+          weeks === 1 ? '1 week' : `${weeks} weeks`,
+        );
+        await expect(page.getByText(`Utilisation · ${weeks}w`)).toBeVisible();
+        await expect(bruceUtil).toBeVisible();
+        let prev = { overall: NaN, bruce: NaN };
+        await expect
+          .poll(async () => {
+            const next = { overall: await pct(), bruce: await brucePct() };
+            // On a slower runner the account shell can render an initial 0%/0% frame before the
+            // seeded scheduler model settles. Two fast reads of that placeholder are not evidence
+            // that the zoom calculation has finished, so require the known seeded rows to carry
+            // real utilisation before accepting a stable pair.
+            const populated = next.overall > 0 && next.bruce > 0;
+            const stable = populated && next.overall === prev.overall && next.bruce === prev.bruce;
+            prev = next;
+            return stable;
+          })
+          .toBe(true);
+        return prev;
+      };
 
-    // The browser sums the server's per-day figures over the visible window, so widening the
-    // window over the seed's quieter later weeks changes the drawn number. The figures themselves
-    // are the server's (apps/backend/tests/unit/planning/capacity_section.spec.ts).
-    const wk1 = await readAtZoom(1);
-    const wk8 = await readAtZoom(8);
-    expect(wk1.overall).toBeGreaterThan(wk8.overall);
-  });
-  test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {
-    await openApp(page);
-    await setZoom(page, 4);
-    await goToSeedWeek(page);
-    // Bruce has two overlapping seed bars (3-4 June) -> 2 lanes; Clark has one -> 1 lane.
-    const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar');
-    await expect(bruceBars).toHaveCount(2);
-    const bruceRow = await page
-      .getByTestId('scheduler-row')
-      .filter({ hasText: 'Bruce Wayne' })
-      .boundingBox();
-    const clarkRow = await page
-      .getByTestId('scheduler-row')
-      .filter({ hasText: 'Clark Kent' })
-      .boundingBox();
-    expect(bruceRow!.height).toBeGreaterThan(clarkRow!.height);
-  });
+      // The browser sums the server's per-day figures over the visible window, so widening the
+      // window over the seed's quieter later weeks changes the drawn number. The figures themselves
+      // are the server's (apps/backend/tests/unit/planning/capacity_section.spec.ts).
+      const wk1 = await readAtZoom(1);
+      const wk8 = await readAtZoom(8);
+      expect(wk1.overall).toBeGreaterThan(wk8.overall);
+    },
+  );
+  test(
+    'stacks overlapping allocations onto a taller row (US-SCH-08)',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await setZoom(page, 4);
+      await goToSeedWeek(page);
+      // Bruce has two overlapping seed bars (3-4 June) -> 2 lanes; Clark has one -> 1 lane.
+      const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar');
+      await expect(bruceBars).toHaveCount(2);
+      const bruceRow = await page
+        .getByTestId('scheduler-row')
+        .filter({ hasText: 'Bruce Wayne' })
+        .boundingBox();
+      const clarkRow = await page
+        .getByTestId('scheduler-row')
+        .filter({ hasText: 'Clark Kent' })
+        .boundingBox();
+      expect(bruceRow!.height).toBeGreaterThan(clarkRow!.height);
+    },
+  );
   test('marks today with a vertical line when in range (US-SCH-12)', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('today-line').first()).toBeVisible();
@@ -596,91 +634,95 @@ test.describe('Scheduler', () => {
   // the test verify that zoom and Prev/Next re-anchor the grid's left edge to the account's week start
   // (Monday by default) instead of passing because the idle snap moved it.
   // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
-  test('navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)', async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1440, height: 800 });
-    // Disable idle snapping so it cannot mask navigation snapping.
-    await disableWeekSnap(page);
-    await openApp(page);
-    await setZoom(page, 1);
+  test(
+    'navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 800 });
+      // Disable idle snapping so it cannot mask navigation snapping.
+      await disableWeekSnap(page);
+      await openApp(page);
+      await setZoom(page, 1);
 
-    // Header day cells read "<dayNum><EEE>", e.g. "1Mon"; a minimised weekend collapses to "<n>S".
-    // We assert on the weekday suffix, and capture the leading day number to prove the window moved.
-    const grid = page.getByTestId('scheduler-grid');
-    const start = await probe(page);
-    expect(start.leftDate).toMatch(/Mon$/);
-    const nudge = Math.round(start.weekdayWidth * 2.5);
-    const dayNum = (s: string) => Number.parseInt(s, 10);
-    // The idle snap is off, so a nudge to a mid-week day must stick. Any later return to Monday then
-    // comes from navigation; otherwise the assertions below would be vacuous.
-    const nudgeOffMonday = async () => {
-      await grid.evaluate((el, px) => {
-        (el as HTMLElement).scrollLeft = px;
-      }, nudge);
-      await waitForWeekSnap(page);
-      expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
-    };
+      // Header day cells read "<dayNum><EEE>", e.g. "1Mon"; a minimised weekend collapses to "<n>S".
+      // We assert on the weekday suffix, and capture the leading day number to prove the window moved.
+      const grid = page.getByTestId('scheduler-grid');
+      const start = await probe(page);
+      expect(start.leftDate).toMatch(/Mon$/);
+      const nudge = Math.round(start.weekdayWidth * 2.5);
+      const dayNum = (s: string) => Number.parseInt(s, 10);
+      // The idle snap is off, so a nudge to a mid-week day must stick. Any later return to Monday then
+      // comes from navigation; otherwise the assertions below would be vacuous.
+      const nudgeOffMonday = async () => {
+        await grid.evaluate((el, px) => {
+          (el as HTMLElement).scrollLeft = px;
+        }, nudge);
+        await waitForWeekSnap(page);
+        expect((await probe(page)).leftDate).not.toMatch(/Mon$/);
+      };
 
-    await nudgeOffMonday();
-    await setZoom(page, 2);
-    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
-    const afterZoom = dayNum((await probe(page)).leftDate);
+      await nudgeOffMonday();
+      await setZoom(page, 2);
+      await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
+      const afterZoom = dayNum((await probe(page)).leftDate);
 
-    await nudgeOffMonday();
-    await page.getByRole('button', { name: 'Next' }).click();
-    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
-    const afterNext = dayNum((await probe(page)).leftDate);
-    expect(afterNext).toBeGreaterThan(afterZoom);
+      await nudgeOffMonday();
+      await page.getByRole('button', { name: 'Next' }).click();
+      await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
+      const afterNext = dayNum((await probe(page)).leftDate);
+      expect(afterNext).toBeGreaterThan(afterZoom);
 
-    await nudgeOffMonday();
-    await page.getByRole('button', { name: 'Prev' }).click();
-    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
-    const afterPrev = dayNum((await probe(page)).leftDate);
-    expect(afterPrev).toBeLessThan(afterNext);
-  });
+      await nudgeOffMonday();
+      await page.getByRole('button', { name: 'Prev' }).click();
+      await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/);
+      const afterPrev = dayNum((await probe(page)).leftDate);
+      expect(afterPrev).toBeLessThan(afterNext);
+    },
+  );
   // A partially visible bar must centre its label in the visible portion.
   // Disable idle snapping so it cannot move the viewport between setup and measurement.
-  test("keeps a bar's label on screen after scrolling past the bar's start (#786)", async ({
-    page,
-  }) => {
-    await disableWeekSnap(page);
-    await openApp(page);
-    await setZoom(page, 2);
-    await goToSeedWeek(page);
+  test(
+    "keeps a bar's label on screen after scrolling past the bar's start (#786)",
+    { tag: '@engine' },
+    async ({ page }) => {
+      await disableWeekSnap(page);
+      await openApp(page);
+      await setZoom(page, 2);
+      await goToSeedWeek(page);
 
-    const bar = page
-      .getByTestId('allocation-bar')
-      .filter({ hasText: 'Metropolis Rebrand' })
-      .first();
-    const label = bar.getByTestId('allocation-bar-label');
-    await expect(bar).toBeVisible();
-    const resourceHeader = await box(page.getByTestId('scheduler-resource-header'));
-    const timelineLeft = resourceHeader.x + resourceHeader.width;
+      const bar = page
+        .getByTestId('allocation-bar')
+        .filter({ hasText: 'Metropolis Rebrand' })
+        .first();
+      const label = bar.getByTestId('allocation-bar-label');
+      await expect(bar).toBeVisible();
+      const resourceHeader = await box(page.getByTestId('scheduler-resource-header'));
+      const timelineLeft = resourceHeader.x + resourceHeader.width;
 
-    // Park the bar's own left edge behind the frozen resource column while roughly half of it is
-    // still on screen, exactly the case a start-anchored label cannot survive.
-    const before = await box(bar);
-    await page.getByTestId('scheduler-grid').evaluate(
-      (element, delta) => {
-        element.scrollLeft += delta;
-        // Assigning scrollLeft moves the element's layout immediately but queues the scroll event,
-        // and the label's inset is published from that handler. A real scroll publishes it in the
-        // same frame it paints; a direct assignment can be measured in between, with the bar in its
-        // new position and the inset still on the old one. Dispatch it so the read is not a race.
-        element.dispatchEvent(new Event('scroll'));
-      },
-      Math.round(before.x - timelineLeft + before.width / 2),
-    );
-    await expect.poll(async () => (await box(bar)).x < timelineLeft).toBe(true);
+      // Park the bar's own left edge behind the frozen resource column while roughly half of it is
+      // still on screen, exactly the case a start-anchored label cannot survive.
+      const before = await box(bar);
+      await page.getByTestId('scheduler-grid').evaluate(
+        (element, delta) => {
+          element.scrollLeft += delta;
+          // Assigning scrollLeft moves the element's layout immediately but queues the scroll event,
+          // and the label's inset is published from that handler. A real scroll publishes it in the
+          // same frame it paints; a direct assignment can be measured in between, with the bar in its
+          // new position and the inset still on the old one. Dispatch it so the read is not a race.
+          element.dispatchEvent(new Event('scroll'));
+        },
+        Math.round(before.x - timelineLeft + before.width / 2),
+      );
+      await expect.poll(async () => (await box(bar)).x < timelineLeft).toBe(true);
 
-    const after = await box(bar);
-    expect(after.x + after.width).toBeGreaterThan(timelineLeft);
-    const labelBox = await box(label);
-    expect(labelBox.width).toBeGreaterThan(0);
-    expect(labelBox.x).toBeGreaterThanOrEqual(timelineLeft - 1);
-    expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(after.x + after.width + 1);
-    const visibleCentre = (timelineLeft + after.x + after.width) / 2;
-    expect(Math.abs(labelBox.x + labelBox.width / 2 - visibleCentre)).toBeLessThanOrEqual(1);
-  });
+      const after = await box(bar);
+      expect(after.x + after.width).toBeGreaterThan(timelineLeft);
+      const labelBox = await box(label);
+      expect(labelBox.width).toBeGreaterThan(0);
+      expect(labelBox.x).toBeGreaterThanOrEqual(timelineLeft - 1);
+      expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(after.x + after.width + 1);
+      const visibleCentre = (timelineLeft + after.x + after.width) / 2;
+      expect(Math.abs(labelBox.x + labelBox.width / 2 - visibleCentre)).toBeLessThanOrEqual(1);
+    },
+  );
 });

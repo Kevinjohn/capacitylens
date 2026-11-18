@@ -6,7 +6,7 @@ const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-test.describe('Command palette', () => {
+test.describe('Command palette', { tag: '@engine' }, () => {
   test('opens with Control+K, shows Actions and Pages, closes with Escape', async ({ page }) => {
     await openApp(page);
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();

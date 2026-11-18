@@ -9,7 +9,7 @@ import { openApp } from './browserTestSupport';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
-test.describe('portrait phone', () => {
+test.describe('portrait phone', { tag: '@engine' }, () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('shows the rotate hint; dismissing it sticks for the session', async ({ page }) => {
@@ -82,7 +82,7 @@ test.describe('portrait phone', () => {
   });
 });
 
-test.describe('landscape phone', () => {
+test.describe('landscape phone', { tag: '@engine' }, () => {
   test.use({ viewport: { width: 844, height: 390 } });
 
   test('sidebar starts in icon mode and its destinations still navigate', async ({ page }) => {

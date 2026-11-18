@@ -61,58 +61,60 @@ test('reviews the four-week capacity ledger and filters available rows', async (
   await expect(page.getByTestId('person-schedule-sheet')).toHaveCount(1);
 });
 
-test('shows twelve single weeks in a focusable table region without toolbar overflow', async ({
-  page,
-}) => {
-  await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'));
-  await page.setViewportSize({ width: 320, height: 640 });
-  await openApp(page, '/overview');
-  await page.getByRole('radio', { name: '12 weeks' }).click();
-  await expect(page.getByText('Capacity across the next 12 weeks')).toBeVisible();
+test(
+  'shows twelve single weeks in a focusable table region without toolbar overflow',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'));
+    await page.setViewportSize({ width: 320, height: 640 });
+    await openApp(page, '/overview');
+    await page.getByRole('radio', { name: '12 weeks' }).click();
+    await expect(page.getByText('Capacity across the next 12 weeks')).toBeVisible();
 
-  const toolbar = page.getByTestId('capacity-overview-toolbar');
-  const toolbarOverflow = await toolbar.evaluate((element) => ({
-    clientWidth: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-  }));
-  expect(toolbarOverflow.scrollWidth).toBeLessThanOrEqual(toolbarOverflow.clientWidth + 1);
+    const toolbar = page.getByTestId('capacity-overview-toolbar');
+    const toolbarOverflow = await toolbar.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(toolbarOverflow.scrollWidth).toBeLessThanOrEqual(toolbarOverflow.clientWidth + 1);
 
-  const region = page.getByTestId('capacity-overview-table-region');
-  await expect(region).toHaveAttribute('tabindex', '0');
-  await expect(region.getByRole('columnheader')).toHaveCount(13);
-  await expect(region.getByRole('columnheader', { name: '29 Jun – 5 Jul' })).toBeAttached();
-  await expect(region.getByRole('columnheader', { name: '17 – 23 Aug' })).toBeAttached();
+    const region = page.getByTestId('capacity-overview-table-region');
+    await expect(region).toHaveAttribute('tabindex', '0');
+    await expect(region.getByRole('columnheader')).toHaveCount(13);
+    await expect(region.getByRole('columnheader', { name: '29 Jun – 5 Jul' })).toBeAttached();
+    await expect(region.getByRole('columnheader', { name: '17 – 23 Aug' })).toBeAttached();
 
-  const regionOverflow = await region.evaluate((element) => ({
-    clientWidth: element.clientWidth,
-    scrollWidth: element.scrollWidth,
-  }));
-  expect(regionOverflow.scrollWidth).toBeGreaterThan(regionOverflow.clientWidth);
-  await region.focus();
-  await expect(region).toBeFocused();
+    const regionOverflow = await region.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(regionOverflow.scrollWidth).toBeGreaterThan(regionOverflow.clientWidth);
+    await region.focus();
+    await expect(region).toBeFocused();
 
-  const initialScrollLeft = await region.evaluate((element) => element.scrollLeft);
-  await region.press('ArrowRight');
-  await expect
-    .poll(() => region.evaluate((element) => element.scrollLeft))
-    .toBeGreaterThan(initialScrollLeft);
+    const initialScrollLeft = await region.evaluate((element) => element.scrollLeft);
+    await region.press('ArrowRight');
+    await expect
+      .poll(() => region.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(initialScrollLeft);
 
-  for (let press = 0; press < 40; press += 1) await region.press('ArrowRight');
-  const finalColumn = region.getByRole('columnheader', { name: '17 – 23 Aug' });
-  const [regionBox, finalColumnBox] = await Promise.all([
-    region.boundingBox(),
-    finalColumn.boundingBox(),
-  ]);
-  expect(regionBox).not.toBeNull();
-  expect(finalColumnBox).not.toBeNull();
-  expect(finalColumnBox!.x).toBeGreaterThanOrEqual(regionBox!.x);
-  // Sub-pixel table layout can round the last edge a fraction past the region; allow one pixel.
-  expect(finalColumnBox!.x + finalColumnBox!.width).toBeLessThanOrEqual(
-    regionBox!.x + regionBox!.width + 1,
-  );
-});
+    for (let press = 0; press < 40; press += 1) await region.press('ArrowRight');
+    const finalColumn = region.getByRole('columnheader', { name: '17 – 23 Aug' });
+    const [regionBox, finalColumnBox] = await Promise.all([
+      region.boundingBox(),
+      finalColumn.boundingBox(),
+    ]);
+    expect(regionBox).not.toBeNull();
+    expect(finalColumnBox).not.toBeNull();
+    expect(finalColumnBox!.x).toBeGreaterThanOrEqual(regionBox!.x);
+    // Sub-pixel table layout can round the last edge a fraction past the region; allow one pixel.
+    expect(finalColumnBox!.x + finalColumnBox!.width).toBeLessThanOrEqual(
+      regionBox!.x + regionBox!.width + 1,
+    );
+  },
+);
 
-test.describe('Overview layout stability', () => {
+test.describe('Overview layout stability', { tag: '@engine' }, () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   const columnWidths = (page: import('@playwright/test').Page) =>

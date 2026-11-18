@@ -12,23 +12,26 @@ function fetchOnPageHide(page: Parameters<typeof openApp>[0], url: string): Prom
   }, url);
 }
 
-test('a handled same-origin fetch started during unload passes the page-error gate', async ({
-  page,
-}) => {
-  await openApp(page);
-  await fetchOnPageHide(page, '/api/companies/a-studio/planning');
-  await openApp(page);
-});
+test(
+  'a handled same-origin fetch started during unload passes the page-error gate',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await openApp(page);
+    await fetchOnPageHide(page, '/api/companies/a-studio/planning');
+    await openApp(page);
+  },
+);
 
-test('a cross-origin fetch refused during unload still fails the page-error gate in WebKit', async ({
-  page,
-  browserName,
-}) => {
-  test.fail(browserName === 'webkit', 'The gate must keep reporting cross-origin refusals.');
-  await openApp(page);
-  const crossOrigin = new URL(page.url());
-  crossOrigin.hostname = '127.0.0.1';
-  crossOrigin.pathname = '/api/companies/a-studio/planning';
-  await fetchOnPageHide(page, crossOrigin.href);
-  await openApp(page);
-});
+test(
+  'a cross-origin fetch refused during unload still fails the page-error gate in WebKit',
+  { tag: '@engine' },
+  async ({ page, browserName }) => {
+    test.fail(browserName === 'webkit', 'The gate must keep reporting cross-origin refusals.');
+    await openApp(page);
+    const crossOrigin = new URL(page.url());
+    crossOrigin.hostname = '127.0.0.1';
+    crossOrigin.pathname = '/api/companies/a-studio/planning';
+    await fetchOnPageHide(page, crossOrigin.href);
+    await openApp(page);
+  },
+);
