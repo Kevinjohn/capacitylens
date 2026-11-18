@@ -1,4 +1,4 @@
-import { allocationWorksOnDay } from '../workingWeek.js';
+import { canAllocationWorkOnDay } from '../workingWeek.js';
 import { blockHoursPerDay } from '../schedulingDays.js';
 import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import { FULL_DAY_HOURS } from '../../types/entities.js';
@@ -88,7 +88,7 @@ interface HasAllocationLoadOnDayInput {
 // Derive weekdays once per resource-day and pass them to weekday-aware helpers so
 // capacity checks avoid repeated date parsing on the model rebuild path.
 /** Whether an allocation loads this date. Keep `none` explicit: an empty weekday array has
- * calendar-day semantics in allocationWorksOnDay, which is the opposite of the capacity contract. */
+ * calendar-day semantics in canAllocationWorkOnDay, which is the opposite of the capacity contract. */
 export function hasAllocationLoadOnDay({
   effectiveWeek,
   ignoreWorkingDays,
@@ -96,5 +96,5 @@ export function hasAllocationLoadOnDay({
 }: HasAllocationLoadOnDayInput): boolean {
   if (ignoreWorkingDays) return true;
   if (effectiveWeek.kind === 'none') return false;
-  return allocationWorksOnDay(effectiveWeek.days, false, dayIsWorking);
+  return canAllocationWorkOnDay(effectiveWeek.days, false, dayIsWorking);
 }

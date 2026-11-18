@@ -1,4 +1,4 @@
-import { hasDisallowedChars, MAX_EMAIL_LENGTH, utf8ByteLength } from '../lib/strings.js';
+import { hasDisallowedChars, MAX_EMAIL_LENGTH, countUtf8Bytes } from '../lib/strings.js';
 
 const OPAQUE_CREDENTIAL_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
@@ -37,8 +37,8 @@ export function isAccountEmail(value: string): boolean {
   const normalized = normalizeAccountEmail(value);
   if (
     value.length === 0 ||
-    utf8ByteLength(value) > MAX_EMAIL_LENGTH ||
-    utf8ByteLength(normalized) > MAX_EMAIL_LENGTH ||
+    countUtf8Bytes(value) > MAX_EMAIL_LENGTH ||
+    countUtf8Bytes(normalized) > MAX_EMAIL_LENGTH ||
     value !== value.trim()
   ) {
     return false;

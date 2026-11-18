@@ -25,7 +25,7 @@ export function unicodeCharacterCount(value: string): number {
 const TEXT_ENCODER = new TextEncoder();
 
 /** Length in UTF-8 bytes, the unit of {@link MAX_EMAIL_LENGTH}. */
-export function utf8ByteLength(value: string): number {
+export function countUtf8Bytes(value: string): number {
   return TEXT_ENCODER.encode(value).byteLength;
 }
 
