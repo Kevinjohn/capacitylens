@@ -152,12 +152,13 @@ function isPlanningRead(companyId: string, method: string, url: string) {
   return method === 'GET' && new URL(url).pathname === `/api/companies/${companyId}/planning`;
 }
 
-// Typed allocation writes and the restoration that undoes a delete; the canonical GET is excluded.
+// Typed allocation writes and the server's undo and redo steps; the canonical GET is excluded.
 function isTypedAllocationWrite(companyId: string, { method, path }: RecordedRequest) {
   return (
     method !== 'GET' &&
     (path.startsWith(`/api/companies/${companyId}/allocations`) ||
-      path === `/api/companies/${companyId}/planning/restore-group`)
+      path === `/api/companies/${companyId}/planning/undo` ||
+      path === `/api/companies/${companyId}/planning/redo`)
   );
 }
 

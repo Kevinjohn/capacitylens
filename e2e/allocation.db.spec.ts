@@ -209,7 +209,7 @@ test.describe('Allocation editor', () => {
     const tailRestoreCommitted = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
-        /\/api\/companies\/[^/]+\/planning\/restore-group$/.test(new URL(response.url()).pathname),
+        /\/api\/companies\/[^/]+\/planning\/undo$/.test(new URL(response.url()).pathname),
     );
     await page.keyboard.press('ControlOrMeta+z');
     const tailRestoreResponse = await tailRestoreCommitted;

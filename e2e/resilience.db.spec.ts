@@ -8,10 +8,14 @@ test.describe('database-backed resilience', () => {
     page,
     request,
   }) => {
-    const stateFailure = await failRequestsUntilReleased(page, '**/api/companies/*/planning', {
-      status: 503,
-      body: { error: 'Temporary test outage' },
-    });
+    const stateFailure = await failRequestsUntilReleased(
+      page,
+      /\/api\/companies\/[^/]+\/planning(\?|$)/,
+      {
+        status: 503,
+        body: { error: 'Temporary test outage' },
+      },
+    );
 
     await freezeBrowserDate(page);
     await page.goto('/');
