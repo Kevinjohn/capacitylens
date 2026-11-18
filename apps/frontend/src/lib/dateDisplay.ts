@@ -193,14 +193,14 @@ export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): str
  */
 export function formatDayMonthEndpoint(date: ISODate, counterpart: ISODate): string {
   return formatSingle(date, (descriptor) => ({
-    ...dayMonthParts(descriptor),
+    ...getDayMonthParts(descriptor),
     year: isCrossYear(date, counterpart),
   }));
 }
 
 /** The {@link formatShortDate} counterpart to {@link formatDayMonthEndpoint}: weekday, and the year only across one. */
 export function formatShortDateEndpoint(date: ISODate, counterpart: ISODate): string {
-  return formatSingle(date, () => ({ ...shortParts(), year: isCrossYear(date, counterpart) }));
+  return formatSingle(date, () => ({ ...getShortParts(), year: isCrossYear(date, counterpart) }));
 }
 
 function isCrossYear(date: ISODate, counterpart: ISODate): boolean {
