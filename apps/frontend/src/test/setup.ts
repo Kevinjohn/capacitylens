@@ -115,6 +115,9 @@ if (pointerCapturePrototype && typeof pointerCapturePrototype.setPointerCapture 
   };
 }
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
+  // Unmounting a Radix dialog schedules its focus-scope event on a zero-delay timer. Let it run while
+  // this file's environment exists; after teardown jsdom rejects the event and fails the run.
+  if (!vi.isFakeTimers()) await new Promise((resolve) => setTimeout(resolve, 0));
 });
