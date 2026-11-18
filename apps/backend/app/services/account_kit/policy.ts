@@ -28,13 +28,13 @@ export async function isAdmitted(userId: string, trx?: Trx) {
 }
 
 // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
-async function companyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
+async function getCompanyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
   const companyId = await installationCompanyId(trx ?? db);
   return companyId ? activeCompanyRole(userId, companyId, trx) : null;
 }
 
-async function mayManageInvitations(userId: string, trx: Trx | undefined) {
-  const role = await companyRole(userId, trx);
+async function canManageInvitations(userId: string, trx: Trx | undefined) {
+  const role = await getCompanyRole(userId, trx);
   return Boolean(role && access.can(role, 'invitations:manage') && (await isAdmitted(userId, trx)));
 }
 
@@ -42,14 +42,14 @@ async function mayManageInvitations(userId: string, trx: Trx | undefined) {
 export const admissionAuthorize: AdmissionAuthorizeCallbacks = {
   decide: async (actor, subject, context) => {
     const trx = context?.trx;
-    const actorRole = await companyRole(String(actor.id), trx);
+    const actorRole = await getCompanyRole(String(actor.id), trx);
     if (!actorRole || !access.can(actorRole, 'invitations:manage')) return false;
-    const subjectRole = await companyRole(String(subject.id), trx);
+    const subjectRole = await getCompanyRole(String(subject.id), trx);
     const isSelf = String(actor.id) === String(subject.id);
     return !subjectRole || access.canManage({ actorRole, targetRole: subjectRole, isSelf }).allowed;
   },
   // The Kit checks the decider's own admission; listing, which discloses addresses, needs the same.
-  list: async (actor, context) => mayManageInvitations(String(actor.id), context?.trx),
+  list: async (actor, context) => canManageInvitations(String(actor.id), context?.trx),
 };
 
 /** Records a credential change against every company the identity belongs to. */
