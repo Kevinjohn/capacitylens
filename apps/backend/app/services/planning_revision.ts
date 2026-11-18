@@ -8,7 +8,7 @@ const revisionsByTransaction = new WeakMap<
   Map<string, Promise<number>>
 >();
 
-function revisionsFor(trx: TransactionClientContract) {
+function getTransactionRevisions(trx: TransactionClientContract) {
   let revisions = revisionsByTransaction.get(trx);
   if (!revisions) {
     revisions = new Map();
@@ -39,7 +39,7 @@ export function advancePlanningRevision(
   trx: TransactionClientContract,
   companyId: string
 ): Promise<number> {
-  const revisions = revisionsFor(trx);
+  const revisions = getTransactionRevisions(trx);
   const existing = revisions.get(companyId);
   if (existing) return existing;
 

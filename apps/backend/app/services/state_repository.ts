@@ -16,7 +16,8 @@ import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
 import { isJsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 import type { ProductTable } from '#services/product_tables';
 
-const snake = (key: string) => key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+const buildSnakeKey = (key: string) =>
+  key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 const models = {
   accounts: Account,
@@ -41,7 +42,7 @@ export function encodeRow(table: ProductTable, row: Record<string, unknown>) {
     model.$columns.map((key) => {
       const value = row[key];
       return [
-        snake(key),
+        buildSnakeKey(key),
         isJsonColumn(model.$getColumn(key)) && value !== undefined && value !== null
           ? JSON.stringify(value)
           : (value ?? null),
