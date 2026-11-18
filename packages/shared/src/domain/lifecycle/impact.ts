@@ -72,13 +72,14 @@ export function archiveImpact(
   };
   const before = activeOnly(data);
   const after = activeOnly(archived);
-  const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff'): number =>
-    before[key].length - after[key].length;
+  const countHidden = (
+    key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff',
+  ): number => before[key].length - after[key].length;
   return {
-    projects: entity === 'clients' ? hidden('projects') : 0,
-    phases: hidden('phases'),
-    activities: entity === 'activities' ? 0 : hidden('activities'),
-    allocations: hidden('allocations'),
-    timeOff: entity === 'resources' ? hidden('timeOff') : 0,
+    projects: entity === 'clients' ? countHidden('projects') : 0,
+    phases: countHidden('phases'),
+    activities: entity === 'activities' ? 0 : countHidden('activities'),
+    allocations: countHidden('allocations'),
+    timeOff: entity === 'resources' ? countHidden('timeOff') : 0,
   };
 }

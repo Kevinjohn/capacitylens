@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_PASSWORD_INPUT_CODE_UNITS,
-  passwordCharacterCount,
+  countPasswordCharacters,
   passwordLengthFailure,
 } from './password.js';
 
 describe('password length policy', () => {
   it('counts astral characters as one Unicode code point rather than two UTF-16 code units', () => {
     expect('🔐'.length).toBe(2);
-    expect(passwordCharacterCount('🔐')).toBe(1);
+    expect(countPasswordCharacters('🔐')).toBe(1);
     expect(MAX_PASSWORD_INPUT_CODE_UNITS).toBe(256);
   });
 

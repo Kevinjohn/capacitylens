@@ -5,7 +5,7 @@ import {
   normalizeCodeName,
   nameForQuotedContext,
   privateCodeNameFallback,
-  quoteCodeName,
+  buildQuotedCodeName,
   redactPrivateName,
 } from './privateNames.js';
 
@@ -24,7 +24,7 @@ describe('private-name projection', () => {
     expect(normalizeCodeName('  “Nightwing”  ')).toBe('Nightwing');
     expect(normalizeCodeName('““  Nightwing  ””')).toBe('Nightwing');
     expect(normalizeCodeName('North"star')).toBe('North"star');
-    expect(quoteCodeName('"Nightwing"')).toBe('"Nightwing"');
+    expect(buildQuotedCodeName('"Nightwing"')).toBe('"Nightwing"');
     expect(nameForQuotedContext('"Nightwing"')).toBe('Nightwing');
   });
 
