@@ -27,7 +27,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, co
     name: RESOURCE_NAME,
   };
   assert.ok(resource.id);
-  const createdResource = await fetchOk(`${baseUrl}/api/accounts/${accountId}/resources`, {
+  const createdResource = await fetchOk(`${baseUrl}/api/companies/${accountId}/resources`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -70,7 +70,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, co
     projectId: null,
     phaseId: null,
   };
-  const createdActivity = await fetchOk(`${baseUrl}/api/accounts/${accountId}/activities`, {
+  const createdActivity = await fetchOk(`${baseUrl}/api/companies/${accountId}/activities`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -103,7 +103,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, accountId, fixture, co
     hoursPerDay: 7.5,
     status: 'confirmed',
   };
-  const createdAllocation = await fetchOk(`${baseUrl}/api/accounts/${accountId}/allocations`, {
+  const createdAllocation = await fetchOk(`${baseUrl}/api/companies/${accountId}/allocations`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
