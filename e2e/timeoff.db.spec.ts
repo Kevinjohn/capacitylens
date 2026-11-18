@@ -7,7 +7,7 @@ import {
   setZoom,
 } from './browserTestSupport';
 
-test.describe('Time off', () => {
+test.describe('Time off', { tag: '@engine' }, () => {
   // Covers US-TOF-01..05.
   test('books time off and shows it as a labelled block on the schedule', async ({ page }) => {
     await openApp(page, '/timeoff');

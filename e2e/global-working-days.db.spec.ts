@@ -27,67 +27,71 @@ async function expectBlockedStart(page: Page, lane: Locator, date: string): Prom
   await expect(page.getByRole('dialog', { name: 'New allocation' })).toHaveCount(0);
 }
 
-test('sets global working days and gates schedule creation starts', async ({ page }, testInfo) => {
-  await openApp(page, '/settings');
+test(
+  'sets global working days and gates schedule creation starts',
+  { tag: '@engine' },
+  async ({ page }, testInfo) => {
+    await openApp(page, '/settings');
 
-  const settings = page.getByRole('group', { name: 'Company working days' });
-  const weekdays = settings.getByRole('checkbox');
-  await expect(settings.locator('label')).toHaveText([
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ]);
-  await expect(weekdays).toHaveCount(7);
-  await expect
-    .poll(() => weekdays.evaluateAll((controls) => controls.map((control) => control.id)))
-    .toEqual([
-      'account-working-day-1',
-      'account-working-day-2',
-      'account-working-day-3',
-      'account-working-day-4',
-      'account-working-day-5',
-      'account-working-day-6',
-      'account-working-day-0',
+    const settings = page.getByRole('group', { name: 'Company working days' });
+    const weekdays = settings.getByRole('checkbox');
+    await expect(settings.locator('label')).toHaveText([
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
     ]);
+    await expect(weekdays).toHaveCount(7);
+    await expect
+      .poll(() => weekdays.evaluateAll((controls) => controls.map((control) => control.id)))
+      .toEqual([
+        'account-working-day-1',
+        'account-working-day-2',
+        'account-working-day-3',
+        'account-working-day-4',
+        'account-working-day-5',
+        'account-working-day-6',
+        'account-working-day-0',
+      ]);
 
-  // Friday becomes globally unavailable; Saturday becomes globally available so Bruce's personal
-  // Monday–Friday pattern is the independent reason that date remains blocked.
-  const friday = page.getByRole('checkbox', { name: 'Friday' });
-  const saturday = page.getByRole('checkbox', { name: 'Saturday' });
-  await changeCompanySetting(page, () => friday.click());
-  await expect(friday).not.toBeChecked();
-  await changeCompanySetting(page, () => saturday.click());
-  await expect(saturday).toBeChecked();
-  await page.screenshot({ path: testInfo.outputPath('global_working_days_settings.png') });
+    // Friday becomes globally unavailable; Saturday becomes globally available so Bruce's personal
+    // Monday–Friday pattern is the independent reason that date remains blocked.
+    const friday = page.getByRole('checkbox', { name: 'Friday' });
+    const saturday = page.getByRole('checkbox', { name: 'Saturday' });
+    await changeCompanySetting(page, () => friday.click());
+    await expect(friday).not.toBeChecked();
+    await changeCompanySetting(page, () => saturday.click());
+    await expect(saturday).toBeChecked();
+    await page.screenshot({ path: testInfo.outputPath('global_working_days_settings.png') });
 
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await setZoom(page, 4);
-  await goToSeedWeek(page);
+    await page.getByRole('link', { name: 'Schedule' }).click();
+    await setZoom(page, 4);
+    await goToSeedWeek(page);
 
-  const lane = page.locator('[data-resource-id="r-tyler"]');
-  // Friday is globally non-working.
-  await expectBlockedStart(page, lane, '2026-06-05');
-  // Saturday is non-working for this person.
-  await expectBlockedStart(page, lane, '2026-06-06');
-  // Bruce is on holiday that Wednesday.
-  await expectBlockedStart(page, lane, '2026-06-10');
-  await page.screenshot({ path: testInfo.outputPath('global_working_days_schedule.png') });
+    const lane = page.locator('[data-resource-id="r-tyler"]');
+    // Friday is globally non-working.
+    await expectBlockedStart(page, lane, '2026-06-05');
+    // Saturday is non-working for this person.
+    await expectBlockedStart(page, lane, '2026-06-06');
+    // Bruce is on holiday that Wednesday.
+    await expectBlockedStart(page, lane, '2026-06-10');
+    await page.screenshot({ path: testInfo.outputPath('global_working_days_schedule.png') });
 
-  // An allowed Tuesday start may cross the holiday dates after it.
-  const start = await lanePoint(page, lane, '2026-06-09');
-  const end = await lanePoint(page, lane, '2026-06-12');
-  await page.mouse.move(start.x, start.y);
-  await expect(lane.getByTestId('day-add-hint')).toBeVisible();
-  await page.mouse.down();
-  await page.mouse.move(end.x, end.y, { steps: 8 });
-  await page.mouse.up();
+    // An allowed Tuesday start may cross the holiday dates after it.
+    const start = await lanePoint(page, lane, '2026-06-09');
+    const end = await lanePoint(page, lane, '2026-06-12');
+    await page.mouse.move(start.x, start.y);
+    await expect(lane.getByTestId('day-add-hint')).toBeVisible();
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 8 });
+    await page.mouse.up();
 
-  const dialog = page.getByRole('dialog', { name: 'New allocation' });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('textbox', { name: 'Start' })).toHaveValue('2026-06-09');
-  await expect(dialog.getByRole('textbox', { name: 'End' })).toHaveValue('2026-06-12');
-});
+    const dialog = page.getByRole('dialog', { name: 'New allocation' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Start' })).toHaveValue('2026-06-09');
+    await expect(dialog.getByRole('textbox', { name: 'End' })).toHaveValue('2026-06-12');
+  },
+);

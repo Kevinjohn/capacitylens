@@ -30,66 +30,67 @@ async function saveAvailability(page: Page, first: string, last: string): Promis
   await expect(dialog).toHaveCount(0);
 }
 
-test('clearing, saving and reloading availability keeps explicit null values', async ({
-  page,
-  request,
-}) => {
-  await openApp(page, '/resources');
-  await saveAvailability(page, '2026-06-01', '2026-06-30');
-  await expect
-    .poll(async () => {
-      const row = await persistedAvailability(request);
-      return [row.firstAvailableDate, row.lastAvailableDate];
-    })
-    .toEqual(['2026-06-01', '2026-06-30']);
+test(
+  'clearing, saving and reloading availability keeps explicit null values',
+  { tag: '@engine' },
+  async ({ page, request }) => {
+    await openApp(page, '/resources');
+    await saveAvailability(page, '2026-06-01', '2026-06-30');
+    await expect
+      .poll(async () => {
+        const row = await persistedAvailability(request);
+        return [row.firstAvailableDate, row.lastAvailableDate];
+      })
+      .toEqual(['2026-06-01', '2026-06-30']);
 
-  await saveAvailability(page, '', '');
-  await expect
-    .poll(async () => {
-      const row = await persistedAvailability(request);
-      return [row.firstAvailableDate, row.lastAvailableDate];
-    })
-    .toEqual([null, null]);
-  await openApp(page, '/resources');
-  await saveAvailability(page, '2026-06-05', '2026-06-25');
-  await expect
-    .poll(async () => {
-      const row = await persistedAvailability(request);
-      return [row.firstAvailableDate, row.lastAvailableDate];
-    })
-    .toEqual(['2026-06-05', '2026-06-25']);
+    await saveAvailability(page, '', '');
+    await expect
+      .poll(async () => {
+        const row = await persistedAvailability(request);
+        return [row.firstAvailableDate, row.lastAvailableDate];
+      })
+      .toEqual([null, null]);
+    await openApp(page, '/resources');
+    await saveAvailability(page, '2026-06-05', '2026-06-25');
+    await expect
+      .poll(async () => {
+        const row = await persistedAvailability(request);
+        return [row.firstAvailableDate, row.lastAvailableDate];
+      })
+      .toEqual(['2026-06-05', '2026-06-25']);
 
-  // Resource availability is a typed planning write and can be undone without losing nulls.
-  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-  await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect
-    .poll(async () => {
-      const row = await persistedAvailability(request);
-      return [row.firstAvailableDate, row.lastAvailableDate];
-    })
-    .toEqual([null, null]);
-  await page.getByRole('button', { name: 'Redo', exact: true }).click();
-  await expect
-    .poll(async () => {
-      const row = await persistedAvailability(request);
-      return [row.firstAvailableDate, row.lastAvailableDate];
-    })
-    .toEqual(['2026-06-05', '2026-06-25']);
-  await page.getByRole('link', { name: 'Resources', exact: true }).click();
-  await saveAvailability(page, '', '');
-  await expect
-    .poll(async () => {
-      const row = await persistedAvailability(request);
-      return [row.firstAvailableDate, row.lastAvailableDate];
-    })
-    .toEqual([null, null]);
-  await openApp(page, '/resources');
-  await page
-    .getByTestId('resource-row')
-    .filter({ hasText: 'Bruce Wayne' })
-    .getByRole('button', { name: 'Edit Bruce Wayne' })
-    .click();
-  const dialog = page.getByRole('dialog', { name: 'Edit resource' });
-  await expect(dialog.getByLabel('Start date', { exact: true })).toHaveValue('');
-  await expect(dialog.getByLabel('End date', { exact: true })).toHaveValue('');
-});
+    // Resource availability is a typed planning write and can be undone without losing nulls.
+    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await expect
+      .poll(async () => {
+        const row = await persistedAvailability(request);
+        return [row.firstAvailableDate, row.lastAvailableDate];
+      })
+      .toEqual([null, null]);
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    await expect
+      .poll(async () => {
+        const row = await persistedAvailability(request);
+        return [row.firstAvailableDate, row.lastAvailableDate];
+      })
+      .toEqual(['2026-06-05', '2026-06-25']);
+    await page.getByRole('link', { name: 'Resources', exact: true }).click();
+    await saveAvailability(page, '', '');
+    await expect
+      .poll(async () => {
+        const row = await persistedAvailability(request);
+        return [row.firstAvailableDate, row.lastAvailableDate];
+      })
+      .toEqual([null, null]);
+    await openApp(page, '/resources');
+    await page
+      .getByTestId('resource-row')
+      .filter({ hasText: 'Bruce Wayne' })
+      .getByRole('button', { name: 'Edit Bruce Wayne' })
+      .click();
+    const dialog = page.getByRole('dialog', { name: 'Edit resource' });
+    await expect(dialog.getByLabel('Start date', { exact: true })).toHaveValue('');
+    await expect(dialog.getByLabel('End date', { exact: true })).toHaveValue('');
+  },
+);

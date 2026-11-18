@@ -1,4 +1,5 @@
-// Run real SQLite browser journeys on all three engines; Node24+ and the backend are required.
+// Run real SQLite browser journeys on Chromium, and the engine-sensitive ones on WebKit and Firefox;
+// Node24+ and the backend are required.
 // Authentication journeys remain Chromium-only in e2e:all. Both invocations always run.
 
 import {

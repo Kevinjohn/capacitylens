@@ -2,6 +2,8 @@
 export const AUTH_SERVER_MEMORY_BYTES: number;
 /** Measured full-stack memory per browser worker, in bytes. */
 export const WORKER_MEMORY_BYTES: number;
+/** Usable memory, in bytes, from macOS `vm_stat` output. */
+export function macosAvailableMemoryBytes(vmStat: string): number;
 /** Read memory available for isolated browser workers. */
 export function availableMemoryBytes(): number;
 /** Select a nonzero memory-, CPU- and port-bounded worker count, or refuse before startup. */

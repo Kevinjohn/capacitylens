@@ -51,15 +51,19 @@ test.describe('Placeholders (per-account pref, default off)', () => {
     await expect(header.getByText('?', { exact: true })).toBeVisible();
   });
 
-  test('the choice survives navigation and a server-backed reload', async ({ page }) => {
-    await openApp(page, '/settings');
-    await page.getByRole('switch', { name: 'Show placeholders' }).click();
-    await page.getByRole('link', { name: 'Schedule' }).click();
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await page.reload();
-    await expect(page.getByRole('switch', { name: 'Show placeholders' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-  });
+  test(
+    'the choice survives navigation and a server-backed reload',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page, '/settings');
+      await page.getByRole('switch', { name: 'Show placeholders' }).click();
+      await page.getByRole('link', { name: 'Schedule' }).click();
+      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await page.reload();
+      await expect(page.getByRole('switch', { name: 'Show placeholders' })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
+    },
+  );
 });

@@ -4,42 +4,46 @@ import { openApp, selectShadOption, showScheduleFilters } from './browserTestSup
 test.describe('Filters', () => {
   // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
   // and 5 resource rows across Design/Development/Copywriting.
-  test('orders filter options by their planning hierarchy', async ({ page }) => {
-    await openApp(page);
-    await showScheduleFilters(page);
+  test(
+    'orders filter options by their planning hierarchy',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await showScheduleFilters(page);
 
-    const expectOptions = async (label: string, names: string[]) => {
-      await page.getByLabel(label).click();
-      await expect(page.getByRole('option')).toHaveText(names);
-      await page.keyboard.press('Escape');
-    };
+      const expectOptions = async (label: string, names: string[]) => {
+        await page.getByLabel(label).click();
+        await expect(page.getByRole('option')).toHaveText(names);
+        await page.keyboard.press('Escape');
+      };
 
-    await expectOptions('Filter by discipline', [
-      'All disciplines',
-      'Design',
-      'Development',
-      'Copywriting',
-    ]);
-    await expectOptions('Filter by client', [
-      'All clients',
-      'Internal',
-      'LexCorp',
-      'Queen Consolidated',
-    ]);
-    await expectOptions('Filter by project', [
-      'All projects',
-      'LexCorp / Metropolis Rebrand',
-      'Queen Consolidated / Project Watchtower',
-    ]);
-    await expectOptions('Filter by activity', [
-      'All activities',
-      'Internal — All',
-      'Admin / Internal',
-      'All projects — All',
-      'Design',
-      'Workshop',
-    ]);
-  });
+      await expectOptions('Filter by discipline', [
+        'All disciplines',
+        'Design',
+        'Development',
+        'Copywriting',
+      ]);
+      await expectOptions('Filter by client', [
+        'All clients',
+        'Internal',
+        'LexCorp',
+        'Queen Consolidated',
+      ]);
+      await expectOptions('Filter by project', [
+        'All projects',
+        'LexCorp / Metropolis Rebrand',
+        'Queen Consolidated / Project Watchtower',
+      ]);
+      await expectOptions('Filter by activity', [
+        'All activities',
+        'Internal — All',
+        'Admin / Internal',
+        'All projects — All',
+        'Design',
+        'Workshop',
+      ]);
+    },
+  );
   test('searches resources by name and hides non-matching rows', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);

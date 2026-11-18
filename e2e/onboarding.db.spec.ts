@@ -120,7 +120,7 @@ test.describe('single-company production entry', () => {
 });
 
 // First-install setup captures the one company's fixed calendar convention.
-test.describe('first-install calendar settings', () => {
+test.describe('first-install calendar settings', { tag: '@engine' }, () => {
   test.use({ contextOptions: { reducedMotion: 'reduce', timezoneId: 'Europe/London' } });
 
   test('captures week start and time zone, then presents their read-only Settings summary', async ({
