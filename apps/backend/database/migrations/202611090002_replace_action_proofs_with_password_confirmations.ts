@@ -34,11 +34,13 @@ export default class extends BaseSchema {
       // Epoch milliseconds.
       table.bigInteger('verified_at').notNullable();
       table.bigInteger('issued_at').notNullable();
+      // The deadline returned at issuance; a later change to the window does not move it.
+      table.bigInteger('expires_at').notNullable();
       table.bigInteger('consumed_at').nullable();
       table.index(['user_id']);
       table.index(['sign_in_id']);
-      // prune(): expired by verified_at, spent by consumed_at.
-      table.index(['verified_at']);
+      // prune(): expired by expires_at, spent by consumed_at.
+      table.index(['expires_at']);
       table.index(['consumed_at']);
     });
   }

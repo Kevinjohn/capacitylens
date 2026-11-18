@@ -524,7 +524,7 @@ export class MembershipSchema extends BaseModel {
 }
 
 export class PasswordConfirmationSchema extends BaseModel {
-  static $columns = ['action', 'consumedAt', 'credentialRevision', 'id', 'intentHash', 'issuedAt', 'scope', 'signInId', 'userId', 'verifiedAt'] as const
+  static $columns = ['action', 'consumedAt', 'credentialRevision', 'expiresAt', 'id', 'intentHash', 'issuedAt', 'scope', 'signInId', 'userId', 'verifiedAt'] as const
   $columns = PasswordConfirmationSchema.$columns
   @column()
   declare action: string
@@ -532,6 +532,8 @@ export class PasswordConfirmationSchema extends BaseModel {
   declare consumedAt: bigint | number | null
   @column()
   declare credentialRevision: string | null
+  @column()
+  declare expiresAt: bigint | number
   @column({ isPrimary: true })
   declare id: string
   @column()

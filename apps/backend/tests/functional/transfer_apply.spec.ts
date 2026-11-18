@@ -690,6 +690,38 @@ test.group('beta transfer apply', (group) => {
     assert.equal(await revision(), baseRevision);
   });
 
+  test('a recently verified import confirmation cannot spend after its stored deadline', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie } = await resetAuthenticatedData(client);
+    const full = await document();
+    const baseRevision = await revision();
+    const intent = { baseRevision, document: asExportFile(full) };
+    const confirmationId = await proof(client, cookie, intent);
+    const confirmation = (id: string) => db.from('password_confirmations').where('id', id);
+    const issued = await confirmation(confirmationId).firstOrFail();
+    assert.equal(issued.expires_at - issued.verified_at, 5 * 60_000);
+    await confirmation(confirmationId).update({ expires_at: Date.now() - 1 });
+
+    const expired = await apply(client, cookie, full, baseRevision, confirmationId);
+    expired.assertStatus(403);
+    assert.deepEqual(expired.body(), {
+      error: 'Confirm this action again.',
+      code: 'PASSWORD_CONFIRMATION_REQUIRED',
+    });
+    const refused = await confirmation(confirmationId).firstOrFail();
+    assert.equal(refused.verified_at, issued.verified_at);
+    assert.isNull(refused.consumed_at);
+    assert.equal(await revision(), baseRevision);
+
+    const freshId = await proof(client, cookie, intent);
+    const fresh = await apply(client, cookie, full, baseRevision, freshId);
+    fresh.assertStatus(200);
+    const spent = await confirmation(freshId).firstOrFail();
+    assert.isNotNull(spent.consumed_at);
+  });
+
   test('competing spends admit only one use of an exact import proof', async ({
     client,
     assert,
