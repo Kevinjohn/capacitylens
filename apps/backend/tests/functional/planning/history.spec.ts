@@ -63,7 +63,9 @@ class Page {
     const query = this.historyId === null ? '' : `?historyId=${this.historyId}`;
     const response = await session(this.client.get(`${planningUrl}${query}`), this.cookie).send();
     response.assertStatus(200);
-    const reply = response.body() as Reply;
+    const reply = response.body() as Reply & {
+      data: { allocations: Array<{ id: string; updatedAt: string }> };
+    };
     this.revision = reply.revision;
     return reply;
   }
@@ -116,12 +118,24 @@ test.group('server-held undo and redo', (suite) => {
     const page = new Page(client, await cookieFor(client));
     const { id, reply: created } = await createAllocation(page);
     assert.deepEqual(created.history, { canUndo: true, canRedo: false });
+    // Keep both HTTP writes behind the row clock to exercise the monotonic timestamp rule.
+    const seededAt = '2098-01-01T00:00:00.000Z';
+    await db.from('allocations').where('id', id).update({ updated_at: seededAt });
     assert.equal(await statusOf(setNote(page, id, 'Watchtower audit')), 200);
+    const editedAt = (await stored(id))!.updatedAt;
+    assert.isAbove(Date.parse(editedAt), Date.parse(seededAt));
 
     const undoneUpdate = await page.undo();
     assert.equal(undoneUpdate.status, 200);
     assert.deepEqual(undoneUpdate.history, { canUndo: true, canRedo: true });
-    assert.equal(await noteOf(id), 'Batcave audit');
+    const restored = (await stored(id))!;
+    assert.equal(restored.note, 'Batcave audit');
+    assert.isAbove(Date.parse(restored.updatedAt), Date.parse(editedAt));
+    const snapshot = await page.read();
+    assert.equal(
+      snapshot.data.allocations.find((row) => row.id === id)?.updatedAt,
+      restored.updatedAt
+    );
 
     const undoneCreate = await page.undo();
     assert.deepEqual(undoneCreate.history, { canUndo: false, canRedo: true });

@@ -1,3 +1,4 @@
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { hasActiveFilters, useStore } from './useStore';
@@ -8,7 +9,6 @@ import {
   makeAccount,
   makeResourceDraft,
   requireValue,
-  DEFAULT_ACCOUNT_ID,
   updatePlanningFixtureSource,
   WORKDAYS,
 } from '@/test/fixtures';
@@ -33,22 +33,12 @@ describe('store CRUD', () => {
     expect(s().data.resources).toHaveLength(1);
   });
 
-  it('applies the timestamp returned by the planning receipt', async () => {
+  it('applies the row timestamp returned by the read after an update', async () => {
     const client = await requireCreated(s().addClient({ name: 'Boundary', color: '#111111' }));
-    const data = s().data;
-    const timestamp = '2098-01-01T00:00:00.000Z';
-    const timestampFixture = {
-      ...data,
-      clients: data.clients.map((row) =>
-        row.id === client.id ? { ...row, updatedAt: timestamp } : row,
-      ),
-    };
-    await resetStoreWithData(timestampFixture, DEFAULT_ACCOUNT_ID);
-    await s().updateClient(client.id, { name: 'Last successor' });
-    const updated = s().data.clients.find((row) => row.id === client.id);
-    expect(updated).toMatchObject({ name: 'Last successor' });
-    expect(updated?.updatedAt).not.toBe(timestamp);
-    expect(Number.isFinite(Date.parse(updated?.updatedAt ?? ''))).toBe(true);
+    const serverRow = { ...client, name: 'Last successor', updatedAt: '2098-01-01T00:00:00.001Z' };
+    queuePlanningPatch(() => ({ upserts: [{ entity: 'clients', row: serverRow }], removed: [] }));
+    await s().updateClient(client.id, { name: serverRow.name });
+    expect(s().data.clients.find((row) => row.id === client.id)).toMatchObject(serverRow);
   });
   it('updates fields from the planning receipt', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
