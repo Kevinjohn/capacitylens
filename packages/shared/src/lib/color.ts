@@ -118,7 +118,7 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   const resource = maps.resources.get(allocation.resourceId);
   // External / 3rd-party work reads as a single neutral colour (an "awareness" signal),
   // overriding the usual project→client colouring so an outsourced bar never looks like one of
-  // our own. See DECISIONS.md "external kind": single neutral colour.
+  // our own.
   if (resource && isExternalResource(resource)) return NEUTRAL_COLOR;
   const attribution = resolveBarAttribution(allocation, maps);
   if (hasNeutralBarColor(attribution)) return NEUTRAL_COLOR;

@@ -21,7 +21,7 @@ import type { Activity, ActivityKind } from '@capacitylens/shared/types/entities
 import { ACTIVITY_KIND_ORDER } from './activityKinds';
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
-// switch rather than freezing to the import-time locale, per the i18n key convention (DECISIONS).
+// switch rather than freezing to the import-time locale.
 const buildKindOptions = (): { value: ActivityKind; label: string }[] => {
   const labels: Record<ActivityKind, string> = {
     internal: m.form_activity_kind_internal(),

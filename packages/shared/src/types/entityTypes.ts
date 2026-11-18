@@ -18,12 +18,11 @@ export type AllocationStatus = 'confirmed' | 'tentative' | 'completed';
  * the default), by volume of work spread over a span ('days'), or as a pure
  * booking block where only the span matters and load is ignored ('blocks'). */
 export type SchedulingMode = 'hourly' | 'days' | 'blocks';
-/** Runtime list of the valid scheduling modes, the single source the server's
- * sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
+/** The valid scheduling modes; the settings validator refuses anything else. */
 export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks'];
 /** Who may open the Capacity Overview for an account. Null means owner/admin only. */
 export type CapacityOverviewAccess = 'owner_admin' | 'owner_admin_editor' | 'everyone';
-/** Runtime list used by import and server sanitisation to reject unknown access policies. */
+/** The valid access policies; the settings validator refuses anything else. */
 export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
   'owner_admin',
   'owner_admin_editor',
@@ -32,7 +31,7 @@ export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
 /** How human-readable dates read across an account: day/month order, and whether the day number
  * carries an ordinal suffix. Null means "day-month" ("9 Sep"). This is account data, not a device preference. A company reads one convention. */
 export type DateStyle = 'day-month' | 'day-ordinal-month' | 'month-day' | 'month-day-ordinal';
-/** Supported date styles in Settings order; server/import sanitization rejects values absent from this list.
+/** Supported date styles in Settings order; the settings validator refuses any other value.
  * Keep this list aligned with DateStyle; the array type alone does not enforce union completeness. */
 export const DATE_STYLES: DateStyle[] = [
   'day-month',
@@ -186,7 +185,7 @@ export interface Client extends ScopedEntity {
    * or accepted on writes. */
   displayName?: string;
   /** True only for the built-in "Internal" pseudo-client, exactly one per account, created by
-   * seed / addAccount / imports. A built-in client cannot be renamed or deleted, and a project-less
+   * the seed, company setup and imports. A built-in client cannot be renamed or deleted, and a project-less
    * internal/all-projects activity buckets under it for display + filtering. Null/false = a normal,
    * user-managed client. Identified at runtime by this flag, never a hard-coded id (so it survives
    * import-remap). See shared/src/data/internalClient.ts. */

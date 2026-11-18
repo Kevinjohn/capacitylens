@@ -350,7 +350,7 @@ describe('assertScopedRefs', () => {
   });
   it('an UNRECOGNISED activity kind is not treated as internal/repeatable (no false project rejection)', () => {
     // assertScopedRefs checks refs + coherence for the known kinds only; it does not police the kind
-    // enum itself (sanitize does). An unknown kind carrying a valid project must pass the ref checks.
+    // enum itself (the write validator does). An unknown kind carrying a valid project must pass the ref checks.
     const data = {
       ...base(),
       clients: [client('c1', A1)],
