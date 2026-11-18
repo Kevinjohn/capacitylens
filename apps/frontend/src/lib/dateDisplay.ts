@@ -118,7 +118,7 @@ function formatRange({ startDate, endDate, partsFor, options = {} }: RangeInput)
   return rendered;
 }
 
-const shortParts = (): DateParts => ({ weekday: true, ordinal: true, month: true, year: false });
+const getShortParts = (): DateParts => ({ weekday: true, ordinal: true, month: true, year: false });
 
 /**
  * A terse, scannable date: "Wed 10th Jun" (or "Wed Jun 10th" under a month-first style).
@@ -129,7 +129,7 @@ const shortParts = (): DateParts => ({ weekday: true, ordinal: true, month: true
  * regardless of style; only day/month order follows the style.
  */
 export function formatShortDate(date: ISODate): string {
-  return formatSingle(date, shortParts);
+  return formatSingle(date, getShortParts);
 }
 
 /**
@@ -139,10 +139,10 @@ export function formatShortDate(date: ISODate): string {
  * {@link formatShortDate}.
  */
 export function formatShortDateRange(startDate: ISODate, endDate: ISODate): string {
-  return formatRange({ startDate, endDate, partsFor: shortParts });
+  return formatRange({ startDate, endDate, partsFor: getShortParts });
 }
 
-const dayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
+const getDayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
   weekday: false,
   ordinal: descriptor.ordinal,
   month: true,
@@ -154,7 +154,7 @@ const dayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
  * use formatDayMonthEndpoint to retain cross-year context.
  */
 export function formatDayMonth(date: ISODate): string {
-  return formatSingle(date, dayMonthParts);
+  return formatSingle(date, getDayMonthParts);
 }
 
 /**
@@ -163,7 +163,7 @@ export function formatDayMonth(date: ISODate): string {
  * same-day range degrades to {@link formatDayMonth}.
  */
 export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): string {
-  return formatRange({ startDate, endDate, partsFor: dayMonthParts });
+  return formatRange({ startDate, endDate, partsFor: getDayMonthParts });
 }
 
 /**
@@ -176,7 +176,7 @@ export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): str
   return formatRange({
     startDate,
     endDate,
-    partsFor: dayMonthParts,
+    partsFor: getDayMonthParts,
     options: { collapseYearBoundary: true },
   });
 }
@@ -194,16 +194,16 @@ export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): str
 export function formatDayMonthEndpoint(date: ISODate, counterpart: ISODate): string {
   return formatSingle(date, (descriptor) => ({
     ...dayMonthParts(descriptor),
-    year: crossesYear(date, counterpart),
+    year: isCrossYear(date, counterpart),
   }));
 }
 
 /** The {@link formatShortDate} counterpart to {@link formatDayMonthEndpoint}: weekday, and the year only across one. */
 export function formatShortDateEndpoint(date: ISODate, counterpart: ISODate): string {
-  return formatSingle(date, () => ({ ...shortParts(), year: crossesYear(date, counterpart) }));
+  return formatSingle(date, () => ({ ...shortParts(), year: isCrossYear(date, counterpart) }));
 }
 
-function crossesYear(date: ISODate, counterpart: ISODate): boolean {
+function isCrossYear(date: ISODate, counterpart: ISODate): boolean {
   const counterpartYear = parseDate(counterpart).getFullYear();
   // `date` itself reaches date-fns `format`, which surfaces an invalid one as a RangeError. The
   // counterpart never does, so an unvalidated one would silently decide "different year" through a
