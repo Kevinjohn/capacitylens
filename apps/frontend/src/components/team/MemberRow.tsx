@@ -133,7 +133,7 @@ function MemberPrimaryActions({
             aria-label={m.settings_member_edit_aria({ member: memberLabel })}
             data-testid="member-edit"
             disabled={busy}
-            onClick={() => setRoleEdit({ member: member, nextRole: member.role })}
+            onClick={() => setRoleEdit({ member, nextRole: member.role })}
           >
             <Pencil />
           </Button>
@@ -173,7 +173,7 @@ function MemberSettingsMenuItems({
 
 /** Shows one member's role, sign-in state, and permitted management actions. */
 export function MemberRow({
-  member: member,
+  member,
   myRole,
   busy,
   openMenuFor,

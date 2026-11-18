@@ -297,7 +297,7 @@ describe('resolveAccessibleBarColors', () => {
   });
 
   it('passes an already-AA-compliant colour through verbatim, never entering the nudge loop', () => {
-    // Pure black clears 4.5:1 against white ink on the very first contrastWithInk() check
+    // Pure black clears 4.5:1 against white ink on the very first contrast check
     // (21:1), so the loop body never runs and `nudged` stays false, bg must equal the input
     // hex exactly (the caller's own string), not a formatHex() round-trip of the same RGB.
     expect(resolveAccessibleBarColors('#000000')).toEqual({ bg: '#000000', ink: '#ffffff' });

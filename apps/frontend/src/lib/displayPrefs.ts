@@ -19,12 +19,8 @@ interface CreateBooleanPreferenceInput {
   fallback: boolean;
 }
 
-interface WriteStoredSidebarOpenInput {
-  open: boolean;
-}
-
-// Boolean records read only declared fields so legacy or unknown preference keys
-// cannot widen the shape. Sidebar choice remains tri-state to preserve first-run defaults.
+// Boolean records read only declared fields so unknown preference keys cannot
+// widen the shape. Sidebar choice remains tri-state to preserve first-run defaults.
 
 function readBooleanPreference({ key, fallback }: ReadBooleanPreferenceInput): boolean {
   try {
@@ -57,7 +53,7 @@ function mergeBooleanRecord<T extends Record<keyof T, boolean>>(
   return merged;
 }
 
-// Read only declared preference fields so legacy or unknown keys cannot widen the
+// Read only declared preference fields so unknown keys cannot widen the
 // runtime shape; unavailable or malformed storage keeps the documented defaults.
 function readBooleanRecordPreference<T extends Record<keyof T, boolean>>(
   key: string,
@@ -92,13 +88,13 @@ function createBooleanPreference({
 }: CreateBooleanPreferenceInput): [read: () => boolean, write: (on: boolean) => void] {
   const storageKey = `${STORAGE_KEY_PREFIX}${key}`;
   return [
-    () => readBooleanPreference({ key: storageKey, fallback: fallback }),
-    (on: boolean) => writeBooleanPreference({ key: storageKey, on: on }),
+    () => readBooleanPreference({ key: storageKey, fallback }),
+    (on: boolean) => writeBooleanPreference({ key: storageKey, on }),
   ];
 }
 
 /** Visibility preferences for utilisation summaries. */
-export interface UtilizationPreferences {
+export interface UtilisationPreferences {
   /** Show the account-wide utilisation summary. */
   showTotal: boolean;
   /** Show per-discipline utilisation. */
@@ -108,7 +104,7 @@ export interface UtilizationPreferences {
 }
 
 /** Default visibility for utilisation summaries. */
-export const DEFAULT_UTILIZATION_PREFS: UtilizationPreferences = {
+export const DEFAULT_UTILISATION_PREFS: UtilisationPreferences = {
   showTotal: true,
   showDiscipline: true,
   showPersonal: true,
@@ -117,14 +113,14 @@ export const DEFAULT_UTILIZATION_PREFS: UtilizationPreferences = {
 const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`;
 
 /** Read the saved preferences, falling back to the defaults for anything missing
- * or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
-export function readStoredUtilizationPrefs(): UtilizationPreferences {
-  return readBooleanRecordPreference(STORAGE_KEY, DEFAULT_UTILIZATION_PREFS);
+ * or when storage is unavailable. Tolerant of partial stored shapes. */
+export function readStoredUtilisationPrefs(): UtilisationPreferences {
+  return readBooleanRecordPreference(STORAGE_KEY, DEFAULT_UTILISATION_PREFS);
 }
 
 /** Persist the preferences. Best-effort: if storage is unavailable the in-memory
  * store still honours the choice for this session. */
-export function writeStoredUtilizationPrefs(preferences: UtilizationPreferences): void {
+export function writeStoredUtilisationPrefs(preferences: UtilisationPreferences): void {
   writeBooleanRecordPreference(STORAGE_KEY, preferences);
 }
 
@@ -145,12 +141,12 @@ export const DEFAULT_BAR_LABEL_PREFS: BarLabelPreferences = {
 const BAR_LABEL_STORAGE_KEY = `${STORAGE_KEY_PREFIX}barLabelPrefs`;
 
 /** Read the saved bar-label preferences, same tolerant fallback behaviour as
- * readStoredUtilizationPrefs. */
+ * readStoredUtilisationPrefs. */
 export function readStoredBarLabelPrefs(): BarLabelPreferences {
   return readBooleanRecordPreference(BAR_LABEL_STORAGE_KEY, DEFAULT_BAR_LABEL_PREFS);
 }
 
-/** Persist the bar-label preferences. Best-effort, like writeStoredUtilizationPrefs. */
+/** Persist the bar-label preferences. Best-effort, like writeStoredUtilisationPrefs. */
 export function writeStoredBarLabelPrefs(preferences: BarLabelPreferences): void {
   writeBooleanRecordPreference(BAR_LABEL_STORAGE_KEY, preferences);
 }
@@ -180,7 +176,7 @@ export function readStoredSidebarOpen(): boolean | null {
 }
 
 /** Persist the sidebar choice. Best-effort, like the prefs above. */
-export function writeStoredSidebarOpen({ open }: WriteStoredSidebarOpenInput): void {
+export function writeStoredSidebarOpen(open: boolean): void {
   try {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? 'open' : 'closed');
   } catch {

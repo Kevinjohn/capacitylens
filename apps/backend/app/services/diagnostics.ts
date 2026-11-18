@@ -4,12 +4,12 @@ import logger from '@adonisjs/core/services/logger';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { listBundles } from '@kevinjohn/adonisjs-sqlite-backup';
 import { checkDatabase } from '#services/database_health';
-import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
+import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
 
 /** Release level and backup timing are administration facts: Owners and Admins only. */
 export async function isAdministratorOfAnyCompany(userId: string, trx: TransactionClientContract) {
   for (const companyId of await listActiveCompanyIds(userId, trx)) {
-    const role = await activeCompanyRole(userId, companyId, trx);
+    const role = await getActiveCompanyRole(userId, companyId, trx);
     if (isOwnerOrAdmin(role)) return true;
   }
   return false;

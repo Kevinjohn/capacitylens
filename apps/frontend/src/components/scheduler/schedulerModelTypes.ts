@@ -67,7 +67,7 @@ export interface RowModel {
   partialCapacityDayCount: number;
   timeOff: TimeOffBlock[];
   // This ratio includes only available days in the current visible window.
-  utilization: number;
+  utilisation: number;
   // This flag uses the fixed forward window and requires allocation above availability.
   overSoon: boolean;
 
@@ -123,7 +123,7 @@ export interface CapacitySource {
   resolveCapacityOnDay: (date: ISODate) => DayCapacity | undefined;
   countAllocationsOn: (date: ISODate) => number;
   countTimeOffOn: (date: ISODate) => number;
-  resolveUtilizationOver: (dates: ISODate[]) => number;
+  resolveUtilisationOver: (dates: ISODate[]) => number;
   /** The server's flag for an over-capacity day from today to today + 13. */
   overSoon: boolean;
 }

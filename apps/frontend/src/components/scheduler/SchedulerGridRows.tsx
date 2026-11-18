@@ -31,7 +31,7 @@ function SchedulerGridItem({
     density,
     toggleGroup,
     geom,
-    utilizationPrefs,
+    utilisationPrefs,
   } = props;
   const item = items[itemIndex];
   if (!item) return null;
@@ -52,7 +52,7 @@ function SchedulerGridItem({
         density={density}
         toggleGroup={toggleGroup}
         geom={geom}
-        utilizationPrefs={utilizationPrefs}
+        utilisationPrefs={utilisationPrefs}
       />
     ) : (
       <SchedulerGridRow

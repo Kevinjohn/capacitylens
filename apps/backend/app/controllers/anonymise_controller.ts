@@ -12,7 +12,7 @@ export default class AnonymiseController {
     if (!hasOnlyFields(body, [])) {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
-    const { companyId: companyId, id } = ctx.params;
+    const { companyId, id } = ctx.params;
     const applied = await withActor(ctx, async (actor, trx) => {
       if (actor.masqueradeContext?.isMasquerading) return 'forbidden';
       try {
@@ -33,7 +33,7 @@ export default class AnonymiseController {
     if (!hasOnlyFields(body, ['confirmationId']) || typeof body.confirmationId !== 'string') {
       return ctx.response.badRequest({ error: 'Invalid anonymisation request.' });
     }
-    const { companyId: companyId } = ctx.params;
+    const { companyId } = ctx.params;
     await withActor(ctx, async (_actor, trx) => {
       const actor = await passwordConfirmationActor(companyId, trx, 'anonymise');
       await passwordConfirmations.consume(kitContextIn(trx), {

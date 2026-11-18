@@ -10,14 +10,14 @@ type Props = Pick<ReturnType<typeof useSchedulerViewport>, 'days' | 'geom'> &
     ReturnType<typeof useSchedulerGridModel>,
     'today' | 'visibleWeeksLabel' | 'visibleSpanCompact' | 'overallUtil'
   > &
-  Pick<ReturnType<typeof useSchedulerGridPreferences>, 'ui' | 'utilizationPrefs'> & {
+  Pick<ReturnType<typeof useSchedulerGridPreferences>, 'ui' | 'utilisationPrefs'> & {
     headerRef: Ref<HTMLDivElement>;
     calendarWeekStartsOn: 0 | 1;
   };
 /** Aligns date labels and capacity columns with the schedule grid. */
 export function SchedulerGridHeader({
   headerRef,
-  utilizationPrefs: utilizationPreferences,
+  utilisationPrefs: utilisationPreferences,
   visibleWeeksLabel,
   visibleSpanCompact,
   overallUtil,
@@ -45,7 +45,7 @@ export function SchedulerGridHeader({
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-scheduler-header px-3"
           style={{ width: LAYOUT.leftColWidth }}
         >
-          {utilizationPreferences.showTotal && (
+          {utilisationPreferences.showTotal && (
             <>
               <span
                 className="text-2xs font-medium uppercase tracking-wide text-faint"

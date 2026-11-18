@@ -33,7 +33,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["useSchedulerGridModel supplies visible dates"] --> B["buildSchedulerModel creates resource bars"]
-  B --> C["applyVisibleUtilization calls projectVisibleLanes"]
+  B --> C["applyVisibleUtilisation calls projectVisibleLanes"]
   C --> D["packLanes assigns lanes to overlapping bars"]
   D --> E["resolveRowHeightForLanes sizes the row"]
   E --> F["SchedulerGridRows renders bars in ResourceLane"]

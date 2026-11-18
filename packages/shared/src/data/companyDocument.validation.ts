@@ -102,7 +102,7 @@ function assertColor(value: Row, field: string, path: string, systemColor?: stri
 
 type RowLimits = { nameMaximum: number };
 
-function validateAccountRow(row: Row, path: string): void {
+function assertAccountRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assertColor(row, 'color', path);
   assert(
@@ -164,13 +164,13 @@ function validateAccountRow(row: Row, path: string): void {
   );
 }
 
-function validateDisciplineRow(row: Row, path: string): void {
+function assertDisciplineRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assert(isNullOr(row.color, isPresetColor), `${path}.color`, 'must be a preset colour or null');
   assert(Number.isSafeInteger(row.sortOrder), `${path}.sortOrder`, 'must be a safe integer');
 }
 
-function validateResourceRow(row: Row, path: string): void {
+function assertResourceRow(row: Row, path: string): void {
   assert(isOneOf(row.kind, RESOURCE_KINDS), `${path}.kind`, 'is invalid');
   assertNullableText(row, 'name', path);
   assertText(row, 'role', path, { allowEmpty: true });
@@ -265,7 +265,7 @@ function validateResourceRow(row: Row, path: string): void {
   }
 }
 
-function validateClientRow(row: Row, path: string, { nameMaximum }: RowLimits): void {
+function assertClientRow(row: Row, path: string, { nameMaximum }: RowLimits): void {
   assertText(row, 'name', path, { maxLength: nameMaximum });
   assertColor(row, 'color', path, row.builtin === true ? INTERNAL_CLIENT_COLOR : undefined);
   assert(isNullOr(row.isPrivate, isBoolean), `${path}.isPrivate`, 'must be boolean or null');
@@ -282,7 +282,7 @@ function validateClientRow(row: Row, path: string, { nameMaximum }: RowLimits): 
   }
 }
 
-function validateProjectRow(row: Row, path: string, { nameMaximum }: RowLimits): void {
+function assertProjectRow(row: Row, path: string, { nameMaximum }: RowLimits): void {
   assertText(row, 'name', path, { maxLength: nameMaximum });
   assert(isId(row.clientId), `${path}.clientId`, 'must be a bounded id');
   assertColor(row, 'color', path);
@@ -292,12 +292,12 @@ function validateProjectRow(row: Row, path: string, { nameMaximum }: RowLimits):
   assertNullableTimestamp(row, 'deletedAt', path);
 }
 
-function validatePhaseRow(row: Row, path: string): void {
+function assertPhaseRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assert(isId(row.projectId), `${path}.projectId`, 'must be a bounded id');
 }
 
-function validateActivityRow(row: Row, path: string): void {
+function assertActivityRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assert(isOneOf(row.kind, ACTIVITY_KINDS), `${path}.kind`, 'is invalid');
   assertNullableId(row, 'projectId', path);
@@ -313,7 +313,7 @@ function validateActivityRow(row: Row, path: string): void {
   );
 }
 
-function validateAllocationRow(row: Row, path: string): void {
+function assertAllocationRow(row: Row, path: string): void {
   for (const field of ['resourceId', 'activityId']) {
     assert(isId(row[field]), `${path}.${field}`, 'must be a bounded id');
   }
@@ -345,7 +345,7 @@ function validateAllocationRow(row: Row, path: string): void {
   );
 }
 
-function validateTimeOffRow(row: Row, path: string): void {
+function assertTimeOffRow(row: Row, path: string): void {
   assert(isId(row.resourceId), `${path}.resourceId`, 'must be a bounded id');
   assert(
     validateDateRange(row.startDate as never, row.endDate as never).ok,
@@ -356,7 +356,7 @@ function validateTimeOffRow(row: Row, path: string): void {
   assertNullableText(row, 'note', path, { multiline: true });
 }
 
-function validateClosureRow(row: Row, path: string): void {
+function assertClosureRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assert(
     validateDateRange(row.startDate as never, row.endDate as never).ok,
@@ -367,20 +367,24 @@ function validateClosureRow(row: Row, path: string): void {
 
 /** The table-specific field rules, one validator per export table. */
 const rowRules: { [K in AppDataKey]: (row: Row, path: string, limits: RowLimits) => void } = {
-  accounts: validateAccountRow,
-  disciplines: validateDisciplineRow,
-  resources: validateResourceRow,
-  clients: validateClientRow,
-  projects: validateProjectRow,
-  phases: validatePhaseRow,
-  activities: validateActivityRow,
-  allocations: validateAllocationRow,
-  timeOff: validateTimeOffRow,
-  closures: validateClosureRow,
+  accounts: assertAccountRow,
+  disciplines: assertDisciplineRow,
+  resources: assertResourceRow,
+  clients: assertClientRow,
+  projects: assertProjectRow,
+  phases: assertPhaseRow,
+  activities: assertActivityRow,
+  allocations: assertAllocationRow,
+  timeOff: assertTimeOffRow,
+  closures: assertClosureRow,
 };
 
-/** Validate every supplied scalar field without coercing or mutating the row. */
-export function validateRow(
+/**
+ * Checks every supplied scalar field without coercing or mutating the row.
+ *
+ * @throws CompanyDocumentError naming the first invalid field.
+ */
+export function assertRow(
   key: AppDataKey,
   input: unknown,
   path: string,

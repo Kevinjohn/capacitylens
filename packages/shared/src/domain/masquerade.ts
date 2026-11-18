@@ -12,7 +12,7 @@ export const MASQUERADE_END_REASONS = [
   'target_invalidated',
 ] as const;
 
-/** Legacy-compatible reason labels accepted by existing masquerade controls. */
+/** Why a view-as session ended. */
 export type MasqueradeEndReason = (typeof MASQUERADE_END_REASONS)[number];
 
 /** End reasons accepted from the browser-facing DELETE route. */

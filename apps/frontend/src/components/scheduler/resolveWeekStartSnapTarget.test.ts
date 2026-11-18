@@ -19,14 +19,14 @@ describe('resolveWeekStartSnapTarget — floor to the current week start (unifor
   it('a left edge mid-week (Wed) floors BACK to the same Monday', () => {
     const wedX = geom.xForDateInGeom('2026-06-03');
     expect(
-      resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 }),
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: wedX, weekStartsOn: 1 }),
     ).toBe(mon1);
   });
 
   it('a left edge past the half-week (Fri) ALSO floors back to the SAME Monday, never forward', () => {
     const friX = geom.xForDateInGeom('2026-06-05');
     const target = resolveWeekStartSnapTarget({
-      geom: geom,
+      geom,
       days: DAYS,
       scrollLeft: friX,
       weekStartsOn: 1,
@@ -37,10 +37,10 @@ describe('resolveWeekStartSnapTarget — floor to the current week start (unifor
 
   it('returns null when already exactly on a Monday (convergence — caller no-ops)', () => {
     expect(
-      resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: mon1, weekStartsOn: 1 }),
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: mon1, weekStartsOn: 1 }),
     ).toBeNull();
     expect(
-      resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: mon2, weekStartsOn: 1 }),
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: mon2, weekStartsOn: 1 }),
     ).toBeNull();
   });
 
@@ -49,7 +49,7 @@ describe('resolveWeekStartSnapTarget — floor to the current week start (unifor
     // Rounding also keeps a position 0.4px below Monday on the same column, as tested below.
     expect(
       resolveWeekStartSnapTarget({
-        geom: geom,
+        geom,
         days: DAYS,
         scrollLeft: mon2 + 0.4,
         weekStartsOn: 1,
@@ -58,7 +58,7 @@ describe('resolveWeekStartSnapTarget — floor to the current week start (unifor
 
     expect(
       resolveWeekStartSnapTarget({
-        geom: geom,
+        geom,
         days: DAYS,
         scrollLeft: mon2 + 0.6,
         weekStartsOn: 1,
@@ -71,7 +71,7 @@ describe('resolveWeekStartSnapTarget — Sunday week start (weekStartsOn=0)', ()
   it("clamps the first partial week's preceding Sunday to the window origin", () => {
     const tueX = geom.xForDateInGeom('2026-06-02');
     expect(
-      resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
     ).toBe(0);
   });
 
@@ -79,11 +79,11 @@ describe('resolveWeekStartSnapTarget — Sunday week start (weekStartsOn=0)', ()
     const tueX = geom.xForDateInGeom('2026-06-09');
     const sunday = geom.xForDateInGeom('2026-06-07');
     expect(
-      resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
     ).toBe(sunday);
 
     expect(
-      resolveWeekStartSnapTarget({ geom: geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
+      resolveWeekStartSnapTarget({ geom, days: DAYS, scrollLeft: tueX, weekStartsOn: 0 }),
     ).not.toBe(geom.xForDateInGeom('2026-06-08'));
   });
 });
@@ -114,7 +114,7 @@ describe('resolveWeekStartSnapTarget — convergence boundary is <=, not <', () 
   it('a distance EXACTLY equal to a custom epsilon still counts as converged (returns null)', () => {
     expect(
       resolveWeekStartSnapTarget({
-        geom: geom,
+        geom,
         days: DAYS,
         scrollLeft: mon1 + 2,
         weekStartsOn: 1,
@@ -127,7 +127,7 @@ describe('resolveWeekStartSnapTarget — convergence boundary is <=, not <', () 
 describe('resolveWeekStartSnapTarget — degenerate inputs stay finite', () => {
   it('an out-of-range (negative / huge) scrollLeft falls back via days[0]/last day, never NaN', () => {
     const lo = resolveWeekStartSnapTarget({
-      geom: geom,
+      geom,
       days: DAYS,
       scrollLeft: -9999,
       weekStartsOn: 1,
@@ -136,7 +136,7 @@ describe('resolveWeekStartSnapTarget — degenerate inputs stay finite', () => {
     expect(Number.isFinite(lo as number)).toBe(true);
 
     const hi = resolveWeekStartSnapTarget({
-      geom: geom,
+      geom,
       days: DAYS,
       scrollLeft: 9_999_999,
       weekStartsOn: 1,

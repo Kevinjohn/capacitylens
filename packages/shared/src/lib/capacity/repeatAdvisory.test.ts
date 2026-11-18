@@ -89,12 +89,12 @@ const repeatingAllocationAdvisory = ({
   closures,
 }: RepeatingAllocationAdvisoryTestInput) =>
   repeatingAllocationAdvisoryWithWeek({
-    resource: resource,
-    existingLoad: existingLoad,
-    timeOff: timeOff,
-    proposedDrafts: proposedDrafts,
+    resource,
+    existingLoad,
+    timeOff,
+    proposedDrafts,
     effectiveWeek: effectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
-    closures: closures,
+    closures,
   });
 
 describe('repeatingAllocationAdvisory', () => {
@@ -211,7 +211,7 @@ describe('repeatingAllocationAdvisory load accounting', () => {
       repeatingAllocationAdvisory({
         resource: fullResource(),
         existingLoad: [],
-        timeOff: timeOff,
+        timeOff,
         proposedDrafts: drafts,
         closures: [],
       }),
@@ -279,7 +279,7 @@ describe('repeatingAllocationAdvisory half-day capacity', () => {
 
     expect(
       repeatingAllocationAdvisory({
-        resource: resource,
+        resource,
         existingLoad: [],
         timeOff: [],
         proposedDrafts: [exactCapacity],
@@ -292,7 +292,7 @@ describe('repeatingAllocationAdvisory half-day capacity', () => {
     });
     expect(
       repeatingAllocationAdvisory({
-        resource: resource,
+        resource,
         existingLoad: [],
         timeOff: [],
         proposedDrafts: [overCapacity],
@@ -348,7 +348,7 @@ describe('repeatingAllocationAdvisory zero-load and external resources', () => {
 
     expect(
       repeatingAllocationAdvisory({
-        resource: resource,
+        resource,
         existingLoad: [],
         timeOff: [],
         proposedDrafts: drafts,
@@ -371,7 +371,7 @@ describe('repeatingAllocationAdvisory effective starts', () => {
 
     expect(
       repeatingAllocationAdvisory({
-        resource: resource,
+        resource,
         existingLoad: [],
         timeOff: [],
         proposedDrafts: drafts,

@@ -5,15 +5,15 @@ import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
 import { assert, fail, isId, isOneOf, own } from './companyDocument.errors.js';
 import { FIELDS } from './companyDocument.fields.js';
 import { projectCompanyData } from './companyDocument.projection.js';
-import { validateRow } from './companyDocument.validation.js';
-import { validateCompanyReferences } from './companyDocument.references.js';
+import { assertRow } from './companyDocument.validation.js';
+import { assertCompanyReferences } from './companyDocument.references.js';
 import { CompanyDocumentError } from './companyDocument.errors.js';
 
 export { CompanyDocumentError };
 
 /** Stable identifier for the beta-native interchange format. */
 export const COMPANY_EXPORT_FORMAT = 'capacitylens-beta' as const;
-/** Beta interchange schema version, independent of database and legacy export versions. */
+/** Beta interchange schema version, independent of the database schema. */
 export const COMPANY_EXPORT_SCHEMA_VERSION = 2 as const;
 
 export interface CompanyExportDocument {
@@ -68,9 +68,9 @@ function buildCompanyDocument(document: CompanyExportDocument): CompanyExportDoc
   };
 }
 
-// Validates the interchange shape: the returned rows still carry `accountId`.
-
-function validateDocument(value: unknown): CompanyExportDocument {
+// Checks the interchange shape and throws on the first fault; the returned rows still carry
+// `accountId`.
+function assertDocument(value: unknown): CompanyExportDocument {
   assert(isRecord(value), 'document', 'must be an object');
   assert(
     value.format === COMPANY_EXPORT_FORMAT,
@@ -91,7 +91,7 @@ function validateDocument(value: unknown): CompanyExportDocument {
       'table is required and must be a list',
     );
     (value.data[key] as unknown[]).forEach((row, i) =>
-      validateRow(key, row, `data.${key}[${i}]`, { redacted: value.completeness === 'redacted' }),
+      assertRow(key, row, `data.${key}[${i}]`, { redacted: value.completeness === 'redacted' }),
     );
   }
   const data = {} as AppData;
@@ -146,7 +146,7 @@ function validateDocument(value: unknown): CompanyExportDocument {
       });
     }
   }
-  validateCompanyReferences(data);
+  assertCompanyReferences(data);
   return {
     format: COMPANY_EXPORT_FORMAT,
     schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
@@ -172,12 +172,12 @@ export function buildCompanyExport(
       options.companyId,
     ),
   };
-  return buildCompanyDocument(validateDocument(document));
+  return buildCompanyDocument(assertDocument(document));
 }
 
 /** Serialize the named portable fields as formatted JSON after validating the entire document. */
 export function serializeCompanyExport(document: CompanyExportDocument): string {
-  const validated = validateDocument(buildWireDocument(document));
+  const validated = assertDocument(buildWireDocument(document));
   return JSON.stringify(validated, null, 2);
 }
 
@@ -189,7 +189,7 @@ export function parseCompanyExport(json: string): CompanyExportDocument {
   } catch (cause) {
     throw new CompanyDocumentError('document', 'is not valid JSON', { cause });
   }
-  return buildCompanyDocument(validateDocument(raw));
+  return buildCompanyDocument(assertDocument(raw));
 }
 
 /** Validate a full source document and bind its company scope to the selected destination. */
@@ -202,7 +202,7 @@ export function prepareCompanyImport(
     'context',
     'companyId and memberResourceLinks are required',
   );
-  const validated = buildCompanyDocument(validateDocument(buildWireDocument(document)));
+  const validated = buildCompanyDocument(assertDocument(buildWireDocument(document)));
   assert(validated.completeness === 'full', 'completeness', 'only full exports can be imported');
   const data = validated.data;
   const importedAccount = data.accounts[0];

@@ -39,7 +39,7 @@ export const NULLABLE_FIELDS = {
   closures: {},
 } as const satisfies { [K in AppDataKey]: NullableProperties<AppData[K][number]> };
 
-/** Fill omitted legacy or imported nullable properties without changing populated values. */
+/** Fill each omitted nullable property with null without changing populated values. */
 export function fillNullableFields(key: AppDataKey, record: object): void {
   for (const field of Object.keys(NULLABLE_FIELDS[key])) {
     if (Reflect.get(record, field) === undefined) Object.assign(record, { [field]: null });

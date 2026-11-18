@@ -45,7 +45,7 @@ export function useAppShellController() {
   });
   const { activeLanguage, activeLanguagePending } = useAccountLocale(accounts, activeAccountId);
   useDocumentTitle({ activeLanguage, activeLanguagePending, pathname });
-  useBeforeUnloadWarning({ dirtyForm });
+  useBeforeUnloadWarning(dirtyForm);
   useNoticeBridge(notice, setNotice);
   useGlobalShortcuts({ paletteOpen, redo, setPaletteOpen, undo });
   useAuditWarning(setNotice);

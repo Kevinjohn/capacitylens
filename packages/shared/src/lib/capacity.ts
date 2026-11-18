@@ -32,7 +32,7 @@ interface BuildCapacityWindowInput {
   closures: Closure[];
 }
 
-interface ResolveUtilizationInput {
+interface ResolveUtilisationInput {
   resource: Resource;
   allocations: Allocation[];
   timeOff: TimeOff[];
@@ -66,19 +66,19 @@ export function buildDayCapacity({
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
   const available = resolveAvailableHoursForWeekday({
-    resource: resource,
-    date: date,
-    timeOff: timeOff,
-    closures: closures,
-    weekday: weekday,
-    effectiveWeek: effectiveWeek,
+    resource,
+    date,
+    timeOff,
+    closures,
+    weekday,
+    effectiveWeek,
   });
   const load = resolveAllocationLoadForWeekday({
-    resource: resource,
-    date: date,
-    allocations: allocations,
-    weekday: weekday,
-    effectiveWeek: effectiveWeek,
+    resource,
+    date,
+    allocations,
+    weekday,
+    effectiveWeek,
   });
   return {
     date,
@@ -104,18 +104,18 @@ export function buildCapacityWindow({
 }: BuildCapacityWindowInput): DayCapacity[] {
   return eachDayISO(start, end).map((day) =>
     buildDayCapacity({
-      resource: resource,
+      resource,
       date: day,
-      allocations: allocations,
-      timeOff: timeOff,
-      effectiveWeek: effectiveWeek,
-      closures: closures,
+      allocations,
+      timeOff,
+      effectiveWeek,
+      closures,
     }),
   );
 }
 
 /** Reduce already-computed resource-day capacity into the visible-window utilisation ratio. */
-export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): number {
+export function resolveUtilisationFromCapacity(days: Iterable<DayCapacity>): number {
   let allocated = 0;
   let available = 0;
   for (const day of days) {
@@ -132,8 +132,8 @@ export function resolveUtilizationFromCapacity(days: Iterable<DayCapacity>): num
  * are skipped entirely, counting their allocated hours against zero availability
  * would push a normal allocation that merely spans a weekend past 100%.
  * Like `buildCapacityWindow`, this is the straight-line definition; the render path reaches the same
- * number through `resolveUtilizationFromCapacity` over its memoised per-date capacity. */
-export function resolveUtilization({
+ * number through `resolveUtilisationFromCapacity` over its memoised per-date capacity. */
+export function resolveUtilisation({
   resource,
   allocations,
   timeOff,
@@ -141,16 +141,16 @@ export function resolveUtilization({
   end,
   effectiveWeek,
   closures,
-}: ResolveUtilizationInput): number {
-  return resolveUtilizationFromCapacity(
+}: ResolveUtilisationInput): number {
+  return resolveUtilisationFromCapacity(
     buildCapacityWindow({
-      resource: resource,
-      allocations: allocations,
-      timeOff: timeOff,
-      start: start,
-      end: end,
-      effectiveWeek: effectiveWeek,
-      closures: closures,
+      resource,
+      allocations,
+      timeOff,
+      start,
+      end,
+      effectiveWeek,
+      closures,
     }),
   );
 }

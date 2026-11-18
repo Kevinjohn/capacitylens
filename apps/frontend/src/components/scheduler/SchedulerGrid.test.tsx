@@ -79,14 +79,14 @@ beforeEach(async () => {
 
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode('work');
-  useStore.getState().setUtilizationPref({ key: 'showTotal', value: true });
+  useStore.getState().setUtilisationPref({ key: 'showTotal', value: true });
   useStore.getState().clearFilters();
   useStore.setState((st) => ({ ui: { ...st.ui, collapsedGroups: [], scrollToResource: null } }));
 });
 
 describe('SchedulerGrid', () => {
   it('names the resource column when the optional total utilisation is hidden', () => {
-    useStore.getState().setUtilizationPref({ key: 'showTotal', value: false });
+    useStore.getState().setUtilisationPref({ key: 'showTotal', value: false });
 
     renderGrid();
 
@@ -222,7 +222,7 @@ describe('SchedulerGrid', () => {
       endDate: '2026-06-01',
       type: 'holiday',
     });
-    useStore.getState().setUtilizationPref({ key: 'showPersonal', value: true });
+    useStore.getState().setUtilisationPref({ key: 'showPersonal', value: true });
 
     renderGrid();
 

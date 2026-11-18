@@ -55,11 +55,11 @@ describe('assertDateRange', () => {
 describe('assertResourceExists', () => {
   it('passes when the resource is in the account', () => {
     const data = { ...base(), resources: [makePerson('r1', A1)] };
-    expect(() => assertResourceExists(data, A1, 'r1')).not.toThrow();
+    expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).not.toThrow();
   });
   it('throws for a missing / cross-account resource', () => {
     const data = { ...base(), resources: [makePerson('r1', A2)] };
-    expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
+    expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).toThrow(
       'Time off must reference an existing resource in this company.',
     );
   });
@@ -68,13 +68,25 @@ describe('assertResourceExists', () => {
       ...base(),
       resources: [{ ...makePerson('r1', A1), archivedAt: TS }],
     };
-    expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
+    expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).toThrow(
       'Time off must reference an active resource in this company.',
     );
-    expect(() => assertResourceExists(data, A1, 'r1', { resourceId: 'r1' })).not.toThrow();
-    expect(() => assertResourceExists(data, A1, 'r1', { resourceId: 'other' })).toThrow(
-      'Time off must reference an active resource in this company.',
-    );
+    expect(() =>
+      assertResourceExists({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        existing: { resourceId: 'r1' },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertResourceExists({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        existing: { resourceId: 'other' },
+      }),
+    ).toThrow('Time off must reference an active resource in this company.');
   });
   it('rejects a resource hidden by an inactive project ancestor', () => {
     const data = {
@@ -83,13 +95,13 @@ describe('assertResourceExists', () => {
       projects: [{ ...project('p1', A1, 'c1'), archivedAt: TS }],
       resources: [{ ...makePerson('r1', A1), kind: 'placeholder' as const, projectId: 'p1' }],
     };
-    expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
+    expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).toThrow(
       'Time off must reference an active resource in this company.',
     );
   });
   it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
     const data = { ...base(), resources: [makeExternal('ext', A1)] };
-    expect(() => assertResourceExists(data, A1, 'ext')).toThrow(
+    expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'ext' })).toThrow(
       'Time off can’t be recorded for an external / 3rd-party resource.',
     );
   });
@@ -114,8 +126,22 @@ describe('assertResourceKindAllowsDependents', () => {
       ],
       timeOff: [timeOff({ id: 'to', companyId: A1, resourceId: 'r1' })],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'person')).not.toThrow();
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'placeholder')).not.toThrow();
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'person',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'placeholder',
+      }),
+    ).not.toThrow();
   });
 
   it('rejects making external a resource that still owns a loaded allocation', () => {
@@ -132,7 +158,14 @@ describe('assertResourceKindAllowsDependents', () => {
         }),
       ],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).toThrow(reject);
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'external',
+      }),
+    ).toThrow(reject);
   });
 
   it('rejects making external a resource that still owns time off', () => {
@@ -141,7 +174,14 @@ describe('assertResourceKindAllowsDependents', () => {
       resources: [makePerson('r1', A1)],
       timeOff: [timeOff({ id: 'to', companyId: A1, resourceId: 'r1' })],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).toThrow(reject);
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'external',
+      }),
+    ).toThrow(reject);
   });
   it('ignores company closures when making a resource external', () => {
     const data: AppData = {
@@ -156,7 +196,14 @@ describe('assertResourceKindAllowsDependents', () => {
         },
       ],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'external',
+      }),
+    ).not.toThrow();
   });
 
   it('allows making external a resource whose only allocation carries a zero load (already valid for an external)', () => {
@@ -173,12 +220,26 @@ describe('assertResourceKindAllowsDependents', () => {
         }),
       ],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'external',
+      }),
+    ).not.toThrow();
   });
 
   it('allows making external a resource with no dependents', () => {
     const data: AppData = { ...base(), resources: [makePerson('r1', A1)] };
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'external',
+      }),
+    ).not.toThrow();
   });
 
   it('only considers THIS resource’s dependents in THIS account', () => {
@@ -204,7 +265,14 @@ describe('assertResourceKindAllowsDependents', () => {
       ],
       timeOff: [timeOff({ id: 'to', companyId: A2, resourceId: 'r1' })],
     };
-    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
+    expect(() =>
+      assertResourceKindAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'r1',
+        mergedKind: 'external',
+      }),
+    ).not.toThrow();
   });
 });
 
@@ -224,13 +292,13 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertResourceProjectAllowsDependents(
+      assertResourceProjectAllowsDependents({
         data,
-        A1,
-        'ph',
-        { ...existing, projectId: 'p2' },
+        companyId: A1,
+        resourceId: 'ph',
+        merged: { ...existing, projectId: 'p2' },
         existing,
-      ),
+      }),
     ).toThrow(rejectResource);
   });
 
@@ -253,13 +321,13 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertResourceProjectAllowsDependents(
+      assertResourceProjectAllowsDependents({
         data,
-        A1,
-        'ph',
-        { ...existing, projectId: 'p2' },
+        companyId: A1,
+        resourceId: 'ph',
+        merged: { ...existing, projectId: 'p2' },
         existing,
-      ),
+      }),
     ).not.toThrow();
   });
   it('rejects rebinding a placeholder with repeatable work attributed to its bound project', () => {
@@ -288,13 +356,13 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertResourceProjectAllowsDependents(
+      assertResourceProjectAllowsDependents({
         data,
-        A1,
-        'ph',
-        { ...existing, projectId: 'p2' },
+        companyId: A1,
+        resourceId: 'ph',
+        merged: { ...existing, projectId: 'p2' },
         existing,
-      ),
+      }),
     ).toThrow(rejectResource);
   });
 
@@ -323,22 +391,22 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertActivityProjectAllowsDependents(
+      assertActivityProjectAllowsDependents({
         data,
-        A1,
-        'shared',
-        { ...existing, kind: 'project', projectId: 'p2' },
+        companyId: A1,
+        activityId: 'shared',
+        merged: { ...existing, kind: 'project', projectId: 'p2' },
         existing,
-      ),
+      }),
     ).toThrow(rejectActivity);
     expect(() =>
-      assertActivityProjectAllowsDependents(
+      assertActivityProjectAllowsDependents({
         data,
-        A1,
-        'shared',
-        { ...existing, kind: 'internal' },
+        companyId: A1,
+        activityId: 'shared',
+        merged: { ...existing, kind: 'internal' },
         existing,
-      ),
+      }),
     ).not.toThrow();
   });
   it('rejects converting a person with all-projects work into a bound placeholder', () => {
@@ -351,13 +419,13 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertResourceProjectAllowsDependents(
+      assertResourceProjectAllowsDependents({
         data,
-        A1,
-        'r1',
-        { ...existing, kind: 'placeholder', projectId: 'p2' },
+        companyId: A1,
+        resourceId: 'r1',
+        merged: { ...existing, kind: 'placeholder', projectId: 'p2' },
         existing,
-      ),
+      }),
     ).toThrow(rejectResource);
   });
 
@@ -371,13 +439,13 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertActivityProjectAllowsDependents(
+      assertActivityProjectAllowsDependents({
         data,
-        A1,
-        't1',
-        { ...existing, projectId: 'p2' },
+        companyId: A1,
+        activityId: 't1',
+        merged: { ...existing, projectId: 'p2' },
         existing,
-      ),
+      }),
     ).toThrow(rejectActivity);
   });
   it('allows moving an activity owned only by people and allows making placeholder work project-less', () => {
@@ -408,26 +476,26 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertActivityProjectAllowsDependents(
+      assertActivityProjectAllowsDependents({
         data,
-        A1,
-        'project-work',
-        { ...projectActivity, projectId: 'p2' },
-        projectActivity,
-      ),
+        companyId: A1,
+        activityId: 'project-work',
+        merged: { ...projectActivity, projectId: 'p2' },
+        existing: projectActivity,
+      }),
     ).not.toThrow();
     expect(() =>
-      assertActivityProjectAllowsDependents(
+      assertActivityProjectAllowsDependents({
         data,
-        A1,
-        'placeholder-work',
-        (() => {
+        companyId: A1,
+        activityId: 'placeholder-work',
+        merged: (() => {
           const changed = { ...placeholderActivity, kind: 'repeatable' as const };
           changed.projectId = null;
           return changed;
         })(),
-        placeholderActivity,
-      ),
+        existing: placeholderActivity,
+      }),
     ).not.toThrow();
   });
   it('does not make an unrelated edit the repair boundary for already-corrupt assignments', () => {
@@ -441,10 +509,22 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     };
 
     expect(() =>
-      assertResourceProjectAllowsDependents(data, A1, 'ph', resource, resource),
+      assertResourceProjectAllowsDependents({
+        data,
+        companyId: A1,
+        resourceId: 'ph',
+        merged: resource,
+        existing: resource,
+      }),
     ).not.toThrow();
     expect(() =>
-      assertActivityProjectAllowsDependents(data, A1, 't1', activityRow, activityRow),
+      assertActivityProjectAllowsDependents({
+        data,
+        companyId: A1,
+        activityId: 't1',
+        merged: activityRow,
+        existing: activityRow,
+      }),
     ).not.toThrow();
   });
 });

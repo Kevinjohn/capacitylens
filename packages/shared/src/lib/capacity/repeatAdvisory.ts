@@ -65,20 +65,20 @@ export function buildRepeatingAllocationAdvisory({
   for (const draft of proposedDrafts) {
     const result = shared
       ? buildCapacityAdvisoryFromLoad({
-          resource: resource,
+          resource,
           proposal: draft,
           loadByDay: shared.load,
-          timeOff: timeOff,
-          effectiveWeek: effectiveWeek,
-          closures: closures,
+          timeOff,
+          effectiveWeek,
+          closures,
         })
       : buildCapacityAdvisory({
-          resource: resource,
+          resource,
           proposal: draft,
           otherAllocations: rebuiltLoad,
-          timeOff: timeOff,
-          effectiveWeek: effectiveWeek,
-          closures: closures,
+          timeOff,
+          effectiveWeek,
+          closures,
         });
     if (result.overDays > 0) overCapacityAllocations += 1;
     if (result.timeOffDays > 0) timeOffAllocations += 1;
@@ -94,11 +94,11 @@ export function buildRepeatingAllocationAdvisory({
     if (shared) {
       addCapacityLoad({
         byDay: shared.load,
-        resource: resource,
+        resource,
         allocation: draft,
         start: shared.window.start,
         end: shared.window.end,
-        effectiveWeek: effectiveWeek,
+        effectiveWeek,
       });
     } else rebuiltLoad.push(draft);
   }

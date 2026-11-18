@@ -133,7 +133,7 @@ export function resolveAvailableHoursForWeekday({
     return 0;
   }
   if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
-  if (isUnavailable({ resource: resource, date: date, timeOff: timeOff, closures: closures })) {
+  if (isUnavailable({ resource, date, timeOff, closures })) {
     return 0;
   }
   return resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek);
@@ -157,12 +157,12 @@ export function resolveAvailableHoursOnDay({
   closures,
 }: ResolveAvailableHoursOnDayInput): number {
   return resolveAvailableHoursForWeekday({
-    resource: resource,
-    date: date,
-    timeOff: timeOff,
-    closures: closures,
+    resource,
+    date,
+    timeOff,
+    closures,
     weekday: weekdayOf(date),
-    effectiveWeek: effectiveWeek,
+    effectiveWeek,
   });
 }
 
@@ -181,11 +181,11 @@ export function resolveAllocatedHoursOnDay({
   effectiveWeek,
 }: ResolveAllocatedHoursOnDayInput): number {
   return resolveAllocatedHoursForWeekday({
-    resource: resource,
-    date: date,
-    allocations: allocations,
+    resource,
+    date,
+    allocations,
     weekday: weekdayOf(date),
-    effectiveWeek: effectiveWeek,
+    effectiveWeek,
   });
 }
 
@@ -223,9 +223,9 @@ export function resolveAllocationLoadForWeekday({
     // loads nothing anywhere.
     if (
       !hasAllocationLoadOnDay({
-        effectiveWeek: effectiveWeek,
+        effectiveWeek,
         ignoreWorkingDays: allocation.ignoreWorkingDays ?? undefined,
-        dayIsWorking: dayIsWorking,
+        dayIsWorking,
       })
     ) {
       continue;

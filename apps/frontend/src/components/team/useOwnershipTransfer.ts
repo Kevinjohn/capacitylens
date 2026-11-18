@@ -110,7 +110,7 @@ async function sendTransfer(
 ): Promise<OwnershipTransferResult | null> {
   try {
     return await teamAccessClient.transferOwnership({
-      companyId: companyId,
+      companyId,
       targetPrincipalId,
       confirmationId,
     });

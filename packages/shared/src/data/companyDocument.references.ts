@@ -3,8 +3,12 @@ import { INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from './internalClient.js
 import { effectiveProjectId, validateAllocationAssignment } from '../lib/integrity.js';
 import { assert } from './companyDocument.errors.js';
 
-/** Validate references and cross-row invariants without active-only write restrictions. */
-export function validateCompanyReferences(data: AppData): void {
+/**
+ * Checks references and cross-row invariants without active-only write restrictions.
+ *
+ * @throws CompanyDocumentError naming the first broken reference.
+ */
+export function assertCompanyReferences(data: AppData): void {
   const disciplines = new Set(data.disciplines.map((row) => row.id));
   const resources = new Map(data.resources.map((row) => [row.id, row]));
   const clients = new Map(data.clients.map((row) => [row.id, row]));
