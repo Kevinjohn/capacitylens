@@ -11,7 +11,7 @@ import { PlanningOperationError } from '#services/planning/execute';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import type { PlanningMutationFailure } from '#validators/planning/contracts';
 import {
-  admissionRequiredResponse,
+  buildAdmissionRequiredResponse,
   identityAuthorityResponse,
 } from '#exceptions/http_error_mapping';
 
@@ -59,7 +59,7 @@ function refusal(error: unknown): {
     };
   }
   if (error instanceof AdmissionRequiredError) {
-    return admissionRequiredResponse(error, 'planning');
+    return buildAdmissionRequiredResponse(error, 'planning');
   }
   const kitRefusal = buildKitRefusal(error);
   if (kitRefusal && kitRefusal.status < 500) return kitRefusal;
