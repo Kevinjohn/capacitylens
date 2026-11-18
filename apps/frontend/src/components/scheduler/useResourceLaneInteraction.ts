@@ -61,39 +61,39 @@ function beginGesture(input: GestureInput) {
   const startIndex = resolveCurrentIndex(laneInput, laneRef, startX);
   if (laneInput.dayStates[startIndex]?.creationBlocked) return;
   setDraw({ a: startIndex, b: startIndex });
-  const onMove = (next: PointerEvent) => {
+  const moveDraw = (next: PointerEvent) => {
     if (isOtherPointer(next)) return;
     if (semanticGenerationRef.current !== startGeneration) return cancel();
     const end = resolveCurrentIndex(latestInputRef.current, laneRef, next.clientX);
     setDraw((previous) => (previous?.b === end ? previous : { a: startIndex, b: end }));
   };
   const detach = () => {
-    document.removeEventListener('pointermove', onMove);
-    document.removeEventListener('pointerup', onUp);
-    document.removeEventListener('pointercancel', onCancel);
-    document.removeEventListener('keydown', onKeyDown);
+    document.removeEventListener('pointermove', moveDraw);
+    document.removeEventListener('pointerup', endDraw);
+    document.removeEventListener('pointercancel', cancelDraw);
+    document.removeEventListener('keydown', cancelDrawOnEscape);
     teardownRef.current = null;
   };
   const cancel = () => {
     detach();
     setDraw(null);
   };
-  const onUp = (next: PointerEvent) => {
+  const endDraw = (next: PointerEvent) => {
     if (isOtherPointer(next)) return;
     cancel();
     if (semanticGenerationRef.current !== startGeneration) return;
     finishGesture(latestInputRef.current, { laneRef, startX, event: next });
   };
-  const onCancel = (next: PointerEvent) => {
+  const cancelDraw = (next: PointerEvent) => {
     if (!isOtherPointer(next)) cancel();
   };
-  const onKeyDown = (next: KeyboardEvent) => {
+  const cancelDrawOnEscape = (next: KeyboardEvent) => {
     if (next.key === 'Escape') cancel();
   };
-  document.addEventListener('pointermove', onMove);
-  document.addEventListener('pointerup', onUp);
-  document.addEventListener('pointercancel', onCancel);
-  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('pointermove', moveDraw);
+  document.addEventListener('pointerup', endDraw);
+  document.addEventListener('pointercancel', cancelDraw);
+  document.addEventListener('keydown', cancelDrawOnEscape);
   teardownRef.current = detach;
 }
 
@@ -119,9 +119,9 @@ export function useResourceLaneInteraction(input: LaneInput) {
     },
     [input.geometry],
   );
-  const onPointerDown = (event: ReactPointerEvent) =>
+  const startDraw = (event: ReactPointerEvent) =>
     beginGesture({ event, laneRef, latestInputRef, semanticGenerationRef, setDraw, teardownRef });
-  const onPointerMove = (event: ReactPointerEvent) => {
+  const trackHoverDay = (event: ReactPointerEvent) => {
     if (!input.onDraw || event.pointerType !== 'mouse' || event.buttons !== 0) return;
     const index = indexAt(event.clientX);
     if (input.dayStates[index]?.creationBlocked) {
@@ -130,7 +130,7 @@ export function useResourceLaneInteraction(input: LaneInput) {
     }
     setHoverDay((previous) => (previous === index ? previous : index));
   };
-  const onPointerUpCapture = (event: ReactPointerEvent) => {
+  const clearHoverDay = (event: ReactPointerEvent) => {
     if (input.onDraw && event.pointerType === 'mouse') setHoverDay(null);
   };
   return {
@@ -138,9 +138,9 @@ export function useResourceLaneInteraction(input: LaneInput) {
     draw,
     hoverDay,
     indexAt,
-    onPointerDown,
-    onPointerMove,
-    onPointerUpCapture,
+    onPointerDown: startDraw,
+    onPointerMove: trackHoverDay,
+    onPointerUpCapture: clearHoverDay,
     setHoverDay,
   };
 }
