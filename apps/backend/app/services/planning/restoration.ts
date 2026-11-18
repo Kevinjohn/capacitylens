@@ -292,7 +292,7 @@ export async function reclaimRetainedId(
   if (prior.company_id !== companyId || !prior.deleted_at || !prior.deletion_group_id) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
-  if (!(await hasUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
+  if (!(await hasOwnUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   const purged = await retainedQuery(trx, companyId, table)
@@ -306,7 +306,7 @@ export async function reclaimRetainedId(
 }
 
 /** Whether the caller's own session holds the unconsumed group that retained a row. */
-export async function hasUnconsumedGroup(
+export async function hasOwnUnconsumedGroup(
   trx: TransactionClientContract,
   companyId: string,
   groupId: string,

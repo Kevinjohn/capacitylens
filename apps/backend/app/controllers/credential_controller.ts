@@ -24,7 +24,7 @@ function isBearerToken(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 512;
 }
 
-function readPrivateErrorCode(error: unknown) {
+function parsePrivateErrorCode(error: unknown) {
   const code =
     typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
   return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code) ? code : 'RECOVERY_REQUEST_FAILED';
@@ -60,7 +60,7 @@ export default class CredentialController {
     } catch (error) {
       if (error instanceof ThrottledError) throw error;
       // Public recovery does not disclose recipient or delivery state.
-      ctx.logger.error({ code: readPrivateErrorCode(error) }, 'Password recovery request failed');
+      ctx.logger.error({ code: parsePrivateErrorCode(error) }, 'Password recovery request failed');
     }
     return ctx.response.ok({ ok: true });
   }

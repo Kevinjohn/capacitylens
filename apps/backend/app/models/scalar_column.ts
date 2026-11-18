@@ -8,7 +8,7 @@ import { isOneOf } from '@kevinjohn/adonisjs-lucid-checked-columns';
 export const isWeekday = isOneOf([0, 1, 2, 3, 4, 5, 6] as const);
 
 /** Converts a valid Luxon tombstone to the canonical UTC value stored in SQLite and sent to the API. */
-function normalizeDeletedAt(
+function serializeDeletedAt(
   value: unknown,
   boundary: 'persistence' | 'serialization'
 ): ISOTimestamp | null | undefined {
@@ -50,7 +50,7 @@ export const deletedAtColumn: Pick<
   'columnName' | 'prepare' | 'consume' | 'serialize'
 > = {
   columnName: 'deleted_at',
-  prepare: (value: unknown) => normalizeDeletedAt(value, 'persistence'),
+  prepare: (value: unknown) => serializeDeletedAt(value, 'persistence'),
   consume: parseDeletedAt,
-  serialize: (value: unknown) => normalizeDeletedAt(value, 'serialization'),
+  serialize: (value: unknown) => serializeDeletedAt(value, 'serialization'),
 };
