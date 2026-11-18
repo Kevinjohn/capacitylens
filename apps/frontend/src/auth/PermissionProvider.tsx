@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { useStore } from '@/store/useStore';
 import { useAuth } from './authContext';
-import { PermissionContext } from './permissionContext';
-import type { Role } from '@capacitylens/shared/domain/access';
+import { NO_ACCESS, PermissionContext } from './permissionContext';
+import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import { refreshAccountSummaries } from './useAccountSummaries';
 import { masqueradeApi } from './masqueradeApi';
 import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
@@ -14,6 +14,7 @@ interface FetchedPermission {
   membershipRevision: number;
   status: 'resolved' | 'unavailable';
   role?: Role;
+  grant?: AccessGrant;
 }
 
 interface PermissionRefresh {
@@ -21,7 +22,11 @@ interface PermissionRefresh {
   membershipRevision: number;
   isCurrent: () => boolean;
   setFetched: Dispatch<SetStateAction<FetchedPermission | null>>;
-  setActiveRole: (role: Role | null, status?: AccessPermissionStatus) => void;
+  setActiveRole: (
+    role: Role | null,
+    status?: AccessPermissionStatus,
+    permissions?: PermissionKey[],
+  ) => void;
 }
 
 interface PermissionValueInput {
@@ -30,11 +35,13 @@ interface PermissionValueInput {
   fetched: FetchedPermission | null;
   masqueradeActive: boolean;
   masqueradeRole: Role | null;
+  masqueradeGrant: AccessGrant | null;
 }
 
 interface PermissionValue {
   role: Role | null;
   status: AccessPermissionStatus;
+  grant: AccessGrant;
 }
 
 function publishUnavailable(refresh: PermissionRefresh) {
@@ -70,10 +77,10 @@ async function refreshPermission(refresh: PermissionRefresh) {
       publishUnavailable(refresh);
       return;
     }
-    // A malformed role remains selectable only as an unavailable Viewer summary and never grants
-    // access.
+    // A malformed role or grant remains selectable only as an unavailable Viewer summary and never
+    // grants access.
     const entry = summaries.find((account) => account.id === refresh.accountId);
-    if (!entry || entry.roleStatus === 'unavailable') {
+    if (!entry || entry.roleStatus === 'unavailable' || !entry.grant) {
       publishUnavailable(refresh);
       return;
     }
@@ -83,8 +90,9 @@ async function refreshPermission(refresh: PermissionRefresh) {
       membershipRevision: refresh.membershipRevision,
       status: 'resolved',
       role: entry.role,
+      grant: entry.grant,
     });
-    refresh.setActiveRole(entry.role, 'resolved');
+    refresh.setActiveRole(entry.role, 'resolved', entry.grant.permissions);
   } catch (error) {
     // Keep the fail-closed Viewer projection until a later successful lookup.
     console.warn('PermissionProvider: the active account role could not be resolved', error);
@@ -94,18 +102,20 @@ async function refreshPermission(refresh: PermissionRefresh) {
 
 function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   if (input.masqueradeActive) {
-    return input.masqueradeRole
-      ? { role: input.masqueradeRole, status: 'resolved' }
-      : { role: 'viewer', status: 'pending' };
+    return input.masqueradeRole && input.masqueradeGrant
+      ? { role: input.masqueradeRole, status: 'resolved', grant: input.masqueradeGrant }
+      : { role: 'viewer', status: 'pending', grant: NO_ACCESS };
   }
-  if (!input.enabled || !input.activeAccountId) return { role: null, status: 'not-applicable' };
-  if (input.fetched?.status === 'resolved' && input.fetched.role) {
-    return { role: input.fetched.role, status: 'resolved' };
+  if (!input.enabled || !input.activeAccountId) {
+    return { role: null, status: 'not-applicable', grant: NO_ACCESS };
   }
-  return { role: 'viewer', status: input.fetched?.status ?? 'pending' };
+  if (input.fetched?.status === 'resolved' && input.fetched.role && input.fetched.grant) {
+    return { role: input.fetched.role, status: 'resolved', grant: input.fetched.grant };
+  }
+  return { role: 'viewer', status: input.fetched?.status ?? 'pending', grant: NO_ACCESS };
 }
 
-/** Publishes the active company role from the shared validated directory. Unresolved membership projects to Viewer; the store independently applies the same read-only guard. */
+/** Publishes the active company role and the server's grant from the shared validated directory. Unresolved membership projects to Viewer with no keys; the store independently applies the same read-only guard. */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -121,7 +131,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     if (masquerade.kind !== 'inactive') {
       const state = masquerade.state;
       if (state && state.accountId === activeAccountId) {
-        setActiveRole(state.effectiveRole, 'resolved');
+        setActiveRole(state.effectiveRole, 'resolved', state.permissions);
       } else {
         setActiveRole('viewer', 'pending');
       }
@@ -149,18 +159,32 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     fetched?.accountId === activeAccountId && fetched.membershipRevision === membershipRevision
       ? fetched
       : null;
-  const { role, status } = resolvePermissionValue({
+  const masqueradeState =
+    masquerade.kind !== 'inactive' && masquerade.state?.accountId === activeAccountId
+      ? masquerade.state
+      : null;
+  // Keyed on the state object so the grant, and the context value, keep their identity per state.
+  const masqueradeGrant = useMemo(
+    () =>
+      masqueradeState
+        ? {
+            permissions: masqueradeState.permissions,
+            canSeePrivateNames: masqueradeState.canSeePrivateNames,
+            canSeeTimeOffNote: masqueradeState.canSeeTimeOffNote,
+          }
+        : null,
+    [masqueradeState],
+  );
+  const { role, status, grant } = resolvePermissionValue({
     enabled,
     activeAccountId,
     fetched: currentFetched,
     masqueradeActive: masquerade.kind !== 'inactive',
-    masqueradeRole:
-      masquerade.kind !== 'inactive' && masquerade.state?.accountId === activeAccountId
-        ? masquerade.state.effectiveRole
-        : null,
+    masqueradeRole: masqueradeState?.effectiveRole ?? null,
+    masqueradeGrant,
   });
 
-  const value = useMemo(() => ({ role, status }), [role, status]);
+  const value = useMemo(() => ({ role, status, grant }), [role, status, grant]);
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;
 }

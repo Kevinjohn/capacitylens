@@ -56,6 +56,7 @@
   "access_cap_transfer_owner": "Transfer ownership",
   "access_management_heading": "Member management",
   "access_management_restricted": "An Owner or Admin manages invitations and membership changes. Your role and its limits remain visible here.",
+  "access_management_masquerade": "Invitations and membership changes are not available during a masquerade.",
   "settings_title": "Settings",
   "settings_company_setup_heading": "Company setup",
   "company_setup_title": "Set up your company",

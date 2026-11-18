@@ -1,5 +1,5 @@
 // CapacityLens permissions. `accessPermissions` is the one declaration: the server builds the
-// Access Control package from it and enforces it; the browser reads it only to show or hide controls.
+// Access Control package from it and enforces it. The browser reads the grant the server sends.
 import type { Role } from '../account/types.js';
 import type { CapacityOverviewAccess } from '../types/entities.js';
 export type { Role } from '../account/types.js';
@@ -28,6 +28,13 @@ type Permissions = typeof accessPermissions;
 export type PermissionKey = {
   [R in keyof Permissions]: `${R}:${keyof Permissions[R] & string}`;
 }[keyof Permissions];
+
+/** The effective member's permission keys and field-visibility flags, as the server sends them. */
+export interface AccessGrant {
+  permissions: PermissionKey[];
+  canSeePrivateNames: boolean;
+  canSeeTimeOffNote: boolean;
+}
 
 /** Reports whether `role` reaches the lowest role declared for `key`. Unknown roles and keys return false. */
 export function can(role: Role, key: PermissionKey): boolean {

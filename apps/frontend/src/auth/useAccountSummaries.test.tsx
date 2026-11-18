@@ -9,6 +9,7 @@ import {
 } from './useAccountSummaries';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
+import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
 
 // Only a genuine empty array may clear the directory. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
@@ -60,13 +61,16 @@ function createBasicResponseClassificationTests() {
 
   it('a valid array -> validated summaries (off-spec rows dropped, not the whole list) + a warn per drop', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const body = [{ id: 'a1', name: 'Studio A', role: 'editor' }, { bogus: true }];
+    const body = [
+      { id: 'a1', name: 'Studio A', role: 'editor', ...grantFor('editor') },
+      { bogus: true },
+    ];
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => json(200, body)),
     );
     await expect(fetchAccountSummaries()).resolves.toEqual([
-      { id: 'a1', name: 'Studio A', role: 'editor' },
+      { id: 'a1', name: 'Studio A', role: 'editor', grant: grantFor('editor') },
     ]);
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));
@@ -82,8 +86,8 @@ function createBasicResponseClassificationTests() {
       'fetch',
       vi.fn(async () =>
         json(200, [
-          { id: 'a1', name: 'Studio A', role: 'owner' },
-          { id: 'a1', name: 'Studio A', role: 'viewer' },
+          { id: 'a1', name: 'Studio A', role: 'owner', ...grantFor('owner') },
+          { id: 'a1', name: 'Studio A', role: 'viewer', ...grantFor('viewer') },
           { bogus: true },
         ]),
       ),
@@ -111,6 +115,24 @@ function createUnknownRoleResponseTest() {
       { id: 'a1', name: 'Studio A', role: 'viewer', roleStatus: 'unavailable' },
     ]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('unrecognized role'));
+  });
+
+  it.each([
+    ['no grant', {}],
+    ['a non-array permission list', { ...grantFor('owner'), permissions: 'planning:write' }],
+    ['a non-string permission key', { ...grantFor('owner'), permissions: [1] }],
+    ['a missing private-name flag', { ...grantFor('owner'), canSeePrivateNames: undefined }],
+    ['a non-boolean time-off-note flag', { ...grantFor('owner'), canSeeTimeOffNote: 'yes' }],
+  ])('marks a row with %s unavailable without a grant', async (_description, grant) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(200, [{ id: 'a1', name: 'Studio A', role: 'owner', ...grant }])),
+    );
+
+    await expect(fetchAccountSummaries()).resolves.toEqual([
+      { id: 'a1', name: 'Studio A', role: 'viewer', roleStatus: 'unavailable' },
+    ]);
   });
 }
 
@@ -169,7 +191,9 @@ function createOrderedRefreshTests() {
     useStore.setState({ activeAccountId: 'a1' });
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => json(200, [{ id: 'a2', name: 'Other', role: 'viewer' }])),
+      vi.fn(async () =>
+        json(200, [{ id: 'a2', name: 'Other', role: 'viewer', ...grantFor('viewer') }]),
+      ),
     );
 
     await refreshAccountSummaries();
@@ -194,13 +218,13 @@ function createOrderedRefreshTests() {
 
     const earlierRefresh = refreshAccountSummaries();
     const laterRefresh = refreshAccountSummaries();
-    later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner' }]));
+    later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner', ...grantFor('owner') }]));
     await laterRefresh;
-    earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner' }]));
+    earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner', ...grantFor('owner') }]));
     await earlierRefresh;
 
     expect(useStore.getState().accountSummaries).toEqual([
-      { id: 'new', name: 'Newest', role: 'owner' },
+      { id: 'new', name: 'Newest', role: 'owner', grant: grantFor('owner') },
     ]);
   });
 
@@ -218,9 +242,9 @@ function createOrderedRefreshTests() {
 
     const earlierRefresh = refreshAccountSummaries();
     const laterRefresh = refreshAccountSummaries();
-    later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner' }]));
+    later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner', ...grantFor('owner') }]));
     await laterRefresh;
-    earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner' }]));
+    earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner', ...grantFor('owner') }]));
     await earlierRefresh;
 
     expect(useStore.getState().activeAccountId).toBe('new');
@@ -240,7 +264,9 @@ function createMutationRefreshTests() {
     useStore
       .getState()
       .setAccountSummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
-    response.resolve(json(200, [{ id: 'old', name: 'Before create', role: 'owner' }]));
+    response.resolve(
+      json(200, [{ id: 'old', name: 'Before create', role: 'owner', ...grantFor('owner') }]),
+    );
     await refresh;
 
     expect(useStore.getState().accountSummaries).toEqual([
@@ -260,7 +286,9 @@ function createMutationRefreshTests() {
       .getState()
       .setAccountSummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
     useStore.setState({ activeAccountId: 'created' });
-    response.resolve(json(200, [{ id: 'old', name: 'Before create', role: 'owner' }]));
+    response.resolve(
+      json(200, [{ id: 'old', name: 'Before create', role: 'owner', ...grantFor('owner') }]),
+    );
     await refresh;
 
     expect(useStore.getState().activeAccountId).toBe('created');
@@ -276,8 +304,8 @@ function createCompletenessRefreshTests() {
       'fetch',
       vi.fn(async () =>
         json(200, [
-          { id: 'active', role: 'owner' },
-          { id: 'other', name: 'Other', role: 'viewer' },
+          { id: 'active', role: 'owner', ...grantFor('owner') },
+          { id: 'other', name: 'Other', role: 'viewer', ...grantFor('viewer') },
         ]),
       ),
     );
@@ -285,7 +313,7 @@ function createCompletenessRefreshTests() {
     await refreshAccountSummaries();
 
     expect(useStore.getState().accountSummaries).toEqual([
-      { id: 'other', name: 'Other', role: 'viewer' },
+      { id: 'other', name: 'Other', role: 'viewer', grant: grantFor('viewer') },
     ]);
     expect(useStore.getState().accountSummariesComplete).toBe(false);
     expect(useStore.getState().activeAccountId).toBe('active');
@@ -299,7 +327,9 @@ function createCompletenessRefreshTests() {
   it('marks a wholly valid directory as complete', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => json(200, [{ id: 'only', name: 'Only Co', role: 'owner' }])),
+      vi.fn(async () =>
+        json(200, [{ id: 'only', name: 'Only Co', role: 'owner', ...grantFor('owner') }]),
+      ),
     );
 
     await refreshAccountSummaries();
@@ -338,6 +368,7 @@ function createYieldingHookTest() {
           targetUserId: 'target',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
+          ...viewAsGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',
@@ -416,8 +447,10 @@ function createMembershipHookTest() {
   });
 
   it('refetches account roles when membership projections are invalidated', async () => {
-    let role = 'owner';
-    const fetchMock = vi.fn(async () => json(200, [{ id: 'a1', name: 'Studio A', role }]));
+    let role: 'owner' | 'admin' = 'owner';
+    const fetchMock = vi.fn(async () =>
+      json(200, [{ id: 'a1', name: 'Studio A', role, ...grantFor(role) }]),
+    );
     vi.stubGlobal('fetch', fetchMock);
     useStore.setState({ membershipRevision: 0 });
     renderWithQuery(<HookHost />);

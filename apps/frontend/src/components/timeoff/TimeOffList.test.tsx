@@ -24,6 +24,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { permissionValue } from '@/test/permissionGrants';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -385,7 +386,7 @@ it('keeps edit and delete controls hidden for viewers', async () => {
   });
 
   render(
-    <PermissionContext.Provider value={{ role: 'viewer' }}>
+    <PermissionContext.Provider value={permissionValue('viewer')}>
       <TimeOffList />
     </PermissionContext.Provider>,
   );
@@ -473,7 +474,7 @@ it('rejects a stale edit instead of overwriting a concurrent change', async () =
 
 it.each(['owner', 'admin'] as const)('shows Note for role %s', (role) => {
   render(
-    <PermissionContext.Provider value={{ role }}>
+    <PermissionContext.Provider value={permissionValue(role)}>
       <TimeOffForm onClose={() => {}} />
     </PermissionContext.Provider>,
   );
@@ -494,7 +495,7 @@ it('hides Note and leaves the existing note unchanged when no membership role ap
   );
   const writesBeforeSave = getStubPlanningTransport().calls.length;
   render(
-    <PermissionContext.Provider value={{ role: null }}>
+    <PermissionContext.Provider value={permissionValue(null)}>
       <TimeOffForm timeOff={entry} onClose={() => {}} />
     </PermissionContext.Provider>,
   );
@@ -518,7 +519,7 @@ it.each(['editor', 'viewer'] as const)('hides and omits Note for role %s', async
   );
   const update = vi.spyOn(useStore.getState(), 'updateTimeOff').mockImplementation(async () => {});
   render(
-    <PermissionContext.Provider value={{ role }}>
+    <PermissionContext.Provider value={permissionValue(role)}>
       <TimeOffForm timeOff={entry} onClose={() => {}} />
     </PermissionContext.Provider>,
   );

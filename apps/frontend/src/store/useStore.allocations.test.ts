@@ -18,6 +18,7 @@ import {
   queueAllocationGroupResponse,
   queueAllocationRestoreResponse,
 } from '@/test/planning/queuePlanningFixtures';
+import { grantFor } from '@/test/permissionGrants';
 
 const state = () => useStore.getState();
 const typedHistory = () => state().planning.history;
@@ -216,7 +217,7 @@ describe('atomic allocation creation', () => {
   it('applies the Viewer guard to the whole batch', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory().past.length;
-    state().setActiveRole('viewer');
+    state().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     const returned = await state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2);
     expect(returned).toEqual({ kind: 'blocked' });
     expect(state().data.allocations).toHaveLength(0);

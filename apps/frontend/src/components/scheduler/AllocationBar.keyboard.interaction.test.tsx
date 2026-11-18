@@ -19,6 +19,7 @@ import {
   seedAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
+import { permissionValue } from '@/test/permissionGrants';
 
 function OwnerPermissionsAndTooltip({ children }: { children: ReactNode }) {
   return (
@@ -95,7 +96,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
       useStore.getState().setBarLabelPref({ key: 'showClient', value: false });
       useStore.getState().setBarLabelPref({ key: 'showProject', value: false });
       render(
-        <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+        <PermissionContext.Provider value={permissionValue('viewer', 'resolved')}>
           <AllocationBar
             bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
             geom={GEOM}

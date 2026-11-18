@@ -8,6 +8,7 @@ import type { AccountSummary } from '@/store/useStore';
 import { loadPlanningData, makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 import { LocationProbe } from '@/test/LocationProbe';
+import { grantFor } from '@/test/permissionGrants';
 import { AuthContext } from '@/auth/authContext';
 import { buildProductOrientationKey } from '@/lib/productOrientation';
 
@@ -62,11 +63,11 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
             return Response.json({ code: 'MULTIPLE_COMPANIES' }, { status: 409 });
           }
           return Response.json(
-            accountDirectory.response.map(({ id, name, role, roleStatus }) => ({
-              id,
-              name,
-              role: roleStatus === 'unavailable' ? 'unknown-role' : role,
-            })),
+            accountDirectory.response.map(({ id, name, role, roleStatus }) =>
+              roleStatus === 'unavailable'
+                ? { id, name, role: 'unknown-role' }
+                : { id, name, role, ...grantFor(role) },
+            ),
           );
         }
         if (url.pathname.includes('/getting-started')) {

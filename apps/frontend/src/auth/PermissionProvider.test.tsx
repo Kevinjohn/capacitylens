@@ -10,6 +10,8 @@ import { useStore } from '@/store/useStore';
 import { useAccountSummaries } from './useAccountSummaries';
 import * as accountTransition from './accountTransition';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
+import { isAccountRole } from '@capacitylens/shared/account/types';
+import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
 
 const permissionMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({
@@ -78,7 +80,12 @@ function deferred<T>() {
 function accountResponse(id: string, role: string) {
   return new Response(
     JSON.stringify([
-      { id, name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries', role },
+      {
+        id,
+        name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries',
+        role,
+        ...(isAccountRole(role) ? grantFor(role) : {}),
+      },
     ]),
     {
       status: 200,
@@ -125,6 +132,7 @@ describe('PermissionProvider authenticated lookup posture', () => {
           targetUserId: 'u-viewer',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
+          ...viewAsGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',
@@ -174,6 +182,7 @@ describe('PermissionProvider refresh behavior', () => {
               id: useStore.getState().activeAccountId,
               name: 'Wayne Enterprises',
               role: 'editor',
+              ...grantFor('editor'),
             },
           ]),
           { status: 200 },
@@ -197,16 +206,19 @@ describe('PermissionProvider membership invalidation', () => {
           resolveStatus = resolve;
         }),
     );
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify([
-            { id: useStore.getState().activeAccountId, name: 'Wayne Enterprises', role: 'owner' },
-          ]),
-          { status: 200 },
-        ),
-      );
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            id: useStore.getState().activeAccountId,
+            name: 'Wayne Enterprises',
+            role: 'owner',
+            ...grantFor('owner'),
+          },
+        ]),
+        { status: 200 },
+      ),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
     const setActiveRole = vi.spyOn(useStore.getState(), 'setActiveRole');
@@ -234,7 +246,7 @@ describe('PermissionProvider membership invalidation', () => {
 
 describe('PermissionProvider membership generation', () => {
   it('re-resolves the active role when a membership mutation invalidates its projections', async () => {
-    let role = 'owner';
+    let role: 'owner' | 'admin' = 'owner';
     const fetchMock = vi.fn(
       async () =>
         new Response(
@@ -243,6 +255,7 @@ describe('PermissionProvider membership generation', () => {
               id: useStore.getState().activeAccountId,
               name: 'Wayne Enterprises',
               role,
+              ...grantFor(role),
             },
           ]),
           { status: 200 },
@@ -262,7 +275,7 @@ describe('PermissionProvider membership generation', () => {
   });
 
   it('shares one account-directory read per membership generation with the shell hook', async () => {
-    let role = 'owner';
+    let role: 'owner' | 'admin' = 'owner';
     const fetchMock = vi.fn(
       async () =>
         new Response(
@@ -271,6 +284,7 @@ describe('PermissionProvider membership generation', () => {
               id: useStore.getState().activeAccountId,
               name: 'Wayne Enterprises',
               role,
+              ...grantFor(role),
             },
           ]),
           { status: 200 },
@@ -367,6 +381,7 @@ describe('PermissionProvider account-switch safety', () => {
         targetUserId: 'u-viewer',
         targetName: 'Selina Kyle',
         effectiveRole: 'viewer',
+        ...viewAsGrantFor('viewer'),
         startedAt: '2026-09-01T10:00:00.000Z',
         expiresAt: '2026-09-01T10:15:00.000Z',
         token: 'stale-mode-token',
@@ -446,6 +461,27 @@ describe('PermissionProvider fail-closed responses', () => {
     expect(useStore.getState().activeAccountId).toBe('acct-test');
     expect(useStore.getState().activeRole).toBe('viewer');
     expect(useStore.getState().activeRoleStatus).toBe('unavailable');
+  });
+
+  it('publishes unavailable with no keys for a directory row without a grant', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify([
+              { id: useStore.getState().activeAccountId, name: 'Wayne Enterprises', role: 'owner' },
+            ]),
+            { status: 200 },
+          ),
+        ),
+    );
+    renderProvider();
+
+    expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
+    expect(useStore.getState().activeRoleStatus).toBe('unavailable');
+    expect(useStore.getState().activePermissions).toEqual([]);
   });
 
   it('does not request permissions until an active account is selected', async () => {

@@ -72,6 +72,7 @@ function createSetActiveAccountAction(
         activeRole: switching && state.activeRole !== null ? 'viewer' : state.activeRole,
         activeRoleStatus:
           switching && state.activeRole !== null ? 'pending' : state.activeRoleStatus,
+        activePermissions: switching ? [] : state.activePermissions,
         ...buildAccountNoticeTransition({ switching: switching, unknown: unknown }),
         ui: resetSchedulerView(
           state.ui,

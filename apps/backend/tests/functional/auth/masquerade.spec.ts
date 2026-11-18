@@ -55,7 +55,7 @@ async function startView(client: any, cookie: string, targetUserId: string) {
     .send();
 }
 
-async function fixture(client: any, targetRole: 'viewer' | 'editor' = 'viewer') {
+async function fixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 'viewer') {
   const owner = await signUpAndIn(client, {
     email: 'bruce.wayne@wayne.example',
     password,
@@ -151,6 +151,40 @@ test.group('native read-only masquerade', (group) => {
     write.assertStatus(403);
     assert.equal((write.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
   });
+
+  for (const { label, role, canSeeTimeOffNote } of [
+    { label: 'an Editor', role: 'editor', canSeeTimeOffNote: false },
+    { label: 'an Admin', role: 'admin', canSeeTimeOffNote: true },
+  ] as const) {
+    test(`sends only the read key and the target flags while viewing ${label}`, async ({
+      client,
+      assert,
+    }) => {
+      const { cookie, targetId } = await fixture(client, role);
+      const started = await startView(client, cookie, targetId);
+      started.assertStatus(200);
+      const grantOf = (body: Record<string, unknown>) => ({
+        effectiveRole: body.effectiveRole,
+        permissions: body.permissions,
+        canSeePrivateNames: body.canSeePrivateNames,
+        canSeeTimeOffNote: body.canSeeTimeOffNote,
+      });
+      const readOnly = {
+        effectiveRole: role,
+        permissions: ['planning:read'],
+        canSeePrivateNames: false,
+        canSeeTimeOffNote,
+      };
+      assert.deepEqual(grantOf(started.body()), readOnly);
+      const status = await asSession(
+        client.get('/api/masquerade?accountId=a-studio'),
+        cookie
+      ).send();
+      status.assertStatus(200);
+      assert.isTrue(status.body().active);
+      assert.deepEqual(grantOf(status.body()), readOnly);
+    });
+  }
 
   test('rejects planning reads carrying a context from before a remote mode change', async ({
     client,

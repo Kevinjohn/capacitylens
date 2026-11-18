@@ -4,7 +4,6 @@ import {
   getOwned as findOwnedIn,
 } from '@capacitylens/shared/domain/mutations';
 import { m } from '@/i18n';
-import { can } from '@capacitylens/shared/domain/access';
 import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { StoreState } from './types';
 
@@ -38,7 +37,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
       return true;
     }
-    if (state.activeRole !== null && can(state.activeRole, 'planning:write')) return false;
+    if (state.activePermissions.includes('planning:write')) return false;
     let message = m.notice_viewer_read_only();
     if (state.activeRoleStatus === 'pending') message = m.access_checking_summary();
     if (state.activeRoleStatus === 'unavailable' || state.activeRole === null) {

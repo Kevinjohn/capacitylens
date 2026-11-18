@@ -16,6 +16,7 @@ import {
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 import { buildAllocationBarInset } from './layout';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
+import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetStoreWithData(
@@ -345,7 +346,7 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
     const allocation = makeAllocation({ task: 'Review a deliberately long task description' });
     await setTaskFieldVisibility({ enabled: true });
     const { rerender } = render(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('viewer', 'resolved')}>
         <AllocationBar
           bar={makeBar(allocation)}
           geom={GEOM}
@@ -360,7 +361,7 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
 
     await setTaskFieldVisibility({ enabled: false });
     rerender(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('viewer', 'resolved')}>
         <AllocationBar
           bar={makeBar(allocation)}
           geom={GEOM}

@@ -23,6 +23,7 @@ import {
   updatePlanningFixtureSource as updatePlanningFixtureSourceHandle,
 } from '@/test/planningTransportHandle';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
+import { grantFor } from './permissionGrants';
 
 // Shared fixtures establish an active account so scoped store mutations have a valid tenant.
 
@@ -226,7 +227,7 @@ export function resetStoreWithData(
   useStore.getState().setNotice(null);
   useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
   useStore.getState().setActiveAccount(accountId);
-  useStore.getState().setActiveRole('owner');
+  useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
   return useStore.getState().refreshPlanning({ fresh: true });
 }
 

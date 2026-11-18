@@ -198,8 +198,11 @@ This is the short, present-tense record of decisions that constrain future work.
   with the company in its path refuses a caller without an active membership before its handler,
   with the refusal the handler would give. The server always authorizes inside the request
   transaction; a route that takes the company from the request body has only that check. The
-  browser reads the permissions only to show or hide controls. A membership is active or suspended.
-  Nobody manages their own membership, and an Admin cannot manage the Owner.
+  server sends the effective member's permission keys and the private-name and time-off-note flags
+  with the company directory and the view-as state; the browser shows or hides permission-gated
+  controls from them, and a view-as sends only `planning:read`. The browser's Owner-or-Admin,
+  Capacity Overview and sole-Owner checks still read the role. A membership is active or
+  suspended. Nobody manages their own membership, and an Admin cannot manage the Owner.
 - Admission is cumulative and owned by the kit: an optional allowed email domain, invitation
   evidence and Owner or Admin approval, all from static configuration (restart to change).
   Accepting an emailed invitation records the evidence, confirms the address and creates the

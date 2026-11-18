@@ -7,6 +7,7 @@ import { resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
+import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 
 const NO_STEPS = {
   person: false,
@@ -41,7 +42,9 @@ afterEach(() => {
 function renderChecklist(role: Role | null, path = '/') {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <PermissionContext.Provider value={{ role, status: role ? 'resolved' : 'not-applicable' }}>
+      <PermissionContext.Provider
+        value={permissionValue(role, role ? 'resolved' : 'not-applicable')}
+      >
         <GettingStarted />
       </PermissionContext.Provider>
     </MemoryRouter>,
@@ -151,6 +154,7 @@ describe('Getting started', () => {
         targetUserId: 'u-editor',
         targetName: 'Clark Kent',
         effectiveRole: 'editor' as const,
+        ...viewAsGrantFor('editor'),
         startedAt: '2026-10-19T10:00:00.000Z',
         expiresAt: '2999-10-19T10:15:00.000Z',
         token: 'test-projection',

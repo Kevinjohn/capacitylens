@@ -16,6 +16,7 @@ import {
   seedAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
+import { grantFor, permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => resetStoreWithAccount());
 
@@ -133,7 +134,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   it('does not report a successful move when permission drops to Viewer mid-drag', async () => {
     const a = await seedAllocation();
     const barUi = (role: 'editor' | 'viewer') => (
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
         <AllocationBar
           bar={barFor(a)}
           geom={GEOM}
@@ -147,7 +148,9 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-    act(() => useStore.getState().setActiveRole('viewer'));
+    act(() =>
+      useStore.getState().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions),
+    );
     rerender(barUi('viewer'));
     document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
     await settlePlanning();

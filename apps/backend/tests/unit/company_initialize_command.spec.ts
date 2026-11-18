@@ -262,7 +262,26 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       assert.equal(me.status, 200);
       const companies = await fetch(`${origin}/api/accounts`, { headers: { cookie } });
       assert.deepEqual(await companies.json(), [
-        { id: accountId, name: 'Wayne Enterprises', role: 'owner' },
+        {
+          id: accountId,
+          name: 'Wayne Enterprises',
+          role: 'owner',
+          permissions: [
+            'planning:read',
+            'planning:write',
+            'members:list',
+            'members:manage',
+            'members:signInTracking',
+            'invitations:manage',
+            'viewAs:use',
+            'resources:anonymise',
+            'ownership:transfer',
+            'company:import',
+            'company:anonymise',
+          ],
+          canSeePrivateNames: true,
+          canSeeTimeOffNote: true,
+        },
       ]);
       const state = await fetch(`${origin}/api/state?accountId=${encodeURIComponent(accountId)}`, {
         headers: { cookie },

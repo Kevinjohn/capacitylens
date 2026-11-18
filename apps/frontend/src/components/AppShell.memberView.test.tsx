@@ -5,6 +5,7 @@ import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
 import { DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { setUpAppShellTests, renderAppShell, renderAuthenticated } from './AppShell.testSupport';
+import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
@@ -38,6 +39,7 @@ it('offers projection recovery after the server has prepared a starting member v
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
+      ...viewAsGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2999-09-01T10:15:00.000Z',
       token: 'token-1',
@@ -61,6 +63,7 @@ it('hides old actor route data during a member-view projection while keeping rec
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
+      ...viewAsGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2999-09-01T10:15:00.000Z',
       token: 'token-1',
@@ -97,6 +100,7 @@ it('offers Retry and End when an authenticated cold member view has no selected 
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
+      ...viewAsGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2999-09-01T10:15:00.000Z',
       token: 'token-1',

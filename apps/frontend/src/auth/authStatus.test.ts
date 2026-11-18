@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { masqueradeApi } from './masqueradeApi';
+import { viewAsGrantFor } from '@/test/permissionGrants';
 
 it.each([true, false, undefined, 'true'])(
   'parses the signed-out reset-email flag %s',
@@ -131,6 +132,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
           targetUserId: 'u-viewer',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
+          ...viewAsGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2026-09-01T10:15:00.000Z',
           token: 'old-mode-context',
@@ -159,6 +161,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
+      ...viewAsGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'mode-token',
@@ -193,6 +196,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer' as const,
+      ...viewAsGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'stale-mode-token',

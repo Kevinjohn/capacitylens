@@ -8,6 +8,7 @@ import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { makeAccount, makeClient } from '@/test/fixtures';
 import { useInactiveAccountData } from './useInactiveAccountData';
+import { permissionValue } from '@/test/permissionGrants';
 
 function payload(accountId: string, name: string) {
   return {
@@ -50,7 +51,7 @@ function view(role: 'owner' | 'admin' | 'editor', principalId = 'bruce') {
         signOut: async () => {},
       }}
     >
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
         <Probe />
       </PermissionContext.Provider>
     </AuthContext.Provider>

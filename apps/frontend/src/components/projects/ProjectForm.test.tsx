@@ -14,6 +14,7 @@ import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -144,7 +145,7 @@ describe('ProjectForm', () => {
     const project = { ...created, name: '"Aurora"', isPrivate: true };
     loadPlanningData({ ...useStore.getState().data, projects: [project] });
     renderOwner(
-      <PermissionContext.Provider value={{ role: 'admin' }}>
+      <PermissionContext.Provider value={permissionValue('admin')}>
         <ProjectForm project={project} onClose={vi.fn()} />
       </PermissionContext.Provider>,
     );
