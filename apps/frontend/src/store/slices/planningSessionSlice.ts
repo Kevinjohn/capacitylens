@@ -129,7 +129,7 @@ export function createPlanningSessionSlice(
         ...(authLost ? { planningAuthLossVersion: state.planningAuthLossVersion + 1 } : {}),
       }));
     };
-    const areCommandsSuspended = () => {
+    const checkCommandsSuspended = () => {
       syncContext(get().activeAccountId);
       return commandLocks.size > 0;
     };
@@ -145,7 +145,7 @@ export function createPlanningSessionSlice(
     };
     const send = async (command: PlanningCommand): Promise<PlanningMutationSuccess | undefined> => {
       if (blockedByViewer()) return;
-      if (areCommandsSuspended()) {
+      if (checkCommandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
       const receipt = await controller.execute(
@@ -203,9 +203,9 @@ export function createPlanningSessionSlice(
       },
       planningReadyForReplacement: () => isReplacementReady(),
       undoPlanning: () =>
-        blockedByViewer() || areCommandsSuspended() ? Promise.resolve(false) : controller.undo(),
+        blockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : controller.undo(),
       redoPlanning: () =>
-        blockedByViewer() || areCommandsSuspended() ? Promise.resolve(false) : controller.redo(),
+        blockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : controller.redo(),
     };
   };
 }

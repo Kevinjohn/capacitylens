@@ -33,7 +33,7 @@ function getRoleText(role: string | null) {
   return role && isAccountRole(role) ? resolveRoleLabel(role) : m.invite_setup_role();
 }
 
-function validateSignup(name: string, password: string): string | null {
+function describeSignupError(name: string, password: string): string | null {
   if (!name.trim()) return m.invite_err_name_required();
   const lengthFailure = passwordLengthFailure(password);
   if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
@@ -97,7 +97,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const submit = async (event: FormEvent, preview: InvitationPreview) => {
     event.preventDefault();
     if (!token) return;
-    const invalid = validateSignup(name, password);
+    const invalid = describeSignupError(name, password);
     setError(invalid);
     if (invalid) return;
     setState({ kind: 'working', preview });

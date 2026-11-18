@@ -5,7 +5,7 @@ import type { AuthStatusResult } from './authStatus';
 import { parseAuthUser } from './validateAuthUser';
 import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
 import { masqueradeApi } from './masqueradeApi';
-import { buildInvalidResponse, readAuthResponse } from './authResponse';
+import { rejectInvalidResponse, readAuthResponse } from './authResponse';
 import { useStore } from '@/store/useStore';
 
 async function resolveIdentityWhileMasqueradeStatusIsUnknown(
@@ -36,7 +36,7 @@ async function readActiveMasqueradeAuthStatus(
   try {
     const user = parseAuthUser({ value: masquerade.principal });
     if (!user) {
-      return buildInvalidResponse();
+      return rejectInvalidResponse();
     }
     if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
     const next: Extract<AuthStatusResult, { kind: 'pass' }> = {

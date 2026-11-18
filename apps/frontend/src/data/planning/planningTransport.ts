@@ -7,7 +7,7 @@ import type { PlanningClientContext, PlanningTransport } from './planningCacheTy
 type PlanningClient = typeof client;
 
 // The caller captures the proof into the context; a missing one sends an empty proof, never a newer one.
-function readContextToken(context: PlanningClientContext): string | null {
+function getContextToken(context: PlanningClientContext): string | null {
   return context.masqueradeContextToken ?? null;
 }
 
@@ -336,7 +336,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
   return {
     async read(context, signal, { window, historyId } = {}) {
       try {
-        const scopedClient = applyMasqueradeContext(apiClient, readContextToken(context));
+        const scopedClient = applyMasqueradeContext(apiClient, getContextToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { companyId: context.companyId },
@@ -377,7 +377,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async execute(context, execution, signal) {
       try {
         return await sendOperation(
-          applyMasqueradeContext(apiClient, readContextToken(context)),
+          applyMasqueradeContext(apiClient, getContextToken(context)),
           context,
           execution,
           signal,
@@ -389,7 +389,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async undo(context, step, signal) {
       try {
         return requireReply(
-          await applyMasqueradeContext(apiClient, readContextToken(context)).request(
+          await applyMasqueradeContext(apiClient, getContextToken(context)).request(
             'api.planning.undo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
@@ -401,7 +401,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async redo(context, step, signal) {
       try {
         return requireReply(
-          await applyMasqueradeContext(apiClient, readContextToken(context)).request(
+          await applyMasqueradeContext(apiClient, getContextToken(context)).request(
             'api.planning.redo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
