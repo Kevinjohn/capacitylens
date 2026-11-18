@@ -1,5 +1,5 @@
 import { addDaysISO, daysInclusive, MAX_ISO_DATE, weekdayOf } from './dateMath.js';
-import { daysInMonth as daysInGregorianMonth, isValidISODate } from './isoDates.js';
+import { countDaysInMonth as daysInGregorianMonth, isValidISODate } from './isoDates.js';
 import type { ISODate } from '../types/entities.js';
 
 /** A supported repeat cadence for transient dated-entry creation. */
@@ -139,7 +139,7 @@ export function maximumTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
 /** Suggested personal time-off cutoff at the end of its twelve-calendar-month horizon.
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
-export function defaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
+export function resolveDefaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
   return defaultRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
 }
 
@@ -214,7 +214,7 @@ function buildMonthlyStartDates(
   return startDates;
 }
 
-function lastMatchingWeekdayOfMonth(year: number, month: number, weekday: number): ISODate {
+function resolveLastMatchingWeekdayOfMonth(year: number, month: number, weekday: number): ISODate {
   const lastDay = daysInGregorianMonth(year, month);
   const lastDate = buildIsoDate(year, month, lastDay);
   const daysBack = (weekdayOf(lastDate) - weekday + 7) % 7;
@@ -228,7 +228,7 @@ function buildMonthlyLastWeekdayStartDates(
 ): ISODate[] {
   const { year, month } = parseDateParts(startDate);
   const weekday = weekdayOf(startDate);
-  if (lastMatchingWeekdayOfMonth(year, month, weekday) !== startDate) {
+  if (resolveLastMatchingWeekdayOfMonth(year, month, weekday) !== startDate) {
     throw new RepeatingDateError(
       'invalid-last-weekday-start',
       'Monthly last-weekday repeats must start on the last matching weekday of the month.',
@@ -240,7 +240,7 @@ function buildMonthlyLastWeekdayStartDates(
     const monthAnchor = addCalendarMonthsClamped(startDate, monthOffset);
     if (monthAnchor === undefined) break;
     const target = parseDateParts(monthAnchor);
-    const candidate = lastMatchingWeekdayOfMonth(target.year, target.month, weekday);
+    const candidate = resolveLastMatchingWeekdayOfMonth(target.year, target.month, weekday);
     if (candidate > repeatUntil) break;
     startDates.push(candidate);
   }
