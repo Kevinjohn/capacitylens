@@ -41,7 +41,7 @@ interface TimestampOffsetParts {
   offsetMinuteText: string | undefined;
 }
 
-function calculateTimestampOffsetMinutes({
+function parseTimestampOffsetMinutes({
   zone,
   sign,
   offsetHourText,
@@ -84,7 +84,7 @@ export function parseISOTimestamp(value: unknown): number | null {
   const milliseconds = Number((fraction ?? '').padEnd(3, '0') || '0');
   if (hour > 23 || minute > 59 || second > 59) return null;
 
-  const offsetMinutes = calculateTimestampOffsetMinutes({
+  const offsetMinutes = parseTimestampOffsetMinutes({
     zone,
     sign,
     offsetHourText,

@@ -141,7 +141,7 @@ interface BuildBookingsInput {
 }
 
 function buildBookings({ stamp, buildWorkday, dickId, barbaraId, work }: BuildBookingsInput) {
-  const buildBooking = ({ days, ...rest }: BookingSpec) => ({
+  const createBooking = ({ days, ...rest }: BookingSpec) => ({
     ...NULLABLE_FIELDS.allocations,
     id: newId(),
     startDate: buildWorkday(days[0]),
@@ -149,28 +149,28 @@ function buildBookings({ stamp, buildWorkday, dickId, barbaraId, work }: BuildBo
     ...rest,
     ...stamp,
   });
-  const buildDickBooking = (spec: Omit<BookingSpec, 'resourceId'>) =>
-    buildBooking({ resourceId: dickId, ...spec });
+  const createDickBooking = (spec: Omit<BookingSpec, 'resourceId'>) =>
+    createBooking({ resourceId: dickId, ...spec });
   return [
-    buildDickBooking({
+    createDickBooking({
       activityId: work.wireframes.id,
       days: [0, 3],
       hoursPerDay: 8,
       status: 'confirmed',
     }),
-    buildDickBooking({
+    createDickBooking({
       activityId: work.admin.id,
       days: [4, 4],
       hoursPerDay: 4,
       status: 'confirmed',
     }),
-    buildDickBooking({
+    createDickBooking({
       activityId: work.wireframes.id,
       days: [5, 7],
       hoursPerDay: 6,
       status: 'tentative',
     }),
-    buildBooking({
+    createBooking({
       resourceId: barbaraId,
       activityId: work.build.id,
       days: [1, 6],

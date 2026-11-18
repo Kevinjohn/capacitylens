@@ -32,7 +32,7 @@ export type CapacityAllocationInput = Pick<
 export type CapacityLoadByDay = Map<ISODate, number>;
 const loadComponents = new WeakMap<CapacityLoadByDay, Map<ISODate, readonly number[]>>();
 /** The exact components behind a day's bucket entry; a scalar-only entry is treated as exact. */
-const listComponentsOn = (byDay: CapacityLoadByDay, day: ISODate): readonly number[] =>
+const resolveComponentsOn = (byDay: CapacityLoadByDay, day: ISODate): readonly number[] =>
   loadComponents.get(byDay)?.get(day) ?? [byDay.get(day) ?? 0];
 
 interface AddCapacityLoadInput {
@@ -78,7 +78,7 @@ export function addCapacityLoad({
     }
     componentsByDay.set(
       day,
-      addCapacityHours(listComponentsOn(byDay, day), allocation.hoursPerDay),
+      addCapacityHours(resolveComponentsOn(byDay, day), allocation.hoursPerDay),
     );
     byDay.set(day, (byDay.get(day) ?? 0) + allocation.hoursPerDay);
   }
@@ -176,7 +176,7 @@ function tallyAdvisory({
     const available = working ? scheduledCapacity : 0;
     if (
       hasOverCapacity(
-        addCapacityHours(listComponentsOn(loadByDay, day), proposal.hoursPerDay),
+        addCapacityHours(resolveComponentsOn(loadByDay, day), proposal.hoursPerDay),
         available,
       )
     ) {

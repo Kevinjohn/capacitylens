@@ -1,5 +1,5 @@
 import { addDaysISO, daysInclusive, MAX_ISO_DATE, weekdayOf } from './dateMath.js';
-import { countDaysInMonth as daysInGregorianMonth, isValidISODate } from './isoDates.js';
+import { countDaysInMonth as countDaysInGregorianMonth, isValidISODate } from './isoDates.js';
 import type { ISODate } from '../types/entities.js';
 
 /** A supported repeat cadence for transient dated-entry creation. */
@@ -156,13 +156,13 @@ function addCalendarMonthsClamped(date: ISODate, months: number): ISODate | unde
   return buildIsoDate(
     targetYear,
     targetMonth,
-    Math.min(day, daysInGregorianMonth(targetYear, targetMonth)),
+    Math.min(day, countDaysInGregorianMonth(targetYear, targetMonth)),
   );
 }
 
 function endOfCalendarMonth(date: ISODate): ISODate {
   const { year, month } = parseDateParts(date);
-  return buildIsoDate(year, month, daysInGregorianMonth(year, month));
+  return buildIsoDate(year, month, countDaysInGregorianMonth(year, month));
 }
 
 function applyRepeatingStartDate(
@@ -215,7 +215,7 @@ function buildMonthlyStartDates(
 }
 
 function resolveLastMatchingWeekdayOfMonth(year: number, month: number, weekday: number): ISODate {
-  const lastDay = daysInGregorianMonth(year, month);
+  const lastDay = countDaysInGregorianMonth(year, month);
   const lastDate = buildIsoDate(year, month, lastDay);
   const daysBack = (weekdayOf(lastDate) - weekday + 7) % 7;
   return buildIsoDate(year, month, lastDay - daysBack);
