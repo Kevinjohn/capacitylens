@@ -9,6 +9,7 @@ import {
   resetStoreWithAccount,
   resetStoreWithData,
 } from '@/test/fixtures';
+import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 
 const T = '2026-01-01T00:00:00.000Z';
@@ -16,36 +17,44 @@ const meta = { companyId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
 afterEach(() => {
-  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe('typed undo restores cascade bindings', () => {
-  it('re-stamps an undo whose content is identical but stored revision changed', async () => {
-    await resetStoreWithData(
-      makeAppData({
-        clients: [
-          { ...NULLABLE_FIELDS.clients, ...meta, id: 'c1', name: 'Client', color: '#111111' },
-        ],
-      }),
-      DEFAULT_ACCOUNT_ID,
-    );
+  it('uses the row timestamp read after undo for the next edit', async () => {
+    const original = {
+      ...NULLABLE_FIELDS.clients,
+      ...meta,
+      id: 'c1',
+      name: 'Client',
+      color: '#111111',
+    };
+    const saved = { ...original, name: 'Changed', updatedAt: '2026-02-01T09:00:00.000Z' };
+    const restoredAt = '2026-02-01T09:00:00.001Z';
+    await resetStoreWithData(makeAppData({ clients: [original] }), DEFAULT_ACCOUNT_ID);
+    queuePlanningPatch(() => ({ upserts: [{ entity: 'clients', row: saved }], removed: [] }));
+    await useStore.getState().updateClient(original.id, { name: saved.name });
+    expect(useStore.getState().data.clients[0]?.updatedAt).toBe(saved.updatedAt);
 
-    // The save and the undo share a millisecond; the server still stamps the undo later.
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date('2026-02-01T09:00:00.000Z'));
-    await useStore.getState().updateClient('c1', { name: 'Changed' });
-    const afterNoOpSave = useStore.getState().data;
-    const savedRevision = requireValue(afterNoOpSave.clients[0], 'saved client').updatedAt;
-    expect(afterNoOpSave.clients[0]?.name).toBe('Changed');
-    await useStore.getState().undoPlanning();
+    const transport = getPlanningTransportHandle();
+    const read = transport.read;
+    vi.spyOn(transport, 'read').mockImplementationOnce(async (...args) => {
+      const snapshot = await read(...args);
+      return {
+        ...snapshot,
+        data: { ...snapshot.data, clients: [{ ...original, updatedAt: restoredAt }] },
+      };
+    });
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
+    const row = requireValue(useStore.getState().data.clients[0], 'restored client');
+    expect(row).toMatchObject({ name: original.name, updatedAt: restoredAt });
 
-    expect(useStore.getState().data.clients[0]).toMatchObject({ name: 'Client', color: '#111111' });
-    expect(
-      Date.parse(requireValue(useStore.getState().data.clients[0], 'restored client').updatedAt),
-    ).toBeGreaterThan(Date.parse(savedRevision));
+    const send = vi.spyOn(transport, 'execute');
+    await useStore.getState().updateClient(row.id, { name: 'Next edit' }, row.updatedAt);
+    expect(send.mock.calls[0]?.[1]).toMatchObject({ expectedUpdatedAt: restoredAt });
   });
 
-  it('re-timestamps a tenant larger than the engine argument limit without throwing', async () => {
+  it('undoes a creation in a large tenant without losing its existing rows', async () => {
     const clients = Array.from({ length: 75_000 }, (_, index) => ({
       ...NULLABLE_FIELDS.clients,
       ...meta,

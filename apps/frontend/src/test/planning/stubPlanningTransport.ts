@@ -49,19 +49,6 @@ type CompanyHistory = {
 
 const HISTORY_LIMIT = 50;
 
-/** Like the server's createServerRevision, a write always moves updatedAt forward, even within the
- * millisecond of the previous write. */
-function laterThan(updatedAt: unknown): string {
-  const after = Date.parse(String(updatedAt)) + 1;
-  return new Date(Number.isNaN(after) ? Date.now() : Math.max(Date.now(), after)).toISOString();
-}
-
-function sameContent(left: Row, right: Row): boolean {
-  return (
-    JSON.stringify({ ...left, updatedAt: null }) === JSON.stringify({ ...right, updatedAt: null })
-  );
-}
-
 /** A controlled response source for frontend tests; scheduling and validation belong to the server. */
 export class StubPlanningTransport implements PlanningTransport {
   readonly calls: PlanningIntent[] = [];
@@ -239,8 +226,8 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   /**
-   * Swaps the company's rows back to the recorded before or after state. Like the server, a row the
-   * step changes gets a later `updatedAt`, a stale basis is refused with STALE_REVISION, an empty
+   * Swaps the company's rows back to the recorded before or after state.
+   * A stale basis is refused with STALE_REVISION, an empty
    * direction with a bare 409, and a queued refusal ends the history.
    */
   private async step(
@@ -331,27 +318,13 @@ export class StubPlanningTransport implements PlanningTransport {
       const inCompany = (row: Row) =>
         entity === 'accounts' ? row.id === companyId : row.companyId === companyId;
       const others = this.rows(entity).filter((row) => !inCompany(row));
-      const current = new Map(
-        this.rows(entity)
-          .filter(inCompany)
-          .map((row) => [row.id, row]),
-      );
-      const target = structuredClone(rows[entity]) as unknown as Row[];
-      const restored = target.map((row) => {
-        const previous = current.get(row.id);
-        current.delete(row.id);
-        if (!previous || sameContent(previous, row)) return row;
-        return { ...row, updatedAt: laterThan(previous.updatedAt) };
-      });
-      // The server undoes the creation of an archivable row by archiving it, not deleting it.
+      const restored = structuredClone(rows[entity]) as unknown as Row[];
+      const restoredIds = new Set(restored.map((row) => row.id));
       const archived =
         kind === 'undo'
-          ? [...current.values()]
-              .filter((row) => 'archivedAt' in row)
-              .map((row) => {
-                const updatedAt = laterThan(row.updatedAt);
-                return { ...row, archivedAt: row.archivedAt ?? updatedAt, updatedAt };
-              })
+          ? this.rows(entity)
+              .filter((row) => inCompany(row) && !restoredIds.has(row.id) && 'archivedAt' in row)
+              .map((row) => ({ ...row, archivedAt: row.archivedAt ?? '2026-01-01T00:00:00.000Z' }))
           : [];
       this.replaceRows(entity, [...others, ...restored, ...archived]);
     }
@@ -395,7 +368,7 @@ export class StubPlanningTransport implements PlanningTransport {
     const update = (entity: AppDataKey, id: string, changes: object) => {
       const previous = this.rows(entity).find((row) => row.id === id);
       if (!previous) throw new Error(`stub: load ${entity} row ${id} before updating it`);
-      const row = { ...previous, ...changes, updatedAt: laterThan(previous.updatedAt) };
+      const row = { ...previous, ...changes };
       this.replaceRows(
         entity,
         this.rows(entity).map((current) => (current.id === id ? row : current)),
