@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { readState } from '#tests/helpers/state_fixture';
-import { accountId, configureAuth, resetPlanningFixture, session, signIn } from './helpers.js';
+import { companyId, configureAuth, resetPlanningFixture, session, signIn } from './helpers.js';
 
 test.group('typed company calendar settings', (group) => {
   group.setup(() => freshDatabase());
@@ -22,7 +22,7 @@ test.group('typed company calendar settings', (group) => {
       ['weekStartsOn', 0, 1],
       ['timezone', 'Europe/London', 'UTC'],
     ] as const) {
-      const path = `/api/companies/${accountId}/settings`;
+      const path = `/api/companies/${companyId}/settings`;
       const first = await session(client.patch(path), cookie)
         .json({
           mutationId: randomUUID(),
@@ -32,7 +32,7 @@ test.group('typed company calendar settings', (group) => {
         .send();
       first.assertStatus(200);
       revision += 1;
-      const before = await readState(accountId, true);
+      const before = await readState(companyId, true);
       const refused = await session(client.patch(path), cookie)
         .json({
           mutationId: randomUUID(),
@@ -41,9 +41,9 @@ test.group('typed company calendar settings', (group) => {
         })
         .send();
       refused.assertStatus(409);
-      assert.deepEqual(await readState(accountId, true), before);
+      assert.deepEqual(await readState(companyId, true), before);
       const planning = await session(
-        client.get(`/api/companies/${accountId}/planning`),
+        client.get(`/api/companies/${companyId}/planning`),
         cookie
       ).send();
       planning.assertStatus(200);

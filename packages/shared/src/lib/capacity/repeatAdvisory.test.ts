@@ -66,7 +66,7 @@ const fullResource = (
 ): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id: 'r1',
-  accountId: 'a1',
+  companyId: 'a1',
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',
@@ -193,7 +193,7 @@ describe('repeatingAllocationAdvisory load accounting', () => {
     const timeOff: TimeOff[] = [
       {
         id: 'to1',
-        accountId: 'a1',
+        companyId: 'a1',
         createdAt: 't',
         updatedAt: 't',
         resourceId: 'r1',
@@ -233,7 +233,7 @@ describe('repeatingAllocationAdvisory schedule exceptions', () => {
     const companyClosure: Closure[] = [
       {
         id: 'company-closure',
-        accountId: 'a1',
+        companyId: 'a1',
         createdAt: 't',
         updatedAt: 't',
         name: 'Company shutdown',

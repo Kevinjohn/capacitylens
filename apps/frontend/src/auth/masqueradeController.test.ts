@@ -14,7 +14,7 @@ beforeEach(async () => {
 describe('MasqueradeController', () => {
   it('does not dispatch a start while another replacement owns the planning lock', async () => {
     const { controller, dependencies } = harness({ suspend: vi.fn(() => null) });
-    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
+    await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(false);
     expect(dependencies.api.start).not.toHaveBeenCalled();
     expect(useStore.getState().masquerade.kind).toBe('inactive');
   });
@@ -25,7 +25,7 @@ describe('MasqueradeController', () => {
       expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
     });
 
-    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
+    await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(true);
     expect(useStore.getState().masquerade.kind).toBe('active');
     expect(dependencies.suspend).toHaveBeenCalledTimes(1);
 
@@ -45,7 +45,7 @@ describe('MasqueradeController', () => {
     await useStore.getState().refreshPlanning();
     const { controller } = harness();
 
-    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(true);
+    await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(true);
 
     expect(useStore.getState().accountSummaries).toEqual([
       { id: 'a-studio', name: 'Wayne Enterprises', role: 'viewer' },
@@ -68,7 +68,7 @@ describe('MasqueradeController', () => {
     const { controller, dependencies } = harness({
       flush: vi.fn(async () => ({ kind: 'blocked' as const })),
     });
-    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
+    await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(false);
     expect(dependencies.suspend).not.toHaveBeenCalled();
     expect(dependencies.api.start).not.toHaveBeenCalled();
   });
@@ -83,14 +83,14 @@ describe('MasqueradeController', () => {
         end: vi.fn(async () => {}),
       },
     });
-    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
+    await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(false);
     expect(resume).toHaveBeenCalledWith({ dropParkedEdits: false });
     expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
   });
 
   it('stays suspended and starting when projection fails after a successful start', async () => {
     const { controller, resume } = harness({ reproject: vi.fn(async () => false) });
-    await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
+    await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(false);
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'starting', state });
     expect(resume).not.toHaveBeenCalled();
   });
@@ -101,7 +101,7 @@ describe('MasqueradeController transitions', () => {
     const flush = deferred<FlushPendingWritesResult>();
     const { controller, dependencies, resume } = harness({ flush: vi.fn(() => flush.promise) });
 
-    const starting = controller.start(state.accountId, state.targetUserId);
+    const starting = controller.start(state.companyId, state.targetUserId);
     await expect(controller.transitionAccount('a-loft')).resolves.toBe(true);
     flush.resolve({ kind: 'clean' });
 
@@ -117,8 +117,8 @@ describe('MasqueradeController transitions', () => {
     const flush = deferred<FlushPendingWritesResult>();
     const { controller, dependencies } = harness({ flush: vi.fn(() => flush.promise) });
 
-    const first = controller.start(state.accountId, state.targetUserId);
-    const second = controller.start(state.accountId, 'u-editor');
+    const first = controller.start(state.companyId, state.targetUserId);
+    const second = controller.start(state.companyId, 'u-editor');
     flush.resolve({ kind: 'clean' });
 
     await expect(second).resolves.toBe(false);
@@ -148,7 +148,7 @@ describe('MasqueradeController transitions', () => {
       },
     });
 
-    const starting = controller.start(state.accountId, state.targetUserId);
+    const starting = controller.start(state.companyId, state.targetUserId);
     await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe('starting'));
 
     await expect(controller.transitionAccount('a-loft')).resolves.toBe(false);
@@ -167,7 +167,7 @@ describe('MasqueradeController transitions', () => {
     const { controller, resume } = harness({
       reproject: vi.fn().mockResolvedValueOnce(false).mockRejectedValueOnce(new Error('offline')),
     });
-    await controller.start(state.accountId, state.targetUserId);
+    await controller.start(state.companyId, state.targetUserId);
 
     await expect(controller.retryProjection()).resolves.toBe(false);
     expect(useStore.getState().masquerade.kind).toBe('starting');

@@ -3,7 +3,7 @@ import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import { fieldSchema, type FieldKind } from './fields.js';
 
 const base = { id: 'identifier', createdAt: 'identifier', updatedAt: 'identifier' } as const;
-const scoped = { ...base, accountId: 'identifier' } as const;
+const scoped = { ...base, companyId: 'identifier' } as const;
 const lifecycle = { archivedAt: 'identifier', deletedAt: 'identifier' } as const;
 const privateName = { isPrivate: 'boolean', codeName: 'text' } as const;
 const dates = { startDate: 'date', endDate: 'date' } as const;
@@ -91,9 +91,9 @@ export const entityFields: Record<AppDataKey, Record<string, FieldKind>> = {
 
 export const requiredFields: Record<AppDataKey, readonly string[]> = {
   accounts: ['name', 'color'],
-  disciplines: ['accountId', 'name', 'sortOrder'],
+  disciplines: ['companyId', 'name', 'sortOrder'],
   resources: [
-    'accountId',
+    'companyId',
     'kind',
     'role',
     'employmentType',
@@ -101,12 +101,12 @@ export const requiredFields: Record<AppDataKey, readonly string[]> = {
     'workingDays',
     'color',
   ],
-  clients: ['accountId', 'name', 'color'],
-  projects: ['accountId', 'name', 'color', 'clientId'],
-  phases: ['accountId', 'name', 'projectId'],
-  activities: ['accountId', 'name', 'kind'],
+  clients: ['companyId', 'name', 'color'],
+  projects: ['companyId', 'name', 'color', 'clientId'],
+  phases: ['companyId', 'name', 'projectId'],
+  activities: ['companyId', 'name', 'kind'],
   allocations: [
-    'accountId',
+    'companyId',
     'resourceId',
     'activityId',
     'startDate',
@@ -114,8 +114,8 @@ export const requiredFields: Record<AppDataKey, readonly string[]> = {
     'hoursPerDay',
     'status',
   ],
-  timeOff: ['accountId', 'resourceId', 'startDate', 'endDate', 'type'],
-  closures: ['accountId', 'name', 'startDate', 'endDate'],
+  timeOff: ['companyId', 'resourceId', 'startDate', 'endDate', 'type'],
+  closures: ['companyId', 'name', 'startDate', 'endDate'],
 };
 
 const validators = new Map<string, ReturnType<typeof vine.compile>>();

@@ -3,9 +3,9 @@ import type { ScopedEntity } from '../types/entities.js';
 import { belongsToAccount, byAccount } from './tenancy.js';
 
 const rows = [
-  { id: 'a-row', accountId: 'a' },
-  { id: 'b-row', accountId: 'b' },
-  { id: 'a-row-2', accountId: 'a' },
+  { id: 'a-row', companyId: 'a' },
+  { id: 'b-row', companyId: 'b' },
+  { id: 'a-row-2', companyId: 'a' },
 ] as ScopedEntity[];
 
 describe('tenant predicates', () => {

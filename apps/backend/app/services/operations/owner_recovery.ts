@@ -47,10 +47,10 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     }
     await withTransaction(async (trx) => {
       const now = new Date().toISOString();
-      for (const accountId of accountIds) {
+      for (const companyId of accountIds) {
         await trx.table('audit_entries').insert({
           id: crypto.randomUUID(),
-          account_id: accountId,
+          company_id: companyId,
           actor_id: null,
           action: 'identity.owner_recovery_issued',
           entity: 'user',

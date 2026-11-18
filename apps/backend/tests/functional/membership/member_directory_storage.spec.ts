@@ -9,7 +9,7 @@ import {
 import { createIdentity, signUpAndIn } from '../../helpers/identities.js';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 
-const accountId = 'member-directory-storage';
+const companyId = 'member-directory-storage';
 const ownerEmail = 'bruce.wayne@wayne.example';
 const memberEmail = 'clark.kent@wayne.example';
 const password = 'batman-secret-2026';
@@ -72,11 +72,11 @@ async function createFixture(client: Parameters<typeof signUpAndIn>[0]) {
   const ownerCookie = owner.cookie('adonis-session')?.value;
   if (!ownerCookie) throw new Error('Owner sign-in did not create a session cookie.');
   const ownerId = await identityId(ownerEmail);
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
+  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
   const memberId = await createIdentity(memberEmail, { name: 'Clark Kent', password });
   await db.transaction(async (trx) => {
     await trx.table('memberships').insert({
-      scope_id: accountId,
+      scope_id: companyId,
       user_id: memberId,
       role: 'editor',
       status: 'active',
@@ -121,21 +121,21 @@ async function writeCorruption(corruption: CorruptionCase, memberId: string) {
   await db.transaction(async (trx) => {
     await trx
       .from('memberships')
-      .where({ scope_id: accountId, user_id: memberId })
+      .where({ scope_id: companyId, user_id: memberId })
       .update({ [corruption.column]: corruption.invalidValue });
   });
 }
 
 async function readProductState() {
   return {
-    memberships: await db.from('memberships').where('scope_id', accountId).orderBy('id'),
-    settings: await db.from('company_settings').where('account_id', accountId).orderBy('key'),
+    memberships: await db.from('memberships').where('scope_id', companyId).orderBy('id'),
+    settings: await db.from('company_settings').where('company_id', companyId).orderBy('key'),
     revision: await db
       .from('company_planning_revisions')
-      .where('account_id', accountId)
-      .orderBy('account_id'),
-    audit: await db.from('audit_entries').where('account_id', accountId).orderBy('id'),
-    receipts: await db.from('request_receipts').where('scope_id', accountId).orderBy('id'),
+      .where('company_id', companyId)
+      .orderBy('company_id'),
+    audit: await db.from('audit_entries').where('company_id', companyId).orderBy('id'),
+    receipts: await db.from('request_receipts').where('scope_id', companyId).orderBy('id'),
   };
 }
 
@@ -155,7 +155,7 @@ test.group('member directory malformed storage', (group) => {
     assert,
   }) => {
     const { ownerCookie, ownerId, memberId, contextToken } = await createFixture(client);
-    const path = `/api/companies/${accountId}/members`;
+    const path = `/api/companies/${companyId}/members`;
     const baseline = await ownerGet({ client, path, ownerCookie, contextToken }).send();
     baseline.assertStatus(200);
     assert.deepInclude(readDirectoryMemberEntry(baseline.body(), memberId), {
@@ -171,7 +171,7 @@ test.group('member directory malformed storage', (group) => {
       await assert.rejects(
         () =>
           db.transaction((trx) =>
-            readMemberDirectory(trx, accountId, { actorId: ownerId, role: 'owner' })
+            readMemberDirectory(trx, companyId, { actorId: ownerId, role: 'owner' })
           ),
         Error,
         new RegExp('^' + corruption.guardMessage.replace('.', '\\.') + '$'),
@@ -191,7 +191,7 @@ test.group('member directory malformed storage', (group) => {
       await db.transaction(async (trx) => {
         await trx
           .from('memberships')
-          .where({ scope_id: accountId, user_id: memberId })
+          .where({ scope_id: companyId, user_id: memberId })
           .update({ [corruption.column]: corruption.validValue });
       });
       const restored = await ownerGet({ client, path, ownerCookie, contextToken }).send();
@@ -223,7 +223,7 @@ test.group('member directory malformed storage', (group) => {
       });
     });
 
-    const path = `/api/companies/${accountId}/members`;
+    const path = `/api/companies/${companyId}/members`;
     const isolated = await ownerGet({ client, path, ownerCookie, contextToken }).send();
     isolated.assertStatus(200);
     assert.notInclude(JSON.stringify(isolated.body()), foreignMemberId);

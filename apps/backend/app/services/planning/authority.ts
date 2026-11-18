@@ -13,10 +13,10 @@ export interface PlanningAuthority extends PlanningCapabilities {
 }
 
 /** Resolves the caller's planning authority and write capabilities inside the transaction. */
-export async function resolvePlanningAuthority(trx: TransactionClientContract, accountId: string) {
-  const principal = await effectiveReadPrincipal(trx, accountId);
-  const membership = await getActiveMembership(principal.effectiveId, accountId, trx);
-  if (!membership || (principal.accountId !== null && principal.accountId !== accountId)) {
+export async function resolvePlanningAuthority(trx: TransactionClientContract, companyId: string) {
+  const principal = await effectiveReadPrincipal(trx, companyId);
+  const membership = await getActiveMembership(principal.effectiveId, companyId, trx);
+  if (!membership || (principal.companyId !== null && principal.companyId !== companyId)) {
     throw new PlanningOperationError(
       403,
       'ACCOUNT_MEMBERSHIP_LOST',

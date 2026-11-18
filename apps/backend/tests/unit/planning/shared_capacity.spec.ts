@@ -7,7 +7,7 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 const resource: Resource = {
   ...NULLABLE_FIELDS.resources,
   id: 'r-diana',
-  accountId: 'a-themyscira',
+  companyId: 'a-themyscira',
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',
@@ -24,7 +24,7 @@ const resource: Resource = {
 const allocation: Allocation = {
   ...NULLABLE_FIELDS.allocations,
   id: 'al-1',
-  accountId: 'a-themyscira',
+  companyId: 'a-themyscira',
   createdAt: 't',
   updatedAt: 't',
   resourceId: 'r-diana',

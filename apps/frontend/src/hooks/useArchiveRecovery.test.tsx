@@ -14,9 +14,9 @@ vi.mock('@/api/queryClient', async (original) => ({
   ...(await original<typeof import('@/api/queryClient')>()),
   client: { request },
 }));
-function payload(accountId: string, label: string): ArchiveRecovery {
+function payload(companyId: string, label: string): ArchiveRecovery {
   return {
-    accountId,
+    companyId,
     rows: [{ entity: 'clients', id: 'client', label, archived: true, parent: null }],
   };
 }
@@ -48,12 +48,12 @@ function view(cache: QueryClient, role: Role = 'editor', principal: string | nul
     </QueryClientProvider>
   );
 }
-function company(accountId: string) {
+function company(companyId: string) {
   useStore.setState((state) => ({
-    activeAccountId: accountId,
+    activeAccountId: companyId,
     planning: {
       ...state.planning,
-      context: { identity: 'principal', companyId: accountId },
+      context: { identity: 'principal', companyId: companyId },
       status: 'ready',
       revision: 0,
       canWrite: true,

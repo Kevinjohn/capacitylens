@@ -7,7 +7,7 @@ import type { PersonScheduleModel, PersonScheduleResult } from './personSchedule
 import { PersonScheduleSheet } from './PersonScheduleSheet';
 
 const scheduleModel: PersonScheduleModel = {
-  accountId: 'account-1',
+  companyId: 'account-1',
   resourceId: 'resource-1',
   title: 'Diana Prince',
   window: { startDate: '2026-09-07', endDate: '2026-10-04' },

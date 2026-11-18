@@ -11,7 +11,7 @@ const ACCOUNT_ID = 'a-studio';
 
 function restoredDocument() {
   const document = buildCompanyExport(seedForCurrentWeek(), {
-    accountId: ACCOUNT_ID,
+    companyId: ACCOUNT_ID,
     completeness: 'full',
   });
   const person = document.data.resources.find((row) => row.name === 'Bruce Wayne');
@@ -79,7 +79,7 @@ test.describe('Beta company transfer through the server', () => {
       'redacted document',
       serializeCompanyExport(
         buildCompanyExport(seedForCurrentWeek(), {
-          accountId: ACCOUNT_ID,
+          companyId: ACCOUNT_ID,
           completeness: 'redacted',
         }),
       ),

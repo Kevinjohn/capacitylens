@@ -19,7 +19,7 @@ interface MemoisedAncestryOptions {
 /** The lifecycle fields and id of a row inspected for ancestry. */
 export type LifecycleAncestryRow = LifecycleFields & {
   id: string;
-  accountId?: string;
+  companyId?: string;
 } & Record<string, unknown>;
 
 /** Resolve a row by table and id for ancestry inspection; `undefined` when absent. */
@@ -81,7 +81,7 @@ export const PARENT_TABLES: readonly AppDataKey[] = [
 ];
 
 /** Per-projection cache of a walk's verdict, keyed `${table}|${id}`. Sound because the child-vs-parent
- * accountId equality check happens at the edge, before recursion: a parent's own verdict is a pure
+ * companyId equality check happens at the edge, before recursion: a parent's own verdict is a pure
  * function of (table, id, data). It never depends on which child reached it. Rows are resolved
  * through the id-keyed index, so one key can only ever mean one row. */
 export type LifecycleAncestryMemo = Map<string, LifecycleAncestryResult>;
@@ -117,7 +117,7 @@ export function inspectAncestry({
     // diagnose it. Generic writes independently reject the broken reference.
     if (typeof parentId !== 'string') continue;
     const parent = lookup(relation.parent, parentId);
-    if (!parent || (typeof row.accountId === 'string' && parent.accountId !== row.accountId)) {
+    if (!parent || (typeof row.companyId === 'string' && parent.companyId !== row.companyId)) {
       continue;
     }
     if (isLifecycleEntityKey(relation.parent)) {

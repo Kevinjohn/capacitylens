@@ -41,7 +41,7 @@ describe('typed planning domain rejections', () => {
   });
 
   it('refuses a foreign row while treating an absent id as stale', async () => {
-    const foreign = makeClient({ id: 'foreign-client', accountId: 'a2' });
+    const foreign = makeClient({ id: 'foreign-client', companyId: 'a2' });
     useStore.setState((state) => ({
       data: { ...state.data, clients: [...state.data.clients, foreign] },
     }));

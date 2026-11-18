@@ -21,16 +21,16 @@ import { useCompanyToday } from '@/hooks/useCompanyToday';
 
 /** Account and resource identities requested for a person schedule. */
 export interface UsePersonScheduleInput {
-  accountId: ID | null;
+  companyId: ID | null;
   resourceId: ID | null;
 }
 
 const UNAVAILABLE: PersonScheduleResult = { kind: 'unavailable' };
 
-function isResourceFeatureVisible(resource: Resource, data: AppData, accountId: ID): boolean {
+function isResourceFeatureVisible(resource: Resource, data: AppData, companyId: ID): boolean {
   return isResourceKindEnabled(resource, {
-    placeholdersEnabled: hasPlaceholdersEnabled(data, accountId),
-    externalEnabled: hasExternalResourcesEnabled(data, accountId),
+    placeholdersEnabled: hasPlaceholdersEnabled(data, companyId),
+    externalEnabled: hasExternalResourcesEnabled(data, companyId),
   });
 }
 
@@ -58,21 +58,21 @@ interface AvailableScheduleInput extends UsePersonScheduleInput {
 }
 
 function buildAvailableSchedule(input: AvailableScheduleInput) {
-  const { accountId, resourceId, activeAccount, activeAccountId } = input;
-  if (!accountId || !resourceId || !activeAccount || !input.permissionAvailable) return null;
-  if (accountId !== activeAccountId || activeAccount.id !== accountId) return null;
+  const { companyId, resourceId, activeAccount, activeAccountId } = input;
+  if (!companyId || !resourceId || !activeAccount || !input.permissionAvailable) return null;
+  if (companyId !== activeAccountId || activeAccount.id !== companyId) return null;
   const resource = input.data.resources.find(
-    (candidate) => candidate.id === resourceId && candidate.accountId === accountId,
+    (candidate) => candidate.id === resourceId && candidate.companyId === companyId,
   );
-  if (!resource || !isResourceFeatureVisible(resource, input.accountView, accountId)) return null;
-  const startDate = startOfWeekISO(input.today, resolveWeekStart(input.accountView, accountId));
+  if (!resource || !isResourceFeatureVisible(resource, input.accountView, companyId)) return null;
+  const startDate = startOfWeekISO(input.today, resolveWeekStart(input.accountView, companyId));
   return buildPersonSchedule({
-    accountId,
+    companyId,
     resource,
     data: input.data,
     window: { startDate, endDate: addDaysISO(startDate, 27) },
-    schedulingMode: resolveSchedulingMode(input.accountView, accountId),
-    showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(input.accountView, accountId),
+    schedulingMode: resolveSchedulingMode(input.accountView, companyId),
+    showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(input.accountView, companyId),
     canSeeTimeOffNotes: input.canSeeTimeOffNotes,
     title: resolvePersonScheduleIdentity(resource, input.data),
     activityFallback: m.scheduler_person_schedule_activity_fallback(),
@@ -81,7 +81,7 @@ function buildAvailableSchedule(input: AvailableScheduleInput) {
 
 /** Projects the requested resource schedule from active scoped data. */
 export function usePersonSchedule({
-  accountId,
+  companyId,
   resourceId,
 }: UsePersonScheduleInput): PersonScheduleResult {
   const data = useActiveScopedData();
@@ -103,7 +103,7 @@ export function usePersonSchedule({
   const built = useMemo(
     () =>
       buildAvailableSchedule({
-        accountId,
+        companyId,
         resourceId,
         activeAccount,
         activeAccountId,
@@ -114,7 +114,7 @@ export function usePersonSchedule({
         canSeeTimeOffNotes,
       }),
     [
-      accountId,
+      companyId,
       accountView,
       activeAccount,
       activeAccountId,

@@ -7,11 +7,12 @@ import { withTransaction } from '#services/with_transaction';
 import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { createIdentity, fixturePassword, signIn } from '../../helpers/identities.js';
+import { asExportFile } from '#tests/helpers/export_file';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 
 async function revision() {
-  return withTransaction((trx) => getPlanningRevision(trx, accountId));
+  return withTransaction((trx) => getPlanningRevision(trx, companyId));
 }
 
 test.group('password confirmation bindings', (group) => {
@@ -22,13 +23,13 @@ test.group('password confirmation bindings', (group) => {
     assert,
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const baseRevision = await revision();
-    const document = buildCompanyExport(before, { accountId, completeness: 'full' });
+    const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
     document.data.accounts[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
       const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
-        .json({ action, accountId, intent, password: fixturePassword })
+        .json({ action, companyId, intent, password: fixturePassword })
         .send();
       response.assertStatus(200);
       return (response.body() as { confirmationId: string }).confirmationId;
@@ -40,11 +41,11 @@ test.group('password confirmation bindings', (group) => {
     const successor = await createIdentity(successorEmail, { name: 'Clark Kent' });
     await db
       .from('memberships')
-      .where({ scope_id: accountId, user_id: userId })
+      .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'admin' });
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      scope_id: accountId,
+      scope_id: companyId,
       user_id: successor,
       role: 'owner',
       status: 'active',
@@ -52,10 +53,10 @@ test.group('password confirmation bindings', (group) => {
       updated_at: now,
     });
     const { cookie: successorCookie } = await signIn(client, successorEmail);
-    const auditBefore = await db.from('audit_entries').where('account_id', accountId);
+    const auditBefore = await db.from('audit_entries').where('company_id', companyId);
 
     const anonymise = await asDataOwner(
-      client.post(`/api/companies/${accountId}/anonymise`),
+      client.post(`/api/companies/${companyId}/anonymise`),
       successorCookie
     )
       .json({ confirmationId: anonymiseProof })
@@ -66,7 +67,7 @@ test.group('password confirmation bindings', (group) => {
       code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
     const imported = await asDataOwner(client.post('/api/transfer/apply'), successorCookie)
-      .json({ accountId, document, baseRevision, confirmationId: importProof })
+      .json({ companyId, document, baseRevision, confirmationId: importProof })
       .send();
     imported.assertStatus(403);
     assert.deepEqual(imported.body(), {
@@ -74,10 +75,10 @@ test.group('password confirmation bindings', (group) => {
       code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
 
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.equal(await revision(), baseRevision);
     assert.lengthOf(
-      await db.from('audit_entries').where('account_id', accountId),
+      await db.from('audit_entries').where('company_id', companyId),
       auditBefore.length
     );
     assert.lengthOf(
@@ -94,13 +95,13 @@ test.group('password confirmation bindings', (group) => {
     assert,
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const baseRevision = await revision();
-    const document = buildCompanyExport(before, { accountId, completeness: 'full' });
+    const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
     const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
       .json({
         action: 'import',
-        accountId,
+        companyId,
         intent: { baseRevision, document },
         password: fixturePassword,
       })
@@ -108,7 +109,7 @@ test.group('password confirmation bindings', (group) => {
     response.assertStatus(200);
     const importProof = (response.body() as { confirmationId: string }).confirmationId;
     const anonymise = await asDataOwner(
-      client.post(`/api/companies/${accountId}/anonymise`),
+      client.post(`/api/companies/${companyId}/anonymise`),
       cookie
     )
       .json({ confirmationId: importProof })
@@ -118,7 +119,7 @@ test.group('password confirmation bindings', (group) => {
       error: 'Confirm this action again.',
       code: 'PASSWORD_CONFIRMATION_REQUIRED',
     });
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.equal(await revision(), baseRevision);
     const unspent = await db.from('password_confirmations').where('id', importProof).first();
     assert.isNull(unspent?.consumed_at);

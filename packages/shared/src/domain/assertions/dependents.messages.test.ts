@@ -102,17 +102,17 @@ describe('assertResourceKindAllowsDependents', () => {
     const data: AppData = {
       ...base(),
       resources: [person('r1', A1)],
-      activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
+      activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
       allocations: [
         allocation({
           id: 'al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'r1',
           activityId: 't1',
           overrides: { hoursPerDay: 8 },
         }),
       ],
-      timeOff: [timeOff({ id: 'to', accountId: A1, resourceId: 'r1' })],
+      timeOff: [timeOff({ id: 'to', companyId: A1, resourceId: 'r1' })],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'person')).not.toThrow();
     expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'placeholder')).not.toThrow();
@@ -125,7 +125,7 @@ describe('assertResourceKindAllowsDependents', () => {
       allocations: [
         allocation({
           id: 'al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'r1',
           activityId: 't1',
           overrides: { hoursPerDay: 8 },
@@ -139,7 +139,7 @@ describe('assertResourceKindAllowsDependents', () => {
     const data: AppData = {
       ...base(),
       resources: [person('r1', A1)],
-      timeOff: [timeOff({ id: 'to', accountId: A1, resourceId: 'r1' })],
+      timeOff: [timeOff({ id: 'to', companyId: A1, resourceId: 'r1' })],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).toThrow(reject);
   });
@@ -166,7 +166,7 @@ describe('assertResourceKindAllowsDependents', () => {
       allocations: [
         allocation({
           id: 'al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'r1',
           activityId: 't1',
           overrides: { hoursPerDay: 0 },
@@ -189,20 +189,20 @@ describe('assertResourceKindAllowsDependents', () => {
       allocations: [
         allocation({
           id: 'al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'other',
           activityId: 't1',
           overrides: { hoursPerDay: 8 },
         }),
         allocation({
           id: 'al2',
-          accountId: A2,
+          companyId: A2,
           resourceId: 'r1',
           activityId: 't1',
           overrides: { hoursPerDay: 8 },
         }),
       ],
-      timeOff: [timeOff({ id: 'to', accountId: A2, resourceId: 'r1' })],
+      timeOff: [timeOff({ id: 'to', companyId: A2, resourceId: 'r1' })],
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow();
   });
@@ -219,8 +219,8 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       clients: [client('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       resources: [existing],
-      activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
-      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 't1' })],
+      activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
+      allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'ph', activityId: 't1' })],
     };
 
     expect(() =>
@@ -248,7 +248,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
         },
       ],
       allocations: [
-        allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 'general' }),
+        allocation({ id: 'al', companyId: A1, resourceId: 'ph', activityId: 'general' }),
       ],
     };
 
@@ -279,7 +279,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       allocations: [
         allocation({
           id: 'al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'ph',
           activityId: 'shared',
           overrides: { projectId: 'p1' },
@@ -314,7 +314,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       allocations: [
         allocation({
           id: 'al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'ph',
           activityId: 'shared',
           overrides: { projectId: 'p1' },
@@ -346,8 +346,8 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     const data: AppData = {
       ...base(),
       resources: [existing],
-      activities: [activity({ id: 't1', accountId: A1, projectId: 'p1' })],
-      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'r1', activityId: 't1' })],
+      activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
+      allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'r1', activityId: 't1' })],
     };
 
     expect(() =>
@@ -362,12 +362,12 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   });
 
   it('rejects moving an activity while a placeholder bound to its previous project owns it', () => {
-    const existing = activity({ id: 't1', accountId: A1, projectId: 'p1' });
+    const existing = activity({ id: 't1', companyId: A1, projectId: 'p1' });
     const data: AppData = {
       ...base(),
       resources: [placeholder('ph', A1, 'p1')],
       activities: [existing],
-      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 't1' })],
+      allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'ph', activityId: 't1' })],
     };
 
     expect(() =>
@@ -381,10 +381,10 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     ).toThrow(rejectActivity);
   });
   it('allows moving an activity owned only by people and allows making placeholder work project-less', () => {
-    const projectActivity = activity({ id: 'project-work', accountId: A1, projectId: 'p1' });
+    const projectActivity = activity({ id: 'project-work', companyId: A1, projectId: 'p1' });
     const placeholderActivity = activity({
       id: 'placeholder-work',
-      accountId: A1,
+      companyId: A1,
       projectId: 'p1',
     });
     const data: AppData = {
@@ -394,13 +394,13 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       allocations: [
         allocation({
           id: 'person-al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'person',
           activityId: 'project-work',
         }),
         allocation({
           id: 'placeholder-al',
-          accountId: A1,
+          companyId: A1,
           resourceId: 'ph',
           activityId: 'placeholder-work',
         }),
@@ -432,12 +432,12 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   });
   it('does not make an unrelated edit the repair boundary for already-corrupt assignments', () => {
     const resource = placeholder('ph', A1, 'p2');
-    const activityRow = activity({ id: 't1', accountId: A1, projectId: 'p1' });
+    const activityRow = activity({ id: 't1', companyId: A1, projectId: 'p1' });
     const data: AppData = {
       ...base(),
       resources: [resource],
       activities: [activityRow],
-      allocations: [allocation({ id: 'al', accountId: A1, resourceId: 'ph', activityId: 't1' })],
+      allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'ph', activityId: 't1' })],
     };
 
     expect(() =>

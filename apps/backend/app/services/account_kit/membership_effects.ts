@@ -18,7 +18,7 @@ export async function recordInvitationAccepted(
 ) {
   if (invitation.scope === null) return;
   await writeAudit(trx, {
-    accountId: invitation.scope,
+    companyId: invitation.scope,
     actorId: String(user.id),
     action: 'invitation.accepted',
     entity: 'membership',
@@ -39,20 +39,20 @@ export function withDeletionRecords(removeMemberships: AccountDeleting): Account
     const memberships = await access.memberships.listForUser(userId, trx);
     await removeMemberships(user, trx);
     for (const membership of memberships) {
-      const accountId = String(membership.scopeId);
+      const companyId = String(membership.scopeId);
       await trx
         .from('account_member_resources')
-        .where({ account_id: accountId, user_id: userId })
+        .where({ company_id: companyId, user_id: userId })
         .delete();
       await writeAudit(trx, {
-        accountId,
+        companyId,
         actorId: userId,
         action: 'identity.deleted',
         entity: 'user',
         entityId: userId,
         fields: [],
       });
-      await advancePlanningRevision(trx, accountId);
+      await advancePlanningRevision(trx, companyId);
     }
   };
 }

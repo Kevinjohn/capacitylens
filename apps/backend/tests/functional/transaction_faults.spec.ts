@@ -4,13 +4,13 @@ import { freshDatabase } from '../helpers/fresh_database.js';
 import { replaceWithSeed } from '#tests/helpers/state_fixture';
 import { withTransaction } from '#services/with_transaction';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const timestamp = '2026-10-12T00:00:00.000Z';
 
 function clientRow(id: string) {
   return {
     id,
-    account_id: accountId,
+    company_id: companyId,
     name: 'Bruce Wayne',
     color: '#111111',
     created_at: timestamp,

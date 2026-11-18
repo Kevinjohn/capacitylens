@@ -7,7 +7,7 @@ export async function insertTenantFixture() {
   await db.table('clients').multiInsert([
     {
       id: 'm1-dc-client',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       name: 'Wayne Enterprises',
       color: '#111111',
       created_at: stamp,
@@ -15,7 +15,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-client',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       name: 'Stark Industries',
       color: '#222222',
       created_at: stamp,
@@ -23,7 +23,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-client-2',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       name: 'Gotham Gazette',
       color: '#333333',
       created_at: stamp,
@@ -33,7 +33,7 @@ export async function insertTenantFixture() {
   await db.table('disciplines').multiInsert([
     {
       id: 'm1-dc-discipline',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       name: 'Bat Family',
       sort_order: 1,
       created_at: stamp,
@@ -41,7 +41,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-discipline',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       name: 'Avengers',
       sort_order: 1,
       created_at: stamp,
@@ -51,7 +51,7 @@ export async function insertTenantFixture() {
   await db.table('projects').multiInsert([
     {
       id: 'm1-dc-project',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       client_id: 'm1-dc-client',
       name: 'Gotham',
       color: '#111111',
@@ -60,7 +60,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-project-2',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       client_id: 'm1-dc-client-2',
       name: 'Metropolis',
       color: '#333333',
@@ -69,7 +69,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-project',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       client_id: 'm1-marvel-client',
       name: 'Stark Tower',
       color: '#222222',
@@ -80,7 +80,7 @@ export async function insertTenantFixture() {
   await db.table('phases').multiInsert([
     {
       id: 'm1-dc-phase',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       project_id: 'm1-dc-project',
       name: 'Investigation',
       created_at: stamp,
@@ -88,7 +88,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-phase-2',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       project_id: 'm1-dc-project-2',
       name: 'Rebuild',
       created_at: stamp,
@@ -96,7 +96,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-phase',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       project_id: 'm1-marvel-project',
       name: 'Research',
       created_at: stamp,
@@ -106,7 +106,7 @@ export async function insertTenantFixture() {
   await db.table('resources').multiInsert([
     {
       id: 'm1-dc-resource',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       kind: 'person',
       name: 'Bruce Wayne',
       role: 'Designer',
@@ -123,7 +123,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-resource-2',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       kind: 'person',
       name: 'Clark Kent',
       role: 'Designer',
@@ -140,7 +140,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-resource',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       kind: 'person',
       name: 'Tony Stark',
       role: 'Designer',
@@ -159,7 +159,7 @@ export async function insertTenantFixture() {
   await db.table('activities').multiInsert([
     {
       id: 'm1-dc-activity',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       name: 'Detective work',
       kind: 'project',
       project_id: 'm1-dc-project',
@@ -169,7 +169,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-activity-2',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       name: 'City response',
       kind: 'project',
       project_id: 'm1-dc-project-2',
@@ -179,7 +179,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-unbound-project-activity',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       name: 'Coordination',
       kind: 'internal',
       phase_id: 'm1-dc-phase',
@@ -188,7 +188,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-cross-phase-survivor',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       name: 'Joint response',
       kind: 'project',
       project_id: 'm1-dc-project-2',
@@ -198,7 +198,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-activity',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       name: 'Arc reactor',
       kind: 'project',
       project_id: 'm1-marvel-project',
@@ -210,7 +210,7 @@ export async function insertTenantFixture() {
   await db.table('allocations').multiInsert([
     {
       id: 'm1-dc-allocation',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       resource_id: 'm1-dc-resource',
       activity_id: 'm1-dc-activity',
       project_id: 'm1-dc-project',
@@ -223,7 +223,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-dc-allocation-survivor',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       resource_id: 'm1-dc-resource-2',
       activity_id: 'm1-dc-cross-phase-survivor',
       project_id: 'm1-dc-project-2',
@@ -236,7 +236,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-allocation',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       resource_id: 'm1-marvel-resource',
       activity_id: 'm1-marvel-activity',
       project_id: 'm1-marvel-project',
@@ -251,7 +251,7 @@ export async function insertTenantFixture() {
   await db.table('time_off').multiInsert([
     {
       id: 'm1-dc-time-off',
-      account_id: accountIds.dc,
+      company_id: accountIds.dc,
       resource_id: 'm1-dc-resource',
       start_date: '2026-10-12',
       end_date: '2026-10-13',
@@ -261,7 +261,7 @@ export async function insertTenantFixture() {
     },
     {
       id: 'm1-marvel-time-off',
-      account_id: accountIds.marvel,
+      company_id: accountIds.marvel,
       resource_id: 'm1-marvel-resource',
       start_date: '2026-10-12',
       end_date: '2026-10-13',
@@ -272,7 +272,7 @@ export async function insertTenantFixture() {
   ]);
   await db.table('closures').insert({
     id: 'm1-dc-closure',
-    account_id: accountIds.dc,
+    company_id: accountIds.dc,
     name: 'Gotham Founders Day',
     start_date: '2026-10-12',
     end_date: '2026-10-12',
@@ -281,7 +281,7 @@ export async function insertTenantFixture() {
   });
   await db.table('closures').insert({
     id: 'm1-marvel-closure',
-    account_id: accountIds.marvel,
+    company_id: accountIds.marvel,
     name: 'Stark Expo',
     start_date: '2026-10-12',
     end_date: '2026-10-12',

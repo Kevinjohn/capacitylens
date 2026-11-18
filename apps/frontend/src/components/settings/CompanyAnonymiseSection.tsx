@@ -13,7 +13,7 @@ import { SettingsSection } from './SettingsSection';
 
 /** Confirms anonymising all people against the active native session. */
 export function CompanyAnonymiseSection() {
-  const accountId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const allowed = useCan('company:anonymise');
   const [confirming, setConfirming] = useState(false);
@@ -38,20 +38,20 @@ export function CompanyAnonymiseSection() {
     });
   }, []);
 
-  if (!allowed || !accountId) return null;
+  if (!allowed || !companyId) return null;
 
   const submit = async (confirmationId: string) => {
-    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== accountId) {
+    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== companyId) {
       return;
     }
     inFlight.current = true;
     const submittedGeneration = generation.current;
     const stillCurrent = () =>
       generation.current === submittedGeneration &&
-      useStore.getState().activeAccountId === accountId;
+      useStore.getState().activeAccountId === companyId;
     setBusy(true);
     const outcome = await runSuspendedReplacement({
-      send: () => companyDataRequests.anonymiseCompanyPeople(accountId, confirmationId),
+      send: () => companyDataRequests.anonymiseCompanyPeople(companyId, confirmationId),
       recovery: 'reload',
     });
     if (outcome.kind === 'committed') {
@@ -139,7 +139,7 @@ export function CompanyAnonymiseSection() {
       {proving && (
         <PasswordConfirmationDialog
           action="anonymise"
-          accountId={accountId}
+          companyId={companyId}
           intent={{}}
           onConfirmed={(confirmationId) => {
             setProving(false);

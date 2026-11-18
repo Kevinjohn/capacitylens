@@ -4,7 +4,7 @@ import { APP_NAME } from '@capacitylens/shared/brand';
 import { m } from '@/i18n';
 
 export type PendingImport = {
-  accountId: string | null;
+  companyId: string | null;
   /** The file's parsed JSON, sent unchanged to preview, password confirmation and apply. */
   document: unknown;
   name: string;
@@ -49,7 +49,7 @@ export function usePendingImport(
     ) {
       return null;
     }
-    const selected = { accountId: activeAccountId, document, name: file.name };
+    const selected = { companyId: activeAccountId, document, name: file.name };
     setPending(selected);
     return selected;
   };

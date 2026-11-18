@@ -181,8 +181,8 @@ test.group('company member access and tracking', (group) => {
     editor.assertStatus(200);
     const editorId = await userId('clark.kent@wayne.example');
     await db.table('memberships').insert(
-      ['a-studio', 'a-loft'].map((accountId) => ({
-        scope_id: accountId,
+      ['a-studio', 'a-loft'].map((companyId) => ({
+        scope_id: companyId,
         user_id: editorId,
         role: 'editor',
         status: 'active',
@@ -190,9 +190,9 @@ test.group('company member access and tracking', (group) => {
         updated_at: now,
       }))
     );
-    for (const accountId of ['a-studio', 'a-loft']) {
+    for (const companyId of ['a-studio', 'a-loft']) {
       const enabled = await signed(
-        client.put(`/api/companies/${accountId}/member-sign-in-tracking`),
+        client.put(`/api/companies/${companyId}/member-sign-in-tracking`),
         ownerCookie
       )
         .json({ enabled: true })
@@ -215,9 +215,9 @@ test.group('company member access and tracking', (group) => {
     const observations = await db
       .from('company_settings')
       .where('key', `member-sign-in:${editorId}`)
-      .select('account_id');
+      .select('company_id');
     assert.deepEqual(
-      observations.map((row) => row.account_id),
+      observations.map((row) => row.company_id),
       ['a-loft']
     );
   });

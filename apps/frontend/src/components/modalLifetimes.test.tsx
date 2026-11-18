@@ -69,7 +69,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
     },
   };
 });
-const accountId = DEFAULT_ACCOUNT_ID;
+const companyId = DEFAULT_ACCOUNT_ID;
 
 function render(ui: ReactNode) {
   return renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -91,14 +91,14 @@ beforeEach(async () => {
   );
   const data = makeAppData({
     accounts: [makeAccount({ externalEnabled: true })],
-    clients: [makeClient({ accountId, name: 'Wayne Enterprises', color: '#2d75da' })],
-    projects: [makeProject({ accountId, name: 'Gotham', color: '#da2d92' })],
-    activities: [makeActivity({ accountId, name: 'Design' })],
+    clients: [makeClient({ companyId, name: 'Wayne Enterprises', color: '#2d75da' })],
+    projects: [makeProject({ companyId, name: 'Gotham', color: '#da2d92' })],
+    activities: [makeActivity({ companyId, name: 'Design' })],
     resources: [
-      makeResource({ accountId, name: 'Bruce Wayne' }),
+      makeResource({ companyId, name: 'Bruce Wayne' }),
       makeResource({
         id: 'external',
-        accountId,
+        companyId,
         kind: 'external',
         name: 'Kord Industries',
         workingDays: [],
@@ -109,7 +109,7 @@ beforeEach(async () => {
     disciplines: [
       {
         id: 'd1',
-        accountId,
+        companyId,
         name: 'Design',
         color: '#2d75da',
         sortOrder: 0,
@@ -117,18 +117,18 @@ beforeEach(async () => {
         updatedAt: 't',
       },
     ],
-    allocations: [makeAllocation({ accountId })],
-    timeOff: [makeTimeOff({ accountId })],
+    allocations: [makeAllocation({ companyId })],
+    timeOff: [makeTimeOff({ companyId })],
     closures: [
       makeClosure({
-        accountId,
+        companyId,
         name: 'Summer closure',
         startDate: '2026-06-01',
         endDate: '2026-06-02',
       }),
     ],
   });
-  await resetStoreWithData(data, accountId);
+  await resetStoreWithData(data, companyId);
   useStore.getState().clearFilters();
   useStore.getState().goToDate('2026-06-01');
 });

@@ -222,7 +222,7 @@ describe('ClientList archive flow', () => {
     markClientArchived(client.id);
     setPlanningRole('editor');
     archiveRequest.mockResolvedValueOnce({
-      accountId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_ACCOUNT_ID,
       rows: [{ entity: 'clients', id: client.id, label: 'Ferris', archived: true, parent: null }],
     });
     render(
@@ -240,7 +240,7 @@ describe('ClientList archive flow', () => {
       upserts: [{ entity: 'clients', row: { ...client, archivedAt: null } }],
       removed: [],
     }));
-    archiveRequest.mockResolvedValueOnce({ accountId: DEFAULT_ACCOUNT_ID, rows: [] });
+    archiveRequest.mockResolvedValueOnce({ companyId: DEFAULT_ACCOUNT_ID, rows: [] });
     await user.click(archive.getByRole('button', { name: 'Restore Ferris' }));
     expect(screen.getByTestId('client-row')).toHaveTextContent('Ferris');
     await waitFor(() =>
@@ -295,7 +295,7 @@ describe('ClientList withholds the Archive affordance for the built-in Internal 
       ...useStore.getState().data,
       clients: [
         internal,
-        makeClient({ id: 'normal-client', accountId: DEFAULT_ACCOUNT_ID, name: 'Globex' }),
+        makeClient({ id: 'normal-client', companyId: DEFAULT_ACCOUNT_ID, name: 'Globex' }),
       ],
     });
     await useStore.getState().refreshPlanning();

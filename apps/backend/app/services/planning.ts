@@ -39,12 +39,12 @@ export type { PlanningAuthority };
 export interface PlanningMutationOptions {
   trx: TransactionClientContract;
   actor: CurrentActor;
-  accountId: string;
+  companyId: string;
   input: PlanningMutationInput;
 }
 
 export interface PlanningSnapshot {
-  accountId: string;
+  companyId: string;
   revision: number;
   authority: PlanningAuthority;
   data: AppData;
@@ -57,17 +57,17 @@ export interface PlanningSnapshot {
  * snapshot. Capacity covers `window`, or the scheduler's default window when it is absent. */
 export async function readPlanning(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   window?: CapacityRange
 ): Promise<PlanningSnapshot> {
-  const { authority } = await resolvePlanningAuthority(trx, accountId);
-  const revision = await getPlanningRevision(trx, accountId);
-  const data = await readStateWithClient(trx, accountId, true);
-  const account = data.accounts.find((row) => row.id === accountId);
+  const { authority } = await resolvePlanningAuthority(trx, companyId);
+  const revision = await getPlanningRevision(trx, companyId);
+  const data = await readStateWithClient(trx, companyId, true);
+  const account = data.accounts.find((row) => row.id === companyId);
   const today = readCompanyToday(account?.timezone ?? null);
-  const visible = transformState(activeOnly(data), accountId, authority.role);
+  const visible = transformState(activeOnly(data), companyId, authority.role);
   return {
-    accountId,
+    companyId,
     revision,
     authority,
     data: visible,
@@ -78,27 +78,27 @@ export async function readPlanning(
 }
 
 /** Read only recoverable identities under current transactional write authority. */
-export async function readArchiveRecovery(trx: TransactionClientContract, accountId: string) {
-  const { authority } = await resolvePlanningAuthority(trx, accountId);
+export async function readArchiveRecovery(trx: TransactionClientContract, companyId: string) {
+  const { authority } = await resolvePlanningAuthority(trx, companyId);
   if (!authority.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
-  const data = await readStateWithClient(trx, accountId, true);
-  return archiveRecovery(data, accountId, authority.role);
+  const data = await readStateWithClient(trx, companyId, true);
+  return archiveRecovery(data, companyId, authority.role);
 }
 
 /** Commits one deliberate operation, its revision, audit entry and identity as one atomic unit. */
 export async function mutatePlanning({
   trx,
   actor,
-  accountId,
+  companyId,
   input,
 }: PlanningMutationOptions): Promise<PlanningMutationSuccess> {
-  const { authority, capabilities } = await resolvePlanningAuthority(trx, accountId);
+  const { authority, capabilities } = await resolvePlanningAuthority(trx, companyId);
   if (!authority.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
-  if (await isMutationCommitted(trx, accountId, input.mutationId)) {
+  if (await isMutationCommitted(trx, companyId, input.mutationId)) {
     throw new PlanningOperationError(
       409,
       'MUTATION_ID_REUSED',
@@ -107,13 +107,13 @@ export async function mutatePlanning({
   }
   assertPlanningBaseRevision(
     input.baseRevision,
-    await getPlanningRevision(trx, accountId),
+    await getPlanningRevision(trx, companyId),
     input.mutationId
   );
-  const before = await readStateWithClient(trx, accountId, true);
+  const before = await readStateWithClient(trx, companyId, true);
   const restoration = await executePlanningIntent({
     trx,
-    accountId,
+    companyId,
     intent: input.intent,
     capabilities,
     data: structuredClone(before),
@@ -130,7 +130,7 @@ export async function mutatePlanning({
     input.intent.operation === 'catalogue.archive'
       ? archiveImpact(before, input.intent.entity.entity, input.intent.entity.id)
       : undefined;
-  const after = await readStateWithClient(trx, accountId, true);
+  const after = await readStateWithClient(trx, companyId, true);
   if (semanticState(before) === semanticState(after)) {
     throw new PlanningOperationError(
       400,
@@ -141,7 +141,7 @@ export async function mutatePlanning({
   // Private names and activity kind can change what a saved before-image may safely reveal.
   // A restoration group is valid only until one of those fields actually changes.
   if (invalidatesRestoration(input.intent, before, after)) {
-    const count = await countRestorableItems(trx, accountId);
+    const count = await countRestorableItems(trx, companyId);
     if (
       input.confirmedRestorationCount !== undefined &&
       input.confirmedRestorationCount !== count
@@ -151,11 +151,11 @@ export async function mutatePlanning({
     if (count > 0 && input.confirmedRestorationCount === undefined) {
       throw new RestorationConfirmationError(count, false);
     }
-    await discardRestorationGroups(trx, accountId);
+    await discardRestorationGroups(trx, companyId);
   }
-  const revision = await advancePlanningRevision(trx, accountId);
+  const revision = await advancePlanningRevision(trx, companyId);
   await recordCommittedMutation(trx, {
-    accountId,
+    companyId,
     mutationId: input.mutationId,
     actorId: authority.actorId,
     revision,
@@ -163,11 +163,11 @@ export async function mutatePlanning({
     originSessionId: restoration.replacementGroupId ? actor.sessionId : null,
   });
   const changed = projectionChanges(
-    transformState(activeOnly(before), accountId, authority.role),
-    transformState(activeOnly(after), accountId, authority.role)
+    transformState(activeOnly(before), companyId, authority.role),
+    transformState(activeOnly(after), companyId, authority.role)
   );
   await writeAudit(trx, {
-    accountId,
+    companyId,
     actorId: authority.actorId,
     action: input.intent.operation,
     entity: 'planning',
@@ -185,6 +185,6 @@ export async function mutatePlanning({
     revision,
     restoration,
     ...(archived ? { archived } : {}),
-    ...buildSaveAdvisory(input.intent, activeOnly(after), accountId),
+    ...buildSaveAdvisory(input.intent, activeOnly(after), companyId),
   };
 }

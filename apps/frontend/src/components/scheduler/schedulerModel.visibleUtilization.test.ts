@@ -26,7 +26,7 @@ function discipline(
   return {
     ...NULLABLE_FIELDS.disciplines,
     id,
-    accountId: ACCOUNT,
+    companyId: ACCOUNT,
     createdAt: 't',
     updatedAt: 't',
     name,
@@ -36,7 +36,7 @@ function discipline(
 }
 
 function allocation(id: string, resourceId: string, startDate: ISODate, endDate: ISODate) {
-  return makeAllocation({ id, accountId: ACCOUNT, resourceId, startDate, endDate, hoursPerDay: 4 });
+  return makeAllocation({ id, companyId: ACCOUNT, resourceId, startDate, endDate, hoursPerDay: 4 });
 }
 
 // Bruce Wayne carries two overlapping allocations (two lanes over the fortnight, one in the second
@@ -46,16 +46,16 @@ function dataset(): AppData {
   return {
     ...emptyAppData(),
     disciplines: [discipline('d-design', 'Design', null)],
-    activities: [makeActivity({ id: 't1', accountId: ACCOUNT, kind: 'internal' })],
+    activities: [makeActivity({ id: 't1', companyId: ACCOUNT, kind: 'internal' })],
     resources: [
-      makeResource({ id: 'r1', accountId: ACCOUNT, name: 'Bruce Wayne', disciplineId: 'd-design' }),
+      makeResource({ id: 'r1', companyId: ACCOUNT, name: 'Bruce Wayne', disciplineId: 'd-design' }),
       makeResource({
         id: 'r2',
-        accountId: ACCOUNT,
+        companyId: ACCOUNT,
         name: 'Alfred Pennyworth',
         disciplineId: 'd-design',
       }),
-      makeResource({ id: 'ext1', accountId: ACCOUNT, kind: 'external', name: 'Kord Industries' }),
+      makeResource({ id: 'ext1', companyId: ACCOUNT, kind: 'external', name: 'Kord Industries' }),
     ],
     allocations: [
       allocation('a1', 'r1', '2026-06-01', '2026-06-03'),
@@ -224,8 +224,8 @@ describe('buildSchedulerModel grouping and order', () => {
     const data = dataset();
     data.disciplines.push(discipline('d-dev', 'Development', '#2d75da'));
     data.resources.push(
-      makeResource({ id: 'r3', accountId: ACCOUNT, name: 'Lucius Fox', disciplineId: 'd-dev' }),
-      makeResource({ id: 'r4', accountId: ACCOUNT, name: 'Barbara Gordon' }),
+      makeResource({ id: 'r3', companyId: ACCOUNT, name: 'Lucius Fox', disciplineId: 'd-dev' }),
+      makeResource({ id: 'r4', companyId: ACCOUNT, name: 'Barbara Gordon' }),
     );
     const groups = buildModel(data);
     expect(groups.map((group) => group.key)).toEqual([
@@ -242,18 +242,18 @@ describe('buildSchedulerModel grouping and order', () => {
   it('orders people by display name and placeholders by id after them', () => {
     const data = dataset();
     data.resources = [
-      makeResource({ id: 'r1', accountId: ACCOUNT, name: 'Selina Kyle', disciplineId: 'd-design' }),
-      makeResource({ id: 'r2', accountId: ACCOUNT, name: 'Bruce Wayne', disciplineId: 'd-design' }),
+      makeResource({ id: 'r1', companyId: ACCOUNT, name: 'Selina Kyle', disciplineId: 'd-design' }),
+      makeResource({ id: 'r2', companyId: ACCOUNT, name: 'Bruce Wayne', disciplineId: 'd-design' }),
       makeResource({
         id: 'ph-a',
-        accountId: ACCOUNT,
+        companyId: ACCOUNT,
         kind: 'placeholder',
         name: 'Zatanna slot',
         disciplineId: 'd-design',
       }),
       makeResource({
         id: 'ph-b',
-        accountId: ACCOUNT,
+        companyId: ACCOUNT,
         kind: 'placeholder',
         name: 'Alfred slot',
         isFavourite: true,

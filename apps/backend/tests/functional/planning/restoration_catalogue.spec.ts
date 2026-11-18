@@ -6,7 +6,7 @@ import Activity from '#models/activity';
 import Resource from '#models/resource';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
-import { accountId, configureAuth, resetPlanningFixture, signIn } from './helpers.js';
+import { companyId, configureAuth, resetPlanningFixture, signIn } from './helpers.js';
 import {
   send,
   restore,
@@ -29,11 +29,11 @@ test.group('typed catalogue and time-off restoration', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const resource = before.resources.find((row) => row.disciplineId !== null)!;
     const disciplineId = resource.disciplineId!;
     await Resource.query()
-      .withScopes((scopes) => scopes.forCompany(accountId))
+      .withScopes((scopes) => scopes.forCompany(companyId))
       .where('id', resource.id)
       .softDelete();
     const hiddenResource = await db.from('resources').where('id', resource.id).first();
@@ -41,7 +41,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/disciplines/${disciplineId}/delete`,
+      `/api/companies/${companyId}/disciplines/${disciplineId}/delete`,
       0,
       {
         operation: 'catalogue.delete',
@@ -49,7 +49,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       }
     );
     deleted.assertStatus(200);
-    const afterDelete = await readState(accountId, true);
+    const afterDelete = await readState(companyId, true);
     assert.isNull(afterDelete.resources.find((row) => row.id === resource.id)?.disciplineId);
     const detachedResource = await db.from('resources').where('id', resource.id).first();
     assert.equal(detachedResource.updated_at, hiddenResource.updated_at);
@@ -62,7 +62,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       1
     );
     restored.assertStatus(200);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     assert.equal(after.resources.find((row) => row.id === resource.id)?.disciplineId, disciplineId);
     assert.equal(
       after.resources.find((row) => row.id === resource.id)?.role,
@@ -80,7 +80,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const discipline = before.disciplines.find(
       (row) => before.resources.filter((resource) => resource.disciplineId === row.id).length >= 2
     )!;
@@ -89,7 +89,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/disciplines/${discipline.id}/delete`,
+      `/api/companies/${companyId}/disciplines/${discipline.id}/delete`,
       0,
       { operation: 'catalogue.delete', entity: { entity: 'disciplines', id: discipline.id } }
     );
@@ -100,7 +100,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const mutationsBefore = await markers();
     const refused = await restore(client, cookie, groupId, 1);
     refused.assertStatus(409);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     assert.isUndefined(after.disciplines.find((row) => row.id === discipline.id));
     assert.isNull(after.resources.find((row) => row.id === children[0]!.id)?.disciplineId);
     assert.equal(after.resources.find((row) => row.id === children[1]!.id)?.disciplineId, other.id);
@@ -117,10 +117,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const seededActivity = before.activities.find((row) => row.phaseId !== null)!;
     await Activity.query()
-      .withScopes((scopes) => scopes.forCompany(accountId))
+      .withScopes((scopes) => scopes.forCompany(companyId))
       .where('id', seededActivity.id)
       .softDelete();
     const activity = before.activities.find((row) => row.id === seededActivity.id)!;
@@ -130,7 +130,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/phases/${phaseId}/delete`,
+      `/api/companies/${companyId}/phases/${phaseId}/delete`,
       0,
       {
         operation: 'catalogue.delete',
@@ -139,7 +139,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     );
     deleted.assertStatus(200);
     const groupId = deleted.body().restoration.replacementGroupId;
-    const afterDelete = await readState(accountId, true);
+    const afterDelete = await readState(companyId, true);
     assert.isNull(afterDelete.activities.find((row) => row.id === activity.id)?.phaseId);
     const detachedActivity = await db.from('activities').where('id', activity.id).first();
     assert.equal(detachedActivity.updated_at, hiddenActivity.updated_at);
@@ -149,7 +149,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const refused = await restore(client, cookie, groupId, 1);
     refused.assertStatus(409);
     assert.isNull(await consumedAt(groupId));
-    const afterRefusal = await readState(accountId, true);
+    const afterRefusal = await readState(companyId, true);
     assert.isUndefined(afterRefusal.phases.find((row) => row.id === phaseId));
     await db
       .from('activities')
@@ -157,7 +157,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .update({ project_id: activity.projectId, name: 'Gotham review' });
     const restored = await restore(client, cookie, groupId, 1);
     restored.assertStatus(200);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     assert.equal(after.activities.find((row) => row.id === activity.id)?.phaseId, phaseId);
     assert.equal(after.activities.find((row) => row.id === activity.id)?.name, 'Gotham review');
     const relinkedActivity = await db.from('activities').where('id', activity.id).first();
@@ -172,11 +172,11 @@ test.group('typed catalogue and time-off restoration', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const clientId = before.clients.find((row) => !row.builtin)!.id;
     const projectId = randomUUID();
     const phaseId = randomUUID();
-    const project = await send(client, cookie, `/api/companies/${accountId}/projects`, 0, {
+    const project = await send(client, cookie, `/api/companies/${companyId}/projects`, 0, {
       operation: 'catalogue.create',
       entity: {
         entity: 'projects',
@@ -189,7 +189,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       },
     });
     project.assertStatus(200);
-    const phase = await send(client, cookie, `/api/companies/${accountId}/phases`, 1, {
+    const phase = await send(client, cookie, `/api/companies/${companyId}/phases`, 1, {
       operation: 'catalogue.create',
       entity: { entity: 'phases', id: phaseId, fields: { name: 'Survey', projectId } },
     });
@@ -197,7 +197,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/phases/${phaseId}/delete`,
+      `/api/companies/${companyId}/phases/${phaseId}/delete`,
       2,
       { operation: 'catalogue.delete', entity: { entity: 'phases', id: phaseId } }
     );
@@ -208,7 +208,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const mutationsBefore = await markers();
     const refused = await restore(client, cookie, groupId, 3);
     refused.assertStatus(409);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     assert.isUndefined(after.phases.find((row) => row.id === phaseId));
     assert.isNull(await consumedAt(groupId));
     assert.equal(await currentRevision(client, cookie), 3);
@@ -223,14 +223,14 @@ test.group('typed catalogue and time-off restoration', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client, 'editor');
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const resourceId = before.resources.find((row) => row.kind === 'person')!.id;
     const ids: string[] = [randomUUID(), randomUUID(), randomUUID()];
     for (const id of ids)
       await db.table('time_off').insert(
         encodeRow('time_off', {
           id,
-          accountId,
+          companyId,
           resourceId,
           startDate: '2026-11-02',
           endDate: '2026-11-02',
@@ -243,13 +243,13 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/time-off/delete-group`,
+      `/api/companies/${companyId}/time-off/delete-group`,
       0,
       { operation: 'timeOff.deleteGroup', ids: ids.slice(0, 2) }
     );
     deleted.assertStatus(200);
     assert.notInclude(deleted.text(), 'Gotham private note');
-    const afterDelete = await readState(accountId, true);
+    const afterDelete = await readState(companyId, true);
     assert.deepEqual(
       afterDelete.timeOff.filter((row) => ids.includes(row.id)).map((row) => row.id),
       [ids[2]]
@@ -262,7 +262,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     );
     restored.assertStatus(200);
     assert.notInclude(restored.text(), 'Gotham private note');
-    const afterRestore = await readState(accountId, true);
+    const afterRestore = await readState(companyId, true);
     assert.sameMembers(
       afterRestore.timeOff.filter((row) => ids.includes(row.id)).map((row) => row.id),
       ids
@@ -281,18 +281,18 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const id = randomUUID();
-    const created = await send(client, cookie, `/api/companies/${accountId}/closures`, 0, {
+    const created = await send(client, cookie, `/api/companies/${companyId}/closures`, 0, {
       operation: 'closure.create',
       id,
       fields: { name: 'Gotham holiday', startDate: '2026-11-02', endDate: '2026-11-02' },
     });
     created.assertStatus(200);
-    const afterCreate = await readState(accountId, true);
+    const afterCreate = await readState(companyId, true);
     const closure = afterCreate.closures.find((row) => row.id === id)!;
     const deleted = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/closures/${id}/delete`,
+      `/api/companies/${companyId}/closures/${id}/delete`,
       1,
       {
         operation: 'closure.delete',
@@ -300,12 +300,12 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       }
     );
     deleted.assertStatus(200);
-    const afterDelete = await readState(accountId, true);
+    const afterDelete = await readState(companyId, true);
     assert.isUndefined(afterDelete.closures.find((row) => row.id === id));
     const groupId = deleted.body().restoration.replacementGroupId;
     const restored = await restore(client, cookie, groupId, 2);
     restored.assertStatus(200);
-    const afterRestore = await readState(accountId, true);
+    const afterRestore = await readState(companyId, true);
     assert.deepEqual(
       afterRestore.closures.find((row) => row.id === id),
       closure

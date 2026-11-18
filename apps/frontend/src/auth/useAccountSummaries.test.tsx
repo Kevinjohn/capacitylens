@@ -364,7 +364,7 @@ function createYieldingHookTest() {
         kind: 'active',
         generation: 1,
         state: {
-          accountId: 'a1',
+          companyId: 'a1',
           targetUserId: 'target',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',

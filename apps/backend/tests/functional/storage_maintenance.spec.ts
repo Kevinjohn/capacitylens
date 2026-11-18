@@ -19,10 +19,10 @@ test.group('storage maintenance', (group) => {
     const past = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS - 1).toISOString();
     const atWindow = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS).toISOString();
     const account = await db.from('accounts').select('id').firstOrFail();
-    const accountId = account.id as string;
+    const companyId = account.id as string;
     const receipt = (id: string, state: 'pending' | 'completed', updatedAt: string) => ({
       id,
-      scope_id: accountId,
+      scope_id: companyId,
       command_id: id,
       operation: JSON.stringify(['change-member-role', 'u-bruce']),
       request_key: id,

@@ -4,7 +4,7 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
@@ -27,7 +27,7 @@ const tables = {
 type Target = keyof typeof tables;
 
 async function revision() {
-  const row = await db.from('company_planning_revisions').where('account_id', accountId).first();
+  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
   return Number(row?.revision ?? 0);
 }
 
@@ -40,23 +40,23 @@ async function deleteTarget(
 ) {
   const routes: Record<Target, { path: string; intent: Record<string, unknown> }> = {
     allocations: {
-      path: `/api/companies/${accountId}/allocations/${id}/delete`,
+      path: `/api/companies/${companyId}/allocations/${id}/delete`,
       intent: { operation: 'allocation.delete', id },
     },
     timeOff: {
-      path: `/api/companies/${accountId}/time-off/${id}/delete`,
+      path: `/api/companies/${companyId}/time-off/${id}/delete`,
       intent: { operation: 'timeOff.delete', id },
     },
     closures: {
-      path: `/api/companies/${accountId}/closures/${id}/delete`,
+      path: `/api/companies/${companyId}/closures/${id}/delete`,
       intent: { operation: 'closure.delete', id },
     },
     phases: {
-      path: `/api/companies/${accountId}/phases/${id}/delete`,
+      path: `/api/companies/${companyId}/phases/${id}/delete`,
       intent: { operation: 'catalogue.delete', entity: { entity: target, id } },
     },
     disciplines: {
-      path: `/api/companies/${accountId}/disciplines/${id}/delete`,
+      path: `/api/companies/${companyId}/disciplines/${id}/delete`,
       intent: { operation: 'catalogue.delete', entity: { entity: target, id } },
     },
   };
@@ -78,7 +78,7 @@ test.group('retained restoration reads', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const seed = await readState(accountId, true);
+    const seed = await readState(companyId, true);
     const now = new Date().toISOString();
     const ids: Record<Target, string> = {
       allocations: randomUUID(),
@@ -95,7 +95,7 @@ test.group('retained restoration reads', (suite) => {
     await db.table('allocations').insert(
       encodeRow('allocations', {
         ...allocation,
-        accountId,
+        companyId,
         createdAt: now,
         updatedAt: now,
       })
@@ -103,9 +103,9 @@ test.group('retained restoration reads', (suite) => {
     await db.table('time_off').insert(
       encodeRow('time_off', {
         id: ids.timeOff,
-        accountId,
+        companyId,
         resourceId: seed.resources.find(
-          (row) => row.accountId === accountId && row.kind === 'person'
+          (row) => row.companyId === companyId && row.kind === 'person'
         )!.id,
         startDate: '2026-11-02',
         endDate: '2026-11-02',
@@ -118,7 +118,7 @@ test.group('retained restoration reads', (suite) => {
     await db.table('closures').insert(
       encodeRow('closures', {
         id: ids.closures,
-        accountId,
+        companyId,
         name: 'Gotham retained closure',
         startDate: '2026-11-02',
         endDate: '2026-11-02',
@@ -144,11 +144,11 @@ test.group('retained restoration reads', (suite) => {
       assert.exists(ledger);
       assert.deepEqual(JSON.parse(ledger.payload_json), { kind: 'row' });
 
-      const locallyRead = await readState(accountId, true);
+      const locallyRead = await readState(companyId, true);
       assert.isFalse(locallyRead[target].some((item) => item.id === ids[target]));
 
       const planning = await session(
-        client.get(`/api/companies/${accountId}/planning`),
+        client.get(`/api/companies/${companyId}/planning`),
         cookie
       ).send();
       planning.assertStatus(200);
@@ -157,7 +157,7 @@ test.group('retained restoration reads', (suite) => {
       assert.notInclude(planning.text(), 'deletion_group_id');
 
       const exported = await session(
-        client.get(`/api/state?accountId=${accountId}&includeInactive=1`),
+        client.get(`/api/state?companyId=${companyId}&includeInactive=1`),
         cookie
       ).send();
       exported.assertStatus(200);
@@ -174,9 +174,9 @@ test.group('retained restoration reads', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const allocation = { ...newAllocation(data), note: 'Gotham retained note' };
-    const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+    const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: await revision(),
@@ -192,8 +192,8 @@ test.group('retained restoration reads', (suite) => {
     assert.exists(restoredRowBeforeReuse);
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId);
 
-    assert.equal(await withTransaction((trx) => countRestorableItems(trx, accountId)), 1);
-    const reused = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+    assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 1);
+    const reused = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 2,
@@ -209,10 +209,10 @@ test.group('retained restoration reads', (suite) => {
     const ledgerAfterReuse = await db.from('deleted_rows').where('group_id', groupId).first();
     assert.deepEqual(JSON.parse(ledgerAfterReuse.payload_json), { kind: 'row' });
 
-    assert.equal(await withTransaction((trx) => countRestorableItems(trx, accountId)), 0);
-    const beforeRefusal = await readState(accountId, true);
+    assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 0);
+    const beforeRefusal = await readState(companyId, true);
     const refused = await session(
-      client.post(`/api/companies/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${companyId}/planning/restore-group`),
       cookie
     )
       .json({
@@ -222,7 +222,7 @@ test.group('retained restoration reads', (suite) => {
       })
       .send();
     refused.assertStatus(409);
-    assert.deepEqual(await readState(accountId, true), beforeRefusal);
+    assert.deepEqual(await readState(companyId, true), beforeRefusal);
     const unconsumedGroup = await db.from('deleted_groups').where('group_id', groupId).first();
     assert.isNull(unconsumedGroup.consumed_at);
     assert.equal(await revision(), 3);
@@ -235,12 +235,12 @@ test.group('retained restoration reads', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const allocation = newAllocation(data);
     await db.table('allocations').insert(
       encodeRow('allocations', {
         ...allocation,
-        accountId,
+        companyId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
@@ -249,19 +249,19 @@ test.group('retained restoration reads', (suite) => {
     deleted.assertStatus(200);
     const groupId = (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId;
-    const rowsBefore = await readState(accountId, true);
+    const rowsBefore = await readState(companyId, true);
     const markersBefore = await db
       .from('planning_mutations')
-      .where('account_id', accountId)
+      .where('company_id', companyId)
       .select('*');
     const auditBefore = await db
       .from('audit_entries')
-      .where({ account_id: accountId, entity: 'planning' })
+      .where({ company_id: companyId, entity: 'planning' })
       .select('*');
     await db.from('deleted_rows').where('group_id', groupId).delete();
 
     const refused = await session(
-      client.post(`/api/companies/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${companyId}/planning/restore-group`),
       cookie
     )
       .json({
@@ -272,15 +272,15 @@ test.group('retained restoration reads', (suite) => {
       .send();
 
     refused.assertStatus(409);
-    assert.deepEqual(await readState(accountId, true), rowsBefore);
+    assert.deepEqual(await readState(companyId, true), rowsBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId).select('*'),
+      await db.from('planning_mutations').where('company_id', companyId).select('*'),
       markersBefore
     );
     assert.deepEqual(
       await db
         .from('audit_entries')
-        .where({ account_id: accountId, entity: 'planning' })
+        .where({ company_id: companyId, entity: 'planning' })
         .select('*'),
       auditBefore
     );

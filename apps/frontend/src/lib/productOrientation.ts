@@ -11,14 +11,14 @@ export function resolveProductOrientationSubject(input: { userId: string | null 
 }
 
 /** Builds the browser-storage key for one user and company. */
-export function buildProductOrientationKey(subjectId: string, accountId: string): string {
-  return `${PRODUCT_ORIENTATION_PREFIX}/${encodeURIComponent(subjectId)}/${encodeURIComponent(accountId)}`;
+export function buildProductOrientationKey(subjectId: string, companyId: string): string {
+  return `${PRODUCT_ORIENTATION_PREFIX}/${encodeURIComponent(subjectId)}/${encodeURIComponent(companyId)}`;
 }
 
 /** Checks whether the user dismissed product orientation for a company. */
-export function hasDismissedProductOrientation(subjectId: string, accountId: string): boolean {
+export function hasDismissedProductOrientation(subjectId: string, companyId: string): boolean {
   try {
-    return localStorage.getItem(buildProductOrientationKey(subjectId, accountId)) === 'dismissed';
+    return localStorage.getItem(buildProductOrientationKey(subjectId, companyId)) === 'dismissed';
   } catch {
     // Unreadable optional orientation storage defaults to showing guidance; no tenant data is lost.
     return false;
@@ -26,9 +26,9 @@ export function hasDismissedProductOrientation(subjectId: string, accountId: str
 }
 
 /** Persists the dismissal for product orientation when browser storage is available. */
-export function dismissProductOrientation(subjectId: string, accountId: string): boolean {
+export function dismissProductOrientation(subjectId: string, companyId: string): boolean {
   try {
-    localStorage.setItem(buildProductOrientationKey(subjectId, accountId), 'dismissed');
+    localStorage.setItem(buildProductOrientationKey(subjectId, companyId), 'dismissed');
     return true;
   } catch {
     // Return a failed dismissal result when optional storage is unavailable so the caller can report that the preference did not persist.

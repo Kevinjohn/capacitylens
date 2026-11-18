@@ -213,7 +213,7 @@ describe('isLifecycleEntityKey — narrowing guard for the tombstone-carrying ta
 const RESOURCE_BASE: Resource = {
   ...NULLABLE_FIELDS.resources,
   id: 'a1b2c3d4-0000-4000-8000-000000000000',
-  accountId: 'acc-1',
+  companyId: 'acc-1',
   kind: 'person',
   name: 'Barbara Gordon',
   role: 'Senior Designer',
@@ -249,7 +249,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const input = makeResource();
     const result = obfuscateResource(input);
     expect(result.id).toBe(input.id);
-    expect(result.accountId).toBe(input.accountId);
+    expect(result.companyId).toBe(input.companyId);
     expect(result.kind).toBe(input.kind);
     expect(result.role).toBe('Removed resource');
     expect(result.disciplineId).toBe(input.disciplineId);

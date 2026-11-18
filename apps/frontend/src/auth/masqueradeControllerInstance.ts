@@ -13,22 +13,22 @@ export const masqueradeController = new MasqueradeController({
   }),
   suspend: () => useStore.getState().suspendPlanningCommands(),
   reproject: reprojectAccess,
-  switchAccount: async (accountId) => {
-    useStore.getState().setActiveAccount(accountId);
-    return accountId === null || (await useStore.getState().refreshPlanning())
+  switchAccount: async (companyId) => {
+    useStore.getState().setActiveAccount(companyId);
+    return companyId === null || (await useStore.getState().refreshPlanning())
       ? { kind: 'reloaded' }
       : { kind: 'failed' };
   },
-  readBootstrapAccount: async (accountId) => {
+  readBootstrapAccount: async (companyId) => {
     const snapshot = await createStorePlanningTransport().read(
       {
         identity: Symbol('masquerade bootstrap'),
-        companyId: accountId,
+        companyId: companyId,
         masqueradeContextToken: getMasqueradeContextToken(),
       },
       new AbortController().signal,
     );
-    return snapshot.data.accounts.find((account) => account.id === accountId)?.name ?? null;
+    return snapshot.data.accounts.find((account) => account.id === companyId)?.name ?? null;
   },
   api: masqueradeApi,
   readState: () => useStore.getState(),

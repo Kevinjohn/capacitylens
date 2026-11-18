@@ -47,7 +47,7 @@ export const FIXTURE_ACCOUNT: Account = {
 export const FIXTURE_CLIENT: Client = {
   ...NULLABLE_FIELDS.clients,
   id: 'fix-c1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture Client',
   color: '#da2d92',
   isPrivate: true,
@@ -64,7 +64,7 @@ export const FIXTURE_CLIENT: Client = {
 /** Complete discipline fixture owned by {@link FIXTURE_ACCOUNT}. */
 export const FIXTURE_DISCIPLINE: Discipline = {
   id: 'fix-d1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture Discipline',
   color: '#2d75da',
   sortOrder: 7,
@@ -75,7 +75,7 @@ export const FIXTURE_DISCIPLINE: Discipline = {
 /** Complete project fixture for {@link FIXTURE_CLIENT}. */
 export const FIXTURE_PROJECT: Project = {
   id: 'fix-p1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture Project',
   clientId: 'fix-c1',
   color: '#2d75da',
@@ -91,7 +91,7 @@ export const FIXTURE_PROJECT: Project = {
 /** Complete phase fixture for {@link FIXTURE_PROJECT}. */
 export const FIXTURE_PHASE: Phase = {
   id: 'fix-ph1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture Phase',
   projectId: 'fix-p1',
   createdAt: TS1,
@@ -102,7 +102,7 @@ export const FIXTURE_PHASE: Phase = {
 export const FIXTURE_RESOURCE: Resource = {
   ...NULLABLE_FIELDS.resources,
   id: 'fix-r1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   kind: 'placeholder',
   name: 'Fixture Placeholder',
   role: 'Fixture Role',
@@ -127,7 +127,7 @@ export const FIXTURE_RESOURCE: Resource = {
 export const FIXTURE_RESOURCE_PERSON: Resource = {
   ...NULLABLE_FIELDS.resources,
   id: 'fix-r-person',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   kind: 'person',
   name: 'Bruce Wayne',
   role: 'Fixture Person Role',
@@ -154,7 +154,7 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
 export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
   ...NULLABLE_FIELDS.resources,
   id: 'fix-r2',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   kind: 'external',
   name: 'Fixture External Co',
   role: 'Fixture Partner',
@@ -168,7 +168,7 @@ export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
 export const FIXTURE_ACTIVITY: Activity = {
   ...NULLABLE_FIELDS.activities,
   id: 'fix-t1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture Activity',
   kind: 'project',
   projectId: 'fix-p1',
@@ -183,7 +183,7 @@ export const FIXTURE_ACTIVITY: Activity = {
 export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   ...NULLABLE_FIELDS.activities,
   id: 'fix-t2',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture Internal Activity',
   kind: 'internal',
   createdAt: TS1,
@@ -194,7 +194,7 @@ export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
 export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
   ...NULLABLE_FIELDS.activities,
   id: 'fix-t3',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture Repeatable Activity',
   kind: 'repeatable',
   createdAt: TS1,
@@ -205,7 +205,7 @@ export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
 export const FIXTURE_ALLOCATION: Allocation = {
   ...NULLABLE_FIELDS.allocations,
   id: 'fix-al1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   resourceId: 'fix-r1',
   activityId: 'fix-t1',
   seriesId: 'fix-series-1',
@@ -231,7 +231,7 @@ export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
 /** Complete time-off fixture for {@link FIXTURE_RESOURCE}. */
 export const FIXTURE_TIMEOFF: TimeOff = {
   id: 'fix-to1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   resourceId: 'fix-r1',
   startDate: '2026-03-01',
   endDate: '2026-03-05',
@@ -244,7 +244,7 @@ export const FIXTURE_TIMEOFF: TimeOff = {
 /** Complete company-closure fixture. */
 export const FIXTURE_CLOSURE: Closure = {
   id: 'fix-cl1',
-  accountId: 'fix-a1',
+  companyId: 'fix-a1',
   name: 'Fixture shutdown',
   startDate: '2026-12-24',
   endDate: '2026-12-27',

@@ -4,15 +4,15 @@ import { buildGettingStartedSteps } from '@capacitylens/shared/domain/gettingSta
 import { readStateWithClient } from '#services/state_repository';
 
 /** The company's getting-started milestones, from the same active projection the planning read uses. */
-export async function readGettingStartedSteps(trx: TransactionClientContract, accountId: string) {
-  return buildGettingStartedSteps(activeOnly(await readStateWithClient(trx, accountId, true)));
+export async function readGettingStartedSteps(trx: TransactionClientContract, companyId: string) {
+  return buildGettingStartedSteps(activeOnly(await readStateWithClient(trx, companyId, true)));
 }
 
 /** Whether the company has dismissed its getting-started panel. */
-export async function isGettingStartedDismissed(trx: TransactionClientContract, accountId: string) {
+export async function isGettingStartedDismissed(trx: TransactionClientContract, companyId: string) {
   const row = await trx
     .from('account_getting_started_dismissals')
-    .where('account_id', accountId)
+    .where('company_id', companyId)
     .first();
   return Boolean(row);
 }
@@ -20,17 +20,17 @@ export async function isGettingStartedDismissed(trx: TransactionClientContract, 
 /** Records the company's dismissal once; a repeat is ignored. */
 export async function dismissGettingStarted(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   now: string
 ) {
   await trx
     .table('account_getting_started_dismissals')
     .insert({
       id: crypto.randomUUID(),
-      account_id: accountId,
+      company_id: companyId,
       created_at: now,
       updated_at: now,
     })
-    .onConflict('account_id')
+    .onConflict('company_id')
     .ignore();
 }

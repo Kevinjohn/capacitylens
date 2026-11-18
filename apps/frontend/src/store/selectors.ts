@@ -64,7 +64,7 @@ export function hasSupplementaryResources(resources: readonly Resource[]): boole
 /** {@link hasSupplementaryResources} for the active company, read from the full store data. */
 export function hasResourceEngagementGrouping(data: AppData, activeAccountId: ID | null): boolean {
   return data.resources.some(
-    (resource) => resource.accountId === activeAccountId && isActiveSupplementary(resource),
+    (resource) => resource.companyId === activeAccountId && isActiveSupplementary(resource),
   );
 }
 
@@ -109,19 +109,19 @@ export const listAccountWorkingDays = (data: AppData, activeAccountId: ID | null
 };
 
 /** Narrow the full store data to a single account: every scoped array filtered to
- * `accountId`, and `accounts` blanked (scoped views never read the tenant list).
+ * `companyId`, and `accounts` blanked (scoped views never read the tenant list).
  *
  * This is the read-side tenancy boundary, and its correctness rests on a non-local fact:
  * `SCOPED_KEYS` must be exhaustive over AppData's scoped tables. `scoped` starts as emptyAppData()
  * and only the SCOPED_KEYS are copied across, so a scoped table that AppData gains but SCOPED_KEYS
  * omits would render empty in every scoped view (the rows silently vanish). The exhaustiveness gate
  * shared/types/entities.ts keeps SCOPED_KEYS complete; never add a scoped table without it. */
-export function scopeData(data: AppData, accountId: ID): AppData {
+export function scopeData(data: AppData, companyId: ID): AppData {
   const scoped = emptyAppData();
   const sourceTables = scopedTables(data);
   const destinationTables = scopedTables(scoped);
   for (const key of SCOPED_KEYS) {
-    destinationTables[key] = sourceTables[key].filter(byAccount(accountId));
+    destinationTables[key] = sourceTables[key].filter(byAccount(companyId));
   }
   return scoped;
 }

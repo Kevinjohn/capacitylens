@@ -25,28 +25,28 @@ describe('resetStoreWithAccount', () => {
   });
 
   it('restores the seeded rows and revision on a repeated same-company reset', async () => {
-    const accountId = 'acct-repeat-reset';
-    await resetStoreWithAccount(accountId);
-    await useStore.getState().updateAccount(accountId, { name: 'Changed Test Co' });
+    const companyId = 'acct-repeat-reset';
+    await resetStoreWithAccount(companyId);
+    await useStore.getState().updateAccount(companyId, { name: 'Changed Test Co' });
     expect(useStore.getState().planning.revision).toBe(1);
 
-    await expect(resetStoreWithAccount(accountId)).resolves.toBe(true);
+    await expect(resetStoreWithAccount(companyId)).resolves.toBe(true);
 
     expect(useStore.getState().planning.revision).toBe(0);
     expect(useStore.getState().data.accounts.map(({ name }) => name)).toEqual(['Test Co']);
-    expect(useStore.getState().planning.context?.companyId).toBe(accountId);
+    expect(useStore.getState().planning.context?.companyId).toBe(companyId);
     expect(useStore.getState().planning.status).toBe('ready');
   });
   it('resets a selected company after its context is cleared, removes prior rows and permits a new write', async () => {
-    const accountId = 'acct-cleared-context';
-    await resetStoreWithAccount(accountId);
+    const companyId = 'acct-cleared-context';
+    await resetStoreWithAccount(companyId);
     await useStore.getState().addResource(makeResourceDraft({ name: 'Clark Kent' }));
     expect(useStore.getState().data.resources).toHaveLength(1);
     useStore.setState({ planning: { ...useStore.getState().planning, context: null } });
-    expect(useStore.getState().activeAccountId).toBe(accountId);
-    await expect(resetStoreWithAccount(accountId)).resolves.toBe(true);
+    expect(useStore.getState().activeAccountId).toBe(companyId);
+    await expect(resetStoreWithAccount(companyId)).resolves.toBe(true);
     expect(useStore.getState().data.resources).toHaveLength(0);
-    await useStore.getState().updateAccount(accountId, { name: 'New Company' });
+    await useStore.getState().updateAccount(companyId, { name: 'New Company' });
     expect(useStore.getState().data.accounts[0]?.name).toBe('New Company');
   });
 
@@ -56,8 +56,8 @@ describe('resetStoreWithAccount', () => {
     const data = makeAppData({
       accounts: [first, second],
       resources: [
-        makeResource({ id: 'resource-first', accountId: first.id }),
-        makeResource({ id: 'resource-second', accountId: second.id }),
+        makeResource({ id: 'resource-first', companyId: first.id }),
+        makeResource({ id: 'resource-second', companyId: second.id }),
       ],
     });
     await resetStoreWithData(data, first.id);

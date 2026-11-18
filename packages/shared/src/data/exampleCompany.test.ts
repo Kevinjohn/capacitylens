@@ -12,7 +12,7 @@ const WEDNESDAY = '2031-09-17';
 
 function build(overrides: Partial<Parameters<typeof buildExampleCompany>[0]> = {}) {
   return buildExampleCompany({
-    accountId: ACCOUNT,
+    companyId: ACCOUNT,
     referenceDate: WEDNESDAY,
     now: NOW,
     ...overrides,
@@ -37,8 +37,8 @@ describe('buildExampleCompany', () => {
     ]);
     expect(data.timeOff).toHaveLength(1);
     expect(countExampleRows(data)).toBe(15);
-    for (const rows of Object.values(data) as { accountId: string }[][]) {
-      for (const row of rows) expect(row.accountId).toBe(ACCOUNT);
+    for (const rows of Object.values(data) as { companyId: string }[][]) {
+      for (const row of rows) expect(row.companyId).toBe(ACCOUNT);
     }
   });
 

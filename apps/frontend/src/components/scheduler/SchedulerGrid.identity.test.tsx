@@ -158,7 +158,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
       {
         ...useStore.getState().data,
         resources: [
-          makeResource({ accountId: DEFAULT_ACCOUNT_ID, kind: 'placeholder', disciplineId: 'd1' }),
+          makeResource({ companyId: DEFAULT_ACCOUNT_ID, kind: 'placeholder', disciplineId: 'd1' }),
         ],
         allocations: [],
       },

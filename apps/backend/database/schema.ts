@@ -40,10 +40,10 @@ export class AccountAdmissionSchema extends BaseModel {
 }
 
 export class AccountGettingStartedDismissalSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'id', 'updatedAt'] as const
+  static $columns = ['companyId', 'createdAt', 'id', 'updatedAt'] as const
   $columns = AccountGettingStartedDismissalSchema.$columns
   @column()
-  declare accountId: string
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column({ isPrimary: true })
@@ -76,10 +76,10 @@ export class AccountInvitationSchema extends BaseModel {
 }
 
 export class AccountMemberResourceSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'id', 'resourceId', 'revision', 'updatedAt', 'userId'] as const
+  static $columns = ['companyId', 'createdAt', 'id', 'resourceId', 'revision', 'updatedAt', 'userId'] as const
   $columns = AccountMemberResourceSchema.$columns
   @column()
-  declare accountId: string
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column({ isPrimary: true })
@@ -162,12 +162,12 @@ export class AccountSchema extends BaseModel {
 }
 
 export class ActivitySchema extends BaseModel {
-  static $columns = ['accountId', 'archivedAt', 'createdAt', 'deletedAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
+  static $columns = ['archivedAt', 'companyId', 'createdAt', 'deletedAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
   $columns = ActivitySchema.$columns
   @column()
-  declare accountId: string
-  @column()
   declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column()
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -200,12 +200,12 @@ export class AdonisSessionSchema extends BaseModel {
 }
 
 export class AllocationSchema extends BaseModel {
-  static $columns = ['accountId', 'activityId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'hoursPerDay', 'id', 'ignoreWorkingDays', 'note', 'projectId', 'resourceId', 'seriesId', 'startDate', 'status', 'task', 'updatedAt'] as const
+  static $columns = ['activityId', 'companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'hoursPerDay', 'id', 'ignoreWorkingDays', 'note', 'projectId', 'resourceId', 'seriesId', 'startDate', 'status', 'task', 'updatedAt'] as const
   $columns = AllocationSchema.$columns
   @column()
-  declare accountId: string
-  @column()
   declare activityId: string
+  @column()
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -239,14 +239,14 @@ export class AllocationSchema extends BaseModel {
 }
 
 export class AuditEntrySchema extends BaseModel {
-  static $columns = ['accountId', 'action', 'actorId', 'createdAt', 'details', 'entity', 'entityId', 'id', 'updatedAt'] as const
+  static $columns = ['action', 'actorId', 'companyId', 'createdAt', 'details', 'entity', 'entityId', 'id', 'updatedAt'] as const
   $columns = AuditEntrySchema.$columns
-  @column()
-  declare accountId: string
   @column()
   declare action: string
   @column()
   declare actorId: string | null
+  @column()
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column()
@@ -262,10 +262,8 @@ export class AuditEntrySchema extends BaseModel {
 }
 
 export class ClientSchema extends BaseModel {
-  static $columns = ['accountId', 'archivedAt', 'builtin', 'codeName', 'color', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
+  static $columns = ['archivedAt', 'builtin', 'codeName', 'color', 'companyId', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
   $columns = ClientSchema.$columns
-  @column()
-  declare accountId: string
   @column()
   declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
   @column()
@@ -274,6 +272,8 @@ export class ClientSchema extends BaseModel {
   declare codeName: string | null
   @column()
   declare color: string
+  @column()
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -289,10 +289,10 @@ export class ClientSchema extends BaseModel {
 }
 
 export class ClosureSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'id', 'name', 'startDate', 'updatedAt'] as const
+  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'id', 'name', 'startDate', 'updatedAt'] as const
   $columns = ClosureSchema.$columns
   @column()
-  declare accountId: string
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -312,19 +312,19 @@ export class ClosureSchema extends BaseModel {
 }
 
 export class CompanyPlanningRevisionSchema extends BaseModel {
-  static $columns = ['accountId', 'revision'] as const
+  static $columns = ['companyId', 'revision'] as const
   $columns = CompanyPlanningRevisionSchema.$columns
   @column({ isPrimary: true })
-  declare accountId: string
+  declare companyId: string
   @column()
   declare revision: number
 }
 
 export class CompanySettingSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'id', 'key', 'updatedAt', 'value'] as const
+  static $columns = ['companyId', 'createdAt', 'id', 'key', 'updatedAt', 'value'] as const
   $columns = CompanySettingSchema.$columns
   @column()
-  declare accountId: string
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column({ isPrimary: true })
@@ -338,12 +338,12 @@ export class CompanySettingSchema extends BaseModel {
 }
 
 export class DeletedGroupSchema extends BaseModel {
-  static $columns = ['accountId', 'actorId', 'consumedAt', 'createdAt', 'groupId', 'mutationId', 'sessionId'] as const
+  static $columns = ['actorId', 'companyId', 'consumedAt', 'createdAt', 'groupId', 'mutationId', 'sessionId'] as const
   $columns = DeletedGroupSchema.$columns
   @column()
-  declare accountId: string
-  @column()
   declare actorId: string
+  @column()
+  declare companyId: string
   @column()
   declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
   @column()
@@ -372,12 +372,12 @@ export class DeletedRowSchema extends BaseModel {
 }
 
 export class DisciplineSchema extends BaseModel {
-  static $columns = ['accountId', 'color', 'createdAt', 'deletedAt', 'deletionGroupId', 'id', 'name', 'sortOrder', 'updatedAt'] as const
+  static $columns = ['color', 'companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'id', 'name', 'sortOrder', 'updatedAt'] as const
   $columns = DisciplineSchema.$columns
   @column()
-  declare accountId: string
-  @column()
   declare color: string | null
+  @column()
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -566,10 +566,10 @@ export class PasswordResetTokenSchema extends BaseModel {
 }
 
 export class PhaseSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'deletedAt', 'deletionGroupId', 'id', 'name', 'projectId', 'updatedAt'] as const
+  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'id', 'name', 'projectId', 'updatedAt'] as const
   $columns = PhaseSchema.$columns
   @column()
-  declare accountId: string
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -587,12 +587,12 @@ export class PhaseSchema extends BaseModel {
 }
 
 export class PlanningMutationSchema extends BaseModel {
-  static $columns = ['accountId', 'actorId', 'mutationId', 'originSessionId', 'restorationGroupId', 'revision'] as const
+  static $columns = ['actorId', 'companyId', 'mutationId', 'originSessionId', 'restorationGroupId', 'revision'] as const
   $columns = PlanningMutationSchema.$columns
-  @column({ isPrimary: true })
-  declare accountId: string
   @column()
   declare actorId: string
+  @column({ isPrimary: true })
+  declare companyId: string
   @column()
   declare mutationId: string
   @column()
@@ -604,10 +604,8 @@ export class PlanningMutationSchema extends BaseModel {
 }
 
 export class ProjectSchema extends BaseModel {
-  static $columns = ['accountId', 'archivedAt', 'clientId', 'codeName', 'color', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
+  static $columns = ['archivedAt', 'clientId', 'codeName', 'color', 'companyId', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
   $columns = ProjectSchema.$columns
-  @column()
-  declare accountId: string
   @column()
   declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
   @column()
@@ -616,6 +614,8 @@ export class ProjectSchema extends BaseModel {
   declare codeName: string | null
   @column()
   declare color: string
+  @column()
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -667,16 +667,16 @@ export class RequestReceiptSchema extends BaseModel {
 }
 
 export class ResourceSchema extends BaseModel {
-  static $columns = ['accountId', 'archivedAt', 'avatarUrl', 'color', 'createdAt', 'deletedAt', 'disciplineId', 'employmentType', 'engagement', 'firstAvailableDate', 'halfDays', 'id', 'isFavourite', 'kind', 'lastAvailableDate', 'name', 'projectId', 'role', 'updatedAt', 'workingDays', 'workingHoursPerDay'] as const
+  static $columns = ['archivedAt', 'avatarUrl', 'color', 'companyId', 'createdAt', 'deletedAt', 'disciplineId', 'employmentType', 'engagement', 'firstAvailableDate', 'halfDays', 'id', 'isFavourite', 'kind', 'lastAvailableDate', 'name', 'projectId', 'role', 'updatedAt', 'workingDays', 'workingHoursPerDay'] as const
   $columns = ResourceSchema.$columns
-  @column()
-  declare accountId: string
   @column()
   declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
   @column()
   declare avatarUrl: string | null
   @column()
   declare color: string
+  @column()
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()
@@ -826,10 +826,10 @@ export class SocialTransactionSchema extends BaseModel {
 }
 
 export class TimeOffSchema extends BaseModel {
-  static $columns = ['accountId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'id', 'note', 'resourceId', 'startDate', 'type', 'updatedAt'] as const
+  static $columns = ['companyId', 'createdAt', 'deletedAt', 'deletionGroupId', 'endDate', 'id', 'note', 'resourceId', 'startDate', 'type', 'updatedAt'] as const
   $columns = TimeOffSchema.$columns
   @column()
-  declare accountId: string
+  declare companyId: string
   @column()
   declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
   @column.dateTime()

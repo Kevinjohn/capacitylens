@@ -8,7 +8,7 @@ import { apiFetch } from '@/data/requestTimeout';
 /** Identifies the principal and read projection that owns a cached API result. */
 export interface ApiQueryScope {
   principalId: string | null;
-  accountId: string | null;
+  companyId: string | null;
   masqueradeGeneration: number;
 }
 
@@ -69,7 +69,7 @@ export function scopeQueryKey<const T extends readonly unknown[]>(
   return [
     'capacitylens',
     scope.principalId,
-    scope.accountId,
+    scope.companyId,
     scope.masqueradeGeneration,
     ...routeKey,
   ] as const;
@@ -83,7 +83,7 @@ export function clearQueryCacheForScopeChange(
 ): boolean {
   if (
     previous.principalId === next.principalId &&
-    previous.accountId === next.accountId &&
+    previous.companyId === next.companyId &&
     previous.masqueradeGeneration === next.masqueradeGeneration
   ) {
     return false;

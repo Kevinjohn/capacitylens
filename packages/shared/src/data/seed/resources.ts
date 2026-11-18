@@ -8,7 +8,7 @@ const RESOURCES: AppData['resources'] = [
   {
     ...NULLABLE_FIELDS.resources,
     id: 'r-tyler',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     kind: 'person',
@@ -25,7 +25,7 @@ const RESOURCES: AppData['resources'] = [
   {
     ...NULLABLE_FIELDS.resources,
     id: 'r-pam',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     kind: 'person',
@@ -42,7 +42,7 @@ const RESOURCES: AppData['resources'] = [
   {
     ...NULLABLE_FIELDS.resources,
     id: 'r-nike',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     kind: 'person',
@@ -59,7 +59,7 @@ const RESOURCES: AppData['resources'] = [
   {
     ...NULLABLE_FIELDS.resources,
     id: 'r-alex',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     kind: 'person',
@@ -76,7 +76,7 @@ const RESOURCES: AppData['resources'] = [
   {
     ...NULLABLE_FIELDS.resources,
     id: 'r-ph-designer',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     kind: 'placeholder',
@@ -96,7 +96,7 @@ const RESOURCES: AppData['resources'] = [
   {
     ...NULLABLE_FIELDS.resources,
     id: 'r-ext-northstar',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     kind: 'external',
@@ -108,7 +108,7 @@ const RESOURCES: AppData['resources'] = [
   {
     ...NULLABLE_FIELDS.resources,
     id: 'r-jo',
-    accountId: LOFT,
+    companyId: LOFT,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     kind: 'person',

@@ -6,7 +6,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-wires',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Wireframes',
@@ -17,7 +17,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-visual',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Visual Design',
@@ -28,7 +28,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-cms',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'CMS Review',
@@ -38,7 +38,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-brand',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Brand System',
@@ -49,7 +49,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-admin',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Admin / Internal',
@@ -60,7 +60,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-design',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Design',
@@ -69,7 +69,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-workshop',
-    accountId: STUDIO,
+    companyId: STUDIO,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Workshop',
@@ -78,7 +78,7 @@ const ACTIVITIES: AppData['activities'] = [
   {
     ...NULLABLE_FIELDS.activities,
     id: 't-loft-screens',
-    accountId: LOFT,
+    companyId: LOFT,
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'App Screens',

@@ -34,12 +34,12 @@ describe('visible-window lane projection', () => {
   function projectWindow({ partiallyExposesNextColumn: exposesNextColumn }: ProjectWindowOptions) {
     const data = {
       ...emptyAppData(),
-      resources: [makeResource({ id: 'r1', accountId: 'acct-test', name: 'Diana Prince' })],
-      activities: [makeActivity({ id: 'activity-1', accountId: 'acct-test', kind: 'internal' })],
+      resources: [makeResource({ id: 'r1', companyId: 'acct-test', name: 'Diana Prince' })],
+      activities: [makeActivity({ id: 'activity-1', companyId: 'acct-test', kind: 'internal' })],
       allocations: [
         makeAllocation({
           id: 'visible-allocation',
-          accountId: 'acct-test',
+          companyId: 'acct-test',
           resourceId: 'r1',
           activityId: 'activity-1',
           startDate: '2026-05-26',
@@ -47,7 +47,7 @@ describe('visible-window lane projection', () => {
         }),
         makeAllocation({
           id: 'partially-exposed-allocation',
-          accountId: 'acct-test',
+          companyId: 'acct-test',
           resourceId: 'r1',
           activityId: 'activity-1',
           startDate: '2026-06-03',
@@ -101,12 +101,12 @@ describe('visible-window lane projection', () => {
   it('does not retain row height from an off-screen overlap', () => {
     const data = {
       ...emptyAppData(),
-      resources: [makeResource({ id: 'r1', accountId: 'acct-test', name: 'Diana Prince' })],
-      activities: [makeActivity({ id: 'activity-1', accountId: 'acct-test', kind: 'internal' })],
+      resources: [makeResource({ id: 'r1', companyId: 'acct-test', name: 'Diana Prince' })],
+      activities: [makeActivity({ id: 'activity-1', companyId: 'acct-test', kind: 'internal' })],
       allocations: [
         makeAllocation({
           id: 'august-overlap-a',
-          accountId: 'acct-test',
+          companyId: 'acct-test',
           resourceId: 'r1',
           activityId: 'activity-1',
           startDate: '2026-08-19',
@@ -114,7 +114,7 @@ describe('visible-window lane projection', () => {
         }),
         makeAllocation({
           id: 'august-overlap-b',
-          accountId: 'acct-test',
+          companyId: 'acct-test',
           resourceId: 'r1',
           activityId: 'activity-1',
           startDate: '2026-08-19',
@@ -122,7 +122,7 @@ describe('visible-window lane projection', () => {
         }),
         makeAllocation({
           id: 'september-occurrence-a',
-          accountId: 'acct-test',
+          companyId: 'acct-test',
           resourceId: 'r1',
           activityId: 'activity-1',
           startDate: '2026-09-16',
@@ -130,7 +130,7 @@ describe('visible-window lane projection', () => {
         }),
         makeAllocation({
           id: 'september-occurrence-b',
-          accountId: 'acct-test',
+          companyId: 'acct-test',
           resourceId: 'r1',
           activityId: 'activity-1',
           startDate: '2026-09-23',

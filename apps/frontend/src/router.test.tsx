@@ -123,9 +123,9 @@ describe('Overview route access', () => {
 
   it('allows a viewer when the company setting allows everyone', async () => {
     await resetStoreWithAccount();
-    const accountId = useStore.getState().activeAccountId;
-    if (!accountId) throw new Error('Expected an active account');
-    await useStore.getState().updateAccount(accountId, { capacityOverviewAccess: 'everyone' });
+    const companyId = useStore.getState().activeAccountId;
+    if (!companyId) throw new Error('Expected an active account');
+    await useStore.getState().updateAccount(companyId, { capacityOverviewAccess: 'everyone' });
     renderRoute('viewer', 'resolved');
 
     expect(await screen.findByText('Overview content')).toBeInTheDocument();

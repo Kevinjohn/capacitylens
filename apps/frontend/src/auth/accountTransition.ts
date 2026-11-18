@@ -12,15 +12,15 @@ async function loadMasqueradeController() {
 
 /** The authenticated account-switch boundary. It ends any current read projection before the
  * persistence subscriber installs another account's slice. */
-export async function transitionAccount(accountId: string | null): Promise<boolean> {
+export async function transitionAccount(companyId: string | null): Promise<boolean> {
   const controller = await loadMasqueradeController();
-  return controller.transitionAccount(accountId);
+  return controller.transitionAccount(companyId);
 }
 
 /** Start a server-backed read-only member projection through the lazily loaded transition owner. */
-export async function startMasquerade(accountId: string, targetUserId: string): Promise<boolean> {
+export async function startMasquerade(companyId: string, targetUserId: string): Promise<boolean> {
   const controller = await loadMasqueradeController();
-  return controller.start(accountId, targetUserId);
+  return controller.start(companyId, targetUserId);
 }
 
 /** Adopt current server status without pulling the transition owner into the application entry chunk. */

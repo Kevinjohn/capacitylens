@@ -63,31 +63,31 @@ export async function currentMasquerade(
     .select('display_name', 'email')
     .first();
   if (!target) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
-  let accountId: string | null = null;
+  let companyId: string | null = null;
   let effectiveRole: Role | null = null;
   if (requestedAccountId) {
     const actorRole = await activeCompanyRole(actor.id, requestedAccountId, undefined);
     const targetRole = await activeCompanyRole(view.targetId, requestedAccountId, undefined);
     if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
-      accountId = requestedAccountId;
+      companyId = requestedAccountId;
       effectiveRole = targetRole;
     }
   }
   // Another tab of the same sign-in may sit on a company the target does not share. Report the
   // mode where it holds so that tab can adopt the current context and offer End; company reads
   // are still authorized per request by effectiveReadPrincipal.
-  if (!accountId) {
+  if (!companyId) {
     const memberships = await listActiveCompanyIds(actor.id, undefined);
     for (const candidate of memberships) {
       const actorRole = await activeCompanyRole(actor.id, candidate, undefined);
       const targetRole = await activeCompanyRole(view.targetId, candidate, undefined);
       if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
-        accountId = candidate;
+        companyId = candidate;
         effectiveRole = targetRole;
         break;
       }
     }
-    if (!accountId) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
+    if (!companyId) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   }
   // An empty display name falls through to the email, so these are string-or-empty, not nullable.
   const displayName = String(target.display_name ?? '');
@@ -95,7 +95,7 @@ export async function currentMasquerade(
   if (!effectiveRole) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   return {
     active: true as const,
-    accountId,
+    companyId,
     targetUserId: view.targetId,
     targetName: displayName || email || 'Member',
     effectiveRole,
@@ -127,7 +127,7 @@ export async function endMasquerade(ctx: HttpContext, expectedContext: string) {
 /** Resolves only the identity admitted before the product transaction; never substitutes on error. */
 export async function effectiveReadPrincipal(
   trx: TransactionClientContract,
-  accountId: string | undefined
+  companyId: string | undefined
 ) {
   const actor = actorIn(trx);
   const context = actor.masqueradeContext;
@@ -136,9 +136,9 @@ export async function effectiveReadPrincipal(
   }
   if (context.isMasquerading) {
     // Without a company there is no rank to check, so a view never reads company-free.
-    if (!accountId) throw new IdentityAuthorityError('Masquerade company authority changed.');
-    const actorRole = await activeCompanyRole(actor.userId, accountId, trx);
-    const targetRole = await activeCompanyRole(context.effectiveId, accountId, trx);
+    if (!companyId) throw new IdentityAuthorityError('Masquerade company authority changed.');
+    const actorRole = await activeCompanyRole(actor.userId, companyId, trx);
+    const targetRole = await activeCompanyRole(context.effectiveId, companyId, trx);
     if (!actorRole || !targetRole || !canViewAs(actorRole, targetRole)) {
       throw new IdentityAuthorityError('Masquerade company authority changed.');
     }
@@ -146,7 +146,7 @@ export async function effectiveReadPrincipal(
   return {
     actorId: actor.userId,
     effectiveId: context.effectiveId,
-    accountId: context.isMasquerading ? (accountId ?? null) : null,
+    companyId: context.isMasquerading ? (companyId ?? null) : null,
     isMasquerading: context.isMasquerading,
   };
 }

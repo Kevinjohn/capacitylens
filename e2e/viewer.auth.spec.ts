@@ -38,11 +38,11 @@ async function signInAndOpen(page: import('@playwright/test').Page, email: strin
 
 async function assertViewerWriteRejected(
   request: APIRequestContext,
-  accountId: string,
+  companyId: string,
   cookie: string,
 ) {
   const newClientId = crypto.randomUUID();
-  const directWrite = await request.post(`${API}/api/companies/${accountId}/clients`, {
+  const directWrite = await request.post(`${API}/api/companies/${companyId}/clients`, {
     headers: await masqueradeContextHeaders(request, cookie),
     data: {
       mutationId: crypto.randomUUID(),
@@ -64,9 +64,9 @@ async function seedViewerScenario(request: APIRequestContext) {
   const owner = await signUp(OWNER);
   const viewer = await signUp(VIEWER);
   const editor = await signUp(EDITOR);
-  const accountId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
+  const companyId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
   const clientId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'clients', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'clients', {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -75,7 +75,7 @@ async function seedViewerScenario(request: APIRequestContext) {
     },
   });
   const resourceId = crypto.randomUUID();
-  await createFixturePerson(request, owner.cookie, accountId, {
+  await createFixturePerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Viewer-visible person',
     role: 'Designer',
@@ -85,9 +85,9 @@ async function seedViewerScenario(request: APIRequestContext) {
     [viewer, 'viewer'],
     [editor, 'editor'],
   ] as const) {
-    seedFixtureMember(accountId, who.email, role);
+    seedFixtureMember(companyId, who.email, role);
   }
-  await assertViewerWriteRejected(request, accountId, viewer.cookie);
+  await assertViewerWriteRejected(request, companyId, viewer.cookie);
   return { resourceId };
 }
 

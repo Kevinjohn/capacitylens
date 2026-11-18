@@ -6,7 +6,7 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { captureMail } from '../../helpers/identities.js';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
@@ -17,15 +17,15 @@ import {
 import { readState } from '#tests/helpers/state_fixture';
 
 async function revision() {
-  const row = await db.from('company_planning_revisions').where('account_id', accountId).first();
+  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
   return Number(row?.revision ?? 0);
 }
 
 async function deleteAllocation(client: ApiClient, cookie: string) {
-  const data = await readState(accountId, true);
+  const data = await readState(companyId, true);
   const allocation = newAllocation(data);
   const baseRevision = await revision();
-  const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+  const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
@@ -34,7 +34,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
     .send();
   created.assertStatus(200);
   const deleted = await session(
-    client.post(`/api/companies/${accountId}/allocations/${allocation.id}/delete`),
+    client.post(`/api/companies/${companyId}/allocations/${allocation.id}/delete`),
     cookie
   )
     .json({
@@ -53,7 +53,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
 
 async function deleteExistingAllocation(client: ApiClient, cookie: string, allocationId: string) {
   const deleted = await session(
-    client.post(`/api/companies/${accountId}/allocations/${allocationId}/delete`),
+    client.post(`/api/companies/${companyId}/allocations/${allocationId}/delete`),
     cookie
   )
     .json({
@@ -71,7 +71,7 @@ async function deleteExistingAllocation(client: ApiClient, cookie: string, alloc
 }
 
 async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
-  return session(client.post(`/api/companies/${accountId}/planning/restore-group`), cookie)
+  return session(client.post(`/api/companies/${companyId}/planning/restore-group`), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision: await revision(),
@@ -81,10 +81,10 @@ async function restoreAllocation(client: ApiClient, cookie: string, groupId: str
 }
 
 async function createActiveAllocation(client: ApiClient, cookie: string) {
-  const data = await readState(accountId, true);
+  const data = await readState(companyId, true);
   const allocation = newAllocation(data);
   const baseRevision = await revision();
-  const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+  const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,

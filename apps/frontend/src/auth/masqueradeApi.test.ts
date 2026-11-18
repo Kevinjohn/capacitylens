@@ -18,7 +18,7 @@ import { masqueradeApi } from './masqueradeApi';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const state = {
-  accountId: 'a-studio',
+  companyId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',
@@ -90,7 +90,7 @@ describe('masqueradeApi', () => {
   });
 
   it.each([
-    ['an empty account id', { accountId: '' }],
+    ['an empty account id', { companyId: '' }],
     ['an empty target user id', { targetUserId: '' }],
     ['an empty token', { token: '' }],
     ['an invalid timestamp', { startedAt: '2026-02-30T10:00:00.000Z' }],
@@ -107,7 +107,7 @@ describe('masqueradeApi', () => {
 
   it.each([
     ['missing state fields', {}],
-    ['a non-string account id', { ...state, accountId: 1 }],
+    ['a non-string account id', { ...state, companyId: 1 }],
     ['an unsupported role', { ...state, effectiveRole: 'auditor' }],
   ])('rejects active state with %s', async (_description, malformedState) => {
     mocks.status.mockResolvedValue(

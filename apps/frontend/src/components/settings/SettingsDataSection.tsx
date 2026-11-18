@@ -69,15 +69,15 @@ function reportExampleData(outcome: SuspendedReplacementOutcome, setNotice: SetN
 }
 
 function ExampleDataSection() {
-  const accountId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeAccountId);
   const setNotice = useStore((state) => state.setNotice);
   const [busy, setBusy] = useState(false);
   const addExampleData = async () => {
-    if (accountId === null || busy) return;
+    if (companyId === null || busy) return;
     setBusy(true);
     try {
       const outcome = await runSuspendedReplacement({
-        send: () => companyDataRequests.addExampleData(accountId),
+        send: () => companyDataRequests.addExampleData(companyId),
         recovery: 'refresh',
       });
       reportExampleData(outcome, setNotice);

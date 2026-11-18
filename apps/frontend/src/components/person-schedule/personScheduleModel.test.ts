@@ -13,26 +13,26 @@ import { buildPersonSchedule } from './personScheduleModel';
 
 const resource = makeResource({
   id: 'r1',
-  accountId: 'a1',
+  companyId: 'a1',
   name: 'Diana Prince',
   color: '#123456',
 });
 const client = makeClient({
   id: 'c1',
-  accountId: 'a1',
+  companyId: 'a1',
   name: 'Wayne Foundation',
   color: '#222222',
 });
 const project = makeProject({
   id: 'p1',
-  accountId: 'a1',
+  companyId: 'a1',
   clientId: client.id,
   name: 'Watchtower',
   color: '#abcdef',
 });
 const activity = makeActivity({
   id: 't1',
-  accountId: 'a1',
+  companyId: 'a1',
   projectId: project.id,
   name: 'Research',
 });
@@ -45,7 +45,7 @@ function withoutProjectId(value: Activity): Activity {
 
 function build(overrides: Partial<Parameters<typeof buildPersonSchedule>[0]> = {}) {
   return buildPersonSchedule({
-    accountId: 'a1',
+    companyId: 'a1',
     resource,
     data: {
       ...emptyAppData(),

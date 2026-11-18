@@ -24,7 +24,7 @@ function withInternal(): AppData {
   d.clients.push(
     makeClient({
       id: 'c-internal',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       name: 'Internal',
       color: '#9c3ace',
       builtin: true,
@@ -34,7 +34,7 @@ function withInternal(): AppData {
   d.projects.push(
     makeProject({
       id: 'pInt',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       name: 'Internal Project',
       clientId: 'c-internal',
       color: '#6',
@@ -43,7 +43,7 @@ function withInternal(): AppData {
   d.activities.push(
     makeActivity({
       id: 'tIntProj',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       name: 'Internal Proj Activity',
       projectId: 'pInt',
     }),
@@ -52,7 +52,7 @@ function withInternal(): AppData {
   d.activities.push({
     ...NULLABLE_FIELDS.activities,
     id: 'tIntNoProj',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     name: 'Admin',
@@ -62,13 +62,13 @@ function withInternal(): AppData {
   d.allocations.push(
     makeAllocation({
       id: 'aIntProj',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       activityId: 'tIntProj',
       hoursPerDay: 4,
     }),
     makeAllocation({
       id: 'aIntNoProj',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       activityId: 'tIntNoProj',
       startDate: '2026-06-03',
       endDate: '2026-06-04',
@@ -83,7 +83,7 @@ function withAttributedRepeatable(): AppData {
   d.activities.push({
     ...NULLABLE_FIELDS.activities,
     id: 'tRep',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     name: 'Design',
@@ -93,7 +93,7 @@ function withAttributedRepeatable(): AppData {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'aRepAttributed',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r2',
@@ -107,7 +107,7 @@ function withAttributedRepeatable(): AppData {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'aRepUnattributed',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r2',
@@ -223,7 +223,7 @@ describe('built-in Internal client bucketing + filter', () => {
       {
         ...NULLABLE_FIELDS.allocations,
         id: 'dangling-unattributed',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         resourceId: 'r1',
@@ -236,7 +236,7 @@ describe('built-in Internal client bucketing + filter', () => {
       {
         ...NULLABLE_FIELDS.allocations,
         id: 'dangling-attributed',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         createdAt: 't',
         updatedAt: 't',
         resourceId: 'r1',
@@ -289,7 +289,7 @@ function buildInternalAndRepeatableData(): AppData {
   d.activities.push({
     ...NULLABLE_FIELDS.activities,
     id: 'tRep',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     name: 'Design',
@@ -299,7 +299,7 @@ function buildInternalAndRepeatableData(): AppData {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'aRep',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -312,7 +312,7 @@ function buildInternalAndRepeatableData(): AppData {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'aRepAttributedInternal',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',

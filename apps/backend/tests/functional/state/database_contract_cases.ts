@@ -21,15 +21,15 @@ const accountIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';
 
 export const accountIndexes = [
-  ['clients', 'account_id'],
-  ['disciplines', 'account_id'],
-  ['projects', 'account_id'],
-  ['phases', 'account_id'],
-  ['resources', 'account_id'],
-  ['activities', 'account_id'],
-  ['allocations', 'account_id'],
-  ['time_off', 'account_id'],
-  ['closures', 'account_id'],
+  ['clients', 'company_id'],
+  ['disciplines', 'company_id'],
+  ['projects', 'company_id'],
+  ['phases', 'company_id'],
+  ['resources', 'company_id'],
+  ['activities', 'company_id'],
+  ['allocations', 'company_id'],
+  ['time_off', 'company_id'],
+  ['closures', 'company_id'],
 ] as const;
 
 export const foreignKeyIndexes = [
@@ -136,7 +136,7 @@ export const fullFixtureRows = [
 
 export async function insertInvalidReference(table: string, column: string, targetId: string) {
   const common = {
-    account_id: accountIds.dc,
+    company_id: accountIds.dc,
     id: `invalid-${table}-${column}`,
     created_at: stamp,
     updated_at: stamp,

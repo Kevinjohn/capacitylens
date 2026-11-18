@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   planningUrl,
@@ -19,7 +19,7 @@ const body = (response: { body(): unknown }) =>
     code: string;
     revision: number;
   };
-const route = (path: string) => `/api/companies/${accountId}/${path}`;
+const route = (path: string) => `/api/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -38,7 +38,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie: viewerCookie } = await signIn(client, 'viewer');
     const allocation = newAllocation(data);
     const viewer = await session(client.post(route('allocations')), viewerCookie)
@@ -64,7 +64,7 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(body(mismatch).code, 'VALIDATION_ERROR');
 
     const allAccounts = await readState();
-    const foreignResource = allAccounts.resources.find((row) => row.accountId === 'a-loft')!;
+    const foreignResource = allAccounts.resources.find((row) => row.companyId === 'a-loft')!;
     const foreign = await session(client.post(route('allocations')), cookie)
       .json(
         input(0, {
@@ -80,7 +80,7 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(body(foreign).code, 'VALIDATION_ERROR');
     const current = await session(client.get(planningUrl), cookie).send();
     assert.equal(body(current).revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 
   test('Editor creates public catalogue rows and updates their dependent family', async ({
@@ -89,9 +89,9 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client, 'editor');
-    const color = data.clients.find((row) => row.accountId === accountId && !row.builtin)!.color;
+    const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
     const clientId = randomUUID();
     const projectId = randomUUID();
     const phaseId = randomUUID();
@@ -154,7 +154,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     updated.assertStatus(200);
     assert.equal(body(updated).revision, 6);
-    const state = await readState(accountId, true);
+    const state = await readState(companyId, true);
     assert.equal(state.clients.find((row) => row.id === clientId)?.isPrivate, null);
     assert.equal(state.projects.find((row) => row.id === projectId)?.clientId, clientId);
     assert.equal(state.activities.find((row) => row.id === activityId)?.phaseId, phaseId);
@@ -168,9 +168,9 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const original = data.resources.find(
-      (row) => row.accountId === accountId && row.kind === 'person'
+      (row) => row.companyId === companyId && row.kind === 'person'
     )!;
     const { cookie } = await signIn(client, 'editor');
     const id = randomUUID();
@@ -199,7 +199,7 @@ test.group('authenticated planning operations', (group) => {
       .json(input(1, { operation: 'resource.update', id, changes: { role: 'Lead Designer' } }))
       .send();
     updated.assertStatus(200);
-    const state = await readState(accountId, true);
+    const state = await readState(companyId, true);
     const resource = state.resources.find((row) => row.id === id);
     assert.equal(resource?.role, 'Lead Designer');
     assert.equal(resource?.workingHoursPerDay, original.workingHoursPerDay);
@@ -212,13 +212,13 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const external = data.resources.find(
-      (row) => row.accountId === accountId && row.kind === 'external'
+      (row) => row.companyId === companyId && row.kind === 'external'
     );
     assert.isDefined(external);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const changedDays = external!.workingDays.includes(0) ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4];
 
     const refused = await session(client.patch(route(`resources/${external!.id}`)), cookie)
@@ -233,10 +233,10 @@ test.group('authenticated planning operations', (group) => {
 
     refused.assertStatus(400);
     assert.equal(body(refused).code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 
   test('an external resource refusal names the supplied reference field', async ({
@@ -246,7 +246,7 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const external = data.resources.find((row) => row.kind === 'external')!;
     for (const [field, value] of [
       ['disciplineId', data.disciplines[0]!.id],
@@ -273,9 +273,9 @@ test.group('authenticated planning operations', (group) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const id = randomUUID();
-    const before = await readState(accountId, true);
-    const auditBefore = await db.from('audit_entries').where('account_id', accountId);
-    const mutationsBefore = await db.from('planning_mutations').where('account_id', accountId);
+    const before = await readState(companyId, true);
+    const auditBefore = await db.from('audit_entries').where('company_id', companyId);
+    const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
     const refused = await session(client.post(route('closures')), cookie)
       .json(
@@ -289,11 +289,11 @@ test.group('authenticated planning operations', (group) => {
 
     refused.assertStatus(400);
     assert.equal(body(refused).code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.isNull(await db.from('closures').where({ id, account_id: accountId }).first());
-    assert.deepEqual(await db.from('audit_entries').where('account_id', accountId), auditBefore);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.isNull(await db.from('closures').where({ id, company_id: companyId }).first());
+    assert.deepEqual(await db.from('audit_entries').where('company_id', companyId), auditBefore);
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
@@ -306,10 +306,10 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie: ownerCookie } = await signIn(client);
     const clientId = randomUUID();
-    const color = data.clients.find((row) => row.accountId === accountId && !row.builtin)!.color;
+    const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
     const privateClient = await session(client.post(route('clients')), ownerCookie)
       .json(
         input(0, {
@@ -325,7 +325,7 @@ test.group('authenticated planning operations', (group) => {
     privateClient.assertStatus(200);
     const timeOffId = randomUUID();
     const resourceId = data.resources.find(
-      (row) => row.accountId === accountId && row.kind === 'person'
+      (row) => row.companyId === companyId && row.kind === 'person'
     )!.id;
     const timeOff = await session(client.post(route('time-off')), ownerCookie)
       .json(
@@ -363,7 +363,7 @@ test.group('authenticated planning operations', (group) => {
             entity: 'clients',
             id: clientId,
             changes: {
-              color: data.clients.find((row) => row.accountId === accountId && row.color !== color)!
+              color: data.clients.find((row) => row.companyId === companyId && row.color !== color)!
                 .color,
             },
           },
@@ -388,7 +388,7 @@ test.group('authenticated planning operations', (group) => {
       .json(input(4, { operation: 'timeOff.update', id: timeOffId, changes: { note: 'Read it' } }))
       .send();
     noteRefused.assertStatus(403);
-    const state = await readState(accountId, true);
+    const state = await readState(companyId, true);
     assert.equal(state.clients.find((row) => row.id === clientId)?.name, 'Bruce Wayne');
     assert.equal(state.clients.find((row) => row.id === clientId)?.codeName, 'Boardroom');
     assert.equal(state.timeOff.find((row) => row.id === timeOffId)?.note, 'Private note');
@@ -400,7 +400,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
     const allocation = newAllocation(data);
     const repeatGroup = (until: string, occurrenceIds: string[]) =>
@@ -424,7 +424,7 @@ test.group('authenticated planning operations', (group) => {
     const created = await repeatGroup('2026-11-23', ids.slice(1));
     created.assertStatus(200);
     const rows = () =>
-      readState(accountId, true).then((state) =>
+      readState(companyId, true).then((state) =>
         ids.map((id) => state.allocations.find((row) => row.id === id))
       );
     const saved = await rows();
@@ -456,10 +456,10 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client, 'editor');
     const resourceId = data.resources.find(
-      (row) => row.accountId === accountId && row.kind === 'person'
+      (row) => row.companyId === companyId && row.kind === 'person'
     )!.id;
     const timeOff = {
       id: randomUUID(),
@@ -489,7 +489,7 @@ test.group('authenticated planning operations', (group) => {
     const created = await repeatTimeOff('2026-11-30', ids.slice(1));
     created.assertStatus(200);
     const rows = () =>
-      readState(accountId, true).then((state) =>
+      readState(companyId, true).then((state) =>
         ids.map((id) => state.timeOff.find((row) => row.id === id))
       );
     const saved = await rows();
@@ -524,7 +524,7 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
     // Bruce works eight hours Monday to Friday and has nothing booked in November.
     const allocation = { ...newAllocation(data), hoursPerDay: 5 };
@@ -613,10 +613,10 @@ test.group('authenticated planning operations', (group) => {
     cleanup,
   }) => {
     configureAuth(cleanup);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const { cookie } = await signIn(client, 'editor');
     const resourceId = data.resources.find(
-      (row) => row.accountId === accountId && row.kind === 'person'
+      (row) => row.companyId === companyId && row.kind === 'person'
     )!.id;
     const firstId = randomUUID();
     // Weekly from 2 November to 9 November makes two occurrences, so one later id, not two.
@@ -641,7 +641,7 @@ test.group('authenticated planning operations', (group) => {
       (repeat.body() as { error?: string }).error,
       'The occurrence identities do not match the repeat.'
     );
-    const afterRepeat = await readState(accountId, true);
+    const afterRepeat = await readState(companyId, true);
     assert.isFalse(afterRepeat.timeOff.some((row) => row.id === firstId));
 
     const closureId = randomUUID();
@@ -675,9 +675,9 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(snapshot.revision, 2);
     assert.deepEqual(
       snapshot.data.accounts.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
-      [{ id: accountId, weekStartsOn: 0 }]
+      [{ id: companyId, weekStartsOn: 0 }]
     );
-    const state = await readState(accountId, true);
+    const state = await readState(companyId, true);
     assert.equal(state.accounts[0]?.weekStartsOn, 0);
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
   });
@@ -689,7 +689,7 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const phase = before.phases.find((row) => row.id === 'ph-disc')!;
     const target = before.projects.find((row) => row.id === 'p-brand')!;
     const refused = await session(client.patch(route(`phases/${phase.id}`)), cookie)
@@ -710,9 +710,9 @@ test.group('authenticated planning operations', (group) => {
       })
       .send();
     retained.assertStatus(404);
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
-    assert.lengthOf(await db.from('audit_entries').where('account_id', accountId), 0);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
+    assert.lengthOf(await db.from('audit_entries').where('company_id', companyId), 0);
     const current = await session(client.get(planningUrl), cookie).send();
     assert.equal(body(current).revision, 0);
   });
@@ -724,11 +724,11 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     // The browser sends the timestamp it read, so take the row from the planning read.
     const read = await session(client.get(planningUrl), cookie).send();
     const row = (read.body() as { data: AppData }).data.clients.find(
-      (entry) => entry.accountId === accountId && !entry.builtin
+      (entry) => entry.companyId === companyId && !entry.builtin
     )!;
     const edit = (expectedUpdatedAt: string) =>
       session(client.patch(route(`clients/${row.id}`)), cookie)
@@ -744,13 +744,13 @@ test.group('authenticated planning operations', (group) => {
     const stale = await edit('2000-01-01T00:00:00.000Z');
     stale.assertStatus(409);
     assert.equal(body(stale).code, 'STALE_REVISION');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     const unchanged = await session(client.get(planningUrl), cookie).send();
     assert.equal(body(unchanged).revision, 0);
 
     const current = await edit(row.updatedAt);
     current.assertStatus(200);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     assert.equal(after.clients.find((entry) => entry.id === row.id)?.name, 'Wayne Enterprises');
   });
 
@@ -789,13 +789,13 @@ test.group('authenticated planning operations', (group) => {
       .send();
     moved.assertStatus(200);
     assert.equal(body(moved).revision, 2);
-    const afterMove = await readState(accountId, true);
+    const afterMove = await readState(companyId, true);
     assert.equal(afterMove.phases.find((row) => row.id === id)?.projectId, 'p-brand');
   });
   test('activity kind edits remove dependent attribution', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const activityId = randomUUID();
     const created = await session(client.post(route('activities')), cookie)
       .json(
@@ -834,11 +834,11 @@ test.group('authenticated planning operations', (group) => {
       .send();
     changed.assertStatus(200);
     assert.equal(body(changed).revision, 3);
-    const afterKindChange = await readState(accountId, true);
+    const afterKindChange = await readState(companyId, true);
     assert.isNull(afterKindChange.allocations.find((row) => row.id === allocation.id)?.projectId);
 
-    const auditBeforeNoop = await db.from('audit_entries').where('account_id', accountId);
-    const markersBeforeNoop = await db.from('planning_mutations').where('account_id', accountId);
+    const auditBeforeNoop = await db.from('audit_entries').where('company_id', companyId);
+    const markersBeforeNoop = await db.from('planning_mutations').where('company_id', companyId);
     const sameKindOnly = await session(client.patch(route(`activities/${activityId}`)), cookie)
       .json(
         input(3, {
@@ -853,13 +853,13 @@ test.group('authenticated planning operations', (group) => {
       .send();
     sameKindOnly.assertStatus(400);
     assert.equal(body(sameKindOnly).code, 'NO_CHANGE');
-    assert.deepEqual(await readState(accountId, true), afterKindChange);
+    assert.deepEqual(await readState(companyId, true), afterKindChange);
     assert.deepEqual(
-      await db.from('audit_entries').where('account_id', accountId),
+      await db.from('audit_entries').where('company_id', companyId),
       auditBeforeNoop
     );
     assert.deepEqual(
-      await db.from('planning_mutations').where('account_id', accountId),
+      await db.from('planning_mutations').where('company_id', companyId),
       markersBeforeNoop
     );
     const afterNoop = await session(client.get(planningUrl), cookie).send();

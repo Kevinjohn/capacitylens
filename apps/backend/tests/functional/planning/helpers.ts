@@ -12,8 +12,8 @@ import {
 } from '../../helpers/identities.js';
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
 
-export const accountId = 'a-studio';
-export const planningUrl = `/api/companies/${accountId}/planning`;
+export const companyId = 'a-studio';
+export const planningUrl = `/api/companies/${companyId}/planning`;
 const password = 'batman-secret-2026';
 
 export const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
@@ -39,7 +39,7 @@ export async function signIn(
   const cookie = await signInAgain(client, email);
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    scope_id: accountId,
+    scope_id: companyId,
     user_id: userId,
     role,
     status: 'active',
@@ -67,11 +67,11 @@ export async function resetPlanningFixture(): Promise<AppData> {
 export function newAllocation(data: AppData) {
   const resource = data.resources.find(
     (row) =>
-      row.accountId === accountId && row.kind === 'person' && !row.archivedAt && !row.deletedAt
+      row.companyId === companyId && row.kind === 'person' && !row.archivedAt && !row.deletedAt
   )!;
   const activity = data.activities.find(
     (row) =>
-      row.accountId === accountId && row.kind === 'internal' && !row.archivedAt && !row.deletedAt
+      row.companyId === companyId && row.kind === 'internal' && !row.archivedAt && !row.deletedAt
   )!;
   return {
     id: randomUUID(),

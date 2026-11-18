@@ -60,10 +60,10 @@ function fittedSchedulerGridOffsets() {
 function dataset(): AppData {
   return schedulerDataset({
     resources: [
-      makeResource({ accountId: ACC, disciplineId: 'd1', name: 'Bruce', color: '#111' }),
+      makeResource({ companyId: ACC, disciplineId: 'd1', name: 'Bruce', color: '#111' }),
       makeResource({
         id: 'r-ext',
-        accountId: ACC,
+        companyId: ACC,
         kind: 'external',
         name: 'Kord Industries',
         role: 'Partner studio',
@@ -242,7 +242,7 @@ describe('SchedulerGrid', () => {
         ...useStore.getState().data,
         closures: [
           makeClosure({
-            accountId: ACC,
+            companyId: ACC,
             name: 'Long weekend',
             startDate: '2026-06-05',
             endDate: '2026-06-08',
@@ -250,7 +250,7 @@ describe('SchedulerGrid', () => {
         ],
         timeOff: [
           makeTimeOff({
-            accountId: ACC,
+            companyId: ACC,
             resourceId: 'r1',
             startDate: '2026-06-05',
             endDate: '2026-06-08',
@@ -388,7 +388,7 @@ describe('SchedulerGrid visible-window utilisation', () => {
         resources: [
           makeResource({
             id: 'r-diana',
-            accountId: ACC,
+            companyId: ACC,
             disciplineId: 'd1',
             name: 'Diana Prince',
             color: '#111',

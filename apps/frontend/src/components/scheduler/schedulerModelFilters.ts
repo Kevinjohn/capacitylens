@@ -96,7 +96,7 @@ export function createAllocationFilters(
     resources: resourcesById,
   };
   // Project-less internal work derives its client from the scoped account's built-in Internal row. Do not persist that derived attribution; if the row is missing, leave the client absent.
-  const scopedAccountId = data.clients[0]?.accountId;
+  const scopedAccountId = data.clients[0]?.companyId;
   const internalClient = scopedAccountId
     ? internalClientFor(data.clients, scopedAccountId)
     : undefined;

@@ -27,7 +27,7 @@ export type ExampleCompanyData = Pick<
  * Supplies the account and calendar details used to create the example schedule.
  */
 export interface ExampleCompanyInput {
-  accountId: ID;
+  companyId: ID;
   /** Any date in the week the schedule should open on, in the company's own time zone. */
   referenceDate: ISODate;
   /** The company's first weekday; defaults to Monday. The example bookings sit inside that week. */
@@ -36,7 +36,7 @@ export interface ExampleCompanyInput {
   now?: ISOTimestamp;
 }
 
-type Stamp = { accountId: ID; createdAt: ISOTimestamp; updatedAt: ISOTimestamp };
+type Stamp = { companyId: ID; createdAt: ISOTimestamp; updatedAt: ISOTimestamp };
 const WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
 
 /** Total number of rows in a generated set, for callers that report or assert what was added. */
@@ -177,7 +177,7 @@ function buildBookings({ stamp, workday, dickId, barbaraId, work }: BuildBooking
 
 /** Build one company's example rows with fresh ids and a shared timestamp; omitted `now` is anchored to the current process time. */
 export function buildExampleCompany({
-  accountId,
+  companyId,
   referenceDate,
   weekStartsOn = 1,
   now = new Date().toISOString(),
@@ -186,7 +186,7 @@ export function buildExampleCompany({
   const monday = weekStartsOn === 0 ? addDaysISO(weekStart, 1) : weekStart;
   // Working day `n` of the fortnight, skipping the weekend between the two weeks.
   const workday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5));
-  const stamp = { accountId, createdAt: now, updatedAt: now };
+  const stamp = { companyId, createdAt: now, updatedAt: now };
   const { design, development } = buildDisciplines(stamp);
   const dick = buildPerson(stamp, design, { name: 'Dick Grayson', role: 'Designer' });
   const barbara = buildPerson(stamp, development, { name: 'Barbara Gordon', role: 'Developer' });

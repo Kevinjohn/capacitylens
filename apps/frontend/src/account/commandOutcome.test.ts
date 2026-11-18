@@ -37,14 +37,14 @@ describe('browser account client', () => {
     mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
 
     await invitationRequests.createInvitation({
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       role: 'viewer',
       email: 'bruce@example.test',
     });
     await invitationRequests.createInvitation({
       email: 'bruce@example.test',
       role: 'viewer',
-      accountId: 'a-studio',
+      companyId: 'a-studio',
     });
 
     const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>

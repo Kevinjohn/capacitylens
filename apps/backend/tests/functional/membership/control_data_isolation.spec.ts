@@ -35,7 +35,7 @@ test.group('membership control-data isolation', (group) => {
     });
     await db.table('account_member_resources').insert({
       id: 'link-control-isolation',
-      account_id: 'a-studio',
+      company_id: 'a-studio',
       user_id: 'u-control-isolation',
       resource_id: resource.id,
       revision: stamp,
@@ -68,7 +68,7 @@ test.group('membership control-data isolation', (group) => {
       created_at: stamp,
     });
 
-    const exported = await client.get('/api/state?accountId=a-studio&includeInactive=1').send();
+    const exported = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
     exported.assertStatus(200);
     for (const property of [
       'memberships',

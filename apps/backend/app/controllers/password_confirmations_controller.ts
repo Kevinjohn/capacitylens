@@ -19,16 +19,16 @@ import { managedGuard } from '#services/auth/managed_guard';
 
 type ConfirmationRequest = {
   action: PasswordConfirmationKind;
-  accountId: string;
+  companyId: string;
   intent: unknown;
   password: string;
 };
 
 function requestBody(value: unknown): ConfirmationRequest | null {
   const body = value;
-  if (!hasOnlyFields(body, ['action', 'accountId', 'intent', 'password'])) return null;
+  if (!hasOnlyFields(body, ['action', 'companyId', 'intent', 'password'])) return null;
   if (!PASSWORD_CONFIRMATION_KINDS.includes(body.action as PasswordConfirmationKind)) return null;
-  if (typeof body.accountId !== 'string' || !body.accountId) return null;
+  if (typeof body.companyId !== 'string' || !body.companyId) return null;
   if (typeof body.password !== 'string') return null;
   if (!body.intent || typeof body.intent !== 'object' || Array.isArray(body.intent)) return null;
   const intent = body.intent as Record<string, unknown>;
@@ -63,13 +63,13 @@ export default class PasswordConfirmationsController {
     const body = requestBody(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid password confirmation.' });
     await withActor(ctx, async (_actor, trx) =>
-      passwordConfirmationActor(body.accountId, trx, body.action)
+      passwordConfirmationActor(body.companyId, trx, body.action)
     );
     const { confirmationId } = await passwordConfirmations.confirmPassword(
       await managedGuard.current(ctx),
       {
         action: body.action,
-        scope: body.accountId,
+        scope: body.companyId,
         intent: body.intent,
         password: body.password,
       }

@@ -14,14 +14,14 @@ import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 
 const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 
 const accounts = (client: ApiClient, cookie: string) =>
   asDataOwner(client.get('/api/companies'), cookie).send();
 const planning = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get(`/api/companies/${accountId}/planning`), cookie).send();
+  asDataOwner(client.get(`/api/companies/${companyId}/planning`), cookie).send();
 const dismiss = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.put(`/api/companies/${accountId}/getting-started`), cookie)
+  asDataOwner(client.put(`/api/companies/${companyId}/getting-started`), cookie)
     .timeout({ response: 10000, deadline: 15000 })
     .json({ dismissed: true })
     .send();
@@ -29,7 +29,7 @@ const dismissals = () => db.from('account_getting_started_dismissals');
 
 async function owner(options: { verified?: boolean; admitted?: boolean } = {}) {
   const userId = await createIdentity(email, { name: 'Bruce Wayne', password, ...options });
-  await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', accountId);
+  await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', companyId);
   return userId;
 }
 
@@ -182,7 +182,7 @@ test.group('password sign-in and sessions', (group) => {
     assert.match(String(stored?.password), /^\$(scrypt|argon2|bcrypt)/);
     assert.deepInclude(
       await db.from('audit_entries').where('action', 'identity.credentials_changed').first(),
-      { account_id: accountId, actor_id: userId }
+      { company_id: companyId, actor_id: userId }
     );
   });
 

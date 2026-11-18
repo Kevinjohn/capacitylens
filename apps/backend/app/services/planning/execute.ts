@@ -42,7 +42,7 @@ function assertOccurrenceIdsMatch(occurrenceIds: readonly string[], later: reado
 async function transitionLifecycle(
   trx: TransactionClientContract,
   data: AppData,
-  accountId: string,
+  companyId: string,
   table: LifecycleTable,
   id: string,
   action: 'archive' | 'unarchive'
@@ -81,7 +81,7 @@ async function transitionLifecycle(
   }
   await trx
     .from(tables[table])
-    .where({ id, account_id: accountId })
+    .where({ id, company_id: companyId })
     .update(encodeRow(tables[table], next));
   Object.assign(current, next);
 }
@@ -89,7 +89,7 @@ async function transitionLifecycle(
 /** One planning intent and the verified context it is applied in. */
 export interface ExecutePlanningIntentOptions {
   trx: TransactionClientContract;
-  accountId: string;
+  companyId: string;
   intent: PlanningIntent;
   capabilities: PlanningCapabilities;
   /** The mutable, complete company snapshot; the caller keeps its own before-image. */
@@ -106,7 +106,7 @@ export interface ExecutePlanningIntentOptions {
  */
 export async function executePlanningIntent({
   trx,
-  accountId,
+  companyId,
   intent,
   capabilities,
   data,
@@ -117,10 +117,10 @@ export async function executePlanningIntent({
   if (!capabilities.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
-  if (!data.accounts.some((row) => row.id === accountId)) {
+  if (!data.accounts.some((row) => row.id === companyId)) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
-  const writeOptions = { trx, data, accountId, capabilities, identity, expectedUpdatedAt };
+  const writeOptions = { trx, data, companyId, capabilities, identity, expectedUpdatedAt };
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -143,7 +143,7 @@ export async function executePlanningIntent({
           fields: { ...allocation, seriesId },
           mode: 'create',
         });
-        const later = allocationOccurrences(data, accountId, allocation, repeat).slice(1);
+        const later = allocationOccurrences(data, companyId, allocation, repeat).slice(1);
         assertOccurrenceIdsMatch(occurrenceIds, later);
         for (const [index, { startDate, endDate }] of later.entries()) {
           const id = occurrenceIds[index] as string;
@@ -209,7 +209,7 @@ export async function executePlanningIntent({
               if (allocation.activityId !== entity.id || allocation.projectId === null) continue;
               await trx
                 .from('allocations')
-                .where({ id: allocation.id, account_id: accountId })
+                .where({ id: allocation.id, company_id: companyId })
                 .update({
                   project_id: null,
                   updated_at: createServerRevision(allocation.updatedAt),
@@ -224,7 +224,7 @@ export async function executePlanningIntent({
         await transitionLifecycle(
           trx,
           data,
-          accountId,
+          companyId,
           intent.entity.entity,
           intent.entity.id,
           intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive'
@@ -234,7 +234,7 @@ export async function executePlanningIntent({
         const groupId = await deleteRows(
           trx,
           data,
-          accountId,
+          companyId,
           intent.entity.entity,
           [intent.entity.id],
           identity
@@ -256,7 +256,7 @@ export async function executePlanningIntent({
         await transitionLifecycle(
           trx,
           data,
-          accountId,
+          companyId,
           'resources',
           intent.id,
           intent.operation === 'resource.archive' ? 'archive' : 'unarchive'
@@ -307,7 +307,7 @@ export async function executePlanningIntent({
       case 'timeOff.delete':
       case 'timeOff.deleteGroup': {
         const ids = intent.operation === 'timeOff.delete' ? [intent.id] : intent.ids;
-        const groupId = await deleteRows(trx, data, accountId, 'timeOff', ids, identity);
+        const groupId = await deleteRows(trx, data, companyId, 'timeOff', ids, identity);
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'closure.create':
@@ -321,20 +321,20 @@ export async function executePlanningIntent({
         });
         return unchanged;
       case 'closure.delete': {
-        const groupId = await deleteRows(trx, data, accountId, 'closures', [intent.id], identity);
+        const groupId = await deleteRows(trx, data, companyId, 'closures', [intent.id], identity);
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'settings.update':
-        await updateSettings(trx, data, accountId, intent.changes, capabilities);
+        await updateSettings(trx, data, companyId, intent.changes, capabilities);
         return unchanged;
       case 'allocation.delete':
       case 'allocation.deleteGroup': {
         const ids = intent.operation === 'allocation.delete' ? [intent.id] : intent.ids;
-        const groupId = await deleteAllocations(trx, data, accountId, ids, identity);
+        const groupId = await deleteAllocations(trx, data, companyId, ids, identity);
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'planning.restoreGroup':
-        await restoreGroup(trx, accountId, intent.restorationGroupId, identity);
+        await restoreGroup(trx, companyId, intent.restorationGroupId, identity);
         return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null };
       default:
         throw new PlanningOperationError(

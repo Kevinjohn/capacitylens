@@ -301,7 +301,7 @@ describe('generated planning transport', () => {
       canSeeTimeOffNote: false,
     };
     const { transport, requests } = harness({
-      accountId: 'wayne',
+      companyId: 'wayne',
       revision: 5,
       authority,
       data: emptyAppData(),
@@ -330,7 +330,7 @@ describe('generated planning transport', () => {
       role: 'owner',
       canWrite: true,
     };
-    const reply = { accountId: 'wayne', revision: 5, authority, data: emptyAppData(), capacity };
+    const reply = { companyId: 'wayne', revision: 5, authority, data: emptyAppData(), capacity };
     const { transport, requests } = harness(reply);
 
     const result = await transport.read(context, signal, capacity.window);
@@ -357,7 +357,7 @@ describe('generated planning transport', () => {
 
   it('refuses a canonical read without a verified write capability', async () => {
     const { transport } = harness({
-      accountId: 'wayne',
+      companyId: 'wayne',
       revision: 5,
       authority: {
         actorId: 'bruce',
@@ -373,7 +373,7 @@ describe('generated planning transport', () => {
 
   it('refuses a read naming another company', async () => {
     const { transport } = harness({
-      accountId: 'stark',
+      companyId: 'stark',
       revision: 5,
       authority: {},
       data: emptyAppData(),

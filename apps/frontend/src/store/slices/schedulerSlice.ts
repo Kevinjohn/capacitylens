@@ -40,11 +40,11 @@ export function buildWeekAnchor(weekStart: ISODate): { originDate: ISODate; focu
  * the server says it is. Undefined while no date has been read; the first read anchors the view. */
 export function readCurrentWeekAnchor(
   data: AppData,
-  accountId: ID | null,
+  companyId: ID | null,
   today: ISODate | null,
 ): { originDate: ISODate; focusDate: ISODate } | undefined {
   if (today === null) return undefined;
-  return buildWeekAnchor(startOfWeekISO(today, resolveWeekStart(data, accountId)));
+  return buildWeekAnchor(startOfWeekISO(today, resolveWeekStart(data, companyId)));
 }
 
 function createDefaultSchedulerUi(emptyFilters: () => Filters): SchedulerUI {

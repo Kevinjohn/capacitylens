@@ -128,7 +128,7 @@ describe('PermissionProvider authenticated lookup posture', () => {
         kind: 'active',
         generation: 4,
         state: {
-          accountId: 'a-studio',
+          companyId: 'a-studio',
           targetUserId: 'u-viewer',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
@@ -377,7 +377,7 @@ describe('PermissionProvider account-switch safety', () => {
     await act(async () =>
       resolveStatus({
         active: true,
-        accountId: 'a-studio',
+        companyId: 'a-studio',
         targetUserId: 'u-viewer',
         targetName: 'Selina Kyle',
         effectiveRole: 'viewer',

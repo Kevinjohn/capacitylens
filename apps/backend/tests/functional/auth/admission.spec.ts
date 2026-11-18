@@ -20,7 +20,7 @@ import {
   expectStatus,
 } from '../../helpers/identities.js';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
 const person = 'clark.kent@wayne.example';
 const password = 'admission-password-2026';
@@ -33,11 +33,11 @@ const as = (cookie: string) => ({
 });
 
 const planning = (client: ApiClient, cookie: string) =>
-  as(cookie).get(client, `/api/companies/${accountId}/planning`);
+  as(cookie).get(client, `/api/companies/${companyId}/planning`);
 
 async function company(api: ApiClient) {
   const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
+  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
   return signIn(api, owner);
 }
 
@@ -104,7 +104,7 @@ test.group('admission and membership completion', (group) => {
     const revision = async () => {
       const row = await db
         .from('company_planning_revisions')
-        .where('account_id', accountId)
+        .where('company_id', companyId)
         .first();
       return Number(row?.revision);
     };
@@ -116,10 +116,10 @@ test.group('admission and membership completion', (group) => {
     const before = await revision();
     const completed = await as(cookie).post(api, '/api/admission/complete');
     completed.assertStatus(200);
-    assert.deepEqual(completed.body(), { accountId, role: 'editor', created: true });
+    assert.deepEqual(completed.body(), { companyId, role: 'editor', created: true });
     assert.equal(await revision(), before + 1);
     const again = await as(cookie).post(api, '/api/admission/complete');
-    assert.deepEqual(again.body(), { accountId, role: 'editor', created: false });
+    assert.deepEqual(again.body(), { companyId, role: 'editor', created: false });
     assert.isFalse(await membershipRequired());
     await expectStatus(planning(api, cookie), 200);
   });
@@ -161,7 +161,7 @@ test.group('admission and membership completion', (group) => {
     await as(ownerSession.cookie).post(api, `/api/admission/${userId}/approve`);
     const { cookie } = await signIn(api, person, password);
     const completed = await as(cookie).post(api, '/api/admission/complete');
-    assert.deepEqual(completed.body(), { accountId, role: 'viewer', created: true });
+    assert.deepEqual(completed.body(), { companyId, role: 'viewer', created: true });
   });
 
   test('rejection and revocation deny company data on the next request', async ({
@@ -186,7 +186,7 @@ test.group('admission and membership completion', (group) => {
     const userId = await createIdentity(person, { password });
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      scope_id: accountId,
+      scope_id: companyId,
       user_id: userId,
       role: 'editor',
       status: 'suspended',
@@ -209,7 +209,7 @@ test.group('admission and membership completion', (group) => {
     const adminId = await createIdentity('diana.prince@wayne.example', { password });
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      scope_id: accountId,
+      scope_id: companyId,
       user_id: adminId,
       role: 'admin',
       status: 'active',
@@ -229,7 +229,7 @@ test.group('admission and membership completion', (group) => {
     const editorId = await createIdentity('barry.allen@wayne.example', { password });
     const now = new Date().toISOString();
     await db.table('memberships').insert({
-      scope_id: accountId,
+      scope_id: companyId,
       user_id: editorId,
       role: 'editor',
       status: 'active',

@@ -15,7 +15,7 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { emptyCapacity } from '@/test/capacityFixtures';
 
-type Row = { id: string; accountId?: string; [key: string]: unknown };
+type Row = { id: string; companyId?: string; [key: string]: unknown };
 /** Rows a queued write changes in the stub's canonical data, which the next read returns. */
 export type PlanningPatch = {
   upserts: Array<
@@ -135,7 +135,7 @@ export class StubPlanningTransport implements PlanningTransport {
     const data = emptyAppData();
     for (const entity of APP_DATA_KEYS) {
       const rows = this.rows(entity).filter((row) =>
-        entity === 'accounts' ? row.id === context.companyId : row.accountId === context.companyId,
+        entity === 'accounts' ? row.id === context.companyId : row.companyId === context.companyId,
       );
       Object.assign(data, { [entity]: structuredClone(rows) });
     }
@@ -210,7 +210,7 @@ export class StubPlanningTransport implements PlanningTransport {
         updatedAt: now,
         ...fields,
         id,
-        ...(entity === 'accounts' ? {} : { accountId: companyId }),
+        ...(entity === 'accounts' ? {} : { companyId: companyId }),
       } as Row;
       this.replaceRows(entity, [...this.rows(entity).filter((current) => current.id !== id), row]);
     };

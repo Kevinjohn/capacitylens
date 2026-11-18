@@ -10,7 +10,7 @@ import {
 } from '../../helpers/authenticated_data_fixture.js';
 import { clearIdentities, createIdentity, signIn, expectStatus } from '../../helpers/identities.js';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const owner = { email: 'bruce.wayne@wayne.example', password: 'batman-secret-2026' };
 const editor = { email: 'dick.grayson@wayne.example', password: 'nightwing-secret-2026' };
 
@@ -24,7 +24,7 @@ async function company() {
     name: 'Bruce Wayne',
     password: owner.password,
   });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
+  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
   return ownerId;
 }
 
@@ -35,7 +35,7 @@ async function editorMember() {
   });
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    scope_id: accountId,
+    scope_id: companyId,
     user_id: userId,
     role: 'editor',
     status: 'active',
@@ -54,7 +54,7 @@ async function editorMember() {
   });
   await db.table('account_member_resources').insert({
     id: 'link-dick-person',
-    account_id: accountId,
+    company_id: companyId,
     user_id: userId,
     resource_id: 'person-dick',
     revision: 'test',
@@ -108,10 +108,10 @@ test.group('account deletion', (group) => {
     await expectStatus(accounts(client, cookie), 401);
     const audit = await db
       .from('audit_entries')
-      .where({ account_id: accountId, action: 'identity.deleted', actor_id: userId });
+      .where({ company_id: companyId, action: 'identity.deleted', actor_id: userId });
     assert.lengthOf(audit, 1);
     // The company and its Owner are untouched.
-    assert.lengthOf(await db.from('memberships').where('scope_id', accountId), 1);
+    assert.lengthOf(await db.from('memberships').where('scope_id', companyId), 1);
     // Invitations the person sent stay acceptable without naming them.
     const invitations = await db.from('account_invitations').select('inviter_id');
     assert.lengthOf(invitations, 1);

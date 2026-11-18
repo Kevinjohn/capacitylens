@@ -186,7 +186,7 @@ test('masquerade migration retires legacy tokens and preserves historical audit 
       .run('bruce', 'a'.repeat(64), now, now, '2999-01-01T00:00:00.000Z');
     database
       .prepare(
-        'INSERT INTO masquerades (id,created_at,updated_at,account_id,session_id,actor_user_id,role,target_user_id,token,started_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
+        'INSERT INTO masquerades (id,created_at,updated_at,company_id,session_id,actor_user_id,role,target_user_id,token,started_at) VALUES (?,?,?,?,?,?,?,?,?,?)'
       )
       .run(
         'legacy-mode',
@@ -202,7 +202,7 @@ test('masquerade migration retires legacy tokens and preserves historical audit 
       );
     database
       .prepare(
-        'INSERT INTO audit_entries (id,account_id,actor_id,action,entity,entity_id,details,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)'
+        'INSERT INTO audit_entries (id,company_id,actor_id,action,entity,entity_id,details,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)'
       )
       .run(
         'historical-audit',

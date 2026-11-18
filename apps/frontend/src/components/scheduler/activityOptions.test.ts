@@ -3,7 +3,7 @@ import { expect, it, vi } from 'vitest';
 import type { Activity, Phase, Project } from '@capacitylens/shared/types/entities';
 import { buildActivityOptions, sortGroupedOptions } from './activityOptions';
 
-const row = { accountId: 'account', createdAt: 't', updatedAt: 't' } as const;
+const row = { companyId: 'account', createdAt: 't', updatedAt: 't' } as const;
 
 it('resolves and numbers a large duplicate set without rescanning metadata arrays', () => {
   const project: Project = {

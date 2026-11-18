@@ -23,11 +23,11 @@ async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
 
 export default class MasqueradeController {
   async start(ctx: HttpContext) {
-    const accountId = ctx.params.companyId;
+    const companyId = ctx.params.companyId;
     const body: unknown = ctx.request.body();
     if (
-      typeof accountId !== 'string' ||
-      !accountId ||
+      typeof companyId !== 'string' ||
+      !companyId ||
       !hasOnlyFields(body, ['targetUserId']) ||
       typeof body.targetUserId !== 'string' ||
       !body.targetUserId
@@ -42,8 +42,8 @@ export default class MasqueradeController {
       );
       if (!started.isMasquerading) throw new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
       return ctx.response.ok({
-        ...(await currentMasquerade(ctx, db.connection(), accountId)),
-        accountId,
+        ...(await currentMasquerade(ctx, db.connection(), companyId)),
+        companyId,
       });
     });
   }
@@ -53,15 +53,15 @@ export default class MasqueradeController {
       try {
         const signIn = await signedInSession(ctx);
         if (!signIn) return ctx.response.ok({ active: false, contextToken: null });
-        const input: unknown = ctx.request.input('accountId');
-        const accountId = typeof input === 'string' && input ? input : undefined;
-        if (accountId) {
-          const mode = await currentMasquerade(ctx, db.connection(), accountId);
+        const input: unknown = ctx.request.input('companyId');
+        const companyId = typeof input === 'string' && input ? input : undefined;
+        if (companyId) {
+          const mode = await currentMasquerade(ctx, db.connection(), companyId);
           if (mode.active) return ctx.response.ok(mode);
-          if (!(await activeCompanyRole(signIn.userId, accountId, undefined))) {
+          if (!(await activeCompanyRole(signIn.userId, companyId, undefined))) {
             throw new IdentityAuthorityError('Company membership is unavailable.');
           }
-          return ctx.response.ok({ ...mode, accountId });
+          return ctx.response.ok({ ...mode, companyId });
         }
         return ctx.response.ok(await currentMasquerade(ctx, db.connection(), undefined));
       } catch (error) {

@@ -12,7 +12,7 @@ const data: AppData = {
     {
       ...NULLABLE_FIELDS.clients,
       id: 'c1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Ferris',
@@ -23,7 +23,7 @@ const data: AppData = {
     {
       ...NULLABLE_FIELDS.projects,
       id: 'p1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'P1',
@@ -33,7 +33,7 @@ const data: AppData = {
     {
       ...NULLABLE_FIELDS.projects,
       id: 'p2',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'P2',
@@ -44,7 +44,7 @@ const data: AppData = {
   phases: [
     {
       id: 'ph1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Disc',
@@ -55,7 +55,7 @@ const data: AppData = {
     {
       ...NULLABLE_FIELDS.activities,
       id: 't1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'T1',
@@ -64,13 +64,13 @@ const data: AppData = {
     },
   ],
   resources: [
-    makeResource({ id: 'r1', accountId: DEFAULT_ACCOUNT_ID, name: 'A', role: 'Dev', color: '#4' }),
+    makeResource({ id: 'r1', companyId: DEFAULT_ACCOUNT_ID, name: 'A', role: 'Dev', color: '#4' }),
   ],
   allocations: [
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'a1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -84,7 +84,7 @@ const data: AppData = {
   timeOff: [
     {
       id: 'to1',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',
@@ -117,7 +117,7 @@ describe('lookup selectors', () => {
 describe('byDisciplineOrder (scheduler grouping)', () => {
   const disc = (id: string, name: string, sortOrder: number): Discipline => ({
     id,
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     name,
     sortOrder,
     color: null,

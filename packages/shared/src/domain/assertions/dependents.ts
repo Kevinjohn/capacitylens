@@ -29,7 +29,7 @@ import type { ValidationDataLookup } from '../validationLookup.js';
 
 interface AssertAllocationPairStaysValidOptions {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   id: ID;
   edit:
     | { side: 'resource'; merged: Resource; existing?: Resource }
@@ -41,7 +41,7 @@ interface AssertAllocationPairStaysValidOptions {
 
 interface AssertResourceKindAllowsDependentsOptions {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   resourceId: ID;
   mergedKind: unknown;
   lookup?: ValidationDataLookup;
@@ -49,7 +49,7 @@ interface AssertResourceKindAllowsDependentsOptions {
 
 interface AssertResourceProjectAllowsDependentsOptions {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   resourceId: ID;
   merged: Resource;
   existing?: Resource;
@@ -58,7 +58,7 @@ interface AssertResourceProjectAllowsDependentsOptions {
 
 interface AssertActivityProjectAllowsDependentsOptions {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   activityId: ID;
   merged: Activity;
   existing?: Activity;
@@ -67,7 +67,7 @@ interface AssertActivityProjectAllowsDependentsOptions {
 
 interface AssertResourceExistsOptions {
   data: AppData;
-  accountId: ID;
+  companyId: ID;
   resourceId: ID;
   existing?: Pick<TimeOff, 'resourceId'>;
   lookup?: ValidationDataLookup;
@@ -77,7 +77,7 @@ interface AssertResourceExistsOptions {
 // Reject the interactive edit until dependents are reassigned; imports validate the full dataset.
 function assertResourceKindAllowsDependentsWithOptions({
   data,
-  accountId,
+  companyId,
   resourceId,
   mergedKind,
   lookup,
@@ -87,12 +87,12 @@ function assertResourceKindAllowsDependentsWithOptions({
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
   const owns = (entity: Allocation | TimeOff) =>
-    entity.resourceId === resourceId && belongsToAccount(entity, accountId);
+    entity.resourceId === resourceId && belongsToAccount(entity, companyId);
   const hasLoadedAllocation = lookup
-    ? lookup.resourceHasLoadedAllocation(accountId, resourceId)
+    ? lookup.resourceHasLoadedAllocation(companyId, resourceId)
     : data.allocations.some((allocation) => owns(allocation) && allocation.hoursPerDay !== 0);
   const hasTimeOff = lookup
-    ? lookup.resourceHasTimeOff(accountId, resourceId)
+    ? lookup.resourceHasTimeOff(companyId, resourceId)
     : data.timeOff.some((timeOff) => owns(timeOff));
   if (hasLoadedAllocation || hasTimeOff) {
     throwDomainError(
@@ -105,9 +105,9 @@ function assertResourceKindAllowsDependentsWithOptions({
 /** Reject a conversion to external while loaded allocations or time off remain.
  * @throws DomainError; the caller must leave the resource unchanged. */
 const assertResourceKindAllowsDependents = function assertResourceKindAllowsDependents(
-  ...[data, accountId, resourceId, mergedKind, lookup]: [
+  ...[data, companyId, resourceId, mergedKind, lookup]: [
     data: AppData,
-    accountId: ID,
+    companyId: ID,
     resourceId: ID,
     mergedKind: unknown,
     lookup?: ValidationDataLookup,
@@ -115,7 +115,7 @@ const assertResourceKindAllowsDependents = function assertResourceKindAllowsDepe
 ): void {
   assertResourceKindAllowsDependentsWithOptions({
     data,
-    accountId,
+    companyId,
     resourceId,
     mergedKind,
     ...(lookup === undefined ? {} : { lookup }),
@@ -132,7 +132,7 @@ Object.defineProperty(assertResourceKindAllowsDependents, 'length', { value: 5 }
 // available. Import retains its separate reconciling contract.
 function assertResourceProjectAllowsDependentsWithOptions({
   data,
-  accountId,
+  companyId,
   resourceId,
   merged,
   existing,
@@ -149,7 +149,7 @@ function assertResourceProjectAllowsDependentsWithOptions({
   }
   assertAllocationPairStaysValid({
     data,
-    accountId,
+    companyId,
     id: resourceId,
     edit: { side: 'resource', merged, ...(existing === undefined ? {} : { existing }) },
     code: 'placeholder_project_dependents',
@@ -161,9 +161,9 @@ function assertResourceProjectAllowsDependentsWithOptions({
 /** Reject a resource project/kind edit that newly invalidates an existing allocation’s placeholder assignment.
  * @throws DomainError; unrelated pre-existing invalidity is tolerated. */
 const assertResourceProjectAllowsDependents = function assertResourceProjectAllowsDependents(
-  ...[data, accountId, resourceId, merged, existing, lookup]: [
+  ...[data, companyId, resourceId, merged, existing, lookup]: [
     data: AppData,
-    accountId: ID,
+    companyId: ID,
     resourceId: ID,
     merged: Resource,
     existing?: Resource,
@@ -172,7 +172,7 @@ const assertResourceProjectAllowsDependents = function assertResourceProjectAllo
 ): void {
   assertResourceProjectAllowsDependentsWithOptions({
     data,
-    accountId,
+    companyId,
     resourceId,
     merged,
     ...(existing === undefined ? {} : { existing }),
@@ -186,7 +186,7 @@ Object.defineProperty(assertResourceProjectAllowsDependents, 'length', { value: 
 // Reject only newly invalid assignments so unrelated edits do not become a repair boundary.
 function assertAllocationPairStaysValid({
   data,
-  accountId,
+  companyId,
   id,
   edit,
   code,
@@ -196,7 +196,7 @@ function assertAllocationPairStaysValid({
   const lookupOptions = lookup === undefined ? {} : { lookup };
   for (const allocation of listValidationAllocations({
     data,
-    accountId,
+    companyId,
     side: edit.side,
     id,
     ...lookupOptions,
@@ -208,7 +208,7 @@ function assertAllocationPairStaysValid({
         data,
         table: 'activities',
         id: allocation.activityId,
-        accountId,
+        companyId,
         ...lookupOptions,
       });
       if (!activity) continue;
@@ -220,7 +220,7 @@ function assertAllocationPairStaysValid({
         data,
         table: 'resources',
         id: allocation.resourceId,
-        accountId,
+        companyId,
         ...lookupOptions,
       });
       if (!resource) continue;
@@ -245,7 +245,7 @@ function assertAllocationPairStaysValid({
 // placeholder allocation. Existing corrupt rows do not block unrelated activity edits.
 function assertActivityProjectAllowsDependentsWithOptions({
   data,
-  accountId,
+  companyId,
   activityId,
   merged,
   existing,
@@ -262,7 +262,7 @@ function assertActivityProjectAllowsDependentsWithOptions({
   }
   assertAllocationPairStaysValid({
     data,
-    accountId,
+    companyId,
     id: activityId,
     edit: { side: 'activity', merged, ...(existing === undefined ? {} : { existing }) },
     code: 'activity_project_dependents',
@@ -274,9 +274,9 @@ function assertActivityProjectAllowsDependentsWithOptions({
 /** Reject an activity project/kind edit that newly invalidates an existing placeholder allocation.
  * @throws DomainError; unrelated pre-existing invalidity is tolerated. */
 const assertActivityProjectAllowsDependents = function assertActivityProjectAllowsDependents(
-  ...[data, accountId, activityId, merged, existing, lookup]: [
+  ...[data, companyId, activityId, merged, existing, lookup]: [
     data: AppData,
-    accountId: ID,
+    companyId: ID,
     activityId: ID,
     merged: Activity,
     existing?: Activity,
@@ -285,7 +285,7 @@ const assertActivityProjectAllowsDependents = function assertActivityProjectAllo
 ): void {
   assertActivityProjectAllowsDependentsWithOptions({
     data,
-    accountId,
+    companyId,
     activityId,
     merged,
     ...(existing === undefined ? {} : { existing }),
@@ -308,7 +308,7 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
 // so a direct store / API write can't persist an invisible orphan.
 function assertResourceExistsWithOptions({
   data,
-  accountId,
+  companyId,
   resourceId,
   existing,
   lookup,
@@ -318,7 +318,7 @@ function assertResourceExistsWithOptions({
     data,
     table: 'resources',
     id: resourceId,
-    accountId,
+    companyId,
     ...lookupOptions,
   });
   if (!resource) {
@@ -347,9 +347,9 @@ function assertResourceExistsWithOptions({
 /** Require a same-account, capacity-tracked resource for time off; a changed reference must also be active.
  * @throws DomainError; callers must not persist the reference. */
 const assertResourceExists = function assertResourceExists(
-  ...[data, accountId, resourceId, existing, lookup]: [
+  ...[data, companyId, resourceId, existing, lookup]: [
     data: AppData,
-    accountId: ID,
+    companyId: ID,
     resourceId: ID,
     existing?: Pick<TimeOff, 'resourceId'>,
     lookup?: ValidationDataLookup,
@@ -357,7 +357,7 @@ const assertResourceExists = function assertResourceExists(
 ): void {
   assertResourceExistsWithOptions({
     data,
-    accountId,
+    companyId,
     resourceId,
     ...(existing === undefined ? {} : { existing }),
     ...(lookup === undefined ? {} : { lookup }),

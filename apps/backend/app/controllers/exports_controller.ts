@@ -17,17 +17,17 @@ import {
 export default class ExportsController {
   async show(ctx: HttpContext) {
     const { request, response } = ctx;
-    const { accountId, includeInactive } = await exportQueryValidator.validate(request.qs());
+    const { companyId, includeInactive } = await exportQueryValidator.validate(request.qs());
     return withActor(ctx, async (_actor, trx) => {
       // Under view-as this also refuses unless the actor may view the named company as its member.
-      const principal = await effectiveReadPrincipal(trx, accountId);
-      const role = await activeCompanyRole(principal.effectiveId, accountId, trx);
+      const principal = await effectiveReadPrincipal(trx, companyId);
+      const role = await activeCompanyRole(principal.effectiveId, companyId, trx);
       if (!role) throw new IdentityAuthorityError('Forbidden.');
       if (includeInactive === '1' && !access.can(role, 'members:manage')) {
         throw new IdentityAuthorityError('Forbidden.');
       }
-      const state = await readStateWithClient(trx, accountId, includeInactive === '1');
-      return response.ok(transformState(state, accountId, role));
+      const state = await readStateWithClient(trx, companyId, includeInactive === '1');
+      return response.ok(transformState(state, companyId, role));
     });
   }
 
@@ -38,17 +38,17 @@ export default class ExportsController {
    */
   async download(ctx: HttpContext) {
     try {
-      const accountId = String(ctx.params.companyId);
+      const companyId = String(ctx.params.companyId);
       const text = await withActor(ctx, async (_actor, trx) => {
-        const { authority } = await resolvePlanningAuthority(trx, accountId);
+        const { authority } = await resolvePlanningAuthority(trx, companyId);
         const rows = await readStateWithClient(
           trx,
-          accountId,
+          companyId,
           access.can(authority.role, 'members:manage')
         );
         return serializeCompanyExport(
-          buildCompanyExport(transformState(rows, accountId, authority.role), {
-            accountId,
+          buildCompanyExport(transformState(rows, companyId, authority.role), {
+            companyId,
             completeness: authority.canSeePrivateNames ? 'full' : 'redacted',
           })
         );

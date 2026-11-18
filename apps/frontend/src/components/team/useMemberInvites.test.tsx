@@ -53,7 +53,7 @@ describe('useMemberInvites', () => {
     await act(async () => submit());
 
     expect(createInvitation).toHaveBeenCalledWith({
-      accountId: 'account-1',
+      companyId: 'account-1',
       role: 'editor',
       email: 'diana@example.com',
     });

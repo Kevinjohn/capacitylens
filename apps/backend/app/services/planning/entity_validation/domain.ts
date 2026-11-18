@@ -41,10 +41,10 @@ export function assertEntityDomain(
   existing: Record<string, unknown> | undefined,
   state: AppData,
   lookup: ValidationDataLookup,
-  hasOtherBuiltinClient: (accountId: string, clientId: string) => boolean
+  hasOtherBuiltinClient: (companyId: string, clientId: string) => boolean
 ) {
   const id = row.id as string;
-  const accountId = row.accountId as string;
+  const companyId = row.companyId as string;
   if (isLifecycleEntityKey(table)) {
     if (
       table === 'clients' &&
@@ -85,14 +85,14 @@ export function assertEntityDomain(
     ) {
       throw new EntityWriteError('The built-in Internal client has a fixed name and colour.');
     }
-    if (row.builtin === true && hasOtherBuiltinClient(accountId, id)) {
+    if (row.builtin === true && hasOtherBuiltinClient(companyId, id)) {
       throw new EntityWriteError('This company already has its built-in Internal client.');
     }
     return;
   }
   if (table === 'disciplines') return;
   if (table !== 'allocations' && table !== 'timeOff' && table !== 'closures') {
-    assertScopedRefs(state, accountId, table, row, existing, lookup, { fullRow: true });
+    assertScopedRefs(state, companyId, table, row, existing, lookup, { fullRow: true });
   }
   if (
     table === 'phases' &&
@@ -100,7 +100,7 @@ export function assertEntityDomain(
     existing.projectId !== row.projectId &&
     state.activities.some(
       (activity) =>
-        activity.accountId === accountId &&
+        activity.companyId === companyId &&
         activity.phaseId === id &&
         activity.projectId !== row.projectId
     )
@@ -117,8 +117,8 @@ export function assertEntityDomain(
     const resource = row as unknown as Resource;
     // The stored row comes from the same table, so it is a Resource.
     const previous = existing as Resource | undefined;
-    assertResourceProjectAllowsDependents(state, accountId, id, resource, previous, lookup);
-    assertResourceKindAllowsDependents(state, accountId, id, resource.kind, lookup);
+    assertResourceProjectAllowsDependents(state, companyId, id, resource, previous, lookup);
+    assertResourceKindAllowsDependents(state, companyId, id, resource.kind, lookup);
     const availability = validateResourceAvailabilityPair(
       resource.firstAvailableDate ?? undefined,
       resource.lastAvailableDate ?? undefined
@@ -133,7 +133,7 @@ export function assertEntityDomain(
   } else if (table === 'activities') {
     assertActivityProjectAllowsDependents(
       state,
-      accountId,
+      companyId,
       id,
       // The row is validated client input typed as a plain record, so it does not overlap the entity type.
       row as unknown as Activity,
@@ -146,7 +146,7 @@ export function assertEntityDomain(
     const allocation = row as unknown as Allocation;
     assertAllocationRefs(
       state,
-      accountId,
+      companyId,
       allocation.resourceId,
       allocation.activityId,
       allocation.hoursPerDay,
@@ -162,7 +162,7 @@ export function assertEntityDomain(
         // The stored row comes from the same table, so it is an Allocation.
         existing: existing as Allocation | undefined,
         resource,
-        accountWorkingDays: lookup.accountWorkingDays(accountId),
+        accountWorkingDays: lookup.accountWorkingDays(companyId),
       });
     }
   } else if (table === 'timeOff') {
@@ -170,7 +170,7 @@ export function assertEntityDomain(
     const timeOff = row as unknown as TimeOff;
     assertResourceExists(
       state,
-      accountId,
+      companyId,
       timeOff.resourceId,
       existing as Pick<TimeOff, 'resourceId'> | undefined,
       lookup
@@ -189,14 +189,14 @@ export function assertAllocationStartsOnWorkingDay(
   row: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   lookup: ValidationDataLookup,
-  accountId: string
+  companyId: string
 ) {
   if (existing && (existing.resourceId === row.resourceId || row.ignoreWorkingDays === true)) {
     return;
   }
   const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
   if (!resource || typeof row.startDate !== 'string') return;
-  const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(accountId));
+  const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(companyId));
   if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(row.startDate))) {
     throw new PlanningOperationError(
       400,

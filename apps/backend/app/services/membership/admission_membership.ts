@@ -15,13 +15,13 @@ import access from '#config/access_control';
  * membership is returned unchanged; a suspended one is never reactivated here.
  */
 export async function completeMembership(userId: string, trx: TransactionClientContract) {
-  const accountId = await installationCompanyId(trx);
-  if (!accountId) {
+  const companyId = await installationCompanyId(trx);
+  if (!companyId) {
     throw new AdmissionError('The company has not been set up yet.', 409, 'COMPANY_SETUP_REQUIRED');
   }
-  const existing = await access.memberships.find(accountId, userId, trx);
+  const existing = await access.memberships.find(companyId, userId, trx);
   if (existing?.status === 'active') {
-    return { accountId, role: String(existing.role), created: false };
+    return { companyId, role: String(existing.role), created: false };
   }
   if (existing) {
     throw new AdmissionError(
@@ -35,17 +35,17 @@ export async function completeMembership(userId: string, trx: TransactionClientC
   const evidence = await admission.record(userId, trx);
   const invited = evidence?.invitation?.role;
   const role = isInvitableRole(invited) ? invited : 'viewer';
-  await access.memberships.grant({ scopeId: accountId, userId, role, trx });
+  await access.memberships.grant({ scopeId: companyId, userId, role, trx });
   await writeAudit(trx, {
-    accountId,
+    companyId,
     actorId: userId,
     action: 'admission.completed',
     entity: 'membership',
     entityId: userId,
     fields: ['role'],
   });
-  await advancePlanningRevision(trx, accountId);
-  return { accountId, role, created: true };
+  await advancePlanningRevision(trx, companyId);
+  return { companyId, role, created: true };
 }
 
 /** Whether any company exists while this identity has no membership row in any company. */

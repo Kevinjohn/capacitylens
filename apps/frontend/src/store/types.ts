@@ -19,7 +19,7 @@ export type MasqueradeRuntimeState =
   | { kind: 'inactive' }
   | {
       kind: 'starting';
-      pending: { accountId: string; targetUserId: string };
+      pending: { companyId: string; targetUserId: string };
       state?: MasqueradeState;
       generation: number;
     }

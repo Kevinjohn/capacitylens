@@ -10,7 +10,7 @@ import {
 } from '../../helpers/authenticated_data_fixture.js';
 import { clearIdentities, createIdentity, signIn } from '../../helpers/identities.js';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
 const waiting = 'selina.kyle@wayne.example';
 
@@ -20,7 +20,7 @@ test.group('account gate', (group) => {
     await resetState(false);
     await clearIdentities();
     const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
+    await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
   });
 
   test('every route is classified by name and only the non-API routes have none', ({ assert }) => {
@@ -47,7 +47,7 @@ test.group('account gate', (group) => {
     assert,
   }) => {
     for (const path of [
-      `/api/companies/${accountId}/planning`,
+      `/api/companies/${companyId}/planning`,
       '/api/companies',
       '/api/admission',
     ]) {
@@ -72,7 +72,7 @@ test.group('account gate', (group) => {
     const planningRefusal = 'Company access needs admission.';
     const productRefusal = 'Your access to this company is waiting on admission.';
     for (const [path, error] of [
-      [`/api/companies/${accountId}/planning`, planningRefusal],
+      [`/api/companies/${companyId}/planning`, planningRefusal],
       ['/api/companies', productRefusal],
       ['/api/state', productRefusal],
     ] as const) {
@@ -84,7 +84,7 @@ test.group('account gate', (group) => {
       assert.isObject(body.decision);
     }
     // The body is invalid; the gate answers before the handler reads it.
-    const write = await asDataOwner(client.post(`/api/companies/${accountId}/clients`), cookie)
+    const write = await asDataOwner(client.post(`/api/companies/${companyId}/clients`), cookie)
       .json({ unknown: true })
       .send();
     write.assertStatus(403);
@@ -114,7 +114,7 @@ test.group('account gate', (group) => {
       );
     }
     limited.push(
-      await asDataOwner(client.post(`/api/companies/${accountId}/masquerade`), cookie)
+      await asDataOwner(client.post(`/api/companies/${companyId}/masquerade`), cookie)
         .json({ userId: ownerId })
         .send(),
       await asDataOwner(client.delete('/api/masquerade'), cookie).send()

@@ -20,32 +20,32 @@ test.group('M1 HTTP contract', (group) => {
 
   test('validates state queries and scopes the account read', async ({ client, assert }) => {
     client = await resetAuthenticatedClient(client, true);
-    const empty = await client.get('/api/state?accountId=');
+    const empty = await client.get('/api/state?companyId=');
     assert.equal(empty.status(), 400);
     assert.equal(empty.body().code, 'VALIDATION_ERROR');
     const missing = await client.get('/api/state');
     assert.equal(missing.status(), 400);
     const refusal = missing.body() as unknown as { code: string; error: string };
     assert.equal(refusal.code, 'VALIDATION_ERROR');
-    assert.include(refusal.error, 'accountId');
-    const repeated = await client.get('/api/state?accountId=a-studio&accountId=a-loft');
+    assert.include(refusal.error, 'companyId');
+    const repeated = await client.get('/api/state?companyId=a-studio&companyId=a-loft');
     assert.equal(repeated.status(), 400);
-    const whitespace = await client.get('/api/state?accountId=%20%20');
+    const whitespace = await client.get('/api/state?companyId=%20%20');
     assert.equal(whitespace.status(), 400);
     assert.equal(whitespace.body().code, 'VALIDATION_ERROR');
-    const invalidInactive = await client.get('/api/state?accountId=a-studio&includeInactive=true');
+    const invalidInactive = await client.get('/api/state?companyId=a-studio&includeInactive=true');
     assert.equal(invalidInactive.status(), 400);
     assert.equal(invalidInactive.body().code, 'VALIDATION_ERROR');
     for (const query of [
-      'accountId=a-studio&unknown=1',
-      'accountId=a-studio&includeInactive=1&includeInactive=1',
-      'accountId[unexpected]=1',
+      'companyId=a-studio&unknown=1',
+      'companyId=a-studio&includeInactive=1&includeInactive=1',
+      'companyId[unexpected]=1',
     ]) {
       const invalid = await client.get(`/api/state?${query}`);
       invalid.assertStatus(400);
       assert.equal(invalid.body().code, 'VALIDATION_ERROR');
     }
-    const scoped = await client.get('/api/state?accountId=a-studio');
+    const scoped = await client.get('/api/state?companyId=a-studio');
     assert.equal(scoped.status(), 200);
     assert.deepEqual(
       scoped.body().accounts.map(({ id }: { id: string }) => id),
@@ -65,7 +65,7 @@ test.group('M1 HTTP contract', (group) => {
       assert.isTrue(
         scoped
           .body()
-          [key].every(({ accountId }: { accountId: string }) => accountId === 'a-studio'),
+          [key].every(({ companyId }: { companyId: string }) => companyId === 'a-studio'),
         key
       );
   });
@@ -182,7 +182,7 @@ test.group('M1 HTTP contract', (group) => {
 
   test('diagnostics preserves the unavailable database projection', async ({ client, assert }) => {
     client = await resetAuthenticatedClient(client, true);
-    await db.rawQuery('DROP INDEX closures_account_id_index');
+    await db.rawQuery('DROP INDEX closures_company_id_index');
     try {
       const response = await client.get('/api/diagnostics');
       assert.equal(response.status(), 503);
@@ -195,7 +195,7 @@ test.group('M1 HTTP contract', (group) => {
         },
       });
     } finally {
-      await db.rawQuery('CREATE INDEX closures_account_id_index ON closures (account_id)');
+      await db.rawQuery('CREATE INDEX closures_company_id_index ON closures (company_id)');
     }
   });
 });

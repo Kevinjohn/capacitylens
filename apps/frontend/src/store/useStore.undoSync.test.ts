@@ -12,7 +12,7 @@ import {
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 
 const T = '2026-01-01T00:00:00.000Z';
-const meta = { accountId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
+const meta = { companyId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
 

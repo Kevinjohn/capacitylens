@@ -11,15 +11,15 @@ import { transformState } from '#transformers/state_transformer';
 
 function confidentialSource() {
   const source = seed();
-  const client = source.clients.find((row) => row.accountId === 'a-studio' && !row.builtin)!;
+  const client = source.clients.find((row) => row.companyId === 'a-studio' && !row.builtin)!;
   client.name = 'Wayne Foundation confidential research';
   client.isPrivate = true;
   client.codeName = 'Project Nightwing';
-  const project = source.projects.find((row) => row.accountId === 'a-studio')!;
+  const project = source.projects.find((row) => row.companyId === 'a-studio')!;
   project.name = 'Gotham confidential research';
   project.isPrivate = true;
   project.codeName = 'Project Oracle';
-  source.timeOff.find((row) => row.accountId === 'a-studio')!.note = 'Confidential appointment';
+  source.timeOff.find((row) => row.companyId === 'a-studio')!.note = 'Confidential appointment';
   return { source, client, project };
 }
 
@@ -36,14 +36,14 @@ function dropDisplayNames<T extends { clients: object[]; projects: object[] }>(s
 test.group('Beta transfer confidentiality boundary', () => {
   test('owner projection preserves supported confidential content and stable IDs', ({ assert }) => {
     const source = transformState(confidentialSource().source, 'a-studio', 'owner');
-    const document = buildCompanyExport(source, { accountId: 'a-studio', completeness: 'full' });
+    const document = buildCompanyExport(source, { companyId: 'a-studio', completeness: 'full' });
     const prepared = prepareCompanyImport(parseCompanyExport(serializeCompanyExport(document)), {
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       memberResourceLinks: [{ memberId: 'bruce-member', resourceId: source.resources[0]!.id }],
     });
     assert.deepEqual(prepared.data, dropDisplayNames(source));
     assert.deepEqual(
-      buildCompanyExport(prepared.data, { accountId: 'a-studio', completeness: 'full' }),
+      buildCompanyExport(prepared.data, { companyId: 'a-studio', completeness: 'full' }),
       document
     );
   });
@@ -55,7 +55,7 @@ test.group('Beta transfer confidentiality boundary', () => {
     for (const role of ['admin', 'editor', 'viewer'] as const) {
       const projection = transformState(source, 'a-studio', role);
       const document = buildCompanyExport(projection, {
-        accountId: 'a-studio',
+        companyId: 'a-studio',
         completeness: 'redacted',
       });
       const serialized = serializeCompanyExport(document);
@@ -65,7 +65,7 @@ test.group('Beta transfer confidentiality boundary', () => {
       assert.notInclude(serialized, privateProject.name);
       if (role !== 'admin') assert.notInclude(serialized, 'Confidential appointment');
       assert.throws(
-        () => prepareCompanyImport(parsed, { accountId: 'a-studio', memberResourceLinks: [] }),
+        () => prepareCompanyImport(parsed, { companyId: 'a-studio', memberResourceLinks: [] }),
         /full/i
       );
     }
@@ -81,7 +81,7 @@ test.group('Beta transfer backend contract regressions', () => {
       for (const role of ['owner', 'admin', 'editor', 'viewer'] as const) {
         const projection = transformState(source, 'a-studio', role);
         const document = buildCompanyExport(projection, {
-          accountId: 'a-studio',
+          companyId: 'a-studio',
           completeness: role === 'owner' ? 'full' : 'redacted',
         });
         const parsed = parseCompanyExport(serializeCompanyExport(document));
@@ -98,7 +98,7 @@ test.group('Beta transfer backend contract regressions', () => {
           assert.notInclude(serializeCompanyExport(document), client.name);
           assert.notInclude(serializeCompanyExport(document), project.name);
           assert.throws(
-            () => prepareCompanyImport(parsed, { accountId: 'a-studio', memberResourceLinks: [] }),
+            () => prepareCompanyImport(parsed, { companyId: 'a-studio', memberResourceLinks: [] }),
             /full/i
           );
         }
@@ -127,9 +127,9 @@ test.group('Beta transfer backend contract regressions', () => {
         );
         assert.equal(validated.color, color);
       }
-      const document = buildCompanyExport(source, { accountId: 'a-studio', completeness: 'full' });
+      const document = buildCompanyExport(source, { companyId: 'a-studio', completeness: 'full' });
       const prepared = prepareCompanyImport(parseCompanyExport(serializeCompanyExport(document)), {
-        accountId: 'a-studio',
+        companyId: 'a-studio',
         memberResourceLinks: [],
       });
       assert.deepEqual(prepared.data, dropDisplayNames(source));

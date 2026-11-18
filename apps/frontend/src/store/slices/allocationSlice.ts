@@ -51,19 +51,19 @@ function assertSuppliedHours(hours: number): void {
 function validateNewAllocations(
   internals: AllocationSliceInternals,
   data: AppData,
-  accountId: ID,
+  companyId: ID,
   inputs: readonly Draft<Allocation>[],
 ): void {
-  const account = data.accounts.find((candidate) => candidate.id === accountId);
+  const account = data.accounts.find((candidate) => candidate.id === companyId);
   const accountWorkingDays = normalizeAccountWorkingDays(
     account?.workingDays,
     account?.weekStartsOn ?? 1,
   );
   for (const input of inputs) {
-    const allocation = { ...NULLABLE_FIELDS.allocations, ...input, accountId };
+    const allocation = { ...NULLABLE_FIELDS.allocations, ...input, companyId };
     internals.assertAllocation(
       data,
-      accountId,
+      companyId,
       allocation.resourceId,
       allocation.activityId,
       allocation.hoursPerDay,
@@ -71,7 +71,7 @@ function validateNewAllocations(
     );
     assertDateRange(allocation.startDate, allocation.endDate);
     const resource = data.resources.find(
-      (candidate) => candidate.accountId === accountId && candidate.id === allocation.resourceId,
+      (candidate) => candidate.companyId === companyId && candidate.id === allocation.resourceId,
     );
     if (resource) {
       assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
@@ -86,9 +86,9 @@ function assertAvailabilityAfterPlacementChange(
 ): void {
   const resource = data.resources.find(
     (candidate) =>
-      candidate.accountId === existing.accountId && candidate.id === effective.resourceId,
+      candidate.companyId === existing.companyId && candidate.id === effective.resourceId,
   );
-  const account = data.accounts.find((candidate) => candidate.id === existing.accountId);
+  const account = data.accounts.find((candidate) => candidate.id === existing.companyId);
   const accountWorkingDays = normalizeAccountWorkingDays(
     account?.workingDays,
     account?.weekStartsOn ?? 1,
@@ -126,13 +126,13 @@ export function createAllocationSlice(
     const send = (command: PlanningCommand) => get().sendPlanningCommand(command);
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
       if (inputs.length === 0) throw new Error('At least one allocation is required.');
-      const accountId = requireAccount();
+      const companyId = requireAccount();
       if (blockedByViewer()) return null;
       const data = get().data;
       for (const input of inputs) assertSuppliedHours(input.hoursPerDay);
-      validateNewAllocations(internals, data, accountId, inputs);
+      validateNewAllocations(internals, data, companyId, inputs);
       // Row ids are minted here, on the typed command path; the server assigns any series id.
-      return { accountId, data, drafts: inputs.map((fields) => ({ id: newId(), fields })) };
+      return { companyId, data, drafts: inputs.map((fields) => ({ id: newId(), fields })) };
     };
 
     return {
@@ -201,7 +201,7 @@ export function createAllocationSlice(
         // load that the server would reject.
         assertAllocation(
           data,
-          existing.accountId,
+          existing.companyId,
           effective.resourceId,
           effective.activityId,
           effective.hoursPerDay,
@@ -212,7 +212,7 @@ export function createAllocationSlice(
         assertAvailabilityAfterPlacementChange(data, effective, existing);
         const command = buildAllocationUpdate({
           data,
-          accountId: existing.accountId,
+          companyId: existing.companyId,
           original: existing,
           args: { id, changes: patch },
         });
@@ -231,12 +231,12 @@ export function createAllocationSlice(
         const target = resolveOwnedRow(get().data, 'allocations', id);
         if (!target) return;
         if (!target.seriesId) throw new Error('This allocation is not part of a repeat series.');
-        const { accountId, seriesId, startDate } = target;
+        const { companyId, seriesId, startDate } = target;
         // One typed write deletes the whole tail, so a single Undo restores it.
         const ids = get()
           .data.allocations.filter(
             (allocation) =>
-              allocation.accountId === accountId &&
+              allocation.companyId === companyId &&
               allocation.seriesId === seriesId &&
               allocation.startDate >= startDate,
           )

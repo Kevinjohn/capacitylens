@@ -24,7 +24,7 @@ const TS = '2026-01-01T00:00:00.000Z';
 const A1 = 'a-studio';
 const A2 = 'a-loft';
 
-const meta = (id: ID, accountId: ID = A1) => ({ id, accountId, createdAt: TS, updatedAt: TS });
+const meta = (id: ID, companyId: ID = A1) => ({ id, companyId, createdAt: TS, updatedAt: TS });
 const account = (id: ID, name: string): Account => ({
   ...NULLABLE_FIELDS.accounts,
   id,
@@ -48,8 +48,8 @@ const project = (id: ID, overrides: Partial<Project> = {}): Project => ({
   color: '#3b82f6',
   ...overrides,
 });
-const phase = (id: ID, projectId: ID, accountId: ID = A1): Phase => ({
-  ...meta(id, accountId),
+const phase = (id: ID, projectId: ID, companyId: ID = A1): Phase => ({
+  ...meta(id, companyId),
   name: 'Discovery',
   projectId,
 });
@@ -85,27 +85,27 @@ function data(): AppData {
     clients: [
       client('c1'),
       client('c-archived', { archivedAt: TS }),
-      { ...client('c-loft'), accountId: A2, name: 'Avengers Tower' },
+      { ...client('c-loft'), companyId: A2, name: 'Avengers Tower' },
     ],
     projects: [
       project('p1'),
       project('p2'),
       project('p-archived', { archivedAt: TS }),
-      { ...project('p-loft', { clientId: 'c-loft' }), accountId: A2 },
+      { ...project('p-loft', { clientId: 'c-loft' }), companyId: A2 },
     ],
     phases: [phase('ph1', 'p1'), phase('ph-loft', 'p-loft', A2)],
     activities: [
       activity('t1'),
       activity('t-repeatable', { kind: 'repeatable', projectId: null }),
       activity('t-archived', { archivedAt: TS }),
-      { ...activity('t-loft', { projectId: 'p-loft' }), accountId: A2 },
+      { ...activity('t-loft', { projectId: 'p-loft' }), companyId: A2 },
     ],
     resources: [
       person('r1'),
       person('r-archived', { archivedAt: TS }),
       person('ph-p1', { kind: 'placeholder', name: 'Batgirl', projectId: 'p1' }),
       person('ext1', { kind: 'external', name: 'Kord Industries' }),
-      { ...person('r-loft', { name: 'Tony Stark' }), accountId: A2 },
+      { ...person('r-loft', { name: 'Tony Stark' }), companyId: A2 },
     ],
   };
 }

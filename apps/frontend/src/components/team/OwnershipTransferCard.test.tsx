@@ -226,7 +226,7 @@ describe('OwnershipTransferCard', () => {
       masquerade: {
         kind: 'active',
         state: {
-          accountId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_ACCOUNT_ID,
           targetUserId: 'selina',
           targetName: 'Selina Kyle',
           effectiveRole: 'owner',

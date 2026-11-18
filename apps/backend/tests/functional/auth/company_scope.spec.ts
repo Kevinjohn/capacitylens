@@ -85,7 +85,7 @@ test.group('company scope middleware', (group) => {
     });
     await expectRefused();
     assert.notExists(
-      await db.from('account_getting_started_dismissals').where('account_id', 'a-studio').first()
+      await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
     );
   });
 

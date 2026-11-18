@@ -124,7 +124,7 @@ export interface Account extends Entity {
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */
 export interface ScopedEntity extends Entity {
-  accountId: ID;
+  companyId: ID;
 }
 
 /** A team discipline that groups people and sets their colour. */

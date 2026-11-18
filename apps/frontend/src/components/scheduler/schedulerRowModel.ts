@@ -90,7 +90,7 @@ function buildBars(input: {
   const bars = input.allocations.map((allocation) => {
     const { project, client } = input.filters.projectClientFor(allocation);
     const seriesEnd = allocation.seriesId
-      ? input.seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
+      ? input.seriesEndByKey.get(`${allocation.companyId}\u0000${allocation.seriesId}`)
       : undefined;
     return {
       allocation,

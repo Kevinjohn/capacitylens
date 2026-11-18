@@ -29,8 +29,8 @@ function accountRows() {
 
 function clientRows() {
   return [
-    makeClient({ id: 'c-a', accountId: ACCOUNT_A, name: 'Wayne Foundation' }),
-    makeClient({ id: 'c-b', accountId: ACCOUNT_B, name: 'Stark Industries' }),
+    makeClient({ id: 'c-a', companyId: ACCOUNT_A, name: 'Wayne Foundation' }),
+    makeClient({ id: 'c-b', companyId: ACCOUNT_B, name: 'Stark Industries' }),
   ];
 }
 
@@ -41,7 +41,7 @@ function twoAccountData(): AppData {
     disciplines: [
       {
         id: 'd-a',
-        accountId: ACCOUNT_A,
+        companyId: ACCOUNT_A,
         createdAt: 't',
         updatedAt: 't',
         name: 'Design',
@@ -50,7 +50,7 @@ function twoAccountData(): AppData {
       },
       {
         id: 'd-b',
-        accountId: ACCOUNT_B,
+        companyId: ACCOUNT_B,
         createdAt: 't',
         updatedAt: 't',
         name: 'Engineering',
@@ -59,18 +59,18 @@ function twoAccountData(): AppData {
       },
     ],
     resources: [
-      makeResource({ id: 'r-a', accountId: ACCOUNT_A, name: 'Bruce Wayne' }),
-      makeResource({ id: 'r-b', accountId: ACCOUNT_B, name: 'Tony Stark' }),
+      makeResource({ id: 'r-a', companyId: ACCOUNT_A, name: 'Bruce Wayne' }),
+      makeResource({ id: 'r-b', companyId: ACCOUNT_B, name: 'Tony Stark' }),
     ],
     clients: clientRows(),
     projects: [
-      makeProject({ id: 'p-a', accountId: ACCOUNT_A, clientId: 'c-a', name: 'Batcave Upgrade' }),
-      makeProject({ id: 'p-b', accountId: ACCOUNT_B, clientId: 'c-b', name: 'Arc Reactor' }),
+      makeProject({ id: 'p-a', companyId: ACCOUNT_A, clientId: 'c-a', name: 'Batcave Upgrade' }),
+      makeProject({ id: 'p-b', companyId: ACCOUNT_B, clientId: 'c-b', name: 'Arc Reactor' }),
     ],
     phases: [
       {
         id: 'phase-a',
-        accountId: ACCOUNT_A,
+        companyId: ACCOUNT_A,
         createdAt: 't',
         updatedAt: 't',
         name: 'Discovery',
@@ -78,7 +78,7 @@ function twoAccountData(): AppData {
       },
       {
         id: 'phase-b',
-        accountId: ACCOUNT_B,
+        companyId: ACCOUNT_B,
         createdAt: 't',
         updatedAt: 't',
         name: 'Delivery',
@@ -88,13 +88,13 @@ function twoAccountData(): AppData {
     activities: [
       makeActivity({
         id: 'activity-a',
-        accountId: ACCOUNT_A,
+        companyId: ACCOUNT_A,
         projectId: 'p-a',
         phaseId: 'phase-a',
       }),
       makeActivity({
         id: 'activity-b',
-        accountId: ACCOUNT_B,
+        companyId: ACCOUNT_B,
         projectId: 'p-b',
         phaseId: 'phase-b',
       }),
@@ -102,35 +102,35 @@ function twoAccountData(): AppData {
     allocations: [
       makeAllocation({
         id: 'allocation-a',
-        accountId: ACCOUNT_A,
+        companyId: ACCOUNT_A,
         resourceId: 'r-a',
         activityId: 'activity-a',
       }),
       makeAllocation({
         id: 'allocation-b',
-        accountId: ACCOUNT_B,
+        companyId: ACCOUNT_B,
         resourceId: 'r-b',
         activityId: 'activity-b',
       }),
     ],
     timeOff: [
-      makeTimeOff({ id: 'time-off-a', accountId: ACCOUNT_A, resourceId: 'r-a' }),
-      makeTimeOff({ id: 'time-off-b', accountId: ACCOUNT_B, resourceId: 'r-b' }),
+      makeTimeOff({ id: 'time-off-a', companyId: ACCOUNT_A, resourceId: 'r-a' }),
+      makeTimeOff({ id: 'time-off-b', companyId: ACCOUNT_B, resourceId: 'r-b' }),
     ],
     closures: [
-      makeClosure({ id: 'closure-a', accountId: ACCOUNT_A }),
-      makeClosure({ id: 'closure-b', accountId: ACCOUNT_B }),
+      makeClosure({ id: 'closure-a', companyId: ACCOUNT_A }),
+      makeClosure({ id: 'closure-b', companyId: ACCOUNT_B }),
     ],
   };
 }
 
-async function activateFixtureAccount(data: AppData, accountId: string): Promise<void> {
+async function activateFixtureAccount(data: AppData, companyId: string): Promise<void> {
   loadPlanningData(data);
   useStore.getState().clearPlanning();
   useStore.getState().setAccountSummaries({
     list: data.accounts.map(({ id, name }) => ({ id, name, role: 'owner' })),
   });
-  useStore.getState().setActiveAccount(accountId);
+  useStore.getState().setActiveAccount(companyId);
   expect(await useStore.getState().refreshPlanning({ fresh: true })).toBe(true);
 }
 
@@ -146,7 +146,7 @@ describe('scoped data', () => {
     expect(scoped.accounts).toEqual([]);
     for (const table of SCOPED_KEYS) {
       expect(scoped[table]).toHaveLength(1);
-      expect(scoped[table].every((row) => row.accountId === ACCOUNT_A)).toBe(true);
+      expect(scoped[table].every((row) => row.companyId === ACCOUNT_A)).toBe(true);
     }
   });
 
@@ -186,22 +186,22 @@ describe('scoped data hooks', () => {
 
     expect(result.current.clients.map((client) => client.id)).toEqual(['c-b']);
     expect(result.current.clients).not.toContainEqual(
-      expect.objectContaining({ accountId: ACCOUNT_A }),
+      expect.objectContaining({ companyId: ACCOUNT_A }),
     );
   });
 
   it('projects archived and soft-deleted rows out of active data', async () => {
     const data = twoAccountData();
     data.resources.push(
-      makeResource({ id: 'r-a-active', accountId: ACCOUNT_A, name: 'Diana Prince' }),
+      makeResource({ id: 'r-a-active', companyId: ACCOUNT_A, name: 'Diana Prince' }),
     );
     data.clients.push(
-      makeClient({ id: 'c-a-active', accountId: ACCOUNT_A, name: 'Queen Industries' }),
+      makeClient({ id: 'c-a-active', companyId: ACCOUNT_A, name: 'Queen Industries' }),
     );
     data.projects.push(
       makeProject({
         id: 'p-a-active',
-        accountId: ACCOUNT_A,
+        companyId: ACCOUNT_A,
         clientId: 'c-a-active',
         name: 'Themyscira Archive',
       }),

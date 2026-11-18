@@ -25,10 +25,10 @@ const INSERT_ORDER = [
  */
 export async function addExampleData(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   actorId: string
 ) {
-  const state = await readStateWithClient(trx, accountId, true);
+  const state = await readStateWithClient(trx, companyId, true);
   const account = state.accounts.at(0);
   if (!account) throw new EntityWriteError('Company not found.', 404);
   if (
@@ -53,7 +53,7 @@ export async function addExampleData(
     );
   }
   const sample = buildExampleCompany({
-    accountId,
+    companyId,
     referenceDate: today.date,
     weekStartsOn: account.weekStartsOn ?? 1,
   });
@@ -68,13 +68,13 @@ export async function addExampleData(
     }
   }
   await writeAudit(trx, {
-    accountId,
+    companyId,
     actorId,
     action: 'exampleData',
     entity: 'account',
-    entityId: accountId,
+    entityId: companyId,
     fields: Object.keys(sample),
   });
-  await advancePlanningRevision(trx, accountId);
+  await advancePlanningRevision(trx, companyId);
   return countExampleRows(sample);
 }

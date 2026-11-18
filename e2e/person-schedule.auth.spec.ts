@@ -29,13 +29,13 @@ const REAL_PROJECT = 'Gotham Renewal';
 async function seedPrivacyScenario(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
-  const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
-  await createFixturePerson(request, owner.cookie, accountId, {
+  const companyId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
+  await createFixturePerson(request, owner.cookie, companyId, {
     id: RESOURCE_ID,
     name: 'Victor Stone',
     role: 'Developer',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'time-off', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'time-off', {
     operation: 'timeOff.create',
     timeOff: {
       id: TIME_OFF_ID,
@@ -46,7 +46,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       note: PRIVATE_NOTE,
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'clients', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'clients', {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -54,7 +54,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'projects', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'projects', {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -68,7 +68,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'activities', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'activities', {
     operation: 'catalogue.create',
     entity: {
       entity: 'activities',
@@ -81,7 +81,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'allocations', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'allocations', {
     operation: 'allocation.create',
     allocation: {
       id: ALLOCATION_ID,
@@ -95,7 +95,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
     },
   });
 
-  seedFixtureMember(accountId, viewer.email, 'viewer');
+  seedFixtureMember(companyId, viewer.email, 'viewer');
   return { owner, viewer };
 }
 

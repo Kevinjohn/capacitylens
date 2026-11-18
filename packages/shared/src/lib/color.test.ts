@@ -41,7 +41,7 @@ const TS = 't';
 const alloc = (resourceId: string, activityId: string, projectId?: string): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
   id: 'a',
-  accountId: 'acct',
+  companyId: 'acct',
   createdAt: TS,
   updatedAt: TS,
   resourceId,
@@ -55,7 +55,7 @@ const alloc = (resourceId: string, activityId: string, projectId?: string): Allo
 const project = (id: string, color: string): Project => ({
   ...NULLABLE_FIELDS.projects,
   id,
-  accountId: 'acct',
+  companyId: 'acct',
   createdAt: TS,
   updatedAt: TS,
   name: id,
@@ -65,7 +65,7 @@ const project = (id: string, color: string): Project => ({
 const activity = (id: string, projectId?: string): Activity => ({
   ...NULLABLE_FIELDS.activities,
   id,
-  accountId: 'acct',
+  companyId: 'acct',
   createdAt: TS,
   updatedAt: TS,
   name: id,
@@ -75,7 +75,7 @@ const activity = (id: string, projectId?: string): Activity => ({
 const resource = (id: string, kind: Resource['kind']): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id,
-  accountId: 'acct',
+  companyId: 'acct',
   createdAt: TS,
   updatedAt: TS,
   kind,
@@ -113,7 +113,7 @@ describe('resolveBarColor', () => {
     const internal: Activity = {
       ...NULLABLE_FIELDS.activities,
       id: 'internal',
-      accountId: 'acct',
+      companyId: 'acct',
       createdAt: TS,
       updatedAt: TS,
       name: 'Admin',
@@ -129,7 +129,7 @@ describe('resolveBarColor project attribution', () => {
     const internalClient: Client = {
       ...NULLABLE_FIELDS.clients,
       id: 'c',
-      accountId: 'acct',
+      companyId: 'acct',
       createdAt: TS,
       updatedAt: TS,
       name: 'Internal',
@@ -152,7 +152,7 @@ describe('resolveBarColor project attribution', () => {
     const crossProject: Activity = {
       ...NULLABLE_FIELDS.activities,
       id: 'cross',
-      accountId: 'acct',
+      companyId: 'acct',
       createdAt: TS,
       updatedAt: TS,
       name: 'Design',
@@ -166,7 +166,7 @@ describe('resolveBarColor project attribution', () => {
     const repeatable: Activity = {
       ...NULLABLE_FIELDS.activities,
       id: 'repeatable',
-      accountId: 'acct',
+      companyId: 'acct',
       createdAt: TS,
       updatedAt: TS,
       name: 'Design',
@@ -189,7 +189,7 @@ describe('resolveBarColor fallbacks', () => {
     const client: Client = {
       ...NULLABLE_FIELDS.clients,
       id: 'c',
-      accountId: 'acct',
+      companyId: 'acct',
       createdAt: TS,
       updatedAt: TS,
       name: 'Ferris',

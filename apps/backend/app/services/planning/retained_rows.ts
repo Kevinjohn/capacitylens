@@ -28,8 +28,8 @@ export function isRetainedTable(table: AppDataKey): table is RetainedTable {
 /** Provides a company-scoped lifecycle builder on the caller's transaction. */
 export function retainedQuery(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   table: RetainedTable
 ) {
-  return models[table].query({ client: trx }).withScopes((scopes) => scopes.forCompany(accountId));
+  return models[table].query({ client: trx }).withScopes((scopes) => scopes.forCompany(companyId));
 }

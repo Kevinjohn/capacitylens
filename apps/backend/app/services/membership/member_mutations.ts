@@ -9,8 +9,8 @@ import { advancePlanningRevision } from '#services/planning_revision';
 
 export class MembershipError extends RefusalError {}
 
-async function targetMember(trx: TransactionClientContract, accountId: string, userId: string) {
-  const member = await access.memberships.find(accountId, userId, trx);
+async function targetMember(trx: TransactionClientContract, companyId: string, userId: string) {
+  const member = await access.memberships.find(companyId, userId, trx);
   if (!member) throw new MembershipError('Not a member of this company.', 404, 'NOT_FOUND');
   requireStoredRole(member);
   return member;
@@ -19,9 +19,9 @@ async function targetMember(trx: TransactionClientContract, accountId: string, u
 /** Changes an active non-Owner role; the package refuses self, Owner and higher-rank targets. */
 export async function changeMemberRole(
   trx: TransactionClientContract,
-  input: { accountId: string; actorId: string; userId: string; role: Role }
+  input: { companyId: string; actorId: string; userId: string; role: Role }
 ) {
-  const member = await targetMember(trx, input.accountId, input.userId);
+  const member = await targetMember(trx, input.companyId, input.userId);
   // The package would change a suspended member's role; CapacityLens changes active members only.
   if (member.status !== 'active') throw new MembershipError('Forbidden.', 403, 'FORBIDDEN');
   if (input.role === 'owner') {
@@ -33,15 +33,15 @@ export async function changeMemberRole(
   }
   await access.memberships.changeRole({
     actor: { id: input.actorId },
-    scopeId: input.accountId,
+    scopeId: input.companyId,
     userId: input.userId,
     role: input.role,
     trx,
   });
   if (member.role !== input.role) {
-    await advancePlanningRevision(trx, input.accountId);
+    await advancePlanningRevision(trx, input.companyId);
     await writeAudit(trx, {
-      accountId: input.accountId,
+      companyId: input.companyId,
       actorId: input.actorId,
       action: 'member.role_changed',
       entity: 'membership',
@@ -55,21 +55,21 @@ export async function changeMemberRole(
 /** Suspends or restores a member; the package refuses self, Owner and higher-rank targets. */
 export async function changeMemberStatus(
   trx: TransactionClientContract,
-  input: { accountId: string; actorId: string; userId: string; status: MembershipStatus }
+  input: { companyId: string; actorId: string; userId: string; status: MembershipStatus }
 ) {
-  const member = await targetMember(trx, input.accountId, input.userId);
+  const member = await targetMember(trx, input.companyId, input.userId);
   await access.memberships.setStatus({
     actor: { id: input.actorId },
-    scopeId: input.accountId,
+    scopeId: input.companyId,
     userId: input.userId,
     status: input.status,
     trx,
   });
   if (member.status !== input.status) {
-    await resetMemberSignIn(input.accountId, input.userId, trx);
-    await advancePlanningRevision(trx, input.accountId);
+    await resetMemberSignIn(input.companyId, input.userId, trx);
+    await advancePlanningRevision(trx, input.companyId);
     await writeAudit(trx, {
-      accountId: input.accountId,
+      companyId: input.companyId,
       actorId: input.actorId,
       action: 'member.status_changed',
       entity: 'membership',

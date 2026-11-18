@@ -41,10 +41,10 @@ test('company initialization creates canonical defaults and refuses a second set
     database.close();
     const result = f.command(args);
     assert.equal(result.status, 0, result.output);
-    const { accountId } = JSON.parse(result.stdout.trim());
+    const { companyId } = JSON.parse(result.stdout.trim());
     const inspect = f.inspect();
     const account = inspect.prepare('SELECT * FROM accounts').get()!;
-    assert.equal(account.id, accountId);
+    assert.equal(account.id, companyId);
     assert.equal(account.name, 'Wayne Enterprises');
     assert.equal(account.week_starts_on, '1');
     assert.equal(account.working_days, '[1,2,3,4,5]');
@@ -246,7 +246,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
     });
     const initialized = f.command(args);
     assert.equal(initialized.status, 0, initialized.output);
-    const { accountId } = JSON.parse(initialized.stdout.trim());
+    const { companyId } = JSON.parse(initialized.stdout.trim());
     await withOperatorServer(f, async (origin) => {
       const signin = await fetch(`${origin}/api/auth/sign-in`, {
         method: 'POST',
@@ -263,7 +263,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       const companies = await fetch(`${origin}/api/companies`, { headers: { cookie } });
       assert.deepEqual(await companies.json(), [
         {
-          id: accountId,
+          id: companyId,
           name: 'Wayne Enterprises',
           role: 'owner',
           permissions: [
@@ -283,7 +283,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
           canSeeTimeOffNote: true,
         },
       ]);
-      const state = await fetch(`${origin}/api/state?accountId=${encodeURIComponent(accountId)}`, {
+      const state = await fetch(`${origin}/api/state?companyId=${encodeURIComponent(companyId)}`, {
         headers: { cookie },
       });
       assert.equal(state.status, 200);
@@ -304,7 +304,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       const { allocation } = await writeSmokeSchedule(
         origin,
         cookie,
-        accountId,
+        companyId,
         seed(),
         mode.contextToken as string
       );

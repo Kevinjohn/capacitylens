@@ -14,10 +14,10 @@ export interface MemberResourceFields {
 }
 
 /** Reads same-company person candidates for an administrator's member directory. */
-export async function readResourceCandidates(trx: TransactionClientContract, accountId: string) {
+export async function readResourceCandidates(trx: TransactionClientContract, companyId: string) {
   const rows = await trx
     .from('resources')
-    .where({ account_id: accountId, kind: 'person' })
+    .where({ company_id: companyId, kind: 'person' })
     .whereNull('archived_at')
     .whereNull('deleted_at')
     .select('id', 'name', 'role');
@@ -27,7 +27,7 @@ export async function readResourceCandidates(trx: TransactionClientContract, acc
 /** Reads a selected set of same-company association fields, keyed by member ID. */
 export async function readMemberResourceFields(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   userIds: string[]
 ) {
   if (userIds.length === 0) return new Map<string, MemberResourceFields>();
@@ -35,12 +35,12 @@ export async function readMemberResourceFields(
     .from('account_member_resources as link')
     .leftJoin('resources as resource', function () {
       this.on('resource.id', '=', 'link.resource_id').andOn(
-        'resource.account_id',
+        'resource.company_id',
         '=',
-        'link.account_id'
+        'link.company_id'
       );
     })
-    .where('link.account_id', accountId)
+    .where('link.company_id', companyId)
     .whereIn('link.user_id', userIds)
     .select(
       'link.user_id',

@@ -45,8 +45,8 @@ test.describe('member masquerade', () => {
   }) => {
     const owner = await signUpUser(OWNER_EMAIL);
     const viewer = await signUpUser(VIEWER_EMAIL);
-    const accountId = await bootstrapOrg(request, owner.cookie, COMPANY);
-    seedFixtureMember(accountId, viewer.email, 'viewer');
+    const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
+    seedFixtureMember(companyId, viewer.email, 'viewer');
 
     await page.goto('/');
     await page.getByRole('heading', { name: 'Sign in' }).waitFor();
@@ -90,13 +90,13 @@ test.describe('member masquerade', () => {
   }) => {
     const owner = await signUpUser(`masq-editor-owner-${STAMP}@capacitylens.dev`, 'Bruce Wayne');
     const editor = await signUpUser(EDITOR_EMAIL, 'Clark Kent');
-    const accountId = await bootstrapOrg(request, owner.cookie, `Wayne Enterprises ${STAMP}`);
-    seedFixtureMember(accountId, editor.email, 'editor');
+    const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Enterprises ${STAMP}`);
+    seedFixtureMember(companyId, editor.email, 'editor');
 
     await signIn(page, owner.email);
     await expect(page.getByTestId('getting-started')).toBeVisible();
 
-    const onboardingPath = `/api/companies/${accountId}/getting-started`;
+    const onboardingPath = `/api/companies/${companyId}/getting-started`;
     const ownerRouteRead = page.waitForResponse(
       (response) =>
         response.status() === 200 &&
@@ -130,7 +130,7 @@ test.describe('member masquerade', () => {
     const cookie = projectionCookies.map(({ name, value }) => `${name}=${value}`).join('; ');
     expect(cookie).not.toBe('');
     const status = await request.get(
-      `${AUTH_API}/api/masquerade?accountId=${encodeURIComponent(accountId)}`,
+      `${AUTH_API}/api/masquerade?companyId=${encodeURIComponent(companyId)}`,
       {
         headers: { cookie, 'sec-fetch-site': 'same-origin' },
       },
@@ -143,12 +143,12 @@ test.describe('member masquerade', () => {
       'sec-fetch-site': 'same-origin',
       'X-Masquerade-Context': contextToken,
     };
-    const planning = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
+    const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
       headers,
     });
     expect(planning.status()).toBe(200);
     const revision = ((await planning.json()) as { revision: number }).revision;
-    const refusedWrite = await request.post(`${AUTH_API}/api/companies/${accountId}/clients`, {
+    const refusedWrite = await request.post(`${AUTH_API}/api/companies/${companyId}/clients`, {
       headers,
       data: {
         mutationId: crypto.randomUUID(),

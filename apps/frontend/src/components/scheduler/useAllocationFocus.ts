@@ -3,7 +3,7 @@ import type { ID } from '@capacitylens/shared/types/entities';
 import { useStore } from '@/store/useStore';
 
 /** Focus action that locates an allocation within the active account. */
-export type ScheduleAllocationFocus = (allocationId: ID, accountId: ID | null) => void;
+export type ScheduleAllocationFocus = (allocationId: ID, companyId: ID | null) => void;
 
 /** Schedules focus for an allocation after its row becomes visible. */
 export function useAllocationFocus(): ScheduleAllocationFocus {
@@ -14,11 +14,11 @@ export function useAllocationFocus(): ScheduleAllocationFocus {
     },
     [],
   );
-  return (allocationId, accountId) => {
+  return (allocationId, companyId) => {
     if (focusRafRef.current) cancelAnimationFrame(focusRafRef.current);
     focusRafRef.current = requestAnimationFrame(() => {
       focusRafRef.current = 0;
-      if (useStore.getState().activeAccountId !== accountId) return;
+      if (useStore.getState().activeAccountId !== companyId) return;
       const element = Array.from(document.querySelectorAll<HTMLElement>('[data-alloc-id]')).find(
         (candidate) => candidate.dataset.allocId === allocationId,
       );

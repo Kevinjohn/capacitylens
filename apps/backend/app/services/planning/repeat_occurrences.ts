@@ -37,11 +37,11 @@ interface FirstAllocation {
  */
 export function allocationOccurrences(
   data: AppData,
-  accountId: string,
+  companyId: string,
   first: FirstAllocation,
   repeat: RepeatRange
 ): Array<{ startDate: ISODate; endDate: ISODate }> {
-  const account = existingRow(data, 'accounts', accountId);
+  const account = existingRow(data, 'accounts', companyId);
   const resource = existingRow(data, 'resources', first.resourceId);
   const effectiveWeek = effectiveWorkingWeek(
     resource,

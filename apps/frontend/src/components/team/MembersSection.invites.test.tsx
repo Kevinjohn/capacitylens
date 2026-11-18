@@ -252,7 +252,7 @@ describe('MembersSection — invite mint', () => {
     await expectNotice(notice);
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
     expect(JSON.parse(String(post?.[1]?.body))).toEqual({
-      accountId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_ACCOUNT_ID,
       role: 'editor',
       email: 'diana@example.test',
     });

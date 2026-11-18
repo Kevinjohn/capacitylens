@@ -146,7 +146,7 @@ test.group('general HTTP logging privacy', (group) => {
     }) as typeof Account.query;
     try {
       const { output, result } = await captureLogs(() =>
-        client.get('/api/state?accountId=a-studio').send()
+        client.get('/api/state?companyId=a-studio').send()
       );
       assert.equal(result.status(), 500);
       assert.include(output, '"event":"http.request.error"');
@@ -187,7 +187,7 @@ test.group('general HTTP logging privacy', (group) => {
     );
     const committed = await db
       .from('audit_entries')
-      .where({ account_id: 'a-studio', action: 'exampleData' })
+      .where({ company_id: 'a-studio', action: 'exampleData' })
       .first();
 
     assert.isDefined(committed);
@@ -276,7 +276,7 @@ test.group('general HTTP logging privacy', (group) => {
       client
         .post('/api/transfer/apply')
         .header('sec-fetch-site', 'same-origin')
-        .json({ accountId: 'a-studio', document: { secret }, baseRevision: 0 })
+        .json({ companyId: 'a-studio', document: { secret }, baseRevision: 0 })
         .send()
     );
 
@@ -296,7 +296,7 @@ test.group('general HTTP logging privacy', (group) => {
       throw new Error(privateError);
     }) as typeof Account.query;
     try {
-      const captured = await captureLogs(() => client.get('/api/state?accountId=a-studio').send());
+      const captured = await captureLogs(() => client.get('/api/state?companyId=a-studio').send());
       assert.notInclude(captured.output, privateError);
       assert.equal(captured.result.status(), 500);
       assert.deepEqual(captured.result.body(), { error: 'Internal server error.' });

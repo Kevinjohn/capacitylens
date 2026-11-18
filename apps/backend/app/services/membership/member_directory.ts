@@ -54,14 +54,14 @@ export interface MemberDirectory {
 /** Builds the member directory after the caller authorizes company member management. */
 export async function readMemberDirectory(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   actor: { actorId: string; role: Role }
 ): Promise<MemberDirectory> {
   const { actorId } = actor;
   const membershipQuery: DatabaseQueryBuilderContract<MembershipDirectoryRow> = trx
     .from(`${access.config.membershipsTable} as member`)
     .leftJoin('users as principal', 'principal.id', 'member.user_id')
-    .where('member.scope_id', accountId)
+    .where('member.scope_id', companyId)
     .select(
       'member.user_id',
       'member.role',
@@ -73,11 +73,11 @@ export async function readMemberDirectory(
     .orderBy('member.created_at', 'asc');
   const [rows, tracking, resourceCandidates] = await Promise.all([
     membershipQuery,
-    readMemberSignInTracking(accountId, trx),
-    readResourceCandidates(trx, accountId),
+    readMemberSignInTracking(companyId, trx),
+    readResourceCandidates(trx, companyId),
   ]);
   const memberIds = new Set(rows.map((row) => row.user_id));
-  const resourceFields = await readMemberResourceFields(trx, accountId, [...memberIds]);
+  const resourceFields = await readMemberResourceFields(trx, companyId, [...memberIds]);
   const members: MemberDirectoryEntry[] = [];
   for (const row of rows) {
     const userId = row.user_id;

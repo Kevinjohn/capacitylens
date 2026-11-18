@@ -72,7 +72,7 @@ function requestPendingConfirmation(target, cookie, contextToken) {
   request.end(
     JSON.stringify({
       action: 'anonymise',
-      accountId: 'a-studio',
+      companyId: 'a-studio',
       intent: {},
       password: 'auth-e2e-password-2026',
     }),
@@ -306,11 +306,11 @@ test(
       const clients = database.prepare('SELECT * FROM clients ORDER BY id').all();
       database.prepare("UPDATE clients SET name='Changed client' WHERE id='c-acme'").run();
       database
-        .prepare("UPDATE company_planning_revisions SET revision=42 WHERE account_id='a-studio'")
+        .prepare("UPDATE company_planning_revisions SET revision=42 WHERE company_id='a-studio'")
         .run();
       database
         .prepare(
-          'INSERT INTO deleted_groups (group_id, account_id, actor_id, session_id, mutation_id, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+          'INSERT INTO deleted_groups (group_id, company_id, actor_id, session_id, mutation_id, created_at) VALUES (?, ?, ?, ?, ?, ?)',
         )
         .run(
           'pending-group',
@@ -332,7 +332,7 @@ test(
         .run('receipt', 'a-studio', 'command', 'operation', 'key', 'hash', 'committed', now, now);
       database
         .prepare(
-          'INSERT INTO account_getting_started_dismissals (id, account_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
+          'INSERT INTO account_getting_started_dismissals (id, company_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
         )
         .run('dismissed', 'a-studio', now, now);
 
@@ -354,7 +354,7 @@ test(
         .map((value) => value.split(';', 1)[0])
         .join('; ');
       assert.notEqual(cookie, '', 'the administrator receives a session cookie');
-      const contextResponse = await fetch(`${target.api}/api/masquerade?accountId=a-studio`, {
+      const contextResponse = await fetch(`${target.api}/api/masquerade?companyId=a-studio`, {
         headers: { cookie },
       });
       assert.equal(contextResponse.status, 200);
@@ -366,7 +366,7 @@ test(
 
       const enteredNativeHandler = waitForChildMessage(server, 'entered-native-handler');
       server.send({ type: 'arm-before-handler' });
-      const pendingNative = http.request(`${target.api}/api/masquerade?accountId=a-studio`, {
+      const pendingNative = http.request(`${target.api}/api/masquerade?companyId=a-studio`, {
         method: 'GET',
         headers: { cookie },
       });
@@ -450,7 +450,7 @@ test(
       await bufferedSocketHeld;
       const bufferedSocketClosed = new Promise((resolve) => bufferedSocket.once('close', resolve));
       bufferedSocket.write(
-        `GET /api/masquerade?accountId=a-studio&bufferedNativeProbe=1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nCookie: ${cookie}\r\n\r\n`,
+        `GET /api/masquerade?companyId=a-studio&bufferedNativeProbe=1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nCookie: ${cookie}\r\n\r\n`,
         () => bufferedSocket.destroy(),
       );
       await bufferedSocketClosed;

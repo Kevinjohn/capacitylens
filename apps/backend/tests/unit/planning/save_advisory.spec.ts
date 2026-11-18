@@ -15,7 +15,7 @@ import {
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
 import type { PlanningIntent } from '#validators/planning/contracts';
 
-const accountId = FIXTURE_ACCOUNT.id;
+const companyId = FIXTURE_ACCOUNT.id;
 const person: Resource = {
   ...FIXTURE_RESOURCE_PERSON,
   workingHoursPerDay: 8,
@@ -55,26 +55,26 @@ const create = { operation: 'allocation.create', allocation: { id: 'saved' } } a
 
 test.group('allocation save advisory', () => {
   test('counts the saved row against the rest of its resource load', ({ assert }) => {
-    assert.deepEqual(buildSaveAdvisory(create, companyData('hourly'), accountId), {
+    assert.deepEqual(buildSaveAdvisory(create, companyData('hourly'), companyId), {
       advisory: { overDays: 1, timeOffDays: 0 },
     });
   });
 
   test('projects blocks-mode load instead of the stored hours', ({ assert }) => {
-    assert.deepEqual(buildSaveAdvisory(create, companyData('blocks'), accountId), {
+    assert.deepEqual(buildSaveAdvisory(create, companyData('blocks'), companyId), {
       advisory: { overDays: 0, timeOffDays: 0 },
     });
   });
 
   test('reports nothing for an external resource', ({ assert }) => {
     assert.deepEqual(
-      buildSaveAdvisory(create, companyData('hourly', FIXTURE_RESOURCE_EXTERNAL.id), accountId),
+      buildSaveAdvisory(create, companyData('hourly', FIXTURE_RESOURCE_EXTERNAL.id), companyId),
       { advisory: { overDays: 0, timeOffDays: 0 } }
     );
   });
 
   test('carries no advisory for a write that is not an allocation save', ({ assert }) => {
     const deletion = { operation: 'allocation.delete', id: 'saved' } as PlanningIntent;
-    assert.deepEqual(buildSaveAdvisory(deletion, companyData('hourly'), accountId), {});
+    assert.deepEqual(buildSaveAdvisory(deletion, companyData('hourly'), companyId), {});
   });
 });

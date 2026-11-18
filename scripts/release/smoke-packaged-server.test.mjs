@@ -42,7 +42,7 @@ test('packaged smoke seeds its fictional Viewer only in the disposable stopped d
 
   try {
     seedSmokeViewer(path, {
-      accountId: 'wayne-enterprises',
+      companyId: 'wayne-enterprises',
       actorUserId: 'owner',
       targetUserId: 'viewer',
       targetEmail: 'clark@wayne.example',
@@ -145,7 +145,7 @@ test('authenticated smoke writes a typed allocation under its isolated company',
       resources: [
         {
           id: 'bruce',
-          accountId: 'a-studio',
+          companyId: 'a-studio',
           kind: 'person',
           role: 'Planner',
           employmentType: 'permanent',
@@ -191,8 +191,8 @@ test('authenticated smoke writes a typed allocation under its isolated company',
     assert.equal(requests.length, 3);
     for (const request of requests)
       assert.equal(request.headers['X-Masquerade-Context'], '0.fixture-context');
-    assert.equal(written.accountId, 'isolated-company');
-    assert.equal(fixture.resources[0].accountId, 'a-studio');
+    assert.equal(written.companyId, 'isolated-company');
+    assert.equal(fixture.resources[0].companyId, 'a-studio');
   } finally {
     globalThis.fetch = originalFetch;
   }

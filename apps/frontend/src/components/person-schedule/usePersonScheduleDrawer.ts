@@ -5,7 +5,7 @@ import { useStore } from '@/store/useStore';
 import { resolvePersonScheduleIdentity, usePersonSchedule } from './usePersonSchedule';
 
 interface PersonScheduleSelection {
-  accountId: ID;
+  companyId: ID;
   resourceId: ID;
   opener: HTMLButtonElement;
 }
@@ -21,7 +21,7 @@ export function usePersonScheduleDrawer({
   const [selection, setSelection] = useState<PersonScheduleSelection | null>(null);
   const [open, setOpen] = useState(false);
   const schedule = usePersonSchedule({
-    accountId: selection?.accountId ?? null,
+    companyId: selection?.companyId ?? null,
     resourceId: selection?.resourceId ?? null,
   });
   const titlesByResourceId = useMemo(
@@ -35,9 +35,9 @@ export function usePersonScheduleDrawer({
     [data],
   );
   const viewSchedule = useCallback((resourceId: ID, opener: HTMLButtonElement) => {
-    const accountId = useStore.getState().activeAccountId;
-    if (!accountId) return;
-    setSelection({ accountId, resourceId, opener });
+    const companyId = useStore.getState().activeAccountId;
+    if (!companyId) return;
+    setSelection({ companyId, resourceId, opener });
     setOpen(true);
   }, []);
   const restoreFocus = useCallback(() => {

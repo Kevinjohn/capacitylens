@@ -6,7 +6,7 @@ export type RealProjectionResult =
   { kind: 'restored' } | { kind: 'active' } | { kind: 'superseded' } | { kind: 'failed' };
 
 export function publishMasqueradeAccount(store: StoreState, state: MasqueradeState): void {
-  const account = store.data.accounts.find((candidate) => candidate.id === state.accountId);
+  const account = store.data.accounts.find((candidate) => candidate.id === state.companyId);
   store.setAccountSummaries({
     list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
     complete: account !== undefined,

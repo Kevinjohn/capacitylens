@@ -10,7 +10,7 @@ import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  accountId,
+  companyId,
   planningUrl,
   configureAuth,
   newAllocation,
@@ -32,7 +32,7 @@ test.group('planning snapshot and commit boundaries', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie, userId } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     // Another process tries to commit while the planning read holds its snapshot. A connection in
     // this process could not stand in: a second SQLite copy does not see this process's locks.
     const externalCommit = () =>
@@ -42,7 +42,7 @@ test.group('planning snapshot and commit boundaries', (group) => {
           '--input-type=module',
           '-e',
           `import { DatabaseSync } from 'node:sqlite'
-const [file, accountId, userId] = process.argv.slice(1)
+const [file, companyId, userId] = process.argv.slice(1)
 const db = new DatabaseSync(file)
 db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 0')
 try {
@@ -50,12 +50,12 @@ try {
 } catch {
   process.exit(3)
 }
-db.prepare('UPDATE accounts SET name = ? WHERE id = ?').run('Wayne Revised', accountId)
-db.prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND scope_id = ?').run('viewer', userId, accountId)
-db.prepare('INSERT INTO company_planning_revisions(account_id, revision) VALUES (?, 1) ON CONFLICT(account_id) DO UPDATE SET revision = 1').run(accountId)
+db.prepare('UPDATE accounts SET name = ? WHERE id = ?').run('Wayne Revised', companyId)
+db.prepare('UPDATE memberships SET role = ? WHERE user_id = ? AND scope_id = ?').run('viewer', userId, companyId)
+db.prepare('INSERT INTO company_planning_revisions(company_id, revision) VALUES (?, 1) ON CONFLICT(company_id) DO UPDATE SET revision = 1').run(companyId)
 db.exec('COMMIT')`,
           env.get('CAPACITYLENS_DB')!,
-          accountId,
+          companyId,
           userId,
         ],
         { stdio: ['ignore', 'ignore', 'inherit'] }
@@ -99,14 +99,14 @@ db.exec('COMMIT')`,
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const allocation = newAllocation(before);
     const mutationId = randomUUID();
     await db.rawQuery(
       "CREATE TEMP TRIGGER planning_audit_failure BEFORE INSERT ON audit_entries WHEN NEW.entity = 'planning' BEGIN SELECT RAISE(ABORT, 'test audit failure'); END"
     );
     try {
-      const failed = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+      const failed = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
         .json({
           mutationId,
           baseRevision: 0,
@@ -117,9 +117,9 @@ db.exec('COMMIT')`,
     } finally {
       await db.rawQuery('DROP TRIGGER planning_audit_failure');
     }
-    assert.deepEqual(await readState(accountId, true), before);
-    assert.lengthOf(await db.from('company_planning_revisions').where('account_id', accountId), 0);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.deepEqual(await readState(companyId, true), before);
+    assert.lengthOf(await db.from('company_planning_revisions').where('company_id', companyId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 
   test('competing drafts at one revision permit one commit and never rebase the other', async ({
@@ -129,11 +129,11 @@ db.exec('COMMIT')`,
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const allocations = [newAllocation(data), newAllocation(data)];
     const replies = await Promise.all(
       allocations.map((allocation) =>
-        session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+        session(client.post(`/api/companies/${companyId}/allocations`), cookie)
           .json({
             mutationId: randomUUID(),
             baseRevision: 0,
@@ -144,7 +144,7 @@ db.exec('COMMIT')`,
     );
     assert.deepEqual(replies.map((reply) => reply.status()).sort(), [200, 409]);
     assert.equal(replies.find((reply) => reply.status() === 409)!.body().code, 'STALE_REVISION');
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 1);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
       await db.from('allocations').whereIn(
         'id',
@@ -164,7 +164,7 @@ db.exec('COMMIT')`,
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const mutationId = randomUUID();
-    const allocation = newAllocation(await readState(accountId, true));
+    const allocation = newAllocation(await readState(companyId, true));
     const input = {
       mutationId,
       baseRevision: 0,
@@ -172,7 +172,7 @@ db.exec('COMMIT')`,
     };
     const replies = await Promise.all(
       [1, 2].map(() =>
-        session(client.post(`/api/companies/${accountId}/allocations`), cookie)
+        session(client.post(`/api/companies/${companyId}/allocations`), cookie)
           .json(input)
           .send()
       )
@@ -183,7 +183,7 @@ db.exec('COMMIT')`,
       'MUTATION_ID_REUSED'
     );
     assert.lengthOf(
-      await db.from('planning_mutations').where({ account_id: accountId, mutation_id: mutationId }),
+      await db.from('planning_mutations').where({ company_id: companyId, mutation_id: mutationId }),
       1
     );
     assert.lengthOf(await db.from('allocations').where('id', allocation.id), 1);
@@ -197,7 +197,7 @@ db.exec('COMMIT')`,
     configureAuth(cleanup);
     const owner = await signIn(client);
     const target = await signIn(client, 'editor');
-    const start = await session(client.post(`/api/companies/${accountId}/masquerade`), owner.cookie)
+    const start = await session(client.post(`/api/companies/${companyId}/masquerade`), owner.cookie)
       .json({ targetUserId: target.userId })
       .send();
     start.assertStatus(200);
@@ -205,9 +205,9 @@ db.exec('COMMIT')`,
     snapshot.assertStatus(200);
     assert.equal(snapshot.body().authority.effectiveActorId, target.userId);
     assert.isFalse(snapshot.body().authority.canWrite);
-    const allocation = newAllocation(await readState(accountId, true));
+    const allocation = newAllocation(await readState(companyId, true));
     const refused = await session(
-      client.post(`/api/companies/${accountId}/allocations`),
+      client.post(`/api/companies/${companyId}/allocations`),
       owner.cookie
     )
       .json({
@@ -217,7 +217,7 @@ db.exec('COMMIT')`,
       })
       .send();
     refused.assertStatus(403);
-    assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
   for (const invalidation of [
     'actor membership',
@@ -233,7 +233,7 @@ db.exec('COMMIT')`,
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
       const started = await session(
-        client.post(`/api/companies/${accountId}/masquerade`),
+        client.post(`/api/companies/${companyId}/masquerade`),
         owner.cookie
       )
         .json({ targetUserId: target.userId })
@@ -266,7 +266,7 @@ db.exec('COMMIT')`,
       await db
         .from('memberships')
         .where({
-          scope_id: accountId,
+          scope_id: companyId,
           user_id: invalidation === 'target membership' ? target.userId : owner.userId,
         })
         .update(invalidation === 'actor permission' ? { role: 'editor' } : { status: 'suspended' });
@@ -274,7 +274,7 @@ db.exec('COMMIT')`,
       assert.equal(lost.status, 409);
       assert.equal(lost.body.code, 'MASQUERADE_CONTEXT_CHANGED');
       assert.isUndefined(lost.body.data);
-      assert.lengthOf(await db.from('planning_mutations').where('account_id', accountId), 0);
+      assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     });
   }
   for (const invalidation of [
@@ -291,7 +291,7 @@ db.exec('COMMIT')`,
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
       const started = await session(
-        client.post(`/api/companies/${accountId}/masquerade`),
+        client.post(`/api/companies/${companyId}/masquerade`),
         owner.cookie
       )
         .json({ targetUserId: target.userId })
@@ -311,7 +311,7 @@ db.exec('COMMIT')`,
           .effectiveActorId,
         target.userId
       );
-      const before = await readState(accountId, true);
+      const before = await readState(companyId, true);
       const revisions = await db.from('company_planning_revisions');
       const audits = await db.from('audit_entries');
       const service = await masqueradeAdmission();
@@ -332,7 +332,7 @@ db.exec('COMMIT')`,
         await db
           .from('memberships')
           .where({
-            scope_id: accountId,
+            scope_id: companyId,
             user_id: invalidation === 'target membership' ? target.userId : owner.userId,
           })
           .update(
@@ -345,7 +345,7 @@ db.exec('COMMIT')`,
         assert.equal(body.code, 'ACCOUNT_MEMBERSHIP_LOST');
         assert.isUndefined(body.data);
         assert.isUndefined(body.authority);
-        assert.deepEqual(await readState(accountId, true), before);
+        assert.deepEqual(await readState(companyId, true), before);
         assert.deepEqual(await db.from('company_planning_revisions'), revisions);
         assert.deepEqual(await db.from('audit_entries'), audits);
         assert.lengthOf(await db.from('planning_mutations'), 0);

@@ -10,7 +10,7 @@ import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTr
 import type { AccessPermissionStatus } from '@/lib/accessCopy';
 
 interface FetchedPermission {
-  accountId: string;
+  companyId: string;
   membershipRevision: number;
   status: 'resolved' | 'unavailable';
   role?: Role;
@@ -18,7 +18,7 @@ interface FetchedPermission {
 }
 
 interface PermissionRefresh {
-  accountId: string;
+  companyId: string;
   membershipRevision: number;
   isCurrent: () => boolean;
   setFetched: Dispatch<SetStateAction<FetchedPermission | null>>;
@@ -48,7 +48,7 @@ function publishUnavailable(refresh: PermissionRefresh) {
   if (!refresh.isCurrent()) return;
   refresh.setActiveRole('viewer', 'unavailable');
   refresh.setFetched({
-    accountId: refresh.accountId,
+    companyId: refresh.companyId,
     membershipRevision: refresh.membershipRevision,
     status: 'unavailable',
   });
@@ -64,7 +64,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     const projectionIsCurrent = await captureMasqueradeStatusGuard();
     const isCurrent = () => refresh.isCurrent() && projectionIsCurrent();
     if (!isCurrent()) return;
-    const masquerade = await masqueradeApi.status(refresh.accountId);
+    const masquerade = await masqueradeApi.status(refresh.companyId);
     if (!isCurrent()) return;
     if (!(await adoptMasqueradeStatus(masquerade, isCurrent))) return;
     if (!refresh.isCurrent()) return;
@@ -79,14 +79,14 @@ async function refreshPermission(refresh: PermissionRefresh) {
     }
     // A malformed role or grant remains selectable only as an unavailable Viewer summary and never
     // grants access.
-    const entry = summaries.find((account) => account.id === refresh.accountId);
+    const entry = summaries.find((account) => account.id === refresh.companyId);
     if (!entry || entry.roleStatus === 'unavailable' || !entry.grant) {
       publishUnavailable(refresh);
       return;
     }
     if (!refresh.isCurrent()) return;
     refresh.setFetched({
-      accountId: refresh.accountId,
+      companyId: refresh.companyId,
       membershipRevision: refresh.membershipRevision,
       status: 'resolved',
       role: entry.role,
@@ -122,7 +122,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const setActiveRole = useStore((state) => state.setActiveRole);
   const membershipRevision = useStore((state) => state.membershipRevision);
   const masquerade = useStore((state) => state.masquerade);
-  // Tag resolved roles with accountId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
+  // Tag resolved roles with companyId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
   const [fetched, setFetched] = useState<FetchedPermission | null>(null);
 
   const enabled = user !== null;
@@ -130,7 +130,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (masquerade.kind !== 'inactive') {
       const state = masquerade.state;
-      if (state && state.accountId === activeAccountId) {
+      if (state && state.companyId === activeAccountId) {
         setActiveRole(state.effectiveRole, 'resolved', state.permissions);
       } else {
         setActiveRole('viewer', 'pending');
@@ -144,7 +144,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false;
     void refreshPermission({
-      accountId: activeAccountId,
+      companyId: activeAccountId,
       membershipRevision,
       isCurrent: () => !cancelled,
       setFetched,
@@ -156,11 +156,11 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   }, [enabled, activeAccountId, membershipRevision, masquerade, setActiveRole]);
 
   const currentFetched =
-    fetched?.accountId === activeAccountId && fetched.membershipRevision === membershipRevision
+    fetched?.companyId === activeAccountId && fetched.membershipRevision === membershipRevision
       ? fetched
       : null;
   const masqueradeState =
-    masquerade.kind !== 'inactive' && masquerade.state?.accountId === activeAccountId
+    masquerade.kind !== 'inactive' && masquerade.state?.companyId === activeAccountId
       ? masquerade.state
       : null;
   // Keyed on the state object so the grant, and the context value, keep their identity per state.

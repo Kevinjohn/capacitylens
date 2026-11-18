@@ -45,7 +45,7 @@ function wrapper({
   };
 }
 
-const resource = makeResource({ id: 'r1', accountId: 'a1', name: 'Diana Prince' });
+const resource = makeResource({ id: 'r1', companyId: 'a1', name: 'Diana Prince' });
 
 function withoutProjectId(value: Activity): Activity {
   const copy = { ...value };
@@ -59,7 +59,7 @@ function withoutName(value: Resource): Resource {
   return copy;
 }
 
-const activity = withoutProjectId(makeActivity({ id: 't1', accountId: 'a1', kind: 'internal' }));
+const activity = withoutProjectId(makeActivity({ id: 't1', companyId: 'a1', kind: 'internal' }));
 
 function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
   loadPlanningData(
@@ -68,7 +68,7 @@ function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
       resources: [resource],
       activities: [activity],
       allocations: [
-        makeAllocation({ accountId: 'a1', resourceId: resource.id, activityId: activity.id }),
+        makeAllocation({ companyId: 'a1', resourceId: resource.id, activityId: activity.id }),
       ],
       ...overrides,
     }),
@@ -83,7 +83,7 @@ beforeEach(() => {
 
 describe('usePersonSchedule availability', () => {
   it('builds the current account-local four-week window independently of grid dates', () => {
-    const monday = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+    const monday = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'owner' }),
     });
     expect(monday.result.current).toMatchObject({
@@ -102,24 +102,24 @@ describe('usePersonSchedule availability', () => {
 
   it('fails closed for null selections, account mismatches, missing resources, and hidden resource kinds', () => {
     const { result, rerender } = renderHook(
-      ({ accountId, resourceId }: { accountId: string | null; resourceId: string | null }) =>
-        usePersonSchedule({ accountId, resourceId }),
+      ({ companyId, resourceId }: { companyId: string | null; resourceId: string | null }) =>
+        usePersonSchedule({ companyId, resourceId }),
       {
-        initialProps: { accountId: null, resourceId: null } as {
-          accountId: string | null;
+        initialProps: { companyId: null, resourceId: null } as {
+          companyId: string | null;
           resourceId: string | null;
         },
       },
     );
     expect(result.current).toEqual({ kind: 'unavailable' });
 
-    rerender({ accountId: 'another-account', resourceId: 'r1' });
+    rerender({ companyId: 'another-account', resourceId: 'r1' });
     expect(result.current).toEqual({ kind: 'unavailable' });
-    rerender({ accountId: 'a1', resourceId: 'missing' });
+    rerender({ companyId: 'a1', resourceId: 'missing' });
     expect(result.current).toEqual({ kind: 'unavailable' });
 
     act(() => seed({ resources: [makeResource({ ...resource, kind: 'placeholder' })] }));
-    rerender({ accountId: 'a1', resourceId: 'r1' });
+    rerender({ companyId: 'a1', resourceId: 'r1' });
     expect(result.current).toEqual({ kind: 'unavailable' });
   });
 });
@@ -128,7 +128,7 @@ describe('usePersonSchedule calendar rollover', () => {
   it('recomputes the drawer window and entries when the company date rolls over a year', () => {
     const oldAllocation = makeAllocation({
       id: 'old-allocation',
-      accountId: 'a1',
+      companyId: 'a1',
       resourceId: resource.id,
       activityId: activity.id,
       startDate: '2026-12-28',
@@ -136,7 +136,7 @@ describe('usePersonSchedule calendar rollover', () => {
     });
     const newAllocation = makeAllocation({
       id: 'new-allocation',
-      accountId: 'a1',
+      companyId: 'a1',
       resourceId: resource.id,
       activityId: activity.id,
       startDate: '2027-01-20',
@@ -149,7 +149,7 @@ describe('usePersonSchedule calendar rollover', () => {
     });
 
     const { result, rerender } = renderHook(
-      () => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }),
+      () => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }),
       { wrapper: wrapper({ role: 'owner' }) },
     );
     expect(result.current).toMatchObject({
@@ -174,10 +174,10 @@ describe('usePersonSchedule calendar rollover', () => {
 
 describe('usePersonSchedule permissions and identity', () => {
   it('fails closed while authenticated permissions are unresolved', () => {
-    const pending = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+    const pending = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'viewer', status: 'pending' }),
     });
-    const unavailable = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+    const unavailable = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'viewer', status: 'unavailable' }),
     });
     expect(pending.result.current).toEqual({ kind: 'unavailable' });
@@ -201,7 +201,7 @@ describe('usePersonSchedule authorized projection', () => {
       disciplines: [
         {
           id: 'discipline-1',
-          accountId: 'a1',
+          companyId: 'a1',
           createdAt: 't',
           updatedAt: 't',
           name: 'Design',
@@ -210,7 +210,7 @@ describe('usePersonSchedule authorized projection', () => {
         },
       ],
     });
-    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+    const { result } = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'owner' }),
     });
     expect(result.current).toMatchObject({
@@ -229,7 +229,7 @@ describe('usePersonSchedule authorized projection', () => {
       allocations: [],
       timeOff: [
         makeTimeOff({
-          accountId: 'a1',
+          companyId: 'a1',
           resourceId: 'r1',
           startDate: '2026-09-10',
           endDate: '2026-09-10',
@@ -237,7 +237,7 @@ describe('usePersonSchedule authorized projection', () => {
         }),
       ],
     });
-    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+    const { result } = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role, status: 'resolved' }),
     });
     expect(result.current.kind).toBe('available');
@@ -252,7 +252,7 @@ describe('usePersonSchedule lifecycle', () => {
       allocations: [],
       timeOff: [
         makeTimeOff({
-          accountId: 'a1',
+          companyId: 'a1',
           resourceId: 'r1',
           startDate: '2026-09-10',
           endDate: '2026-09-10',
@@ -260,7 +260,7 @@ describe('usePersonSchedule lifecycle', () => {
         }),
       ],
     });
-    const { result } = renderHook(() => usePersonSchedule({ accountId: 'a1', resourceId: 'r1' }), {
+    const { result } = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'owner' }),
     });
     expect(result.current).toMatchObject({

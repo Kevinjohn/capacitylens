@@ -19,17 +19,17 @@ export type ArchiveRecoveryRow = {
   | { entity: 'clients' | 'projects' | 'activities' }
 );
 /** A company-scoped list of recoverable identities. */
-export type ArchiveRecovery = { accountId: string; rows: ArchiveRecoveryRow[] };
+export type ArchiveRecovery = { companyId: string; rows: ArchiveRecoveryRow[] };
 
 /** Project recoverable identities without exposing inactive details or deleted ancestry. */
-export function archiveRecovery(data: AppData, accountId: string, role: Role): ArchiveRecovery {
+export function archiveRecovery(data: AppData, companyId: string, role: Role): ArchiveRecovery {
   const indexes = new Map<AppDataKey, Map<string, LifecycleAncestryRow>>();
   for (const table of ['resources', 'clients', 'projects', 'activities', 'phases'] as const) {
     indexes.set(
       table,
       new Map(
         data[table]
-          .filter((row) => row.accountId === accountId)
+          .filter((row) => row.companyId === companyId)
           .map((row) => [row.id, row as unknown as LifecycleAncestryRow]),
       ),
     );
@@ -96,5 +96,5 @@ export function archiveRecovery(data: AppData, accountId: string, role: Role): A
       a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }) ||
       a.id.localeCompare(b.id),
   );
-  return { accountId, rows };
+  return { companyId, rows };
 }

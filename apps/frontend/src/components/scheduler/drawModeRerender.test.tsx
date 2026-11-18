@@ -20,8 +20,8 @@ const ACC = DEFAULT_ACCOUNT_ID;
 function dataset() {
   return schedulerDataset({
     allocations: [
-      makeAllocation({ accountId: ACC }),
-      makeAllocation({ id: 'a2', accountId: ACC, startDate: '2026-06-04', endDate: '2026-06-05' }),
+      makeAllocation({ companyId: ACC }),
+      makeAllocation({ id: 'a2', companyId: ACC, startDate: '2026-06-04', endDate: '2026-06-05' }),
     ],
   });
 }

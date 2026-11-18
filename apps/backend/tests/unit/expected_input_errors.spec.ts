@@ -1,7 +1,10 @@
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import {
+  buildCompanyExport,
+  serializeCompanyExport,
+} from '@capacitylens/shared/data/companyDocument';
 import { seed } from '@capacitylens/shared/data/seed';
 import GettingStartedController from '#controllers/getting_started_controller';
 import { parseRequestDocument } from '#services/company_import';
@@ -10,7 +13,12 @@ import { parseRequestDocument } from '#services/company_import';
 
 test.group('Expected input errors', () => {
   test('a request document parses, or is null only when it is invalid input', ({ assert }) => {
-    const document = buildCompanyExport(seed(), { accountId: 'a-studio', completeness: 'full' });
+    // A request carries the file as the browser read it, in the interchange shape.
+    const document = JSON.parse(
+      serializeCompanyExport(
+        buildCompanyExport(seed(), { companyId: 'a-studio', completeness: 'full' })
+      )
+    ) as { format: string };
     assert.equal(parseRequestDocument(document)?.format, document.format);
     assert.isNull(parseRequestDocument({ format: 'something else' }));
     assert.isNull(parseRequestDocument(undefined));

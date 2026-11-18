@@ -20,7 +20,7 @@ export type ClientMasqueradeEndReason = Extract<MasqueradeEndReason, 'explicit' 
 
 /** Server-computed wire representation of an active identity read projection. */
 export interface MasqueradeState extends AccessGrant {
-  accountId: WorkspaceId;
+  companyId: WorkspaceId;
   targetUserId: PrincipalId;
   targetName: string;
   effectiveRole: Role;

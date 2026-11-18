@@ -43,18 +43,18 @@ async function createScenario(request: APIRequestContext) {
   const projectId = crypto.randomUUID();
   const activityId = crypto.randomUUID();
   const owner = await signUpUser(ownerEmail);
-  const accountId = await bootstrapOrg(request, owner.cookie, company);
-  await createFixturePerson(request, owner.cookie, accountId, {
+  const companyId = await bootstrapOrg(request, owner.cookie, company);
+  await createFixturePerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Bruce Wayne',
     role: 'Planner',
   });
-  await createFixturePerson(request, owner.cookie, accountId, {
+  await createFixturePerson(request, owner.cookie, companyId, {
     id: secondResourceId,
     name: 'Clark Kent',
     role: 'Planner',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'clients', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'clients', {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -62,7 +62,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { name: 'Wayne Enterprises', color: '#76a5e7' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'projects', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'projects', {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -70,7 +70,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { clientId, name: 'Gotham Renewal', color: '#e776b8' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'activities', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'activities', {
     operation: 'catalogue.create',
     entity: {
       entity: 'activities',
@@ -78,7 +78,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { name: 'City planning', kind: 'project', projectId, phaseId: null },
     },
   });
-  return { owner, accountId, ownerEmail, resourceId, secondResourceId, projectId, activityId };
+  return { owner, companyId, ownerEmail, resourceId, secondResourceId, projectId, activityId };
 }
 
 async function signIn(page: Page, ownerEmail: string) {
@@ -123,8 +123,8 @@ async function dragByOneDay(page: Page, target: Locator, xOffset: number) {
   await page.mouse.up();
 }
 
-async function persistedAllocations(request: APIRequestContext, cookie: string, accountId: string) {
-  const response = await request.get(`${AUTH_API}/api/state?accountId=${accountId}`, {
+async function persistedAllocations(request: APIRequestContext, cookie: string, companyId: string) {
+  const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
     headers: { cookie },
     maxRetries: 1,
   });
@@ -148,16 +148,16 @@ async function createAllocation(page: Page, projectId: string, activityId: strin
 
 type RecordedRequest = { method: string; path: string };
 
-function isPlanningRead(accountId: string, method: string, url: string) {
-  return method === 'GET' && new URL(url).pathname === `/api/companies/${accountId}/planning`;
+function isPlanningRead(companyId: string, method: string, url: string) {
+  return method === 'GET' && new URL(url).pathname === `/api/companies/${companyId}/planning`;
 }
 
 // Typed allocation writes and the restoration that undoes a delete; the canonical GET is excluded.
-function isTypedAllocationWrite(accountId: string, { method, path }: RecordedRequest) {
+function isTypedAllocationWrite(companyId: string, { method, path }: RecordedRequest) {
   return (
     method !== 'GET' &&
-    (path.startsWith(`/api/companies/${accountId}/allocations`) ||
-      path === `/api/companies/${accountId}/planning/restore-group`)
+    (path.startsWith(`/api/companies/${companyId}/allocations`) ||
+      path === `/api/companies/${companyId}/planning/restore-group`)
   );
 }
 
@@ -173,10 +173,10 @@ function recordRequests(page: Page) {
 async function allocationFrom(
   request: APIRequestContext,
   cookie: string,
-  accountId: string,
+  companyId: string,
   id: string,
 ) {
-  return (await persistedAllocations(request, cookie, accountId)).find(
+  return (await persistedAllocations(request, cookie, companyId)).find(
     (allocation) => allocation.id === id,
   );
 }
@@ -184,14 +184,14 @@ async function allocationFrom(
 /** One gesture sends exactly one typed planning request and no legacy batch. */
 async function expectOneTypedWrite(
   page: Page,
-  accountId: string,
+  companyId: string,
   requests: RecordedRequest[],
   gesture: () => Promise<void>,
   persisted: () => Promise<void>,
 ) {
   const start = requests.length;
   const written = page.waitForResponse((response) =>
-    isTypedAllocationWrite(accountId, {
+    isTypedAllocationWrite(companyId, {
       method: response.request().method(),
       path: new URL(response.url()).pathname,
     }),
@@ -200,7 +200,7 @@ async function expectOneTypedWrite(
   expect((await written).ok()).toBe(true);
   await persisted();
   const sent = requests.slice(start);
-  expect(sent.filter((request) => isTypedAllocationWrite(accountId, request))).toHaveLength(1);
+  expect(sent.filter((request) => isTypedAllocationWrite(companyId, request))).toHaveLength(1);
   expect(sent.filter(({ path }) => path === '/api/batch')).toEqual([]);
 }
 
@@ -208,7 +208,7 @@ async function expectOneTypedWrite(
 async function gestureUndoRedo<T>(
   input: {
     page: Page;
-    accountId: string;
+    companyId: string;
     requests: RecordedRequest[];
     stored: () => Promise<Allocation[]>;
   },
@@ -217,17 +217,17 @@ async function gestureUndoRedo<T>(
   before: T,
   after: T,
 ) {
-  const { page, accountId, requests, stored } = input;
+  const { page, companyId, requests, stored } = input;
   const settled = (expected: T) => async () => {
     await expect.poll(async () => project(await stored())).toEqual(expected);
   };
-  await expectOneTypedWrite(page, accountId, requests, gesture, settled(after));
+  await expectOneTypedWrite(page, companyId, requests, gesture, settled(after));
   const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
-  await expectOneTypedWrite(page, accountId, requests, () => undo.click(), settled(before));
+  await expectOneTypedWrite(page, companyId, requests, () => undo.click(), settled(before));
   const redo = page.getByTestId('redo-button');
   await expect(redo).toBeEnabled();
-  await expectOneTypedWrite(page, accountId, requests, () => redo.click(), settled(after));
+  await expectOneTypedWrite(page, companyId, requests, () => redo.click(), settled(after));
 }
 
 async function dragToLane(page: Page, target: Locator, lane: Locator) {
@@ -248,7 +248,7 @@ test('authenticated scheduler create, move, resize and delete persist in SQLite'
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  const { owner, companyId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
 
   const bar = await createAllocation(page, projectId, activityId);
@@ -257,7 +257,7 @@ test('authenticated scheduler create, move, resize and delete persist in SQLite'
   expect(allocationId).toBeTruthy();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).find(
+      (await persistedAllocations(request, owner.cookie, companyId)).find(
         ({ id }) => id === allocationId,
       ),
     )
@@ -268,7 +268,7 @@ test('authenticated scheduler create, move, resize and delete persist in SQLite'
   await dragByOneDay(page, bar, await dayWidth(page));
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).find(
+      (await persistedAllocations(request, owner.cookie, companyId)).find(
         ({ id }) => id === allocationId,
       ),
     )
@@ -279,7 +279,7 @@ test('authenticated scheduler create, move, resize and delete persist in SQLite'
   await dragByOneDay(page, bar.getByTestId('resize-end'), await dayWidth(page));
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).find(
+      (await persistedAllocations(request, owner.cookie, companyId)).find(
         ({ id }) => id === allocationId,
       ),
     )
@@ -296,7 +296,7 @@ test('authenticated scheduler create, move, resize and delete persist in SQLite'
     .click();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(
+      (await persistedAllocations(request, owner.cookie, companyId)).some(
         ({ id }) => id === allocationId,
       ),
     )
@@ -311,14 +311,14 @@ test('same-revision authenticated refresh preserves Undo and Redo in SQLite', as
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  const { owner, companyId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
   const allocationId = await bar.getAttribute('data-alloc-id');
   expect(allocationId).toBeTruthy();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(
+      (await persistedAllocations(request, owner.cookie, companyId)).some(
         ({ id }) => id === allocationId,
       ),
     )
@@ -326,7 +326,7 @@ test('same-revision authenticated refresh preserves Undo and Redo in SQLite', as
 
   await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   const refresh = page.waitForResponse((response) =>
-    isPlanningRead(accountId, response.request().method(), response.url()),
+    isPlanningRead(companyId, response.request().method(), response.url()),
   );
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   const refreshResponse = await refresh;
@@ -338,7 +338,7 @@ test('same-revision authenticated refresh preserves Undo and Redo in SQLite', as
   await undo.click();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(
+      (await persistedAllocations(request, owner.cookie, companyId)).some(
         ({ id }) => id === allocationId,
       ),
     )
@@ -349,7 +349,7 @@ test('same-revision authenticated refresh preserves Undo and Redo in SQLite', as
   await redo.click();
   await expect
     .poll(async () =>
-      (await persistedAllocations(request, owner.cookie, accountId)).some(
+      (await persistedAllocations(request, owner.cookie, companyId)).some(
         ({ id }) => id === allocationId,
       ),
     )
@@ -364,7 +364,7 @@ test('same-revision background refresh preserves Undo for a keyboard resize', as
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  const { owner, companyId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
   const allocationId = await bar.getAttribute('data-alloc-id');
@@ -374,10 +374,10 @@ test('same-revision background refresh preserves Undo for a keyboard resize', as
   await bar.focus();
   await expect(bar).toBeFocused();
   const resizeRefresh = page.waitForResponse((response) =>
-    isPlanningRead(accountId, response.request().method(), response.url()),
+    isPlanningRead(companyId, response.request().method(), response.url()),
   );
   const resize = page.waitForResponse((response) =>
-    isTypedAllocationWrite(accountId, {
+    isTypedAllocationWrite(companyId, {
       method: response.request().method(),
       path: new URL(response.url()).pathname,
     }),
@@ -389,13 +389,13 @@ test('same-revision background refresh preserves Undo for a keyboard resize', as
   await resizedRead.finished();
   await expect(bar).toHaveAccessibleName(/1 Jun to 2 Jun/);
   await expect
-    .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId!))
+    .poll(async () => allocationFrom(request, owner.cookie, companyId, allocationId!))
     .toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-02' });
 
   // Use the normal focus-triggered revalidation after the server has acknowledged the resize.
   await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   const refresh = page.waitForResponse((response) =>
-    isPlanningRead(accountId, response.request().method(), response.url()),
+    isPlanningRead(companyId, response.request().method(), response.url()),
   );
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   const refreshed = await refresh;
@@ -408,7 +408,7 @@ test('same-revision background refresh preserves Undo for a keyboard resize', as
   await undo.click();
   await expect(bar).toHaveAccessibleName(/1 Jun to 1 Jun/);
   await expect
-    .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId!))
+    .poll(async () => allocationFrom(request, owner.cookie, companyId, allocationId!))
     .toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-01' });
 });
 
@@ -416,9 +416,9 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, resourceId, activityId } = await createScenario(request);
+  const { owner, companyId, ownerEmail, resourceId, activityId } = await createScenario(request);
   const allocationId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'allocations', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'allocations', {
     operation: 'allocation.create',
     allocation: {
       id: allocationId,
@@ -437,10 +437,10 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   await bar.focus();
   await expect(bar).toBeFocused();
   const resizeRefresh = page.waitForResponse((response) =>
-    isPlanningRead(accountId, response.request().method(), response.url()),
+    isPlanningRead(companyId, response.request().method(), response.url()),
   );
   const resize = page.waitForResponse((response) =>
-    isTypedAllocationWrite(accountId, {
+    isTypedAllocationWrite(companyId, {
       method: response.request().method(),
       path: new URL(response.url()).pathname,
     }),
@@ -451,18 +451,18 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   expect(resizedRead.status()).toBe(200);
   await resizedRead.finished();
   await expect
-    .poll(async () => allocationFrom(request, owner.cookie, accountId, allocationId))
+    .poll(async () => allocationFrom(request, owner.cookie, companyId, allocationId))
     .toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-02' });
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // The owner cookie belongs to a separate HTTP session from the browser's sign-in session.
-  const planning = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
+  const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
   const deletion = await request.post(
-    `${AUTH_API}/api/companies/${accountId}/allocations/${allocationId}/delete`,
+    `${AUTH_API}/api/companies/${companyId}/allocations/${allocationId}/delete`,
     {
       headers: {
         ...(await masqueradeContextHeaders(request, owner.cookie)),
@@ -476,11 +476,11 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
     },
   );
   expect(deletion.status()).toBe(200);
-  expect(await allocationFrom(request, owner.cookie, accountId, allocationId)).toBeUndefined();
+  expect(await allocationFrom(request, owner.cookie, companyId, allocationId)).toBeUndefined();
 
   await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));
   const refresh = page.waitForResponse((response) =>
-    isPlanningRead(accountId, response.request().method(), response.url()),
+    isPlanningRead(companyId, response.request().method(), response.url()),
   );
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   const refreshed = await refresh;
@@ -494,16 +494,16 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   const requests = recordRequests(page);
   await page.keyboard.press('ControlOrMeta+z');
   await expect(bar).toHaveCount(0);
-  expect(await allocationFrom(request, owner.cookie, accountId, allocationId)).toBeUndefined();
+  expect(await allocationFrom(request, owner.cookie, companyId, allocationId)).toBeUndefined();
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
-  expect(requests.filter((request) => isTypedAllocationWrite(accountId, request))).toEqual([]);
+  expect(requests.filter((request) => isTypedAllocationWrite(companyId, request))).toEqual([]);
 });
 
 test('a refused scheduler write keeps the schedule and history visible and does not persist', async ({
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  const { owner, companyId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
   const allocationId = await bar.getAttribute('data-alloc-id');
@@ -511,13 +511,13 @@ test('a refused scheduler write keeps the schedule and history visible and does 
   await expect
     .poll(
       async () =>
-        (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate,
+        (await allocationFrom(request, owner.cookie, companyId, allocationId!))?.startDate,
     )
     .toBe('2026-06-01');
   const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
 
-  await page.route(`**/api/companies/${accountId}/allocations/**`, (route) =>
+  await page.route(`**/api/companies/${companyId}/allocations/**`, (route) =>
     route.fulfill({
       status: 403,
       contentType: 'application/json',
@@ -526,7 +526,7 @@ test('a refused scheduler write keeps the schedule and history visible and does 
   );
   const requests = recordRequests(page);
   const refused = page.waitForResponse((response) =>
-    isTypedAllocationWrite(accountId, {
+    isTypedAllocationWrite(companyId, {
       method: response.request().method(),
       path: new URL(response.url()).pathname,
     }),
@@ -539,7 +539,7 @@ test('a refused scheduler write keeps the schedule and history visible and does 
   await expect(bar).toHaveAttribute('aria-label', /1 Jun to 1 Jun/);
   await expect(undo).toBeEnabled();
   expect(requests.filter(({ path }) => path === '/api/batch')).toEqual([]);
-  expect(await allocationFrom(request, owner.cookie, accountId, allocationId!)).toMatchObject({
+  expect(await allocationFrom(request, owner.cookie, companyId, allocationId!)).toMatchObject({
     startDate: '2026-06-01',
     endDate: '2026-06-01',
   });
@@ -549,12 +549,12 @@ test('each scheduler gesture is one typed write with Undo and Redo, and reload c
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, resourceId, secondResourceId, projectId, activityId } =
+  const { owner, companyId, ownerEmail, resourceId, secondResourceId, projectId, activityId } =
     await createScenario(request);
   await signIn(page, ownerEmail);
   const requests = recordRequests(page);
-  const stored = () => persistedAllocations(request, owner.cookie, accountId);
-  const harness = { page, accountId, requests, stored };
+  const stored = () => persistedAllocations(request, owner.cookie, companyId);
+  const harness = { page, companyId, requests, stored };
   const cityPlanning = page.getByTestId('allocation-bar').filter({ hasText: 'City planning' });
   const count = (allocations: Allocation[]) => allocations.length;
 
@@ -662,9 +662,9 @@ test('a weekly repeat persists all 14 occurrences as one series through one type
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, resourceId, projectId, activityId } =
+  const { owner, companyId, ownerEmail, resourceId, projectId, activityId } =
     await createScenario(request);
-  await sendPlanningFixtureCommand(request, owner.cookie, accountId, 'allocations', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'allocations', {
     operation: 'allocation.create',
     allocation: {
       id: crypto.randomUUID(),
@@ -677,7 +677,7 @@ test('a weekly repeat persists all 14 occurrences as one series through one type
       status: 'confirmed',
     },
   });
-  const stored = () => persistedAllocations(request, owner.cookie, accountId);
+  const stored = () => persistedAllocations(request, owner.cookie, companyId);
   const baseline = await stored();
   expect(baseline).toHaveLength(1);
   await signIn(page, ownerEmail);
@@ -715,7 +715,7 @@ test('a weekly repeat persists all 14 occurrences as one series through one type
 
   await expectOneTypedWrite(
     page,
-    accountId,
+    companyId,
     requests,
     async () => {
       await page.getByRole('button', { name: 'Add allocation for Bruce Wayne' }).click();
@@ -745,7 +745,7 @@ test('a stale-revision scheduler write shows server state without a toast or his
   page,
   request,
 }) => {
-  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  const { owner, companyId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
   const allocationId = await bar.getAttribute('data-alloc-id');
@@ -753,19 +753,19 @@ test('a stale-revision scheduler write shows server state without a toast or his
   await expect
     .poll(
       async () =>
-        (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate,
+        (await allocationFrom(request, owner.cookie, companyId, allocationId!))?.startDate,
     )
     .toBe('2026-06-01');
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // Another writer advances the server revision without this page refetching.
-  const planning = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
+  const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
   const external = await request.patch(
-    `${AUTH_API}/api/companies/${accountId}/allocations/${allocationId}`,
+    `${AUTH_API}/api/companies/${companyId}/allocations/${allocationId}`,
     {
       headers: {
         ...(await masqueradeContextHeaders(request, owner.cookie)),
@@ -785,7 +785,7 @@ test('a stale-revision scheduler write shows server state without a toast or his
   expect(external.status()).toBe(200);
 
   const conflict = page.waitForResponse((response) =>
-    isTypedAllocationWrite(accountId, {
+    isTypedAllocationWrite(companyId, {
       method: response.request().method(),
       path: new URL(response.url()).pathname,
     }),
@@ -797,14 +797,14 @@ test('a stale-revision scheduler write shows server state without a toast or his
   await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
   await expect(page.getByTestId('undo-button')).toBeDisabled();
   await expect(page.getByTestId('redo-button')).toBeDisabled();
-  expect(await allocationFrom(request, owner.cookie, accountId, allocationId!)).toMatchObject({
+  expect(await allocationFrom(request, owner.cookie, companyId, allocationId!)).toMatchObject({
     startDate: '2026-06-04',
     endDate: '2026-06-04',
   });
 });
 
 test('an ended session (401) clears the scheduler cache and history', async ({ page, request }) => {
-  const { owner, accountId, ownerEmail, projectId, activityId } = await createScenario(request);
+  const { owner, companyId, ownerEmail, projectId, activityId } = await createScenario(request);
   await signIn(page, ownerEmail);
   const bar = await createAllocation(page, projectId, activityId);
   const allocationId = await bar.getAttribute('data-alloc-id');
@@ -812,14 +812,14 @@ test('an ended session (401) clears the scheduler cache and history', async ({ p
   await expect
     .poll(
       async () =>
-        (await allocationFrom(request, owner.cookie, accountId, allocationId!))?.startDate,
+        (await allocationFrom(request, owner.cookie, companyId, allocationId!))?.startDate,
     )
     .toBe('2026-06-01');
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   revokeFixtureSessions(ownerEmail);
   await page.context().clearCookies();
-  expect((await page.request.get(`${AUTH_API}/api/companies/${accountId}/planning`)).status()).toBe(
+  expect((await page.request.get(`${AUTH_API}/api/companies/${companyId}/planning`)).status()).toBe(
     401,
   );
   await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));

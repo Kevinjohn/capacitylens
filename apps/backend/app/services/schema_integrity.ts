@@ -179,13 +179,13 @@ export async function assertSchemaIntegrity() {
   await assertProofStorage('login_link_tokens');
   await assertProofStorage('password_reset_tokens');
   await assertProofStorage('email_verification_tokens');
-  for (const table of tenantIndexedTables) await assertIndex(table, 'account_id');
+  for (const table of tenantIndexedTables) await assertIndex(table, 'company_id');
   const auditColumns = (await db.rawQuery('PRAGMA table_info(audit_entries)')) as Array<{
     name: string;
     notnull: number;
   }>;
-  if (auditColumns.find((column) => column.name === 'account_id')?.notnull !== 1) {
-    throw new Error('Database schema drift: audit account_id must be required');
+  if (auditColumns.find((column) => column.name === 'company_id')?.notnull !== 1) {
+    throw new Error('Database schema drift: audit company_id must be required');
   }
   const auditReferences = (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
     table: string;
@@ -197,22 +197,22 @@ export async function assertSchemaIntegrity() {
   for (const table of scopedTables) {
     await assertTrigger(
       `${table}_account_immutable`,
-      `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF account_id ON ${table} WHEN NEW.account_id <> OLD.account_id BEGIN SELECT RAISE(ABORT, 'account_id is immutable'); END`
+      `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`
     );
   }
   for (const [table, column, target] of relationships) {
     for (const operation of ['INSERT', 'UPDATE']) {
       await assertTrigger(
         `${table}_${column}_${operation.toLowerCase()}`,
-        `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND account_id = NEW.account_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
+        `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND company_id = NEW.company_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
       );
     }
   }
   await assertTrigger(
     'capacitylens_member_resource_kind_cleanup',
-    "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE account_id = OLD.account_id AND resource_id = OLD.id; END"
+    "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE company_id = OLD.company_id AND resource_id = OLD.id; END"
   );
-  await assertIndex('account_getting_started_dismissals', 'account_id');
+  await assertIndex('account_getting_started_dismissals', 'company_id');
   for (const table of ['allocations', 'time_off', 'closures', 'phases', 'disciplines']) {
     const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
     if (
@@ -242,7 +242,7 @@ export async function assertSchemaIntegrity() {
     for (const operation of ['insert', 'update']) {
       await assertTrigger(
         `${table}_deletion_group_${operation}`,
-        `CREATE TRIGGER ${table}_deletion_group_${operation} BEFORE ${operation.toUpperCase()} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND account_id = NEW.account_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
+        `CREATE TRIGGER ${table}_deletion_group_${operation} BEFORE ${operation.toUpperCase()} ON ${table} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND company_id = NEW.company_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
       );
     }
   }
@@ -252,14 +252,14 @@ export async function assertSchemaIntegrity() {
   );
   await assertTrigger(
     'deleted_groups_account_immutable',
-    "CREATE TRIGGER deleted_groups_account_immutable BEFORE UPDATE OF account_id ON deleted_groups WHEN NEW.account_id <> OLD.account_id BEGIN SELECT RAISE(ABORT, 'account_id is immutable'); END"
+    "CREATE TRIGGER deleted_groups_account_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"
   );
   for (const [table, columns] of [
     [
       'deleted_groups',
       [
         'group_id',
-        'account_id',
+        'company_id',
         'actor_id',
         'session_id',
         'mutation_id',
@@ -271,7 +271,7 @@ export async function assertSchemaIntegrity() {
     [
       'planning_mutations',
       [
-        'account_id',
+        'company_id',
         'mutation_id',
         'actor_id',
         'revision',
@@ -279,7 +279,7 @@ export async function assertSchemaIntegrity() {
         'origin_session_id',
       ],
     ],
-    ['account_getting_started_dismissals', ['id', 'account_id', 'created_at', 'updated_at']],
+    ['account_getting_started_dismissals', ['id', 'company_id', 'created_at', 'updated_at']],
   ] as const) {
     const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
     if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns)) {

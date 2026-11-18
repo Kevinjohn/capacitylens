@@ -4,7 +4,7 @@ import type { Resource } from '../types/entities.js';
 export const placeholder = (over: Partial<Resource> = {}): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id: 'ph1',
-  accountId: 'acct-test',
+  companyId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   kind: 'placeholder',

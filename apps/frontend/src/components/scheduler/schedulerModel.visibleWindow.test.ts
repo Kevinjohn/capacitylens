@@ -140,13 +140,13 @@ describe('buildSchedulerModel', () => {
 function buildVisibleWindowDensityData(): AppData {
   return {
     ...emptyAppData(),
-    clients: [makeClient({ accountId: 'acct-test', name: 'Ferris', color: '#1' })],
-    projects: [makeProject({ accountId: 'acct-test', name: 'P1', color: '#2' })],
-    activities: [makeActivity({ accountId: 'acct-test', name: 'T1' })],
+    clients: [makeClient({ companyId: 'acct-test', name: 'Ferris', color: '#1' })],
+    projects: [makeProject({ companyId: 'acct-test', name: 'P1', color: '#2' })],
+    activities: [makeActivity({ companyId: 'acct-test', name: 'T1' })],
     resources: [
       makeResource({
         id: 'r1',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         name: 'Dana',
         role: 'Designer',
         color: '#4',

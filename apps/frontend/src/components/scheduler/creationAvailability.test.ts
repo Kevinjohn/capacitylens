@@ -13,7 +13,7 @@ const person = makeResource({ name: 'Bruce Wayne' });
 const holiday = makeTimeOff({ startDate: '2026-06-03', endDate: '2026-06-04' });
 const companyClosure: Closure = {
   id: 'closure',
-  accountId: 'a1',
+  companyId: 'a1',
   createdAt: 't',
   updatedAt: 't',
   name: 'Company shutdown',

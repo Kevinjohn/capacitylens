@@ -60,10 +60,10 @@ function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, u
  */
 export async function readStateWithClient(
   client: QueryClientContract,
-  accountId: string,
+  companyId: string,
   includeInactive = false
 ): Promise<AppData> {
-  if (accountId.trim() === '') {
+  if (companyId.trim() === '') {
     throw new Error('A company scope is required');
   }
   const [
@@ -78,24 +78,24 @@ export async function readStateWithClient(
     timeOff,
     closures,
   ] = await Promise.all([
-    Account.query({ client }).where('id', accountId),
+    Account.query({ client }).where('id', companyId),
     Client.query({ client })
       .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(accountId)),
-    Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+      .withScopes((scopes) => scopes.forCompany(companyId)),
+    Discipline.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
     Project.query({ client })
       .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(accountId)),
-    Phase.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+      .withScopes((scopes) => scopes.forCompany(companyId)),
+    Phase.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
     Resource.query({ client })
       .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(accountId)),
+      .withScopes((scopes) => scopes.forCompany(companyId)),
     Activity.query({ client })
       .withTrashed()
-      .withScopes((scopes) => scopes.forCompany(accountId)),
-    Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
-    TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
-    Closure.query({ client }).withScopes((scopes) => scopes.forCompany(accountId)),
+      .withScopes((scopes) => scopes.forCompany(companyId)),
+    Allocation.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
+    TimeOff.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
+    Closure.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
   ]);
   const data = {
     accounts: serializeRows(accounts),

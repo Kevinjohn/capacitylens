@@ -27,7 +27,7 @@ describe('teamAccessClient command outcomes', () => {
 
     await expect(
       teamAccessClient.createInvitation({
-        accountId: 'account-1',
+        companyId: 'account-1',
         role: 'viewer',
         email: 'selina@wayne.test',
       }),
@@ -43,7 +43,7 @@ describe('teamAccessClient command outcomes', () => {
 
     await expect(
       teamAccessClient.createInvitation({
-        accountId: 'account-1',
+        companyId: 'account-1',
         role: 'viewer',
         email: 'selina@wayne.test',
       }),
@@ -227,7 +227,7 @@ describe('teamAccessClient invitation creation', () => {
     const create = vi
       .spyOn(invitationRequests, 'createInvitation')
       .mockResolvedValue(new Response(JSON.stringify({ id: 1, emailed }), { status }));
-    const input = { accountId: 'a1', role: 'editor' as const, email: 'selina@wayne.test' };
+    const input = { companyId: 'a1', role: 'editor' as const, email: 'selina@wayne.test' };
 
     await expect(teamAccessClient.createInvitation(input)).resolves.toMatchObject({
       kind: 'ok',

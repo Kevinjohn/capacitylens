@@ -30,7 +30,7 @@ const ORG_TABLES: OrgTables = {
   disciplines: [
     {
       id: 'd-design',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Design',
@@ -39,7 +39,7 @@ const ORG_TABLES: OrgTables = {
     },
     {
       id: 'd-dev',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Development',
@@ -48,7 +48,7 @@ const ORG_TABLES: OrgTables = {
     },
     {
       id: 'd-copy',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Copywriting',
@@ -57,7 +57,7 @@ const ORG_TABLES: OrgTables = {
     },
     {
       id: 'd-loft-design',
-      accountId: LOFT,
+      companyId: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Design',
@@ -74,7 +74,7 @@ const ORG_TABLES: OrgTables = {
     {
       ...NULLABLE_FIELDS.clients,
       id: 'c-acme',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Queen Consolidated',
@@ -83,7 +83,7 @@ const ORG_TABLES: OrgTables = {
     {
       ...NULLABLE_FIELDS.clients,
       id: 'c-globex',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'LexCorp',
@@ -92,7 +92,7 @@ const ORG_TABLES: OrgTables = {
     {
       ...NULLABLE_FIELDS.clients,
       id: 'c-loft-northwind',
-      accountId: LOFT,
+      companyId: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Rand Corporation',
@@ -103,7 +103,7 @@ const ORG_TABLES: OrgTables = {
     {
       ...NULLABLE_FIELDS.projects,
       id: 'p-acme',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Project Watchtower',
@@ -113,7 +113,7 @@ const ORG_TABLES: OrgTables = {
     {
       ...NULLABLE_FIELDS.projects,
       id: 'p-brand',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Metropolis Rebrand',
@@ -123,7 +123,7 @@ const ORG_TABLES: OrgTables = {
     {
       ...NULLABLE_FIELDS.projects,
       id: 'p-loft-app',
-      accountId: LOFT,
+      companyId: LOFT,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Rand Mobile App',
@@ -134,7 +134,7 @@ const ORG_TABLES: OrgTables = {
   phases: [
     {
       id: 'ph-disc',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Discovery',
@@ -142,7 +142,7 @@ const ORG_TABLES: OrgTables = {
     },
     {
       id: 'ph-build',
-      accountId: STUDIO,
+      companyId: STUDIO,
       createdAt: SEED_TIMESTAMP,
       updatedAt: SEED_TIMESTAMP,
       name: 'Build',

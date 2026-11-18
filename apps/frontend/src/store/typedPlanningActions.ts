@@ -44,7 +44,6 @@ export function createTypedPlanningActions(
   get: () => Pick<StoreState, 'data' | 'sendPlanningCommand'>,
   { requireAccount, blockedByViewer }: Pick<StoreInternals, 'requireAccount' | 'blockedByViewer'>,
 ) {
-  const accountId = requireAccount;
   const blocked = blockedByViewer;
   // The guard admits a company still loading from the summaries; no command can be built for it
   // until its row is published, which the person sees as no company being selected yet.
@@ -98,12 +97,12 @@ export function createTypedPlanningActions(
     key: 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines',
     fields: Draft<T>,
   ): Promise<CreateResult<T>> => {
-    const companyId = accountId();
+    const companyId = requireAccount();
     if (blocked()) return { kind: 'blocked' };
     const id = newId();
     const command = buildCatalogueCreate({
       data: get().data,
-      accountId: companyId,
+      companyId: companyId,
       args: { entity: key, id, fields } as Parameters<typeof buildCatalogueCreate>[0]['args'],
     });
     if (!command) throw unprepared(companyId, 'The planning change could not be prepared.');
@@ -116,7 +115,7 @@ export function createTypedPlanningActions(
     changes: object,
     expectedUpdatedAt?: string,
   ) => {
-    const companyId = accountId();
+    const companyId = requireAccount();
     if (blocked()) return;
     const original = owned(key, id, companyId);
     if (!original) return;
@@ -124,7 +123,7 @@ export function createTypedPlanningActions(
       expecting(
         buildCatalogueUpdate({
           data: get().data,
-          accountId: companyId,
+          companyId: companyId,
           original,
           args: { entity: key, id, changes },
         }),
@@ -133,7 +132,7 @@ export function createTypedPlanningActions(
     );
   };
   const deleteCatalogue = async (key: 'phases' | 'disciplines', id: string) => {
-    const companyId = accountId();
+    const companyId = requireAccount();
     if (blocked() || !owned(key, id, companyId)) return;
     await send({
       intent: { operation: 'catalogue.delete', entity: { entity: key, id } },
@@ -141,13 +140,13 @@ export function createTypedPlanningActions(
     });
   };
   const createTimeOff = async (input: Draft<TimeOff>): Promise<CreateResult<TimeOff>> => {
-    const companyId = accountId();
+    const companyId = requireAccount();
     if (blocked()) return { kind: 'blocked' };
     assertResourceExists(get().data, companyId, input.resourceId);
     const id = newId();
     const command = buildTimeOffCreate({
       data: get().data,
-      accountId: companyId,
+      companyId: companyId,
       args: { id, fields: input },
     });
     if (!command) throw unprepared(companyId, 'The time-off entry could not be prepared.');
@@ -172,7 +171,7 @@ export function createTypedPlanningActions(
     updateActivity: (id: string, patch: Patch<Activity>, expectedUpdatedAt?: string) =>
       updateCatalogue('activities', id, patch, expectedUpdatedAt),
     deleteActivity: async (id: string) => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked() || !owned('activities', id, companyId)) return undefined;
       return send({
         intent: { operation: 'catalogue.archive', entity: { entity: 'activities', id } },
@@ -180,7 +179,7 @@ export function createTypedPlanningActions(
       });
     },
     addResource: async (input: Draft<Resource>): Promise<CreateResult<Resource>> => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked()) return { kind: 'blocked' };
       const id = newId();
       const fields = {
@@ -189,7 +188,7 @@ export function createTypedPlanningActions(
       };
       const command = buildResourceCreate({
         data: get().data,
-        accountId: companyId,
+        companyId: companyId,
         args: { id, fields },
       });
       if (!command) throw unprepared(companyId, 'The resource could not be prepared.');
@@ -197,7 +196,7 @@ export function createTypedPlanningActions(
       return { kind: 'created', value: created('resources', id) };
     },
     updateResource: async (id: string, patch: Patch<Resource>, expectedUpdatedAt?: string) => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked()) return;
       const original = owned('resources', id, companyId);
       if (!original) return;
@@ -209,7 +208,7 @@ export function createTypedPlanningActions(
         expecting(
           buildResourceUpdate({
             data: get().data,
-            accountId: companyId,
+            companyId: companyId,
             original,
             args: { id, changes },
           }),
@@ -226,12 +225,12 @@ export function createTypedPlanningActions(
       if (!Number.isSafeInteger(count) || count < 2) {
         throw new Error('A repeat needs at least two entries.');
       }
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked()) return { kind: 'blocked' };
       assertResourceExists(get().data, companyId, input.resourceId);
       const command = buildTimeOffCreate({
         data: get().data,
-        accountId: companyId,
+        companyId: companyId,
         args: { id: newId(), fields: input },
       });
       if (!command || command.intent.operation !== 'timeOff.create') {
@@ -248,7 +247,7 @@ export function createTypedPlanningActions(
       return { kind: 'created', value: ids.map((id) => created('timeOff', id)) };
     },
     updateTimeOff: async (id: string, changes: Patch<TimeOff>, expectedUpdatedAt?: string) => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked()) return;
       const original = owned('timeOff', id, companyId);
       if (original) {
@@ -256,7 +255,7 @@ export function createTypedPlanningActions(
           expecting(
             buildTimeOffUpdate({
               data: get().data,
-              accountId: companyId,
+              companyId: companyId,
               original,
               args: { id, changes },
             }),
@@ -266,17 +265,17 @@ export function createTypedPlanningActions(
       }
     },
     deleteTimeOff: async (id: string) => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked() || !owned('timeOff', id, companyId)) return;
       await send({ intent: { operation: 'timeOff.delete', id }, inverse: restoreFromReceipt });
     },
     addClosure: async (input: Draft<Closure>): Promise<CreateResult<Closure>> => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked()) return { kind: 'blocked' };
       const id = newId();
       const command = buildClosureCreate({
         data: get().data,
-        accountId: companyId,
+        companyId: companyId,
         args: { id, fields: input },
       });
       if (!command) throw unprepared(companyId, 'The closure could not be prepared.');
@@ -284,7 +283,7 @@ export function createTypedPlanningActions(
       return { kind: 'created', value: created('closures', id) };
     },
     updateClosure: async (id: string, changes: Patch<Closure>, expectedUpdatedAt?: string) => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked()) return;
       const original = owned('closures', id, companyId);
       if (original) {
@@ -292,7 +291,7 @@ export function createTypedPlanningActions(
           expecting(
             buildClosureUpdate({
               data: get().data,
-              accountId: companyId,
+              companyId: companyId,
               original,
               args: { id, changes },
             }),
@@ -302,12 +301,12 @@ export function createTypedPlanningActions(
       }
     },
     deleteClosure: async (id: string) => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked() || !owned('closures', id, companyId)) return;
       await send({ intent: { operation: 'closure.delete', id }, inverse: restoreFromReceipt });
     },
     updateAccount: async (id: string, patch: Patch<Account>) => {
-      const companyId = accountId();
+      const companyId = requireAccount();
       if (blocked()) return;
       if (id !== companyId) {
         throw new Error('Cannot update a company other than the active company.');
@@ -332,7 +331,7 @@ export function createTypedPlanningActions(
                 original.weekStartsOn ?? 1,
               ),
             };
-      await send(buildSettingsUpdate({ data: get().data, accountId: id, original, args: changes }));
+      await send(buildSettingsUpdate({ data: get().data, companyId: id, original, args: changes }));
     },
   };
 }

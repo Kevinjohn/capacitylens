@@ -25,14 +25,14 @@ import {
 } from '../../helpers/identities.js';
 import { requestBarrier } from '../../helpers/request_barrier.js';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
 const invitee = 'clark.kent@wayne.example';
 const password = 'invitation-password-2026';
 
 async function company() {
   const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
-  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', accountId);
+  await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
   return ownerId;
 }
 
@@ -40,7 +40,7 @@ async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
   const userId = await createIdentity(email);
   const now = new Date().toISOString();
   await db.table('memberships').insert({
-    scope_id: accountId,
+    scope_id: companyId,
     user_id: userId,
     role,
     status: 'active',
@@ -53,7 +53,7 @@ async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
 const invite = (client: ApiClient, cookie: string, email: string, role = 'editor') =>
   asDataOwner(client.post('/api/invites'), cookie)
     .timeout({ response: 10000, deadline: 15000 })
-    .json({ accountId, email, role })
+    .json({ companyId, email, role })
     .send();
 
 const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>
@@ -64,7 +64,7 @@ const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>
     .send();
 
 async function revision() {
-  const row = await db.from('company_planning_revisions').where('account_id', accountId).first();
+  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
   return Number(row?.revision);
 }
 
@@ -88,7 +88,7 @@ test.group('company invitations', (group) => {
     sent.assertStatus(201);
     assert.include(sent.body(), { role: 'editor', preauthEmail: invitee, emailed: true });
     const listed = await asDataOwner(
-      client.get(`/api/companies/${accountId}/invites`),
+      client.get(`/api/companies/${companyId}/invites`),
       cookie
     ).send();
     assert.deepEqual(
@@ -100,7 +100,7 @@ test.group('company invitations', (group) => {
       const preview = await client.get(`/api/invites/${token}/preview`).send();
       preview.assertStatus(200);
       assert.deepEqual(preview.body(), {
-        accountId,
+        companyId,
         accountName: 'Wayne Enterprises',
         role: 'editor',
         email: invitee,
@@ -111,7 +111,7 @@ test.group('company invitations', (group) => {
     accepted.assertStatus(201);
     const userId = (accepted.body() as { user: { id: string } }).user.id;
     assert.deepInclude(await db.from('memberships').where('user_id', userId).first(), {
-      scope_id: accountId,
+      scope_id: companyId,
       role: 'editor',
       status: 'active',
     });
@@ -129,7 +129,7 @@ test.group('company invitations', (group) => {
     assert.isTrue(pending.body().emailVerified);
     assert.isFalse(pending.body().admission.admitted);
     const planning = () =>
-      asDataOwner(client.get(`/api/companies/${accountId}/planning`), inviteeCookie).send();
+      asDataOwner(client.get(`/api/companies/${companyId}/planning`), inviteeCookie).send();
     await expectStatus(planning(), 403);
     const approved = await asDataOwner(
       client.post(`/api/admission/${userId}/approve`),
@@ -153,7 +153,7 @@ test.group('company invitations', (group) => {
     sent.assertStatus(201);
     const stored = await db.from('account_invitations').where('email', invitee);
     assert.lengthOf(stored, 1);
-    assert.include(stored[0], { scope: accountId, role: 'editor' });
+    assert.include(stored[0], { scope: companyId, role: 'editor' });
     // Only the operator issues an invitation without a company; a member's send needs one.
     await assert.rejects(() =>
       accountKit.invitations.send({
@@ -192,7 +192,7 @@ test.group('company invitations', (group) => {
     const userId = (accepted.body() as { user: { id: string } }).user.id;
     const memberships = await db.from('memberships').where('user_id', userId);
     assert.lengthOf(memberships, 1);
-    assert.include(memberships[0], { scope_id: accountId, role: 'admin', status: 'active' });
+    assert.include(memberships[0], { scope_id: companyId, role: 'admin', status: 'active' });
     assert.isEmpty(await db.from('account_invitations').where('email', invitee));
     await expectStatus(accept(client, token), 400);
   });
@@ -253,12 +253,12 @@ test.group('company invitations', (group) => {
     assert.deepEqual(sent.body(), { committed: true, emailed: false });
     assert.lengthOf(await db.from('account_invitations'), 1);
     const listed = await asDataOwner(
-      client.get(`/api/companies/${accountId}/invites`),
+      client.get(`/api/companies/${companyId}/invites`),
       cookie
     ).send();
     const { id } = (listed.body() as { invites: { id: number }[] }).invites[0];
     const resent = await asDataOwner(
-      client.post(`/api/companies/${accountId}/invites/${id}/resend`),
+      client.post(`/api/companies/${companyId}/invites/${id}/resend`),
       cookie
     ).send();
     resent.assertStatus(202);
@@ -318,7 +318,7 @@ test.group('company invitations', (group) => {
     const first = mail.tokenFor(invitee);
     const { id } = sent.body() as { id: number };
     const resent = await asDataOwner(
-      client.post(`/api/companies/${accountId}/invites/${id}/resend`),
+      client.post(`/api/companies/${companyId}/invites/${id}/resend`),
       cookie
     ).send();
     resent.assertStatus(200);
@@ -327,7 +327,7 @@ test.group('company invitations', (group) => {
     await expectStatus(client.get(`/api/invites/${first}/preview`).send(), 404);
     env.set('CAPACITYLENS_MAIL_HOST', '');
     const unavailable = await asDataOwner(
-      client.post(`/api/companies/${accountId}/invites/${id}/resend`),
+      client.post(`/api/companies/${companyId}/invites/${id}/resend`),
       cookie
     ).send();
     unavailable.assertStatus(503);
@@ -335,7 +335,7 @@ test.group('company invitations', (group) => {
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example');
     await expectStatus(client.get(`/api/invites/${second}/preview`).send(), 200);
     const revoked = await asDataOwner(
-      client.delete(`/api/companies/${accountId}/invites/${id}`),
+      client.delete(`/api/companies/${companyId}/invites/${id}`),
       cookie
     ).send();
     revoked.assertStatus(204);
@@ -356,7 +356,7 @@ test.group('company invitations', (group) => {
     const results = await Promise.all([accept(client, token), accept(client, token)]);
     assert.deepEqual(results.map((result) => result.status()).sort(), [201, 400]);
     assert.lengthOf(await db.from('users').where('email', invitee), 1);
-    assert.lengthOf(await db.from('memberships').where('scope_id', accountId), 2);
+    assert.lengthOf(await db.from('memberships').where('scope_id', companyId), 2);
   });
 
   test('a sender demoted after manager approval cannot insert or email an invitation', async ({

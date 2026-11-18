@@ -42,7 +42,7 @@ describe('buildAllocationModalSeed', () => {
   it('keeps an edited allocation date ahead of create and injected dates', () => {
     const data = base();
     const editing = makeAllocation({
-      accountId: ACC,
+      companyId: ACC,
       id: 'allocation-edit',
       resourceId: 'resource-edit',
       activityId: 't1',

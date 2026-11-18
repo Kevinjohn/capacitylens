@@ -388,7 +388,7 @@ describe('ActivityList', () => {
           {
             ...NULLABLE_FIELDS.activities,
             id: 'act-orphan',
-            accountId: DEFAULT_ACCOUNT_ID,
+            companyId: DEFAULT_ACCOUNT_ID,
             createdAt: 't',
             updatedAt: 't',
             name: 'Orphan Activity',

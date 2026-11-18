@@ -57,8 +57,8 @@ function fingerprint(data: AppData) {
   return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
 }
 
-function portableFingerprint(data: AppData, accountId: string) {
-  return fingerprint(buildCompanyExport(data, { accountId, completeness: 'full' }).data);
+function portableFingerprint(data: AppData, companyId: string) {
+  return fingerprint(buildCompanyExport(data, { companyId, completeness: 'full' }).data);
 }
 
 // Scheduling IDs are primary keys across every company, so a document exported from another
@@ -67,7 +67,7 @@ function portableFingerprint(data: AppData, accountId: string) {
 // Owner has confirmed with a password.
 async function assertNoForeignIdCollision(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   data: AppData
 ) {
   for (const key of SCOPED_WRITE_ORDER) {
@@ -76,7 +76,7 @@ async function assertNoForeignIdCollision(
       const foreign = await trx
         .from(tables[key])
         .whereIn('id', ids.slice(offset, offset + ID_LOOKUP_CHUNK_SIZE))
-        .whereNot('account_id', accountId)
+        .whereNot('company_id', companyId)
         .select('id')
         .first();
       if (foreign) {
@@ -91,13 +91,13 @@ async function assertNoForeignIdCollision(
   }
 }
 
-async function context(trx: TransactionClientContract, accountId: string) {
+async function context(trx: TransactionClientContract, companyId: string) {
   const links = await trx
     .from('account_member_resources')
-    .where('account_id', accountId)
+    .where('company_id', companyId)
     .select('user_id', 'resource_id');
   return {
-    accountId,
+    companyId,
     memberResourceLinks: links.map((link) => ({
       memberId: String(link.user_id),
       resourceId: String(link.resource_id),
@@ -111,15 +111,15 @@ async function context(trx: TransactionClientContract, accountId: string) {
  */
 export async function previewCompanyImport(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   document: CompanyExportDocument
 ) {
-  const current = await readStateWithClient(trx, accountId, true);
+  const current = await readStateWithClient(trx, companyId, true);
   if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
-  const prepared = prepareCompanyImport(document, await context(trx, accountId));
-  await assertNoForeignIdCollision(trx, accountId, prepared.data);
-  const changed = portableFingerprint(current, accountId) !== fingerprint(prepared.data);
-  const baseRevision = await getPlanningRevision(trx, accountId);
+  const prepared = prepareCompanyImport(document, await context(trx, companyId));
+  await assertNoForeignIdCollision(trx, companyId, prepared.data);
+  const changed = portableFingerprint(current, companyId) !== fingerprint(prepared.data);
+  const baseRevision = await getPlanningRevision(trx, companyId);
   const company = prepared.data.accounts.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one account.');
   return {
@@ -134,14 +134,14 @@ export async function previewCompanyImport(
 /** Replaces the company slice with stable IDs; the caller owns authorization and password confirmation consumption. */
 export async function applyCompanyImport(
   trx: TransactionClientContract,
-  accountId: string,
+  companyId: string,
   document: CompanyExportDocument,
   baseRevision: number,
   actorId: string
 ) {
-  const current = await readStateWithClient(trx, accountId, true);
+  const current = await readStateWithClient(trx, companyId, true);
   if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
-  const revision = await getPlanningRevision(trx, accountId);
+  const revision = await getPlanningRevision(trx, companyId);
   if (revision !== baseRevision) {
     throw new EntityWriteError(
       'The company changed. Preview the current data again.',
@@ -150,21 +150,21 @@ export async function applyCompanyImport(
       'IMPORT_SNAPSHOT_STALE'
     );
   }
-  const prepared = prepareCompanyImport(document, await context(trx, accountId));
-  await assertNoForeignIdCollision(trx, accountId, prepared.data);
-  if (portableFingerprint(current, accountId) === fingerprint(prepared.data)) {
+  const prepared = prepareCompanyImport(document, await context(trx, companyId));
+  await assertNoForeignIdCollision(trx, companyId, prepared.data);
+  if (portableFingerprint(current, companyId) === fingerprint(prepared.data)) {
     return { imported: prepared.imported, changed: false, revision };
   }
 
-  await discardRestorationGroups(trx, accountId);
+  await discardRestorationGroups(trx, companyId);
   for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
-    await trx.from(tables[key]).where('account_id', accountId).delete();
+    await trx.from(tables[key]).where('company_id', companyId).delete();
   }
   const account = prepared.data.accounts.at(0);
   if (!account) throw new Error('A prepared beta import always carries exactly one account.');
   await trx
     .from('accounts')
-    .where('id', accountId)
+    .where('id', companyId)
     .update(encodeRow('accounts', account as unknown as Record<string, unknown>));
   for (const key of SCOPED_WRITE_ORDER) {
     const rows = prepared.data[key];
@@ -179,13 +179,13 @@ export async function applyCompanyImport(
     }
   }
   await writeAudit(trx, {
-    accountId,
+    companyId,
     actorId,
     action: 'import',
     entity: 'account',
-    entityId: accountId,
+    entityId: companyId,
     fields: [],
   });
-  const nextRevision = await advancePlanningRevision(trx, accountId);
+  const nextRevision = await advancePlanningRevision(trx, companyId);
   return { imported: prepared.imported, changed: true, revision: nextRevision };
 }

@@ -6,7 +6,7 @@ import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
-  accountId,
+  companyId,
   configureAuth,
   resetPlanningFixture,
   session,
@@ -91,7 +91,7 @@ const PREVIEW =
   "Owner only, refused while viewing as: the caller document's name and counts, the revision and a changed flag";
 
 async function readRevision() {
-  const row = await db.from('company_planning_revisions').where('account_id', accountId).first();
+  const row = await db.from('company_planning_revisions').where('company_id', companyId).first();
   return Number(row?.revision ?? 0);
 }
 
@@ -101,7 +101,7 @@ async function send<T extends ApiRequest>(request: T, cookie: string, intent: ob
     .send();
 }
 
-const buildCompanyRoute = (path: string) => `/api/companies/${accountId}/${path}`;
+const buildCompanyRoute = (path: string) => `/api/companies/${companyId}/${path}`;
 
 /** A preset colour used by a seeded client that differs from the row's own, so the update is a real
  * change. */
@@ -110,7 +110,7 @@ async function pickOtherColor(table: 'clients' | 'projects', id: string) {
   const own = (await db.from(table).where('id', id).first()) as { color: string };
   const presets = (await db
     .from('clients')
-    .where('account_id', accountId)
+    .where('company_id', companyId)
     .select('color')) as Array<{ color: string }>;
   const other = presets.find((row) => row.color !== own.color);
   if (!other) throw new Error('The seed needs two client colours');
@@ -174,7 +174,7 @@ const replies: Record<string, Exposure> = {
       const inactive = canReadInactive(principal.effective);
       return session(
         fixture.client.get(
-          `/api/state?accountId=${accountId}${inactive ? '&includeInactive=1' : ''}`
+          `/api/state?companyId=${companyId}${inactive ? '&includeInactive=1' : ''}`
         ),
         fixture.cookie
       ).send();
@@ -395,9 +395,9 @@ const replies: Record<string, Exposure> = {
 /** Marks one client, project and time-off note, and adds an archived private client. */
 async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   const fixture = seed();
-  const clientRow = fixture.clients.find((row) => row.accountId === accountId && !row.builtin);
+  const clientRow = fixture.clients.find((row) => row.companyId === companyId && !row.builtin);
   const projectRow = fixture.projects.find((row) => row.clientId === clientRow?.id);
-  const timeOffRow = fixture.timeOff.find((row) => row.accountId === accountId);
+  const timeOffRow = fixture.timeOff.find((row) => row.companyId === companyId);
   if (!clientRow || !projectRow || !timeOffRow) throw new Error('Seed data lacks the marker rows');
   await db.from('clients').where({ id: clientRow.id }).update({
     name: MARKER_CLIENT,

@@ -30,7 +30,7 @@ function writtenAllocationIds(intent: PlanningIntent): string[] {
 export function buildSaveAdvisory(
   intent: PlanningIntent,
   after: AppData,
-  accountId: string
+  companyId: string
 ): SaveAdvisory {
   const ids = writtenAllocationIds(intent);
   const written = ids
@@ -38,7 +38,7 @@ export function buildSaveAdvisory(
     .filter((row): row is Allocation => row !== undefined);
   if (written.length === 0) return {};
   const [first] = written;
-  const account = after.accounts.find((row) => row.id === accountId);
+  const account = after.accounts.find((row) => row.id === companyId);
   const resource = after.resources.find((row) => row.id === first.resourceId);
   if (!account || !resource) return {};
   const blocksMode = !carriesHourlyLoad(account.schedulingMode ?? 'hourly');

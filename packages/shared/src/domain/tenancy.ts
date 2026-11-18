@@ -7,15 +7,15 @@ import type { ID, ScopedEntity } from '../types/entities.js';
 // row belong to account X". This module is a types-only leaf (no runtime deps) so the hot read
 // seam (useScopedData) can import it without pulling in the mutation/import machinery.
 
-/** The anchor: does a single, already-located row belong to `accountId`? Every other helper here
+/** The anchor: does a single, already-located row belong to `companyId`? Every other helper here
  * is defined in terms of this, and the write-boundary guard (getOwned) and the FK-coherence
  * checks (assertScopedRefs) use it directly on one row. */
-export const belongsToAccount = (scopedEntity: ScopedEntity, accountId: ID): boolean =>
-  scopedEntity.accountId === accountId;
+export const belongsToAccount = (scopedEntity: ScopedEntity, companyId: ID): boolean =>
+  scopedEntity.companyId === companyId;
 
-/** Curried positive predicate for `.filter(...)`: keep only the rows in `accountId`. The read-side
+/** Curried positive predicate for `.filter(...)`: keep only the rows in `companyId`. The read-side
  * seam (useScopedData, scopeData) narrows each table with this. */
 export const byAccount =
-  (accountId: ID) =>
+  (companyId: ID) =>
   (scopedEntity: ScopedEntity): boolean =>
-    belongsToAccount(scopedEntity, accountId);
+    belongsToAccount(scopedEntity, companyId);

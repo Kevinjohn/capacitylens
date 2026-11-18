@@ -10,15 +10,16 @@ import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '../../helpers/identities.js';
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
+import { asExportFile } from '#tests/helpers/export_file';
 
-const accountId = 'a-studio';
+const companyId = 'a-studio';
 const otherAccountId = 'a-loft';
 const password = 'batman-secret-2026';
 const privateClientName = 'SENTINEL_PRIVATE_CLIENT_NAME';
 const privateProjectName = 'SENTINEL_PRIVATE_PROJECT_NAME';
 const privateTimeOffNote = 'SENTINEL_PRIVATE_TIME_OFF_NOTE';
 const roles = ['viewer', 'editor', 'admin', 'owner'] as const;
-const planningUrl = `/api/companies/${accountId}/planning`;
+const planningUrl = `/api/companies/${companyId}/planning`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -54,7 +55,7 @@ async function createMember(client: ApiClient, role: Role) {
   const userId = String((signup.body() as { user: { id: string } }).user.id);
   const timestamp = new Date().toISOString();
   await db.table('memberships').insert({
-    scope_id: accountId,
+    scope_id: companyId,
     user_id: userId,
     role,
     status: 'active',
@@ -65,12 +66,12 @@ async function createMember(client: ApiClient, role: Role) {
 }
 
 async function setRole(userId: string, role: Role) {
-  await db.from('memberships').where({ scope_id: accountId, user_id: userId }).update({ role });
+  await db.from('memberships').where({ scope_id: companyId, user_id: userId }).update({ role });
 }
 
-async function stateFor(client: ApiClient, cookie: string, companyId = accountId) {
+async function stateFor(client: ApiClient, cookie: string, targetCompanyId = companyId) {
   return withSession(
-    trusted(client.get(`/api/state?accountId=${encodeURIComponent(companyId)}`)),
+    trusted(client.get(`/api/state?companyId=${encodeURIComponent(targetCompanyId)}`)),
     cookie
   ).send();
 }
@@ -80,24 +81,26 @@ async function currentUser(client: ApiClient, cookie: string) {
 }
 
 async function writeDismissal(client: ApiClient, cookie: string) {
-  return withSession(trusted(client.put(`/api/companies/${accountId}/getting-started`)), cookie)
+  return withSession(trusted(client.put(`/api/companies/${companyId}/getting-started`)), cookie)
     .json({ dismissed: true })
     .send();
 }
 
 async function importSeed(client: ApiClient, cookie: string) {
-  const document = buildCompanyExport(await readState(accountId, true), {
-    accountId,
-    completeness: 'full',
-  });
+  const document = asExportFile(
+    buildCompanyExport(await readState(companyId, true), {
+      companyId,
+      completeness: 'full',
+    })
+  );
   return withSession(trusted(client.post('/api/transfer/apply')), cookie)
-    .json({ accountId, document, baseRevision: 0 })
+    .json({ companyId, document, baseRevision: 0 })
     .send();
 }
 
 async function anonymiseResource(client: ApiClient, cookie: string, id: string) {
   return withSession(
-    trusted(client.post(`/api/companies/${accountId}/resources/${id}/anonymise`)),
+    trusted(client.post(`/api/companies/${companyId}/resources/${id}/anonymise`)),
     cookie
   )
     .json({})
@@ -106,10 +109,10 @@ async function anonymiseResource(client: ApiClient, cookie: string, id: string) 
 
 async function preparePrivateProjection() {
   const fixture = seed();
-  const client = fixture.clients.find((row) => row.accountId === accountId && row.builtin !== true);
-  const project = fixture.projects.find((row) => row.accountId === accountId);
-  const resource = fixture.resources.find((row) => row.accountId === accountId);
-  const timeOff = fixture.timeOff.find((row) => row.accountId === accountId);
+  const client = fixture.clients.find((row) => row.companyId === companyId && row.builtin !== true);
+  const project = fixture.projects.find((row) => row.companyId === companyId);
+  const resource = fixture.resources.find((row) => row.companyId === companyId);
+  const timeOff = fixture.timeOff.find((row) => row.companyId === companyId);
   if (!client || !project || !resource || !timeOff)
     throw new Error('Seed data is missing the authorization projection fixture');
   await db
@@ -150,7 +153,7 @@ test.group('native authorization and role projections', (group) => {
     configureAuth(cleanup);
     const { cookie, userId } = await createMember(client, 'editor');
 
-    const anonymous = await trusted(client.get(`/api/state?accountId=${accountId}`)).send();
+    const anonymous = await trusted(client.get(`/api/state?companyId=${companyId}`)).send();
     anonymous.assertStatus(401);
     const openHealth = await client.get('/api/health').send();
     openHealth.assertStatus(200);
@@ -162,7 +165,7 @@ test.group('native authorization and role projections', (group) => {
     nonMemberProjection.assertStatus(200);
 
     await db.table('memberships').insert({
-      scope_id: accountId,
+      scope_id: companyId,
       user_id: userId,
       role: 'editor',
       status: 'active',
@@ -172,18 +175,18 @@ test.group('native authorization and role projections', (group) => {
     const foreignRead = await stateFor(client, cookie, otherAccountId);
     foreignRead.assertStatus(403);
 
-    const foreignClient = seed().clients.find((row) => row.accountId === otherAccountId);
+    const foreignClient = seed().clients.find((row) => row.companyId === otherAccountId);
     assert.isDefined(foreignClient);
     const concealed = await withSession(
       trusted(client.post(`/api/clients/${foreignClient!.id}/archive`)),
       cookie
     )
-      .json({ accountId })
+      .json({ companyId })
       .send();
     concealed.assertStatus(404);
     assert.notInclude(JSON.stringify(concealed.body()), foreignClient!.name);
     const foreignRow = await db.from('clients').where({ id: foreignClient!.id }).first();
-    assert.equal(foreignRow?.account_id, otherAccountId);
+    assert.equal(foreignRow?.company_id, otherAccountId);
   });
 
   test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import authority', async ({
@@ -193,7 +196,7 @@ test.group('native authorization and role projections', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie, userId } = await createMember(client, 'viewer');
-    const anonymiseCandidates = seed().resources.filter((row) => row.accountId === accountId);
+    const anonymiseCandidates = seed().resources.filter((row) => row.companyId === companyId);
     assert.isAtLeast(anonymiseCandidates.length, 2);
 
     for (const role of roles) {
@@ -202,13 +205,13 @@ test.group('native authorization and role projections', (group) => {
       read.assertStatus(200);
       const body = read.body() as {
         accounts: Array<{ id: string }>;
-        clients: Array<{ accountId: string }>;
+        clients: Array<{ companyId: string }>;
       };
       assert.deepEqual(
         body.accounts.map((row) => row.id),
-        [accountId]
+        [companyId]
       );
-      assert.isTrue(body.clients.every((row) => row.accountId === accountId));
+      assert.isTrue(body.clients.every((row) => row.companyId === companyId));
 
       const me = await currentUser(client, cookie);
       me.assertStatus(200);
@@ -216,7 +219,7 @@ test.group('native authorization and role projections', (group) => {
       const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);
       const planning = currentPlanning.body() as { revision: number };
-      const settingsRequest = trusted(client.patch(`/api/companies/${accountId}/settings`));
+      const settingsRequest = trusted(client.patch(`/api/companies/${companyId}/settings`));
       const setting = await withSession(settingsRequest, cookie)
         .json(
           input(planning.revision, {
@@ -235,7 +238,7 @@ test.group('native authorization and role projections', (group) => {
       );
       const dismissalCount = await db
         .from('account_getting_started_dismissals')
-        .where('account_id', accountId)
+        .where('company_id', companyId)
         .count('* as total');
       assert.equal(dismissalCount[0]?.total, role === 'admin' || role === 'owner' ? 1 : 0);
       if (role === 'admin' || role === 'owner') {
@@ -272,7 +275,7 @@ test.group('native authorization and role projections', (group) => {
       const body = response.body() as {
         clients: Array<{ id: string; name: string; codeName?: string | null }>;
         projects: Array<{ id: string; name: string; codeName?: string | null }>;
-        resources: Array<{ id: string; accountId: string }>;
+        resources: Array<{ id: string; companyId: string }>;
         timeOff: Array<{ id: string; note?: string | null }>;
       };
       const projectedClient = body.clients.find((row) => row.id === fixture.clientId);
@@ -281,7 +284,7 @@ test.group('native authorization and role projections', (group) => {
       assert.isDefined(projectedClient, `${role} client projection`);
       assert.isDefined(projectedProject, `${role} project projection`);
       assert.isDefined(projectedTimeOff, `${role} time-off projection`);
-      assert.isTrue(body.resources.every((row) => row.accountId === accountId));
+      assert.isTrue(body.resources.every((row) => row.companyId === companyId));
       assert.include(
         body.resources.map((row) => row.id),
         fixture.resourceId
@@ -347,7 +350,7 @@ test.group('native authorization and role projections', (group) => {
     assert.deepEqual(
       await db
         .from('account_getting_started_dismissals')
-        .where('account_id', accountId)
+        .where('company_id', companyId)
         .count('* as total'),
       [{ total: 1 }]
     );

@@ -16,14 +16,14 @@ import type {
 
 interface ActivityOptions {
   id: ID;
-  accountId: ID;
+  companyId: ID;
   projectId: ID;
   phaseId?: ID;
 }
 
 interface AllocationOptions {
   id: ID;
-  accountId: ID;
+  companyId: ID;
   resourceId: ID;
   activityId: ID;
   overrides?: Partial<Allocation>;
@@ -31,15 +31,15 @@ interface AllocationOptions {
 
 interface TimeOffOptions {
   id: ID;
-  accountId: ID;
+  companyId: ID;
   resourceId: ID;
   overrides?: Partial<TimeOff>;
 }
 
 export const TS = '2026-01-01T00:00:00.000Z';
-export const meta = (id: ID, accountId: ID) => ({
+export const meta = (id: ID, companyId: ID) => ({
   id,
-  accountId,
+  companyId,
   createdAt: TS,
   updatedAt: TS,
 });
@@ -52,35 +52,35 @@ export const account = (id: ID, name = 'Co'): Account => ({
   createdAt: TS,
   updatedAt: TS,
 });
-export const client = (id: ID, accountId: ID, name = 'Ferris'): Client => ({
+export const client = (id: ID, companyId: ID, name = 'Ferris'): Client => ({
   ...NULLABLE_FIELDS.clients,
-  ...meta(id, accountId),
+  ...meta(id, companyId),
   name,
   color: '#3b82f6',
 });
-export const project = (id: ID, accountId: ID, clientId: ID): Project => ({
+export const project = (id: ID, companyId: ID, clientId: ID): Project => ({
   ...NULLABLE_FIELDS.projects,
-  ...meta(id, accountId),
+  ...meta(id, companyId),
   name: 'Web',
   clientId,
   color: '#3b82f6',
 });
-export const phase = (id: ID, accountId: ID, projectId: ID): Phase => ({
-  ...meta(id, accountId),
+export const phase = (id: ID, companyId: ID, projectId: ID): Phase => ({
+  ...meta(id, companyId),
   name: 'Discovery',
   projectId,
 });
-export const activity = ({ id, accountId, projectId, phaseId }: ActivityOptions): Activity => ({
+export const activity = ({ id, companyId, projectId, phaseId }: ActivityOptions): Activity => ({
   ...NULLABLE_FIELDS.activities,
-  ...meta(id, accountId),
+  ...meta(id, companyId),
   name: 'Activity',
   kind: 'project',
   projectId,
   ...(phaseId === undefined ? {} : { phaseId }),
 });
-export const person = (id: ID, accountId: ID): Resource => ({
+export const person = (id: ID, companyId: ID): Resource => ({
   ...NULLABLE_FIELDS.resources,
-  ...meta(id, accountId),
+  ...meta(id, companyId),
   kind: 'person',
   role: 'Designer',
   employmentType: 'permanent',
@@ -90,30 +90,30 @@ export const person = (id: ID, accountId: ID): Resource => ({
   halfDays: [],
   color: '#3b82f6',
 });
-export const discipline = (id: ID, accountId: ID): Discipline => ({
+export const discipline = (id: ID, companyId: ID): Discipline => ({
   ...NULLABLE_FIELDS.disciplines,
-  ...meta(id, accountId),
+  ...meta(id, companyId),
   name: 'Design',
   sortOrder: 0,
 });
-export const placeholder = (id: ID, accountId: ID, projectId?: ID): Resource => ({
-  ...person(id, accountId),
+export const placeholder = (id: ID, companyId: ID, projectId?: ID): Resource => ({
+  ...person(id, companyId),
   kind: 'placeholder',
   ...(projectId === undefined ? {} : { projectId }),
 });
-export const external = (id: ID, accountId: ID): Resource => ({
-  ...person(id, accountId),
+export const external = (id: ID, companyId: ID): Resource => ({
+  ...person(id, companyId),
   kind: 'external',
 });
 export const allocation = ({
   id,
-  accountId,
+  companyId,
   resourceId,
   activityId,
   overrides: o = {},
 }: AllocationOptions): Allocation => ({
   ...NULLABLE_FIELDS.allocations,
-  ...meta(id, accountId),
+  ...meta(id, companyId),
   resourceId,
   activityId,
   startDate: '2026-01-01',
@@ -124,12 +124,12 @@ export const allocation = ({
 });
 export const timeOff = ({
   id,
-  accountId,
+  companyId,
   resourceId,
   overrides: o = {},
 }: TimeOffOptions): TimeOff => ({
   ...NULLABLE_FIELDS.timeOff,
-  ...meta(id, accountId),
+  ...meta(id, companyId),
   resourceId,
   startDate: '2026-01-01',
   endDate: '2026-01-03',

@@ -15,7 +15,7 @@ export interface TransferPreview {
 
 /** The confirmed import of one transfer document into one company. */
 export interface ApplyTransferInput {
-  accountId: string;
+  companyId: string;
   document: unknown;
   baseRevision: number;
   confirmationId: string;
@@ -59,12 +59,12 @@ export const companyDataRequests = {
    * @throws An `Error` whose message is safe to show when the server refuses the document or
    *   answers off-spec.
    */
-  async readTransferPreview(accountId: string, document: unknown): Promise<TransferPreview> {
+  async readTransferPreview(companyId: string, document: unknown): Promise<TransferPreview> {
     const response = await apiFetch('/api/transfer/preview', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId, document }),
+      body: JSON.stringify({ companyId, document }),
     });
     if (!response.ok) {
       throw new Error(
@@ -95,7 +95,7 @@ export const companyDataRequests = {
 
   /** Sends a confirmed whole-company import. */
   applyTransfer({
-    accountId,
+    companyId,
     document,
     baseRevision,
     confirmationId,
@@ -106,16 +106,16 @@ export const companyDataRequests = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ accountId, document, baseRevision, confirmationId }),
+        body: JSON.stringify({ companyId, document, baseRevision, confirmationId }),
       },
       API_BULK_TIMEOUT_MS,
     );
   },
 
   /** Sends the password-confirmed anonymisation of every person in one company. */
-  anonymiseCompanyPeople(accountId: string, confirmationId: string): Promise<Response> {
+  anonymiseCompanyPeople(companyId: string, confirmationId: string): Promise<Response> {
     return apiFetch(
-      `/api/companies/${encodeURIComponent(accountId)}/anonymise`,
+      `/api/companies/${encodeURIComponent(companyId)}/anonymise`,
       {
         method: 'POST',
         credentials: 'include',
@@ -127,9 +127,9 @@ export const companyDataRequests = {
   },
 
   /** Sends the anonymisation of one person resource. */
-  anonymiseResource(accountId: string, resourceId: string): Promise<Response> {
+  anonymiseResource(companyId: string, resourceId: string): Promise<Response> {
     return apiFetch(
-      `/api/companies/${encodeURIComponent(accountId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
+      `/api/companies/${encodeURIComponent(companyId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
       {
         method: 'POST',
         credentials: 'include',

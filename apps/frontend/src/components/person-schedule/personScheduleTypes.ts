@@ -47,7 +47,7 @@ export type PersonScheduleEntry = PersonScheduleAllocationEntry | PersonSchedule
 
 /** Account, resource, window, and entries in an available person schedule. */
 export interface PersonScheduleModel {
-  accountId: ID;
+  companyId: ID;
   resourceId: ID;
   title: string;
   window: PersonScheduleWindow;

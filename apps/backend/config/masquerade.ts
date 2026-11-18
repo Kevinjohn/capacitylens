@@ -33,8 +33,8 @@ function requestedAccountId(request?: HttpContext): string | null {
  * active member who does not rank above the actor.
  */
 async function sharesViewAsCompany(actorId: string, targetId: string, request?: HttpContext) {
-  const accountId = requestedAccountId(request);
-  const companies = accountId ? [accountId] : await listActiveCompanyIds(actorId, undefined);
+  const requested = requestedAccountId(request);
+  const companies = requested ? [requested] : await listActiveCompanyIds(actorId, undefined);
   for (const companyId of companies) {
     const actorRole = await activeCompanyRole(actorId, companyId, undefined);
     const targetRole = await activeCompanyRole(targetId, companyId, undefined);

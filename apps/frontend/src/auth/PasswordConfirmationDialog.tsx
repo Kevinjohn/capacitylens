@@ -12,7 +12,7 @@ type Action = 'transfer-ownership' | 'import' | 'anonymise';
 
 interface PasswordConfirmationDialogProps {
   action: Action;
-  accountId: string;
+  companyId: string;
   intent: object;
   onConfirmed: (confirmationId: string) => void;
   onCancel: () => void;
@@ -21,7 +21,7 @@ interface PasswordConfirmationDialogProps {
 /** Confirms one exact action; each dialog receives only its own confirmation id. */
 export function PasswordConfirmationDialog({
   action,
-  accountId,
+  companyId,
   intent,
   onConfirmed,
   onCancel,
@@ -36,7 +36,7 @@ export function PasswordConfirmationDialog({
     setError(null);
     try {
       const url = apiRouteUrl('api.auth.password-confirmation', {});
-      const body = { action, accountId, intent, password };
+      const body = { action, companyId, intent, password };
       const response = await apiFetch(url, {
         method: 'POST',
         credentials: 'include',

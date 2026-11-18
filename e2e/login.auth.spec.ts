@@ -77,7 +77,7 @@ test.describe('login screen (password sign-in)', () => {
       const unscopedStateReads: string[] = [];
       page.on('request', (request) => {
         const url = new URL(request.url());
-        if (url.pathname === '/api/state' && !url.searchParams.has('accountId'))
+        if (url.pathname === '/api/state' && !url.searchParams.has('companyId'))
           unscopedStateReads.push(url.href);
       });
 

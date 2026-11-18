@@ -214,7 +214,7 @@ test.group('authentication outcome events', (group) => {
     const now = new Date().toISOString();
     await db.table('company_settings').insert({
       id: 'test-sign-in-tracking',
-      account_id: 'a-studio',
+      company_id: 'a-studio',
       key: 'member-sign-in-tracking',
       value: JSON.stringify(true),
       created_at: now,

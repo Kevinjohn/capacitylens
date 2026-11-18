@@ -85,7 +85,7 @@ describe('useCanEdit gates the AllocationBar resize grips', () => {
   const allocation: Allocation = {
     ...NULLABLE_FIELDS.allocations,
     id: 'alloc-1',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     resourceId: 'res-1',

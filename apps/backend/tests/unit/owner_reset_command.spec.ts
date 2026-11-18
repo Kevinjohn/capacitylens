@@ -174,7 +174,7 @@ test('a failure writing the second company audit rolls back every audit and prin
       )
       .run('a-loft', 'bruce', 'owner', 'active', now, now);
     database.exec(
-      "CREATE TRIGGER fail_second_audit BEFORE INSERT ON audit_entries WHEN NEW.account_id='a-studio' BEGIN SELECT RAISE(ABORT, 'second audit failed'); END"
+      "CREATE TRIGGER fail_second_audit BEFORE INSERT ON audit_entries WHEN NEW.company_id='a-studio' BEGIN SELECT RAISE(ABORT, 'second audit failed'); END"
     );
     database.close();
     const result = f.command(args);

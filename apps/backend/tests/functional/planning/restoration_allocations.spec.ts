@@ -9,7 +9,7 @@ import { readState } from '#tests/helpers/state_fixture';
 import { withTransaction } from '#services/with_transaction';
 import { deleteAllocations } from '#services/planning/restoration';
 import {
-  accountId,
+  companyId,
   configureAuth,
   newAllocation,
   resetPlanningFixture,
@@ -171,10 +171,10 @@ test.group('session-bound allocation restoration', (suite) => {
               ? { kind: 'external' }
               : { first_available_date: '2026-12-01' };
       await db.from(table).where('id', targetId).update(changes);
-      const before = await readState(accountId, true);
+      const before = await readState(companyId, true);
       const failed = await restore(client, cookie, groupId, 2);
       failed.assertStatus(409);
-      assert.deepEqual(await readState(accountId, true), before);
+      assert.deepEqual(await readState(companyId, true), before);
       assert.isNull(await consumedAt(groupId));
       assert.equal(await currentRevision(client, cookie), 2);
       assert.lengthOf(await markers(), 2);
@@ -199,11 +199,11 @@ test.group('session-bound allocation restoration', (suite) => {
     const groupId = deleted.body().restoration.replacementGroupId;
     const restored = await restore(client, cookie, groupId, 2);
     restored.assertStatus(200);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const again = await restore(client, cookie, groupId, 3);
     again.assertStatus(409);
     assert.isUndefined(again.body().code);
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.equal(await currentRevision(client, cookie), 3);
     assert.lengthOf(await markers(), 3);
     assert.lengthOf(await planningAudit(), 3);
@@ -227,11 +227,11 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.isUndefined(await stored(first!));
     assert.isUndefined(await stored(second!));
     assert.deepEqual(await stored(kept!), keptRow);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const partial = await deleteGroup(client, cookie, [kept!, randomUUID()], 2);
     partial.assertStatus(400);
     assert.equal(partial.body().code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('deleted_groups'), 1);
     const restored = await restore(
       client,
@@ -240,7 +240,7 @@ test.group('session-bound allocation restoration', (suite) => {
       2
     );
     restored.assertStatus(200);
-    const after = await readState(accountId, true);
+    const after = await readState(companyId, true);
     assert.lengthOf(
       after.allocations.filter((row) => ([first, second, kept] as string[]).includes(row.id)),
       3
@@ -262,7 +262,7 @@ test.group('session-bound allocation restoration', (suite) => {
       const rows = listed.slice(start, start + 500).map((id) => ({ ...allocation, id }));
       await db.table('allocations').multiInsert(rows);
     }
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const deleted = await deleteGroup(client, cookie, listed, 1);
     deleted.assertStatus(200);
     assert.equal(deleted.body().revision, 2);
@@ -273,7 +273,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.isString(groupId);
     assert.lengthOf(await db.from('deleted_groups'), 1);
     assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 501);
-    const afterDelete = await readState(accountId, true);
+    const afterDelete = await readState(companyId, true);
     assert.lengthOf(
       afterDelete.allocations.filter((row) => (listed as string[]).includes(row.id)),
       0
@@ -287,7 +287,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const restored = await restore(client, cookie, groupId, 2);
     restored.assertStatus(200);
     assert.equal(restored.body().revision, 3);
-    const afterRestore = await readState(accountId, true);
+    const afterRestore = await readState(companyId, true);
     assert.sameDeepMembers(afterRestore.allocations, before.allocations);
     assert.lengthOf(await markers(), 3);
     assert.lengthOf(await planningAudit(), 3);
@@ -298,12 +298,12 @@ test.group('session-bound allocation restoration', (suite) => {
   }) => {
     // 32,766 ids plus the account filter exceed SQLite's 32,766 bound variables in one statement.
     const listedCount = 32_766;
-    const seeded = await readState(accountId, true);
+    const seeded = await readState(companyId, true);
     const now = new Date().toISOString();
     const rows = Array.from({ length: listedCount + 1 }, () =>
       encodeRow('allocations', {
         ...newAllocation(seeded),
-        accountId,
+        companyId,
         note,
         createdAt: now,
         updatedAt: now,
@@ -313,13 +313,13 @@ test.group('session-bound allocation restoration', (suite) => {
       await db.table('allocations').multiInsert(rows.slice(start, start + 500));
     const [kept, ...listed] = rows.map((row) => String(row.id));
     const otherAccounts = () =>
-      db.from('allocations').whereNot('account_id', accountId).count('* as n');
+      db.from('allocations').whereNot('company_id', companyId).count('* as n');
     const othersBefore = await otherAccounts();
     assert.isAbove(Number(othersBefore[0].n), 0);
-    const data = await readState(accountId, true);
+    const data = await readState(companyId, true);
     const sessionId = await fixtureSession('u-bruce');
     const groupId = await withTransaction((trx) =>
-      deleteAllocations(trx, data, accountId, listed, {
+      deleteAllocations(trx, data, companyId, listed, {
         actorId: 'u-bruce',
         sessionId,
         mutationId: randomUUID(),
@@ -330,7 +330,7 @@ test.group('session-bound allocation restoration', (suite) => {
     assert.lengthOf(saved, listedCount);
     const listedIds = new Set(listed);
     assert.isTrue(saved.every((row) => listedIds.has(String(row.row_id))));
-    const remaining = await readState(accountId, true);
+    const remaining = await readState(companyId, true);
     assert.lengthOf(remaining.allocations, data.allocations.length - listedCount);
     assert.isFalse(remaining.allocations.some((row) => listedIds.has(row.id)));
     assert.deepEqual(
@@ -356,11 +356,11 @@ test.group('session-bound allocation restoration', (suite) => {
     const deleted = await deleteOne(client, cookie, other!, 1);
     deleted.assertStatus(200);
     const groupId = deleted.body().restoration.replacementGroupId;
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const staleRestore = await restore(client, cookie, groupId, 1);
     staleRestore.assertStatus(409);
     assert.equal(staleRestore.body().code, 'STALE_REVISION');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.isNull(await consumedAt(groupId));
     assert.lengthOf(await markers(), 2);
   });
@@ -376,7 +376,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const deleted = await deleteGroup(client, cookie, [first!, second!], 1);
     deleted.assertStatus(200);
     const groupId = deleted.body().restoration.replacementGroupId;
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const retainedBefore = await db.from('allocations').where('id', second!).first();
     assert.isNotNull(retainedBefore.deleted_at);
     assert.equal(retainedBefore.deletion_group_id, groupId);
@@ -391,7 +391,7 @@ test.group('session-bound allocation restoration', (suite) => {
     } finally {
       await db.rawQuery('DROP TRIGGER restore_constraint_failure');
     }
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.isNull(await consumedAt(groupId));
     const retainedAfterFailure = await db.from('allocations').where('id', second!).first();
     assert.isNotNull(retainedAfterFailure.deleted_at);
@@ -414,7 +414,7 @@ test.group('session-bound allocation restoration', (suite) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const [id, other] = await createAllocations(client, cookie, 2);
-    const before = await readState(accountId, true);
+    const before = await readState(companyId, true);
     const mismatched = await send(client, cookie, `${allocationsUrl}/${id}/delete`, 1, {
       operation: 'allocation.delete',
       id: other,
@@ -424,13 +424,13 @@ test.group('session-bound allocation restoration', (suite) => {
     const wrongOperation = await send(
       client,
       cookie,
-      `/api/companies/${accountId}/planning/restore-group`,
+      `/api/companies/${companyId}/planning/restore-group`,
       1,
       { operation: 'allocation.delete', id }
     );
     wrongOperation.assertStatus(400);
     assert.equal(wrongOperation.body().code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(accountId, true), before);
+    assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await markers(), 1);
   });
 });

@@ -20,7 +20,7 @@ interface ReleaseSuspensionInput {
 
 interface BeginStartInput {
   generation: number;
-  accountId: string;
+  companyId: string;
   targetUserId: string;
   flush: FlushPendingWritesResult;
 }
@@ -45,9 +45,9 @@ function isSwitchSuccessful(outcome: RefreshOutcome): boolean {
 export interface MasqueradeControllerDependencies {
   flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites | null;
-  reproject: (accountId: string, includeAccountSummaries?: boolean) => Promise<boolean>;
-  switchAccount: (accountId: string | null) => Promise<RefreshOutcome>;
-  readBootstrapAccount: (accountId: string) => Promise<string | null>;
+  reproject: (companyId: string, includeAccountSummaries?: boolean) => Promise<boolean>;
+  switchAccount: (companyId: string | null) => Promise<RefreshOutcome>;
+  readBootstrapAccount: (companyId: string) => Promise<string | null>;
   api: typeof masqueradeApi;
   /** The store state this controller reads and writes; the controller reaches no other state. */
   readState: () => StoreState;
@@ -106,11 +106,11 @@ export class MasqueradeController {
   /** Capture the owning projection so a late status read cannot replace a newer transition. */
   captureStatusReconciliation(): () => boolean {
     const generation = this.generation;
-    const accountId = this.store.activeAccountId;
+    const companyId = this.store.activeAccountId;
     const runtime = this.store.masquerade;
     return () =>
       this.generation === generation &&
-      this.store.activeAccountId === accountId &&
+      this.store.activeAccountId === companyId &&
       this.store.masquerade === runtime;
   }
 
@@ -126,7 +126,7 @@ export class MasqueradeController {
 
   private beginStartAfterFlush({
     generation,
-    accountId,
+    companyId,
     targetUserId,
     flush,
   }: BeginStartInput): boolean {
@@ -146,7 +146,7 @@ export class MasqueradeController {
     }
     this.store.setMasquerade({
       kind: 'starting',
-      pending: { accountId, targetUserId },
+      pending: { companyId, targetUserId },
       generation,
     });
     return true;
@@ -161,11 +161,11 @@ export class MasqueradeController {
 
   private async finishStartProjection(
     generation: number,
-    accountId: string,
+    companyId: string,
     state: MasqueradeState,
   ): Promise<boolean> {
     try {
-      const projected = await this.dependencies.reproject(accountId, false);
+      const projected = await this.dependencies.reproject(companyId, false);
       if (!this.ownsRuntime(generation, 'starting')) return false;
       if (!projected) {
         return this.fail(
@@ -185,7 +185,7 @@ export class MasqueradeController {
     return true;
   }
 
-  async start(accountId: string, targetUserId: string): Promise<boolean> {
+  async start(companyId: string, targetUserId: string): Promise<boolean> {
     // Not fail(): the in-flight start usually succeeds, and an error notice is created with
     // duration Infinity, so a double-click would leave a permanent error banner over a working
     // member view. This is ordinary feedback about a duplicate click, not a failure.
@@ -210,11 +210,11 @@ export class MasqueradeController {
         error instanceof Error ? error.message : 'Pending changes could not be saved.',
       );
     }
-    if (!this.beginStartAfterFlush({ generation, accountId, targetUserId, flush })) return false;
+    if (!this.beginStartAfterFlush({ generation, companyId, targetUserId, flush })) return false;
     if (!this.ownsRuntime(generation, 'starting')) return false;
     let state: MasqueradeState;
     try {
-      state = await this.dependencies.api.start(accountId, targetUserId);
+      state = await this.dependencies.api.start(companyId, targetUserId);
     } catch (error) {
       // Preserve start-generation ownership while surfacing a refused or failed masquerade start.
       return this.failOwnedStart(generation, error);
@@ -223,11 +223,11 @@ export class MasqueradeController {
     this.dependencies.setContextToken(state.token);
     this.store.setMasquerade({
       kind: 'starting',
-      pending: { accountId, targetUserId },
+      pending: { companyId, targetUserId },
       state,
       generation,
     });
-    return this.finishStartProjection(generation, accountId, state);
+    return this.finishStartProjection(generation, companyId, state);
   }
 
   async retryProjection(): Promise<boolean> {
@@ -245,7 +245,7 @@ export class MasqueradeController {
       );
     }
     try {
-      const projected = await this.dependencies.reproject(state.accountId, false);
+      const projected = await this.dependencies.reproject(state.companyId, false);
       if (!this.ownsRuntime(generation, runtime.kind)) return false;
       if (!projected) {
         return this.fail('The member view could not be loaded.');
@@ -283,7 +283,7 @@ export class MasqueradeController {
                   'The real account view could not be restored. Retry ending the masquerade.',
               };
         }
-        if (!(await this.dependencies.reproject(state.accountId))) {
+        if (!(await this.dependencies.reproject(state.companyId))) {
           return {
             kind: 'failed',
             message: 'The real account view could not be restored. Retry ending the masquerade.',
@@ -298,7 +298,7 @@ export class MasqueradeController {
     return ended.kind !== 'failed';
   }
 
-  async transitionAccount(accountId: string | null): Promise<boolean> {
+  async transitionAccount(companyId: string | null): Promise<boolean> {
     const runtime = this.store.masquerade;
     if (runtime.kind === 'inactive') {
       // A start still flushing belongs to the old company and must not run after the switch.
@@ -306,12 +306,12 @@ export class MasqueradeController {
         ++this.generation;
         this.startPendingGeneration = null;
       }
-      return isSwitchSuccessful(await this.dependencies.switchAccount(accountId));
+      return isSwitchSuccessful(await this.dependencies.switchAccount(companyId));
     }
     const ended = await this.endProjection({
       reason: 'account_switch',
       finish: async () => {
-        const outcome = await this.dependencies.switchAccount(accountId);
+        const outcome = await this.dependencies.switchAccount(companyId);
         if (!isSwitchSuccessful(outcome)) {
           return { kind: 'failed', message: 'The selected company could not be loaded.' };
         }
@@ -416,7 +416,7 @@ export class MasqueradeController {
     if (
       current.kind === 'active' &&
       current.state.token === status.token &&
-      current.state.accountId === status.accountId &&
+      current.state.companyId === status.companyId &&
       current.state.targetUserId === status.targetUserId &&
       current.state.effectiveRole === status.effectiveRole
     ) {
@@ -426,7 +426,7 @@ export class MasqueradeController {
     if (this.store.activeAccountId === null) {
       this.store.setMasquerade({
         kind: 'starting',
-        pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+        pending: { companyId: status.companyId, targetUserId: status.targetUserId },
         state: status,
         generation,
       });
@@ -435,7 +435,7 @@ export class MasqueradeController {
     }
     this.store.setMasquerade({
       kind: 'starting',
-      pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+      pending: { companyId: status.companyId, targetUserId: status.targetUserId },
       state: status,
       generation,
     });
@@ -443,22 +443,22 @@ export class MasqueradeController {
       this.fail('Finish loading or resolving company changes before entering the member view.');
       return;
     }
-    await this.finishStartProjection(generation, status.accountId, status);
+    await this.finishStartProjection(generation, status.companyId, status);
   }
 
   private async loadColdProjection(state: MasqueradeState, generation: number): Promise<boolean> {
     try {
-      const name = await this.dependencies.readBootstrapAccount(state.accountId);
+      const name = await this.dependencies.readBootstrapAccount(state.companyId);
       if (!this.ownsRuntime(generation, 'starting')) return false;
       if (name === null) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
       }
       this.store.setAccountSummaries({
-        list: [{ id: state.accountId, name, role: state.effectiveRole }],
+        list: [{ id: state.companyId, name, role: state.effectiveRole }],
         complete: true,
       });
-      this.store.setActiveAccount(state.accountId);
-      if (!(await this.dependencies.reproject(state.accountId, false))) {
+      this.store.setActiveAccount(state.companyId);
+      if (!(await this.dependencies.reproject(state.companyId, false))) {
         if (this.ownsRuntime(generation, 'starting')) {
           return this.fail('The member view could not be loaded. Retry or end the masquerade.');
         }
@@ -470,9 +470,9 @@ export class MasqueradeController {
       }
       publishMasqueradeAccount(this.store, state);
       const loadedName =
-        this.store.data.accounts.find((account) => account.id === state.accountId)?.name ?? name;
+        this.store.data.accounts.find((account) => account.id === state.companyId)?.name ?? name;
       this.store.setAccountSummaries({
-        list: [{ id: state.accountId, name: loadedName, role: state.effectiveRole }],
+        list: [{ id: state.companyId, name: loadedName, role: state.effectiveRole }],
         complete: true,
       });
       this.store.setMasquerade({ kind: 'active', state, generation });
@@ -514,7 +514,7 @@ export class MasqueradeController {
       publishActive: (status) =>
         this.store.setMasquerade({
           kind: 'starting',
-          pending: { accountId: status.accountId, targetUserId: status.targetUserId },
+          pending: { companyId: status.companyId, targetUserId: status.targetUserId },
           state: status,
           generation,
         }),
@@ -526,7 +526,7 @@ export class MasqueradeController {
   private async restoreAfterServerEnd(state: MasqueradeState, generation: number): Promise<void> {
     try {
       const projection = await this.restoreEndingProjection(state, generation, async (current) =>
-        (await this.dependencies.reproject(current.accountId))
+        (await this.dependencies.reproject(current.companyId))
           ? { kind: 'finished' }
           : {
               kind: 'failed',

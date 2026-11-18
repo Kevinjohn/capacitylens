@@ -55,7 +55,7 @@ const signed = asDataOwner;
 async function transferProof(client: ApiClient, cookie: string, toUserId: string) {
   const result = await signed(client.post('/api/auth/password-confirmation'), cookie)
     .header('sec-fetch-site', 'same-origin')
-    .json({ action: 'transfer-ownership', accountId: 'a-studio', intent: { toUserId }, password })
+    .json({ action: 'transfer-ownership', companyId: 'a-studio', intent: { toUserId }, password })
     .send();
   result.assertStatus(200);
   return (result.body() as { confirmationId: string }).confirmationId;
@@ -78,7 +78,7 @@ test.group('atomic ownership transfer', (group) => {
   }) => {
     const { ownerId, adminId, ownerCookie } = await fixture(client);
     const issued = await signed(client.post('/api/auth/password-confirmation'), ownerCookie)
-      .json({ action: 'anonymise', accountId: 'a-studio', intent: {}, password })
+      .json({ action: 'anonymise', companyId: 'a-studio', intent: {}, password })
       .send();
     issued.assertStatus(200);
     const response = await signed(
@@ -203,7 +203,7 @@ test.group('atomic ownership transfer', (group) => {
     differentCompany.assertStatus(409);
     const audits = await db
       .from('audit_entries')
-      .where({ account_id: 'a-studio', action: 'ownership.transferred' });
+      .where({ company_id: 'a-studio', action: 'ownership.transferred' });
     assert.lengthOf(audits, 1);
     assert.equal(audits[0].actor_id, ownerId);
     assert.equal(audits[0].entity_id, adminId);
@@ -220,8 +220,8 @@ test.group('atomic ownership transfer', (group) => {
       .json({ toUserId: adminId })
       .send();
     unsigned.assertStatus(401);
-    const post = (cookie: string, accountId: string, toUserId: string) =>
-      signed(client.post(`/api/companies/${accountId}/ownership-transfer`), cookie)
+    const post = (cookie: string, companyId: string, toUserId: string) =>
+      signed(client.post(`/api/companies/${companyId}/ownership-transfer`), cookie)
         .json({ toUserId })
         .send();
     const missingProof = await post(ownerCookie, 'a-studio', adminId);
@@ -345,7 +345,7 @@ test.group('atomic ownership transfer', (group) => {
     const confirmationId = await transferProof(client, ownerCookie, adminId);
     const revisionBefore = await db
       .from('company_planning_revisions')
-      .where('account_id', 'a-studio')
+      .where('company_id', 'a-studio')
       .first();
     for (const [id, email] of [
       [ownerId, 'bruce.wayne@wayne.example'],
@@ -378,7 +378,7 @@ test.group('atomic ownership transfer', (group) => {
       assert.equal(owner.role, 'owner');
       assert.equal(admin.role, 'admin');
       assert.deepEqual(
-        await db.from('company_planning_revisions').where('account_id', 'a-studio').first(),
+        await db.from('company_planning_revisions').where('company_id', 'a-studio').first(),
         revisionBefore
       );
       const proof = await db.from('password_confirmations').where('id', confirmationId).first();

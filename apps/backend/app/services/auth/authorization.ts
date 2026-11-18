@@ -23,31 +23,31 @@ export function requireStoredRole(membership: Membership): Role {
 }
 
 /** Returns the user's active membership in the company, or null; reads through the caller's transaction. */
-export async function getActiveMembership(userId: string, accountId: string, trx: Reader) {
-  const membership = await access.memberships.find(accountId, userId, trx);
+export async function getActiveMembership(userId: string, companyId: string, trx: Reader) {
+  const membership = await access.memberships.find(companyId, userId, trx);
   return membership?.status === 'active' ? membership : null;
 }
 
 /** Resolves active company standing for ordinary data and member policies. */
 export async function activeCompanyRole(
   userId: string,
-  accountId: string,
+  companyId: string,
   trx: Reader
 ): Promise<Role | null> {
-  const membership = await getActiveMembership(userId, accountId, trx);
+  const membership = await getActiveMembership(userId, companyId, trx);
   return membership ? requireStoredRole(membership) : null;
 }
 
 /** Authorizes one company permission from live membership inside the actor's verified transaction. */
 export async function assertCompanyAction(
-  accountId: string,
+  companyId: string,
   key: PermissionKey,
   trx: TransactionClientContract
 ): Promise<{ actorId: string; role: Role }> {
   const actor = actorIn(trx);
   try {
     const membership = await access.memberships.authorize({
-      scopeId: accountId,
+      scopeId: companyId,
       userId: actor.userId,
       permission: key,
       trx,

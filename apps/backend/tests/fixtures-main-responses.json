@@ -60,7 +60,7 @@
         "disciplines": [
           {
             "id": "d-design",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Design",
             "color": "#2d75da",
             "sortOrder": 0,
@@ -69,7 +69,7 @@
           },
           {
             "id": "d-dev",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Development",
             "color": "#3ace6b",
             "sortOrder": 1,
@@ -78,7 +78,7 @@
           },
           {
             "id": "d-copy",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Copywriting",
             "color": "#ed841b",
             "sortOrder": 2,
@@ -87,7 +87,7 @@
           },
           {
             "id": "d-loft-design",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Design",
             "color": "#2d75da",
             "sortOrder": 0,
@@ -98,7 +98,7 @@
         "resources": [
           {
             "id": "r-tyler",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Bruce Wayne",
             "role": "Designer",
@@ -114,7 +114,7 @@
           },
           {
             "id": "r-pam",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Diana Prince",
             "role": "PR & Brand",
@@ -130,7 +130,7 @@
           },
           {
             "id": "r-nike",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Clark Kent",
             "role": "Web Developer",
@@ -146,7 +146,7 @@
           },
           {
             "id": "r-alex",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Barry Allen",
             "role": "Front End (freelance)",
@@ -162,7 +162,7 @@
           },
           {
             "id": "r-ph-designer",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "placeholder",
             "role": "Senior Designer",
             "disciplineId": "d-design",
@@ -178,7 +178,7 @@
           },
           {
             "id": "r-ext-northstar",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "external",
             "name": "Kord Industries",
             "role": "Partner studio",
@@ -193,7 +193,7 @@
           },
           {
             "id": "r-jo",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "kind": "person",
             "name": "Steve Rogers",
             "role": "Product Designer",
@@ -211,7 +211,7 @@
         "clients": [
           {
             "id": "c-internal-studio",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Internal",
             "color": "#2d75da",
             "builtin": true,
@@ -220,7 +220,7 @@
           },
           {
             "id": "c-internal-loft",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Internal",
             "color": "#2d75da",
             "builtin": true,
@@ -229,7 +229,7 @@
           },
           {
             "id": "c-acme",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Queen Consolidated",
             "color": "#e02727",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -237,7 +237,7 @@
           },
           {
             "id": "c-globex",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "LexCorp",
             "color": "#2d75da",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -245,7 +245,7 @@
           },
           {
             "id": "c-loft-northwind",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Rand Corporation",
             "color": "#34c7d4",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -255,7 +255,7 @@
         "projects": [
           {
             "id": "p-acme",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Project Watchtower",
             "clientId": "c-acme",
             "color": "#da2d92",
@@ -264,7 +264,7 @@
           },
           {
             "id": "p-brand",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Metropolis Rebrand",
             "clientId": "c-globex",
             "color": "#34c7d4",
@@ -273,7 +273,7 @@
           },
           {
             "id": "p-loft-app",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Rand Mobile App",
             "clientId": "c-loft-northwind",
             "color": "#2d75da",
@@ -284,7 +284,7 @@
         "phases": [
           {
             "id": "ph-disc",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Discovery",
             "projectId": "p-acme",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -292,7 +292,7 @@
           },
           {
             "id": "ph-build",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Build",
             "projectId": "p-acme",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -302,7 +302,7 @@
         "activities": [
           {
             "id": "t-wires",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Wireframes",
             "kind": "project",
             "projectId": "p-acme",
@@ -312,7 +312,7 @@
           },
           {
             "id": "t-visual",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Visual Design",
             "kind": "project",
             "projectId": "p-acme",
@@ -322,7 +322,7 @@
           },
           {
             "id": "t-cms",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "CMS Review",
             "kind": "project",
             "projectId": "p-acme",
@@ -331,7 +331,7 @@
           },
           {
             "id": "t-brand",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Brand System",
             "kind": "project",
             "projectId": "p-brand",
@@ -340,7 +340,7 @@
           },
           {
             "id": "t-admin",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Admin / Internal",
             "kind": "internal",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -348,7 +348,7 @@
           },
           {
             "id": "t-design",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Design",
             "kind": "repeatable",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -356,7 +356,7 @@
           },
           {
             "id": "t-workshop",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Workshop",
             "kind": "repeatable",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -364,7 +364,7 @@
           },
           {
             "id": "t-loft-screens",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "App Screens",
             "kind": "project",
             "projectId": "p-loft-app",
@@ -375,7 +375,7 @@
         "allocations": [
           {
             "id": "a-tyler-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-tyler",
             "activityId": "t-wires",
             "startDate": "2026-06-01",
@@ -387,7 +387,7 @@
           },
           {
             "id": "a-tyler-2",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-tyler",
             "activityId": "t-visual",
             "startDate": "2026-06-03",
@@ -399,7 +399,7 @@
           },
           {
             "id": "a-nike-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-nike",
             "activityId": "t-cms",
             "startDate": "2026-06-01",
@@ -411,7 +411,7 @@
           },
           {
             "id": "a-alex-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-alex",
             "activityId": "t-cms",
             "startDate": "2026-06-01",
@@ -423,7 +423,7 @@
           },
           {
             "id": "a-ph-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-ph-designer",
             "activityId": "t-visual",
             "startDate": "2026-06-02",
@@ -435,7 +435,7 @@
           },
           {
             "id": "a-ext-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-ext-northstar",
             "activityId": "t-visual",
             "startDate": "2026-06-02",
@@ -448,7 +448,7 @@
           },
           {
             "id": "a-pam-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-pam",
             "activityId": "t-brand",
             "startDate": "2026-06-01",
@@ -460,7 +460,7 @@
           },
           {
             "id": "a-alex-design",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-alex",
             "activityId": "t-design",
             "startDate": "2026-06-08",
@@ -472,7 +472,7 @@
           },
           {
             "id": "a-jo-1",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "resourceId": "r-jo",
             "activityId": "t-loft-screens",
             "startDate": "2026-06-01",
@@ -486,7 +486,7 @@
         "timeOff": [
           {
             "id": "to-tyler",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-tyler",
             "startDate": "2026-06-10",
             "endDate": "2026-06-12",
@@ -501,7 +501,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/state?accountId=a-studio",
+      "path": "/api/state?companyId=a-studio",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -529,7 +529,7 @@
         "disciplines": [
           {
             "id": "d-design",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Design",
             "color": "#2d75da",
             "sortOrder": 0,
@@ -538,7 +538,7 @@
           },
           {
             "id": "d-dev",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Development",
             "color": "#3ace6b",
             "sortOrder": 1,
@@ -547,7 +547,7 @@
           },
           {
             "id": "d-copy",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Copywriting",
             "color": "#ed841b",
             "sortOrder": 2,
@@ -558,7 +558,7 @@
         "resources": [
           {
             "id": "r-tyler",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Bruce Wayne",
             "role": "Designer",
@@ -574,7 +574,7 @@
           },
           {
             "id": "r-pam",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Diana Prince",
             "role": "PR & Brand",
@@ -590,7 +590,7 @@
           },
           {
             "id": "r-nike",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Clark Kent",
             "role": "Web Developer",
@@ -606,7 +606,7 @@
           },
           {
             "id": "r-alex",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "person",
             "name": "Barry Allen",
             "role": "Front End (freelance)",
@@ -622,7 +622,7 @@
           },
           {
             "id": "r-ph-designer",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "placeholder",
             "role": "Senior Designer",
             "disciplineId": "d-design",
@@ -638,7 +638,7 @@
           },
           {
             "id": "r-ext-northstar",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "kind": "external",
             "name": "Kord Industries",
             "role": "Partner studio",
@@ -655,7 +655,7 @@
         "clients": [
           {
             "id": "c-internal-studio",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Internal",
             "color": "#2d75da",
             "builtin": true,
@@ -664,7 +664,7 @@
           },
           {
             "id": "c-acme",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Queen Consolidated",
             "color": "#e02727",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -672,7 +672,7 @@
           },
           {
             "id": "c-globex",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "LexCorp",
             "color": "#2d75da",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -682,7 +682,7 @@
         "projects": [
           {
             "id": "p-acme",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Project Watchtower",
             "clientId": "c-acme",
             "color": "#da2d92",
@@ -691,7 +691,7 @@
           },
           {
             "id": "p-brand",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Metropolis Rebrand",
             "clientId": "c-globex",
             "color": "#34c7d4",
@@ -702,7 +702,7 @@
         "phases": [
           {
             "id": "ph-disc",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Discovery",
             "projectId": "p-acme",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -710,7 +710,7 @@
           },
           {
             "id": "ph-build",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Build",
             "projectId": "p-acme",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -720,7 +720,7 @@
         "activities": [
           {
             "id": "t-wires",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Wireframes",
             "kind": "project",
             "projectId": "p-acme",
@@ -730,7 +730,7 @@
           },
           {
             "id": "t-visual",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Visual Design",
             "kind": "project",
             "projectId": "p-acme",
@@ -740,7 +740,7 @@
           },
           {
             "id": "t-cms",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "CMS Review",
             "kind": "project",
             "projectId": "p-acme",
@@ -749,7 +749,7 @@
           },
           {
             "id": "t-brand",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Brand System",
             "kind": "project",
             "projectId": "p-brand",
@@ -758,7 +758,7 @@
           },
           {
             "id": "t-admin",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Admin / Internal",
             "kind": "internal",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -766,7 +766,7 @@
           },
           {
             "id": "t-design",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Design",
             "kind": "repeatable",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -774,7 +774,7 @@
           },
           {
             "id": "t-workshop",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "name": "Workshop",
             "kind": "repeatable",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -784,7 +784,7 @@
         "allocations": [
           {
             "id": "a-tyler-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-tyler",
             "activityId": "t-wires",
             "startDate": "2026-06-01",
@@ -796,7 +796,7 @@
           },
           {
             "id": "a-tyler-2",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-tyler",
             "activityId": "t-visual",
             "startDate": "2026-06-03",
@@ -808,7 +808,7 @@
           },
           {
             "id": "a-nike-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-nike",
             "activityId": "t-cms",
             "startDate": "2026-06-01",
@@ -820,7 +820,7 @@
           },
           {
             "id": "a-alex-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-alex",
             "activityId": "t-cms",
             "startDate": "2026-06-01",
@@ -832,7 +832,7 @@
           },
           {
             "id": "a-ph-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-ph-designer",
             "activityId": "t-visual",
             "startDate": "2026-06-02",
@@ -844,7 +844,7 @@
           },
           {
             "id": "a-ext-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-ext-northstar",
             "activityId": "t-visual",
             "startDate": "2026-06-02",
@@ -857,7 +857,7 @@
           },
           {
             "id": "a-pam-1",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-pam",
             "activityId": "t-brand",
             "startDate": "2026-06-01",
@@ -869,7 +869,7 @@
           },
           {
             "id": "a-alex-design",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-alex",
             "activityId": "t-design",
             "startDate": "2026-06-08",
@@ -883,7 +883,7 @@
         "timeOff": [
           {
             "id": "to-tyler",
-            "accountId": "a-studio",
+            "companyId": "a-studio",
             "resourceId": "r-tyler",
             "startDate": "2026-06-10",
             "endDate": "2026-06-12",
@@ -898,7 +898,7 @@
     },
     {
       "method": "GET",
-      "path": "/api/state?accountId=a-loft",
+      "path": "/api/state?companyId=a-loft",
       "status": 200,
       "headers": {
         "content-security-policy": "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'",
@@ -926,7 +926,7 @@
         "disciplines": [
           {
             "id": "d-loft-design",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Design",
             "color": "#2d75da",
             "sortOrder": 0,
@@ -937,7 +937,7 @@
         "resources": [
           {
             "id": "r-jo",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "kind": "person",
             "name": "Steve Rogers",
             "role": "Product Designer",
@@ -955,7 +955,7 @@
         "clients": [
           {
             "id": "c-internal-loft",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Internal",
             "color": "#2d75da",
             "builtin": true,
@@ -964,7 +964,7 @@
           },
           {
             "id": "c-loft-northwind",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Rand Corporation",
             "color": "#34c7d4",
             "createdAt": "2026-05-01T00:00:00.000Z",
@@ -974,7 +974,7 @@
         "projects": [
           {
             "id": "p-loft-app",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "Rand Mobile App",
             "clientId": "c-loft-northwind",
             "color": "#2d75da",
@@ -986,7 +986,7 @@
         "activities": [
           {
             "id": "t-loft-screens",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "name": "App Screens",
             "kind": "project",
             "projectId": "p-loft-app",
@@ -997,7 +997,7 @@
         "allocations": [
           {
             "id": "a-jo-1",
-            "accountId": "a-loft",
+            "companyId": "a-loft",
             "resourceId": "r-jo",
             "activityId": "t-loft-screens",
             "startDate": "2026-06-01",

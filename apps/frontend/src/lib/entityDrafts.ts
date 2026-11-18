@@ -6,7 +6,7 @@ import type { Entity, Resource, ResourceEngagement } from '@capacitylens/shared/
 type NullableKeys<T> = { [K in keyof T]: null extends T[K] ? K : never }[keyof T];
 type DraftFields<T extends Entity> = Omit<
   T,
-  'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin' | NullableKeys<T>
+  'id' | 'companyId' | 'createdAt' | 'updatedAt' | 'builtin' | NullableKeys<T>
 > & {
   [K in Exclude<NullableKeys<T>, 'builtin'>]?: T[K];
 };

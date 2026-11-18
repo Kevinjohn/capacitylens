@@ -25,21 +25,21 @@ import {
   buildTimeOffUpdate,
 } from './planningCommands';
 
-const accountId = 'acct-test';
+const companyId = 'acct-test';
 const stableId = '7415a19e-539d-45c9-9c52-8b8c3a058926';
 
 describe('planning command builders', () => {
   it('uses one stable supplied ID and explicit nullable defaults for allocation creates', () => {
     const data = makeAppData({
-      resources: [makeResource({ id: 'resource-1', accountId })],
+      resources: [makeResource({ id: 'resource-1', companyId })],
       activities: [
-        makeActivity({ id: 'activity-1', accountId, kind: 'repeatable', projectId: null }),
+        makeActivity({ id: 'activity-1', companyId, kind: 'repeatable', projectId: null }),
       ],
     });
 
     const command = buildAllocationCreate({
       data,
-      accountId,
+      companyId,
       args: {
         id: stableId,
         fields: {
@@ -77,7 +77,7 @@ describe('planning command builders', () => {
   it('duplicates an unchanged source by ID and creates an explicitly edited copy', () => {
     const original = makeAllocation({
       id: 'source',
-      accountId,
+      companyId,
       resourceId: 'resource',
       activityId: 'activity',
       projectId: null,
@@ -86,7 +86,7 @@ describe('planning command builders', () => {
       ignoreWorkingDays: null,
     });
     const data = makeAppData({
-      activities: [makeActivity({ id: 'activity', accountId, kind: 'internal', projectId: null })],
+      activities: [makeActivity({ id: 'activity', companyId, kind: 'internal', projectId: null })],
       allocations: [original],
     });
     const fields = {
@@ -97,7 +97,7 @@ describe('planning command builders', () => {
     };
     const copy = buildAllocationDuplicate({
       data,
-      accountId,
+      companyId,
       original,
       args: { sourceId: original.id, id: stableId, fields },
     });
@@ -109,7 +109,7 @@ describe('planning command builders', () => {
     expect(copy?.inverse).toEqual({ operation: 'allocation.delete', id: stableId });
     const edited = buildAllocationDuplicate({
       data,
-      accountId,
+      companyId,
       original,
       args: {
         sourceId: original.id,
@@ -124,11 +124,11 @@ describe('planning command builders', () => {
   });
 
   it('sends only changed allocation fields and builds the inverse from the draft original', () => {
-    const original = makeAllocation({ id: 'allocation-1', accountId, note: 'old', hoursPerDay: 8 });
+    const original = makeAllocation({ id: 'allocation-1', companyId, note: 'old', hoursPerDay: 8 });
     const current = { ...original, note: 'server changed' };
     const command = buildAllocationUpdate({
       data: makeAppData({ allocations: [current] }),
-      accountId,
+      companyId,
       original,
       args: { id: original.id, changes: { note: undefined, hoursPerDay: 8 } },
     });
@@ -140,11 +140,11 @@ describe('planning command builders', () => {
   });
 
   it('treats unchanged updates as no-ops before reaching the server', () => {
-    const allocation = makeAllocation({ id: 'allocation-1', accountId });
+    const allocation = makeAllocation({ id: 'allocation-1', companyId });
     expect(
       buildAllocationUpdate({
         data: makeAppData({ allocations: [allocation] }),
-        accountId,
+        companyId,
         original: allocation,
         args: { id: allocation.id, changes: { status: allocation.status } },
       }),
@@ -152,12 +152,12 @@ describe('planning command builders', () => {
   });
 
   it('keeps a draft change when a refresh has made that value current', () => {
-    const original = makeAllocation({ id: 'allocation-1', accountId, note: 'before' });
+    const original = makeAllocation({ id: 'allocation-1', companyId, note: 'before' });
     const refreshed = { ...original, note: 'after' };
     expect(
       buildAllocationUpdate({
         data: makeAppData({ allocations: [refreshed] }),
-        accountId,
+        companyId,
         original,
         args: { id: original.id, changes: { note: 'after' } },
       }),
@@ -168,10 +168,10 @@ describe('planning command builders', () => {
   });
 
   it('omits activity kind when unchanged and normalizes project links when kind changes', () => {
-    const activity = makeActivity({ id: 'activity-1', accountId });
+    const activity = makeActivity({ id: 'activity-1', companyId });
     const sameKind = buildCatalogueUpdate({
       data: makeAppData({ activities: [activity] }),
-      accountId,
+      companyId,
       original: activity,
       args: { entity: 'activities', id: activity.id, changes: { name: 'Revised' } },
     });
@@ -182,7 +182,7 @@ describe('planning command builders', () => {
 
     const changedKind = buildCatalogueUpdate({
       data: makeAppData({ activities: [activity] }),
-      accountId,
+      companyId,
       original: activity,
       args: { entity: 'activities', id: activity.id, changes: { kind: 'internal' } },
     });
@@ -197,10 +197,10 @@ describe('planning command builders', () => {
   });
 
   it('treats null and false privacy as the same public value for client and project patches', () => {
-    const client = makeClient({ id: 'client-1', accountId, isPrivate: null });
+    const client = makeClient({ id: 'client-1', companyId, isPrivate: null });
     const clientCommand = buildCatalogueUpdate({
       data: makeAppData({ clients: [client] }),
-      accountId,
+      companyId,
       original: client,
       args: {
         entity: 'clients',
@@ -219,10 +219,10 @@ describe('planning command builders', () => {
       },
     });
 
-    const project = makeProject({ id: 'project-1', accountId, isPrivate: null });
+    const project = makeProject({ id: 'project-1', companyId, isPrivate: null });
     const projectCommand = buildCatalogueUpdate({
       data: makeAppData({ projects: [project] }),
-      accountId,
+      companyId,
       original: project,
       args: {
         entity: 'projects',
@@ -250,10 +250,10 @@ describe('planning command builders', () => {
   ])(
     'preserves real client privacy changes from $original to $requested',
     ({ original, requested, inverse }) => {
-      const client = makeClient({ id: 'client-1', accountId, isPrivate: original });
+      const client = makeClient({ id: 'client-1', companyId, isPrivate: original });
       const command = buildCatalogueUpdate({
         data: makeAppData({ clients: [client] }),
-        accountId,
+        companyId,
         original: client,
         args: { entity: 'clients', id: client.id, changes: { isPrivate: requested } },
       });
@@ -271,12 +271,12 @@ describe('planning command builders', () => {
 
   it('normalizes create drafts and reports created IDs for resources and time off', () => {
     const data = makeAppData({
-      accounts: [makeAccount({ id: accountId })],
-      resources: [makeResource({ id: 'resource-1', accountId })],
+      accounts: [makeAccount({ id: companyId })],
+      resources: [makeResource({ id: 'resource-1', companyId })],
     });
     const resource = buildResourceCreate({
       data,
-      accountId,
+      companyId,
       args: {
         id: stableId,
         fields: {
@@ -301,7 +301,7 @@ describe('planning command builders', () => {
 
     const timeOff = buildTimeOffCreate({
       data,
-      accountId,
+      companyId,
       args: {
         id: stableId,
         fields: {
@@ -328,11 +328,11 @@ describe('planning command builders', () => {
   });
 
   it('omits an unsupplied time-off note but preserves an explicit note or clear', () => {
-    const data = makeAppData({ resources: [makeResource({ id: 'resource-1', accountId })] });
+    const data = makeAppData({ resources: [makeResource({ id: 'resource-1', companyId })] });
     for (const note of ['Private note', null] as const) {
       const command = buildTimeOffCreate({
         data,
-        accountId,
+        companyId,
         args: {
           id: stableId,
           fields: {
@@ -349,11 +349,11 @@ describe('planning command builders', () => {
   });
 
   it('builds explicit time-off and resource updates with draft-based inverses', () => {
-    const timeOff = makeTimeOff({ id: 'time-off-1', accountId, note: 'old note' });
+    const timeOff = makeTimeOff({ id: 'time-off-1', companyId, note: 'old note' });
     expect(
       buildTimeOffUpdate({
         data: makeAppData({ timeOff: [timeOff] }),
-        accountId,
+        companyId,
         original: timeOff,
         args: { id: timeOff.id, changes: { note: undefined, type: 'sick' } },
       }),
@@ -370,11 +370,11 @@ describe('planning command builders', () => {
       },
     });
 
-    const resource = makeResource({ id: 'resource-1', accountId, role: 'Designer' });
+    const resource = makeResource({ id: 'resource-1', companyId, role: 'Designer' });
     expect(
       buildResourceUpdate({
         data: makeAppData({ resources: [resource] }),
-        accountId,
+        companyId,
         original: resource,
         args: { id: resource.id, changes: { role: 'Lead designer' } },
       }),
@@ -385,11 +385,11 @@ describe('planning command builders', () => {
   });
 
   it('preserves supplied activity fields for authoritative validation and gives closures an exact delete inverse', () => {
-    const data = makeAppData({ accounts: [makeAccount({ id: accountId })] });
+    const data = makeAppData({ accounts: [makeAccount({ id: companyId })] });
     expect(
       buildCatalogueCreate({
         data,
-        accountId,
+        companyId,
         args: {
           entity: 'activities',
           id: stableId,
@@ -420,7 +420,7 @@ describe('planning command builders', () => {
 
     const closure = buildClosureCreate({
       data,
-      accountId,
+      companyId,
       args: {
         id: stableId,
         fields: { name: 'Office closed', startDate: '2026-12-24', endDate: '2026-12-27' },
@@ -430,10 +430,10 @@ describe('planning command builders', () => {
   });
 
   it('uses original closure and company settings values for inverses', () => {
-    const closure = makeClosure({ id: 'closure-1', accountId });
+    const closure = makeClosure({ id: 'closure-1', companyId });
     const changed = buildClosureUpdate({
       data: makeAppData({ closures: [closure] }),
-      accountId,
+      companyId,
       original: closure,
       args: { id: closure.id, changes: { name: 'New shutdown' } },
     });
@@ -443,10 +443,10 @@ describe('planning command builders', () => {
       changes: { name: closure.name },
     });
 
-    const account = makeAccount({ id: accountId, name: 'Before' });
+    const account = makeAccount({ id: companyId, name: 'Before' });
     const settings = buildSettingsUpdate({
       data: makeAppData({ accounts: [account] }),
-      accountId,
+      companyId,
       original: account,
       args: { name: 'After' },
     });
@@ -455,11 +455,11 @@ describe('planning command builders', () => {
       inverse: { operation: 'settings.update', changes: { name: 'Before' } },
     });
 
-    const nullableSetting = makeAccount({ id: accountId, timezone: 'Etc/GMT' });
+    const nullableSetting = makeAccount({ id: companyId, timezone: 'Etc/GMT' });
     expect(
       buildSettingsUpdate({
         data: makeAppData({ accounts: [nullableSetting] }),
-        accountId,
+        companyId,
         original: nullableSetting,
         args: { timezone: undefined },
       })?.intent,

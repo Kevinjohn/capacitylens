@@ -9,12 +9,12 @@ function twoCompanyData(): AppData {
     ...emptyAppData(),
     accounts: [makeAccount({ id: 'a1', name: 'One' }), makeAccount({ id: 'a2', name: 'Two' })],
     clients: [
-      makeClient({ id: 'c1', accountId: 'a1', name: 'Client A1' }),
-      makeClient({ id: 'c2', accountId: 'a2', name: 'Client A2' }),
+      makeClient({ id: 'c1', companyId: 'a1', name: 'Client A1' }),
+      makeClient({ id: 'c2', companyId: 'a2', name: 'Client A2' }),
     ],
     projects: [
-      makeProject({ id: 'p1', accountId: 'a1', name: 'Proj A1', clientId: 'c1' }),
-      makeProject({ id: 'p2', accountId: 'a2', name: 'Proj A2', clientId: 'c2' }),
+      makeProject({ id: 'p1', companyId: 'a1', name: 'Proj A1', clientId: 'c1' }),
+      makeProject({ id: 'p2', companyId: 'a2', name: 'Proj A2', clientId: 'c2' }),
     ],
   };
 }

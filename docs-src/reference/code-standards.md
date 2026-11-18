@@ -52,8 +52,8 @@ A function name starts with a verb, and the verb tells the caller what comes bac
 anything happens on the way. Read these two calls from `app/services/auth/authorization.ts`:
 
 ```ts
-const role = await activeCompanyRole(userId, accountId, trx); // Role | null: absence is a value
-await assertCompanyAction(accountId, 'write', trx); // throws if refused
+const role = await activeCompanyRole(userId, companyId, trx); // Role | null: absence is a value
+await assertCompanyAction(companyId, 'write', trx); // throws if refused
 ```
 
 | Verb               | Promise                                                                                              | Example in the tree                                                              |

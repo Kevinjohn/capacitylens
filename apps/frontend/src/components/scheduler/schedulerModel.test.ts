@@ -130,7 +130,7 @@ describe('buildSchedulerModel', () => {
     const corruptTimeOff = {
       ...NULLABLE_FIELDS.timeOff,
       id: 'corrupt-time-off',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: firstResource.id,
@@ -202,7 +202,7 @@ describe('buildSchedulerModel', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const corruptClosure = {
       id: 'corrupt-closure',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Company shutdown',
@@ -224,7 +224,7 @@ function buildNonActiveResourceData(): AppData {
     {
       id: 'd-ops',
       color: null,
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Ops',
@@ -233,7 +233,7 @@ function buildNonActiveResourceData(): AppData {
     {
       id: 'd-qa',
       color: null,
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'QA',
@@ -243,7 +243,7 @@ function buildNonActiveResourceData(): AppData {
   d.resources.push(
     makeResource({
       id: 'r-arch',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       archivedAt: '2026-05-01T00:00:00.000Z',
       name: 'Archived Ann',
       role: 'Ops',
@@ -253,7 +253,7 @@ function buildNonActiveResourceData(): AppData {
 
     makeResource({
       id: 'r-del',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       archivedAt: '2026-05-01T00:00:00.000Z',
       deletedAt: '2026-05-20T00:00:00.000Z',
       name: 'Deleted Del',
@@ -264,8 +264,8 @@ function buildNonActiveResourceData(): AppData {
   );
 
   d.allocations.push(
-    makeAllocation({ id: 'a-arch', accountId: 'acct-test', resourceId: 'r-arch' }),
-    makeAllocation({ id: 'a-del', accountId: 'acct-test', resourceId: 'r-del' }),
+    makeAllocation({ id: 'a-arch', companyId: 'acct-test', resourceId: 'r-arch' }),
+    makeAllocation({ id: 'a-del', companyId: 'acct-test', resourceId: 'r-del' }),
   );
   return d;
 }
@@ -327,7 +327,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
     d.clients.push({
       ...NULLABLE_FIELDS.clients,
       id: 'c-arch',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Gone Co',
@@ -337,7 +337,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
     d.projects.push({
       ...NULLABLE_FIELDS.projects,
       id: 'p-orphan',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Orphan P',
@@ -347,7 +347,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
     d.activities.push({
       ...NULLABLE_FIELDS.activities,
       id: 't-orphan',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       name: 'Orphan T',
@@ -357,7 +357,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
       id: 'a-orphan',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       createdAt: 't',
       updatedAt: 't',
       resourceId: 'r1',

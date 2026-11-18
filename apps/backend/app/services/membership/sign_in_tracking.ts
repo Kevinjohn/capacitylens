@@ -11,17 +11,17 @@ function enabled(value: unknown) {
 }
 
 /** Reads a company's private Boolean tracking window without exposing sign-in times. */
-export async function readMemberSignInTracking(accountId: string, trx: TransactionClientContract) {
+export async function readMemberSignInTracking(companyId: string, trx: TransactionClientContract) {
   const setting = await trx
     .from('company_settings')
-    .where({ account_id: accountId, key: TRACKING_KEY })
+    .where({ company_id: companyId, key: TRACKING_KEY })
     .first();
   if (!setting || !enabled(setting.value)) {
     return { enabled: false, confirmations: new Set<string>() };
   }
   const observed = await trx
     .from('company_settings')
-    .where('account_id', accountId)
+    .where('company_id', companyId)
     .where('key', 'like', 'member-sign-in:%')
     .select('key');
   return {
@@ -32,24 +32,24 @@ export async function readMemberSignInTracking(accountId: string, trx: Transacti
 
 /** Enables a new observation window or erases every observation when disabled. */
 export async function setMemberSignInTracking(
-  accountId: string,
+  companyId: string,
   active: boolean,
   trx: TransactionClientContract,
   now = new Date().toISOString()
 ) {
-  const current = await readMemberSignInTracking(accountId, trx);
+  const current = await readMemberSignInTracking(companyId, trx);
   if (current.enabled === active) return;
   if (!active) {
     await trx
       .from('company_settings')
-      .where('account_id', accountId)
+      .where('company_id', companyId)
       .where((query) => query.where('key', TRACKING_KEY).orWhere('key', 'like', 'member-sign-in:%'))
       .delete();
     return;
   }
   await trx.table('company_settings').insert({
     id: newId(),
-    account_id: accountId,
+    company_id: companyId,
     key: TRACKING_KEY,
     value: JSON.stringify(true),
     created_at: now,
@@ -63,8 +63,8 @@ export async function recordMemberSignIn(
   trx: TransactionClientContract,
   now = new Date().toISOString()
 ) {
-  for (const accountId of await listActiveCompanyIds(userId, trx)) {
-    await confirmMemberSignIn(accountId, userId, trx, now);
+  for (const companyId of await listActiveCompanyIds(userId, trx)) {
+    await confirmMemberSignIn(companyId, userId, trx, now);
   }
 }
 
@@ -74,22 +74,22 @@ export async function recordMemberSignIn(
  */
 export async function changeMemberSignInTracking(
   trx: TransactionClientContract,
-  input: { accountId: string; actorId: string; enabled: boolean; now?: string }
+  input: { companyId: string; actorId: string; enabled: boolean; now?: string }
 ) {
-  const { accountId, actorId, enabled: requested } = input;
+  const { companyId, actorId, enabled: requested } = input;
   const now = input.now ?? new Date().toISOString();
-  const current = await readMemberSignInTracking(accountId, trx);
-  await setMemberSignInTracking(accountId, requested, trx, now);
-  if (!current.enabled && requested) await confirmMemberSignIn(accountId, actorId, trx, now);
+  const current = await readMemberSignInTracking(companyId, trx);
+  await setMemberSignInTracking(companyId, requested, trx, now);
+  if (!current.enabled && requested) await confirmMemberSignIn(companyId, actorId, trx, now);
   if (current.enabled !== requested) {
     await writeAudit(
       trx,
       {
-        accountId,
+        companyId,
         actorId,
         action: 'memberSignInTrackingChange',
         entity: 'account',
-        entityId: accountId,
+        entityId: companyId,
         fields: ['memberSignInTracking'],
       },
       now
@@ -99,39 +99,39 @@ export async function changeMemberSignInTracking(
 
 /** Confirms an already signed-in Owner in only the window they just enabled. */
 export async function confirmMemberSignIn(
-  accountId: string,
+  companyId: string,
   userId: string,
   trx: TransactionClientContract,
   now = new Date().toISOString()
 ) {
   const setting = await trx
     .from('company_settings')
-    .where({ account_id: accountId, key: TRACKING_KEY })
+    .where({ company_id: companyId, key: TRACKING_KEY })
     .first();
   if (!setting || !enabled(setting.value)) return;
-  if (!(await getActiveMembership(userId, accountId, trx))) return;
+  if (!(await getActiveMembership(userId, companyId, trx))) return;
   await trx
     .table('company_settings')
     .insert({
       id: newId(),
-      account_id: accountId,
+      company_id: companyId,
       key: observedKey(userId),
       value: JSON.stringify(true),
       created_at: now,
       updated_at: now,
     })
-    .onConflict(['account_id', 'key'])
+    .onConflict(['company_id', 'key'])
     .ignore();
 }
 
 /** Clears one member's observation when company access changes. */
 export async function resetMemberSignIn(
-  accountId: string,
+  companyId: string,
   userId: string,
   trx: TransactionClientContract
 ) {
   await trx
     .from('company_settings')
-    .where({ account_id: accountId, key: observedKey(userId) })
+    .where({ company_id: companyId, key: observedKey(userId) })
     .delete();
 }

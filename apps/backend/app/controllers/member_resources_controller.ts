@@ -28,18 +28,18 @@ export default class MemberResourcesController {
         ctx.request.header('x-account-command-id'),
         ctx.request.header('idempotency-key')
       );
-      const { companyId: accountId, userId } = ctx.params;
+      const { companyId: companyId, userId } = ctx.params;
       const result = await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
         return runAccountCommand(trx, {
           name: 'set-member-resource-link',
           authorizeAccess: async () => {
-            actor = await assertCompanyAction(accountId, 'members:manage', trx);
+            actor = await assertCompanyAction(companyId, 'members:manage', trx);
           },
           work: async () => {
             const { actorId } = actor;
             const link = await setMemberResourceLink(trx, {
-              accountId,
+              companyId,
               userId,
               resourceId: body.resourceId as string,
               expectedRevision: body.expectedRevision as string | null,
@@ -48,7 +48,7 @@ export default class MemberResourcesController {
             return { resourceId: link.resourceId, revision: link.revision };
           },
           actorId: currentActor.userId,
-          scopeId: accountId,
+          scopeId: companyId,
           payload: { principalId: userId, ...body },
           command,
         });
@@ -67,18 +67,18 @@ export default class MemberResourcesController {
         ctx.request.header('x-account-command-id'),
         ctx.request.header('idempotency-key')
       );
-      const { companyId: accountId, userId } = ctx.params;
+      const { companyId: companyId, userId } = ctx.params;
       await withActor(ctx, async (currentActor, trx) => {
         let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
         return runAccountCommand(trx, {
           name: 'clear-member-resource-link',
           authorizeAccess: async () => {
-            actor = await assertCompanyAction(accountId, 'members:manage', trx);
+            actor = await assertCompanyAction(companyId, 'members:manage', trx);
           },
           work: async () => {
             const { actorId } = actor;
             await clearMemberResourceLink(trx, {
-              accountId,
+              companyId,
               userId,
               expectedRevision: body.expectedRevision as string,
               actorId,
@@ -86,7 +86,7 @@ export default class MemberResourcesController {
             return { ok: true };
           },
           actorId: currentActor.userId,
-          scopeId: accountId,
+          scopeId: companyId,
           payload: { principalId: userId, ...body },
           command,
         });

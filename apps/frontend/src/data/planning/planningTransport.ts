@@ -352,7 +352,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             signal,
           }),
         );
-        if (snapshot.accountId !== context.companyId) {
+        if (snapshot.companyId !== context.companyId) {
           throw new PlanningControllerError("The server returned another company's planning data.");
         }
         const authority = snapshot.authority;

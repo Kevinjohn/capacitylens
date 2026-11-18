@@ -5,7 +5,7 @@ export const RESOURCE_NAME: string;
 export function writeSmokeSchedule(
   baseUrl: string,
   cookie: string,
-  accountId: string,
+  companyId: string,
   fixture: unknown,
   contextToken: string,
 ): Promise<{ allocation: { id: string } }>;

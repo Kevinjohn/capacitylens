@@ -67,7 +67,7 @@ describe('atomic allocation creation', () => {
     expect(sent).not.toHaveProperty('allocations');
     expect(created).toHaveLength(2);
     expect(new Set(created.map((allocation) => allocation.id)).size).toBe(2);
-    expect(created.every((allocation) => allocation.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
+    expect(created.every((allocation) => allocation.companyId === DEFAULT_ACCOUNT_ID)).toBe(true);
     expect(requireValue(created[0], 'first allocation').hoursPerDay).toBe(24);
     expect(state().data.allocations).toEqual(created);
     expect(typedHistory().past).toHaveLength(historyBefore + 1);
@@ -107,10 +107,10 @@ describe('atomic allocation creation', () => {
   });
   it('rejects foreign references and a placeholder/project mismatch atomically', async () => {
     const first = await allocationSetup();
-    const otherResource = makeResource({ id: 'other-resource', accountId: 'other-company' });
+    const otherResource = makeResource({ id: 'other-resource', companyId: 'other-company' });
     const otherActivity = makeActivity({
       id: 'other-activity',
-      accountId: 'other-company',
+      companyId: 'other-company',
       kind: 'repeatable',
       projectId: null,
     });
@@ -241,7 +241,7 @@ describe('allocation save advisory', () => {
         const row = {
           ...NULLABLE_FIELDS.allocations,
           ...execution.intent.allocation,
-          accountId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_ACCOUNT_ID,
           createdAt,
           updatedAt: createdAt,
         } as Allocation;

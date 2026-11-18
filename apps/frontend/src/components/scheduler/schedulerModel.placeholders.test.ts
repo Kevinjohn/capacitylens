@@ -22,7 +22,7 @@ function buildPlaceholderData(): AppData {
   d.resources.push(
     makeResource({
       id: 'ph',
-      accountId: 'acct-test',
+      companyId: 'acct-test',
       kind: 'placeholder',
       role: 'Designer',
       disciplineId: 'd-design',
@@ -33,7 +33,7 @@ function buildPlaceholderData(): AppData {
   d.allocations.push({
     ...NULLABLE_FIELDS.allocations,
     id: 'a-ph',
-    accountId: 'acct-test',
+    companyId: 'acct-test',
     createdAt: 't',
     updatedAt: 't',
     resourceId: 'ph',
@@ -53,7 +53,7 @@ describe('buildSchedulerModel', () => {
     d.resources = [
       makeResource({
         id: 'ph',
-        accountId: 'acct-test',
+        companyId: 'acct-test',
         kind: 'placeholder',
         role: 'Designer',
         disciplineId: 'd-design',

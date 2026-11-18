@@ -8,7 +8,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import {
-  accountId,
+  companyId,
   configureAuth,
   resetPlanningFixture,
   session,
@@ -16,7 +16,8 @@ import {
   trusted,
 } from './helpers.js';
 
-const route = (path: string, companyId = accountId) => `/api/companies/${companyId}/${path}`;
+const route = (path: string, targetCompanyId = companyId) =>
+  `/api/companies/${targetCompanyId}/${path}`;
 const archiveUrl = route('planning/archive');
 const stamp = '2026-10-01T00:00:00.000Z';
 const privateClientName = 'Wayne Archive Client';
@@ -78,7 +79,7 @@ function requireRow<T>(row: T | undefined, label: string): T {
 
 /** Add private, archived and inherited-hidden rows with data that must not leave the server. */
 async function prepareArchiveFixture(archiveProject = false) {
-  const data = await readState(accountId, true);
+  const data = await readState(companyId, true);
   const client = requireRow(
     data.clients.find((row) => row.id === 'c-acme'),
     'c-acme'
@@ -88,44 +89,44 @@ async function prepareArchiveFixture(archiveProject = false) {
     'p-brand'
   );
 
-  await db.from('clients').where({ id: client.id, account_id: accountId }).update({
+  await db.from('clients').where({ id: client.id, company_id: companyId }).update({
     name: privateClientName,
     is_private: 'true',
     code_name: privateClientCode,
     archived_at: stamp,
   });
-  await db.from('projects').where({ id: 'p-acme', account_id: accountId }).update({
+  await db.from('projects').where({ id: 'p-acme', company_id: companyId }).update({
     name: privateProjectName,
     is_private: 'true',
     code_name: privateProjectCode,
   });
   await db
     .from('projects')
-    .where({ id: project.id, account_id: accountId })
+    .where({ id: project.id, company_id: companyId })
     .update({
       is_private: 'true',
       code_name: null,
       ...(archiveProject ? { archived_at: stamp } : {}),
     });
-  await db.from('resources').where({ id: 'r-tyler', account_id: accountId }).update({
+  await db.from('resources').where({ id: 'r-tyler', company_id: companyId }).update({
     archived_at: stamp,
     role: 'Secret Designer Role',
     avatar_url: 'private-avatar-sentinel',
   });
-  await db.from('resources').where({ id: 'r-alex', account_id: accountId }).update({
+  await db.from('resources').where({ id: 'r-alex', company_id: companyId }).update({
     archived_at: stamp,
     engagement: 'supplementary',
   });
-  await db.from('resources').where({ id: 'r-ext-northstar', account_id: accountId }).update({
+  await db.from('resources').where({ id: 'r-ext-northstar', company_id: companyId }).update({
     archived_at: stamp,
   });
-  await db.from('resources').where({ id: 'r-ph-designer', account_id: accountId }).update({
+  await db.from('resources').where({ id: 'r-ph-designer', company_id: companyId }).update({
     project_id: project.id,
   });
-  await db.from('activities').where({ id: 't-admin', account_id: accountId }).update({
+  await db.from('activities').where({ id: 't-admin', company_id: companyId }).update({
     archived_at: stamp,
   });
-  await db.from('clients').where({ id: 'c-internal-studio', account_id: accountId }).update({
+  await db.from('clients').where({ id: 'c-internal-studio', company_id: companyId }).update({
     archived_at: stamp,
   });
 
@@ -150,11 +151,11 @@ async function prepareArchiveFixture(archiveProject = false) {
   };
   await db.table('clients').insert(encodeRow('clients', deletedClient));
   await db.table('projects').insert(encodeRow('projects', deletedProject));
-  await db.from('resources').where({ id: 'r-nike', account_id: accountId }).update({
+  await db.from('resources').where({ id: 'r-nike', company_id: companyId }).update({
     project_id: deletedProject.id,
   });
 
-  const verified = await readState(accountId, true);
+  const verified = await readState(companyId, true);
   if (
     verified.clients.find((row) => row.id === client.id)?.isPrivate !== true ||
     verified.projects.find((row) => row.id === project.id)?.isPrivate !== true ||
@@ -183,13 +184,13 @@ test.group('identity-only archive recovery', (suite) => {
     for (const role of ['editor', 'admin', 'owner'] as const) {
       await db
         .from('memberships')
-        .where({ user_id: actor.userId, scope_id: accountId })
+        .where({ user_id: actor.userId, scope_id: companyId })
         .update({ role });
       const response = await session(client.get(archiveUrl), actor.cookie).send();
       assert.equal(response.status(), 200, response.text());
       const body = recovery(response);
-      assert.equal(body.accountId, accountId);
-      assert.deepEqual(Object.keys(response.body() as object).sort(), ['accountId', 'rows']);
+      assert.equal(body.companyId, companyId);
+      assert.deepEqual(Object.keys(response.body() as object).sort(), ['companyId', 'rows']);
 
       const expectedKeys = ['archived', 'entity', 'id', 'label', 'parent'];
       for (const row of body.rows) {
@@ -311,7 +312,7 @@ test.group('identity-only archive recovery', (suite) => {
     foreignRead.assertStatus(403);
     const inactiveRead = await session(client.get(archiveUrl), editor.cookie).send();
     inactiveRead.assertStatus(200);
-    await db.from('memberships').where({ user_id: editor.userId, scope_id: accountId }).update({
+    await db.from('memberships').where({ user_id: editor.userId, scope_id: companyId }).update({
       status: 'suspended',
     });
     const removedRead = await session(client.get(archiveUrl), editor.cookie).send();
@@ -551,7 +552,7 @@ test.group('identity-only archive recovery', (suite) => {
 
     const deleted = await db
       .from('resources')
-      .where({ id: 'r-tyler', account_id: accountId })
+      .where({ id: 'r-tyler', company_id: companyId })
       .update({
         deleted_at: stamp,
       });
@@ -574,7 +575,7 @@ test.group('identity-only archive recovery', (suite) => {
     foreignTarget.assertStatus(400);
     assert.equal((foreignTarget.body() as { code: string }).code, 'VALIDATION_ERROR');
 
-    await db.from('memberships').where({ user_id: editor.userId, scope_id: accountId }).update({
+    await db.from('memberships').where({ user_id: editor.userId, scope_id: companyId }).update({
       role: 'viewer',
     });
     // Membership changes after the read are checked when the write is actually submitted.

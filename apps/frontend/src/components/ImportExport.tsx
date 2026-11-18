@@ -159,13 +159,13 @@ export function ImportExport() {
   };
   // The server is the only validator: its reply is either the preview or the refusal shown in the modal.
   const requestPreview = async (pending: PendingImport) => {
-    const accountId = pending.accountId;
-    if (!accountId) return;
+    const companyId = pending.companyId;
+    if (!companyId) return;
     const selection = selectionRef.current;
     const isCurrent = () =>
-      selectionRef.current === selection && useStore.getState().activeAccountId === accountId;
+      selectionRef.current === selection && useStore.getState().activeAccountId === companyId;
     try {
-      const reply = await companyDataRequests.readTransferPreview(accountId, pending.document);
+      const reply = await companyDataRequests.readTransferPreview(companyId, pending.document);
       if (isCurrent()) setPreview(reply);
     } catch (error) {
       if (isCurrent()) setPreviewError(resolveErrorMessage(error));
@@ -174,7 +174,7 @@ export function ImportExport() {
 
   const confirmImport = () => {
     if (!pendingImport) return;
-    if (pendingImport.accountId !== useStore.getState().activeAccountId) {
+    if (pendingImport.companyId !== useStore.getState().activeAccountId) {
       selectionRef.current += 1;
       clearPendingImport();
       return;
@@ -233,7 +233,7 @@ export function ImportExport() {
       {pendingImport && activeAccountId && preview && continued && confirmingAction && (
         <PasswordConfirmationDialog
           action="import"
-          accountId={activeAccountId}
+          companyId={activeAccountId}
           intent={{ baseRevision: preview.baseRevision, document: pendingImport.document }}
           onConfirmed={(confirmationId) => {
             setConfirmingAction(false);

@@ -6,7 +6,7 @@ import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planni
 import { readState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
-  accountId,
+  companyId,
   planningUrl,
   configureAuth,
   newAllocation,
@@ -16,7 +16,7 @@ import {
   signInAgain,
 } from './helpers.js';
 
-const allocationsUrl = `/api/companies/${accountId}/allocations`;
+const allocationsUrl = `/api/companies/${companyId}/allocations`;
 
 interface SendPlanningOptions {
   client: ApiClient;
@@ -39,7 +39,7 @@ async function readPlanningStorage() {
     allocations: await db.from('allocations').orderBy('id'),
     groups: await db.from('deleted_groups').orderBy('group_id'),
     rows: await db.from('deleted_rows').orderBy('group_id').orderBy('row_id'),
-    revisions: await db.from('company_planning_revisions').orderBy('account_id'),
+    revisions: await db.from('company_planning_revisions').orderBy('company_id'),
     receipts: await db.from('planning_mutations').orderBy('mutation_id'),
     audit: await db.from('audit_entries').where('entity', 'planning').orderBy('id'),
   };
@@ -59,7 +59,7 @@ test.group('retained id recreation ownership', (suite) => {
     }) => {
       configureAuth(cleanup);
       const owner = await signIn(client, 'editor');
-      const allocation = newAllocation(await readState(accountId, true));
+      const allocation = newAllocation(await readState(companyId, true));
       const created = await sendPlanning({
         client,
         cookie: owner.cookie,
@@ -125,7 +125,7 @@ test.group('retained id recreation ownership', (suite) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client, 'editor');
-    const allocation = newAllocation(await readState(accountId, true));
+    const allocation = newAllocation(await readState(companyId, true));
     const created = await sendPlanning({
       client,
       cookie,

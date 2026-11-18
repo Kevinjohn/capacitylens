@@ -47,14 +47,14 @@ function createSubmitInvite({
     const email = invitationPreauthorizedEmail.trim();
     if (!email) return fail('invite', m.settings_invite_email_required());
     if (!isAccountEmail(email)) return fail('invite', m.identity_err_email());
-    await withMemberAction('invite:create', async (accountId) => {
+    await withMemberAction('invite:create', async (companyId) => {
       try {
         const result = await teamAccessClient.createInvitation({
-          accountId,
+          companyId,
           role: inviteRole,
           email,
         });
-        if (!isActiveAccount(accountId)) return;
+        if (!isActiveAccount(companyId)) return;
         if (result.kind === 'unknown' || result.kind === 'invalid') {
           await reconcileUnknownMutation(m.settings_members_unknown_invite_creation());
           return;
@@ -72,7 +72,7 @@ function createSubmitInvite({
         clear();
         void reloadInvites();
       } catch (e) {
-        if (!isActiveAccount(accountId)) return;
+        if (!isActiveAccount(companyId)) return;
         // Invitation creation may have committed despite a lost response, so reconcile before sending another.
         await reconcileUnknownMutation(
           resolveInviteMutationError(m.settings_members_unknown_invite_creation(), e),
@@ -101,10 +101,10 @@ function createRevokeInvite({
   reconcileUnknownMutation,
 }: InviteActionDependencies) {
   return (id: string) =>
-    withMemberAction(`invite:revoke:${id}`, async (accountId) => {
+    withMemberAction(`invite:revoke:${id}`, async (companyId) => {
       try {
-        const result = await teamAccessClient.revokeInvitation(accountId, id);
-        if (!isActiveAccount(accountId)) return;
+        const result = await teamAccessClient.revokeInvitation(companyId, id);
+        if (!isActiveAccount(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
             await reconcileUnknownMutation(m.settings_members_unknown_invite_revocation());
@@ -122,7 +122,7 @@ function createRevokeInvite({
         setNotice(m.settings_members_invite_revoked());
         void reloadInvites();
       } catch (e) {
-        if (!isActiveAccount(accountId)) return;
+        if (!isActiveAccount(companyId)) return;
         // A lost revocation response does not prove the invitation is still live; reconcile before retrying.
         await reconcileUnknownMutation(
           m.settings_members_error_detail({
@@ -142,10 +142,10 @@ function createResendInvite({
   reloadInvites,
 }: InviteActionDependencies) {
   return (invitation: TeamInvitation) =>
-    withMemberAction(`invite:resend:${invitation.id}`, async (accountId) => {
+    withMemberAction(`invite:resend:${invitation.id}`, async (companyId) => {
       try {
-        const result = await teamAccessClient.resendInvitation(accountId, invitation.id);
-        if (!isActiveAccount(accountId)) return;
+        const result = await teamAccessClient.resendInvitation(companyId, invitation.id);
+        if (!isActiveAccount(companyId)) return;
         if (result.kind !== 'ok') {
           fail(null, resolveRejectionMessage(result, m.settings_invite_resend_failed()));
           return;
@@ -155,7 +155,7 @@ function createResendInvite({
         } else setNotice(m.settings_invite_not_emailed(), 'warning');
         void reloadInvites();
       } catch (e) {
-        if (!isActiveAccount(accountId)) return;
+        if (!isActiveAccount(companyId)) return;
         console.warn('Invitation resend failed', e);
         fail(null, resolveInviteMutationError(m.settings_invite_resend_failed(), e));
       }

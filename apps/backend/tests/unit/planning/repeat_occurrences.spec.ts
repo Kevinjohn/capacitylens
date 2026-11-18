@@ -12,7 +12,7 @@ import {
   type RepeatRange,
 } from '#services/planning/repeat_occurrences';
 
-const accountId = FIXTURE_ACCOUNT.id;
+const companyId = FIXTURE_ACCOUNT.id;
 const first = {
   resourceId: FIXTURE_RESOURCE_PERSON.id,
   startDate: '2026-06-01',
@@ -30,7 +30,7 @@ function companyData(schedulingMode: SchedulingMode): AppData {
 }
 
 const occurrences = (schedulingMode: SchedulingMode, repeat: RepeatRange, from = first) =>
-  allocationOccurrences(companyData(schedulingMode), accountId, from, repeat).map(
+  allocationOccurrences(companyData(schedulingMode), companyId, from, repeat).map(
     ({ startDate, endDate }) => [startDate, endDate]
   );
 

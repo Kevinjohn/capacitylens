@@ -37,30 +37,30 @@ export function useArchiveRecovery() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const mayWrite = useCan('planning:write');
-  const accountId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeAccountId);
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
   useEffect(
     () =>
-      subscribeToInactiveDataChanges((companyId) => {
-        if (companyId === useStore.getState().activeAccountId) reload();
+      subscribeToInactiveDataChanges((changedCompanyId) => {
+        if (changedCompanyId === useStore.getState().activeAccountId) reload();
       }),
     [reload],
   );
   const enabled =
     mayWrite &&
-    !!accountId &&
+    !!companyId &&
     !!user &&
     permissionStatus === 'resolved' &&
     hasCurrentPlanningAccess(planning.accessKey, user.id, role) &&
-    planning.context?.companyId === accountId &&
+    planning.context?.companyId === companyId &&
     planning.canWrite &&
     planning.status === 'ready';
   const scope = {
     principalId: user?.id ?? null,
-    accountId,
+    companyId,
     masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };
   const signature = JSON.stringify([
@@ -94,11 +94,11 @@ export function useArchiveRecovery() {
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       const response = await client.request('api.planning.archive', {
-        params: { companyId: accountId ?? '' },
+        params: { companyId: companyId ?? '' },
         signal,
         headers: { 'X-Masquerade-Context': contextToken ?? '' },
       });
-      if (!response || response.accountId !== accountId) {
+      if (!response || response.companyId !== companyId) {
         throw new Error(m.settings_archived_err_incomplete());
       }
       return response;
