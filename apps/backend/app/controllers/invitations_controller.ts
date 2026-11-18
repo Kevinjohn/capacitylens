@@ -13,7 +13,7 @@ import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { isInvitableRole } from '#services/account_kit/policy';
-import { installationCompany, installationCompanyId } from '#models/installation_company';
+import { getInstallationCompany, installationCompanyId } from '#models/installation_company';
 import { invalidAdmission, missingAdmission } from '#services/admission/errors';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
@@ -129,7 +129,7 @@ export default class InvitationsController {
     proofHeaders(ctx);
     const invitation = await accountKit.invitations.inspect({ token: ctx.params.token });
     if (!invitation) return ctx.response.notFound(invalidLink);
-    const { companyId, accountName } = await installationCompany(db);
+    const { companyId, accountName } = await getInstallationCompany(db);
     return ctx.response.ok({
       companyId,
       accountName,
