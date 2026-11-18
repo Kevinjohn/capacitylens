@@ -1,5 +1,6 @@
 import { archiveForTest } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -240,6 +241,15 @@ it('rejects a stale person edit instead of overwriting a concurrent change', asy
   );
   render(<ResourceForm resource={resource} onClose={onClose} />);
 
+  queuePlanningPatch(() => ({
+    upserts: [
+      {
+        entity: 'resources',
+        row: { ...resource, role: 'Design lead', updatedAt: '2098-01-01T00:00:00.000Z' },
+      },
+    ],
+    removed: [],
+  }));
   await useStore.getState().updateResource(resource.id, { role: 'Design lead' });
   await user.clear(screen.getByLabelText('Name'));
   await user.type(screen.getByLabelText('Name'), 'Alice renamed');

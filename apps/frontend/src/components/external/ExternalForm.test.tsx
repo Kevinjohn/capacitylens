@@ -107,6 +107,15 @@ describe('ExternalForm', () => {
     const onClose = vi.fn();
     render(<ExternalForm resource={resource} onClose={onClose} />);
 
+    queuePlanningPatch(() => ({
+      upserts: [
+        {
+          entity: 'resources',
+          row: { ...resource, role: 'Brand lead', updatedAt: '2098-01-01T00:00:00.000Z' },
+        },
+      ],
+      removed: [],
+    }));
     await useStore.getState().updateResource(resource.id, { role: 'Brand lead' });
     await user.clear(screen.getByLabelText('Company'));
     await user.type(screen.getByLabelText('Company'), 'Kord Studio');
