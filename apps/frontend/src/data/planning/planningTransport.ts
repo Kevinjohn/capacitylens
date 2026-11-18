@@ -7,11 +7,11 @@ import type { PlanningClientContext, PlanningTransport } from './planningCacheTy
 type PlanningClient = typeof client;
 
 // The caller captures the proof into the context; a missing one sends an empty proof, never a newer one.
-function capturedContextToken(context: PlanningClientContext): string | null {
+function readContextToken(context: PlanningClientContext): string | null {
   return context.masqueradeContextToken ?? null;
 }
 
-function withMasqueradeContext(
+function applyMasqueradeContext(
   apiClient: PlanningClient,
   contextToken: string | null | undefined,
 ): PlanningClient {
@@ -42,7 +42,7 @@ function requireReply<T>(reply: T | void): T {
   return reply;
 }
 
-function planningError(error: unknown): unknown {
+function normalizePlanningError(error: unknown): unknown {
   const failure = readProductHttpFailure(error, 'The planning request was refused.');
   if (!failure) return error;
   return new PlanningControllerError(
@@ -336,7 +336,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
   return {
     async read(context, signal, { window, historyId } = {}) {
       try {
-        const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
+        const scopedClient = applyMasqueradeContext(apiClient, readContextToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { companyId: context.companyId },
@@ -371,43 +371,43 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           ]),
         };
       } catch (error) {
-        throw planningError(error);
+        throw normalizePlanningError(error);
       }
     },
     async execute(context, execution, signal) {
       try {
         return await sendOperation(
-          withMasqueradeContext(apiClient, capturedContextToken(context)),
+          applyMasqueradeContext(apiClient, readContextToken(context)),
           context,
           execution,
           signal,
         );
       } catch (error) {
-        throw planningError(error);
+        throw normalizePlanningError(error);
       }
     },
     async undo(context, step, signal) {
       try {
         return requireReply(
-          await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
+          await applyMasqueradeContext(apiClient, readContextToken(context)).request(
             'api.planning.undo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
         );
       } catch (error) {
-        throw planningError(error);
+        throw normalizePlanningError(error);
       }
     },
     async redo(context, step, signal) {
       try {
         return requireReply(
-          await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
+          await applyMasqueradeContext(apiClient, readContextToken(context)).request(
             'api.planning.redo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
         );
       } catch (error) {
-        throw planningError(error);
+        throw normalizePlanningError(error);
       }
     },
   };

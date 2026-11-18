@@ -66,7 +66,7 @@ export async function apiFetch(
   requestOptions: RequestInit = {},
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
-  const headers = headersWithMasqueradeContext(input, requestOptions);
+  const headers = buildMasqueradeHeaders(input, requestOptions);
   const response = await fetch(input, {
     ...requestOptions,
     ...(headers === undefined ? {} : { headers }),
@@ -88,7 +88,7 @@ export async function apiFetch(
   return response;
 }
 
-function headersWithMasqueradeContext(
+function buildMasqueradeHeaders(
   input: RequestInfo | URL,
   requestOptions: RequestInit,
 ): HeadersInit | undefined {
