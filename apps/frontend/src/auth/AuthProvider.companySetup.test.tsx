@@ -61,7 +61,7 @@ it('adopts a same-principal company created in another browser only after confir
       createdElsewhere = true;
       return me(409, { error: 'First company setup is unavailable for this installation.' });
     }
-    if (String(url).endsWith('/api/accounts')) return me(200, [{ id: 'wayne', role: 'owner' }]);
+    if (String(url).endsWith('/api/companies')) return me(200, [{ id: 'wayne', role: 'owner' }]);
     return me(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: !createdElsewhere,
@@ -90,7 +90,7 @@ it('keeps a conflicting setup refusal visible when the principal has no company 
     if (options?.method === 'POST') {
       return me(409, { error: 'First company setup is unavailable for this installation.' });
     }
-    if (String(url).endsWith('/api/accounts')) return me(200, []);
+    if (String(url).endsWith('/api/companies')) return me(200, []);
     return me(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: true,

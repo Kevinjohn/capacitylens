@@ -79,7 +79,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
       const beforeOwn = await readState(accountId, true);
       const intent = scenario.intent(beforeOwn);
       const beforeOther = await readState(otherAccountId, true);
-      const own = await session(client.post(`/api/accounts/${accountId}/${scenario.path}`), cookie)
+      const own = await session(client.post(`/api/companies/${accountId}/${scenario.path}`), cookie)
         .json(requestBody(0, intent))
         .send();
       own.assertStatus(200);
@@ -87,7 +87,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
       assert.deepEqual(await readState(otherAccountId, true), beforeOther);
 
       const foreign = await session(
-        client.post(`/api/accounts/${otherAccountId}/${scenario.path}`),
+        client.post(`/api/companies/${otherAccountId}/${scenario.path}`),
         cookie
       )
         .json(requestBody(0, intent))
@@ -107,7 +107,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
     const initial = await readState(accountId, true);
     const id = initial.allocations[0]!.id;
     const removed = await session(
-      client.post(`/api/accounts/${accountId}/allocations/delete-group`),
+      client.post(`/api/companies/${accountId}/allocations/delete-group`),
       cookie
     )
       .json(requestBody(0, { operation: 'allocation.deleteGroup', ids: [id] }))
@@ -119,7 +119,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
     const beforeOwn = await readState(accountId, true);
     const beforeOther = await readState(otherAccountId, true);
     const restored = await session(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       cookie
     )
       .json(requestBody(1, intent))
@@ -129,7 +129,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
     assert.deepEqual(await readState(otherAccountId, true), beforeOther);
 
     const foreign = await session(
-      client.post(`/api/accounts/${otherAccountId}/planning/restore-group`),
+      client.post(`/api/companies/${otherAccountId}/planning/restore-group`),
       cookie
     )
       .json(requestBody(0, intent))

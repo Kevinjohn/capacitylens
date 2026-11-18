@@ -33,7 +33,7 @@ const as = (cookie: string) => ({
 });
 
 const planning = (client: ApiClient, cookie: string) =>
-  as(cookie).get(client, `/api/accounts/${accountId}/planning`);
+  as(cookie).get(client, `/api/companies/${accountId}/planning`);
 
 async function company(api: ApiClient) {
   const ownerId = await createIdentity(owner, { name: 'Bruce Wayne' });
@@ -323,7 +323,7 @@ test.group('address confirmation', (group) => {
     const completed = await as(cookie).post(api, '/api/admission/complete');
     completed.assertStatus(409);
     assert.equal(completed.body().code, 'MULTIPLE_COMPANIES');
-    const companies = await as(cookie).get(api, '/api/accounts');
+    const companies = await as(cookie).get(api, '/api/companies');
     companies.assertStatus(409);
     assert.deepEqual(companies.body(), {
       error:

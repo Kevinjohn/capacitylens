@@ -16,7 +16,7 @@ test('a handled same-origin fetch started during unload passes the page-error ga
   page,
 }) => {
   await openApp(page);
-  await fetchOnPageHide(page, '/api/accounts/a-studio/planning');
+  await fetchOnPageHide(page, '/api/companies/a-studio/planning');
   await openApp(page);
 });
 
@@ -28,7 +28,7 @@ test('a cross-origin fetch refused during unload still fails the page-error gate
   await openApp(page);
   const crossOrigin = new URL(page.url());
   crossOrigin.hostname = '127.0.0.1';
-  crossOrigin.pathname = '/api/accounts/a-studio/planning';
+  crossOrigin.pathname = '/api/companies/a-studio/planning';
   await fetchOnPageHide(page, crossOrigin.href);
   await openApp(page);
 });

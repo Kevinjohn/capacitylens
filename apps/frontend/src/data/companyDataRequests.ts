@@ -115,7 +115,7 @@ export const companyDataRequests = {
   /** Sends the password-confirmed anonymisation of every person in one company. */
   anonymiseCompanyPeople(accountId: string, confirmationId: string): Promise<Response> {
     return apiFetch(
-      `/api/accounts/${encodeURIComponent(accountId)}/anonymise`,
+      `/api/companies/${encodeURIComponent(accountId)}/anonymise`,
       {
         method: 'POST',
         credentials: 'include',
@@ -129,7 +129,7 @@ export const companyDataRequests = {
   /** Sends the anonymisation of one person resource. */
   anonymiseResource(accountId: string, resourceId: string): Promise<Response> {
     return apiFetch(
-      `/api/accounts/${encodeURIComponent(accountId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
+      `/api/companies/${encodeURIComponent(accountId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
       {
         method: 'POST',
         credentials: 'include',
@@ -142,7 +142,7 @@ export const companyDataRequests = {
 
   /** Adds the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(companyId: string): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.example-data', { params: { accountId: companyId } }), {
+    return apiFetch(apiRouteUrl('api.example-data', { params: { companyId: companyId } }), {
       method: 'POST',
       credentials: 'include',
     });

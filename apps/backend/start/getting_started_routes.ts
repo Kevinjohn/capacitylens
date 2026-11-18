@@ -6,11 +6,11 @@ const GettingStartedController = () => import('#controllers/getting_started_cont
 /** Registers the getting started controller endpoints. */
 export function registerGettingStartedRoutes() {
   router
-    .get('/api/accounts/:accountId/getting-started', [GettingStartedController, 'show'])
+    .get('/api/companies/:companyId/getting-started', [GettingStartedController, 'show'])
     .as('api.getting-started.show')
     .use(asCompanyMemberOnly());
   router
-    .put('/api/accounts/:accountId/getting-started', [GettingStartedController, 'update'])
+    .put('/api/companies/:companyId/getting-started', [GettingStartedController, 'update'])
     .as('api.getting-started.update')
     .use(asCompanyMember());
 }

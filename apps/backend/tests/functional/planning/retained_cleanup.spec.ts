@@ -25,7 +25,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
   const data = await readState(accountId, true);
   const allocation = newAllocation(data);
   const baseRevision = await revision();
-  const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+  const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
@@ -34,7 +34,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
     .send();
   created.assertStatus(200);
   const deleted = await session(
-    client.post(`/api/accounts/${accountId}/allocations/${allocation.id}/delete`),
+    client.post(`/api/companies/${accountId}/allocations/${allocation.id}/delete`),
     cookie
   )
     .json({
@@ -53,7 +53,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
 
 async function deleteExistingAllocation(client: ApiClient, cookie: string, allocationId: string) {
   const deleted = await session(
-    client.post(`/api/accounts/${accountId}/allocations/${allocationId}/delete`),
+    client.post(`/api/companies/${accountId}/allocations/${allocationId}/delete`),
     cookie
   )
     .json({
@@ -71,7 +71,7 @@ async function deleteExistingAllocation(client: ApiClient, cookie: string, alloc
 }
 
 async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
-  return session(client.post(`/api/accounts/${accountId}/planning/restore-group`), cookie)
+  return session(client.post(`/api/companies/${accountId}/planning/restore-group`), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision: await revision(),
@@ -84,7 +84,7 @@ async function createActiveAllocation(client: ApiClient, cookie: string) {
   const data = await readState(accountId, true);
   const allocation = newAllocation(data);
   const baseRevision = await revision();
-  const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+  const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,

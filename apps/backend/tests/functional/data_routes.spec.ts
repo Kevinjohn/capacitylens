@@ -65,7 +65,7 @@ test.group('M2b data routes', (group) => {
         .from('memberships')
         .where({ user_id: dataOwnerId, scope_id: account.id })
         .update({ role });
-      const response = await trusted(client.post(`/api/accounts/${account.id}/example-data`))
+      const response = await trusted(client.post(`/api/companies/${account.id}/example-data`))
         .json({})
         .send();
       response.assertStatus(role === 'editor' ? 403 : 201);
@@ -186,13 +186,13 @@ test.group('M2b data routes', (group) => {
     assert,
   }) => {
     client = await reset(client, true);
-    const route = '/api/accounts/a-studio/getting-started';
+    const route = '/api/companies/a-studio/getting-started';
     const before = await client.get(route).send();
     before.assertBodyContains({ dismissed: false });
     const written = await trusted(client.put(route)).json({ dismissed: true }).send();
     assert.equal(written.status(), 200, JSON.stringify(written.body()));
     const shared = await client.get(route).send();
-    const other = await client.get('/api/accounts/a-loft/getting-started').send();
+    const other = await client.get('/api/companies/a-loft/getting-started').send();
     assert.equal(shared.body().dismissed, true);
     assert.equal(other.body().dismissed, false);
     const reverse = await trusted(client.put(route)).json({ dismissed: false }).send();
@@ -209,7 +209,7 @@ test.group('M2b data routes', (group) => {
     const now = new Date().toISOString();
     const studio = (table: string) => db.from(table).where('account_id', 'a-studio');
     const read = async (accountId = 'a-studio') => {
-      const reply = await client.get(`/api/accounts/${accountId}/getting-started`).send();
+      const reply = await client.get(`/api/companies/${accountId}/getting-started`).send();
       reply.assertStatus(200);
       // The generated reply type omits the nested steps interface; the route returns it.
       return (reply.body() as { dismissed: boolean; steps?: Record<string, boolean> }).steps;
@@ -248,7 +248,7 @@ test.group('M2b data routes', (group) => {
     assert,
   }) => {
     client = await reset(client, true);
-    const route = '/api/accounts/a-studio/getting-started';
+    const route = '/api/companies/a-studio/getting-started';
     const extraFields = await trusted(client.put(route))
       .json({ dismissed: true, extra: 'value' })
       .send();
@@ -259,7 +259,7 @@ test.group('M2b data routes', (group) => {
     invalid.assertStatus(400);
     const stillDismissed = await client.get(route).send();
     assert.equal(stillDismissed.body().dismissed, true);
-    const missing = await client.get('/api/accounts/unknown/getting-started').send();
+    const missing = await client.get('/api/companies/unknown/getting-started').send();
     missing.assertStatus(403);
   });
 
@@ -283,7 +283,7 @@ test.group('M2b data routes', (group) => {
       })
     );
     const otherBefore = await readState(otherAccountId, true);
-    const route = '/api/accounts/a-example/example-data';
+    const route = '/api/companies/a-example/example-data';
     const first = await trusted(client.post(route)).json({}).send();
     assert.equal(first.status(), 201, JSON.stringify(first.body()));
     assert.isAbove((first.body() as { added: number }).added, 0);
@@ -312,7 +312,7 @@ test.group('M2b data routes', (group) => {
     };
     await db.table('resources').insert(encodeRow('resources', resource));
     const before = await readState(account.id, true);
-    const response = await trusted(client.post('/api/accounts/a-example/example-data'))
+    const response = await trusted(client.post('/api/companies/a-example/example-data'))
       .json({})
       .send();
     response.assertStatus(409);
@@ -332,11 +332,11 @@ test.group('M2b data routes', (group) => {
       archivedAt: new Date().toISOString(),
     };
     await db.table('resources').insert(encodeRow('resources', resource));
-    const existing = await trusted(client.post('/api/accounts/a-example/example-data'))
+    const existing = await trusted(client.post('/api/companies/a-example/example-data'))
       .json({})
       .send();
     existing.assertStatus(409);
-    const missing = await trusted(client.post('/api/accounts/unknown/example-data'))
+    const missing = await trusted(client.post('/api/companies/unknown/example-data'))
       .json({})
       .send();
     missing.assertStatus(403);
@@ -363,7 +363,7 @@ test.group('M2b data routes', (group) => {
         };
         await db.table('projects').insert(encodeRow('projects', project));
       }
-      const result = await trusted(client.post('/api/accounts/a-example/example-data'))
+      const result = await trusted(client.post('/api/companies/a-example/example-data'))
         .json({})
         .send();
       result.assertStatus(409);

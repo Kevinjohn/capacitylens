@@ -29,15 +29,15 @@ test.group('company route identifier bounds', (group) => {
     await createFixtureCompanyForOwner(String(user!.id), 'Wayne Enterprises', 'a-studio');
     const tooLong = 'a'.repeat(255);
     const refused = [
-      client.get(`/api/accounts/${tooLong}/members`),
-      client.patch(`/api/accounts/a-studio/members/${tooLong}`).json({ role: 'editor' }),
-      client.put(`/api/accounts/a-studio/members/${tooLong}/resource-link`).json({}),
+      client.get(`/api/companies/${tooLong}/members`),
+      client.patch(`/api/companies/a-studio/members/${tooLong}`).json({ role: 'editor' }),
+      client.put(`/api/companies/a-studio/members/${tooLong}/resource-link`).json({}),
     ];
     for (const request of refused) {
       const response = await asDataOwner(request, cookie).send();
       response.assertStatus(404);
     }
-    const listed = await asDataOwner(client.get('/api/accounts/a-studio/members'), cookie).send();
+    const listed = await asDataOwner(client.get('/api/companies/a-studio/members'), cookie).send();
     listed.assertStatus(200);
   });
 });

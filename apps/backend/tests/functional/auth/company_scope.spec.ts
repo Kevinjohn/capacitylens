@@ -34,14 +34,14 @@ async function refusals(client: any, cookie: string) {
   const status = await client.get('/api/masquerade').withCookie('adonis-session', cookie).send();
   status.assertStatus(200);
   const company = await client
-    .put('/api/accounts/a-studio/getting-started')
+    .put('/api/companies/a-studio/getting-started')
     .header('sec-fetch-site', 'same-origin')
     .header('X-Masquerade-Context', (status.body() as { contextToken: string }).contextToken)
     .withCookie('adonis-session', cookie)
     .json({ dismissed: true })
     .send();
   const planning = await client
-    .get('/api/accounts/a-studio/planning')
+    .get('/api/companies/a-studio/planning')
     .withCookie('adonis-session', cookie)
     .send();
   return { company, planning };
@@ -92,7 +92,7 @@ test.group('company scope middleware', (group) => {
   test('every route with a company id in its path carries the company scope', ({ assert }) => {
     const unscoped = Object.values(router.toJSON())
       .flat()
-      .filter((route) => route.pattern.includes(':accountId'))
+      .filter((route) => route.pattern.includes(':companyId'))
       .filter(
         (route) =>
           ![...route.middleware.all()].some(

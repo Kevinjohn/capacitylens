@@ -13,7 +13,7 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // This spec exercises the password-mode login wall; the core demo project uses cosmetic sign-in.
 
-// Shared auth helpers come from authTestSupport. A fresh user has no membership, so GET /api/accounts
+// Shared auth helpers come from authTestSupport. A fresh user has no membership, so GET /api/companies
 // returns no companies. The first-company route provisions a company for the signed-in owner.
 const EMAIL = 'tester@capacitylens.dev';
 const ORG_NAME = `Login Studio ${Date.now()}`;
@@ -86,7 +86,7 @@ test.describe('login screen (password sign-in)', () => {
       await page.getByLabel('Password').fill(PASSWORD);
       const planningResponse = page.waitForResponse(
         (response) =>
-          /^\/api\/accounts\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
+          /^\/api\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
           response.status() === 200,
       );
       await page.getByRole('button', { name: 'Sign in' }).click();
@@ -160,7 +160,7 @@ test.describe('login screen (password sign-in)', () => {
 
     const planningResponse = page.waitForResponse(
       (response) =>
-        /^\/api\/accounts\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
+        /^\/api\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) &&
         response.status() === 200,
     );
     await page.reload();

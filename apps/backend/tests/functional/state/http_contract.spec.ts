@@ -125,7 +125,7 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(disallowed.status(), 200);
 
     const preflight = await client
-      .options('/api/accounts/a-studio/disciplines')
+      .options('/api/companies/a-studio/disciplines')
       .header('origin', allowed)
       .header('access-control-request-method', 'POST')
       .header('access-control-request-headers', 'content-type');
@@ -133,9 +133,9 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(preflight.header('access-control-allow-origin'), allowed);
     assert.equal(preflight.header('access-control-allow-credentials'), 'true');
 
-    const planning = await client.get('/api/accounts/a-studio/planning');
+    const planning = await client.get('/api/companies/a-studio/planning');
     assert.equal(planning.status(), 200);
-    const writePath = '/api/accounts/a-studio/disciplines';
+    const writePath = '/api/companies/a-studio/disciplines';
     const write = {
       mutationId: randomUUID(),
       baseRevision: (planning.body() as { revision: number }).revision,

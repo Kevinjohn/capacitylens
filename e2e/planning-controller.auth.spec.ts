@@ -62,7 +62,7 @@ async function signIn(page: Page, email: string): Promise<void> {
 }
 
 async function planningSnapshot(request: APIRequestContext, cookie: string, companyId: string) {
-  const response = await request.get(`${AUTH_API}/api/accounts/${companyId}/planning`, {
+  const response = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
     headers: { cookie },
   });
   expect(response.status(), 'the authenticated planning read should succeed').toBe(200);
@@ -200,7 +200,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   // without history, until acknowledgement; then the dropped response ends in a canonical read.
   const committedAtServer = deferred<{ status: number; body: unknown }>();
   const releaseResponse = deferred<void>();
-  const updatePath = `**/api/accounts/${companyId}/allocations/${allocationId}`;
+  const updatePath = `**/api/companies/${companyId}/allocations/${allocationId}`;
   await page.route(updatePath, async (route) => {
     const response = await route.fetch();
     committedAtServer.resolve({ status: response.status(), body: await response.json() });
@@ -508,7 +508,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
 
   // A request lost before dispatch committed nothing. The browser shows the server's state, asks the
   // person to check, and never resends; a deliberate retry is a new change with a new identity.
-  const unknownRoute = `**/api/accounts/${companyId}/allocations/${allocationId}`;
+  const unknownRoute = `**/api/companies/${companyId}/allocations/${allocationId}`;
   await page.route(unknownRoute, async (route) => route.abort('failed'));
   const confirm = {
     operation: 'allocation.update',

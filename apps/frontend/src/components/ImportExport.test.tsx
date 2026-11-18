@@ -202,7 +202,7 @@ describe('beta import and export', () => {
     const body = '{"exported":true}';
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
-      expect(url).toMatch(new RegExp(`/api/accounts/${accountId}/export$`));
+      expect(url).toMatch(new RegExp(`/api/companies/${accountId}/export$`));
       return new Response(body);
     });
     vi.stubGlobal('fetch', fetchMock);

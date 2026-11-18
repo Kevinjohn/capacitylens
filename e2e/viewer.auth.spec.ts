@@ -42,7 +42,7 @@ async function assertViewerWriteRejected(
   cookie: string,
 ) {
   const newClientId = crypto.randomUUID();
-  const directWrite = await request.post(`${API}/api/accounts/${accountId}/clients`, {
+  const directWrite = await request.post(`${API}/api/companies/${accountId}/clients`, {
     headers: await masqueradeContextHeaders(request, cookie),
     data: {
       mutationId: crypto.randomUUID(),

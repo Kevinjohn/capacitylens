@@ -46,7 +46,7 @@ test.group('company export download', (group) => {
     await db.from('accounts').where('id', 'a-studio').update({ date_style: 'month-day' });
     for (const role of roles) {
       await setRole(role);
-      const response = await client.get('/api/accounts/a-studio/export').send();
+      const response = await client.get('/api/companies/a-studio/export').send();
       response.assertStatus(200);
       assert.equal(
         response.header('content-disposition'),
@@ -72,7 +72,7 @@ test.group('company export download', (group) => {
     client = await reset(client);
     for (const role of roles) {
       await setRole(role);
-      const response = await client.get('/api/accounts/a-studio/export').send();
+      const response = await client.get('/api/companies/a-studio/export').send();
       response.assertStatus(200);
       const document = JSON.parse(response.text()) as { completeness: string };
       assert.equal(document.completeness, role === 'owner' ? 'full' : 'redacted', role);
@@ -84,7 +84,7 @@ test.group('company export download', (group) => {
     const archivedId = await archiveResource();
     for (const role of roles) {
       await setRole(role);
-      const response = await client.get('/api/accounts/a-studio/export').send();
+      const response = await client.get('/api/companies/a-studio/export').send();
       response.assertStatus(200);
       const document = JSON.parse(response.text()) as { data: { resources: { id: string }[] } };
       const ids = document.data.resources.map((row) => row.id);
@@ -95,7 +95,7 @@ test.group('company export download', (group) => {
   test('refuses a company the caller does not belong to', async ({ client, assert }) => {
     client = await reset(client);
     await db.from('memberships').where({ user_id: userId, scope_id: 'a-loft' }).delete();
-    const response = await client.get('/api/accounts/a-loft/export').send();
+    const response = await client.get('/api/companies/a-loft/export').send();
     response.assertStatus(403);
     assert.equal(response.body().code, 'ACCOUNT_MEMBERSHIP_LOST');
   });
@@ -111,7 +111,7 @@ test.group('company export download', (group) => {
       .from('resources')
       .where('id', placeholder.id)
       .update({ avatar_url: 'https://example.test/oracle.png' });
-    const response = await client.get('/api/accounts/a-studio/export').send();
+    const response = await client.get('/api/companies/a-studio/export').send();
     response.assertStatus(400);
     assert.match(response.body().error, /avatarUrl: only a person may have an avatar URL$/);
   });

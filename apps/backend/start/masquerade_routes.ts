@@ -5,7 +5,7 @@ const MasqueradeController = () => import('#controllers/masquerade_controller');
 
 export function registerMasqueradeRoutes() {
   router
-    .post('/api/accounts/:accountId/masquerade', [MasqueradeController, 'start'])
+    .post('/api/companies/:companyId/masquerade', [MasqueradeController, 'start'])
     .as('api.masquerade.start')
     // The service compares the context token and refuses a second start itself, so a stale tab
     // gets MASQUERADE_CONTEXT_CHANGED rather than a blocker's MASQUERADE_READ_ONLY.

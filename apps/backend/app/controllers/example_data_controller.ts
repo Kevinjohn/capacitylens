@@ -7,7 +7,7 @@ import { assertCompanyAction } from '#services/auth/authorization';
 export default class ExampleDataController {
   async store(ctx: HttpContext) {
     const { params, response, logger } = ctx;
-    const accountId = params.accountId;
+    const accountId = params.companyId;
     try {
       const added = await withActor(ctx, async (_actor, trx) => {
         const actor = await assertCompanyAction(accountId, 'members:manage', trx);

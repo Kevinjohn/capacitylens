@@ -37,7 +37,7 @@ test('turning disciplines off hides every surface; turning it back on restores t
   const showExternalCommitted = page.waitForResponse(
     (response) =>
       response.request().method() === 'PATCH' &&
-      /\/api\/accounts\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
+      /\/api\/companies\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
   );
   await showExternal.click();
   await expect(showExternal).toHaveAttribute('aria-checked', 'true');

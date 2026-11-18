@@ -46,7 +46,7 @@ async function semanticMutation<T>(ctx: HttpContext, input: SemanticMutationInpu
 /** Lists company members and applies member commands under live management authority. */
 export default class MembersController {
   async index(ctx: HttpContext) {
-    const accountId = readRouteParam(ctx.params.accountId);
+    const accountId = readRouteParam(ctx.params.companyId);
     const directory = await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(accountId, 'members:manage', trx);
       return readMemberDirectory(trx, accountId, actor);
@@ -60,7 +60,7 @@ export default class MembersController {
       return ctx.response.badRequest({ error: 'enabled must be a Boolean.' });
     }
     const enabled = body.enabled;
-    const accountId = readRouteParam(ctx.params.accountId);
+    const accountId = readRouteParam(ctx.params.companyId);
     await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(accountId, 'members:signInTracking', trx);
       await changeMemberSignInTracking(trx, { accountId, actorId: actor.actorId, enabled });
@@ -74,7 +74,7 @@ export default class MembersController {
       return ctx.response.badRequest({ error: 'Invalid member role.' });
     }
     const role = body.role;
-    const accountId = readRouteParam(ctx.params.accountId);
+    const accountId = readRouteParam(ctx.params.companyId);
     const userId = readRouteParam(ctx.params.userId);
     const result = await semanticMutation(ctx, {
       accountId,
@@ -100,7 +100,7 @@ export default class MembersController {
       return ctx.response.badRequest({ error: 'Invalid member status.' });
     }
     const status = body.status;
-    const accountId = readRouteParam(ctx.params.accountId);
+    const accountId = readRouteParam(ctx.params.companyId);
     const userId = readRouteParam(ctx.params.userId);
     const result = await semanticMutation(ctx, {
       accountId,

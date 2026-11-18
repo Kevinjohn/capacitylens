@@ -77,7 +77,7 @@ test.group('M2a review regressions', (group) => {
     const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken;
     assert.isString(contextToken);
     const oversized = await postRaw(
-      '/api/accounts/a-studio/example-data',
+      '/api/companies/a-studio/example-data',
       Buffer.from(`value=${'x'.repeat(1_100_000)}`),
       'application/x-www-form-urlencoded',
       { 'x-masquerade-context': contextToken as string },
@@ -90,7 +90,7 @@ test.group('M2a review regressions', (group) => {
     });
 
     const unsupported = await postRaw(
-      '/api/accounts/a-studio/example-data',
+      '/api/companies/a-studio/example-data',
       Buffer.from('value=x'),
       'application/x-www-form-urlencoded',
       { 'content-encoding': 'compress', 'x-masquerade-context': contextToken as string },

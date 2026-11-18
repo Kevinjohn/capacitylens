@@ -40,23 +40,23 @@ async function deleteTarget(
 ) {
   const routes: Record<Target, { path: string; intent: Record<string, unknown> }> = {
     allocations: {
-      path: `/api/accounts/${accountId}/allocations/${id}/delete`,
+      path: `/api/companies/${accountId}/allocations/${id}/delete`,
       intent: { operation: 'allocation.delete', id },
     },
     timeOff: {
-      path: `/api/accounts/${accountId}/time-off/${id}/delete`,
+      path: `/api/companies/${accountId}/time-off/${id}/delete`,
       intent: { operation: 'timeOff.delete', id },
     },
     closures: {
-      path: `/api/accounts/${accountId}/closures/${id}/delete`,
+      path: `/api/companies/${accountId}/closures/${id}/delete`,
       intent: { operation: 'closure.delete', id },
     },
     phases: {
-      path: `/api/accounts/${accountId}/phases/${id}/delete`,
+      path: `/api/companies/${accountId}/phases/${id}/delete`,
       intent: { operation: 'catalogue.delete', entity: { entity: target, id } },
     },
     disciplines: {
-      path: `/api/accounts/${accountId}/disciplines/${id}/delete`,
+      path: `/api/companies/${accountId}/disciplines/${id}/delete`,
       intent: { operation: 'catalogue.delete', entity: { entity: target, id } },
     },
   };
@@ -148,7 +148,7 @@ test.group('retained restoration reads', (suite) => {
       assert.isFalse(locallyRead[target].some((item) => item.id === ids[target]));
 
       const planning = await session(
-        client.get(`/api/accounts/${accountId}/planning`),
+        client.get(`/api/companies/${accountId}/planning`),
         cookie
       ).send();
       planning.assertStatus(200);
@@ -176,7 +176,7 @@ test.group('retained restoration reads', (suite) => {
     const { cookie } = await signIn(client);
     const data = await readState(accountId, true);
     const allocation = { ...newAllocation(data), note: 'Gotham retained note' };
-    const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+    const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: await revision(),
@@ -193,7 +193,7 @@ test.group('retained restoration reads', (suite) => {
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId);
 
     assert.equal(await withTransaction((trx) => countRestorableItems(trx, accountId)), 1);
-    const reused = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+    const reused = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 2,
@@ -212,7 +212,7 @@ test.group('retained restoration reads', (suite) => {
     assert.equal(await withTransaction((trx) => countRestorableItems(trx, accountId)), 0);
     const beforeRefusal = await readState(accountId, true);
     const refused = await session(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       cookie
     )
       .json({
@@ -261,7 +261,7 @@ test.group('retained restoration reads', (suite) => {
     await db.from('deleted_rows').where('group_id', groupId).delete();
 
     const refused = await session(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       cookie
     )
       .json({

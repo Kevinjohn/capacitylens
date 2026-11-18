@@ -92,7 +92,7 @@ test.group('company member access and tracking', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const directoryPath = '/api/accounts/a-studio/members';
+    const directoryPath = '/api/companies/a-studio/members';
     const initial = await signed(client.get(directoryPath), ownerCookie).send();
     initial.assertStatus(200);
     assert.isFalse(initial.body().signInTrackingEnabled);
@@ -101,7 +101,7 @@ test.group('company member access and tracking', (group) => {
         .signInConfirmed
     );
     const enabled = await signed(
-      client.put('/api/accounts/a-studio/member-sign-in-tracking'),
+      client.put('/api/companies/a-studio/member-sign-in-tracking'),
       ownerCookie
     )
       .json({ enabled: true })
@@ -119,8 +119,8 @@ test.group('company member access and tracking', (group) => {
       observed.body().members.find((member: { userId: string }) => member.userId === editorId)
         .signInConfirmed
     );
-    const statusPath = `/api/accounts/a-studio/members/${editorId}/status`;
-    const planningPath = '/api/accounts/a-studio/planning';
+    const statusPath = `/api/companies/a-studio/members/${editorId}/status`;
+    const planningPath = '/api/companies/a-studio/planning';
     const suspended = await signed(client.patch(statusPath), ownerCookie)
       .json({ status: 'suspended' })
       .send();
@@ -192,7 +192,7 @@ test.group('company member access and tracking', (group) => {
     );
     for (const accountId of ['a-studio', 'a-loft']) {
       const enabled = await signed(
-        client.put(`/api/accounts/${accountId}/member-sign-in-tracking`),
+        client.put(`/api/companies/${accountId}/member-sign-in-tracking`),
         ownerCookie
       )
         .json({ enabled: true })
@@ -200,7 +200,7 @@ test.group('company member access and tracking', (group) => {
       enabled.assertStatus(200);
     }
     const suspended = await signed(
-      client.patch(`/api/accounts/a-studio/members/${editorId}/status`),
+      client.patch(`/api/companies/a-studio/members/${editorId}/status`),
       ownerCookie
     )
       .json({ status: 'suspended' })
@@ -264,7 +264,7 @@ test.group('company member access and tracking', (group) => {
     refusedWhileActive.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
     assert.deepEqual(await db.from('accounts').select('id'), [{ id: 'a-studio' }]);
     const suspended = await signed(
-      client.patch(`/api/accounts/a-studio/members/${adminId}/status`),
+      client.patch(`/api/companies/a-studio/members/${adminId}/status`),
       ownerCookie
     )
       .json({ status: 'suspended' })

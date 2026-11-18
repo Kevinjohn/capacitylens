@@ -11,7 +11,7 @@ export function registerCompanyRoutes() {
     .as('api.installation.company')
     .use(asMember());
   router
-    .get('/api/accounts', [CompaniesController, 'index'])
+    .get('/api/companies', [CompaniesController, 'index'])
     .as('api.accounts.index')
     .use(asMemberOnly());
 }

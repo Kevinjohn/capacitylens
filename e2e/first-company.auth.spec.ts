@@ -124,7 +124,7 @@ test('operator setup creates the first Owner, one company and its default client
     await page.getByRole('button', { name: 'Create company', exact: true }).click();
     await expect(page.getByTestId('company-setup')).toHaveCount(0);
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
-    const companies = await page.request.get(`${origin}/api/accounts`);
+    const companies = await page.request.get(`${origin}/api/companies`);
     const accounts = (await companies.json()) as { id: string; role: string }[];
     expect(accounts).toHaveLength(1);
     expect(accounts[0]!.role).toBe('owner');

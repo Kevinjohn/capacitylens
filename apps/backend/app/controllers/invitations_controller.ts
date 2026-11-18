@@ -84,7 +84,7 @@ export default class InvitationsController {
   }
 
   async index(ctx: HttpContext) {
-    const actorId = await this.manager(ctx, ctx.params.accountId);
+    const actorId = await this.manager(ctx, ctx.params.companyId);
     // The Kit pages at 100; a small company's open invitations are read in full.
     const invites = [];
     let cursor: string | undefined;
@@ -93,7 +93,7 @@ export default class InvitationsController {
         actorId,
         limit: 100,
         cursor,
-        scope: ctx.params.accountId as string,
+        scope: ctx.params.companyId as string,
       });
       invites.push(...page.items.map(projection));
       cursor = page.nextCursor ?? undefined;
@@ -104,7 +104,7 @@ export default class InvitationsController {
   async resend(ctx: HttpContext) {
     const id = invitationId(ctx.params.id);
     if (!id) invalidAdmission();
-    const actorId = await this.manager(ctx, ctx.params.accountId);
+    const actorId = await this.manager(ctx, ctx.params.companyId);
     // Resending replaces the link, so without mail it would only invalidate a printed one.
     if (!isMailConfigured()) return mailUnavailable(ctx);
     try {
@@ -119,7 +119,7 @@ export default class InvitationsController {
   async revoke(ctx: HttpContext) {
     const id = invitationId(ctx.params.id);
     if (!id) invalidAdmission();
-    const actorId = await this.manager(ctx, ctx.params.accountId);
+    const actorId = await this.manager(ctx, ctx.params.companyId);
     await accountKit.invitations.revoke({ actorId, invitationId: id });
     return ctx.response.noContent();
   }

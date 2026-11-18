@@ -13,7 +13,7 @@ import {
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
 
 export const accountId = 'a-studio';
-export const planningUrl = `/api/accounts/${accountId}/planning`;
+export const planningUrl = `/api/companies/${accountId}/planning`;
 const password = 'batman-secret-2026';
 
 export const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>

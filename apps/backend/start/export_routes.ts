@@ -7,7 +7,7 @@ const ExportsController = () => import('#controllers/exports_controller');
 export function registerExportRoutes() {
   router.get('/api/state', [ExportsController, 'show']).as('api.state').use(asMember());
   router
-    .get('/api/accounts/:accountId/export', [ExportsController, 'download'])
+    .get('/api/companies/:companyId/export', [ExportsController, 'download'])
     .as('api.export')
     .use(asPlanningMember());
 }

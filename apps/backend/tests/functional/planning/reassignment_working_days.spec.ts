@@ -13,7 +13,7 @@ import {
   signIn,
 } from './helpers.js';
 
-const route = (path: string) => `/api/accounts/${accountId}/${path}`;
+const route = (path: string) => `/api/companies/${accountId}/${path}`;
 const body = (response: { body(): unknown }) =>
   response.body() as { code: string; revision: number };
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({

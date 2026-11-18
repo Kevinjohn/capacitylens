@@ -17,7 +17,7 @@ const editor = { email: 'dick.grayson@wayne.example', password: 'nightwing-secre
 const deleteAccount = (client: ApiClient, cookie: string, currentPassword: string) =>
   asDataOwner(client.post('/api/auth/delete-account'), cookie).json({ currentPassword }).send();
 const accounts = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get('/api/accounts'), cookie).send();
+  asDataOwner(client.get('/api/companies'), cookie).send();
 
 async function company() {
   const ownerId = await createIdentity(owner.email, {

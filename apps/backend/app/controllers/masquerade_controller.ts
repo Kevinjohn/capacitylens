@@ -23,7 +23,7 @@ async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
 
 export default class MasqueradeController {
   async start(ctx: HttpContext) {
-    const accountId = ctx.params.accountId;
+    const accountId = ctx.params.companyId;
     const body: unknown = ctx.request.body();
     if (
       typeof accountId !== 'string' ||

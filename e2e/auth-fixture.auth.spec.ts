@@ -96,7 +96,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       `cleanup-cycle-${cycle}-${suffix}@capacitylens.dev`,
       'Diana Prince',
     );
-    const companies = await request.get(`${AUTH_API}/api/accounts`, {
+    const companies = await request.get(`${AUTH_API}/api/companies`, {
       headers: { cookie: user.cookie },
     });
     if (cycle === 0) {
@@ -175,7 +175,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
     expect(hiddenRestoredBaseline.status()).toBe(403);
     expect(
       await (
-        await request.get(`${AUTH_API}/api/accounts`, { headers: { cookie: user.cookie } })
+        await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
       ).json(),
     ).toEqual([]);
   }
@@ -186,7 +186,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
     ).toBe(200);
     expect(
       await (
-        await request.get(`${AUTH_API}/api/accounts`, { headers: { cookie: user.cookie } })
+        await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
       ).json(),
     ).toEqual([]);
   }

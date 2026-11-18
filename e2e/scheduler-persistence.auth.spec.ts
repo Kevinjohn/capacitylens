@@ -149,15 +149,15 @@ async function createAllocation(page: Page, projectId: string, activityId: strin
 type RecordedRequest = { method: string; path: string };
 
 function isPlanningRead(accountId: string, method: string, url: string) {
-  return method === 'GET' && new URL(url).pathname === `/api/accounts/${accountId}/planning`;
+  return method === 'GET' && new URL(url).pathname === `/api/companies/${accountId}/planning`;
 }
 
 // Typed allocation writes and the restoration that undoes a delete; the canonical GET is excluded.
 function isTypedAllocationWrite(accountId: string, { method, path }: RecordedRequest) {
   return (
     method !== 'GET' &&
-    (path.startsWith(`/api/accounts/${accountId}/allocations`) ||
-      path === `/api/accounts/${accountId}/planning/restore-group`)
+    (path.startsWith(`/api/companies/${accountId}/allocations`) ||
+      path === `/api/companies/${accountId}/planning/restore-group`)
   );
 }
 
@@ -456,13 +456,13 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // The owner cookie belongs to a separate HTTP session from the browser's sign-in session.
-  const planning = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, {
+  const planning = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
   const deletion = await request.post(
-    `${AUTH_API}/api/accounts/${accountId}/allocations/${allocationId}/delete`,
+    `${AUTH_API}/api/companies/${accountId}/allocations/${allocationId}/delete`,
     {
       headers: {
         ...(await masqueradeContextHeaders(request, owner.cookie)),
@@ -517,7 +517,7 @@ test('a refused scheduler write keeps the schedule and history visible and does 
   const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
 
-  await page.route(`**/api/accounts/${accountId}/allocations/**`, (route) =>
+  await page.route(`**/api/companies/${accountId}/allocations/**`, (route) =>
     route.fulfill({
       status: 403,
       contentType: 'application/json',
@@ -759,13 +759,13 @@ test('a stale-revision scheduler write shows server state without a toast or his
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
   // Another writer advances the server revision without this page refetching.
-  const planning = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, {
+  const planning = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
   const external = await request.patch(
-    `${AUTH_API}/api/accounts/${accountId}/allocations/${allocationId}`,
+    `${AUTH_API}/api/companies/${accountId}/allocations/${allocationId}`,
     {
       headers: {
         ...(await masqueradeContextHeaders(request, owner.cookie)),
@@ -819,7 +819,7 @@ test('an ended session (401) clears the scheduler cache and history', async ({ p
 
   revokeFixtureSessions(ownerEmail);
   await page.context().clearCookies();
-  expect((await page.request.get(`${AUTH_API}/api/accounts/${accountId}/planning`)).status()).toBe(
+  expect((await page.request.get(`${AUTH_API}/api/companies/${accountId}/planning`)).status()).toBe(
     401,
   );
   await page.clock.setFixedTime(new Date('2026-06-03T12:00:31'));

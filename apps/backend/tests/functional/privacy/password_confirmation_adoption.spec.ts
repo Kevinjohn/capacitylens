@@ -216,7 +216,7 @@ test.group('package proof adoption boundaries', (group) => {
       response.assertStatus(403);
       assert.deepEqual(response.body(), required);
     }
-    const anonymise = await asDataOwner(client.post(`/api/accounts/${scope}/anonymise`), cookie)
+    const anonymise = await asDataOwner(client.post(`/api/companies/${scope}/anonymise`), cookie)
       .json({ confirmationId: 'missing' })
       .send();
     anonymise.assertStatus(404);

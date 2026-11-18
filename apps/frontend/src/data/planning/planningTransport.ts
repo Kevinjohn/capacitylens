@@ -61,7 +61,7 @@ async function sendOperation(
   signal: AbortSignal,
 ): Promise<PlanningMutationSuccess> {
   const { intent } = execution;
-  const params = { accountId: context.companyId };
+  const params = { companyId: context.companyId };
   switch (intent.operation) {
     case 'allocation.create':
       return requireReply(
@@ -347,7 +347,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
         const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
-            params: { accountId: context.companyId },
+            params: { companyId: context.companyId },
             query: window ? { from: window.from, to: window.to } : {},
             signal,
           }),

@@ -22,7 +22,7 @@ test.group('typed company calendar settings', (group) => {
       ['weekStartsOn', 0, 1],
       ['timezone', 'Europe/London', 'UTC'],
     ] as const) {
-      const path = `/api/accounts/${accountId}/settings`;
+      const path = `/api/companies/${accountId}/settings`;
       const first = await session(client.patch(path), cookie)
         .json({
           mutationId: randomUUID(),
@@ -43,7 +43,7 @@ test.group('typed company calendar settings', (group) => {
       refused.assertStatus(409);
       assert.deepEqual(await readState(accountId, true), before);
       const planning = await session(
-        client.get(`/api/accounts/${accountId}/planning`),
+        client.get(`/api/companies/${accountId}/planning`),
         cookie
       ).send();
       planning.assertStatus(200);

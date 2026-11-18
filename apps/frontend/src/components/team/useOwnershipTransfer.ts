@@ -40,7 +40,7 @@ function useOwnerDirectory({
   scope: ApiQueryScope;
   principalId: string | null;
 }) {
-  const routeKey = api.api.members.index.queryKey({ params: { accountId: accountId ?? '' } });
+  const routeKey = api.api.members.index.queryKey({ params: { companyId: accountId ?? '' } });
   const query = useQuery({
     queryKey: scopeQueryKey(scope, ['team-members', 0, ...routeKey]),
     enabled: available && accountId !== null,

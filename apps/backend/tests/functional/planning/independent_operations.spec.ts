@@ -19,7 +19,7 @@ import {
   trusted,
 } from './helpers.js';
 
-const route = (path: string) => `/api/accounts/${accountId}/${path}`;
+const route = (path: string) => `/api/companies/${accountId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,

@@ -35,7 +35,7 @@ async function deleteAllocation(client: ApiClient, cookie: string, resourceId: s
   const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, accountId));
   const mutationId = randomUUID();
   const removed = await asDataOwner(
-    client.post(`/api/accounts/${accountId}/allocations/${allocation.id}/delete`),
+    client.post(`/api/companies/${accountId}/allocations/${allocation.id}/delete`),
     cookie
   )
     .json({
@@ -52,7 +52,7 @@ async function deleteAllocation(client: ApiClient, cookie: string, resourceId: s
 
 async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
   const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, accountId));
-  return asDataOwner(client.post(`/api/accounts/${accountId}/planning/restore-group`), cookie)
+  return asDataOwner(client.post(`/api/companies/${accountId}/planning/restore-group`), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
@@ -164,7 +164,7 @@ test.group('company anonymisation', (group) => {
     assert.isAbove(savedRows.length, 0);
     const before = await withTransaction((trx) => getPlanningRevision(trx, accountId));
     const changed = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/resources/${target.id}/anonymise`),
+      client.post(`/api/companies/${accountId}/resources/${target.id}/anonymise`),
       cookie
     )
       .json({})
@@ -212,7 +212,7 @@ test.group('company anonymisation', (group) => {
       .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'editor' });
     const refused = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/resources/${target.id}/anonymise`),
+      client.post(`/api/companies/${accountId}/resources/${target.id}/anonymise`),
       cookie
     )
       .json({})
@@ -311,13 +311,13 @@ test.group('company anonymisation', (group) => {
       .select('*');
     const accountBefore = await db.from('accounts').where('id', accountId).first();
     const before = await withTransaction((trx) => getPlanningRevision(trx, accountId));
-    const missing = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const missing = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
       .json({ confirmationId: '' })
       .send();
     missing.assertStatus(403);
     assert.equal(await withTransaction((trx) => getPlanningRevision(trx, accountId)), before);
     const confirmationId = await proof(client, cookie);
-    const applied = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const applied = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
       .json({ confirmationId })
       .send();
     applied.assertStatus(204);
@@ -431,7 +431,7 @@ test.group('company anonymisation', (group) => {
     await db.rawQuery(`CREATE TRIGGER fail_anonymise_audit BEFORE INSERT ON audit_entries
       WHEN NEW.action = 'anonymise' BEGIN SELECT RAISE(ABORT, 'injected failure'); END`);
     try {
-      const failed = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+      const failed = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
         .json({ confirmationId })
         .send();
       failed.assertStatus(500);
@@ -473,7 +473,7 @@ test.group('company anonymisation', (group) => {
       await db.from('deleted_rows').where('group_id', groupId).select('*'),
       payloadBefore
     );
-    const applied = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const applied = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
       .json({ confirmationId })
       .send();
     applied.assertStatus(204);
@@ -486,17 +486,17 @@ test.group('company anonymisation', (group) => {
     const { cookie } = await resetAuthenticatedData(client, true);
     const before = await db.from('resources').where('account_id', 'a-loft').first();
     const confirmationId = await proof(client, cookie);
-    const mismatch = await asDataOwner(client.post('/api/accounts/a-loft/anonymise'), cookie)
+    const mismatch = await asDataOwner(client.post('/api/companies/a-loft/anonymise'), cookie)
       .json({ confirmationId })
       .send();
     mismatch.assertStatus(403);
     const unchangedBefore = await db.from('resources').where('id', before.id).first();
     assert.equal(unchangedBefore.name, before.name);
-    const first = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const first = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
       .json({ confirmationId })
       .send();
     first.assertStatus(204);
-    const replay = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const replay = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
       .json({ confirmationId })
       .send();
     replay.assertStatus(403);
@@ -519,7 +519,7 @@ test.group('company anonymisation', (group) => {
       .from('memberships')
       .where({ scope_id: accountId, user_id: userId })
       .update({ role: 'editor' });
-    const denied = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const denied = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
       .json({ confirmationId })
       .send();
     denied.assertStatus(403);
@@ -542,7 +542,7 @@ test.group('company anonymisation', (group) => {
     const allocation = await db.from('allocations').where('account_id', accountId).first();
     await db.from('allocations').where('id', allocation.id).update({ note: 'Private note' });
     const removed = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/allocations/${allocation.id}/delete`),
+      client.post(`/api/companies/${accountId}/allocations/${allocation.id}/delete`),
       cookie
     )
       .json({
@@ -555,7 +555,7 @@ test.group('company anonymisation', (group) => {
     const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId;
     const confirmationId = await proof(client, cookie);
-    const scrubbed = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const scrubbed = await asDataOwner(client.post(`/api/companies/${accountId}/anonymise`), cookie)
       .json({ confirmationId })
       .send();
     scrubbed.assertStatus(204);
@@ -568,7 +568,7 @@ test.group('company anonymisation', (group) => {
     assert.isNumber(commitment.origin_session_id);
     const revision = await withTransaction((trx) => getPlanningRevision(trx, accountId));
     const restored = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       cookie
     )
       .json({
@@ -580,7 +580,7 @@ test.group('company anonymisation', (group) => {
     restored.assertStatus(409);
     assert.lengthOf(await db.from('allocations').where('id', allocation.id), 0);
     const unknown = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       cookie
     )
       .json({
@@ -596,7 +596,7 @@ test.group('company anonymisation', (group) => {
       'fixture-password-2026'
     );
     const foreignSession = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       otherSession
     )
       .json({
@@ -608,7 +608,7 @@ test.group('company anonymisation', (group) => {
     foreignSession.assertStatus(403);
 
     const wrongCompany = await asDataOwner(
-      client.post('/api/accounts/a-loft/planning/restore-group'),
+      client.post('/api/companies/a-loft/planning/restore-group'),
       cookie
     )
       .json({
@@ -639,7 +639,7 @@ test.group('company anonymisation', (group) => {
       updated_at: now,
     });
     const otherActor = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       otherActorCookie!
     )
       .json({

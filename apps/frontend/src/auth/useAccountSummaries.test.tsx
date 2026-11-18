@@ -397,7 +397,7 @@ function createYieldingHookTest() {
 }
 
 function createMalformedHookTests() {
-  it('store.accountSummaries is preserved when /api/accounts 200s with a non-array body', async () => {
+  it('store.accountSummaries is preserved when /api/companies 200s with a non-array body', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const existing = [{ id: 'a1', name: 'Studio A', role: 'owner' as const }];
     useStore.getState().setAccountSummaries({ list: existing });
@@ -424,7 +424,7 @@ function createMalformedHookTests() {
 }
 
 function createMembershipHookTest() {
-  it('store.accountSummaries is preserved when /api/accounts 200s with an all-malformed array ([null])', async () => {
+  it('store.accountSummaries is preserved when /api/companies 200s with an all-malformed array ([null])', async () => {
     // An array with no valid rows is not evidence that the company directory is empty.
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const existing = [{ id: 'a1', name: 'Studio A', role: 'owner' as const }];

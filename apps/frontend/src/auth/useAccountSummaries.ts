@@ -22,7 +22,7 @@ function parseAccountSummary(entry: unknown): AccountSummary | null {
   const grant = parseAccessGrant(entry);
   if (!isAccountRole(entry.role) || !grant) {
     console.warn(
-      'fetchAccountSummaries: /api/accounts returned an unrecognized role or grant; marking it unavailable',
+      'fetchAccountSummaries: /api/companies returned an unrecognized role or grant; marking it unavailable',
     );
     return { id: entry.id, name: entry.name, role: 'viewer', roleStatus: 'unavailable' };
   }
@@ -36,7 +36,7 @@ type AccountSummaryParseOutcome =
 function parseAccountSummaryList(body: unknown): AccountSummaryParseOutcome {
   if (!Array.isArray(body)) {
     console.warn(
-      'fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)',
+      'fetchAccountSummaries: /api/companies returned a non-array body; reporting null (callers keep their existing list)',
     );
     return { kind: 'rejected', droppedCount: 0 };
   }
@@ -45,12 +45,12 @@ function parseAccountSummaryList(body: unknown): AccountSummaryParseOutcome {
     .filter((state): state is AccountSummary => state !== null);
   const droppedCount = body.length - valid.length;
   if (droppedCount > 0) {
-    console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`);
+    console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/companies row(s)`);
   }
   if (body.length > 0 && valid.length === 0) return { kind: 'rejected', droppedCount };
   if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
     console.warn(
-      'fetchAccountSummaries: /api/accounts returned duplicate account identities; reporting null',
+      'fetchAccountSummaries: /api/companies returned duplicate account identities; reporting null',
     );
     return { kind: 'rejected', droppedCount };
   }
@@ -83,7 +83,7 @@ function applyAccountSummaryParseEffects(
 
 function reportAccountSummaryFailure(error: unknown): null {
   console.warn(
-    'fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)',
+    'fetchAccountSummaries: /api/companies read failed; reporting null (callers keep their existing list)',
     error,
   );
   return null;

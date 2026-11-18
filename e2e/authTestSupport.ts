@@ -535,12 +535,14 @@ export async function sendPlanningFixtureCommand(
   method: 'post' | 'patch' = 'post',
 ): Promise<unknown> {
   const headers = { cookie, 'sec-fetch-site': 'same-origin' };
-  const snapshot = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, { headers });
+  const snapshot = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
+    headers,
+  });
   expect(snapshot.status(), `read planning revision for ${path}`).toBe(200);
   const revision = ((await snapshot.json()) as { revision?: unknown }).revision;
   if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
     throw new Error('The fixture planning read did not return a revision.');
-  const url = `${AUTH_API}/api/accounts/${accountId}/${path}`;
+  const url = `${AUTH_API}/api/companies/${accountId}/${path}`;
   const options = {
     headers: await masqueradeContextHeaders(request, cookie),
     data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },

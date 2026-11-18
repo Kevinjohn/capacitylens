@@ -22,7 +22,7 @@ test.describe('CRUD and persistent company transfer', () => {
     const committed = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
-        new URL(response.url()).pathname === '/api/accounts/a-studio/clients',
+        new URL(response.url()).pathname === '/api/companies/a-studio/clients',
     );
     await page.getByRole('button', { name: 'Save' }).click();
     const response = await committed;

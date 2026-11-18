@@ -424,7 +424,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const wrongOperation = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/planning/restore-group`,
+      `/api/companies/${accountId}/planning/restore-group`,
       1,
       { operation: 'allocation.delete', id }
     );

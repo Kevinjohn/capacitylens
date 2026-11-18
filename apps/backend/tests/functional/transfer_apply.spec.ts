@@ -38,7 +38,7 @@ async function deleteForRestoration(client: ApiClient, cookie: string, companyId
   const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, companyId));
   const mutationId = randomUUID();
   const response = await asDataOwner(
-    client.post(`/api/accounts/${companyId}/allocations/${allocation.id}/delete`),
+    client.post(`/api/companies/${companyId}/allocations/${allocation.id}/delete`),
     cookie
   )
     .json({
@@ -298,7 +298,7 @@ test.group('beta transfer apply', (group) => {
         .first()
     );
     const restore = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/planning/restore-group`),
+      client.post(`/api/companies/${accountId}/planning/restore-group`),
       cookie
     )
       .json({

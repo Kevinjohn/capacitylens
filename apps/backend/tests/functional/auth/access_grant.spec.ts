@@ -58,7 +58,7 @@ test.group('company directory access grant', (group) => {
     test(`sends the ${role} grant with the company row`, async ({ client, assert, cleanup }) => {
       configureAuth(cleanup);
       const { cookie } = await signIn(client, role);
-      const response = await session(client.get('/api/accounts'), cookie).send();
+      const response = await session(client.get('/api/companies'), cookie).send();
       response.assertStatus(200);
       const [row] = response.body() as Record<string, unknown>[];
       assert.deepEqual(

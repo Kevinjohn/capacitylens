@@ -118,7 +118,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     assert.isNull(await observation('a-loft', memberId));
 
     const trackingPath = (accountId: string) =>
-      `/api/accounts/${accountId}/member-sign-in-tracking`;
+      `/api/companies/${accountId}/member-sign-in-tracking`;
     const enableStudio = await signed(client.put(trackingPath('a-studio')), ownerCookie)
       .json({ enabled: true })
       .send();

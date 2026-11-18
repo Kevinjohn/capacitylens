@@ -106,7 +106,7 @@ db.exec('COMMIT')`,
       "CREATE TEMP TRIGGER planning_audit_failure BEFORE INSERT ON audit_entries WHEN NEW.entity = 'planning' BEGIN SELECT RAISE(ABORT, 'test audit failure'); END"
     );
     try {
-      const failed = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+      const failed = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
         .json({
           mutationId,
           baseRevision: 0,
@@ -133,7 +133,7 @@ db.exec('COMMIT')`,
     const allocations = [newAllocation(data), newAllocation(data)];
     const replies = await Promise.all(
       allocations.map((allocation) =>
-        session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+        session(client.post(`/api/companies/${accountId}/allocations`), cookie)
           .json({
             mutationId: randomUUID(),
             baseRevision: 0,
@@ -172,7 +172,7 @@ db.exec('COMMIT')`,
     };
     const replies = await Promise.all(
       [1, 2].map(() =>
-        session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+        session(client.post(`/api/companies/${accountId}/allocations`), cookie)
           .json(input)
           .send()
       )
@@ -197,7 +197,7 @@ db.exec('COMMIT')`,
     configureAuth(cleanup);
     const owner = await signIn(client);
     const target = await signIn(client, 'editor');
-    const start = await session(client.post(`/api/accounts/${accountId}/masquerade`), owner.cookie)
+    const start = await session(client.post(`/api/companies/${accountId}/masquerade`), owner.cookie)
       .json({ targetUserId: target.userId })
       .send();
     start.assertStatus(200);
@@ -207,7 +207,7 @@ db.exec('COMMIT')`,
     assert.isFalse(snapshot.body().authority.canWrite);
     const allocation = newAllocation(await readState(accountId, true));
     const refused = await session(
-      client.post(`/api/accounts/${accountId}/allocations`),
+      client.post(`/api/companies/${accountId}/allocations`),
       owner.cookie
     )
       .json({
@@ -233,7 +233,7 @@ db.exec('COMMIT')`,
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
       const started = await session(
-        client.post(`/api/accounts/${accountId}/masquerade`),
+        client.post(`/api/companies/${accountId}/masquerade`),
         owner.cookie
       )
         .json({ targetUserId: target.userId })
@@ -291,7 +291,7 @@ db.exec('COMMIT')`,
       const owner = await signIn(client);
       const target = await signIn(client, 'editor');
       const started = await session(
-        client.post(`/api/accounts/${accountId}/masquerade`),
+        client.post(`/api/companies/${accountId}/masquerade`),
         owner.cookie
       )
         .json({ targetUserId: target.userId })

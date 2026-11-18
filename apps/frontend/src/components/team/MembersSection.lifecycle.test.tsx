@@ -80,7 +80,7 @@ describe('MembersSection — member lifecycle', () => {
     await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        `/api/companies/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({ status: 'suspended' }),
@@ -116,7 +116,7 @@ describe('MembersSection — member lifecycle', () => {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        `/api/companies/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
         expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
       ),
     );

@@ -208,7 +208,7 @@ describe('Company-wide people anonymisation', () => {
     await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
     expect(planningProbe.suspends).toBe(1);
     expect(apiFetch).toHaveBeenCalledWith(
-      expect.stringMatching(new RegExp(`/api/accounts/${DEFAULT_ACCOUNT_ID}/anonymise$`)),
+      expect.stringMatching(new RegExp(`/api/companies/${DEFAULT_ACCOUNT_ID}/anonymise$`)),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ confirmationId: 'proof-one' }),

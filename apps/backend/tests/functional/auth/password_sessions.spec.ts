@@ -17,11 +17,11 @@ const password = 'batman-secret-2026';
 const accountId = 'a-studio';
 
 const accounts = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get('/api/accounts'), cookie).send();
+  asDataOwner(client.get('/api/companies'), cookie).send();
 const planning = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get(`/api/accounts/${accountId}/planning`), cookie).send();
+  asDataOwner(client.get(`/api/companies/${accountId}/planning`), cookie).send();
 const dismiss = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.put(`/api/accounts/${accountId}/getting-started`), cookie)
+  asDataOwner(client.put(`/api/companies/${accountId}/getting-started`), cookie)
     .timeout({ response: 10000, deadline: 15000 })
     .json({ dismissed: true })
     .send();

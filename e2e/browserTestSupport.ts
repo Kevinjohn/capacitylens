@@ -216,7 +216,7 @@ export async function changeCompanySetting(
     .waitForResponse(
       (response) =>
         response.request().method() === 'PATCH' &&
-        /\/api\/accounts\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
+        /\/api\/companies\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
     )
     .then(async (response) => {
       expect(response.ok(), await response.text()).toBe(true);
@@ -227,7 +227,7 @@ export async function changeCompanySetting(
   const canonical = page.waitForResponse(async (response) => {
     if (
       response.request().method() !== 'GET' ||
-      !/\/api\/accounts\/[^/]+\/planning$/.test(new URL(response.url()).pathname) ||
+      !/\/api\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) ||
       !response.ok()
     )
       return false;

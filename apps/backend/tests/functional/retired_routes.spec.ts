@@ -20,9 +20,9 @@ test.group('retired persistence routes', (group) => {
     const requests = [
       owner.post('/api/batch').json({ ops: [] }),
       owner.post('/api/orgs').json({ name: 'Stark Industries' }),
-      owner.post('/api/accounts').json({ name: 'Stark Industries' }),
-      owner.patch(`/api/accounts/${accountId}`).json({ name: 'Other name' }),
-      owner.delete(`/api/accounts/${accountId}`),
+      owner.post('/api/companies').json({ name: 'Stark Industries' }),
+      owner.patch(`/api/companies/${accountId}`).json({ name: 'Other name' }),
+      owner.delete(`/api/companies/${accountId}`),
     ];
     for (const request of requests) {
       const response = await request.send();
@@ -44,7 +44,7 @@ test.group('retired persistence routes', (group) => {
     await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises');
     await createFixtureCompanyForOwner(session.userId, 'Stark Industries');
     const owner = authenticatedDataClient(client, session.cookie);
-    const directory = await owner.get('/api/accounts').send();
+    const directory = await owner.get('/api/companies').send();
     directory.assertStatus(409);
   });
 });

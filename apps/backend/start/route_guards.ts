@@ -23,7 +23,7 @@ export const asMember = (): RouteMiddleware => [middleware.auth({ guards: ['web_
 /** A member route that is refused outright, reads included, while a view-as mode is active. */
 export const asMemberOnly = (): RouteMiddleware => [...asMember(), sensitive()];
 
-/** A company route: a member route whose user must hold an active membership in `:accountId`. */
+/** A company route: a member route whose user must hold an active membership in `:companyId`. */
 export const asCompanyMember = (): RouteMiddleware => [...asMember(), middleware.companyScope()];
 
 /** A company read refused outright while a view-as mode is active. */
@@ -41,7 +41,7 @@ export const asPlanningMember = (): RouteMiddleware => [
 /** A view-as control. It always runs as the signed-in person. */
 export const asSignedInPerson = (): RouteMiddleware => [middleware.auth({ guards: ['web'] })];
 
-/** A company view-as control: the signed-in person must hold an active membership in `:accountId`. */
+/** A company view-as control: the signed-in person must hold an active membership in `:companyId`. */
 export const asCompanySignedInPerson = (): RouteMiddleware => [
   ...asSignedInPerson(),
   middleware.companyScope(),
