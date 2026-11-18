@@ -138,8 +138,9 @@ pnpm run e2e:all
 ```
 
 WebKit and Firefox run only the tests tagged `@engine`. Tag a new browser test, or its
-`describe`, with `{ tag: '@engine' }` when its result can differ between engines: dragging and
-resizing, keyboard movement, focus, scrolling, native inputs or layout. A test that only checks a
+`describe`, with `{ tag: '@engine' }` when its result can differ between engines, for example
+dragging and resizing, keyboard movement, focus, scrolling, native inputs, layout, accessibility
+scans, navigation and unload, or browser storage. A test that only checks a
 domain result stays untagged and runs on Chromium.
 
 These conditions are local-development guidance for choosing extra checks before opening a pull

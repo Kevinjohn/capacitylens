@@ -36,21 +36,23 @@ test.describe('Beta company transfer through the server', () => {
     await expect(page.getByText('Bruce Wayne')).toBeVisible();
   });
 
-  test('previews a full document without writing and Cancel keeps the current company', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await importFile(page, serializeCompanyExport(restoredDocument()));
-    await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    const dialog = page.getByRole('alertdialog', { name: 'Import data?' });
-    await expect(dialog).toContainText('company-transfer.json');
-    await expect(dialog).toContainText(/replaces this company’s data/i);
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-    await expect(page.getByText('Bruce Wayne')).toBeVisible();
-    await expect(page.getByText('Terry McGinnis')).toHaveCount(0);
-  });
+  test(
+    'previews a full document without writing and Cancel keeps the current company',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await importFile(page, serializeCompanyExport(restoredDocument()));
+      await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+      await page.getByRole('button', { name: 'Continue' }).click();
+      const dialog = page.getByRole('alertdialog', { name: 'Import data?' });
+      await expect(dialog).toContainText('company-transfer.json');
+      await expect(dialog).toContainText(/replaces this company’s data/i);
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+      await expect(page.getByText('Bruce Wayne')).toBeVisible();
+      await expect(page.getByText('Terry McGinnis')).toHaveCount(0);
+    },
+  );
 
   test(
     'replaces the company atomically and a reload retains the imported rows',

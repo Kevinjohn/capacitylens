@@ -88,17 +88,21 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
       ).toHaveCount(0);
     },
   );
-  test('the choice survives navigation and a server-backed reload', async ({ page }) => {
-    await openApp(page, '/settings');
-    await page.getByRole('switch', { name: 'Show external resources' }).click();
-    await page.getByRole('link', { name: 'Schedule' }).click();
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await page.reload();
-    await expect(page.getByRole('switch', { name: 'Show external resources' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-  });
+  test(
+    'the choice survives navigation and a server-backed reload',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page, '/settings');
+      await page.getByRole('switch', { name: 'Show external resources' }).click();
+      await page.getByRole('link', { name: 'Schedule' }).click();
+      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await page.reload();
+      await expect(page.getByRole('switch', { name: 'Show external resources' })).toHaveAttribute(
+        'aria-checked',
+        'true',
+      );
+    },
+  );
   test('adds an external party in the Resources tab External section', async ({ page }) => {
     await openApp(page);
     await enableExternal(page);

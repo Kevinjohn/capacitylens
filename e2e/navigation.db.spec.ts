@@ -240,7 +240,7 @@ test.describe('Navigation & shell', () => {
     await expect(page.getByRole('heading', { name: 'Device data' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Deleted items' })).toHaveCount(0);
   });
-  test('renders in dark mode', async ({ page }) => {
+  test('renders in dark mode', { tag: '@engine' }, async ({ page }) => {
     // Seed the explicit preference before first paint because light is the default.
     await setTheme(page, 'dark');
     await openApp(page);
