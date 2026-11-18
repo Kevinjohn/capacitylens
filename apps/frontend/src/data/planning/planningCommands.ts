@@ -25,6 +25,8 @@ export interface PlanningCommand {
   intent: PlanningIntent;
   /** The edited row's `updatedAt` when its form opened; the server refuses a row that has moved on. */
   expectedUpdatedAt?: string;
+  /** The change cannot be undone and ends the page's history. */
+  endsHistory?: true;
 }
 
 interface CommandContext {

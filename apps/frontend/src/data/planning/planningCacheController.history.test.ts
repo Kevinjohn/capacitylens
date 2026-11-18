@@ -43,6 +43,16 @@ describe('planning cache controller history', () => {
     expect(h.read.mock.calls.map((call) => call[2]?.historyId)).toEqual([historyId, historyId]);
   });
 
+  it('names no history on a change that ends it, so the server offers no undo', async () => {
+    const execute = committing();
+    const h = await loaded({ execute, read: vi.fn<PlanningTransport['read']>() });
+    await h.controller.execute(h.controller.begin(), intent);
+    expect(h.state().planning.history.canUndo).toBe(true);
+    await h.controller.execute(h.controller.begin(), intent, undefined, true);
+    expect(execute.mock.calls[1]?.[1]).not.toHaveProperty('historyId');
+    expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
+  });
+
   it('keeps history for a same-revision read and loses it when another change moves on', async () => {
     const h = await loaded({ execute: committing(), read: vi.fn<PlanningTransport['read']>() });
     await h.controller.execute(h.controller.begin(), intent);

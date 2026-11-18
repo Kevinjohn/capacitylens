@@ -39,9 +39,11 @@ describe('named lifecycle actions', () => {
     expect(send.mock.calls.map(([command]) => command)).toEqual([
       {
         intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'c-1' } },
+        endsHistory: true,
       },
       {
         intent: { operation: 'catalogue.unarchive', entity: { entity: 'clients', id: 'c-1' } },
+        endsHistory: true,
       },
     ]);
     expect(fetch).not.toHaveBeenCalled();

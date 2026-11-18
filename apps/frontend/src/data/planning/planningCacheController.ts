@@ -35,7 +35,8 @@ function cloneImmutable<T>(value: T): T {
 
 /** A new change carries its intent; an undo or redo names only the page's server-held history. */
 type AttemptRequest =
-  { kind: 'new'; intent: PlanningIntent; expectedUpdatedAt?: string } | { kind: 'undo' | 'redo' };
+  | { kind: 'new'; intent: PlanningIntent; expectedUpdatedAt?: string; endsHistory: boolean }
+  | { kind: 'undo' | 'redo' };
 
 const initialMetadata = (
   context: PlanningClientContext | null = null,
@@ -359,7 +360,10 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         ? {
             kind: 'new',
             execution: cloneImmutable({
-              ...identity,
+              mutationId: identity.mutationId,
+              baseRevision: identity.baseRevision,
+              // A write that names no history ends the company's history on the server.
+              ...(request.endsHistory ? {} : { historyId }),
               intent: request.intent,
               ...(request.expectedUpdatedAt === undefined
                 ? {}
@@ -565,15 +569,18 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   }
 
   /** Returns no receipt after context invalidation or a declined cleanup confirmation. An edit
-   * form passes its row's opening `updatedAt`; Undo and Redo never send one. */
+   * form passes its row's opening `updatedAt`; Undo and Redo never send one. A change that ends the
+   * history is sent without the page's history id, so it is not offered for undo. */
   async function execute(
     draft: PlanningDraft,
     intent: PlanningIntent,
     expectedUpdatedAt?: string,
+    endsHistory = false,
   ): Promise<PlanningMutationSuccess | null> {
     return perform(draft, {
       kind: 'new',
       intent: cloneImmutable(intent),
+      endsHistory,
       ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
     });
   }

@@ -152,6 +152,7 @@ export function createPlanningSessionSlice(
         controller.begin(),
         command.intent,
         command.expectedUpdatedAt,
+        command.endsHistory,
       );
       if (!receipt) throw new PlanningSaveCancelledError();
       return receipt;

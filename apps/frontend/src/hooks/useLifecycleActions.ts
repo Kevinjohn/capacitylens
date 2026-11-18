@@ -54,14 +54,21 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         try {
           if (!activeAccountId || useStore.getState().activeAccountId !== activeAccountId) return;
           if (verb === 'archive' || verb === 'unarchive') {
+            // Archiving from a list is confirmed there and is not offered for undo.
             const command: PlanningCommand =
               entity === 'resources'
                 ? verb === 'archive'
-                  ? { intent: { operation: 'resource.archive', id } }
-                  : { intent: { operation: 'resource.unarchive', id } }
+                  ? { intent: { operation: 'resource.archive', id }, endsHistory: true }
+                  : { intent: { operation: 'resource.unarchive', id }, endsHistory: true }
                 : verb === 'archive'
-                  ? { intent: { operation: 'catalogue.archive', entity: { entity, id } } }
-                  : { intent: { operation: 'catalogue.unarchive', entity: { entity, id } } };
+                  ? {
+                      intent: { operation: 'catalogue.archive', entity: { entity, id } },
+                      endsHistory: true,
+                    }
+                  : {
+                      intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
+                      endsHistory: true,
+                    };
             const receipt = await useStore.getState().sendPlanningCommand(command);
             if (activeAccountId) notifyInactiveDataChanged(activeAccountId);
             if (entity !== 'resources' && verb === 'archive' && receipt?.archived) {
