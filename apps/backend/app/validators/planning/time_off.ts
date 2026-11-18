@@ -7,7 +7,7 @@ import {
   meta,
   nullableUserText,
   occurrenceIdsExcludeFirst,
-  operationMatches,
+  hasOperation,
   repeatRange,
   requireChanges,
   uniqueArrayIds,
@@ -27,11 +27,11 @@ const timeOffCreate = vine
 
 export const timeOffIntent = vine.union([
   vine.union.if(
-    (value) => operationMatches(value, 'timeOff.create'),
+    (value) => hasOperation(value, 'timeOff.create'),
     vine.object({ operation: vine.literal('timeOff.create'), timeOff: timeOffCreate })
   ),
   vine.union.if(
-    (value) => operationMatches(value, 'timeOff.repeat'),
+    (value) => hasOperation(value, 'timeOff.repeat'),
     vine
       .object({
         operation: vine.literal('timeOff.repeat'),
@@ -46,7 +46,7 @@ export const timeOffIntent = vine.union([
       .use(occurrenceIdsExcludeFirst('timeOff'))
   ),
   vine.union.if(
-    (value) => operationMatches(value, 'timeOff.deleteGroup'),
+    (value) => hasOperation(value, 'timeOff.deleteGroup'),
     vine
       .object({
         operation: vine.literal('timeOff.deleteGroup'),
@@ -55,7 +55,7 @@ export const timeOffIntent = vine.union([
       .use(uniqueArrayIds('ids'))
   ),
   vine.union.if(
-    (value) => operationMatches(value, 'timeOff.update'),
+    (value) => hasOperation(value, 'timeOff.update'),
     vine.object({
       operation: vine.literal('timeOff.update'),
       id: entityId(),
