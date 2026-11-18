@@ -16,8 +16,12 @@ export default class DiagnosticsController {
     }
     try {
       return await readServerDiagnostics(db, env.get('CAPACITYLENS_BACKUP_DIR'));
-    } catch {
-      logger.warn('Diagnostics could not read database state');
+    } catch (error) {
+      // Only the error's class is logged: its message can carry a database path.
+      logger.warn(
+        { code: error instanceof Error ? error.name : 'UNKNOWN' },
+        'Diagnostics could not read database state'
+      );
       return response.serviceUnavailable({
         server: {
           connectivity: 'ok',

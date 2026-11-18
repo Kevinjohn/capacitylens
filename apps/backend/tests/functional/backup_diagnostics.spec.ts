@@ -187,7 +187,9 @@ test.group('Backup diagnostics', (group) => {
           backup: { newestSnapshotAt: null },
         },
       });
-      assert.deepEqual(warnings, [['Diagnostics could not read database state']]);
+      assert.deepEqual(warnings, [
+        [{ code: 'Error' }, 'Diagnostics could not read database state'],
+      ]);
       assert.notInclude(JSON.stringify(warnings), 'PRIVATE_DATABASE_PATH_TOKEN');
       assert.notInclude(JSON.stringify(response.body()), 'PRIVATE_DATABASE_PATH_TOKEN');
     } finally {
