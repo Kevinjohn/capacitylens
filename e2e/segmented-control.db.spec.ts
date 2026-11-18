@@ -39,46 +39,54 @@ async function expectSelectedTreatment(segment: Locator) {
   expect(treatment.boxShadow).not.toContain('inset');
 }
 
-test('segmented controls keep an even selected outline at every position', async ({ page }) => {
-  await openApp(page, '/settings');
-  await disableCssMotion(page);
+test(
+  'segmented controls keep an even selected outline at every position',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await openApp(page, '/settings');
+    await disableCssMotion(page);
 
-  const group = page.getByRole('radiogroup', { name: 'Scheduling input' });
-  const selected = page.getByRole('radio', { name: 'Days', exact: true });
-  const initialWidth = await group.evaluate((element) => element.getBoundingClientRect().width);
+    const group = page.getByRole('radiogroup', { name: 'Scheduling input' });
+    const selected = page.getByRole('radio', { name: 'Days', exact: true });
+    const initialWidth = await group.evaluate((element) => element.getBoundingClientRect().width);
 
-  for (const theme of ['Light', 'Dark'] as const) {
-    await page.getByRole('radio', { name: theme, exact: true }).click();
+    for (const theme of ['Light', 'Dark'] as const) {
+      await page.getByRole('radio', { name: theme, exact: true }).click();
 
-    await expectConnectedSelectionEdges(group, async (segment) => {
-      await expectSelectedTreatment(segment);
-      await expect
-        .poll(() => group.evaluate((element) => element.getBoundingClientRect().width))
-        .toBe(initialWidth);
-    });
-  }
+      await expectConnectedSelectionEdges(group, async (segment) => {
+        await expectSelectedTreatment(segment);
+        await expect
+          .poll(() => group.evaluate((element) => element.getBoundingClientRect().width))
+          .toBe(initialWidth);
+      });
+    }
 
-  await selected.click();
-  await expect(selected).toHaveAttribute('aria-checked', 'true');
-  const selectedBackground = (await selectedTreatment(selected)).backgroundColor;
-  await selected.hover();
-  expect((await selectedTreatment(selected)).backgroundColor).toBe(selectedBackground);
-});
+    await selected.click();
+    await expect(selected).toHaveAttribute('aria-checked', 'true');
+    const selectedBackground = (await selectedTreatment(selected)).backgroundColor;
+    await selected.hover();
+    expect((await selectedTreatment(selected)).backgroundColor).toBe(selectedBackground);
+  },
+);
 
-test('keyboard focus raises a segment above its neighbours', async ({ page }) => {
-  await openApp(page, '/settings');
-  await disableCssMotion(page);
+test(
+  'keyboard focus raises a segment above its neighbours',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await openApp(page, '/settings');
+    await disableCssMotion(page);
 
-  const group = page.getByRole('radiogroup', { name: 'Scheduling input' });
-  const hours = group.getByRole('radio', { name: 'Hours', exact: true });
-  const days = group.getByRole('radio', { name: 'Days', exact: true });
+    const group = page.getByRole('radiogroup', { name: 'Scheduling input' });
+    const hours = group.getByRole('radio', { name: 'Hours', exact: true });
+    const days = group.getByRole('radio', { name: 'Days', exact: true });
 
-  // Keep this test mouse-free: prior clicks suppress modality-gated `:focus-visible`, while
-  // Chromium and Firefox disagree about whether programmatic focus should reveal it.
-  await focusByKeyboard(page, hours);
-  await expect(hours).toBeFocused();
-  expect((await selectedTreatment(hours)).zIndex).toBe('20');
-  await page.keyboard.press('ArrowRight');
-  await expect(days).toBeFocused();
-  expect((await selectedTreatment(days)).zIndex).toBe('20');
-});
+    // Keep this test mouse-free: prior clicks suppress modality-gated `:focus-visible`, while
+    // Chromium and Firefox disagree about whether programmatic focus should reveal it.
+    await focusByKeyboard(page, hours);
+    await expect(hours).toBeFocused();
+    expect((await selectedTreatment(hours)).zIndex).toBe('20');
+    await page.keyboard.press('ArrowRight');
+    await expect(days).toBeFocused();
+    expect((await selectedTreatment(days)).zIndex).toBe('20');
+  },
+);

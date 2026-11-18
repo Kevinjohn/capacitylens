@@ -20,7 +20,7 @@ The suites cover the frontend, backend and shared workspace packages.
 ## Limits of each suite
 
 - Backup and upgrade tests cover supported databases and recovery behavior.
-- End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in.
+- End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in, and run only the tests tagged `@engine`: those whose result can differ between engines, such as dragging, keyboard movement, focus, scrolling, native inputs and layout. Chromium runs every test.
 - Every browser project exercises the real server. Each parallel worker owns an API, Vite proxy and SQLite database; fixture resets preserve sign-ins and restore company data before authentication.
 - Database-project scenarios use authenticated sessions against SQLite; persisted server data is
   never available anonymously.

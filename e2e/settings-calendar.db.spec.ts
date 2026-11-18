@@ -7,32 +7,36 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 // These account values are captured at company creation and frozen thereafter. Settings presents
 // them as a compact read-only summary; the server's 409 backstop remains in onboarding.db.spec.ts.
 test.describe('Company details', () => {
-  test('vertically centres every section title with its help action', async ({ page }) => {
-    await openApp(page, '/settings');
-    await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-    // Sections that need an editing role appear only once the membership role resolves, so count
-    // them in the settled editable state.
-    await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled();
+  test(
+    'vertically centres every section title with its help action',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page, '/settings');
+      await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+      // Sections that need an editing role appear only once the membership role resolves, so count
+      // them in the settled editable state.
+      await expect(page.getByRole('checkbox', { name: 'Monday', exact: true })).toBeEnabled();
 
-    const titles = page.locator('[data-slot="settings-row"] h3');
-    const helpActions = page.locator('[data-slot="settings-row"] button[aria-label^="About "]');
-    const sectionCount = await titles.count();
-    expect(sectionCount).toBeGreaterThan(0);
-    await expect(helpActions).toHaveCount(sectionCount);
+      const titles = page.locator('[data-slot="settings-row"] h3');
+      const helpActions = page.locator('[data-slot="settings-row"] button[aria-label^="About "]');
+      const sectionCount = await titles.count();
+      expect(sectionCount).toBeGreaterThan(0);
+      await expect(helpActions).toHaveCount(sectionCount);
 
-    await expect(async () => {
-      for (let index = 0; index < sectionCount; index += 1) {
-        const titleBox = await titles.nth(index).boundingBox();
-        const helpBox = await helpActions.nth(index).boundingBox();
-        expect(titleBox).not.toBeNull();
-        expect(helpBox).not.toBeNull();
+      await expect(async () => {
+        for (let index = 0; index < sectionCount; index += 1) {
+          const titleBox = await titles.nth(index).boundingBox();
+          const helpBox = await helpActions.nth(index).boundingBox();
+          expect(titleBox).not.toBeNull();
+          expect(helpBox).not.toBeNull();
 
-        const titleCentre = titleBox!.y + titleBox!.height / 2;
-        const helpCentre = helpBox!.y + helpBox!.height / 2;
-        expect(Math.abs(titleCentre - helpCentre)).toBeLessThanOrEqual(0.5);
-      }
-    }).toPass({ timeout: 5_000 });
-  });
+          const titleCentre = titleBox!.y + titleBox!.height / 2;
+          const helpCentre = helpBox!.y + helpBox!.height / 2;
+          expect(Math.abs(titleCentre - helpCentre)).toBeLessThanOrEqual(0.5);
+        }
+      }).toPass({ timeout: 5_000 });
+    },
+  );
 
   test('renders the frozen values without disabled form controls', async ({ page }) => {
     await openApp(page, '/settings');
@@ -58,7 +62,7 @@ test.describe('Company details', () => {
     await expect(dialog).toContainText(/set which day starts the week/i);
   });
 
-  test('Settings page passes axe accessibility check', async ({ page }) => {
+  test('Settings page passes axe accessibility check', { tag: '@engine' }, async ({ page }) => {
     await openApp(page, '/settings');
     // The page shell lands before the membership role resolves; until then every editable control
     // renders disabled. A scan that overlaps that change samples dimmed labels beside enabled

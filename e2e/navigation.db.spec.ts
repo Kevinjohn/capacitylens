@@ -20,37 +20,41 @@ test.describe('Navigation & shell', () => {
   // This exercises real document navigations rather than React Router transitions. The Vite history
   // fallback must serve index.html, and the session-only company gate must preserve the URL.
   for (const [path, heading] of deepDestinations) {
-    test(`valid deep link ${path} survives a browser reload`, async ({ page }) => {
-      await freezeBrowserDate(page);
-      const directResponse = await page.goto(path);
-      expect(directResponse?.status()).toBe(200);
-      expect(directResponse?.headers()['content-type']).toContain('text/html');
+    test(
+      `valid deep link ${path} survives a browser reload`,
+      { tag: '@engine' },
+      async ({ page }) => {
+        await freezeBrowserDate(page);
+        const directResponse = await page.goto(path);
+        expect(directResponse?.status()).toBe(200);
+        expect(directResponse?.headers()['content-type']).toContain('text/html');
 
-      const destinationHeading = page.getByRole('heading', { name: heading, exact: true });
-      if (path === '/account') {
+        const destinationHeading = page.getByRole('heading', { name: heading, exact: true });
+        if (path === '/account') {
+          await waitForAppLanding(page, destinationHeading);
+          await expect(destinationHeading).toBeVisible();
+          const reloadResponse = await page.reload();
+          expect([200, 304]).toContain(reloadResponse?.status());
+          await expect(page).toHaveURL(/\/account$/);
+          await expect(destinationHeading).toBeVisible();
+          return;
+        }
+
         await waitForAppLanding(page, destinationHeading);
         await expect(destinationHeading).toBeVisible();
+
         const reloadResponse = await page.reload();
+        // Firefox exposes a successful cache revalidation as 304 here, while Chromium and WebKit
+        // report the cached shell as 200. In both cases the browser has loaded the SPA document; the
+        // URL, company gate and resumed destination assertions below verify the observable contract.
         expect([200, 304]).toContain(reloadResponse?.status());
-        await expect(page).toHaveURL(/\/account$/);
+        await expect(page).toHaveURL(new RegExp(`${path}$`));
+        await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
+
         await expect(destinationHeading).toBeVisible();
-        return;
-      }
-
-      await waitForAppLanding(page, destinationHeading);
-      await expect(destinationHeading).toBeVisible();
-
-      const reloadResponse = await page.reload();
-      // Firefox exposes a successful cache revalidation as 304 here, while Chromium and WebKit
-      // report the cached shell as 200. In both cases the browser has loaded the SPA document; the
-      // URL, company gate and resumed destination assertions below verify the observable contract.
-      expect([200, 304]).toContain(reloadResponse?.status());
-      await expect(page).toHaveURL(new RegExp(`${path}$`));
-      await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
-
-      await expect(destinationHeading).toBeVisible();
-      await expect(page).toHaveURL(new RegExp(`${path}$`));
-    });
+        await expect(page).toHaveURL(new RegExp(`${path}$`));
+      },
+    );
   }
   test("an unknown extensionless path reaches the application's Not Found screen", async ({
     page,
@@ -245,16 +249,20 @@ test.describe('Navigation & shell', () => {
     await expect(page.getByText('Bruce Wayne', { exact: true }).first()).toBeVisible();
   });
   // The sidebar rail uses a Radix tooltip; cross-browser coverage must exercise real hover behaviour.
-  test('the collapse toggle reveals its shadcn Tooltip on hover', async ({ page }) => {
-    await openApp(page);
-    // Desktop default = sidebar open, so the focusable toggle reads "Collapse menu" and
-    // keeps that aria-label as its accessible name (the tooltip is supplementary).
-    const toggle = page.getByRole('button', { name: 'Collapse menu' });
-    await expect(toggle).toBeVisible();
-    await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toHaveCount(0);
-    await toggle.hover();
-    await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toBeVisible();
-  });
+  test(
+    'the collapse toggle reveals its shadcn Tooltip on hover',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      // Desktop default = sidebar open, so the focusable toggle reads "Collapse menu" and
+      // keeps that aria-label as its accessible name (the tooltip is supplementary).
+      const toggle = page.getByRole('button', { name: 'Collapse menu' });
+      await expect(toggle).toBeVisible();
+      await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toHaveCount(0);
+      await toggle.hover();
+      await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toBeVisible();
+    },
+  );
   test('Diagnostics is reached from Help and keeps the Help row active', async ({ page }) => {
     await openApp(page, '/help');
     await expect(page.getByRole('link', { name: 'Diagnostics', exact: true })).toHaveCount(1);
@@ -273,7 +281,7 @@ test.describe('Navigation & shell', () => {
   });
 });
 
-test.describe('single-company reload entry', () => {
+test.describe('single-company reload entry', { tag: '@engine' }, () => {
   test('opens and resumes a deep route without a company picker', async ({ page }) => {
     await page.goto('/clients');
     await waitForAppLanding(page, page.locator('#main'));

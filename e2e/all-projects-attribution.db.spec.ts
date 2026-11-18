@@ -127,91 +127,95 @@ test('keeps a legacy unattributed edit unchanged and places inline activities in
   ).toBeVisible();
 });
 
-test('locks and stamps a placeholder booking and copies attribution across a repeat series', async ({
-  page,
-}) => {
-  await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await showPlaceholders(page);
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await setZoom(page, 4);
-  await resetSchedulerScroll(page);
+test(
+  'locks and stamps a placeholder booking and copies attribution across a repeat series',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await showPlaceholders(page);
+    await page.getByRole('link', { name: 'Schedule' }).click();
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
 
-  await page.getByRole('button', { name: 'Add allocation for Placeholder' }).click();
-  const placeholderCreate = page.getByRole('dialog', { name: 'New allocation' });
-  const project = placeholderCreate.getByLabel('Project', { exact: true });
-  await project.click();
-  await expect(page.getByRole('option', { name: 'Internal', exact: true })).toHaveAttribute(
-    'data-disabled',
-  );
-  await expect(
-    page.getByRole('option', { name: 'No specific project', exact: true }),
-  ).toHaveAttribute('data-disabled');
-  await page.keyboard.press('Escape');
-  await placeholderCreate.getByRole('combobox', { name: 'Activity', exact: true }).click();
-  await expect(
-    page.getByRole('group', { name: 'All projects' }).getByRole('option', { name: 'Design' }),
-  ).toBeVisible();
-  await page.getByRole('option', { name: 'Design', exact: true }).click();
-  await placeholderCreate.getByRole('button', { name: 'Save' }).click();
-  const placeholderBar = page
-    .locator('[data-resource-id="r-ph-designer"]')
-    .getByRole('button', { name: /· Design, 8h per day,/ });
-  await placeholderBar.click();
-  await expect(
-    page.getByRole('dialog', { name: 'Edit allocation' }).getByLabel('Project', { exact: true }),
-  ).toHaveText(/Project Watchtower/);
-  await page
-    .getByRole('dialog', { name: 'Edit allocation' })
-    .getByRole('button', { name: 'Cancel' })
-    .click();
+    await page.getByRole('button', { name: 'Add allocation for Placeholder' }).click();
+    const placeholderCreate = page.getByRole('dialog', { name: 'New allocation' });
+    const project = placeholderCreate.getByLabel('Project', { exact: true });
+    await project.click();
+    await expect(page.getByRole('option', { name: 'Internal', exact: true })).toHaveAttribute(
+      'data-disabled',
+    );
+    await expect(
+      page.getByRole('option', { name: 'No specific project', exact: true }),
+    ).toHaveAttribute('data-disabled');
+    await page.keyboard.press('Escape');
+    await placeholderCreate.getByRole('combobox', { name: 'Activity', exact: true }).click();
+    await expect(
+      page.getByRole('group', { name: 'All projects' }).getByRole('option', { name: 'Design' }),
+    ).toBeVisible();
+    await page.getByRole('option', { name: 'Design', exact: true }).click();
+    await placeholderCreate.getByRole('button', { name: 'Save' }).click();
+    const placeholderBar = page
+      .locator('[data-resource-id="r-ph-designer"]')
+      .getByRole('button', { name: /· Design, 8h per day,/ });
+    await placeholderBar.click();
+    await expect(
+      page.getByRole('dialog', { name: 'Edit allocation' }).getByLabel('Project', { exact: true }),
+    ).toHaveText(/Project Watchtower/);
+    await page
+      .getByRole('dialog', { name: 'Edit allocation' })
+      .getByRole('button', { name: 'Cancel' })
+      .click();
 
-  await createAttributedDesign(page, '2026-06-22');
-  await expect(attributedBar(page)).toHaveCount(2);
-  for (const occurrence of await attributedBar(page).all()) {
-    await occurrence.click();
-    const editor = page.getByRole('dialog', { name: 'Edit allocation' });
-    await expect(editor.getByLabel('Project', { exact: true })).toHaveText(/Project Watchtower/);
-    await editor.getByRole('button', { name: 'Cancel' }).click();
-  }
-});
+    await createAttributedDesign(page, '2026-06-22');
+    await expect(attributedBar(page)).toHaveCount(2);
+    for (const occurrence of await attributedBar(page).all()) {
+      await occurrence.click();
+      const editor = page.getByRole('dialog', { name: 'Edit allocation' });
+      await expect(editor.getByLabel('Project', { exact: true })).toHaveText(/Project Watchtower/);
+      await editor.getByRole('button', { name: 'Cancel' }).click();
+    }
+  },
+);
 
-test('restores an archived attributed project and preserves it through a drag', async ({
-  page,
-}) => {
-  await createAttributedDesign(page);
-  await page.getByRole('link', { name: 'Projects' }).click();
-  await page
-    .getByTestId('project-row')
-    .filter({ hasText: 'Project Watchtower' })
-    .getByRole('button', { name: 'Archive Project Watchtower' })
-    .click();
-  await page
-    .getByRole('alertdialog', { name: 'Archive project?' })
-    .getByRole('button', { name: 'Archive', exact: true })
-    .click();
-  await page
-    .getByTestId('archived-projects-section')
-    .getByTestId('archived-row')
-    .filter({ hasText: 'Project Watchtower' })
-    .getByRole('button', { name: 'Restore Project Watchtower' })
-    .click();
-  await page.getByRole('link', { name: 'Schedule' }).click();
-  await setZoom(page, 4);
-  await resetSchedulerScroll(page);
+test(
+  'restores an archived attributed project and preserves it through a drag',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await createAttributedDesign(page);
+    await page.getByRole('link', { name: 'Projects' }).click();
+    await page
+      .getByTestId('project-row')
+      .filter({ hasText: 'Project Watchtower' })
+      .getByRole('button', { name: 'Archive Project Watchtower' })
+      .click();
+    await page
+      .getByRole('alertdialog', { name: 'Archive project?' })
+      .getByRole('button', { name: 'Archive', exact: true })
+      .click();
+    await page
+      .getByTestId('archived-projects-section')
+      .getByTestId('archived-row')
+      .filter({ hasText: 'Project Watchtower' })
+      .getByRole('button', { name: 'Restore Project Watchtower' })
+      .click();
+    await page.getByRole('link', { name: 'Schedule' }).click();
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
 
-  const bar = attributedBar(page);
-  await bar.scrollIntoViewIfNeeded();
-  const barBox = await stableBoundingBox(bar);
-  const x = barBox.x + barBox.width / 2;
-  const y = barBox.y + barBox.height / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x - 120, y, { steps: 10 });
-  await page.mouse.up();
-  const movedBox = await stableBoundingBox(bar);
-  expect(movedBox.x).toBeLessThan(barBox.x - 20);
-  await bar.click();
-  await expect(
-    page.getByRole('dialog', { name: 'Edit allocation' }).getByLabel('Project', { exact: true }),
-  ).toHaveText(/Project Watchtower/);
-});
+    const bar = attributedBar(page);
+    await bar.scrollIntoViewIfNeeded();
+    const barBox = await stableBoundingBox(bar);
+    const x = barBox.x + barBox.width / 2;
+    const y = barBox.y + barBox.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x - 120, y, { steps: 10 });
+    await page.mouse.up();
+    const movedBox = await stableBoundingBox(bar);
+    expect(movedBox.x).toBeLessThan(barBox.x - 20);
+    await bar.click();
+    await expect(
+      page.getByRole('dialog', { name: 'Edit allocation' }).getByLabel('Project', { exact: true }),
+    ).toHaveText(/Project Watchtower/);
+  },
+);
