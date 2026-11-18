@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { freemem } from 'node:os';
 import { testShare, WORKER_SLOTS_PER_LANE } from '../../tooling/ports.mjs';
@@ -11,8 +12,24 @@ export const E2E_GUARDIAN_MEMORY_BYTES = 2 * 64 * 1024 ** 2;
 export const WORKER_MEMORY_BYTES =
   AUTH_SERVER_MEMORY_BYTES + 1537376 * 1024 + E2E_GUARDIAN_MEMORY_BYTES;
 
-/** Read usable RAM, including reclaimable caches on Linux; other platforms use free RAM. */
+/**
+ * Usable RAM from `vm_stat` output. macOS keeps most unused memory as inactive, speculative or
+ * purgeable pages and hands them back on demand, so free pages alone understate what a run can use.
+ */
+export function macosAvailableMemoryBytes(vmStat) {
+  const pageSize = /page size of (\d+) bytes/.exec(vmStat);
+  const pages = ['free', 'inactive', 'speculative', 'purgeable'].map((kind) =>
+    new RegExp(String.raw`^Pages ${kind}:\s+(\d+)\.$`, 'm').exec(vmStat),
+  );
+  if (!pageSize || pages.includes(null))
+    throw new Error('Cannot determine available memory for browser workers.');
+  return pages.reduce((total, match) => total + Number(match[1]), 0) * Number(pageSize[1]);
+}
+
+/** Read usable RAM, including reclaimable memory on Linux and macOS; other platforms use free RAM. */
 export function availableMemoryBytes() {
+  if (process.platform === 'darwin')
+    return macosAvailableMemoryBytes(execFileSync('/usr/bin/vm_stat', { encoding: 'utf8' }));
   if (process.platform !== 'linux') return freemem();
   const available = /^MemAvailable:\s+(\d+)\s+kB$/m.exec(readFileSync('/proc/meminfo', 'utf8'));
   if (!available) throw new Error('Cannot determine available memory for browser workers.');
