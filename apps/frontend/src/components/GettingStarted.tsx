@@ -61,7 +61,7 @@ export function GettingStarted() {
   return <GettingStartedForAccount key={companyId} companyId={companyId} />;
 }
 
-function shouldOpenChecklistByDefault(pathname: string): boolean {
+function isChecklistOpenByDefault(pathname: string): boolean {
   return pathname === '/';
 }
 
@@ -70,8 +70,7 @@ function GettingStartedForAccount({ companyId }: { companyId: string }) {
   const activeRole = useRole();
   const { pathname } = useLocation();
   const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null);
-  const open =
-    openChoice?.path === pathname ? openChoice.open : shouldOpenChecklistByDefault(pathname);
+  const open = openChoice?.path === pathname ? openChoice.open : isChecklistOpenByDefault(pathname);
   const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
   const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
   const {
