@@ -30,14 +30,13 @@ describe('typed undo restores cascade bindings', () => {
       DEFAULT_ACCOUNT_ID,
     );
 
-    // Pin the clock so the save and the undo cannot share a millisecond on a fast runner.
+    // The save and the undo share a millisecond; the server still stamps the undo later.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-02-01T09:00:00.000Z'));
     await useStore.getState().updateClient('c1', { name: 'Changed' });
     const afterNoOpSave = useStore.getState().data;
     const savedRevision = requireValue(afterNoOpSave.clients[0], 'saved client').updatedAt;
     expect(afterNoOpSave.clients[0]?.name).toBe('Changed');
-    vi.setSystemTime(new Date('2026-02-01T09:00:00.001Z'));
     await useStore.getState().undoPlanning();
 
     expect(useStore.getState().data.clients[0]).toMatchObject({ name: 'Client', color: '#111111' });
