@@ -38,9 +38,9 @@ function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
   expect(() =>
     buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), projectId: 'p1' },
       preferences: {
@@ -53,9 +53,9 @@ function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
   expect(() =>
     buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), clientId: 'c1' },
       preferences: {
@@ -68,9 +68,9 @@ function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
   expect(() =>
     buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), activityKind: 'internal' },
       preferences: {
@@ -85,9 +85,9 @@ function assertDanglingActivityFiltersDoNotThrow(d: AppData) {
 function buildDanglingActivityModel(d: AppData) {
   const model = buildSchedulerModel({
     data: d,
-    geom: geom,
-    days: days,
-    visibleWindow: { start: start, end: end },
+    geom,
+    days,
+    visibleWindow: { start, end },
     capacity: null,
     filters: { ...buildEmptyFilters(), projectId: 'p1' },
     preferences: {
@@ -291,9 +291,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('external rows use literal {over:false, unavailable:false} day-states (real booleans, not an empty object)', () => {
     const model = buildSchedulerModel({
       data: withExternal(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -334,9 +334,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(() => {
       model = buildSchedulerModel({
         data: d,
-        geom: geom,
-        days: days,
-        visibleWindow: { start: start, end: end },
+        geom,
+        days,
+        visibleWindow: { start, end },
         capacity: null,
         filters: buildEmptyFilters(),
         preferences: {
@@ -552,9 +552,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('group.external is a real boolean: true for the external band, false (not undefined) for a discipline group', () => {
     const model = buildSchedulerModel({
       data: withExternal(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -609,9 +609,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ];
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {

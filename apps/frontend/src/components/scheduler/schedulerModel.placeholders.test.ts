@@ -63,9 +63,9 @@ describe('buildSchedulerModel', () => {
     ];
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -85,9 +85,9 @@ describe('buildSchedulerModel', () => {
   it('placeholdersEnabled OFF hides placeholder rows + their bars across the model', () => {
     const off = buildSchedulerModel({
       data: withPlaceholder(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -105,9 +105,9 @@ describe('buildSchedulerModel', () => {
   it('placeholdersEnabled ON shows the placeholder row with its bar', () => {
     const on = buildSchedulerModel({
       data: withPlaceholder(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -130,9 +130,9 @@ describe('buildSchedulerModel', () => {
     );
     const off = buildSchedulerModel({
       data: withPlaceholder(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity,
       filters: buildEmptyFilters(),
       preferences: {
@@ -143,9 +143,9 @@ describe('buildSchedulerModel', () => {
     });
     const on = buildSchedulerModel({
       data: withPlaceholder(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity,
       filters: buildEmptyFilters(),
       preferences: {

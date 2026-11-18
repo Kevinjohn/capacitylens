@@ -113,11 +113,9 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     // Retain the boolean API as one owned source. Component publishers use setDirtyFormSource so
     // clearing one contribution can never erase another still-dirty owner.
     setDirtyForm: (value) =>
-      set((state) =>
-        applyDirtyFormSource({ state: state, source: legacyDirtyFormSource, dirty: value }),
-      ),
+      set((state) => applyDirtyFormSource({ state, source: legacyDirtyFormSource, dirty: value })),
     setDirtyFormSource: ({ source, dirty }) =>
-      set((state) => applyDirtyFormSource({ state: state, source: source, dirty: dirty })),
+      set((state) => applyDirtyFormSource({ state, source, dirty })),
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
     setTheme: (preference) => {
       writeStoredTheme(preference);

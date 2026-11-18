@@ -86,7 +86,7 @@ export function resolveGesture({
   // reinterpreted against the target resource's working week; resize no-ops keep their reference.
   const dates =
     deltaDays !== 0 || mode === 'move'
-      ? applyGesture({ mode: mode, range: current, deltaDays: deltaDays, options: options })
+      ? applyGesture({ mode, range: current, deltaDays, options })
       : current;
   if (isDays && mode !== 'move' && deltaDays !== 0) {
     const { hours, clamped } = resolveVolumePreservingHours({

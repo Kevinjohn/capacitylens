@@ -29,8 +29,8 @@ describe('buildSchedulerModel', () => {
     });
     const model = buildSchedulerModel({
       data: dataset(),
-      geom: geom,
-      days: days,
+      geom,
+      days,
       visibleWindow: { start: '2026-06-03', end: '2026-06-04' },
       capacity,
       filters: buildEmptyFilters(),
@@ -53,8 +53,8 @@ describe('buildSchedulerModel', () => {
     // No visible day is over, yet the server reports an over day in its fixed forward window.
     const rows = buildSchedulerModel({
       data: dataset(),
-      geom: geom,
-      days: days,
+      geom,
+      days,
       visibleWindow: { start: '2026-06-03', end: '2026-06-04' },
       capacity: capacityOver(timeline, { r1: { overSoon: true }, r2: {} }),
       filters: buildEmptyFilters(),

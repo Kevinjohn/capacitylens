@@ -30,8 +30,8 @@ function registerSemanticsTableTests(
     ({ date, allocations, timeOff, expected }: CapacityCaseInput) => {
       expect(
         dayCapacity({
-          resource: resource,
-          date: date,
+          resource,
+          date,
           allocations: [...allocations],
           timeOff: [...timeOff],
           accountWorkingDays: companyMondayOnly,
@@ -133,28 +133,28 @@ describe('#257 characterization: effective-week capacity', () => {
     expect(scheduledHoursOnDay(resource, '2026-06-05', accountWorkingDays)).toBe(0);
     expect(
       availableHoursOnDay({
-        resource: resource,
+        resource,
         date: '2026-06-05',
         timeOff: [],
-        accountWorkingDays: accountWorkingDays,
+        accountWorkingDays,
       }),
     ).toBe(0);
     expect(
       allocatedHoursOnDay({
-        resource: resource,
+        resource,
         date: '2026-06-05',
         allocations: [allocation],
-        accountWorkingDays: accountWorkingDays,
+        accountWorkingDays,
       }),
     ).toBe(0);
     expect(
       utilization({
-        resource: resource,
+        resource,
         allocations: [allocation],
         timeOff: [],
         start: '2026-06-05',
         end: '2026-06-05',
-        accountWorkingDays: accountWorkingDays,
+        accountWorkingDays,
       }),
     ).toBe(0);
   });
@@ -168,12 +168,12 @@ describe('#257 characterization: effective-week capacity', () => {
       hoursPerDay: 8,
     });
 
-    expect(
-      allocatedHoursOnDay({ resource: resource, date: '2026-06-06', allocations: [allocation] }),
-    ).toBe(0);
-    expect(
-      allocatedHoursOnDay({ resource: resource, date: '2026-06-07', allocations: [allocation] }),
-    ).toBe(0);
+    expect(allocatedHoursOnDay({ resource, date: '2026-06-06', allocations: [allocation] })).toBe(
+      0,
+    );
+    expect(allocatedHoursOnDay({ resource, date: '2026-06-07', allocations: [allocation] })).toBe(
+      0,
+    );
   });
 });
 
@@ -194,7 +194,7 @@ describe('effective working-week semantics table', () => {
     expect(scheduledHoursOnDay(resource, monday, noneCompanyWeek)).toBe(0);
     expect(
       availableHoursOnDay({
-        resource: resource,
+        resource,
         date: monday,
         timeOff: [],
         accountWorkingDays: noneCompanyWeek,
@@ -202,7 +202,7 @@ describe('effective working-week semantics table', () => {
     ).toBe(0);
     expect(
       allocatedHoursOnDay({
-        resource: resource,
+        resource,
         date: monday,
         allocations: normal,
         accountWorkingDays: noneCompanyWeek,
@@ -210,7 +210,7 @@ describe('effective working-week semantics table', () => {
     ).toBe(0);
     expect(
       dayCapacity({
-        resource: resource,
+        resource,
         date: monday,
         allocations: normal,
         timeOff: [],
@@ -219,7 +219,7 @@ describe('effective working-week semantics table', () => {
     ).toBe(false);
     expect(
       allocatedHoursOnDay({
-        resource: resource,
+        resource,
         date: monday,
         allocations: ignored,
         accountWorkingDays: noneCompanyWeek,
@@ -227,7 +227,7 @@ describe('effective working-week semantics table', () => {
     ).toBe(8);
     expect(
       dayCapacity({
-        resource: resource,
+        resource,
         date: monday,
         allocations: ignored,
         timeOff: [],
@@ -390,12 +390,11 @@ describe('dayCapacity over-allocation', () => {
     for (const order of orders) {
       const ordered = order.map((index) => valueAt(allocations, index));
       expect(
-        dayCapacity({ resource: resource, date: '2026-06-01', allocations: ordered, timeOff: [] })
-          .over,
+        dayCapacity({ resource, date: '2026-06-01', allocations: ordered, timeOff: [] }).over,
       ).toBe(false);
       expect(
         capacityForWindow({
-          resource: resource,
+          resource,
           allocations: ordered,
           timeOff: [],
           start: '2026-06-01',
@@ -409,7 +408,7 @@ describe('dayCapacity over-allocation', () => {
     );
     expect(
       dayCapacity({
-        resource: resource,
+        resource,
         date: '2026-06-01',
         allocations: genuinelyOver,
         timeOff: [],
@@ -456,8 +455,8 @@ describe('utilization', () => {
     ];
     expect(
       utilization({
-        resource: resource,
-        allocations: allocations,
+        resource,
+        allocations,
         timeOff: [],
         start: '2026-06-01',
         end: '2026-06-02',
@@ -558,7 +557,7 @@ describe('utilization', () => {
     expect(
       utilization({
         resource: r,
-        allocations: allocations,
+        allocations,
         timeOff: [],
         start: '2026-06-01',
         end: '2026-06-02',
@@ -567,12 +566,12 @@ describe('utilization', () => {
     expect(
       utilization({
         resource: r,
-        allocations: allocations,
+        allocations,
         timeOff: [],
         start: '2026-06-01',
         end: '2026-06-02',
         accountWorkingDays: undefined,
-        closures: closures,
+        closures,
       }),
     ).toBeCloseTo(0.5);
   });
@@ -584,10 +583,10 @@ describe('over-allocated inside a window', () => {
   const overInWindow = (allocations: Allocation[], start: ISODate, end: ISODate) =>
     capacityForWindow({
       resource: r,
-      allocations: allocations,
+      allocations,
       timeOff: [],
-      start: start,
-      end: end,
+      start,
+      end,
     }).some((day) => day.over);
 
   it('is true when a working day is genuinely over-allocated', () => {

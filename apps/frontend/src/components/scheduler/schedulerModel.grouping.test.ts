@@ -159,15 +159,15 @@ describe('external / 3rd-party band', () => {
   }: BuildExtOptions = {}) =>
     buildSchedulerModel({
       data: withExternal(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
-      filters: filters,
+      filters,
       preferences: {
-        disciplinesEnabled: disciplinesEnabled,
+        disciplinesEnabled,
         placeholdersEnabled: true,
-        externalEnabled: externalEnabled,
+        externalEnabled,
       },
     });
 

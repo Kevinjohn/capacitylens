@@ -142,7 +142,7 @@ export const companyDataRequests = {
 
   /** Adds the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(companyId: string): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.example-data', { params: { companyId: companyId } }), {
+    return apiFetch(apiRouteUrl('api.example-data', { params: { companyId } }), {
       method: 'POST',
       credentials: 'include',
     });

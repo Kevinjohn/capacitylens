@@ -187,7 +187,7 @@ export function buildDisciplineGroups(data: AppData): DisciplineGroup[] {
   }
   const sorted = [...data.disciplines].sort(byDisciplineOrder);
   const groups: DisciplineGroup[] = sorted.map((discipline) => ({
-    discipline: discipline,
+    discipline,
     resources: resourcesByDisciplineId.get(discipline.id) ?? [],
   }));
   if (ungrouped.length) groups.push({ discipline: null, resources: ungrouped });

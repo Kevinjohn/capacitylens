@@ -270,8 +270,8 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         placeholder={resource.kind === 'placeholder'}
         weekStartsOn={calendarWeekStartsOn}
         // Withhold edit callbacks from Viewers so the lane cannot start a gesture or show the hover add hint.
-        {...(canEdit && onEdit ? { onEdit: onEdit } : {})}
-        {...(canEdit && onDraw ? { onDraw: onDraw } : {})}
+        {...(canEdit && onEdit ? { onEdit } : {})}
+        {...(canEdit && onDraw ? { onDraw } : {})}
       />
     </div>
   );

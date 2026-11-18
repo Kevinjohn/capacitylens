@@ -28,7 +28,7 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
     dependencies.withMemberAction('member-sign-in-tracking', async (companyId) => {
       try {
         const result = await teamAccessClient.setMemberSignInTracking({
-          companyId: companyId,
+          companyId,
           enabled: next,
         });
         if (!dependencies.isActiveAccount(companyId)) return;

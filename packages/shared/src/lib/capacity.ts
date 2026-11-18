@@ -66,19 +66,19 @@ export function buildDayCapacity({
   // per visible day on every model rebuild.
   const weekday = weekdayOf(date);
   const available = resolveAvailableHoursForWeekday({
-    resource: resource,
-    date: date,
-    timeOff: timeOff,
-    closures: closures,
-    weekday: weekday,
-    effectiveWeek: effectiveWeek,
+    resource,
+    date,
+    timeOff,
+    closures,
+    weekday,
+    effectiveWeek,
   });
   const load = resolveAllocationLoadForWeekday({
-    resource: resource,
-    date: date,
-    allocations: allocations,
-    weekday: weekday,
-    effectiveWeek: effectiveWeek,
+    resource,
+    date,
+    allocations,
+    weekday,
+    effectiveWeek,
   });
   return {
     date,
@@ -104,12 +104,12 @@ export function buildCapacityWindow({
 }: BuildCapacityWindowInput): DayCapacity[] {
   return eachDayISO(start, end).map((day) =>
     buildDayCapacity({
-      resource: resource,
+      resource,
       date: day,
-      allocations: allocations,
-      timeOff: timeOff,
-      effectiveWeek: effectiveWeek,
-      closures: closures,
+      allocations,
+      timeOff,
+      effectiveWeek,
+      closures,
     }),
   );
 }
@@ -144,13 +144,13 @@ export function resolveUtilization({
 }: ResolveUtilizationInput): number {
   return resolveUtilizationFromCapacity(
     buildCapacityWindow({
-      resource: resource,
-      allocations: allocations,
-      timeOff: timeOff,
-      start: start,
-      end: end,
-      effectiveWeek: effectiveWeek,
-      closures: closures,
+      resource,
+      allocations,
+      timeOff,
+      start,
+      end,
+      effectiveWeek,
+      closures,
     }),
   );
 }

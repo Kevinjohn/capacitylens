@@ -92,8 +92,8 @@ function createBooleanPreference({
 }: CreateBooleanPreferenceInput): [read: () => boolean, write: (on: boolean) => void] {
   const storageKey = `${STORAGE_KEY_PREFIX}${key}`;
   return [
-    () => readBooleanPreference({ key: storageKey, fallback: fallback }),
-    (on: boolean) => writeBooleanPreference({ key: storageKey, on: on }),
+    () => readBooleanPreference({ key: storageKey, fallback }),
+    (on: boolean) => writeBooleanPreference({ key: storageKey, on }),
   ];
 }
 

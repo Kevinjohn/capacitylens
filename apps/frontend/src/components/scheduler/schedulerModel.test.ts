@@ -274,9 +274,9 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
   const buildActive = (d: AppData) =>
     buildSchedulerModel({
       data: activeOnly(d),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -293,9 +293,9 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
 
     const raw = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {

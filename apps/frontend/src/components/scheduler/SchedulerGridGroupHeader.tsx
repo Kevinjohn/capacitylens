@@ -85,8 +85,8 @@ export function SchedulerGridGroupHeader({
         style={{ width: geometry.totalWidth }}
       >
         {resolveGroupSummary({
-          group: group,
-          collapsed: collapsed,
+          group,
+          collapsed,
           showDisciplineUtilization: utilizationPreferences.showDiscipline,
         })}
       </div>

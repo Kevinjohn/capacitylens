@@ -46,8 +46,8 @@ it("ignores an excess within the operands' own representation error, with or wit
 describe('capacityAllocationsForMode', () => {
   it('preserves hourly allocations and projects blocks to zero load without mutating input', () => {
     const allocations = [makeAlloc({ hoursPerDay: 7 })];
-    expect(applyCapacityMode({ allocations: allocations, blocksMode: false })).toBe(allocations);
-    const blocks = applyCapacityMode({ allocations: allocations, blocksMode: true });
+    expect(applyCapacityMode({ allocations, blocksMode: false })).toBe(allocations);
+    const blocks = applyCapacityMode({ allocations, blocksMode: true });
     expect(blocks).toEqual([{ ...allocations[0], hoursPerDay: 0 }]);
     expect(allocations[0]?.hoursPerDay).toBe(7);
   });

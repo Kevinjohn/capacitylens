@@ -179,8 +179,8 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
   });
 
   const resourceOptions = useTimeOffResourceOptions({
-    resources: resources,
-    placeholdersEnabled: placeholdersEnabled,
+    resources,
+    placeholdersEnabled,
     resourceId: fields.resourceId,
   });
   const repeatFields = buildTimeOffRepeatFields({

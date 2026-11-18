@@ -100,7 +100,7 @@ export function createTypedPlanningActions(
     const id = newId();
     const command = buildCatalogueCreate({
       data: get().data,
-      companyId: companyId,
+      companyId,
       args: { entity: key, id, fields } as Parameters<typeof buildCatalogueCreate>[0]['args'],
     });
     if (!command) throw unprepared(companyId, 'The planning change could not be prepared.');
@@ -121,7 +121,7 @@ export function createTypedPlanningActions(
       expecting(
         buildCatalogueUpdate({
           data: get().data,
-          companyId: companyId,
+          companyId,
           original,
           args: { entity: key, id, changes },
         }),
@@ -141,7 +141,7 @@ export function createTypedPlanningActions(
     const id = newId();
     const command = buildTimeOffCreate({
       data: get().data,
-      companyId: companyId,
+      companyId,
       args: { id, fields: input },
     });
     if (!command) throw unprepared(companyId, 'The time-off entry could not be prepared.');
@@ -182,7 +182,7 @@ export function createTypedPlanningActions(
       };
       const command = buildResourceCreate({
         data: get().data,
-        companyId: companyId,
+        companyId,
         args: { id, fields },
       });
       if (!command) throw unprepared(companyId, 'The resource could not be prepared.');
@@ -202,7 +202,7 @@ export function createTypedPlanningActions(
         expecting(
           buildResourceUpdate({
             data: get().data,
-            companyId: companyId,
+            companyId,
             original,
             args: { id, changes },
           }),
@@ -224,7 +224,7 @@ export function createTypedPlanningActions(
       assertResourceExists(get().data, companyId, input.resourceId);
       const command = buildTimeOffCreate({
         data: get().data,
-        companyId: companyId,
+        companyId,
         args: { id: newId(), fields: input },
       });
       if (!command || command.intent.operation !== 'timeOff.create') {
@@ -246,7 +246,7 @@ export function createTypedPlanningActions(
           expecting(
             buildTimeOffUpdate({
               data: get().data,
-              companyId: companyId,
+              companyId,
               original,
               args: { id, changes },
             }),
@@ -266,7 +266,7 @@ export function createTypedPlanningActions(
       const id = newId();
       const command = buildClosureCreate({
         data: get().data,
-        companyId: companyId,
+        companyId,
         args: { id, fields: input },
       });
       if (!command) throw unprepared(companyId, 'The closure could not be prepared.');
@@ -282,7 +282,7 @@ export function createTypedPlanningActions(
           expecting(
             buildClosureUpdate({
               data: get().data,
-              companyId: companyId,
+              companyId,
               original,
               args: { id, changes },
             }),

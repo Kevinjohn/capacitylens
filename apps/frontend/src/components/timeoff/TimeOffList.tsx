@@ -147,9 +147,9 @@ export function TimeOffList() {
     () =>
       buildTimeOffGroups({
         timeOff: data.timeOff,
-        resources: resources,
+        resources,
         weekStart: currentWeekStart,
-        placeholdersEnabled: placeholdersEnabled,
+        placeholdersEnabled,
       }),
     [currentWeekStart, data.timeOff, placeholdersEnabled, resources],
   );

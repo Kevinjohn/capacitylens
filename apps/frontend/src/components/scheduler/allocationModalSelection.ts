@@ -174,8 +174,8 @@ export function buildEffectiveAllocationValues({
         daysOfWork,
         ignoreWorkingDays,
       },
-      external: external,
-      validDaysOver: validDaysOver,
+      external,
+      validDaysOver,
     });
   }
 
@@ -193,8 +193,8 @@ export function buildEffectiveAllocationValues({
         daysOfWork,
         ignoreWorkingDays,
       },
-      external: external,
-      validDaysOver: validDaysOver,
+      external,
+      validDaysOver,
     });
   }
 
@@ -210,7 +210,7 @@ export function buildEffectiveAllocationValues({
       daysOfWork,
       ignoreWorkingDays,
     },
-    external: external,
-    validDaysOver: validDaysOver,
+    external,
+    validDaysOver,
   });
 }

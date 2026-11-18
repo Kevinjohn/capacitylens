@@ -242,9 +242,7 @@ export function buildCapacityOverviewModel({
 
   const eligible = new Set(
     data.resources
-      .filter((resource) =>
-        isEligibleResource({ resource: resource, placeholdersEnabled: placeholdersEnabled }),
-      )
+      .filter((resource) => isEligibleResource({ resource, placeholdersEnabled }))
       .map((resource) => resource.id),
   );
   const groupByEngagement = hasSupplementaryResources(data.resources);
@@ -258,6 +256,6 @@ export function buildCapacityOverviewModel({
   return {
     measured: true,
     periods,
-    groups: applyAvailabilityFilter({ groups: groups, hasAvailability: hasAvailability }),
+    groups: applyAvailabilityFilter({ groups, hasAvailability }),
   };
 }

@@ -37,7 +37,7 @@ describe('browser account client', () => {
       companyId: 'company / one',
       principalId: 'person / one',
       role: 'editor',
-      command: command,
+      command,
     });
     await memberRequests.transferOwnership({
       companyId: 'company / one',

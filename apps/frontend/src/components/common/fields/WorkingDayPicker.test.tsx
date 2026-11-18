@@ -107,7 +107,7 @@ describe('WorkingDayPicker', () => {
   it('moves a weekday between mutually exclusive choices', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    renderWorkingDayPicker({ onChange: onChange });
+    renderWorkingDayPicker({ onChange });
     await user.click(
       within(screen.getByRole('row', { name: /Saturday/ })).getByRole('radio', {
         name: 'Saturday Half day',
