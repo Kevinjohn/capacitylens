@@ -57,13 +57,12 @@ describe('typed undo restores cascade bindings', () => {
     await useStore.getState().addClient({ name: 'Last client', color: '#222222' });
     const addedClient = requireValue(useStore.getState().data.clients.at(-1), 'last client');
 
-    await useStore.getState().undoPlanning();
-    expect(useStore.getState().data.clients).toHaveLength(75_001);
-    const archivedClient = requireValue(
-      useStore.getState().data.clients.find((client) => client.id === addedClient.id),
-      'archived client',
-    );
-    expect(typeof archivedClient.archivedAt).toBe('string');
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
+    const clientsAfterUndo = useStore.getState().data.clients;
+    expect(clientsAfterUndo.filter((client) => !client.archivedAt)).toHaveLength(75_000);
+    expect(
+      clientsAfterUndo.some((client) => client.id === addedClient.id && !client.archivedAt),
+    ).toBe(false);
   });
   it('restores an activity phaseId after a phase delete', async () => {
     await resetStoreWithData(
@@ -97,7 +96,6 @@ describe('typed undo restores cascade bindings', () => {
       DEFAULT_ACCOUNT_ID,
     );
     const deletedActivity = requireValue(useStore.getState().data.activities[0], 'activity');
-    const deletedPhase = requireValue(useStore.getState().data.phases[0], 'phase');
     const phaseHandle = 'restore-phase-delete';
     queuePlanningPatch(
       (execution) => {
@@ -119,24 +117,8 @@ describe('typed undo restores cascade bindings', () => {
     await useStore.getState().deletePhase('ph1');
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.activities[0], 'activity')).toHaveProperty('phaseId', null);
-    queuePlanningPatch(
-      (execution) => {
-        if (execution.intent.operation !== 'planning.restoreGroup') {
-          throw new Error(
-            `Expected planning.restoreGroup, received ${execution.intent.operation}.`,
-          );
-        }
-        return {
-          removed: [],
-          upserts: [
-            { entity: 'activities', row: deletedActivity },
-            { entity: 'phases', row: deletedPhase },
-          ],
-        };
-      },
-      { consumedGroupId: phaseHandle },
-    );
-    await useStore.getState().undoPlanning();
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
+    expect(useStore.getState().data.phases.map((phase) => phase.id)).toEqual(['ph1']);
     expect(useStore.getState().data.activities[0]?.phaseId).toBe('ph1');
   });
 
@@ -153,7 +135,6 @@ describe('typed undo restores cascade bindings', () => {
       DEFAULT_ACCOUNT_ID,
     );
     const deletedResource = requireValue(useStore.getState().data.resources[0], 'resource');
-    const deletedDiscipline = requireValue(useStore.getState().data.disciplines[0], 'discipline');
     const disciplineHandle = 'restore-discipline-delete';
     queuePlanningPatch(
       (execution) => {
@@ -175,24 +156,8 @@ describe('typed undo restores cascade bindings', () => {
     await useStore.getState().deleteDiscipline('d1');
     const afterDelete = useStore.getState().data;
     expect(requireValue(afterDelete.resources[0], 'resource')).toHaveProperty('disciplineId', null);
-    queuePlanningPatch(
-      (execution) => {
-        if (execution.intent.operation !== 'planning.restoreGroup') {
-          throw new Error(
-            `Expected planning.restoreGroup, received ${execution.intent.operation}.`,
-          );
-        }
-        return {
-          removed: [],
-          upserts: [
-            { entity: 'resources', row: deletedResource },
-            { entity: 'disciplines', row: deletedDiscipline },
-          ],
-        };
-      },
-      { consumedGroupId: disciplineHandle },
-    );
-    await useStore.getState().undoPlanning();
+    await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
+    expect(useStore.getState().data.disciplines.map((row) => row.id)).toEqual(['d1']);
     expect(useStore.getState().data.resources[0]?.disciplineId).toBe('d1');
   });
 });

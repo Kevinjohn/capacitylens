@@ -64,7 +64,6 @@ describe('planning command suspension', () => {
     await expect(
       useStore.getState().sendPlanningCommand({
         intent: { operation: 'allocation.deleteGroup', ids: [] },
-        inverse: null,
       }),
     ).rejects.toThrow(/suspended/);
     releaseB();
@@ -77,7 +76,6 @@ describe('planning command suspension', () => {
     await expect(
       useStore.getState().sendPlanningCommand({
         intent: { operation: 'allocation.deleteGroup', ids: [] },
-        inverse: null,
       }),
     ).rejects.toThrow(/suspended/);
     releaseSecondA();
@@ -147,8 +145,6 @@ describe('planning command suspension', () => {
             baseRevision: state.planning.revision ?? 0,
             intent: { operation: 'allocation.deleteGroup', ids: [] },
           },
-          inverse: null,
-          historyEntry: null,
           kind: 'new',
         },
       },

@@ -19,7 +19,11 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
     SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord)) &&
     (snapshot.accessKey === undefined || typeof snapshot.accessKey === 'string') &&
     isValidISODate(snapshot.today) &&
-    typeof snapshot.canWrite === 'boolean'
+    typeof snapshot.canWrite === 'boolean' &&
+    (snapshot.history === undefined ||
+      (isRecord(snapshot.history) &&
+        typeof snapshot.history.canUndo === 'boolean' &&
+        typeof snapshot.history.canRedo === 'boolean'))
   );
 }
 
@@ -35,7 +39,7 @@ export function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: stri
 
 export function isValidReceipt(
   receipt: unknown,
-  execution: PlanningExecution,
+  execution: Pick<PlanningExecution, 'mutationId' | 'baseRevision'>,
 ): receipt is PlanningMutationSuccess {
   if (!isRecord(receipt) || !isRecord(receipt.restoration)) return false;
   const restoration = receipt.restoration;

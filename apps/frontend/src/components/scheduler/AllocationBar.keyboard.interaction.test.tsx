@@ -555,7 +555,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     expect(after.data.allocations.find((candidate) => candidate.id === allocation.id)).toBe(
       storedBefore,
     );
-    expect(after.planning.history.past).toBe(before.planning.history.past);
+    expect(after.planning.history).toBe(before.planning.history);
     expect(after.srAnnouncement).toBeNull();
   });
 });

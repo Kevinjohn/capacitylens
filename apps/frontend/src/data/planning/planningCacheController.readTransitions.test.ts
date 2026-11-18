@@ -7,6 +7,9 @@ import { snapshot, deferred, ready, readyWithHistory } from '@/test/planningTran
 
 // Pins the coordinator transitions that no other controller test asserts directly.
 
+/** What the server reports to this page after its one change. */
+const undoable = { canUndo: true, canRedo: false };
+
 describe('planning read transitions', () => {
   it('publishes loading during a background read and refuses a new change until it settles', async () => {
     const h = await readyWithHistory();
@@ -14,13 +17,13 @@ describe('planning read transitions', () => {
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh();
     expect(h.state().planning.status).toBe('loading');
-    expect(isPlanningHistoryReady(h.state().planning)).toBe(false);
+    expect(isPlanningHistoryReady(h.state().planning, 'undo')).toBe(false);
     expect(() => h.controller.begin()).toThrow(/not ready/);
     await expect(h.controller.undo()).resolves.toBe(false);
-    read.resolve(snapshot(2));
+    read.resolve(snapshot(2, undefined, undoable));
     await refreshing;
     expect(h.state().planning.status).toBe('ready');
-    expect(isPlanningHistoryReady(h.state().planning)).toBe(true);
+    expect(isPlanningHistoryReady(h.state().planning, 'undo')).toBe(true);
     expect(h.execute).toHaveBeenCalledOnce();
   });
 
@@ -30,9 +33,9 @@ describe('planning read transitions', () => {
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh({ quiet: true });
     expect(h.state().planning.status).toBe('ready');
-    expect(isPlanningHistoryReady(h.state().planning)).toBe(true);
+    expect(isPlanningHistoryReady(h.state().planning, 'undo')).toBe(true);
     expect(() => h.controller.begin()).not.toThrow();
-    read.resolve(snapshot(2));
+    read.resolve(snapshot(2, undefined, undoable));
     await expect(refreshing).resolves.toBe(true);
     expect(h.state().planning.status).toBe('ready');
   });
@@ -49,7 +52,7 @@ describe('planning read transitions', () => {
     const refreshing = h.controller.refresh({ quiet: true });
     expect(h.state().planning.status).toBe('loading');
     expect(h.state().planning.error).toBeNull();
-    read.resolve(snapshot(2));
+    read.resolve(snapshot(2, undefined, undoable));
     await expect(refreshing).resolves.toBe(true);
     expect(h.state().planning.status).toBe('ready');
   });
@@ -61,7 +64,7 @@ describe('planning read transitions', () => {
     expect(h.state().planning.status).toBe('error');
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
     expect(h.state().data.clients[0]?.name).toBe('Wayne Enterprises');
-    expect(h.state().planning.history.past).toHaveLength(1);
+    expect(h.state().planning.history.canUndo).toBe(true);
     expect(() => h.controller.begin()).toThrow(/not ready/);
     await expect(h.controller.undo()).resolves.toBe(false);
 
@@ -73,14 +76,14 @@ describe('planning read transitions', () => {
 
   it('takes the company date from each same-revision read and keeps history', async () => {
     const h = await readyWithHistory();
-    h.read.mockResolvedValueOnce({ ...snapshot(2), today: '2026-06-01' });
+    h.read.mockResolvedValueOnce({ ...snapshot(2, undefined, undoable), today: '2026-06-01' });
     await expect(h.controller.refresh()).resolves.toBe(true);
     expect(h.state().planning.today).toBe('2026-06-01');
 
-    h.read.mockResolvedValueOnce({ ...snapshot(2), today: '2026-06-02' });
+    h.read.mockResolvedValueOnce({ ...snapshot(2, undefined, undoable), today: '2026-06-02' });
     await expect(h.controller.refresh()).resolves.toBe(true);
     expect(h.state().planning.today).toBe('2026-06-02');
-    expect(h.state().planning.history.past).toHaveLength(1);
+    expect(h.state().planning.history.canUndo).toBe(true);
   });
 
   it('rejects an older snapshot under the same authority without replacing rows', async () => {

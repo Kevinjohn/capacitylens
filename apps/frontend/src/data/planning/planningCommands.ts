@@ -23,9 +23,10 @@ import type { Draft, Patch } from '@/lib/entityDrafts';
 
 export interface PlanningCommand {
   intent: PlanningIntent;
-  inverse: PlanningIntent | null;
   /** The edited row's `updatedAt` when its form opened; the server refuses a row that has moved on. */
   expectedUpdatedAt?: string;
+  /** The change cannot be undone and ends the page's history. */
+  endsHistory?: true;
 }
 
 interface CommandContext {
@@ -75,9 +76,8 @@ function diffFields(
   requested: object,
   fields: readonly string[],
   nullable: readonly string[] = [],
-): { changes: Record<string, unknown>; inverse: Record<string, unknown> } | null {
+): { changes: Record<string, unknown> } | null {
   const changes: Record<string, unknown> = {};
-  const inverse: Record<string, unknown> = {};
   for (const field of fields) {
     if (!Object.hasOwn(requested, field)) continue;
     const rawValue = Reflect.get(requested, field) as unknown;
@@ -85,12 +85,11 @@ function diffFields(
     const originalValue = Reflect.get(original, field) as unknown;
     if (equal(originalValue, value)) continue;
     changes[field] = value;
-    inverse[field] = originalValue;
   }
-  return Object.keys(changes).length === 0 ? null : { changes, inverse };
+  return Object.keys(changes).length === 0 ? null : { changes };
 }
 
-/** Build an explicit allocation creation intent and its local undo. */
+/** Build an explicit allocation creation intent. */
 export function buildAllocationCreate(
   context: CreateCommandContext & { args: { id: string; fields: Draft<Allocation> } },
 ): PlanningCommand | null {
@@ -115,7 +114,6 @@ export function buildAllocationCreate(
   };
   return {
     intent: { operation: 'allocation.create', allocation },
-    inverse: { operation: 'allocation.delete', id: args.id },
   };
 }
 
@@ -199,7 +197,6 @@ export function buildAllocationUpdate(
       (changes.projectId ?? current.projectId) !== null
     ) {
       changes.projectId = null;
-      diff.inverse.projectId = original.projectId;
     }
   }
   return {
@@ -208,15 +205,10 @@ export function buildAllocationUpdate(
       id: args.id,
       changes,
     },
-    inverse: {
-      operation: 'allocation.update',
-      id: args.id,
-      changes: diff.inverse,
-    },
   };
 }
 
-/** Build an explicit time-off creation intent and its local undo. */
+/** Build an explicit time-off creation intent. */
 export function buildTimeOffCreate(
   context: CreateCommandContext & { args: { id: string; fields: Draft<TimeOff> } },
 ): PlanningCommand | null {
@@ -239,7 +231,6 @@ export function buildTimeOffCreate(
   };
   return {
     intent: { operation: 'timeOff.create', timeOff },
-    inverse: { operation: 'timeOff.delete', id: args.id },
   };
 }
 
@@ -266,15 +257,10 @@ export function buildTimeOffUpdate(
       id: args.id,
       changes: diff.changes,
     },
-    inverse: {
-      operation: 'timeOff.update',
-      id: args.id,
-      changes: diff.inverse,
-    },
   };
 }
 
-/** Build an explicit company-closure creation intent and its local undo. */
+/** Build an explicit company-closure creation intent. */
 export function buildClosureCreate(
   context: CreateCommandContext & { args: { fields: Draft<Closure> } },
 ): PlanningCommand | null {
@@ -290,7 +276,6 @@ export function buildClosureCreate(
         endDate: args.fields.endDate,
       },
     },
-    inverse: { operation: 'closure.delete', id: args.id },
   };
 }
 
@@ -314,11 +299,6 @@ export function buildClosureUpdate(
       operation: 'closure.update',
       id: args.id,
       changes: diff.changes,
-    },
-    inverse: {
-      operation: 'closure.update',
-      id: args.id,
-      changes: diff.inverse,
     },
   };
 }
@@ -354,7 +334,6 @@ export function buildResourceCreate(
   };
   return {
     intent: { operation: 'resource.create', id: args.id, fields },
-    inverse: { operation: 'resource.archive', id: args.id },
   };
 }
 
@@ -413,11 +392,6 @@ export function buildResourceUpdate(
       operation: 'resource.update',
       id: args.id,
       changes: diff.changes,
-    },
-    inverse: {
-      operation: 'resource.update',
-      id: args.id,
-      changes: diff.inverse,
     },
   };
 }
@@ -500,10 +474,6 @@ export function buildCatalogueCreate(
   }
   return {
     intent: { operation: 'catalogue.create', entity },
-    inverse:
-      args.entity === 'phases' || args.entity === 'disciplines'
-        ? { operation: 'catalogue.delete', entity: { entity: args.entity, id: args.id } }
-        : { operation: 'catalogue.archive', entity: { entity: args.entity, id: args.id } },
   };
 }
 
@@ -560,14 +530,11 @@ export function buildCatalogueUpdate(
     isPublic(Reflect.get(args.changes, 'isPrivate'))
   ) {
     delete diff.changes.isPrivate;
-    delete diff.inverse.isPrivate;
     if (Object.keys(diff.changes).length === 0) return null;
   }
   const entity = { entity: key, id: args.id, changes: diff.changes };
-  const inverseEntity = { entity: key, id: args.id, changes: diff.inverse };
   return {
     intent: { operation: 'catalogue.update', entity },
-    inverse: { operation: 'catalogue.update', entity: inverseEntity },
   };
 }
 
@@ -592,7 +559,7 @@ type SettingsFields = Pick<
   | 'dateStyle'
 >;
 
-/** Build an account settings patch and its field-limited inverse. */
+/** Build a field-limited account settings patch. */
 export function buildSettingsUpdate(
   context: CommandContext & { original: Account; args: Pick<Patch<Account>, keyof SettingsFields> },
 ): PlanningCommand | null {
@@ -631,6 +598,5 @@ export function buildSettingsUpdate(
   if (!diff) return null;
   return {
     intent: { operation: 'settings.update', changes: diff.changes },
-    inverse: { operation: 'settings.update', changes: diff.inverse },
   };
 }

@@ -67,20 +67,6 @@ export function queueAllocationDeleteGroupResponse(
   );
 }
 
-/** Queue restoration rows when a test exercises typed undo/redo after a group deletion. */
-export function queueAllocationRestoreResponse(
-  allocations: readonly Allocation[],
-  restorationGroupId: ID,
-): void {
-  queuePlanningPatch(
-    () => ({
-      removed: [],
-      upserts: allocations.map((row) => ({ entity: 'allocations', row })),
-    }),
-    { consumedGroupId: restorationGroupId },
-  );
-}
-
 /** Queue the repeat as the canonical set of independent time-off rows the server would write. */
 export function queueTimeOffRepeatResponse(): void {
   queuePlanningPatch((execution: PlanningExecution) => {
@@ -110,29 +96,4 @@ export function queueTimeOffRepeatResponse(): void {
       })),
     };
   });
-}
-
-/** Queue the deletion receipt and server-issued handle for a time-off batch. */
-export function queueTimeOffDeleteGroupResponse(ids: readonly ID[], restorationGroupId: ID): void {
-  queuePlanningPatch(
-    () => ({
-      upserts: [],
-      removed: ids.map((id) => ({ entity: 'timeOff', id })),
-    }),
-    { replacementGroupId: restorationGroupId },
-  );
-}
-
-/** Queue restored time-off rows for a test-owned restoration flow. */
-export function queueTimeOffRestoreResponse(
-  rows: readonly TimeOff[],
-  restorationGroupId: ID,
-): void {
-  queuePlanningPatch(
-    () => ({
-      removed: [],
-      upserts: rows.map((row) => ({ entity: 'timeOff', row })),
-    }),
-    { consumedGroupId: restorationGroupId },
-  );
 }

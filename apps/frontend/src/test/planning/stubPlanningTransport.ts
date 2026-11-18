@@ -1,8 +1,11 @@
 import type {
   PlanningClientContext,
+  PlanningHistoryStep,
+  PlanningReadRequest,
   PlanningSnapshot,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import type {
   PlanningExecution,
   PlanningIntent,
@@ -34,9 +37,36 @@ type Queued =
     }
   | { kind: 'error'; error: unknown };
 
+/** One recorded change: the company's rows before and after it, so undo and redo swap them back. */
+type HistoryChange = { before: AppData; after: AppData };
+/** The server's one history row per company: the last writer's page, at the revision it holds. */
+type CompanyHistory = {
+  historyId: string;
+  revision: number;
+  past: HistoryChange[];
+  future: HistoryChange[];
+};
+
+const HISTORY_LIMIT = 50;
+
+/** Like the server's createServerRevision, a write always moves updatedAt forward, even within the
+ * millisecond of the previous write. */
+function laterThan(updatedAt: unknown): string {
+  const after = Date.parse(String(updatedAt)) + 1;
+  return new Date(Number.isNaN(after) ? Date.now() : Math.max(Date.now(), after)).toISOString();
+}
+
+function sameContent(left: Row, right: Row): boolean {
+  return (
+    JSON.stringify({ ...left, updatedAt: null }) === JSON.stringify({ ...right, updatedAt: null })
+  );
+}
+
 /** A controlled response source for frontend tests; scheduling and validation belong to the server. */
 export class StubPlanningTransport implements PlanningTransport {
   readonly calls: PlanningIntent[] = [];
+  /** Every undo and redo request, in order, including refused ones. */
+  readonly historySteps: Array<'undo' | 'redo'> = [];
   private data = emptyAppData();
   private canWrite = true;
   private today: ISODate | null = null;
@@ -46,6 +76,7 @@ export class StubPlanningTransport implements PlanningTransport {
   private revisions = new Map<string, number>();
   private queued: Queued[] = [];
   private readGate: Promise<void> | null = null;
+  private histories = new Map<string, CompanyHistory>();
 
   /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
@@ -57,8 +88,10 @@ export class StubPlanningTransport implements PlanningTransport {
     this.revisions.clear();
     this.revisions.set(companyId, 0);
     this.calls.length = 0;
+    this.historySteps.length = 0;
     this.queued.length = 0;
     this.readGate = null;
+    this.histories.clear();
   }
 
   /** Hold the next read, after it records its window, until the returned release is called. */
@@ -122,7 +155,7 @@ export class StubPlanningTransport implements PlanningTransport {
   async read(
     context: PlanningClientContext,
     signal: AbortSignal,
-    window?: CapacityRange,
+    { window, historyId }: PlanningReadRequest = {},
   ): Promise<PlanningSnapshot> {
     signal.throwIfAborted();
     this.readWindows.push(window);
@@ -132,19 +165,17 @@ export class StubPlanningTransport implements PlanningTransport {
       await gate;
       signal.throwIfAborted();
     }
-    const data = emptyAppData();
-    for (const entity of APP_DATA_KEYS) {
-      const rows = this.rows(entity).filter((row) =>
-        entity === 'accounts' ? row.id === context.companyId : row.companyId === context.companyId,
-      );
-      Object.assign(data, { [entity]: structuredClone(rows) });
-    }
+    const history = this.liveHistory(context.companyId, historyId);
     return {
-      revision: this.revisions.get(context.companyId) ?? 0,
+      revision: this.revision(context.companyId),
       canWrite: this.canWrite,
-      data,
+      data: this.companyRows(context.companyId),
       today: this.todayFor(context.companyId),
       capacity: this.capacity ?? emptyCapacity(window),
+      history: {
+        canUndo: this.canWrite && !!history && history.past.length > 0,
+        canRedo: this.canWrite && !!history && history.future.length > 0,
+      },
     };
   }
 
@@ -157,6 +188,8 @@ export class StubPlanningTransport implements PlanningTransport {
     this.calls.push(structuredClone(execution.intent));
     const queued = this.queued.shift();
     if (queued?.kind === 'error') throw queued.error;
+    const previousRevision = this.revision(context.companyId);
+    const before = this.companyRows(context.companyId);
     let receipt: PlanningMutationSuccess;
     if (queued) {
       receipt =
@@ -176,7 +209,152 @@ export class StubPlanningTransport implements PlanningTransport {
       };
     }
     this.revisions.set(context.companyId, receipt.revision);
+    this.record(
+      context.companyId,
+      execution.historyId ?? undefined,
+      previousRevision,
+      receipt.revision,
+      {
+        before,
+        after: this.companyRows(context.companyId),
+      },
+    );
     return structuredClone(receipt);
+  }
+
+  undo(
+    context: PlanningClientContext,
+    step: PlanningHistoryStep,
+    signal: AbortSignal,
+  ): Promise<PlanningMutationSuccess> {
+    return this.step('undo', context, step, signal);
+  }
+
+  redo(
+    context: PlanningClientContext,
+    step: PlanningHistoryStep,
+    signal: AbortSignal,
+  ): Promise<PlanningMutationSuccess> {
+    return this.step('redo', context, step, signal);
+  }
+
+  /**
+   * Swaps the company's rows back to the recorded before or after state. Like the server, a row the
+   * step changes gets a later `updatedAt`, a stale basis is refused with STALE_REVISION, an empty
+   * direction with a bare 409, and a queued refusal ends the history.
+   */
+  private async step(
+    kind: 'undo' | 'redo',
+    context: PlanningClientContext,
+    step: PlanningHistoryStep,
+    signal: AbortSignal,
+  ): Promise<PlanningMutationSuccess> {
+    signal.throwIfAborted();
+    this.historySteps.push(kind);
+    const { companyId } = context;
+    if (this.queued[0]?.kind === 'error') {
+      const queued = this.queued.shift() as Extract<Queued, { kind: 'error' }>;
+      this.histories.delete(companyId);
+      throw queued.error;
+    }
+    const revision = this.revision(companyId);
+    if (step.baseRevision !== revision) {
+      throw new PlanningControllerError('The planning data changed.', 'STALE_REVISION', 409);
+    }
+    const history = this.liveHistory(companyId, step.historyId);
+    const change = kind === 'undo' ? history?.past.pop() : history?.future.pop();
+    if (!history || !change) {
+      throw new PlanningControllerError(`There is nothing to ${kind}.`, undefined, 409);
+    }
+    this.replaceCompanyRows(companyId, kind === 'undo' ? change.before : change.after, kind);
+    (kind === 'undo' ? history.future : history.past).push(change);
+    history.revision = revision + 1;
+    this.revisions.set(companyId, history.revision);
+    return {
+      status: 'committed',
+      mutationId: step.mutationId,
+      revision: history.revision,
+      restoration: { consumedGroupId: null, replacementGroupId: null },
+    };
+  }
+
+  private revision(companyId: string): number {
+    return this.revisions.get(companyId) ?? 0;
+  }
+
+  /** The company's history when it belongs to `historyId` and no other change has moved past it. */
+  private liveHistory(companyId: string, historyId: string | undefined) {
+    const history = this.histories.get(companyId);
+    return history &&
+      historyId === history.historyId &&
+      history.revision === this.revision(companyId)
+      ? history
+      : undefined;
+  }
+
+  /** Records a committed change: it extends the writer's live history or starts a new one. */
+  private record(
+    companyId: string,
+    historyId: string | undefined,
+    previousRevision: number,
+    revision: number,
+    change: HistoryChange,
+  ): void {
+    if (historyId === undefined) {
+      this.histories.delete(companyId);
+      return;
+    }
+    const current = this.histories.get(companyId);
+    const continues =
+      current?.historyId === historyId && current.revision === previousRevision ? current : null;
+    this.histories.set(companyId, {
+      historyId,
+      revision,
+      past: [...(continues?.past ?? []), change].slice(-HISTORY_LIMIT),
+      future: [],
+    });
+  }
+
+  private companyRows(companyId: string): AppData {
+    const data = emptyAppData();
+    for (const entity of APP_DATA_KEYS) {
+      const rows = this.rows(entity).filter((row) =>
+        entity === 'accounts' ? row.id === companyId : row.companyId === companyId,
+      );
+      Object.assign(data, { [entity]: structuredClone(rows) });
+    }
+    return data;
+  }
+
+  private replaceCompanyRows(companyId: string, rows: AppData, kind: 'undo' | 'redo'): void {
+    for (const entity of APP_DATA_KEYS) {
+      const inCompany = (row: Row) =>
+        entity === 'accounts' ? row.id === companyId : row.companyId === companyId;
+      const others = this.rows(entity).filter((row) => !inCompany(row));
+      const current = new Map(
+        this.rows(entity)
+          .filter(inCompany)
+          .map((row) => [row.id, row]),
+      );
+      const target = structuredClone(rows[entity]) as unknown as Row[];
+      const restored = target.map((row) => {
+        const previous = current.get(row.id);
+        current.delete(row.id);
+        if (!previous || sameContent(previous, row)) return row;
+        return { ...row, updatedAt: laterThan(previous.updatedAt) };
+      });
+      // The server undoes the creation of an archivable row by archiving it, not deleting it.
+      const archived =
+        kind === 'undo'
+          ? [...current.values()]
+              .filter((row) => 'archivedAt' in row)
+              .map((row) => {
+                const updatedAt = laterThan(row.updatedAt);
+                return { ...row, archivedAt: row.archivedAt ?? updatedAt, updatedAt };
+              })
+          : [];
+      this.replaceRows(entity, [...others, ...restored, ...archived]);
+    }
   }
 
   private rows(entity: AppDataKey): Row[] {
@@ -217,11 +395,7 @@ export class StubPlanningTransport implements PlanningTransport {
     const update = (entity: AppDataKey, id: string, changes: object) => {
       const previous = this.rows(entity).find((row) => row.id === id);
       if (!previous) throw new Error(`stub: load ${entity} row ${id} before updating it`);
-      // Like the server's createServerRevision, a write always moves updatedAt forward, even
-      // within the millisecond of the previous write.
-      const after = Date.parse(String(previous.updatedAt)) + 1;
-      const updatedAt = new Date(Number.isNaN(after) ? Date.now() : Math.max(Date.now(), after));
-      const row = { ...previous, ...changes, updatedAt: updatedAt.toISOString() };
+      const row = { ...previous, ...changes, updatedAt: laterThan(previous.updatedAt) };
       this.replaceRows(
         entity,
         this.rows(entity).map((current) => (current.id === id ? row : current)),
@@ -291,7 +465,6 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'allocation.createGroup':
       case 'allocation.deleteGroup':
       case 'allocation.duplicate':
-      case 'planning.restoreGroup':
       case 'timeOff.deleteGroup':
       case 'timeOff.repeat':
         throw new Error(`stub: queue a response for ${intent.operation}`);

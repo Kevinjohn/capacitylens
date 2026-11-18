@@ -32,12 +32,14 @@ The suites cover the frontend, backend and shared workspace packages.
   a refused response; successful writes are never mocked.
 - Planning-controller transition tests use controlled responses to check revision ordering,
   pending and unconfirmed outcomes (including HTTP 408), context invalidation, explicit server write
-  authority and page-local typed history capped at 50 entries. A missing write capability rejects
+  authority, the page's history id on every read and write, and Undo and Redo availability taken
+  only from the read. A missing write capability rejects
   the snapshot; a read-only snapshot cannot open a writable draft or execute history. Completion results are suppressed if the initiating context changes during the
-  post-commit read. Activity updates supplying a kind conservatively clear typed history because
-  kind changes can discard allocation bindings that the inverse cannot recover. Activity updates
-  omitting kind retain ordinary history behaviour, including project or phase changes. Settings
-  updates and catalogue privacy/code-name updates also clear typed history. Pure command builders
+  post-commit read. A context change or a lost reply starts a new history id, and a refused Undo or
+  Redo is followed by a read. The test transport keeps the server's history rules: it swaps recorded
+  before and after rows, and ends a history on another id, no id or a revision it does not hold.
+  Server tests cover the history itself: its limit, what ends it and its stored inverses. Pure
+  command builders
   preserve captured fields and send explicit non-delete intents: an unchanged allocation copy uses
   source-ID duplication, while a copy with edited non-date fields uses explicit creation with a fresh
   ID. Scheduler booking commands use these builders. A separate
@@ -45,7 +47,7 @@ The suites cover the frontend, backend and shared workspace packages.
   create, move, resize, reassign, duplicate, grouped creation, archive/unarchive, update
   Undo/Redo, stale-edit refusal, lost-response
   recovery by refetch and sign-out cache clearing. The schedule uses the controller for bookings,
-  and Undo/Redo share page-local history for eligible acknowledged typed planning changes. History is
+  and Undo/Redo step through the server-held history for the page. History is
   cleared on context changes and does not cover imports or irreversible privacy actions. Server
   tests cover session-bound deletion and restoration of bookings,
   time off, closures, phases and disciplines through the typed routes. Deleted rows stay hidden

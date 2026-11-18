@@ -323,14 +323,6 @@ async function sendOperation(
           signal,
         }),
       );
-    case 'planning.restoreGroup':
-      return requireReply(
-        await apiClient.request('api.planning.restoreGroup', {
-          params,
-          body: { ...execution, intent },
-          signal,
-        }),
-      );
   }
   throw new PlanningControllerError(
     'This planning operation is not available.',
@@ -342,13 +334,16 @@ async function sendOperation(
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
 export function createPlanningTransport(apiClient: PlanningClient = client): PlanningTransport {
   return {
-    async read(context, signal, window) {
+    async read(context, signal, { window, historyId } = {}) {
       try {
         const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { companyId: context.companyId },
-            query: window ? { from: window.from, to: window.to } : {},
+            query: {
+              ...(window ? { from: window.from, to: window.to } : {}),
+              ...(historyId === undefined ? {} : { historyId }),
+            },
             signal,
           }),
         );
@@ -365,6 +360,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           data: snapshot.data,
           today: snapshot.today,
           capacity: snapshot.capacity,
+          history: snapshot.history,
           accessKey: JSON.stringify([
             authority.actorId,
             authority.effectiveActorId,
@@ -385,6 +381,30 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           context,
           execution,
           signal,
+        );
+      } catch (error) {
+        throw planningError(error);
+      }
+    },
+    async undo(context, step, signal) {
+      try {
+        return requireReply(
+          await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
+            'api.planning.undo',
+            { params: { companyId: context.companyId }, body: step, signal },
+          ),
+        );
+      } catch (error) {
+        throw planningError(error);
+      }
+    },
+    async redo(context, step, signal) {
+      try {
+        return requireReply(
+          await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
+            'api.planning.redo',
+            { params: { companyId: context.companyId }, body: step, signal },
+          ),
         );
       } catch (error) {
         throw planningError(error);

@@ -151,8 +151,8 @@ export function createPlanningSessionSlice(
       const receipt = await controller.execute(
         controller.begin(),
         command.intent,
-        command.inverse,
         command.expectedUpdatedAt,
+        command.endsHistory,
       );
       if (!receipt) throw new PlanningSaveCancelledError();
       return receipt;

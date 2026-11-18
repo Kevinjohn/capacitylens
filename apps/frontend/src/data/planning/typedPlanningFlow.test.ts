@@ -35,7 +35,7 @@ function flow(initial: PlanningCacheState['data']) {
 }
 
 describe('typed planning flow', () => {
-  it('publishes settings and keeps their inverse through Undo and Redo', async () => {
+  it('publishes settings and takes them back and forward through Undo and Redo', async () => {
     const initial = makeAppData({
       accounts: [makeAccount({ id: companyId, dateStyle: null, timezone: null })],
     });
@@ -51,13 +51,13 @@ describe('typed planning flow', () => {
     });
     if (!command) throw new Error('Expected settings command.');
 
-    await controller.execute(controller.begin(), command.intent, command.inverse);
+    await controller.execute(controller.begin(), command.intent);
     expect(state().data.accounts[0]).toMatchObject({
       dateStyle: 'month-day',
       timezone: 'Europe/London',
     });
     expect(state().planning.revision).toBe(1);
-    expect(state().planning.history.past).toHaveLength(1);
+    expect(state().planning.history.canUndo).toBe(true);
 
     await controller.undo();
     expect(state().data.accounts[0]).toMatchObject({ dateStyle: null, timezone: null });
@@ -70,7 +70,7 @@ describe('typed planning flow', () => {
     expect(state().planning.revision).toBe(3);
   });
 
-  it('binds Undo to the restoration handle returned with a deletion receipt', async () => {
+  it('asks the server to undo a deletion and shows the rows it restores', async () => {
     const initial = makeAppData({
       accounts: [makeAccount({ id: companyId })],
       projects: [
@@ -123,45 +123,23 @@ describe('typed planning flow', () => {
       transport,
     );
 
-    await controller.execute(
-      controller.begin(),
-      { operation: 'catalogue.delete', entity: { entity: 'phases', id: 'phase-1' } },
-      { operation: 'planning.restoreGroup', restorationGroupId: '' },
-    );
+    await controller.execute(controller.begin(), {
+      operation: 'catalogue.delete',
+      entity: { entity: 'phases', id: 'phase-1' },
+    });
     expect(state().data.phases).toHaveLength(0);
     expect(state().data.activities[0]?.phaseId).toBeNull();
-    expect(state().planning.history.past[0]?.inverse).toEqual({
-      operation: 'planning.restoreGroup',
-      restorationGroupId: 'phase-delete-group',
-    });
+    expect(state().planning.history).toEqual({ canUndo: true, canRedo: false });
 
-    const phase = requireValue(initial.phases[0], 'phase fixture');
-    const activityForRestore = requireValue(
-      state().data.activities[0],
-      'activity after phase delete',
-    );
-    queuePlanningPatch(
-      () => ({
-        removed: [],
-        upserts: [
-          { entity: 'phases', row: phase },
-          { entity: 'activities', row: { ...activityForRestore, phaseId: phase.id } },
-        ],
-      }),
-      { consumedGroupId: 'phase-delete-group' },
-      transport,
-    );
-    await controller.undo();
+    await expect(controller.undo()).resolves.toBe(true);
 
-    expect(transport.calls.at(-1)).toEqual({
-      operation: 'planning.restoreGroup',
-      restorationGroupId: 'phase-delete-group',
-    });
+    expect(transport.calls).toHaveLength(1);
+    expect(transport.historySteps).toEqual(['undo']);
     expect(state().data.phases).toMatchObject([{ id: 'phase-1' }]);
     expect(state().data.activities[0]?.phaseId).toBe('phase-1');
   });
 
-  it('uses archive and unarchive intents for resource creation history without changing its id', async () => {
+  it('undoes and redoes a resource creation without changing its id', async () => {
     const initial = makeAppData({ accounts: [makeAccount({ id: companyId })] });
     const { controller, state, transport } = flow(initial);
     await controller.refresh();
@@ -185,59 +163,16 @@ describe('typed planning flow', () => {
       },
     });
     if (!command) throw new Error('Expected resource command.');
-    await controller.execute(controller.begin(), command.intent, command.inverse);
-    await controller.undo();
-    expect(state().data.resources[0]?.id).toBe(id);
-    expect(state().data.resources[0]?.archivedAt).not.toBeNull();
-    await controller.redo();
+    await controller.execute(controller.begin(), command.intent);
+    await expect(controller.undo()).resolves.toBe(true);
+    expect(state().data.resources.filter((row) => !row.archivedAt)).toEqual([]);
+    expect(state().planning.history).toEqual({ canUndo: false, canRedo: true });
+    await expect(controller.redo()).resolves.toBe(true);
     expect(state().data.resources).toHaveLength(1);
     expect(state().data.resources[0]?.id).toBe(id);
     expect(state().data.resources[0]?.archivedAt).toBeNull();
-    expect(transport.calls.map(({ operation }) => operation)).toEqual([
-      'resource.create',
-      'resource.archive',
-      'resource.unarchive',
-    ]);
-  });
-
-  it('honors the server history directive after a privacy change', async () => {
-    const client = makeClient({
-      id: 'client-1',
-      companyId: companyId,
-      name: 'Wayne Enterprises',
-    });
-    const initial = makeAppData({
-      accounts: [makeAccount({ id: companyId })],
-      clients: [client],
-    });
-    const { controller, state, transport } = flow(initial);
-    await controller.refresh();
-    const next = { ...client, isPrivate: true, codeName: 'Project Bat' };
-    transport.respondNext(
-      (execution) => ({
-        status: 'committed',
-        mutationId: execution.mutationId,
-        revision: execution.baseRevision + 1,
-        restoration: { consumedGroupId: null, replacementGroupId: null },
-      }),
-      { ...initial, clients: [next] },
-    );
-
-    await controller.execute(
-      controller.begin(),
-      {
-        operation: 'catalogue.update',
-        entity: {
-          entity: 'clients',
-          id: client.id,
-          changes: { isPrivate: true, codeName: 'Project Bat' },
-        },
-      },
-      null,
-    );
-
-    expect(state().data.clients[0]).toMatchObject({ isPrivate: true, codeName: 'Project Bat' });
-    expect(state().planning.history.past).toHaveLength(0);
+    expect(transport.calls.map(({ operation }) => operation)).toEqual(['resource.create']);
+    expect(transport.historySteps).toEqual(['undo', 'redo']);
   });
 
   it('keeps a failed draft out of canonical rows while recording its sent intent', async () => {
@@ -251,14 +186,10 @@ describe('typed planning flow', () => {
     transport.failNext(new Error('server refusal'));
 
     await expect(
-      controller.execute(
-        controller.begin(),
-        {
-          operation: 'catalogue.update',
-          entity: { entity: 'clients', id: client.id, changes: { name: 'Wayne Studio' } },
-        },
-        null,
-      ),
+      controller.execute(controller.begin(), {
+        operation: 'catalogue.update',
+        entity: { entity: 'clients', id: client.id, changes: { name: 'Wayne Studio' } },
+      }),
     ).rejects.toThrow('server refusal');
 
     expect(transport.calls).toEqual([

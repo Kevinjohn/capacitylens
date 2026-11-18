@@ -147,12 +147,12 @@ describe('store scheduler UI', () => {
   it('preserves undo and redo across an unchanged same-account replacement', async () => {
     await s().addClient({ name: 'Undoable', color: '#111111' });
     await s().undoPlanning();
-    expect(s().planning.history.future).toHaveLength(1);
+    expect(s().planning.history.canRedo).toBe(true);
 
     updatePlanningFixtureSource(structuredClone(s().data));
     await s().refreshPlanning();
 
-    expect(s().planning.history.future).toHaveLength(1);
+    expect(s().planning.history.canRedo).toBe(true);
     await s().redoPlanning();
     expect(s().data.clients.some((client) => client.name === 'Undoable')).toBe(true);
   });
@@ -161,7 +161,7 @@ describe('store scheduler UI', () => {
     const client = await requireCreated(s().addClient({ name: 'Local', color: '#111111' }));
     await s().addClient({ name: 'Another local client', color: '#222222' });
     await s().undoPlanning();
-    expect(s().planning.history.future).toHaveLength(1);
+    expect(s().planning.history.canRedo).toBe(true);
     const revision = s().planning.revision;
     const context = s().planning.context;
     if (revision === null || !context) throw new Error('Expected a ready planning context.');
@@ -200,8 +200,8 @@ describe('store scheduler UI', () => {
     );
     await s().refreshPlanning();
 
-    expect(s().planning.history.past).toEqual([]);
-    expect(s().planning.history.future).toEqual([]);
+    expect(s().planning.history.canUndo).toBe(false);
+    expect(s().planning.history.canRedo).toBe(false);
   });
 
   it.each([0, 1] as const)(

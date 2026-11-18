@@ -5,7 +5,6 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  inverse,
   canonicalData,
   companyToday,
   success,
@@ -45,7 +44,7 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
     });
     expect(draft.baseRevision).toBe(3);
-    await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({
+    await expect(h.controller.execute(draft, intent)).rejects.toMatchObject({
       code: 'STALE_REVISION',
     });
     expect(execute).toHaveBeenCalledTimes(1);
@@ -87,7 +86,7 @@ describe('planning cache controller', () => {
       operation: 'settings.update',
       changes: { timezone: 'Europe/Paris' },
     } as PlanningIntent;
-    await expect(h.controller.execute(gesture, finalIntent, inverse)).rejects.toMatchObject({
+    await expect(h.controller.execute(gesture, finalIntent)).rejects.toMatchObject({
       code: 'STALE_REVISION',
     });
     expect(execute.mock.calls[0]?.[1]).toMatchObject({ baseRevision: 1, intent: finalIntent });
@@ -111,14 +110,14 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.controller.refresh();
     const draft = h.controller.begin();
-    await expect(h.controller.execute(draft, intent, inverse)).resolves.toMatchObject({
+    await expect(h.controller.execute(draft, intent)).resolves.toMatchObject({
       revision: 2,
     });
     expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 2 });
     expect(h.state().planning.status).toBe('error');
     expect(h.state().planning.pending).not.toBeNull();
     expect(() => h.controller.begin()).toThrow();
-    await expect(h.controller.execute(draft, intent, inverse)).rejects.toThrow();
+    await expect(h.controller.execute(draft, intent)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });

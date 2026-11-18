@@ -117,12 +117,6 @@ const cases: Array<{
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
-    intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
-    method: 'POST',
-    path: 'planning/restore-group',
-    restoration: { consumedGroupId: groupId, replacementGroupId: null },
-  },
-  {
     intent: { operation: 'resource.create', id, fields: resource },
     method: 'POST',
     path: 'resources',
@@ -333,12 +327,54 @@ describe('generated planning transport', () => {
     const reply = { companyId: 'wayne', revision: 5, authority, data: emptyAppData(), capacity };
     const { transport, requests } = harness(reply);
 
-    const result = await transport.read(context, signal, capacity.window);
+    const result = await transport.read(context, signal, { window: capacity.window });
     await transport.read(context, signal);
 
     expect(result.capacity).toEqual(capacity);
     expect(new URL(requests[0]?.url ?? '').search).toBe('?from=2026-05-04&to=2026-09-28');
     expect(new URL(requests[1]?.url ?? '').search).toBe('');
+  });
+
+  it("names the page's history on a read and returns the availability the server reports", async () => {
+    const historyId = '4c0b5e0e-8f53-4d5b-9a4c-2f7f1e9d6a10';
+    const history = { canUndo: true, canRedo: false };
+    const { transport, requests } = harness({
+      companyId: 'wayne',
+      revision: 5,
+      authority: { actorId: 'bruce', effectiveActorId: 'bruce', role: 'owner', canWrite: true },
+      data: emptyAppData(),
+      history,
+    });
+
+    const result = await transport.read(context, signal, { historyId });
+
+    expect(result.history).toEqual(history);
+    expect(new URL(requests[0]?.url ?? '').searchParams.get('historyId')).toBe(historyId);
+  });
+
+  it.each(['undo', 'redo'] as const)(
+    "posts %s with only the step's identity, revision and history id",
+    async (kind) => {
+      const step = { mutationId, baseRevision: 5, historyId: id };
+      const receipt = { status: 'committed', mutationId, revision: 6, restoration: noRestoration };
+      const { transport, requests } = harness(receipt);
+
+      expect(await transport[kind](context, step, signal)).toEqual(receipt);
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe(`http://planning.test/api/companies/wayne/planning/${kind}`);
+      expect(requests[0]?.method).toBe('POST');
+      expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
+      expect(await requests[0]?.json()).toEqual(step);
+    },
+  );
+
+  it('surfaces a refused undo as a planning refusal', async () => {
+    const { transport } = harness({ error: 'There is nothing to undo.' }, 409);
+
+    await expect(
+      transport.undo(context, { mutationId, baseRevision: 5, historyId: id }, signal),
+    ).rejects.toMatchObject({ status: 409, message: 'There is nothing to undo.' });
   });
 
   it('surfaces a stale proof on a canonical read without replaying it', async () => {

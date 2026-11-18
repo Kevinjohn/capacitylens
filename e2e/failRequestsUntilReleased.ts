@@ -11,7 +11,7 @@ export interface RequestFailureGate {
  * the production recovery path rather than replacing the application with mocks. */
 export async function failRequestsUntilReleased(
   page: Page,
-  url: string,
+  url: string | RegExp,
   response: { status: number; body: Record<string, unknown> },
 ): Promise<RequestFailureGate> {
   let released = false;

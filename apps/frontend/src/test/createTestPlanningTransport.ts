@@ -10,6 +10,8 @@ export function createTestPlanningTransport(
   const transport = wrap({
     read: stub.read.bind(stub),
     execute: stub.execute.bind(stub),
+    undo: stub.undo.bind(stub),
+    redo: stub.redo.bind(stub),
   });
   setPlanningTransportHandle({
     transport,

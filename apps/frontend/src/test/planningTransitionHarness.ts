@@ -14,6 +14,7 @@ import type {
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
 
 // Shared setup for the planning cache controller transition tests.
 
@@ -23,13 +24,12 @@ export const update: PlanningIntent = {
   id: 'allocation-1',
   changes: { startDate: '2026-10-21' },
 };
-export const inverse: PlanningIntent = {
-  operation: 'allocation.update',
-  id: 'allocation-1',
-  changes: { startDate: '2026-10-20' },
-};
 
-export function snapshot(revision: number, clientName = 'Wayne Enterprises'): PlanningSnapshot {
+export function snapshot(
+  revision: number,
+  clientName = 'Wayne Enterprises',
+  history = { canUndo: false, canRedo: false },
+): PlanningSnapshot {
   return {
     revision,
     canWrite: true,
@@ -40,6 +40,7 @@ export function snapshot(revision: number, clientName = 'Wayne Enterprises'): Pl
     }),
     today: '2026-06-03',
     capacity: emptyCapacity(),
+    history,
   };
 }
 
@@ -71,23 +72,46 @@ export type Options = Pick<PlanningControllerOptions, 'onAuthLoss' | 'confirmRes
 
 export function setup(options: Options = {}) {
   const store = createStore<PlanningCacheState>(() => createPlanningCacheState());
-  const server = { revision: 1 };
-  const read = vi.fn<PlanningTransport['read']>(async () => snapshot(server.revision));
+  const server = { revision: 1, history: createServerHistoryModel() };
+  const read = vi.fn<PlanningTransport['read']>(async (_context, _signal, request) =>
+    snapshot(
+      server.revision,
+      undefined,
+      server.history.report(request?.historyId, server.revision),
+    ),
+  );
   const execute = vi.fn<PlanningTransport['execute']>(async (_context, execution) => {
     server.revision = execution.baseRevision + 1;
+    server.history.committed(execution.historyId, execution.baseRevision, server.revision);
     return receipt(execution.mutationId, server.revision);
   });
+  const stepper = (kind: 'undo' | 'redo') =>
+    vi.fn<PlanningTransport['undo']>(async (_context, step) => {
+      if (step.baseRevision !== server.revision) {
+        throw Object.assign(new Error('The planning data changed.'), {
+          code: 'STALE_REVISION',
+          status: 409,
+        });
+      }
+      server.history.step(kind, step.historyId, server.revision, server.revision + 1);
+      server.revision += 1;
+      return receipt(step.mutationId, server.revision);
+    });
+  const undo = stepper('undo');
+  const redo = stepper('redo');
   let id = 0;
+  let historyNumber = 0;
   const controller = createPlanningCacheController({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
-    transport: { read, execute },
+    transport: { read, execute, undo, redo },
     createMutationId: () => `mutation-${++id}`,
+    createHistoryId: () => `history-${++historyNumber}`,
     ...options,
   });
   const state = () => store.getState();
-  return { store, state, server, read, execute, controller };
+  return { store, state, server, read, execute, undo, redo, controller };
 }
 
 export async function ready(options: Options = {}) {
@@ -97,11 +121,11 @@ export async function ready(options: Options = {}) {
   return h;
 }
 
-/** Ready at revision 2 with one acknowledged Undo entry. */
+/** Ready at revision 2 with one change the server reports as undoable. */
 export async function readyWithHistory(options: Options = {}) {
   const h = await ready(options);
-  await h.controller.execute(h.controller.begin(), update, inverse);
-  expect(h.state().planning.history.past).toHaveLength(1);
+  await h.controller.execute(h.controller.begin(), update);
+  expect(h.state().planning.history).toEqual({ canUndo: true, canRedo: false });
   expect(h.state().planning.revision).toBe(2);
   return h;
 }

@@ -1,5 +1,5 @@
 import type { StateCreator, StoreApi } from 'zustand';
-import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
+import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import {
   assertAllocationWithinResourceAvailability,
   assertDateRange,
@@ -35,12 +35,6 @@ export type AllocationSliceInternals = Pick<
   StoreInternals,
   'requireAccount' | 'blockedByViewer' | 'assertAllocation' | 'resolveOwnedRow' | 'applyPatch'
 >;
-
-// A delete's Undo uses the server's restoration handle, which the controller fills from the receipt.
-const RESTORE_FROM_RECEIPT: PlanningIntent = {
-  operation: 'planning.restoreGroup',
-  restorationGroupId: '',
-};
 
 function assertSuppliedHours(hours: number): void {
   if (!Number.isFinite(hours) || hours < 0 || hours > MAX_HOURS_PER_DAY) {
@@ -158,7 +152,7 @@ export function createAllocationSlice(
         if (command.intent.operation !== 'allocation.create') {
           throw new Error('Unexpected allocation command.');
         }
-        // Later occurrence ids are minted here too, so Undo can delete the whole set by id.
+        // Later occurrence ids are minted here too, so every created row can be returned by id.
         const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
         const ids = [draft.id, ...occurrenceIds];
         const receipt = await send({
@@ -168,7 +162,6 @@ export function createAllocationSlice(
             repeat,
             occurrenceIds,
           },
-          inverse: { operation: 'allocation.deleteGroup', ids },
         });
         return { kind: 'created', value: createdRows(get, ids), ...readSaveAdvisory(receipt) };
       },
@@ -221,10 +214,7 @@ export function createAllocationSlice(
       },
       deleteAllocation: async (id) => {
         if (blockedByViewer() || !resolveOwnedRow(get().data, 'allocations', id)) return;
-        await send({
-          intent: { operation: 'allocation.delete', id },
-          inverse: RESTORE_FROM_RECEIPT,
-        });
+        await send({ intent: { operation: 'allocation.delete', id } });
       },
       deleteAllocationSeriesFrom: async (id) => {
         if (blockedByViewer()) return;
@@ -241,10 +231,7 @@ export function createAllocationSlice(
               allocation.startDate >= startDate,
           )
           .map((allocation) => allocation.id);
-        await send({
-          intent: { operation: 'allocation.deleteGroup', ids },
-          inverse: RESTORE_FROM_RECEIPT,
-        });
+        await send({ intent: { operation: 'allocation.deleteGroup', ids } });
       },
     };
   };

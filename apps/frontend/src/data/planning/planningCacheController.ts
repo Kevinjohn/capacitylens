@@ -1,10 +1,6 @@
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import type {
-  PlanningHistoryEntry,
-  PlanningIntent,
-  PlanningMutationSuccess,
-} from '@/api/planningContracts';
+import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import type {
   PlanningCacheState,
   PlanningCacheStore,
@@ -18,17 +14,29 @@ import type {
 } from './planningCacheTypes';
 import { errorDetails, PlanningControllerError } from './planningErrors';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
-import {
-  cloneImmutable,
-  emptyHistory,
-  isDeleteIntent,
-  isHistoryEligible,
-  movedHistory,
-} from './planningHistory';
 import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './planningReceipts';
 
 // A declined restoration confirmation; distinct from any reply the transport can return.
 const DECLINED = Symbol('declined');
+
+/** Neither direction is available: the state before a read reports the page's history. */
+const noHistory = (): PlanningHistory => ({ canUndo: false, canRedo: false });
+
+function cloneImmutable<T>(value: T): T {
+  const cloned = structuredClone(value);
+  const freeze = (item: unknown): void => {
+    if (item === null || typeof item !== 'object' || Object.isFrozen(item)) return;
+    Object.freeze(item);
+    for (const child of Object.values(item)) freeze(child);
+  };
+  freeze(cloned);
+  return cloned;
+}
+
+/** A new change carries its intent; an undo or redo names only the page's server-held history. */
+type AttemptRequest =
+  | { kind: 'new'; intent: PlanningIntent; expectedUpdatedAt?: string; endsHistory: boolean }
+  | { kind: 'undo' | 'redo' };
 
 const initialMetadata = (
   context: PlanningClientContext | null = null,
@@ -40,7 +48,7 @@ const initialMetadata = (
   today: null,
   capacity: null,
   status: context ? 'loading' : 'idle',
-  history: emptyHistory(),
+  history: noHistory(),
   pending: null,
   outcome: null,
   error: null,
@@ -72,11 +80,17 @@ function losesScope(error: unknown): boolean {
   return details.status === 401;
 }
 
-/** Owns one client's planning request ordering and page-local typed history. */
+/**
+ * Owns one client's planning request ordering and the page's history id. The server holds the
+ * history itself; the id lives only in memory, so a reload starts a new, empty history.
+ */
 export function createPlanningCacheController(options: PlanningControllerOptions) {
   const { transport } = options;
   const store: PlanningCacheStore = { getState: options.getState, setState: options.setState };
   const createMutationId = options.createMutationId ?? (() => crypto.randomUUID());
+  const createHistoryId = options.createHistoryId ?? (() => crypto.randomUUID());
+  // Replacing the id ends the page's history: the server never reports another id's steps.
+  let historyId = createHistoryId();
   const withContextToken = (context: PlanningClientContext): PlanningClientContext =>
     context.masqueradeContextToken === undefined
       ? Object.freeze({ ...context, masqueradeContextToken: options.readMasqueradeContextToken() })
@@ -89,7 +103,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   let readController: AbortController | null = null;
   let attempt: {
     pending: PlanningPendingMutation;
-    history: PlanningHistory;
     draft: PlanningDraft;
   } | null = null;
 
@@ -127,6 +140,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     readSequence += 1;
     attempt = null;
     accessKeyEstablished = false;
+    historyId = createHistoryId();
     abortAll();
     store.setState(() => ({ data: emptyAppData(), planning: initialMetadata(frozenContext) }));
   }
@@ -157,6 +171,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       generation += 1;
       readSequence += 1;
       attempt = null;
+      historyId = createHistoryId();
       abortAll();
       accessKeyEstablished = true;
       store.setState(() => ({
@@ -179,33 +194,12 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (older) throw new PlanningControllerError('The canonical planning read was stale.');
     if (snapshot.accessKey !== undefined) accessKeyEstablished = true;
 
-    const owner = attempt;
-    const commitment = owner?.pending.commitment;
+    const commitment = attempt?.pending.commitment;
     const finalized = !!commitment && snapshot.revision >= commitment.revision;
-    let history = current.planning.history;
-    if (finalized) {
-      const exact = snapshot.revision === commitment.revision;
-      const restorationAvailable =
-        !isDeleteIntent(owner.pending.execution.intent) || !!commitment.replacementHandle;
-      history =
-        exact && commitment.historyEligible && restorationAvailable && historyMatches(owner.history)
-          ? movedHistory(
-              history,
-              owner.pending.kind,
-              owner.pending.historyEntry,
-              owner.pending.execution.intent,
-              owner.pending.inverse,
-              commitment.replacementHandle,
-              commitment.revision,
-            )
-          : emptyHistory();
-    } else if (
-      current.planning.revision !== null &&
-      snapshot.revision > current.planning.revision &&
-      !current.planning.pending
-    ) {
-      history = emptyHistory();
-    }
+    // The read is the only source of the page's undo and redo availability; none reported is none.
+    const history = snapshot.history
+      ? { canUndo: snapshot.history.canUndo, canRedo: snapshot.history.canRedo }
+      : noHistory();
     if (finalized) {
       attempt = null;
     }
@@ -263,11 +257,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       }));
     }
     try {
-      const snapshot = await transport.read(
-        withContextToken(context),
-        controller.signal,
-        options.readCapacityWindow?.(),
-      );
+      const window = options.readCapacityWindow?.();
+      const snapshot = await transport.read(withContextToken(context), controller.signal, {
+        ...(window ? { window } : {}),
+        historyId,
+      });
       if (!isCurrent(capturedGeneration, context)) return false;
       if (sequence !== readSequence) return await (latestRead ?? false);
       return acceptRead(snapshot);
@@ -316,37 +310,15 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     });
   }
 
-  function historyMatches(expected: PlanningHistory): boolean {
-    const actual = store.getState().planning.history;
-    return (
-      actual.past === expected.past &&
-      actual.future === expected.future &&
-      actual.tipRevision === expected.tipRevision
-    );
-  }
-
-  function acknowledge(
-    owner: NonNullable<typeof attempt>,
-    revision: number,
-    historyEligible: boolean,
-    replacementHandle?: string,
-  ): void {
+  function acknowledge(owner: NonNullable<typeof attempt>, revision: number): void {
     if (!ownsAttempt(owner)) return;
-    owner.pending = {
-      ...owner.pending,
-      commitment: {
-        revision,
-        historyEligible,
-        ...(replacementHandle ? { replacementHandle } : {}),
-      },
-    };
+    owner.pending = { ...owner.pending, commitment: { revision } };
     store.setState((state) => ({
       planning: {
         ...state.planning,
         status: 'pending',
         pending: owner.pending,
         outcome: { kind: 'acknowledged', mutationId: owner.pending.execution.mutationId, revision },
-        history: historyEligible ? state.planning.history : emptyHistory(),
         error: null,
       },
     }));
@@ -376,24 +348,30 @@ export function createPlanningCacheController(options: PlanningControllerOptions
 
   function startAttempt(
     draft: PlanningDraft,
-    intent: PlanningIntent,
-    inverse: PlanningIntent | null,
-    kind: 'new' | 'undo' | 'redo',
-    entry: PlanningHistoryEntry | null,
-    expectedUpdatedAt?: string,
+    request: AttemptRequest,
   ): NonNullable<typeof attempt> {
-    const pending: PlanningPendingMutation = {
-      execution: cloneImmutable({
-        mutationId: createMutationId(),
-        baseRevision: draft.baseRevision,
-        intent,
-        ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
-      }),
-      inverse: inverse ? cloneImmutable(inverse) : null,
-      historyEntry: entry ? cloneImmutable(entry) : null,
-      kind,
+    const identity = {
+      mutationId: createMutationId(),
+      baseRevision: draft.baseRevision,
+      historyId,
     };
-    const owner = { pending, history: store.getState().planning.history, draft };
+    const pending: PlanningPendingMutation =
+      request.kind === 'new'
+        ? {
+            kind: 'new',
+            execution: cloneImmutable({
+              mutationId: identity.mutationId,
+              baseRevision: identity.baseRevision,
+              // A write that names no history ends the company's history on the server.
+              ...(request.endsHistory ? {} : { historyId }),
+              intent: request.intent,
+              ...(request.expectedUpdatedAt === undefined
+                ? {}
+                : { expectedUpdatedAt: request.expectedUpdatedAt }),
+            }),
+          }
+        : { kind: request.kind, execution: cloneImmutable(identity) };
+    const owner = { pending, draft };
     attempt = owner;
     store.setState((current) => ({
       planning: {
@@ -407,14 +385,18 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     return owner;
   }
 
-  /** Sends the attempt, asking once to confirm restoration cleanup when the server requires it.
-   * Returns DECLINED when the person declines, after restoring the planning state from before. */
+  /** Sends the attempt, asking once to confirm restoration cleanup when the server requires it of
+   * a new change. Returns DECLINED when the person declines, after restoring the planning state
+   * from before. An undo or redo is never asked to confirm. */
   async function send(
     owner: NonNullable<typeof attempt>,
     before: PlanningControllerMetadata,
     controller: AbortController,
   ): Promise<PlanningMutationSuccess | typeof DECLINED> {
     const { pending, draft } = owner;
+    if (pending.kind !== 'new') {
+      return transport[pending.kind](draft.requestContext, pending.execution, controller.signal);
+    }
     try {
       return await transport.execute(draft.requestContext, pending.execution, controller.signal);
     } catch (error) {
@@ -449,7 +431,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
                   pending: null,
                   outcome: null,
                   error: null,
-                  history: emptyHistory(),
                 },
         }));
         return DECLINED;
@@ -465,8 +446,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   async function acceptReceipt(
     owner: NonNullable<typeof attempt>,
     receipt: PlanningMutationSuccess,
-    intent: PlanningIntent,
-    inverse: PlanningIntent | null,
   ): Promise<PlanningMutationSuccess | null> {
     const { pending, draft } = owner;
     if (!ownsAttempt(owner)) {
@@ -481,12 +460,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         true,
       );
     }
-    acknowledge(
-      owner,
-      receipt.revision,
-      isHistoryEligible(intent, inverse),
-      receipt.restoration.replacementGroupId ?? undefined,
-    );
+    acknowledge(owner, receipt.revision);
+    // The read after the commit is the only source of the page's undo and redo availability.
     await refresh();
     return isCurrent(draft.generation, draft.context) ? receipt : null;
   }
@@ -508,10 +483,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           ...(code ? { code } : {}),
         },
         error,
-        history:
-          current.planning.revision !== null && current.planning.revision > owner.draft.baseRevision
-            ? emptyHistory()
-            : current.planning.history,
       },
     }));
   }
@@ -519,9 +490,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   /**
    * A write whose reply was lost may or may not have committed. Show the server's state, clear undo
    * history and keep an `unconfirmed` outcome so the person checks their change; never resend it.
+   * A new history id is how the history clears: the server reports nothing for it yet.
    */
   async function settleUnconfirmed(owner: NonNullable<typeof attempt>): Promise<void> {
     attempt = null;
+    historyId = createHistoryId();
     store.setState((current) => ({
       planning: {
         ...current.planning,
@@ -529,7 +502,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         pending: null,
         outcome: { kind: 'unconfirmed', mutationId: owner.pending.execution.mutationId },
         error: null,
-        history: emptyHistory(),
+        history: noHistory(),
       },
     }));
     await refresh();
@@ -565,7 +538,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         details.code === 'NO_CHANGE' ||
         (details.status !== undefined && details.status < 500))
     ) {
-      if (ownsAttempt(owner)) markRefused(owner, error, details.code);
+      if (ownsAttempt(owner)) {
+        markRefused(owner, error, details.code);
+        // A refused undo or redo ends the page's history on the server; the read shows that.
+        if (owner.pending.kind !== 'new') await refresh();
+      }
       throw new PlanningControllerError(details.message, details.code, details.status);
     }
     if (ownsAttempt(owner)) await settleUnconfirmed(owner);
@@ -574,20 +551,16 @@ export function createPlanningCacheController(options: PlanningControllerOptions
 
   async function perform(
     draft: PlanningDraft,
-    intent: PlanningIntent,
-    inverse: PlanningIntent | null,
-    kind: 'new' | 'undo' | 'redo',
-    entry: PlanningHistoryEntry | null,
-    expectedUpdatedAt?: string,
+    request: AttemptRequest,
   ): Promise<PlanningMutationSuccess | null> {
     assertCanPerform(draft);
     const before = store.getState().planning;
-    const owner = startAttempt(draft, intent, inverse, kind, entry, expectedUpdatedAt);
+    const owner = startAttempt(draft, request);
     const controller = requestController();
     try {
       const receipt = await send(owner, before, controller);
       if (receipt === DECLINED) return null;
-      return await acceptReceipt(owner, receipt, intent, inverse);
+      return await acceptReceipt(owner, receipt);
     } catch (error) {
       return await settleFailure(owner, error);
     } finally {
@@ -596,69 +569,45 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   }
 
   /** Returns no receipt after context invalidation or a declined cleanup confirmation. An edit
-   * form passes its row's opening `updatedAt`; Undo and Redo never send one. */
+   * form passes its row's opening `updatedAt`; Undo and Redo never send one. A change that ends the
+   * history is sent without the page's history id, so it is not offered for undo. */
   async function execute(
     draft: PlanningDraft,
     intent: PlanningIntent,
-    inverse: PlanningIntent | null,
     expectedUpdatedAt?: string,
+    endsHistory = false,
   ): Promise<PlanningMutationSuccess | null> {
-    const forward = cloneImmutable(intent);
-    const undoIntent = inverse ? cloneImmutable(inverse) : null;
-    return perform(
-      draft,
-      forward,
-      undoIntent,
-      'new',
-      undoIntent ? { forward, inverse: undoIntent } : null,
-      expectedUpdatedAt,
-    );
+    return perform(draft, {
+      kind: 'new',
+      intent: cloneImmutable(intent),
+      endsHistory,
+      ...(expectedUpdatedAt === undefined ? {} : { expectedUpdatedAt }),
+    });
   }
 
-  function historyDraft(
-    kind: 'undo' | 'redo',
-  ): { draft: PlanningDraft; entry: PlanningHistoryEntry } | null {
+  /** Asks the server to take one step through the page's history, when it reported one. */
+  async function step(kind: 'undo' | 'redo'): Promise<boolean> {
     const state = store.getState();
-    const history = state.planning.history;
-    const entry = kind === 'undo' ? history.past.at(-1) : history.future.at(-1);
-    const targetIntent = kind === 'undo' ? entry?.inverse : entry?.forward;
     if (
-      !entry ||
-      !targetIntent ||
       !state.planning.context ||
       state.planning.revision === null ||
-      !isPlanningHistoryReady(state.planning)
+      !isPlanningHistoryReady(state.planning, kind)
     ) {
-      return null;
+      return false;
     }
     const context = Object.freeze({ ...state.planning.context });
     const requestContext = Object.freeze({
       ...context,
       masqueradeContextToken: options.readMasqueradeContextToken(),
     });
-    return {
-      entry,
-      draft: Object.freeze({
-        baseRevision: state.planning.revision,
-        context,
-        requestContext,
-        generation,
-      }),
-    };
-  }
-
-  async function undo(): Promise<boolean> {
-    const item = historyDraft('undo');
-    if (!item) return false;
-    await perform(item.draft, item.entry.inverse, item.entry.forward, 'undo', item.entry);
-    return isCurrent(item.draft.generation, item.draft.context);
-  }
-
-  async function redo(): Promise<boolean> {
-    const item = historyDraft('redo');
-    if (!item) return false;
-    await perform(item.draft, item.entry.forward, item.entry.inverse, 'redo', item.entry);
-    return isCurrent(item.draft.generation, item.draft.context);
+    const draft: PlanningDraft = Object.freeze({
+      baseRevision: state.planning.revision,
+      context,
+      requestContext,
+      generation,
+    });
+    await perform(draft, { kind });
+    return isCurrent(draft.generation, draft.context);
   }
 
   return {
@@ -666,7 +615,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     refresh,
     begin,
     execute,
-    undo,
-    redo,
+    undo: () => step('undo'),
+    redo: () => step('redo'),
   };
 }

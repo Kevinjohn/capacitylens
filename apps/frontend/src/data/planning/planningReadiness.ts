@@ -11,9 +11,16 @@ export function isPlanningReadyForChange(planning: PlanningControllerMetadata): 
   );
 }
 
-/** History controls use only the current acknowledged revision, with no unresolved write. */
-export function isPlanningHistoryReady(planning: PlanningControllerMetadata): boolean {
-  return isPlanningReadyForChange(planning) && planning.history.tipRevision === planning.revision;
+/** Undo or Redo is available when a change could be made and the server's last read reported a
+ * step in that direction for this page's history. */
+export function isPlanningHistoryReady(
+  planning: PlanningControllerMetadata,
+  step: 'undo' | 'redo',
+): boolean {
+  return (
+    isPlanningReadyForChange(planning) &&
+    (step === 'undo' ? planning.history.canUndo : planning.history.canRedo)
+  );
 }
 
 /**

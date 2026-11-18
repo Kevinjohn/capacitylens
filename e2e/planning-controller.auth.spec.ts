@@ -12,7 +12,7 @@ type Intent = Record<string, unknown> & { operation: string };
 interface HarnessState {
   revision: number | null;
   status: string;
-  history: { past: number; future: number; tipRevision: number | null };
+  history: { canUndo: boolean; canRedo: boolean };
   pending: { mutationId: string; baseRevision: number; operation: string } | null;
   outcome: string | null;
   context: { companyId: string; identity: string } | null;
@@ -196,8 +196,8 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     ],
   });
 
-  // A real server commit is held before the browser receives its response. The cache must remain pending,
-  // without history, until acknowledgement; then the dropped response ends in a canonical read.
+  // A real server commit is held before the browser receives its response. The cache must remain pending
+  // until acknowledgement; then the dropped response ends in a canonical read.
   const committedAtServer = deferred<{ status: number; body: unknown }>();
   const releaseResponse = deferred<void>();
   const updatePath = `**/api/companies/${companyId}/allocations/${allocationId}`;
@@ -212,18 +212,13 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     id: allocationId,
     changes: { endDate: '2026-10-29' },
   } satisfies Intent;
-  const heldInverse = {
-    operation: 'allocation.update',
-    id: allocationId,
-    changes: { endDate: '2026-10-27' },
-  } satisfies Intent;
   const started = await (async () => {
     try {
       const pendingStart = await callHarness<{
         mutationId: string;
         baseRevision: number;
         state: HarnessState;
-      }>(page, 'planningHarnessStart', primaryKey, heldUpdate, heldInverse);
+      }>(page, 'planningHarnessStart', primaryKey, heldUpdate);
       const serverCommit = await committedAtServer.promise;
       expect(serverCommit.status).toBe(200);
       expect(serverCommit.body).toMatchObject({
@@ -233,7 +228,6 @@ test('unactivated planning controller uses authenticated typed routes and reconc
       });
       expect(pendingStart.state).toMatchObject({
         status: 'pending',
-        history: { past: 0 },
         pending: { mutationId: pendingStart.mutationId },
       });
       const whileUnacknowledged = await callHarness<HarnessState>(
@@ -241,11 +235,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
         'planningHarnessState',
         primaryKey,
       );
-      expect(whileUnacknowledged).toMatchObject({
-        status: 'pending',
-        history: { past: 0 },
-        outcome: 'pending',
-      });
+      expect(whileUnacknowledged).toMatchObject({ status: 'pending', outcome: 'pending' });
       const committedSnapshot = await planningSnapshot(request, owner.cookie, companyId);
       expect(committedSnapshot.data.allocations).toContainEqual(
         expect.objectContaining({ id: allocationId, endDate: '2026-10-29' }),
@@ -266,7 +256,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   // the person is asked to check it. Nothing is resent.
   expect(lostResponse).toMatchObject({
     result: { kind: 'rejected' },
-    state: { status: 'ready', outcome: 'unconfirmed', history: { past: 0 } },
+    state: { status: 'ready', outcome: 'unconfirmed', history: { canUndo: false } },
   });
   expect(lostResponse.state.allocations).toContainEqual(
     expect.objectContaining({ id: allocationId, endDate: '2026-10-29' }),
@@ -292,49 +282,28 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   expect(staleDraft.baseRevision).toBe(afterLoss.state.revision);
   const peerKey = `peer-${suffix}`;
   await callHarness(page, 'initializePlanningServerHarness', peerKey, companyId);
-  await callHarness(
-    page,
-    'planningHarnessExecute',
-    peerKey,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { status: 'tentative' },
-    } satisfies Intent,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { status: 'confirmed' },
-    } satisfies Intent,
-  );
+  await callHarness(page, 'planningHarnessExecute', peerKey, {
+    operation: 'allocation.update',
+    id: allocationId,
+    changes: { status: 'tentative' },
+  } satisfies Intent);
   const externalRefresh = await callHarness<{ refreshed: boolean; state: HarnessState }>(
     page,
     'planningHarnessRefresh',
     primaryKey,
   );
-  expect(externalRefresh.state.history).toMatchObject({ past: 0, future: 0 });
+  expect(externalRefresh.state.history).toEqual({ canUndo: false, canRedo: false });
   const beforeStaleCount = (
     await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey)
   ).length;
   const stale = await callHarness<{
     result: { kind: string; code?: string; status?: number };
     state: HarnessState;
-  }>(
-    page,
-    'planningHarnessExecuteDraft',
-    primaryKey,
-    'before-peer-write',
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { startDate: '2026-10-28' },
-    } satisfies Intent,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { startDate: '2026-10-26' },
-    } satisfies Intent,
-  );
+  }>(page, 'planningHarnessExecuteDraft', primaryKey, 'before-peer-write', {
+    operation: 'allocation.update',
+    id: allocationId,
+    changes: { startDate: '2026-10-28' },
+  } satisfies Intent);
   expect(stale.result).toMatchObject({ kind: 'rejected', code: 'STALE_REVISION', status: 409 });
   expect(stale.state.status).toBe('ready');
   expect(
@@ -343,64 +312,28 @@ test('unactivated planning controller uses authenticated typed routes and reconc
 
   // A new deliberate action uses the refreshed revision; move, resize, reassign and duplicate all
   // exercise generated typed routes and are confirmed by the server's canonical read.
-  await callHarness(
-    page,
-    'planningHarnessExecute',
-    primaryKey,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { startDate: '2026-10-28' },
-    } satisfies Intent,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { startDate: '2026-10-26' },
-    } satisfies Intent,
-  );
-  await callHarness(
-    page,
-    'planningHarnessExecute',
-    primaryKey,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { resourceId: secondResourceId },
-    } satisfies Intent,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { resourceId: firstResourceId },
-    } satisfies Intent,
-  );
-  await callHarness(
-    page,
-    'planningHarnessExecute',
-    primaryKey,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { endDate: '2026-10-30' },
-    } satisfies Intent,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { endDate: '2026-10-29' },
-    } satisfies Intent,
-  );
+  await callHarness(page, 'planningHarnessExecute', primaryKey, {
+    operation: 'allocation.update',
+    id: allocationId,
+    changes: { startDate: '2026-10-28' },
+  } satisfies Intent);
+  await callHarness(page, 'planningHarnessExecute', primaryKey, {
+    operation: 'allocation.update',
+    id: allocationId,
+    changes: { resourceId: secondResourceId },
+  } satisfies Intent);
+  await callHarness(page, 'planningHarnessExecute', primaryKey, {
+    operation: 'allocation.update',
+    id: allocationId,
+    changes: { endDate: '2026-10-30' },
+  } satisfies Intent);
 
   const duplicateId = uuid();
-  await callHarness(
-    page,
-    'planningHarnessExecute',
-    primaryKey,
-    {
-      operation: 'allocation.duplicate',
-      sourceAllocationId: allocationId,
-      occurrence: { id: duplicateId, startDate: '2026-11-02', endDate: '2026-11-04' },
-    } satisfies Intent,
-    null,
-  );
+  await callHarness(page, 'planningHarnessExecute', primaryKey, {
+    operation: 'allocation.duplicate',
+    sourceAllocationId: allocationId,
+    occurrence: { id: duplicateId, startDate: '2026-11-02', endDate: '2026-11-04' },
+  } satisfies Intent);
   const completeSnapshot = await planningSnapshot(request, owner.cookie, companyId);
   expect(completeSnapshot.data.allocations).toEqual(
     expect.arrayContaining([
@@ -520,11 +453,6 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     'planningHarnessStart',
     primaryKey,
     confirm,
-    {
-      operation: 'allocation.update',
-      id: allocationId,
-      changes: { status: 'tentative' },
-    } satisfies Intent,
   );
   const lostRequest = await callHarness<{ state: HarnessState }>(
     page,

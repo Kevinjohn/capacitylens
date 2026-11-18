@@ -20,19 +20,24 @@ type ServerIssuedIntegers = Pick<
   'baseRevision' | 'confirmedRestorationCount'
 >;
 
-export type PlanningExecution = Omit<PlanningMutationBody, keyof ServerIssuedIntegers> & {
+/**
+ * The intents the browser sends. The server still accepts a restoration-group intent, but Undo
+ * and Redo now go through their own routes and nothing in the browser builds one.
+ */
+export type PlanningIntent = Exclude<
+  PlanningMutationBody['intent'],
+  { operation: 'planning.restoreGroup' }
+>;
+
+export type PlanningExecution = Omit<
+  PlanningMutationBody,
+  keyof ServerIssuedIntegers | 'intent'
+> & {
   [Field in keyof ServerIssuedIntegers]: Extract<ServerIssuedIntegers[Field], number>;
-};
-export type PlanningIntent = PlanningMutationBody['intent'];
+} & { intent: PlanningIntent };
 
 /** Refusals are sent through the response object, so the generated reply also admits `void`. */
 export type PlanningMutationSuccess = Extract<
   Route.Response<'api.planning.restoreGroup'>,
   { status: 'committed' }
 >;
-
-/** A history entry stores ordinary inputs; every Undo and Redo gets new execution metadata. */
-export interface PlanningHistoryEntry<TIntent = PlanningIntent> {
-  forward: TIntent;
-  inverse: TIntent;
-}
