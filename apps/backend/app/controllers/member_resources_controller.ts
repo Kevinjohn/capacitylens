@@ -7,7 +7,7 @@ import { refuseInvalidAdmission } from '#services/admission/errors';
 import { renderAdmissionFailure } from '#services/admission/http';
 import { hasOnlyFields } from '#services/request_helpers';
 
-function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
+function requireBodyFields(value: unknown, keys: string[]): Record<string, unknown> {
   if (!hasOnlyFields(value, keys)) refuseInvalidAdmission();
   return value;
 }
@@ -16,7 +16,7 @@ function bodyOf(value: unknown, keys: string[]): Record<string, unknown> {
 export default class MemberResourcesController {
   async setLink(ctx: HttpContext) {
     try {
-      const body = bodyOf(ctx.request.body(), ['resourceId', 'expectedRevision']);
+      const body = requireBodyFields(ctx.request.body(), ['resourceId', 'expectedRevision']);
       if (
         typeof body.resourceId !== 'string' ||
         !body.resourceId ||
@@ -61,7 +61,7 @@ export default class MemberResourcesController {
 
   async clearLink(ctx: HttpContext) {
     try {
-      const body = bodyOf(ctx.request.body(), ['expectedRevision']);
+      const body = requireBodyFields(ctx.request.body(), ['expectedRevision']);
       if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) {
         refuseInvalidAdmission();
       }

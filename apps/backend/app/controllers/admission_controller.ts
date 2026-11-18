@@ -9,9 +9,9 @@ import { errors as vineErrors } from '@vinejs/vine';
 import { managedGuard } from '#services/auth/managed_guard';
 import { USER_ID_PATTERN } from '#services/request_helpers';
 
-const admission = () => app.container.make(AccountAdmission);
+const resolveAdmission = () => app.container.make(AccountAdmission);
 
-function userIdParam(value: unknown) {
+function parseUserIdParam(value: unknown) {
   return typeof value === 'string' && USER_ID_PATTERN.test(value) ? value : null;
 }
 
@@ -21,13 +21,13 @@ function userIdParam(value: unknown) {
  */
 export default class AdmissionController {
   async show(ctx: HttpContext) {
-    const service = await admission();
+    const service = await resolveAdmission();
     const { decision } = await service.current(await managedGuard.current(ctx));
     return ctx.response.ok({ decision });
   }
 
   async request(ctx: HttpContext) {
-    const service = await admission();
+    const service = await resolveAdmission();
     const record = await service.request(await managedGuard.current(ctx));
     return ctx.response.ok({ requestedAt: record.requestedAt });
   }
@@ -42,7 +42,7 @@ export default class AdmissionController {
     }
     const { status, cursor } = query;
     const actor = await currentAccount(ctx);
-    const service = await admission();
+    const service = await resolveAdmission();
     const page = await service.list({ actorId: actor.id, status, cursor, limit: 100 });
     return ctx.response.ok(page);
   }
@@ -66,10 +66,10 @@ export default class AdmissionController {
   }
 
   private async decide(ctx: HttpContext, decision: 'approve' | 'reject' | 'revoke') {
-    const userId = userIdParam(ctx.params.userId);
+    const userId = parseUserIdParam(ctx.params.userId);
     if (!userId) return ctx.response.badRequest({ error: 'Invalid admission request.' });
     const actor = await currentAccount(ctx);
-    const service = await admission();
+    const service = await resolveAdmission();
     const record = await service[decision]({ actorId: actor.id, userId });
     return ctx.response.ok({ userId: String(record.userId), approval: record.approval });
   }

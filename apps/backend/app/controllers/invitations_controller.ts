@@ -20,12 +20,12 @@ import db from '@adonisjs/lucid/services/db';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 
-function invitationId(value: unknown) {
+function parseInvitationId(value: unknown) {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-function projection(invitation: Invitation) {
+function buildInvitationView(invitation: Invitation) {
   return {
     id: invitation.id,
     role: invitation.role,
@@ -41,7 +41,7 @@ const invalidLink = { error: 'This invitation is invalid or has expired.', code:
  * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.
  * The Kit re-checks the sender's authority inside the transaction that stores the invitation.
  */
-function mailUnavailable(ctx: HttpContext) {
+function sendMailUnavailable(ctx: HttpContext) {
   return ctx.response.serviceUnavailable({
     error: 'Invitations need email delivery. Ask your administrator to configure mail.',
     code: 'MAIL_UNAVAILABLE',
@@ -69,7 +69,7 @@ export default class InvitationsController {
     const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : '';
     if (!isAccountEmail(email)) refuseInvalidAdmission('Invalid invitation email.');
     const actorId = await this.manager(ctx, body.companyId);
-    if (!isMailConfigured()) return mailUnavailable(ctx);
+    if (!isMailConfigured()) return sendMailUnavailable(ctx);
     try {
       const invitation = await accountKit.invitations.send({
         actorId,
@@ -77,7 +77,7 @@ export default class InvitationsController {
         role: body.role,
         scope: body.companyId as string,
       });
-      return ctx.response.created({ ...projection(invitation), emailed: true });
+      return ctx.response.created({ ...buildInvitationView(invitation), emailed: true });
     } catch (error) {
       if (!isCommittedFailure(error)) throw error;
       ctx.logger.warn({ code: 'INVITATION_DELIVERY_FAILED' }, 'Invitation delivery failed');
@@ -97,21 +97,21 @@ export default class InvitationsController {
         cursor,
         scope: ctx.params.companyId as string,
       });
-      invites.push(...page.items.map(projection));
+      invites.push(...page.items.map(buildInvitationView));
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
     return ctx.response.ok({ invites });
   }
 
   async resend(ctx: HttpContext) {
-    const id = invitationId(ctx.params.id);
+    const id = parseInvitationId(ctx.params.id);
     if (!id) refuseInvalidAdmission();
     const actorId = await this.manager(ctx, ctx.params.companyId);
     // Resending replaces the link, so without mail it would only invalidate a printed one.
-    if (!isMailConfigured()) return mailUnavailable(ctx);
+    if (!isMailConfigured()) return sendMailUnavailable(ctx);
     try {
       const invitation = await accountKit.invitations.resend({ actorId, invitationId: id });
-      return ctx.response.ok({ ...projection(invitation), emailed: true });
+      return ctx.response.ok({ ...buildInvitationView(invitation), emailed: true });
     } catch (error) {
       if (!isCommittedFailure(error)) throw error;
       return ctx.response.accepted({ committed: true, emailed: false });
@@ -119,7 +119,7 @@ export default class InvitationsController {
   }
 
   async revoke(ctx: HttpContext) {
-    const id = invitationId(ctx.params.id);
+    const id = parseInvitationId(ctx.params.id);
     if (!id) refuseInvalidAdmission();
     const actorId = await this.manager(ctx, ctx.params.companyId);
     await accountKit.invitations.revoke({ actorId, invitationId: id });

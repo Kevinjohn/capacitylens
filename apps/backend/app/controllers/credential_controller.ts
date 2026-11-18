@@ -16,15 +16,15 @@ import { currentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import { managedGuard } from '#services/auth/managed_guard';
 
-function password(value: unknown): value is string {
+function isValidPasswordShape(value: unknown): value is string {
   return typeof value === 'string' && !passwordLengthFailure(value);
 }
 
-function token(value: unknown): value is string {
+function isBearerToken(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 512;
 }
 
-function privateErrorCode(error: unknown) {
+function readPrivateErrorCode(error: unknown) {
   const code =
     typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
   return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code) ? code : 'RECOVERY_REQUEST_FAILED';
@@ -60,7 +60,7 @@ export default class CredentialController {
     } catch (error) {
       if (error instanceof ThrottledError) throw error;
       // Public recovery does not disclose recipient or delivery state.
-      ctx.logger.error({ code: privateErrorCode(error) }, 'Password recovery request failed');
+      ctx.logger.error({ code: readPrivateErrorCode(error) }, 'Password recovery request failed');
     }
     return ctx.response.ok({ ok: true });
   }
@@ -69,7 +69,7 @@ export default class CredentialController {
   async inspectReset(ctx: HttpContext) {
     proofHeaders(ctx);
     const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['token']) || !token(body.token)) {
+    if (!hasOnlyFields(body, ['token']) || !isBearerToken(body.token)) {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
     }
     return ctx.response.ok({
@@ -83,8 +83,8 @@ export default class CredentialController {
     const body: unknown = ctx.request.body();
     if (
       !hasOnlyFields(body, ['token', 'newPassword']) ||
-      !token(body.token) ||
-      !password(body.newPassword)
+      !isBearerToken(body.token) ||
+      !isValidPasswordShape(body.newPassword)
     ) {
       return ctx.response.badRequest({ error: 'Invalid recovery request.' });
     }
@@ -109,7 +109,7 @@ export default class CredentialController {
     if (
       !hasOnlyFields(body, ['currentPassword', 'newPassword']) ||
       typeof body.currentPassword !== 'string' ||
-      !password(body.newPassword)
+      !isValidPasswordShape(body.newPassword)
     ) {
       return ctx.response.badRequest({ error: 'Invalid credential request.' });
     }
