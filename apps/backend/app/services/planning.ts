@@ -17,7 +17,7 @@ import { resolvePlanningAuthority, type PlanningAuthority } from '#services/plan
 import {
   invalidatesRestoration,
   projectionChanges,
-  semanticState,
+  buildSemanticState,
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
@@ -38,7 +38,7 @@ import {
   type HistoryEntry,
   type HistoryOwner,
 } from '#services/planning/history';
-import { inverseIntent } from '#services/planning/inverse';
+import { buildInverseIntent } from '#services/planning/inverse';
 import type {
   PlanningHistoryState,
   PlanningHistoryStepInput,
@@ -240,7 +240,7 @@ async function commit({
       ? archiveImpact(before, intent.entity.entity, intent.entity.id)
       : undefined;
   const after = await readStateWithClient(trx, companyId, true);
-  if (semanticState(before) === semanticState(after)) {
+  if (buildSemanticState(before) === buildSemanticState(after)) {
     throw new PlanningOperationError(
       400,
       'NO_CHANGE',
@@ -293,7 +293,7 @@ async function commit({
   const reverse =
     intent.operation === 'planning.restoreGroup'
       ? ((step === 'undo' ? entry?.forward : step === 'redo' ? entry?.inverse : null) ?? null)
-      : inverseIntent(intent, before, companyId, restoration);
+      : buildInverseIntent(intent, before, companyId, restoration);
   // Earlier values must not outlive a privacy change, and a change that cannot be reversed ends
   // the history rather than leaving a gap in it.
   let history = NO_HISTORY;
@@ -304,7 +304,7 @@ async function commit({
       trx,
       owner,
       revision,
-      nextEntries(step, current, { intent, reverse })
+      buildNextEntries(step, current, { intent, reverse })
     );
   }
   return {
@@ -319,7 +319,7 @@ async function commit({
 }
 
 /** Moves the committed change onto the stack its step fills, and off the one it came from. */
-function nextEntries(
+function buildNextEntries(
   step: 'new' | 'undo' | 'redo',
   current: HistoryEntries | null,
   committed: { intent: PlanningIntent; reverse: PlanningIntent }

@@ -7,8 +7,8 @@ import {
 } from '@capacitylens/shared/types/entities';
 import { PlanningOperationError } from '#services/planning/execute';
 import {
-  allocationOccurrences,
-  timeOffOccurrences,
+  buildAllocationOccurrences,
+  buildTimeOffOccurrences,
   type RepeatRange,
 } from '#services/planning/repeat_occurrences';
 
@@ -30,7 +30,7 @@ function companyData(schedulingMode: SchedulingMode): AppData {
 }
 
 const occurrences = (schedulingMode: SchedulingMode, repeat: RepeatRange, from = first) =>
-  allocationOccurrences(companyData(schedulingMode), companyId, from, repeat).map(
+  buildAllocationOccurrences(companyData(schedulingMode), companyId, from, repeat).map(
     ({ startDate, endDate }) => [startDate, endDate]
   );
 
@@ -99,7 +99,7 @@ test.group('allocation repeat occurrences', () => {
 
 test.group('time-off repeat occurrences', () => {
   const dates = (entry: { startDate: string; endDate: string }, repeat: RepeatRange) =>
-    timeOffOccurrences(entry, repeat).map(({ startDate, endDate }) => [startDate, endDate]);
+    buildTimeOffOccurrences(entry, repeat).map(({ startDate, endDate }) => [startDate, endDate]);
 
   test('a monthly last-weekday repeat keeps the calendar span on each last Tuesday', ({
     assert,

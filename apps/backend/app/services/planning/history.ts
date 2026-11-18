@@ -26,7 +26,7 @@ export interface HistoryOwner {
 /** What a page with no current history can do. */
 export const NO_HISTORY: PlanningHistoryState = { canUndo: false, canRedo: false };
 
-const availability = (entries: HistoryEntries): PlanningHistoryState => ({
+const buildHistoryAvailability = (entries: HistoryEntries): PlanningHistoryState => ({
   canUndo: entries.past.length > 0,
   canRedo: entries.future.length > 0,
 });
@@ -61,7 +61,7 @@ export async function readHistoryState(
   revision: number
 ): Promise<PlanningHistoryState> {
   const entries = await readHistory(trx, owner, revision);
-  return entries ? availability(entries) : NO_HISTORY;
+  return entries ? buildHistoryAvailability(entries) : NO_HISTORY;
 }
 
 /** Ends the company's history; stored inverses hold earlier field values. */
@@ -87,5 +87,5 @@ export async function writeHistory(
     revision,
     entries_json: JSON.stringify(bounded),
   });
-  return availability(bounded);
+  return buildHistoryAvailability(bounded);
 }

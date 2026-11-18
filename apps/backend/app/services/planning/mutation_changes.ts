@@ -2,7 +2,7 @@ import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shar
 import type { PlanningMutationInput, ProjectedPlanningRow } from '#validators/planning/contracts';
 
 /** Planning rows compared without their timestamps, for no-change detection. */
-export function semanticState(data: AppData) {
+export function buildSemanticState(data: AppData) {
   return JSON.stringify(
     APP_DATA_KEYS.map((entity) =>
       data[entity]

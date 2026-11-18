@@ -17,7 +17,7 @@ import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planni
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { existingRow, PlanningOperationError, updateSettings } from './writer.js';
 import { writeEntity } from './entity_write.js';
-import { allocationOccurrences, timeOffOccurrences } from './repeat_occurrences.js';
+import { buildAllocationOccurrences, buildTimeOffOccurrences } from './repeat_occurrences.js';
 import {
   deleteAllocations,
   deleteRows,
@@ -143,7 +143,7 @@ export async function executePlanningIntent({
           fields: { ...allocation, seriesId },
           mode: 'create',
         });
-        const later = allocationOccurrences(data, companyId, allocation, repeat).slice(1);
+        const later = buildAllocationOccurrences(data, companyId, allocation, repeat).slice(1);
         assertOccurrenceIdsMatch(occurrenceIds, later);
         for (const [index, { startDate, endDate }] of later.entries()) {
           const id = occurrenceIds[index] as string;
@@ -290,7 +290,7 @@ export async function executePlanningIntent({
           fields: timeOff,
           mode: 'create',
         });
-        const later = timeOffOccurrences(timeOff, repeat).slice(1);
+        const later = buildTimeOffOccurrences(timeOff, repeat).slice(1);
         assertOccurrenceIdsMatch(occurrenceIds, later);
         for (const [index, { startDate, endDate }] of later.entries()) {
           const id = occurrenceIds[index] as string;

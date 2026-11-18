@@ -13,7 +13,7 @@ import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planni
 /** The capacity part of an allocation save reply. */
 export type SaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdvisory'>;
 
-function writtenAllocationIds(intent: PlanningIntent): string[] {
+function listWrittenAllocationIds(intent: PlanningIntent): string[] {
   if (intent.operation === 'allocation.create') return [intent.allocation.id];
   if (intent.operation === 'allocation.createGroup') {
     return [intent.allocation.id, ...intent.occurrenceIds];
@@ -32,7 +32,7 @@ export function buildSaveAdvisory(
   after: AppData,
   companyId: string
 ): SaveAdvisory {
-  const ids = writtenAllocationIds(intent);
+  const ids = listWrittenAllocationIds(intent);
   const written = ids
     .map((id) => after.allocations.find((row) => row.id === id))
     .filter((row): row is Allocation => row !== undefined);

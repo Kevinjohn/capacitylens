@@ -16,7 +16,7 @@ import {
 } from '#exceptions/http_error_mapping';
 
 /** Map a planning failure to its HTTP status and body; anything unrecognised is rethrown. */
-function refusal(error: unknown): {
+function mapRefusal(error: unknown): {
   status: number;
   body: PlanningMutationFailure;
   headers?: Record<string, string>;
@@ -73,7 +73,7 @@ function refusal(error: unknown): {
 
 /** Send a planning refusal with its HTTP status, flat error body and any Kit headers. */
 export function sendRefusal(error: unknown, ctx: HttpContext) {
-  const failure = refusal(error);
+  const failure = mapRefusal(error);
   for (const [name, value] of Object.entries(failure.headers ?? {})) {
     ctx.response.header(name, value);
   }

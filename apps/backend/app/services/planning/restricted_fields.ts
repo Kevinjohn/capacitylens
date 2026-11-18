@@ -50,7 +50,7 @@ export function restrictionFor(table: ScopedEntityKey, capabilities: Capabilitie
 }
 
 /** Whether the caller is restricted on this stored row's private fields. */
-export function restrictsPrivateRow(
+export function isPrivateRowRestricted(
   table: ScopedEntityKey,
   capabilities: Capabilities,
   existing: Record<string, unknown> | undefined
@@ -60,7 +60,7 @@ export function restrictsPrivateRow(
 }
 
 /** The fields this caller cannot see on this row. */
-export function hiddenFields(
+export function listHiddenFields(
   table: ScopedEntityKey,
   capabilities: Capabilities,
   existing: Record<string, unknown> | undefined

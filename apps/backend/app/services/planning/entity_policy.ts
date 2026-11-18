@@ -23,9 +23,9 @@ import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
 import { assertEntityDomain } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
 import {
-  hiddenFields,
+  listHiddenFields,
   restrictionFor,
-  restrictsPrivateRow,
+  isPrivateRowRestricted,
 } from '#services/planning/restricted_fields';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
@@ -248,14 +248,14 @@ export function assertFrozenAccountFields(
   }
 }
 
-function validationView(
+function buildValidationView(
   table: ScopedEntityKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
   context: PlanningCapabilities
 ) {
   const visible = { ...candidate };
-  for (const field of hiddenFields(table, context, existing)) delete visible[field];
+  for (const field of listHiddenFields(table, context, existing)) delete visible[field];
   return visible;
 }
 
@@ -291,7 +291,7 @@ export async function prepareEntityWrite(
   if (existing && existing.companyId !== row.companyId) {
     throw new EntityWriteError('Not found.', 404);
   }
-  const hidden = hiddenFields(table, context, existing);
+  const hidden = listHiddenFields(table, context, existing);
   for (const [field, value] of Object.entries(row)) {
     if (value !== undefined || hidden.includes(field)) continue;
     reject(field, 'cannot be undefined');
@@ -301,7 +301,7 @@ export async function prepareEntityWrite(
   assertRequired(table, candidate);
   if (table === 'resources' && existing) assertResourceKind(candidate, existing);
   try {
-    const visible = validationView(table, candidate, existing, context);
+    const visible = buildValidationView(table, candidate, existing, context);
     const validated = await validateEntityRow(table, visible);
     const preserved: Record<string, unknown> = {};
     for (const field of hidden) {
@@ -355,7 +355,7 @@ export async function prepareEntityWrite(
   normalizeValidWrite({
     table,
     candidate,
-    restrictedPrivateRow: restrictsPrivateRow(table, context, existing),
+    restrictedPrivateRow: isPrivateRowRestricted(table, context, existing),
   });
   try {
     assertEntityDomain(

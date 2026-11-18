@@ -38,7 +38,7 @@ interface BuildCapacitySectionInput {
 }
 
 /** The window the scheduler materialises for today: four weeks before the current week, 148 days. */
-function defaultCapacityWindow(today: ISODate, weekStartsOn: 0 | 1): CapacityRange {
+function buildDefaultCapacityWindow(today: ISODate, weekStartsOn: 0 | 1): CapacityRange {
   const from = addDaysISO(startOfWeekISO(today, weekStartsOn), -PAST_BUFFER_DAYS);
   return { from, to: addDaysISO(from, PAST_BUFFER_DAYS + DEFAULT_RANGE_DAYS - 1) };
 }
@@ -63,7 +63,7 @@ export function buildCapacitySection({
   const weekStartsOn = account?.weekStartsOn ?? 1;
   const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, weekStartsOn);
   const blocksMode = account?.schedulingMode === 'blocks';
-  const range = window ?? defaultCapacityWindow(today, weekStartsOn);
+  const range = window ?? buildDefaultCapacityWindow(today, weekStartsOn);
   const horizon = {
     from: today,
     to: addDaysISO(
@@ -77,22 +77,22 @@ export function buildCapacitySection({
   const dates = Array.from(
     new Set([...eachDayISO(range.from, range.to), ...eachDayISO(horizon.from, horizon.to)])
   ).sort();
-  const boundsOf = ({ from, to }: CapacityRange) =>
+  const buildBounds = ({ from, to }: CapacityRange) =>
     [dates.indexOf(from), dates.indexOf(to) + 1] as const;
-  const windowBounds = boundsOf(range);
-  const horizonBounds = boundsOf(horizon);
-  const overSoonBounds = boundsOf({
+  const windowBounds = buildBounds(range);
+  const horizonBounds = buildBounds(horizon);
+  const overSoonBounds = buildBounds({
     from: today,
     to: addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1),
   });
   // Only rows that reach a computed date can count, then each is indexed under the dates it covers.
   const first = range.from < horizon.from ? range.from : horizon.from;
   const last = range.to > horizon.to ? range.to : horizon.to;
-  const overlaps = (row: { startDate: ISODate; endDate: ISODate }) =>
+  const isInWindow = (row: { startDate: ISODate; endDate: ISODate }) =>
     rangesOverlap(row.startDate, row.endDate, first, last);
-  const allocationsByResource = groupByResource(data.allocations.filter(overlaps));
-  const timeOffByResource = groupByResource(data.timeOff.filter(overlaps));
-  const closuresByDate = bucketByCoveredDate(data.closures.filter(overlaps), dates);
+  const allocationsByResource = groupByResource(data.allocations.filter(isInWindow));
+  const timeOffByResource = groupByResource(data.timeOff.filter(isInWindow));
+  const closuresByDate = bucketByCoveredDate(data.closures.filter(isInWindow), dates);
 
   const resources: Record<string, ResourceCapacity> = {};
   for (const resource of data.resources.filter(isCapacityTracked)) {
@@ -131,7 +131,7 @@ export function buildCapacitySection({
       all.available.push(day.available);
       all.over.push(day.over);
     }
-    const daysOver = ([start, end]: readonly [number, number]): CapacityDays => ({
+    const sliceDays = ([start, end]: readonly [number, number]): CapacityDays => ({
       allocated: all.allocated.slice(start, end),
       confirmedAllocated: all.confirmedAllocated.slice(start, end),
       available: all.available.slice(start, end),
@@ -139,8 +139,8 @@ export function buildCapacitySection({
     });
     resources[resource.id] = {
       overSoon: all.over.slice(...overSoonBounds).some(Boolean),
-      window: daysOver(windowBounds),
-      horizon: daysOver(horizonBounds),
+      window: sliceDays(windowBounds),
+      horizon: sliceDays(horizonBounds),
     };
   }
   return { window: range, horizon, resources };
