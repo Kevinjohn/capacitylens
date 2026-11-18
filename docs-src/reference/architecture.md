@@ -58,7 +58,7 @@ packages/shared/src/
 ```
 
 The rest of `apps/backend/app/services` includes single-purpose modules: `anonymise.ts`,
-`beta_account_transfer.ts` (export import), `first_company_setup.ts`,
+`company_import.ts` (export import), `first_company_setup.ts`,
 `initial_company_defaults.ts`, `account_commands.ts` (command headers and error adapter), `audit.ts`,
 `cors_policy.ts`, `logging_safety.ts`, `schema_integrity.ts` and `with_transaction.ts`.
 
@@ -256,7 +256,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | View-as | `/api/masquerade`, `…/masquerade`; Team & access | `@kevinjohn/adonisjs-masquerade`; `app/services/auth/masquerade.ts` | Package control-store transaction, outside product transactions | Package policy; middleware refuses writes; target role re-checked in each product transaction | `currentMasquerade` | `MASQUERADE_READ_ONLY`, `MASQUERADE_CONTEXT_CHANGED`, `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/auth/masquerade.spec.ts` |
 | Company state read | `GET /api/state`; archived records | `app/controllers/exports_controller.ts` `show` | Read-only `withActor` | Effective principal and live role; inactive rows need `members:manage` | `transformState` by role | 400, 401, 403 | `tests/functional/data_routes.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
 | Export | `GET /api/accounts/:accountId/export`; import/export screen | `app/controllers/exports_controller.ts` `download` | Read-only `withActor` | Effective member through `resolvePlanningAuthority`; inactive rows need `members:manage` | Serialised export document, `full` only for the Owner | 400 invalid export document `{ error }`, 401, 403 `ACCOUNT_MEMBERSHIP_LOST`, 409 `MASQUERADE_CONTEXT_CHANGED`, 428 `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/company_export.spec.ts` |
-| Transfer preview and apply | `POST /api/transfer/{preview,apply}`; import screen | `app/services/beta_account_transfer.ts` | Parse outside; preview read-only `withActor`; apply spends the password confirmation, replaces rows, audits in one `withActor` | Live Owner, not viewing as; password confirmation bound to company, session and document | `{ baseRevision, imported, changed, companyName, counts }` (preview); `{ imported, changed, revision }` (apply) | `PASSWORD_CONFIRMATION_REQUIRED`, `IMPORT_SNAPSHOT_STALE`, `IMPORT_ID_COLLISION` | `tests/functional/transfer_apply.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
+| Transfer preview and apply | `POST /api/transfer/{preview,apply}`; import screen | `app/services/company_import.ts` | Parse outside; preview read-only `withActor`; apply spends the password confirmation, replaces rows, audits in one `withActor` | Live Owner, not viewing as; password confirmation bound to company, session and document | `{ baseRevision, imported, changed, companyName, counts }` (preview); `{ imported, changed, revision }` (apply) | `PASSWORD_CONFIRMATION_REQUIRED`, `IMPORT_SNAPSHOT_STALE`, `IMPORT_ID_COLLISION` | `tests/functional/transfer_apply.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
 | Anonymise resource | `POST …/resources/:id/anonymise` | `app/services/anonymise.ts` | `withActor`: scrub, restoration purge, audit, revision | Not viewing as; `resources:anonymise` ability (Owner or Admin) | 204 | 403, 404 | `tests/functional/anonymise.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
 | Anonymise company | `POST …/anonymise` | `app/services/anonymise.ts` | `withActor`: password confirmation spend then scrub, audit, revision | Live Owner and a single-use password confirmation | 204 | `PASSWORD_CONFIRMATION_REQUIRED` | `tests/functional/anonymise.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
 | Backup, restore, upgrade | `db:backup create/list/verify/prune/restore-prepare`, daily scheduler, `app:upgrade`; [Backups and restore](../self-hosting/backups-and-restore.md) | `@kevinjohn/adonisjs-sqlite-backup`, `providers/backup_provider.ts`, `commands/app_upgrade.ts` | Package one-step online copy and verification; reset borrows the exclusive operator handle; upgrade uses Lucid per-migration transactions; restore stages a verified copy before upgrade | Operator shell access; private local root outside the live database; stop the service for recovery | READY bundles; maximum manifest creation time as `newestSnapshotAt` | Non-zero `db:backup`/upgrade exit, scheduled errors logged | `tests/unit/backup_provider.spec.ts`, `tests/unit/backup_config.spec.ts`, `tests/unit/upgrade_command.spec.ts`, `tests/unit/app_reset_command.spec.ts` |
@@ -347,8 +347,8 @@ member-to-person links. It rejects invalid data instead of repairing or remappin
 must redact confidential values before document construction; the completeness marker does not
 redact data. A redacted export cannot be restored as a full replacement.
 
-The public entry point is `@capacitylens/shared/data/betaTransfer`: `buildBetaExport`,
-`serializeBetaExport`, `parseBetaExport` and `prepareBetaImport`. Preparation receives explicit
+The public entry point is `@capacitylens/shared/data/companyDocument`: `buildCompanyExport`,
+`serializeCompanyExport`, `parseCompanyExport` and `prepareCompanyImport`. Preparation receives explicit
 server-owned `{ accountId, memberResourceLinks }` context and returns `{ data, imported }`, where
 `imported` includes the account row. Export callers must supply an authorized, confidentially
 projected dataset; the completeness marker grants no authority.

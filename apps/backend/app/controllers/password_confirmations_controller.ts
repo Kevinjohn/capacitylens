@@ -14,7 +14,7 @@ import {
 import { withActor } from '#services/auth/current_actor';
 import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
 import { hasOnlyFields } from '#services/request_helpers';
-import { parseRequestDocument } from '#services/beta_account_transfer';
+import { parseRequestDocument } from '#services/company_import';
 import { managedGuard } from '#services/auth/managed_guard';
 
 type ConfirmationRequest = {

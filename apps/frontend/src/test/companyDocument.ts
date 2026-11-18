@@ -1,7 +1,7 @@
 import {
-  BETA_EXPORT_FORMAT,
-  BETA_EXPORT_SCHEMA_VERSION,
-} from '@capacitylens/shared/data/betaTransfer';
+  COMPANY_EXPORT_FORMAT,
+  COMPANY_EXPORT_SCHEMA_VERSION,
+} from '@capacitylens/shared/data/companyDocument';
 import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
@@ -22,8 +22,8 @@ export function companySeed(accountId: string): AppData {
 /** One company's seed data wrapped as a full transfer document. */
 export function companyDocument(accountId: string) {
   return {
-    format: BETA_EXPORT_FORMAT,
-    schemaVersion: BETA_EXPORT_SCHEMA_VERSION,
+    format: COMPANY_EXPORT_FORMAT,
+    schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
     completeness: 'full',
     data: companySeed(accountId),
   };

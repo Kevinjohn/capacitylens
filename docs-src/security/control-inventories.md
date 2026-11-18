@@ -66,7 +66,7 @@ retaining its URL path.
 Runtime `node:crypto` importers are accounted for here: `apps/backend/app/models/user.ts` creates
 UUID identifiers; `account_commands.ts` creates command UUIDs; `@kevinjohn/adonisjs-duplicate-request-guard` owns payload hashes and receipts;
 `@kevinjohn/adonisjs-confirm-action-with-password` creates confirmation UUIDs and intent hashes; `auth/request_limit.ts` hashes client
-IP keys; `beta_account_transfer.ts` hashes import snapshots; and
+IP keys; `company_import.ts` hashes import snapshots; and
 `planning/restoration.ts` creates restoration-group UUIDs. The browser uses Web Crypto
 for UUIDs and a command digest. Build scripts use SHA-256 for file integrity; packaged-server smoke
 tooling uses UUIDs. These are identifiers or integrity/limiter hashes, not password or bearer-token

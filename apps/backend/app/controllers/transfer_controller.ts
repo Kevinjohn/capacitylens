@@ -1,16 +1,16 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { BetaTransferError } from '@capacitylens/shared/data/betaTransfer';
+import { CompanyDocumentError } from '@capacitylens/shared/data/companyDocument';
 import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { hasOnlyFields } from '#services/request_helpers';
 import { EntityWriteError } from '#services/planning/errors';
 import {
-  applyBetaAccountTransfer,
+  applyCompanyImport,
   parseRequestDocument,
-  previewBetaAccountTransfer,
+  previewCompanyImport,
   readRequestDocument,
-} from '#services/beta_account_transfer';
+} from '#services/company_import';
 
 function input(value: unknown) {
   const expected = ['accountId', 'document', 'baseRevision'];
@@ -47,7 +47,9 @@ function failure(ctx: HttpContext, error: unknown) {
       ...(error.current ?? {}),
     });
   }
-  if (error instanceof BetaTransferError) return ctx.response.badRequest({ error: error.message });
+  if (error instanceof CompanyDocumentError) {
+    return ctx.response.badRequest({ error: error.message });
+  }
   throw error;
 }
 
@@ -68,7 +70,7 @@ export default class TransferController {
       const document = readRequestDocument(body.document);
       const result = await withActor(ctx, async (_actor, trx) => {
         await passwordConfirmationActor(accountId, trx, 'import');
-        return previewBetaAccountTransfer(trx, accountId, document);
+        return previewCompanyImport(trx, accountId, document);
       });
       return ctx.response.ok(result);
     } catch (error) {
@@ -88,7 +90,7 @@ export default class TransferController {
           scope: body.accountId,
           intent: { baseRevision: body.baseRevision, document: body.document },
         });
-        return applyBetaAccountTransfer(
+        return applyCompanyImport(
           trx,
           body.accountId,
           body.document,

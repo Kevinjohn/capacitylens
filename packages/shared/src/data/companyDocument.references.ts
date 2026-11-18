@@ -1,10 +1,10 @@
 import type { AppData } from '../types/entities.js';
 import { INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from './internalClient.js';
 import { effectiveProjectId, validateAllocationAssignment } from '../lib/integrity.js';
-import { assert } from './betaTransfer.errors.js';
+import { assert } from './companyDocument.errors.js';
 
 /** Validate references and cross-row invariants without active-only write restrictions. */
-export function validateBetaReferences(data: AppData): void {
+export function validateCompanyReferences(data: AppData): void {
   const disciplines = new Set(data.disciplines.map((row) => row.id));
   const resources = new Map(data.resources.map((row) => [row.id, row]));
   const clients = new Map(data.clients.map((row) => [row.id, row]));

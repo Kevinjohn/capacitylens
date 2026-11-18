@@ -30,7 +30,7 @@ flowchart TD
   controller --> kit["Package confirmPassword issues confirmationId for action, scope and intent"]
   issue --> apply["useServerImport sends document, baseRevision and confirmationId"]
   apply --> transfer["TransferController.apply consumes confirmation for matching import intent"]
-  transfer --> service["applyBetaAccountTransfer applies the reviewed revision"]
+  transfer --> service["applyCompanyImport applies the reviewed revision"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_confirmations_controller.ts](../../apps/backend/app/controllers/password_confirmations_controller.ts), [transfer_routes.ts](../../apps/backend/start/transfer_routes.ts), [transfer_controller.ts](../../apps/backend/app/controllers/transfer_controller.ts), [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts)
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_confirmations_controller.ts](../../apps/backend/app/controllers/password_confirmations_controller.ts), [transfer_routes.ts](../../apps/backend/start/transfer_routes.ts), [transfer_controller.ts](../../apps/backend/app/controllers/transfer_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)

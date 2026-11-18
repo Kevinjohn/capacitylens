@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { seed } from './seed.js';
 import {
-  BetaTransferError,
-  buildBetaExport,
-  parseBetaExport,
-  prepareBetaImport,
-} from './betaTransfer.js';
+  CompanyDocumentError,
+  buildCompanyExport,
+  parseCompanyExport,
+  prepareCompanyImport,
+} from './companyDocument.js';
 import { APP_DATA_KEYS } from '../types/entities.js';
 import type { AppDataKey } from '../types/entities.js';
-import type { BetaExportDocument } from './betaTransfer.js';
+import type { CompanyExportDocument } from './companyDocument.js';
 
 function requireValue<T>(value: T | undefined | null): T {
   if (value == null) throw new Error('The complete beta fixture is missing a required row.');
@@ -28,9 +28,9 @@ const freshDocument = () => {
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
   });
-  return buildBetaExport(source, { accountId: context.accountId, completeness: 'full' });
+  return buildCompanyExport(source, { accountId: context.accountId, completeness: 'full' });
 };
-type CorruptDocument = (document: BetaExportDocument) => void;
+type CorruptDocument = (document: CompanyExportDocument) => void;
 
 const failures: [string, CorruptDocument][] = [
   [
@@ -194,7 +194,7 @@ describe('Beta transfer failure boundaries', () => {
       document.data[key].find((item) => key !== 'clients' || !('builtin' in item && item.builtin)),
     );
     row.name = 'N'.repeat(101);
-    expect(() => prepareBetaImport(document, context)).toThrow(/name/);
+    expect(() => prepareCompanyImport(document, context)).toThrow(/name/);
   });
 
   it('does not expand the public-name limit for redacted documents', () => {
@@ -202,7 +202,7 @@ describe('Beta transfer failure boundaries', () => {
     const row = requireValue(document.data.clients.find((item) => !item.builtin));
     row.name = 'N'.repeat(101);
     row.isPrivate = false;
-    expect(() => parseBetaExport(JSON.stringify(document))).toThrow(/name/);
+    expect(() => parseCompanyExport(JSON.stringify(document))).toThrow(/name/);
   });
 
   it.each(['closure/one', '_closure', 'götham', 'x'.repeat(129)])(
@@ -210,7 +210,7 @@ describe('Beta transfer failure boundaries', () => {
     (id) => {
       const document = freshDocument();
       requireValue(document.data.closures[0]).id = id;
-      expect(() => prepareBetaImport(document, context)).toThrow(/id/);
+      expect(() => prepareCompanyImport(document, context)).toThrow(/id/);
     },
   );
 
@@ -219,14 +219,14 @@ describe('Beta transfer failure boundaries', () => {
     const id = `G${'a._~-9'.repeat(21)}0`;
     expect(id).toHaveLength(128);
     requireValue(document.data.closures[0]).id = id;
-    expect(prepareBetaImport(document, context).data.closures[0]?.id).toBe(id);
+    expect(prepareCompanyImport(document, context).data.closures[0]?.id).toBe(id);
   });
 
   it.each(failures)('refuses %s without changing the supplied replacement', (_name, corrupt) => {
     const document = freshDocument();
     corrupt(document);
     const before = structuredClone(document);
-    expect(() => prepareBetaImport(document, context)).toThrow(BetaTransferError);
+    expect(() => prepareCompanyImport(document, context)).toThrow(CompanyDocumentError);
     expect(document).toEqual(before);
   });
 
@@ -235,38 +235,38 @@ describe('Beta transfer failure boundaries', () => {
     const rows = document.data[key] as Array<{ id: string }>;
     expect(rows.length).toBeGreaterThan(0);
     rows.push({ ...requireValue(rows[0]) });
-    expect(() => prepareBetaImport(document, context)).toThrow(/duplicates/i);
+    expect(() => prepareCompanyImport(document, context)).toThrow(/duplicates/i);
   });
 
   it.each([0, 1, 3, '2', null, undefined])(
     'rejects unsupported beta version %s',
     (schemaVersion) => {
       const document = { ...freshDocument(), schemaVersion };
-      expect(() => parseBetaExport(JSON.stringify(document))).toThrow(/schemaVersion/);
+      expect(() => parseCompanyExport(JSON.stringify(document))).toThrow(/schemaVersion/);
     },
   );
 
   it.each(APP_DATA_KEYS)('requires the complete %s table', (key: AppDataKey) => {
     const document = freshDocument();
     delete (document.data as Partial<typeof document.data>)[key];
-    expect(() => prepareBetaImport(document, context)).toThrow(new RegExp(`data.${key}`));
+    expect(() => prepareCompanyImport(document, context)).toThrow(new RegExp(`data.${key}`));
   });
 
   it('cannot supply destination scope or member links through document extras', () => {
     const document = { ...freshDocument(), accountId: 'a-loft', memberResourceLinks: [] };
     expect(() =>
-      prepareBetaImport(document, {
+      prepareCompanyImport(document, {
         accountId: 'a-studio',
         memberResourceLinks: [{ memberId: 'bruce-member', resourceId: 'missing-person' }],
       }),
     ).toThrow(/missing-person/);
-    expect(() => prepareBetaImport(document, undefined as never)).toThrow(/context/);
+    expect(() => prepareCompanyImport(document, undefined as never)).toThrow(/context/);
   });
 
   it('returns independent rows and working-day arrays for a prepared replacement', () => {
     const document = freshDocument();
     const before = structuredClone(document);
-    const prepared = prepareBetaImport(document, context);
+    const prepared = prepareCompanyImport(document, context);
     requireValue(prepared.data.accounts[0]).name = 'Gotham Studio';
     requireValue(prepared.data.resources[0]).workingDays.push(0);
     expect(document).toEqual(before);
@@ -286,7 +286,7 @@ describe('Beta transfer failure boundaries', () => {
       role: 'owner',
       theme: 'dark',
     });
-    const prepared = prepareBetaImport(input, context);
+    const prepared = prepareCompanyImport(input, context);
     expect(prepared.data).toEqual(freshDocument().data);
     expect(JSON.stringify(prepared)).not.toContain('must-not-survive');
     expect(prepared.data.accounts[0]).not.toHaveProperty('admissionPolicy');

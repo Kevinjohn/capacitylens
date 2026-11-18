@@ -6,7 +6,7 @@ As an Owner, I want private names preserved safely in export and import so that 
 **Access:** Owner for import; role-tiered export
 **Entry:** Settings → Data and support → Import and export
 **Documentation:** [Settings](../../docs-src/using/settings.md#import-and-export)
-**Source:** [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts)
+**Source:** [company_import.ts](../../apps/backend/app/services/company_import.ts)
 
 ## Acceptance criteria
 
@@ -30,10 +30,10 @@ flowchart TD
 flowchart TD
   fetch["useExportAction fetches api.export"] --> role["ExportsController.download projects rows and sets completeness"]
   role --> project["transformState redacts private names for non-Owners"]
-  project --> beta["buildBetaExport validates and serializes portable data"]
+  project --> beta["buildCompanyExport validates and serializes portable data"]
   beta --> file["downloadTextFile saves the server's file"]
-  file --> import["prepareBetaImport accepts only full exports and validates private fields"]
+  file --> import["prepareCompanyImport accepts only full exports and validates private fields"]
   import --> replace["Transfer service replaces company rows only after preparation"]
 ```
 
-**Code references:** [useExportAction.ts](../../apps/frontend/src/components/import-export/useExportAction.ts), [exports_controller.ts](../../apps/backend/app/controllers/exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [betaTransfer.ts](../../packages/shared/src/data/betaTransfer.ts), [beta_account_transfer.ts](../../apps/backend/app/services/beta_account_transfer.ts)
+**Code references:** [useExportAction.ts](../../apps/frontend/src/components/import-export/useExportAction.ts), [exports_controller.ts](../../apps/backend/app/controllers/exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
