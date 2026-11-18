@@ -4,9 +4,9 @@ import { listActiveCompanyIds, getActiveMembership } from '#services/auth/author
 import { writeAudit } from '#services/audit';
 
 const TRACKING_KEY = 'member-sign-in-tracking';
-const observedKey = (userId: string) => `member-sign-in:${userId}`;
+const buildObservedKey = (userId: string) => `member-sign-in:${userId}`;
 
-function enabled(value: unknown) {
+function isEnabled(value: unknown) {
   return value === true || value === 'true' || value === '"true"';
 }
 
@@ -16,7 +16,7 @@ export async function readMemberSignInTracking(companyId: string, trx: Transacti
     .from('company_settings')
     .where({ company_id: companyId, key: TRACKING_KEY })
     .first();
-  if (!setting || !enabled(setting.value)) {
+  if (!setting || !isEnabled(setting.value)) {
     return { enabled: false, confirmations: new Set<string>() };
   }
   const observed = await trx
@@ -108,14 +108,14 @@ export async function confirmMemberSignIn(
     .from('company_settings')
     .where({ company_id: companyId, key: TRACKING_KEY })
     .first();
-  if (!setting || !enabled(setting.value)) return;
+  if (!setting || !isEnabled(setting.value)) return;
   if (!(await getActiveMembership(userId, companyId, trx))) return;
   await trx
     .table('company_settings')
     .insert({
       id: newId(),
       company_id: companyId,
-      key: observedKey(userId),
+      key: buildObservedKey(userId),
       value: JSON.stringify(true),
       created_at: now,
       updated_at: now,
@@ -132,6 +132,6 @@ export async function resetMemberSignIn(
 ) {
   await trx
     .from('company_settings')
-    .where({ company_id: companyId, key: observedKey(userId) })
+    .where({ company_id: companyId, key: buildObservedKey(userId) })
     .delete();
 }

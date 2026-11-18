@@ -8,7 +8,7 @@ import { writeAudit } from '#services/audit';
 
 type Trx = TransactionClientContract;
 
-async function currentLink(trx: Trx, companyId: string, userId: string) {
+async function getCurrentLink(trx: Trx, companyId: string, userId: string) {
   return trx
     .from('account_member_resources')
     .where({ company_id: companyId, user_id: userId })
@@ -21,13 +21,13 @@ async function assertEligibleMember(trx: Trx, companyId: string, userId: string)
   }
 }
 
-async function resource(trx: Trx, companyId: string, resourceId: string) {
+async function getResource(trx: Trx, companyId: string, resourceId: string) {
   return trx.from('resources').where({ company_id: companyId, id: resourceId }).first();
 }
 
 /** Checks the scheduled person is still available to link. */
 async function assertAvailablePerson(trx: Trx, companyId: string, resourceId: string) {
-  const row = await resource(trx, companyId, resourceId);
+  const row = await getResource(trx, companyId, resourceId);
   if (row?.kind !== 'person' || row.archived_at || row.deleted_at) {
     conflictingAdmission('The selected scheduled person is no longer available.');
   }
@@ -49,12 +49,12 @@ export async function setMemberResourceLink(
   const now = input.now ?? new Date().toISOString();
   await assertEligibleMember(trx, companyId, userId);
   await assertAvailablePerson(trx, companyId, resourceId);
-  const current = await currentLink(trx, companyId, userId);
+  const current = await getCurrentLink(trx, companyId, userId);
   if ((current?.revision ?? null) !== expectedRevision) {
     conflictingAdmission('The member resource link changed. Refresh and retry.');
   }
   if (current && current.resource_id !== resourceId) {
-    const previous = await resource(trx, companyId, String(current.resource_id));
+    const previous = await getResource(trx, companyId, String(current.resource_id));
     if (previous?.kind !== 'person' || previous.archived_at || previous.deleted_at) {
       conflictingAdmission(
         'The current scheduled person is unavailable; unlink it before changing the link.'

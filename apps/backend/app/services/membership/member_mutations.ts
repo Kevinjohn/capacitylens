@@ -9,7 +9,11 @@ import { advancePlanningRevision } from '#services/planning_revision';
 
 export class MembershipError extends RefusalError {}
 
-async function targetMember(trx: TransactionClientContract, companyId: string, userId: string) {
+async function requireTargetMember(
+  trx: TransactionClientContract,
+  companyId: string,
+  userId: string
+) {
   const member = await access.memberships.find(companyId, userId, trx);
   if (!member) throw new MembershipError('Not a member of this company.', 404, 'NOT_FOUND');
   requireStoredRole(member);
@@ -21,7 +25,7 @@ export async function changeMemberRole(
   trx: TransactionClientContract,
   input: { companyId: string; actorId: string; userId: string; role: Role }
 ) {
-  const member = await targetMember(trx, input.companyId, input.userId);
+  const member = await requireTargetMember(trx, input.companyId, input.userId);
   // The package would change a suspended member's role; CapacityLens changes active members only.
   if (member.status !== 'active') throw new MembershipError('Forbidden.', 403, 'FORBIDDEN');
   if (input.role === 'owner') {
@@ -57,7 +61,7 @@ export async function changeMemberStatus(
   trx: TransactionClientContract,
   input: { companyId: string; actorId: string; userId: string; status: MembershipStatus }
 ) {
-  const member = await targetMember(trx, input.companyId, input.userId);
+  const member = await requireTargetMember(trx, input.companyId, input.userId);
   await access.memberships.setStatus({
     actor: { id: input.actorId },
     scopeId: input.companyId,
