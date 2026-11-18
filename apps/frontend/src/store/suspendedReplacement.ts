@@ -61,7 +61,7 @@ export async function runSuspendedReplacement({
   if (!release) return { kind: 'blocked' };
   const { activeAccountId, planning } = useStore.getState();
   const planningContext = planning.context;
-  const departed = () => {
+  const hasDeparted = () => {
     if (recovery === 'reload') return false;
     const state = useStore.getState();
     return state.activeAccountId !== activeAccountId || state.planning.context !== planningContext;
@@ -79,13 +79,13 @@ export async function runSuspendedReplacement({
   const settleUncertain = async (
     failure: UncertainReplacementFailure,
   ): Promise<SuspendedReplacementOutcome> => {
-    if (departed()) return { kind: 'departed' };
+    if (hasDeparted()) return { kind: 'departed' };
     if (recovery === 'reload') {
       held = true;
       return { kind: 'uncertain', failure, reloadRequired: true };
     }
     const refreshed = await refresh();
-    if (departed()) return { kind: 'departed' };
+    if (hasDeparted()) return { kind: 'departed' };
     return { kind: 'uncertain', failure, reloadRequired: !refreshed };
   };
 
@@ -97,24 +97,24 @@ export async function runSuspendedReplacement({
       // A missing response does not prove refusal; reconcile before permitting another replacement.
       return await settleUncertain({ kind: 'no-response', cause });
     }
-    if (departed()) return { kind: 'departed' };
+    if (hasDeparted()) return { kind: 'departed' };
     if (response.ok) {
       if (recovery === 'reload') {
         held = true;
         return { kind: 'committed', response, reloadRequired: true };
       }
       const changed = isChanged ? await isChanged(response) : true;
-      if (departed()) return { kind: 'departed' };
+      if (hasDeparted()) return { kind: 'departed' };
       if (!changed) return { kind: 'committed', response, reloadRequired: false };
       const refreshed = await refresh();
-      if (departed()) return { kind: 'departed' };
+      if (hasDeparted()) return { kind: 'departed' };
       return { kind: 'committed', response, reloadRequired: !refreshed };
     }
     const message = await readApiError(response);
     if (isUncertainStatus(response.status)) {
       return await settleUncertain({ kind: 'status', status: response.status, message });
     }
-    if (departed()) return { kind: 'departed' };
+    if (hasDeparted()) return { kind: 'departed' };
     return { kind: 'refused', status: response.status, message };
   } finally {
     if (!held) release();
