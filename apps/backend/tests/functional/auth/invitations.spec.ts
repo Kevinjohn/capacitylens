@@ -88,7 +88,7 @@ test.group('company invitations', (group) => {
     sent.assertStatus(201);
     assert.include(sent.body(), { role: 'editor', preauthEmail: invitee, emailed: true });
     const listed = await asDataOwner(
-      client.get(`/api/accounts/${accountId}/invites`),
+      client.get(`/api/companies/${accountId}/invites`),
       cookie
     ).send();
     assert.deepEqual(
@@ -129,7 +129,7 @@ test.group('company invitations', (group) => {
     assert.isTrue(pending.body().emailVerified);
     assert.isFalse(pending.body().admission.admitted);
     const planning = () =>
-      asDataOwner(client.get(`/api/accounts/${accountId}/planning`), inviteeCookie).send();
+      asDataOwner(client.get(`/api/companies/${accountId}/planning`), inviteeCookie).send();
     await expectStatus(planning(), 403);
     const approved = await asDataOwner(
       client.post(`/api/admission/${userId}/approve`),
@@ -253,12 +253,12 @@ test.group('company invitations', (group) => {
     assert.deepEqual(sent.body(), { committed: true, emailed: false });
     assert.lengthOf(await db.from('account_invitations'), 1);
     const listed = await asDataOwner(
-      client.get(`/api/accounts/${accountId}/invites`),
+      client.get(`/api/companies/${accountId}/invites`),
       cookie
     ).send();
     const { id } = (listed.body() as { invites: { id: number }[] }).invites[0];
     const resent = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/invites/${id}/resend`),
+      client.post(`/api/companies/${accountId}/invites/${id}/resend`),
       cookie
     ).send();
     resent.assertStatus(202);
@@ -318,7 +318,7 @@ test.group('company invitations', (group) => {
     const first = mail.tokenFor(invitee);
     const { id } = sent.body() as { id: number };
     const resent = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/invites/${id}/resend`),
+      client.post(`/api/companies/${accountId}/invites/${id}/resend`),
       cookie
     ).send();
     resent.assertStatus(200);
@@ -327,7 +327,7 @@ test.group('company invitations', (group) => {
     await expectStatus(client.get(`/api/invites/${first}/preview`).send(), 404);
     env.set('CAPACITYLENS_MAIL_HOST', '');
     const unavailable = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/invites/${id}/resend`),
+      client.post(`/api/companies/${accountId}/invites/${id}/resend`),
       cookie
     ).send();
     unavailable.assertStatus(503);
@@ -335,7 +335,7 @@ test.group('company invitations', (group) => {
     env.set('CAPACITYLENS_MAIL_HOST', 'mail.wayne.example');
     await expectStatus(client.get(`/api/invites/${second}/preview`).send(), 200);
     const revoked = await asDataOwner(
-      client.delete(`/api/accounts/${accountId}/invites/${id}`),
+      client.delete(`/api/companies/${accountId}/invites/${id}`),
       cookie
     ).send();
     revoked.assertStatus(204);

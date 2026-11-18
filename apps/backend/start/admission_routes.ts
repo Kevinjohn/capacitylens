@@ -18,15 +18,15 @@ export function registerAdmissionRoutes() {
     .as('api.invites.create')
     .use(asMember());
   router
-    .get('/api/accounts/:accountId/invites', [InvitationsController, 'index'])
+    .get('/api/companies/:companyId/invites', [InvitationsController, 'index'])
     .as('api.invites.index')
     .use(asCompanyMemberOnly());
   router
-    .post('/api/accounts/:accountId/invites/:id/resend', [InvitationsController, 'resend'])
+    .post('/api/companies/:companyId/invites/:id/resend', [InvitationsController, 'resend'])
     .as('api.invites.resend')
     .use(asCompanyMember());
   router
-    .delete('/api/accounts/:accountId/invites/:id', [InvitationsController, 'revoke'])
+    .delete('/api/companies/:companyId/invites/:id', [InvitationsController, 'revoke'])
     .as('api.invites.revoke')
     .use(asCompanyMember());
   router
@@ -68,14 +68,14 @@ export function registerAdmissionRoutes() {
     .use(asMember());
 
   router
-    .put('/api/accounts/:accountId/members/:userId/resource-link', [
+    .put('/api/companies/:companyId/members/:userId/resource-link', [
       MemberResourcesController,
       'setLink',
     ])
     .as('api.member-resources.set')
     .use(asCompanyMember());
   router
-    .delete('/api/accounts/:accountId/members/:userId/resource-link', [
+    .delete('/api/companies/:companyId/members/:userId/resource-link', [
       MemberResourcesController,
       'clearLink',
     ])

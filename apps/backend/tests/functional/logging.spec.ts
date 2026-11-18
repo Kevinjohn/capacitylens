@@ -173,7 +173,7 @@ test.group('general HTTP logging privacy', (group) => {
     const { output, result } = await captureLogs(
       () =>
         client
-          .post('/api/accounts/a-studio/example-data')
+          .post('/api/companies/a-studio/example-data')
           .header('sec-fetch-site', 'same-origin')
           .json({})
           .send(),

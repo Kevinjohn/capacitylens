@@ -31,7 +31,7 @@ test.group('M1 read path', (group) => {
     }) => {
       if (
         expected.path.startsWith('/api/state?') ||
-        ['/api/accounts', '/api/diagnostics'].includes(expected.path)
+        ['/api/companies', '/api/diagnostics'].includes(expected.path)
       )
         client = await resetAuthenticatedClient(client, true);
       const response =

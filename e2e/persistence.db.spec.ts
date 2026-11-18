@@ -143,7 +143,7 @@ test.describe('database-backed persistence', () => {
       const url = new URL(response.url());
       return (
         response.request().method() === 'GET' &&
-        url.pathname === '/api/accounts/a-studio/planning' &&
+        url.pathname === '/api/companies/a-studio/planning' &&
         response.ok()
       );
     });

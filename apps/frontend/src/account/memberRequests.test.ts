@@ -60,7 +60,7 @@ describe('browser account client', () => {
     expect(hasUnknownAccountCommandOutcome(link)).toBe(true);
     const [linkUrl, linkInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
-      '/api/accounts/company%20%2F%20one/members/person%20%2F%20one/resource-link',
+      '/api/companies/company%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
     expectCommand(linkInit, 'PUT');
     expect(JSON.parse(String(linkInit.body))).toEqual({
@@ -100,14 +100,14 @@ describe('browser account client', () => {
       .map((call) => String(call[0]))
       .filter((url) => url.endsWith('/members') || url.endsWith('/invites'));
     expect(directoryUrls).toEqual([
-      '/api/accounts/company%20%2F%20one/members',
-      '/api/accounts/company%20%2F%20one/invites',
+      '/api/companies/company%20%2F%20one/members',
+      '/api/companies/company%20%2F%20one/invites',
     ]);
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
-      '/api/accounts/company%20%2F%20one/members',
-      '/api/accounts/company%20%2F%20one/invites',
-      '/api/accounts/company%20%2F%20one/masquerade',
+      '/api/companies/company%20%2F%20one/members',
+      '/api/companies/company%20%2F%20one/invites',
+      '/api/companies/company%20%2F%20one/masquerade',
       '/api/masquerade',
       '/api/masquerade',
       '/api/invites/token%20%2F%20one/preview',
@@ -138,7 +138,7 @@ describe('browser account client', () => {
     });
 
     const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
-    expect(url).toBe('/api/accounts/company%20%2F%20one/ownership-transfer');
+    expect(url).toBe('/api/companies/company%20%2F%20one/ownership-transfer');
     expectCommand(init as RequestInit, 'POST');
     expect(JSON.parse(String(init?.body))).toEqual({
       toUserId: 'person / one',

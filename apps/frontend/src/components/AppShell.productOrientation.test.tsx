@@ -29,7 +29,7 @@ beforeEach(() => {
     'fetch',
     vi.fn((input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.endsWith('/api/accounts')) {
+      if (url.endsWith('/api/companies')) {
         const state = useStore.getState();
         const summaries = state.accountSummaries.length
           ? state.accountSummaries
@@ -238,7 +238,7 @@ describe('AppShell product orientation', () => {
       'fetch',
       vi.fn((input: RequestInfo | URL) => {
         const url = input instanceof Request ? input.url : String(input);
-        if (url.endsWith('/api/accounts')) {
+        if (url.endsWith('/api/companies')) {
           return Promise.resolve(
             new Response(
               JSON.stringify([
@@ -251,7 +251,7 @@ describe('AppShell product orientation', () => {
             ),
           );
         }
-        if (url.endsWith(`/api/accounts/${DEFAULT_ACCOUNT_ID}/getting-started`)) {
+        if (url.endsWith(`/api/companies/${DEFAULT_ACCOUNT_ID}/getting-started`)) {
           return Promise.resolve(
             new Response(
               JSON.stringify({

@@ -16,7 +16,7 @@ import {
   signInAgain,
 } from './helpers.js';
 
-const allocationsUrl = `/api/accounts/${accountId}/allocations`;
+const allocationsUrl = `/api/companies/${accountId}/allocations`;
 
 interface SendPlanningOptions {
   client: ApiClient;

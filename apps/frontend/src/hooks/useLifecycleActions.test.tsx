@@ -83,7 +83,7 @@ describe('named lifecycle actions', () => {
     const call = fetch.mock.calls[0];
     if (!call) throw new Error('Anonymisation request was not sent.');
     const [url, options] = call;
-    expect(url).toBe(`/api/accounts/${DEFAULT_ACCOUNT_ID}/resources/r-1/anonymise`);
+    expect(url).toBe(`/api/companies/${DEFAULT_ACCOUNT_ID}/resources/r-1/anonymise`);
     expect(options).toMatchObject({ method: 'POST', body: '{}' });
   });
 

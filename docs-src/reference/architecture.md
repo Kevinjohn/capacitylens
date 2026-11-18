@@ -68,7 +68,7 @@ Diana Prince's booking on the Themyscira rebrand changes from 4 to 6 hours a day
 sends one typed request:
 
 ```http
-PATCH /api/accounts/:accountId/allocations/:id
+PATCH /api/companies/:companyId/allocations/:id
 { "mutationId": "<uuid>", "baseRevision": 41,
   "intent": { "operation": "allocation.update", "id": "<id>", "changes": { "hoursPerDay": 6 } } }
 ```
@@ -87,7 +87,7 @@ Three router middleware gates run, in this order, before the controller and can 
   `MASQUERADE_CONTEXT_REQUIRED`), refuses a stale header on any method (409
   `MASQUERADE_CONTEXT_CHANGED`), and refuses every unsafe request, and reads marked
   `asMemberOnly()`, while viewing as another member (403 `MASQUERADE_READ_ONLY`).
-- P3. On a route with `:accountId` in its path, `apps/backend/app/middleware/company_scope_middleware.ts`
+- P3. On a route with `:companyId` in its path, `apps/backend/app/middleware/company_scope_middleware.ts`
   runs Access Control's `scope` middleware for the authenticated user (the viewed-as member under
   view-as) and refuses one without an active membership: 403 `ACCOUNT_MEMBERSHIP_LOST` on planning
   routes, 403 `IDENTITY_AUTHORITY_DENIED` elsewhere.
@@ -255,7 +255,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 | Ownership transfer | `POST …/ownership-transfer`; Team & access | `app/services/membership/ownership_transfer.ts` | One `withActor`: receipt, password confirmation, Access Control ownership transfer, revision, audit | Live single Owner, not viewing as; Admin target; single-use password confirmation | Receipt `{ fromUserId, toUserId }` | `TARGET_INELIGIBLE`, `PASSWORD_CONFIRMATION_REQUIRED`, `IDENTITY_AUTHORITY_DENIED` | `tests/functional/membership/ownership_transfer.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
 | View-as | `/api/masquerade`, `…/masquerade`; Team & access | `@kevinjohn/adonisjs-masquerade`; `app/services/auth/masquerade.ts` | Package control-store transaction, outside product transactions | Package policy; middleware refuses writes; target role re-checked in each product transaction | `currentMasquerade` | `MASQUERADE_READ_ONLY`, `MASQUERADE_CONTEXT_CHANGED`, `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/auth/masquerade.spec.ts` |
 | Company state read | `GET /api/state`; archived records | `app/controllers/exports_controller.ts` `show` | Read-only `withActor` | Effective principal and live role; inactive rows need `members:manage` | `transformState` by role | 400, 401, 403 | `tests/functional/data_routes.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
-| Export | `GET /api/accounts/:accountId/export`; import/export screen | `app/controllers/exports_controller.ts` `download` | Read-only `withActor` | Effective member through `resolvePlanningAuthority`; inactive rows need `members:manage` | Serialised export document, `full` only for the Owner | 400 invalid export document `{ error }`, 401, 403 `ACCOUNT_MEMBERSHIP_LOST`, 409 `MASQUERADE_CONTEXT_CHANGED`, 428 `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/company_export.spec.ts` |
+| Export | `GET /api/companies/:companyId/export`; import/export screen | `app/controllers/exports_controller.ts` `download` | Read-only `withActor` | Effective member through `resolvePlanningAuthority`; inactive rows need `members:manage` | Serialised export document, `full` only for the Owner | 400 invalid export document `{ error }`, 401, 403 `ACCOUNT_MEMBERSHIP_LOST`, 409 `MASQUERADE_CONTEXT_CHANGED`, 428 `MASQUERADE_CONTEXT_REQUIRED` | `tests/functional/company_export.spec.ts` |
 | Transfer preview and apply | `POST /api/transfer/{preview,apply}`; import screen | `app/services/beta_account_transfer.ts` | Parse outside; preview read-only `withActor`; apply spends the password confirmation, replaces rows, audits in one `withActor` | Live Owner, not viewing as; password confirmation bound to company, session and document | `{ baseRevision, imported, changed, companyName, counts }` (preview); `{ imported, changed, revision }` (apply) | `PASSWORD_CONFIRMATION_REQUIRED`, `IMPORT_SNAPSHOT_STALE`, `IMPORT_ID_COLLISION` | `tests/functional/transfer_apply.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |
 | Anonymise resource | `POST …/resources/:id/anonymise` | `app/services/anonymise.ts` | `withActor`: scrub, restoration purge, audit, revision | Not viewing as; `resources:anonymise` ability (Owner or Admin) | 204 | 403, 404 | `tests/functional/anonymise.spec.ts`, `tests/functional/auth/native_authorization.spec.ts` |
 | Anonymise company | `POST …/anonymise` | `app/services/anonymise.ts` | `withActor`: password confirmation spend then scrub, audit, revision | Live Owner and a single-use password confirmation | 204 | `PASSWORD_CONFIRMATION_REQUIRED` | `tests/functional/anonymise.spec.ts`, `tests/functional/privacy/password_confirmation_bindings.spec.ts` |

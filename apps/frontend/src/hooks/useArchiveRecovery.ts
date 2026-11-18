@@ -94,7 +94,7 @@ export function useArchiveRecovery() {
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
       const response = await client.request('api.planning.archive', {
-        params: { accountId: accountId ?? '' },
+        params: { companyId: accountId ?? '' },
         signal,
         headers: { 'X-Masquerade-Context': contextToken ?? '' },
       });

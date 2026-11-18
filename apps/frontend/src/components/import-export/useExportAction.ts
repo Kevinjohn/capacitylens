@@ -21,7 +21,7 @@ export function useExportAction() {
     try {
       if (!activeAccountId) throw new Error('An active company is required before exporting.');
       const response = await apiFetch(
-        apiRouteUrl('api.export', { params: { accountId: activeAccountId } }),
+        apiRouteUrl('api.export', { params: { companyId: activeAccountId } }),
         { credentials: 'include' },
         API_BULK_TIMEOUT_MS,
       );

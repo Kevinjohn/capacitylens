@@ -41,7 +41,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
     for (const [field, initial, target] of changes) {
       // The fixture deliberately models legacy accounts with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
-      const initialized = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
+      const initialized = await request.patch(`${API}/api/companies/${account.id}/settings`, {
         headers: await masqueradeContextHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
@@ -52,7 +52,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
       expect(initialized.status(), `${field} must allow one-time initialization`).toBe(200);
       revision += 1;
 
-      const res = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
+      const res = await request.patch(`${API}/api/companies/${account.id}/settings`, {
         headers: await masqueradeContextHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
@@ -65,7 +65,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
 
     // The settings-update schema excludes language, so language-only updates are rejected
     // before frozen-field handling, even when the supplied language is English ('en').
-    const language = await request.patch(`${API}/api/accounts/${account.id}/settings`, {
+    const language = await request.patch(`${API}/api/companies/${account.id}/settings`, {
       headers: await masqueradeContextHeaders(request, undefined, API),
       data: {
         mutationId: crypto.randomUUID(),
@@ -113,7 +113,7 @@ test.describe('single-company production entry', () => {
     expect(await res.json()).toMatchObject({ code: 'COMPANY_SETUP_UNAVAILABLE' });
 
     // The company list refuses an installation with more than one company.
-    const companies = await request.get(`${API}/api/accounts`);
+    const companies = await request.get(`${API}/api/companies`);
     expect(companies.status()).toBe(200);
     expect(await companies.json()).toHaveLength(1);
   });

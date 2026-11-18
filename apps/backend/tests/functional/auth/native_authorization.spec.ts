@@ -18,7 +18,7 @@ const privateClientName = 'SENTINEL_PRIVATE_CLIENT_NAME';
 const privateProjectName = 'SENTINEL_PRIVATE_PROJECT_NAME';
 const privateTimeOffNote = 'SENTINEL_PRIVATE_TIME_OFF_NOTE';
 const roles = ['viewer', 'editor', 'admin', 'owner'] as const;
-const planningUrl = `/api/accounts/${accountId}/planning`;
+const planningUrl = `/api/companies/${accountId}/planning`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -80,7 +80,7 @@ async function currentUser(client: ApiClient, cookie: string) {
 }
 
 async function writeDismissal(client: ApiClient, cookie: string) {
-  return withSession(trusted(client.put(`/api/accounts/${accountId}/getting-started`)), cookie)
+  return withSession(trusted(client.put(`/api/companies/${accountId}/getting-started`)), cookie)
     .json({ dismissed: true })
     .send();
 }
@@ -97,7 +97,7 @@ async function importSeed(client: ApiClient, cookie: string) {
 
 async function anonymiseResource(client: ApiClient, cookie: string, id: string) {
   return withSession(
-    trusted(client.post(`/api/accounts/${accountId}/resources/${id}/anonymise`)),
+    trusted(client.post(`/api/companies/${accountId}/resources/${id}/anonymise`)),
     cookie
   )
     .json({})
@@ -216,7 +216,7 @@ test.group('native authorization and role projections', (group) => {
       const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);
       const planning = currentPlanning.body() as { revision: number };
-      const settingsRequest = trusted(client.patch(`/api/accounts/${accountId}/settings`));
+      const settingsRequest = trusted(client.patch(`/api/companies/${accountId}/settings`));
       const setting = await withSession(settingsRequest, cookie)
         .json(
           input(planning.revision, {

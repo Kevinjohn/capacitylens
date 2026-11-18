@@ -5,7 +5,7 @@ import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { readState } from '#tests/helpers/state_fixture';
 import { accountId, newAllocation, session } from './helpers.js';
 
-export const allocationsUrl = `/api/accounts/${accountId}/allocations`;
+export const allocationsUrl = `/api/companies/${accountId}/allocations`;
 export const note = 'Gotham night shift briefing';
 
 export interface Reply {
@@ -75,7 +75,7 @@ export const restore = (
   send(
     client,
     cookie,
-    `/api/accounts/${account}/planning/restore-group`,
+    `/api/companies/${account}/planning/restore-group`,
     baseRevision,
     { operation: 'planning.restoreGroup', restorationGroupId },
     mutationId
@@ -112,7 +112,7 @@ export async function stored(id: string) {
 
 /** Allocation ids in the planning read the browser replaces its slice from. */
 export async function readAllocationIds(client: ApiClient, cookie: string) {
-  const snapshot = await session(client.get(`/api/accounts/${accountId}/planning`), cookie).send();
+  const snapshot = await session(client.get(`/api/companies/${accountId}/planning`), cookie).send();
   snapshot.assertStatus(200);
   return (snapshot.body() as { data: { allocations: Array<{ id: string }> } }).data.allocations.map(
     (row) => row.id
@@ -120,7 +120,7 @@ export async function readAllocationIds(client: ApiClient, cookie: string) {
 }
 
 export async function currentRevision(client: ApiClient, cookie: string, account = accountId) {
-  const snapshot = await session(client.get(`/api/accounts/${account}/planning`), cookie).send();
+  const snapshot = await session(client.get(`/api/companies/${account}/planning`), cookie).send();
   snapshot.assertStatus(200);
   return Number((snapshot.body() as { revision: number }).revision);
 }

@@ -185,7 +185,9 @@ test.describe('Allocation editor', () => {
     const tailDeleteCommitted = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
-        /\/api\/accounts\/[^/]+\/allocations\/delete-group$/.test(new URL(response.url()).pathname),
+        /\/api\/companies\/[^/]+\/allocations\/delete-group$/.test(
+          new URL(response.url()).pathname,
+        ),
     );
     await repeatedDelete
       .getByRole('button', { name: 'Delete this and future occurrences' })
@@ -207,7 +209,7 @@ test.describe('Allocation editor', () => {
     const tailRestoreCommitted = page.waitForResponse(
       (response) =>
         response.request().method() === 'POST' &&
-        /\/api\/accounts\/[^/]+\/planning\/restore-group$/.test(new URL(response.url()).pathname),
+        /\/api\/companies\/[^/]+\/planning\/restore-group$/.test(new URL(response.url()).pathname),
     );
     await page.keyboard.press('ControlOrMeta+z');
     const tailRestoreResponse = await tailRestoreCommitted;

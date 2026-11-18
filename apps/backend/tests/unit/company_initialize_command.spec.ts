@@ -260,7 +260,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
         .join('; ');
       const me = await fetch(`${origin}/api/auth/me`, { headers: { cookie } });
       assert.equal(me.status, 200);
-      const companies = await fetch(`${origin}/api/accounts`, { headers: { cookie } });
+      const companies = await fetch(`${origin}/api/companies`, { headers: { cookie } });
       assert.deepEqual(await companies.json(), [
         {
           id: accountId,

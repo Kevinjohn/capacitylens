@@ -60,7 +60,7 @@ describe('account query cache scope', () => {
     expect(
       scopeQueryKey({ principalId: 'bruce', accountId: 'wayne', masqueradeGeneration: 2 }, [
         'api.members.index',
-        { params: { accountId: 'wayne' } },
+        { params: { companyId: 'wayne' } },
       ] as const),
     ).toEqual([
       'capacitylens',
@@ -68,7 +68,7 @@ describe('account query cache scope', () => {
       'wayne',
       2,
       'api.members.index',
-      { params: { accountId: 'wayne' } },
+      { params: { companyId: 'wayne' } },
     ]);
   });
 

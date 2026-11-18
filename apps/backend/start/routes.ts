@@ -17,7 +17,7 @@ import { registerDiagnosticsRoutes } from '#start/diagnostics_routes';
 
 // The Access Control package accepts string keys of 1 to 254 characters. A longer company or member
 // identifier matches no route and answers 404 instead of reaching the package.
-for (const param of ['accountId', 'userId']) router.where(param, /^.{1,254}$/);
+for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
 
 registerCompanyRoutes();
 registerTransferRoutes();

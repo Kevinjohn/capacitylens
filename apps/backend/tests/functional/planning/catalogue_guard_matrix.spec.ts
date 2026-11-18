@@ -15,7 +15,7 @@ import {
 
 const body = (response: { body(): unknown }) =>
   response.body() as { code: string; revision: number; message?: string };
-const route = (path: string) => `/api/accounts/${accountId}/${path}`;
+const route = (path: string) => `/api/companies/${accountId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,

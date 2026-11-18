@@ -23,7 +23,7 @@ export const nativeAdapter = accountKitAuthority<MasqueradeUser>({
 
 function requestedAccountId(request?: HttpContext): string | null {
   if (!request) return null;
-  const value = request.params.accountId;
+  const value = request.params.companyId;
   return typeof value === 'string' && value ? value : null;
 }
 

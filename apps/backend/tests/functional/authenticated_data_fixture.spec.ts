@@ -30,7 +30,7 @@ test.group('authenticated data fixture', (group) => {
     assert.isString(contextToken);
     assert.isAbove((contextToken as string).length, 0);
     const write = await owner
-      .put('/api/accounts/a-studio/getting-started')
+      .put('/api/companies/a-studio/getting-started')
       .json({ dismissed: true })
       .send();
     assert.equal(write.status(), 200, JSON.stringify(write.body()));

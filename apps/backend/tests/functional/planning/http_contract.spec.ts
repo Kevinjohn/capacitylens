@@ -53,7 +53,7 @@ test.group('authenticated typed planning transactions', (group) => {
         .body()
         .data.clients.every((row: { accountId: string }) => row.accountId === accountId)
     );
-    const foreign = await session(client.get('/api/accounts/a-loft/planning'), cookie).send();
+    const foreign = await session(client.get('/api/companies/a-loft/planning'), cookie).send();
     foreign.assertStatus(403);
     assert.equal(foreign.body().code, 'ACCOUNT_MEMBERSHIP_LOST');
     const anonymous = await trusted(client.get(planningUrl)).send();
@@ -144,7 +144,7 @@ test.group('authenticated typed planning transactions', (group) => {
         endDate: date,
         hoursPerDay: 24,
       };
-      const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+      const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
         .json({
           mutationId: randomUUID(),
           baseRevision: revision,
@@ -223,7 +223,7 @@ test.group('authenticated typed planning transactions', (group) => {
       baseRevision: 0,
       intent: { operation: 'allocation.create', allocation },
     };
-    const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+    const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
       .json(input)
       .send();
     created.assertStatus(200);
@@ -242,13 +242,13 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.isTrue(
       read.body().data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
-    const duplicate = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+    const duplicate = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
       .json(input)
       .send();
     duplicate.assertStatus(409);
     assert.equal(duplicate.body().code, 'MUTATION_ID_REUSED');
     const stale = await session(
-      client.patch(`/api/accounts/${accountId}/allocations/${allocation.id}`),
+      client.patch(`/api/companies/${accountId}/allocations/${allocation.id}`),
       cookie
     )
       .json({
@@ -264,7 +264,7 @@ test.group('authenticated typed planning transactions', (group) => {
     stale.assertStatus(409);
     assert.equal(stale.body().code, 'STALE_REVISION');
     const moved = await session(
-      client.patch(`/api/accounts/${accountId}/allocations/${allocation.id}`),
+      client.patch(`/api/companies/${accountId}/allocations/${allocation.id}`),
       cookie
     )
       .json({
@@ -335,7 +335,7 @@ test.group('authenticated typed planning transactions', (group) => {
       },
     };
     const response = await session(
-      client.post(`/api/accounts/${accountId}/allocations/${source.id}/duplicate`),
+      client.post(`/api/companies/${accountId}/allocations/${source.id}/duplicate`),
       cookie
     )
       .json(input)
@@ -365,7 +365,7 @@ test.group('authenticated typed planning transactions', (group) => {
       source
     );
     const replay = await session(
-      client.post(`/api/accounts/${accountId}/allocations/${source.id}/duplicate`),
+      client.post(`/api/companies/${accountId}/allocations/${source.id}/duplicate`),
       cookie
     )
       .json(input)
@@ -452,7 +452,7 @@ test.group('authenticated typed planning transactions', (group) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const allocation = newAllocation(await readState(accountId, true));
-    const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+    const created = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 0,
@@ -461,7 +461,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     created.assertStatus(200);
     const before = await readState(accountId, true);
-    const occupied = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+    const occupied = await session(client.post(`/api/companies/${accountId}/allocations`), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 1,
@@ -472,7 +472,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(occupied.body().code, 'VALIDATION_ERROR');
     const missingId = randomUUID();
     const missing = await session(
-      client.patch(`/api/accounts/${accountId}/allocations/${missingId}`),
+      client.patch(`/api/companies/${accountId}/allocations/${missingId}`),
       cookie
     )
       .json({
@@ -506,7 +506,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const allocation = data.allocations.find((row) => row.accountId === accountId)!;
     const before = await readState(accountId, true);
     const response = await session(
-      client.patch(`/api/accounts/${accountId}/allocations/${allocation.id}`),
+      client.patch(`/api/companies/${accountId}/allocations/${allocation.id}`),
       cookie
     )
       .json({

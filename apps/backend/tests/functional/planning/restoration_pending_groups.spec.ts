@@ -45,7 +45,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const settings = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/settings`,
+      `/api/companies/${accountId}/settings`,
       2,
       {
         operation: 'settings.update',
@@ -59,7 +59,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const ordinary = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/projects/${target.id}`,
+      `/api/companies/${accountId}/projects/${target.id}`,
       3,
       {
         operation: 'catalogue.update',
@@ -77,7 +77,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const changed = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/projects/${target.id}`,
+      `/api/companies/${accountId}/projects/${target.id}`,
       4,
       {
         operation: 'catalogue.update',
@@ -95,7 +95,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.patch(`/api/accounts/${accountId}/projects/${target.id}`),
+      client.patch(`/api/companies/${accountId}/projects/${target.id}`),
       cookie
     )
       .json({
@@ -134,7 +134,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const renamed = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/activities/${activity.id}`,
+      `/api/companies/${accountId}/activities/${activity.id}`,
       2,
       {
         operation: 'catalogue.update',
@@ -152,7 +152,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const changed = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/activities/${activity.id}`,
+      `/api/companies/${accountId}/activities/${activity.id}`,
       3,
       {
         operation: 'catalogue.update',
@@ -166,7 +166,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.patch(`/api/accounts/${accountId}/activities/${activity.id}`),
+      client.patch(`/api/companies/${accountId}/activities/${activity.id}`),
       cookie
     )
       .json({
@@ -257,7 +257,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       },
     };
     const request = (confirmedRestorationCount?: number, baseRevision = 2) =>
-      session(client.patch(`/api/accounts/${accountId}/projects/${target.id}`), cookie)
+      session(client.patch(`/api/companies/${accountId}/projects/${target.id}`), cookie)
         .json({
           mutationId,
           baseRevision,
@@ -323,7 +323,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       const refused = await send(
         client,
         cookie,
-        `/api/accounts/${accountId}/projects/${target.id}`,
+        `/api/companies/${accountId}/projects/${target.id}`,
         2,
         {
           operation: 'catalogue.update',

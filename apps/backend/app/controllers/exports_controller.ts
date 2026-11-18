@@ -38,7 +38,7 @@ export default class ExportsController {
    */
   async download(ctx: HttpContext) {
     try {
-      const accountId = String(ctx.params.accountId);
+      const accountId = String(ctx.params.companyId);
       const text = await withActor(ctx, async (_actor, trx) => {
         const { authority } = await resolvePlanningAuthority(trx, accountId);
         const rows = await readStateWithClient(

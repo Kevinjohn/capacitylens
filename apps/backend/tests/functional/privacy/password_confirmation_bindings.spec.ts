@@ -55,7 +55,7 @@ test.group('password confirmation bindings', (group) => {
     const auditBefore = await db.from('audit_entries').where('account_id', accountId);
 
     const anonymise = await asDataOwner(
-      client.post(`/api/accounts/${accountId}/anonymise`),
+      client.post(`/api/companies/${accountId}/anonymise`),
       successorCookie
     )
       .json({ confirmationId: anonymiseProof })
@@ -107,7 +107,10 @@ test.group('password confirmation bindings', (group) => {
       .send();
     response.assertStatus(200);
     const importProof = (response.body() as { confirmationId: string }).confirmationId;
-    const anonymise = await asDataOwner(client.post(`/api/accounts/${accountId}/anonymise`), cookie)
+    const anonymise = await asDataOwner(
+      client.post(`/api/companies/${accountId}/anonymise`),
+      cookie
+    )
       .json({ confirmationId: importProof })
       .send();
     anonymise.assertStatus(403);

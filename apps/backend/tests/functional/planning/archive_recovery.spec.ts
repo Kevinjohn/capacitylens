@@ -16,7 +16,7 @@ import {
   trusted,
 } from './helpers.js';
 
-const route = (path: string, companyId = accountId) => `/api/accounts/${companyId}/${path}`;
+const route = (path: string, companyId = accountId) => `/api/companies/${companyId}/${path}`;
 const archiveUrl = route('planning/archive');
 const stamp = '2026-10-01T00:00:00.000Z';
 const privateClientName = 'Wayne Archive Client';

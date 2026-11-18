@@ -55,7 +55,7 @@ describe('browser account client', () => {
       string,
       RequestInit,
     ];
-    expect(createUrl).toBe('/api/accounts/a-studio/ownership-transfer');
+    expect(createUrl).toBe('/api/companies/a-studio/ownership-transfer');
     expectCommand(createInit, 'POST');
     expect(new Headers(createInit.headers).get('content-type')).toBe('application/json');
     expect(createInit.body).toBe(JSON.stringify({ toUserId: 'Studio', confirmationId: 'proof-1' }));
@@ -63,8 +63,8 @@ describe('browser account client', () => {
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
       expect.arrayContaining([
-        '/api/accounts/company%20%2F%20one/members/person%20%2F%20one',
-        '/api/accounts/company%20%2F%20one/invites/invite%20%2F%20one',
+        '/api/companies/company%20%2F%20one/members/person%20%2F%20one',
+        '/api/companies/company%20%2F%20one/invites/invite%20%2F%20one',
       ]),
     );
   });

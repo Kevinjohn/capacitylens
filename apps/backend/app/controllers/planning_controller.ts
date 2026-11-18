@@ -17,7 +17,7 @@ import { withActor } from '#services/auth/current_actor';
 export default class PlanningController {
   async show(ctx: HttpContext) {
     try {
-      const accountId = String(ctx.params.accountId);
+      const accountId = String(ctx.params.companyId);
       const { from, to } = await ctx.request.validateUsing(planningReadValidator, {
         data: ctx.request.qs(),
       });
@@ -30,7 +30,7 @@ export default class PlanningController {
 
   async archive(ctx: HttpContext) {
     try {
-      const accountId = String(ctx.params.accountId);
+      const accountId = String(ctx.params.companyId);
       return await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, accountId));
     } catch (error) {
       return sendRefusal(error, ctx);
@@ -75,7 +75,7 @@ export default class PlanningController {
           'The operation target does not match this resource route.'
         );
       }
-      const accountId = String(ctx.params.accountId);
+      const accountId = String(ctx.params.companyId);
       return await withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, accountId, input }));
     } catch (error) {
       return sendRefusal(error, ctx);

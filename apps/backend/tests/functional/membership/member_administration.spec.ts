@@ -73,7 +73,7 @@ test.group('company member administration', (group) => {
       expires_at: new Date(Date.now() + 3_600_000).toISOString(),
       created_at: now,
     });
-    const path = `/api/accounts/a-studio/members/${editorId}`;
+    const path = `/api/companies/a-studio/members/${editorId}`;
     const identity = {
       'x-account-command-id': 'member-role-command-0001',
       'idempotency-key': 'member-role-idempotency-0001',
@@ -120,7 +120,7 @@ test.group('company member administration', (group) => {
     assert.equal(Number(unchangedRevision?.revision), 2);
     const ownerId = await userId('bruce.wayne@wayne.example');
     const refused = await signed(
-      client.patch(`/api/accounts/a-studio/members/${ownerId}`),
+      client.patch(`/api/companies/a-studio/members/${ownerId}`),
       ownerCookie
     )
       .json({ role: 'viewer' })
@@ -157,7 +157,7 @@ test.group('company member administration', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const path = `/api/accounts/a-studio/members/${editorId}`;
+    const path = `/api/companies/a-studio/members/${editorId}`;
     const identity = {
       'x-account-command-id': 'member-shared-command-0001',
       'idempotency-key': 'member-shared-key-0001',
@@ -251,7 +251,7 @@ test.group('company member administration', (group) => {
       updated_at: now,
     });
 
-    const memberPath = `/api/accounts/a-studio/members/${editorId}`;
+    const memberPath = `/api/companies/a-studio/members/${editorId}`;
     const requests = [
       {
         name: 'invalid role',
@@ -283,7 +283,7 @@ test.group('company member administration', (group) => {
       {
         name: 'invalid tracking value',
         send: () =>
-          signed(client.put('/api/accounts/a-studio/member-sign-in-tracking'), ownerCookie)
+          signed(client.put('/api/companies/a-studio/member-sign-in-tracking'), ownerCookie)
             .json({ enabled: 'true' })
             .send(),
         error: 'enabled must be a Boolean.',
@@ -291,7 +291,7 @@ test.group('company member administration', (group) => {
       {
         name: 'unknown tracking field',
         send: () =>
-          signed(client.put('/api/accounts/a-studio/member-sign-in-tracking'), ownerCookie)
+          signed(client.put('/api/companies/a-studio/member-sign-in-tracking'), ownerCookie)
             .json({ enabled: true, extra: true })
             .send(),
         error: 'enabled must be a Boolean.',
@@ -379,7 +379,7 @@ test.group('company member administration', (group) => {
     ]);
     const adminCookie = admin.cookie('adonis-session')!.value;
     const invalidPromotion = await signed(
-      client.patch(`/api/accounts/a-studio/members/${editorId}`),
+      client.patch(`/api/companies/a-studio/members/${editorId}`),
       adminCookie
     )
       .json({ role: 'owner' })
@@ -387,7 +387,7 @@ test.group('company member administration', (group) => {
     invalidPromotion.assertStatus(400);
     assert.equal((invalidPromotion.body() as { code: string }).code, 'OWNER_TRANSFER_REQUIRED');
     const ownerDemotion = await signed(
-      client.patch(`/api/accounts/a-studio/members/${ownerId}`),
+      client.patch(`/api/companies/a-studio/members/${ownerId}`),
       adminCookie
     )
       .json({ role: 'editor' })
@@ -395,7 +395,7 @@ test.group('company member administration', (group) => {
     ownerDemotion.assertStatus(403);
     // The package refuses self-management, so an Admin cannot change their own role.
     const selfDemotion = await signed(
-      client.patch(`/api/accounts/a-studio/members/${adminId}`),
+      client.patch(`/api/companies/a-studio/members/${adminId}`),
       adminCookie
     )
       .json({ role: 'editor' })
@@ -407,7 +407,7 @@ test.group('company member administration', (group) => {
       .first();
     assert.equal(unchangedAdmin.role, 'admin');
     const unauthorized = await signed(
-      client.patch(`/api/accounts/a-studio/members/${editorId}`),
+      client.patch(`/api/companies/a-studio/members/${editorId}`),
       editor.cookie('adonis-session')!.value
     )
       .json({ role: 'owner' })

@@ -26,7 +26,7 @@ export default class OwnershipController {
       ctx.request.header('x-account-command-id'),
       ctx.request.header('idempotency-key')
     );
-    const accountId = ctx.params.accountId;
+    const accountId = ctx.params.companyId;
     const { toUserId } = ctx.request.body();
     const confirmationId = ctx.request.body().confirmationId ?? '';
     const receipt = await withActor(ctx, (actor, trx) =>

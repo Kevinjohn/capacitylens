@@ -122,7 +122,7 @@ describe('archived resource actions', () => {
       expect(useStore.getState().data.resources[0]?.name).toBe('Anonymised person'),
     );
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/accounts/acct-test/resources/resource-archive/anonymise'),
+      expect.stringContaining('/api/companies/acct-test/resources/resource-archive/anonymise'),
       expect.objectContaining({ method: 'POST' }),
     );
     expect(useStore.getState().data.resources[0]?.avatarUrl).toBeNull();
@@ -139,7 +139,7 @@ describe('archived resource actions', () => {
     expect(await screen.findByRole('button', { name: 'Restore Diana Prince' })).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith(
       'api.planning.archive',
-      expect.objectContaining({ params: { accountId: DEFAULT_ACCOUNT_ID } }),
+      expect.objectContaining({ params: { companyId: DEFAULT_ACCOUNT_ID } }),
     );
     expect(screen.queryByText('Designer')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Anonymise/ })).not.toBeInTheDocument();
@@ -163,7 +163,7 @@ describe('archived resource actions', () => {
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeNull();
     expect(request).toHaveBeenCalledWith(
       'api.planning.archive',
-      expect.objectContaining({ params: { accountId: DEFAULT_ACCOUNT_ID } }),
+      expect.objectContaining({ params: { companyId: DEFAULT_ACCOUNT_ID } }),
     );
   });
 });

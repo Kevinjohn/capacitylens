@@ -34,7 +34,7 @@ test.group('Expected input errors', () => {
   }) => {
     const context = (failure: unknown) =>
       ({
-        params: { accountId: 'a-studio' },
+        params: { companyId: 'a-studio' },
         request: {
           body: () => ({}),
           validateUsing: async () => {

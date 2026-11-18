@@ -96,7 +96,7 @@ function useScopedDirectoryQueries({
   const { enabled, activeAccountId } = options;
   const scopeId = JSON.stringify([scope.principalId, scope.accountId, scope.masqueradeGeneration]);
   const memberRouteKey = api.api.members.index.queryKey({
-    params: { accountId: activeAccountId ?? '' },
+    params: { companyId: activeAccountId ?? '' },
   });
   const membersQuery = useQuery<TeamAccessResult<TeamDirectory>>({
     queryKey: scopeQueryKey(scope, ['team-members', reloadKey, ...memberRouteKey]),
@@ -105,7 +105,7 @@ function useScopedDirectoryQueries({
     queryFn: ({ signal }) => teamAccessClient.listMembers(activeAccountId ?? '', signal),
   });
   const inviteRouteKey = api.api.invites.index.queryKey({
-    params: { accountId: activeAccountId ?? '' },
+    params: { companyId: activeAccountId ?? '' },
   });
   const invitationsQuery = useQuery<TeamAccessResult<TeamInvitation[]>>({
     queryKey: scopeQueryKey(scope, ['team-invitations', inviteReloadKey, ...inviteRouteKey]),

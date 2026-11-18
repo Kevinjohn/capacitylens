@@ -155,7 +155,7 @@ test.group('member directory malformed storage', (group) => {
     assert,
   }) => {
     const { ownerCookie, ownerId, memberId, contextToken } = await createFixture(client);
-    const path = `/api/accounts/${accountId}/members`;
+    const path = `/api/companies/${accountId}/members`;
     const baseline = await ownerGet({ client, path, ownerCookie, contextToken }).send();
     baseline.assertStatus(200);
     assert.deepInclude(readDirectoryMemberEntry(baseline.body(), memberId), {
@@ -223,7 +223,7 @@ test.group('member directory malformed storage', (group) => {
       });
     });
 
-    const path = `/api/accounts/${accountId}/members`;
+    const path = `/api/companies/${accountId}/members`;
     const isolated = await ownerGet({ client, path, ownerCookie, contextToken }).send();
     isolated.assertStatus(200);
     assert.notInclude(JSON.stringify(isolated.body()), foreignMemberId);

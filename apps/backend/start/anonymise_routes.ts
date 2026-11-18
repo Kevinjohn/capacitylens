@@ -6,11 +6,11 @@ const AnonymiseController = () => import('#controllers/anonymise_controller');
 /** Registers the anonymise controller endpoints. */
 export function registerAnonymiseRoutes() {
   router
-    .post('/api/accounts/:accountId/anonymise', [AnonymiseController, 'company'])
+    .post('/api/companies/:companyId/anonymise', [AnonymiseController, 'company'])
     .as('api.accounts.anonymise')
     .use(asCompanyMember());
   router
-    .post('/api/accounts/:accountId/resources/:id/anonymise', [AnonymiseController, 'resource'])
+    .post('/api/companies/:companyId/resources/:id/anonymise', [AnonymiseController, 'resource'])
     .as('api.resources.anonymise')
     .use(asCompanyMember());
 }

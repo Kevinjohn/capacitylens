@@ -81,7 +81,7 @@ const recreated = compose(
 assert.equal(recreated.status, 0, recreated.output);
 
 cookie = await signIn();
-const accounts = await fetch(`${baseUrl}/api/accounts`, { headers: { cookie } });
+const accounts = await fetch(`${baseUrl}/api/companies`, { headers: { cookie } });
 assert.equal(accounts.status, 200);
 const companies = await accounts.json();
 assert.ok(

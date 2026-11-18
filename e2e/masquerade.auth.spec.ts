@@ -96,7 +96,7 @@ test.describe('member masquerade', () => {
     await signIn(page, owner.email);
     await expect(page.getByTestId('getting-started')).toBeVisible();
 
-    const onboardingPath = `/api/accounts/${accountId}/getting-started`;
+    const onboardingPath = `/api/companies/${accountId}/getting-started`;
     const ownerRouteRead = page.waitForResponse(
       (response) =>
         response.status() === 200 &&
@@ -143,12 +143,12 @@ test.describe('member masquerade', () => {
       'sec-fetch-site': 'same-origin',
       'X-Masquerade-Context': contextToken,
     };
-    const planning = await request.get(`${AUTH_API}/api/accounts/${accountId}/planning`, {
+    const planning = await request.get(`${AUTH_API}/api/companies/${accountId}/planning`, {
       headers,
     });
     expect(planning.status()).toBe(200);
     const revision = ((await planning.json()) as { revision: number }).revision;
-    const refusedWrite = await request.post(`${AUTH_API}/api/accounts/${accountId}/clients`, {
+    const refusedWrite = await request.post(`${AUTH_API}/api/companies/${accountId}/clients`, {
       headers,
       data: {
         mutationId: crypto.randomUUID(),

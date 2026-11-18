@@ -115,7 +115,7 @@ test.group('password recovery', (group) => {
     const token = mail.tokenFor(editor);
     const { cookie } = await signIn(client, owner);
     const changed = await asDataOwner(
-      client.patch(`/api/accounts/${accountId}/members/${editorId}`),
+      client.patch(`/api/companies/${accountId}/members/${editorId}`),
       cookie
     )
       .headers({

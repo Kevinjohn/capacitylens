@@ -59,7 +59,7 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
     await useStore.getState().refreshPlanning({ fresh: true });
   });
 
-  expect(requests).toContain(`${window.location.origin}/api/accounts/a-studio/planning`);
+  expect(requests).toContain(`${window.location.origin}/api/companies/a-studio/planning`);
   expect(useStore.getState().planningAuthLossVersion).toBeGreaterThan(0);
   expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
   expect(queryClient.getQueryData(['private-account'])).toBeUndefined();

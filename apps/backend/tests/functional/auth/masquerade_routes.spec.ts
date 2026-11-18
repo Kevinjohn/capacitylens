@@ -45,11 +45,11 @@ const reviewedUnclassified = [
 
 /** Member reads refused outright while a view-as mode is active. */
 const sensitiveReads = [
-  'GET,HEAD /api/accounts/:accountId/planning/archive [BUSINESS READ] (sensitive)',
-  'GET,HEAD /api/accounts [BUSINESS READ] (sensitive)',
-  'GET,HEAD /api/accounts/:accountId/getting-started [BUSINESS READ] (sensitive)',
-  'GET,HEAD /api/accounts/:accountId/members [BUSINESS READ] (sensitive)',
-  'GET,HEAD /api/accounts/:accountId/invites [BUSINESS READ] (sensitive)',
+  'GET,HEAD /api/companies/:companyId/planning/archive [BUSINESS READ] (sensitive)',
+  'GET,HEAD /api/companies [BUSINESS READ] (sensitive)',
+  'GET,HEAD /api/companies/:companyId/getting-started [BUSINESS READ] (sensitive)',
+  'GET,HEAD /api/companies/:companyId/members [BUSINESS READ] (sensitive)',
+  'GET,HEAD /api/companies/:companyId/invites [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/admission [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/admission/requests [BUSINESS READ] (sensitive)',
   'GET,HEAD /api/diagnostics [BUSINESS READ] (sensitive)',
@@ -57,7 +57,7 @@ const sensitiveReads = [
 
 /** The view-as controls, which always run as the signed-in person. */
 const signedInPersonRoutes = [
-  'POST /api/accounts/:accountId/masquerade [RAW-GUARD BUSINESS MUTATION]',
+  'POST /api/companies/:companyId/masquerade [RAW-GUARD BUSINESS MUTATION]',
   'DELETE /api/masquerade [RAW-GUARD BUSINESS MUTATION]',
 ];
 

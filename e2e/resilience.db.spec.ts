@@ -8,7 +8,7 @@ test.describe('database-backed resilience', () => {
     page,
     request,
   }) => {
-    const stateFailure = await failRequestsUntilReleased(page, '**/api/accounts/*/planning', {
+    const stateFailure = await failRequestsUntilReleased(page, '**/api/companies/*/planning', {
       status: 503,
       body: { error: 'Temporary test outage' },
     });
@@ -49,10 +49,10 @@ test.describe('database-backed resilience', () => {
     const clientPosts: string[] = [];
     page.on('request', (browserRequest) => {
       const path = new URL(browserRequest.url()).pathname;
-      if (browserRequest.method() === 'POST' && /\/api\/accounts\/[^/]+\/clients$/.test(path))
+      if (browserRequest.method() === 'POST' && /\/api\/companies\/[^/]+\/clients$/.test(path))
         clientPosts.push(path);
     });
-    const clientFailure = await failRequestsUntilReleased(page, '**/api/accounts/*/clients', {
+    const clientFailure = await failRequestsUntilReleased(page, '**/api/companies/*/clients', {
       status: 503,
       body: { error: 'Temporary test outage' },
     });
@@ -140,7 +140,7 @@ test.describe('database-backed resilience', () => {
       const path = new URL(response.url()).pathname;
       return (
         response.request().method() === 'PATCH' &&
-        /\/api\/accounts\/[^/]+\/clients\/c-acme$/.test(path)
+        /\/api\/companies\/[^/]+\/clients\/c-acme$/.test(path)
       );
     });
     await secondPage.getByRole('button', { name: 'Save' }).click();

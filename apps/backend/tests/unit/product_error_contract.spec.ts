@@ -54,7 +54,7 @@ function context(error: unknown) {
         },
       },
       request: { method: () => 'POST' },
-      route: { pattern: '/api/accounts/:accountId/resources' },
+      route: { pattern: '/api/companies/:companyId/resources' },
       get params() {
         throw error;
       },
@@ -180,7 +180,7 @@ test.group('product error adapters', () => {
       event: 'http.request.error',
       errorType: 'database_constraint',
       method: 'POST',
-      path: '/api/accounts/:accountId/resources',
+      path: '/api/companies/:companyId/resources',
       status: 400,
     });
     const serialized = JSON.stringify(diagnostics);

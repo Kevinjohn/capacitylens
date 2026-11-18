@@ -315,7 +315,7 @@ export async function runPackagedSmoke({
     });
     assert.equal(secondInitialize.status, 409, 'Second company initialization must be refused');
     const companies = JSON.parse(
-      (await fetchOk(`${baseUrl}/api/accounts`, { headers: { cookie } })).body,
+      (await fetchOk(`${baseUrl}/api/companies`, { headers: { cookie } })).body,
     );
     assert.equal(companies.length, 1);
     assert.equal(companies[0].id, accountId);
@@ -405,7 +405,7 @@ export async function runPackagedSmoke({
       idleMode.contextToken,
     );
 
-    const started = await fetch(`${baseUrl}/api/accounts/${accountId}/masquerade`, {
+    const started = await fetch(`${baseUrl}/api/companies/${accountId}/masquerade`, {
       method: 'POST',
       headers: {
         cookie,
@@ -443,7 +443,7 @@ export async function runPackagedSmoke({
     assert.equal(memberState.accounts[0].id, accountId);
     assert.equal(memberState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
 
-    const refusedWrite = await fetch(`${baseUrl}/api/accounts/${accountId}/clients`, {
+    const refusedWrite = await fetch(`${baseUrl}/api/companies/${accountId}/clients`, {
       method: 'POST',
       headers: {
         cookie: secondOwnerCookie,
@@ -478,7 +478,7 @@ export async function runPackagedSmoke({
     );
 
     const restartContext = endedInFirstSession.contextToken;
-    const expiringStart = await fetch(`${baseUrl}/api/accounts/${accountId}/masquerade`, {
+    const expiringStart = await fetch(`${baseUrl}/api/companies/${accountId}/masquerade`, {
       method: 'POST',
       headers: {
         cookie,
@@ -501,7 +501,7 @@ export async function runPackagedSmoke({
       log += chunk;
     });
     await waitUntilReady(baseUrl, child);
-    const expiredStart = await fetch(`${baseUrl}/api/accounts/${accountId}/masquerade`, {
+    const expiredStart = await fetch(`${baseUrl}/api/companies/${accountId}/masquerade`, {
       method: 'POST',
       headers: {
         cookie: secondOwnerCookie,

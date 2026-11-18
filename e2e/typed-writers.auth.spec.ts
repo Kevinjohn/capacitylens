@@ -18,7 +18,7 @@ function recordPlanningWrites(page: Page) {
   page.on('request', (request) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return;
     const path = new URL(request.url()).pathname;
-    if (path === '/api/batch' || path.startsWith('/api/accounts/')) {
+    if (path === '/api/batch' || path.startsWith('/api/companies/')) {
       writes.push({ method: request.method(), path });
     }
   });
@@ -86,8 +86,8 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
   expect((await state()).clients.some((row) => row.name === 'Wayne Foundation')).toBe(true);
-  expect(writes).toContainEqual({ method: 'POST', path: `/api/accounts/${accountId}/clients` });
-  expect(writes).toContainEqual({ method: 'PATCH', path: `/api/accounts/${accountId}/settings` });
+  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${accountId}/clients` });
+  expect(writes).toContainEqual({ method: 'PATCH', path: `/api/companies/${accountId}/settings` });
   expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
 });
 
@@ -212,15 +212,18 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   await expect
     .poll(async () => (await state()).timeOff.find((entry) => entry.id === timeOffId)?.note)
     .toBe('Watchtower briefing');
-  expect(writes).toContainEqual({ method: 'POST', path: `/api/accounts/${accountId}/disciplines` });
   expect(writes).toContainEqual({
-    method: 'PATCH',
-    path: `/api/accounts/${accountId}/disciplines/${disciplineId}`,
+    method: 'POST',
+    path: `/api/companies/${accountId}/disciplines`,
   });
-  expect(writes).toContainEqual({ method: 'POST', path: `/api/accounts/${accountId}/time-off` });
   expect(writes).toContainEqual({
     method: 'PATCH',
-    path: `/api/accounts/${accountId}/time-off/${timeOffId}`,
+    path: `/api/companies/${accountId}/disciplines/${disciplineId}`,
+  });
+  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${accountId}/time-off` });
+  expect(writes).toContainEqual({
+    method: 'PATCH',
+    path: `/api/companies/${accountId}/time-off/${timeOffId}`,
   });
   expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
 });
@@ -264,7 +267,7 @@ for (const repeat of [false, true]) {
       await dialog.getByTestId('timeoff-repeat-until').fill('2026-11-09');
       await expect(dialog.getByTestId('timeoff-repeat-preview')).toContainText('Creates 2 entries');
     }
-    const path = `/api/accounts/${accountId}/time-off${repeat ? '/repeat' : ''}`;
+    const path = `/api/companies/${accountId}/time-off${repeat ? '/repeat' : ''}`;
     const responsePromise = page.waitForResponse(
       (response) => response.url().endsWith(path) && response.request().method() === 'POST',
     );

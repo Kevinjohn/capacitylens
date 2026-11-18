@@ -47,7 +47,7 @@ async function contextToken(client: any, cookie: string) {
 async function startView(client: any, cookie: string, targetUserId: string) {
   const token = await contextToken(client, cookie);
   return asSession(
-    client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+    client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
     cookie,
     token
   )
@@ -174,7 +174,7 @@ test.group('native read-only masquerade', (group) => {
   }) => {
     const { cookie, targetId } = await fixture(client);
     const missing = await asSession(
-      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie
     )
       .json({ targetUserId: targetId })
@@ -184,7 +184,7 @@ test.group('native read-only masquerade', (group) => {
 
     const idleToken = await contextToken(client, cookie);
     const stale = await asSession(
-      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
       '0.00000000000000000000000000000000'
     )
@@ -194,7 +194,7 @@ test.group('native read-only masquerade', (group) => {
     assert.equal((stale.body() as { code: string }).code, 'MASQUERADE_CONTEXT_CHANGED');
 
     const started = await asSession(
-      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
       idleToken
     )
@@ -203,7 +203,7 @@ test.group('native read-only masquerade', (group) => {
     started.assertStatus(200);
     const mode = started.body() as { contextToken: string };
     const capturedIdleStart = await asSession(
-      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
       idleToken
     )
@@ -212,7 +212,7 @@ test.group('native read-only masquerade', (group) => {
     capturedIdleStart.assertStatus(409);
     assert.equal((capturedIdleStart.body() as { code: string }).code, 'MASQUERADE_CONTEXT_CHANGED');
     const write = await asSession(
-      client.put('/api/accounts/a-studio/getting-started').header('sec-fetch-site', 'same-origin'),
+      client.put('/api/companies/a-studio/getting-started').header('sec-fetch-site', 'same-origin'),
       cookie,
       mode.contextToken
     )
@@ -269,7 +269,7 @@ test.group('native read-only masquerade', (group) => {
     const activeToken = (started.body() as { contextToken: string }).contextToken;
 
     const staleIdleRead = await asSession(
-      client.get('/api/accounts/a-studio/planning'),
+      client.get('/api/companies/a-studio/planning'),
       cookie,
       idleToken
     ).send();
@@ -289,7 +289,7 @@ test.group('native read-only masquerade', (group) => {
     stopped.assertStatus(200);
 
     const staleActiveRead = await asSession(
-      client.get('/api/accounts/a-studio/planning'),
+      client.get('/api/companies/a-studio/planning'),
       cookie,
       activeToken
     ).send();
@@ -316,7 +316,7 @@ test.group('native read-only masquerade', (group) => {
     };
     try {
       const response = await asSession(
-        client.get('/api/accounts/a-studio/planning'),
+        client.get('/api/companies/a-studio/planning'),
         cookie
       ).send();
       response.assertStatus(503);
@@ -354,7 +354,7 @@ test.group('native read-only masquerade', (group) => {
     try {
       const normalWrite = asSession(
         client
-          .put('/api/accounts/a-studio/getting-started')
+          .put('/api/companies/a-studio/getting-started')
           .header('sec-fetch-site', 'same-origin')
           .header('x-test-admission-pause', 'idle'),
         cookie,
@@ -415,7 +415,7 @@ test.group('native read-only masquerade', (group) => {
     try {
       const pendingWrite = asSession(
         client
-          .put('/api/accounts/a-studio/getting-started')
+          .put('/api/companies/a-studio/getting-started')
           .header('sec-fetch-site', 'same-origin')
           .header('x-test-admission-pause', 'active'),
         sessionCookie,
@@ -480,7 +480,10 @@ test.group('native read-only masquerade', (group) => {
     assert.equal(state.effectiveRole, 'viewer');
     assert.equal(state.contextToken, state.token);
     assert.isAbove(Date.parse(state.expiresAt), Date.now());
-    const projected = await asSession(client.get('/api/accounts/a-studio/planning'), cookie).send();
+    const projected = await asSession(
+      client.get('/api/companies/a-studio/planning'),
+      cookie
+    ).send();
     projected.assertStatus(200);
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
@@ -507,7 +510,7 @@ test.group('native read-only masquerade', (group) => {
       state.contextToken
     );
     const secondProjected = await asSession(
-      client.get('/api/accounts/a-studio/planning'),
+      client.get('/api/companies/a-studio/planning'),
       secondSession.cookie
     ).send();
     secondProjected.assertStatus(200);
@@ -515,7 +518,7 @@ test.group('native read-only masquerade', (group) => {
     const auditCount = anonymiseAudits.length;
     const deniedAnonymise = await asSession(
       client
-        .post('/api/accounts/a-studio/resources/unavailable/anonymise')
+        .post('/api/companies/a-studio/resources/unavailable/anonymise')
         .header('sec-fetch-site', 'same-origin'),
       cookie,
       state.contextToken
@@ -535,7 +538,7 @@ test.group('native read-only masquerade', (group) => {
     inactiveExport.assertStatus(403);
     const foreign = await asSession(client.get('/api/state?accountId=a-loft'), cookie).send();
     foreign.assertStatus(403);
-    const account = await asSession(client.get('/api/accounts'), cookie).send();
+    const account = await asSession(client.get('/api/companies'), cookie).send();
     account.assertStatus(403);
     assert.equal((account.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY');
     const audit = await db
@@ -554,7 +557,7 @@ test.group('native read-only masquerade', (group) => {
     ended.assertStatus(200);
     assert.isFalse((ended.body() as { active: boolean }).active);
     const capturedActiveStart = await asSession(
-      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
       state.contextToken
     )
@@ -565,7 +568,7 @@ test.group('native read-only masquerade', (group) => {
       (capturedActiveStart.body() as { code: string }).code,
       'MASQUERADE_CONTEXT_CHANGED'
     );
-    const after = await asSession(client.get('/api/accounts'), cookie).send();
+    const after = await asSession(client.get('/api/companies'), cookie).send();
     after.assertStatus(200);
     const endAudit = await db
       .from('masquerade_events')
@@ -587,7 +590,7 @@ test.group('native read-only masquerade', (group) => {
     const examples = [
       asSession(
         client
-          .put('/api/accounts/a-studio/getting-started')
+          .put('/api/companies/a-studio/getting-started')
           .header('sec-fetch-site', 'same-origin'),
         cookie,
         (started.body() as { contextToken: string }).contextToken
@@ -618,7 +621,7 @@ test.group('native read-only masquerade', (group) => {
         (started.body() as { contextToken: string }).contextToken
       ).json({}),
       asSession(client.get('/api/auth/me'), cookie),
-      asSession(client.get('/api/accounts/a-studio/members'), cookie),
+      asSession(client.get('/api/companies/a-studio/members'), cookie),
       asSession(client.get('/api/diagnostics'), cookie),
     ];
     // Route policy runs after route matching, so a write to a path with no route is a 404 (#1865).
@@ -631,7 +634,7 @@ test.group('native read-only masquerade', (group) => {
     }
     const malformed = await asSession(
       client
-        .put('/api/accounts/a-studio/getting-started')
+        .put('/api/companies/a-studio/getting-started')
         .header('sec-fetch-site', 'same-origin')
         .header('content-type', 'application/json'),
       cookie,
@@ -734,7 +737,7 @@ test.group('native read-only masquerade', (group) => {
       .update({ role: 'owner' });
     await db.from('account_sessions').where('user_id', ownerId).delete();
     const revoked = await asSession(
-      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie
     )
       .json({ targetUserId: targetId })
@@ -844,7 +847,7 @@ test.group('native read-only masquerade', (group) => {
     );
     assert.notEqual((status.body() as { contextToken: string }).contextToken, token);
     const staleWrite = await asSession(
-      client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+      client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
       token
     )
@@ -907,7 +910,7 @@ test.group('native read-only masquerade', (group) => {
     const starts = await Promise.all(
       [targetId, secondTargetId].map((userId) =>
         asSession(
-          client.post('/api/accounts/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
+          client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
           cookie,
           idleToken
         )
@@ -1005,7 +1008,7 @@ test.group('native read-only masquerade', (group) => {
     const deniedRead = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
     deniedRead.assertStatus(401);
     const anonymousStart = await client
-      .post('/api/accounts/a-studio/masquerade')
+      .post('/api/companies/a-studio/masquerade')
       .header('sec-fetch-site', 'same-origin')
       .json({ targetUserId: targetId })
       .send();
@@ -1103,7 +1106,7 @@ test.group('native read-only masquerade', (group) => {
       const started = await startView(client, cookie, targetId);
       started.assertStatus(200);
       assert.equal((started.body() as { effectiveRole: string }).effectiveRole, role);
-      const read = await asSession(client.get('/api/accounts/a-studio/planning'), cookie).send();
+      const read = await asSession(client.get('/api/companies/a-studio/planning'), cookie).send();
       read.assertStatus(200);
       await endView(client, cookie);
     }
@@ -1114,9 +1117,9 @@ test.group('native read-only masquerade', (group) => {
     await insertPrivateClient();
     // The first refused read ends the mode, so each read gets its own view.
     for (const [index, path] of [
-      '/api/accounts/a-studio/planning',
+      '/api/companies/a-studio/planning',
       '/api/state?accountId=a-studio',
-      '/api/accounts/a-studio/export',
+      '/api/companies/a-studio/export',
     ].entries()) {
       await db
         .from('memberships')
@@ -1172,7 +1175,7 @@ test.group('native read-only masquerade', (group) => {
     };
     try {
       const pendingRead = asSession(
-        client.get('/api/accounts/a-studio/planning').header('x-test-admission-pause', 'promote'),
+        client.get('/api/companies/a-studio/planning').header('x-test-admission-pause', 'promote'),
         cookie
       ).send();
       await admitted.promise;

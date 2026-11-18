@@ -132,7 +132,7 @@ test.describe('Minimise weekends', () => {
     const moveCommitted = page.waitForResponse(
       (response) =>
         response.request().method() === 'PATCH' &&
-        /\/api\/accounts\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
+        /\/api\/companies\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
     );
     await page.mouse.up();
     expect((await moveCommitted).ok()).toBe(true);

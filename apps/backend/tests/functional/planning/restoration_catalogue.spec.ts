@@ -41,7 +41,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/disciplines/${disciplineId}/delete`,
+      `/api/companies/${accountId}/disciplines/${disciplineId}/delete`,
       0,
       {
         operation: 'catalogue.delete',
@@ -89,7 +89,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/disciplines/${discipline.id}/delete`,
+      `/api/companies/${accountId}/disciplines/${discipline.id}/delete`,
       0,
       { operation: 'catalogue.delete', entity: { entity: 'disciplines', id: discipline.id } }
     );
@@ -130,7 +130,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/phases/${phaseId}/delete`,
+      `/api/companies/${accountId}/phases/${phaseId}/delete`,
       0,
       {
         operation: 'catalogue.delete',
@@ -176,7 +176,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const clientId = before.clients.find((row) => !row.builtin)!.id;
     const projectId = randomUUID();
     const phaseId = randomUUID();
-    const project = await send(client, cookie, `/api/accounts/${accountId}/projects`, 0, {
+    const project = await send(client, cookie, `/api/companies/${accountId}/projects`, 0, {
       operation: 'catalogue.create',
       entity: {
         entity: 'projects',
@@ -189,7 +189,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       },
     });
     project.assertStatus(200);
-    const phase = await send(client, cookie, `/api/accounts/${accountId}/phases`, 1, {
+    const phase = await send(client, cookie, `/api/companies/${accountId}/phases`, 1, {
       operation: 'catalogue.create',
       entity: { entity: 'phases', id: phaseId, fields: { name: 'Survey', projectId } },
     });
@@ -197,7 +197,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/phases/${phaseId}/delete`,
+      `/api/companies/${accountId}/phases/${phaseId}/delete`,
       2,
       { operation: 'catalogue.delete', entity: { entity: 'phases', id: phaseId } }
     );
@@ -243,7 +243,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/time-off/delete-group`,
+      `/api/companies/${accountId}/time-off/delete-group`,
       0,
       { operation: 'timeOff.deleteGroup', ids: ids.slice(0, 2) }
     );
@@ -281,7 +281,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const id = randomUUID();
-    const created = await send(client, cookie, `/api/accounts/${accountId}/closures`, 0, {
+    const created = await send(client, cookie, `/api/companies/${accountId}/closures`, 0, {
       operation: 'closure.create',
       id,
       fields: { name: 'Gotham holiday', startDate: '2026-11-02', endDate: '2026-11-02' },
@@ -292,7 +292,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const deleted = await send(
       client,
       cookie,
-      `/api/accounts/${accountId}/closures/${id}/delete`,
+      `/api/companies/${accountId}/closures/${id}/delete`,
       1,
       {
         operation: 'closure.delete',

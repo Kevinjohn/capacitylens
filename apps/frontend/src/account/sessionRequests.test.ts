@@ -42,7 +42,7 @@ describe('browser account client', () => {
       credentials: 'include',
       signal: controller.signal,
     });
-    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, '/api/accounts', {
+    expect(mocks.apiFetch).toHaveBeenNthCalledWith(2, '/api/companies', {
       credentials: 'include',
       signal: controller.signal,
     });

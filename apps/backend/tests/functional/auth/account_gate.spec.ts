@@ -46,7 +46,11 @@ test.group('account gate', (group) => {
     client,
     assert,
   }) => {
-    for (const path of [`/api/accounts/${accountId}/planning`, '/api/accounts', '/api/admission']) {
+    for (const path of [
+      `/api/companies/${accountId}/planning`,
+      '/api/companies',
+      '/api/admission',
+    ]) {
       const refused = await client.get(path).send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });
@@ -68,8 +72,8 @@ test.group('account gate', (group) => {
     const planningRefusal = 'Company access needs admission.';
     const productRefusal = 'Your access to this company is waiting on admission.';
     for (const [path, error] of [
-      [`/api/accounts/${accountId}/planning`, planningRefusal],
-      ['/api/accounts', productRefusal],
+      [`/api/companies/${accountId}/planning`, planningRefusal],
+      ['/api/companies', productRefusal],
       ['/api/state', productRefusal],
     ] as const) {
       const refused = await get(path);
@@ -80,7 +84,7 @@ test.group('account gate', (group) => {
       assert.isObject(body.decision);
     }
     // The body is invalid; the gate answers before the handler reads it.
-    const write = await asDataOwner(client.post(`/api/accounts/${accountId}/clients`), cookie)
+    const write = await asDataOwner(client.post(`/api/companies/${accountId}/clients`), cookie)
       .json({ unknown: true })
       .send();
     write.assertStatus(403);
@@ -110,7 +114,7 @@ test.group('account gate', (group) => {
       );
     }
     limited.push(
-      await asDataOwner(client.post(`/api/accounts/${accountId}/masquerade`), cookie)
+      await asDataOwner(client.post(`/api/companies/${accountId}/masquerade`), cookie)
         .json({ userId: ownerId })
         .send(),
       await asDataOwner(client.delete('/api/masquerade'), cookie).send()
@@ -123,7 +127,7 @@ test.group('account gate', (group) => {
 
   test('a session that lost its registry handle is refused', async ({ client, assert }) => {
     const { cookieHeader } = await signIn(client, owner);
-    const allowed = await client.get('/api/accounts').header('cookie', cookieHeader).send();
+    const allowed = await client.get('/api/companies').header('cookie', cookieHeader).send();
     allowed.assertStatus(200);
     const session = await db.from('adonis_sessions').firstOrFail();
     const data = String(session.data);
@@ -132,7 +136,7 @@ test.group('account gate', (group) => {
       .from('adonis_sessions')
       .where('id', session.id)
       .update({ data: data.replace('accountKitSession', 'retiredSessionHandle') });
-    for (const path of ['/api/accounts', '/api/admission']) {
+    for (const path of ['/api/companies', '/api/admission']) {
       const refused = await client.get(path).header('cookie', cookieHeader).send();
       refused.assertStatus(401);
       assert.deepEqual(refused.body(), { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' });

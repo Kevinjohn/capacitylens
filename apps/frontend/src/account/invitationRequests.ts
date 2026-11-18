@@ -12,7 +12,7 @@ import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from
  */
 export const invitationRequests = {
   listInvitations(companyId: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.invites.index', { params: { accountId: companyId } }), {
+    return apiFetch(apiRouteUrl('api.invites.index', { params: { companyId: companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
@@ -57,7 +57,7 @@ export const invitationRequests = {
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.invites.revoke', {
-            params: { accountId: companyId, id: invitationId },
+            params: { companyId: companyId, id: invitationId },
           }),
           buildCommandRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
         ),
@@ -67,7 +67,7 @@ export const invitationRequests = {
   /** Sends a fresh link for a pending invitation; the earlier link stops working. */
   resendInvitation(companyId: string, invitationId: string): Promise<Response> {
     return apiFetch(
-      apiRouteUrl('api.invites.resend', { params: { accountId: companyId, id: invitationId } }),
+      apiRouteUrl('api.invites.resend', { params: { companyId: companyId, id: invitationId } }),
       {
         method: 'POST',
         credentials: 'include',

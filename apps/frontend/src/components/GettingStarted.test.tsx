@@ -244,7 +244,7 @@ describe('Getting started', () => {
     expect(await screen.findByTestId('getting-started-progress')).toBeVisible();
     expect(useStore.getState().notice?.tone).toBe('error');
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/accounts\/[^/]+\/getting-started$/),
+      expect.stringMatching(/\/api\/companies\/[^/]+\/getting-started$/),
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ dismissed: true }) }),
     );
     expect(console.error).toHaveBeenCalledWith('GettingStarted: dismissal could not be saved');

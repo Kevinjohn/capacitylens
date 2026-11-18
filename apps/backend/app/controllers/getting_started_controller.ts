@@ -15,10 +15,10 @@ export default class GettingStartedController {
   async show(ctx: HttpContext) {
     const { params, response } = ctx;
     return withActor(ctx, async (_actor, trx) => {
-      await assertCompanyAction(params.accountId, 'planning:read', trx);
+      await assertCompanyAction(params.companyId, 'planning:read', trx);
       return response.ok({
-        dismissed: await isGettingStartedDismissed(trx, params.accountId),
-        steps: await readGettingStartedSteps(trx, params.accountId),
+        dismissed: await isGettingStartedDismissed(trx, params.companyId),
+        steps: await readGettingStartedSteps(trx, params.companyId),
       });
     });
   }
@@ -33,11 +33,11 @@ export default class GettingStartedController {
     }
     const now = new Date().toISOString();
     await withActor(ctx, async (_actor, trx) => {
-      const { role } = await assertCompanyAction(params.accountId, 'planning:write', trx);
+      const { role } = await assertCompanyAction(params.companyId, 'planning:write', trx);
       if (!isOwnerOrAdmin(role)) {
         throw new IdentityAuthorityError('Forbidden.');
       }
-      await dismissGettingStarted(trx, params.accountId, now);
+      await dismissGettingStarted(trx, params.companyId, now);
     });
     return response.ok({ dismissed: true });
   }
