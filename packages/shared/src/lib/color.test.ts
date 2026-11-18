@@ -269,7 +269,7 @@ describe('readableTextColor', () => {
 
 describe('resolveAccessibleBarColors', () => {
   it('darkens (multiplies channels down) when white ink is chosen', () => {
-    // Exercises the darken branch body (r/g/b *= 0.92) and the toHex '#' prefix +
+    // Exercises the darken branch body (r/g/b *= 0.92) and the formatHex '#' prefix +
     // clamp + zero-pad; a b *= -> b /= slip alone changes the blue channel here.
     expect(ensureBarColors('#6366f1')).toEqual({ bg: '#5b5ede', ink: '#ffffff' });
   });
@@ -299,7 +299,7 @@ describe('resolveAccessibleBarColors', () => {
   it('passes an already-AA-compliant colour through verbatim, never entering the nudge loop', () => {
     // Pure black clears 4.5:1 against white ink on the very first contrastWithInk() check
     // (21:1), so the loop body never runs and `nudged` stays false, bg must equal the input
-    // hex exactly (the caller's own string), not a toHex() round-trip of the same RGB.
+    // hex exactly (the caller's own string), not a formatHex() round-trip of the same RGB.
     expect(resolveAccessibleBarColors('#000000')).toEqual({ bg: '#000000', ink: '#ffffff' });
   });
 });

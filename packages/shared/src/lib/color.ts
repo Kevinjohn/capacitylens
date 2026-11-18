@@ -189,19 +189,19 @@ export function readableTextColor(hex: string): string {
 const AA_NORMAL = 4.5;
 
 // Quantize candidate channels exactly as output hex serialization does so the contrast test scores the emitted colour.
-const channelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+const clampChannelByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
 
-const toHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
+const formatHex = (redChannel: number, greenChannel: number, blueChannel: number) =>
   '#' +
   [redChannel, greenChannel, blueChannel]
-    .map((value) => channelByte(value).toString(16).padStart(2, '0'))
+    .map((value) => clampChannelByte(value).toString(16).padStart(2, '0'))
     .join('');
 
-function contrastForChannels(channels: RgbChannels, inkLuminance: number): number {
+function calculateContrastForChannels(channels: RgbChannels, inkLuminance: number): number {
   const luminance =
-    0.2126 * normalizeLinearChannel(channelByte(channels.red)) +
-    0.7152 * normalizeLinearChannel(channelByte(channels.green)) +
-    0.0722 * normalizeLinearChannel(channelByte(channels.blue));
+    0.2126 * normalizeLinearChannel(clampChannelByte(channels.red)) +
+    0.7152 * normalizeLinearChannel(clampChannelByte(channels.green)) +
+    0.0722 * normalizeLinearChannel(clampChannelByte(channels.blue));
   return (Math.max(luminance, inkLuminance) + 0.05) / (Math.min(luminance, inkLuminance) + 0.05);
 }
 
@@ -233,13 +233,17 @@ export function resolveAccessibleBarColors(hex: string): { bg: string; ink: stri
   const inkLuminance = calculateRelativeLuminance(ink) ?? 0;
   // Score quantized channels so the contrast check matches the emitted hex colour.
   let nudged = false;
-  for (let i = 0; i < 30 && contrastForChannels(nudgedChannels, inkLuminance) < AA_NORMAL; i++) {
+  for (
+    let i = 0;
+    i < 30 && calculateContrastForChannels(nudgedChannels, inkLuminance) < AA_NORMAL;
+    i++
+  ) {
     nudgeChannels(nudgedChannels, darken);
     nudged = true;
   }
   // Return an already-legible input verbatim to preserve its casing and whitespace.
   return {
-    bg: nudged ? toHex(nudgedChannels.red, nudgedChannels.green, nudgedChannels.blue) : hex,
+    bg: nudged ? formatHex(nudgedChannels.red, nudgedChannels.green, nudgedChannels.blue) : hex,
     ink,
   };
 }
