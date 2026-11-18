@@ -43,7 +43,7 @@ flowchart TD
   auth --> setup["companySetupRequired renders CompanySetup"]
   setup --> submit["CompanySetup.submit posts api.installation.company"]
   submit --> route["FirstCompanySetupController.store validates request"]
-  route --> guard["requiresFirstCompanySetup checks empty installation under lock"]
+  route --> guard["isFirstCompanySetupRequired checks empty installation under lock"]
   guard --> create["createInitialCompany creates company and Owner membership"]
   create --> refresh["AuthProvider onCreated refreshes session status"]
   submit -->|request failure| error["CompanySetup shows visible error"]

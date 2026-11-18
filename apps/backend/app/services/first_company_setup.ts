@@ -5,7 +5,7 @@ import { parseUserName } from '@capacitylens/shared/lib/strings';
 import { hasNoCompany } from '#models/installation_company';
 
 /** Only the sole native principal can claim an entirely uninitialized installation. */
-export async function requiresFirstCompanySetup(
+export async function isFirstCompanySetupRequired(
   userId: string,
   connection: TransactionClientContract
 ) {

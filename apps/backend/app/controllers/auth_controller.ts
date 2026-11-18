@@ -10,7 +10,7 @@ import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types'
 import env from '#start/env';
 import { isMailConfigured } from '#services/mail_delivery';
 import { FirstCompanyPendingError } from '#models/user';
-import { requiresFirstCompanySetup } from '#services/first_company_setup';
+import { isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { isMembershipRequired } from '#services/membership/admission_membership';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { buildUserProjection } from '#services/auth/user_projection';
@@ -50,7 +50,8 @@ export default class AuthController {
             user: buildUserProjection(actor),
             emailVerified: actor.emailVerified,
             admission,
-            companySetupRequired: admitted && (await requiresFirstCompanySetup(actor.userId, trx)),
+            companySetupRequired:
+              admitted && (await isFirstCompanySetupRequired(actor.userId, trx)),
             // Admitted but not yet a member: the person completes their membership explicitly.
             membershipRequired: admitted && (await isMembershipRequired(actor.userId, trx)),
           };

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import {
-  bootstrapRecoveryMessage,
+  buildBootstrapRecoveryMessage,
   recordBootstrapAdmission,
 } from '#services/development_bootstrap';
 import ConfigurationProvider, { assertProductionPosture } from '#providers/configuration_provider';
@@ -46,7 +46,7 @@ for (const failedOperation of ['grantInvitation', 'approve'] as const) {
       failure = error;
     }
     assert.instanceOf(failure, Error);
-    assert.include((failure as Error).message, bootstrapRecoveryMessage());
+    assert.include((failure as Error).message, buildBootstrapRecoveryMessage());
     assert.notInclude((failure as Error).message, 'private package detail');
     assert.include((failure as Error).message, 'CAPACITYLENS_CREATE_ADMIN_ADMIN=false');
     assert.include((failure as Error).message, 'account-kit:admission:grant-invitation');
