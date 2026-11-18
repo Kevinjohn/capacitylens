@@ -5,26 +5,26 @@ import type { AuthStatusResult } from './authStatus';
 import { parseAuthUser } from './validateAuthUser';
 import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
 import { masqueradeApi } from './masqueradeApi';
-import { invalidResponse, readAuthResponse } from './authResponse';
+import { buildInvalidResponse, readAuthResponse } from './authResponse';
 import { useStore } from '@/store/useStore';
 
 async function resolveIdentityWhileMasqueradeStatusIsUnknown(
   statusError: unknown,
 ): Promise<AuthStatusResult> {
-  if (!isTransportFailure(statusError)) return authServiceError(statusError);
+  if (!isTransportFailure(statusError)) return buildAuthServiceError(statusError);
   try {
     const response = await sessionRequests.me();
     if (response.status === 401) return readAuthResponse(response);
     if (!response.ok) return readAuthResponse(response);
     // /me does not prove that masquerade is inactive. Keep the auth boundary closed even if
     // the endpoint succeeds while the status endpoint is unreachable.
-    return authServiceError(statusError);
+    return buildAuthServiceError(statusError);
   } catch (error) {
     console.warn(
       'AuthProvider: /api/auth/me also failed while masquerade status was unknown',
       error,
     );
-    return authServiceError(error);
+    return buildAuthServiceError(error);
   }
 }
 
@@ -36,7 +36,7 @@ async function readActiveMasqueradeAuthStatus(
   try {
     const user = parseAuthUser({ value: masquerade.principal });
     if (!user) {
-      return invalidResponse();
+      return buildInvalidResponse();
     }
     if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
     const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
@@ -55,7 +55,7 @@ async function readActiveMasqueradeAuthStatus(
   }
 }
 
-function authServiceError(error: unknown): AuthStatusResult {
+function buildAuthServiceError(error: unknown): AuthStatusResult {
   return {
     kind: 'error',
     message: isTransportFailure(error)
@@ -89,6 +89,6 @@ export async function fetchAuthStatus(
     return await readAuthResponse(await sessionRequests.me());
   } catch (error) {
     console.warn('AuthProvider: /api/auth/me check failed', error);
-    return authServiceError(error);
+    return buildAuthServiceError(error);
   }
 }

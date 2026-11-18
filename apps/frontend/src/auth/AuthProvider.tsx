@@ -127,7 +127,7 @@ function useAuthInvalidation({
   setStatus: (status: AuthStatusResult) => void;
 }) {
   useEffect(() => {
-    const onAuthInvalidation = (event: StorageEvent) => {
+    const resetOnAuthInvalidation = (event: StorageEvent) => {
       if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
       masqueradeController.invalidate();
       queryClient.clear();
@@ -135,8 +135,8 @@ function useAuthInvalidation({
       setStatus({ kind: 'checking' });
       void checkAuth('report-error');
     };
-    window.addEventListener('storage', onAuthInvalidation);
-    return () => window.removeEventListener('storage', onAuthInvalidation);
+    window.addEventListener('storage', resetOnAuthInvalidation);
+    return () => window.removeEventListener('storage', resetOnAuthInvalidation);
   }, [checkAuth, setStatus]);
 }
 
