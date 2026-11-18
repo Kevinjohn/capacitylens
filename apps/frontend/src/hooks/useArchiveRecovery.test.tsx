@@ -53,7 +53,7 @@ function company(companyId: string) {
     activeAccountId: companyId,
     planning: {
       ...state.planning,
-      context: { identity: 'principal', companyId: companyId },
+      context: { identity: 'principal', companyId },
       status: 'ready',
       revision: 0,
       canWrite: true,

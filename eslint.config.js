@@ -332,4 +332,10 @@ export default defineConfig([
     files: ['apps/frontend/src/components/ui/**'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
+
+  // `{ id: id }` is written `{ id }` everywhere this configuration lints.
+  {
+    ignores: ['apps/frontend/src/components/ui/**'],
+    rules: { 'object-shorthand': ['error', 'properties'] },
+  },
 ]);

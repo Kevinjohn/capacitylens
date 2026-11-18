@@ -44,13 +44,8 @@ export function useDocumentTitle(input: DocumentTitleInput) {
   }, [pathname, activeLanguage, activeLanguagePending]);
 }
 
-interface BeforeUnloadWarningInput {
-  dirtyForm: boolean;
-}
-
 /** Warns before unload while a form is dirty or a planning write is pending. */
-export function useBeforeUnloadWarning(input: BeforeUnloadWarningInput) {
-  const { dirtyForm } = input;
+export function useBeforeUnloadWarning(dirtyForm: boolean) {
   useEffect(() => {
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirtyForm && useStore.getState().planning.pending === null) return;

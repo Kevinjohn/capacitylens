@@ -29,7 +29,7 @@ export async function getActiveMembership(userId: string, companyId: string, trx
 }
 
 /** Resolves active company standing for ordinary data and member policies. */
-export async function activeCompanyRole(
+export async function getActiveCompanyRole(
   userId: string,
   companyId: string,
   trx: Reader

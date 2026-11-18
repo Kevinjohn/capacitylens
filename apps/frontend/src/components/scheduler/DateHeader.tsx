@@ -77,7 +77,7 @@ function DateDayTier({
             className={resolveDayClass({
               weekStart: weekday === weekStartsOn,
               isToday: day === today,
-              weekend: weekend,
+              weekend,
             })}
             style={{ width: geometry.widthOf(index) }}
           >

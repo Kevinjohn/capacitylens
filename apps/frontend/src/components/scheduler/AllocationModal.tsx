@@ -27,7 +27,7 @@ export function AllocationModal(props: AllocationModalProps) {
 
   return (
     <Modal
-      title={buildTitle({ editing: editing !== undefined, createName: createName })}
+      title={buildTitle({ editing: editing !== undefined, createName })}
       onClose={onClose}
       onSubmit={submit}
       onEdit={clear}

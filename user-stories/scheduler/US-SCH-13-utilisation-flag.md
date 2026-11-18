@@ -35,7 +35,7 @@ flowchart TD
 flowchart TD
   A["The planning read carries each resource's overSoon flag, computed by the server for today to today + 13"] --> B["buildSchedulerModel copies overSoon onto each row"]
   B --> C["SchedulerGridRow reads row.overSoon"]
-  C --> D["UtilizationCell renders red emphasis and 14-day hint"]
+  C --> D["UtilisationCell renders red emphasis and 14-day hint"]
 ```
 
 **Code references:** [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts), [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx)

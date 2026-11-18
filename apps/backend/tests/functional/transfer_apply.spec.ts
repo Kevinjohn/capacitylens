@@ -368,7 +368,7 @@ test.group('beta transfer apply', (group) => {
         companyId: 'a-loft',
         document: asExportFile(full),
         baseRevision,
-        confirmationId: confirmationId,
+        confirmationId,
       })
       .send();
     wrongCompany.assertStatus(403);

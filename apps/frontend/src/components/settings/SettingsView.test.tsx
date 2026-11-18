@@ -472,12 +472,12 @@ describe('SettingsView — device preference toggle wiring', () => {
     ['Show Total Utilisation', 'showTotal'],
     ['Show Discipline Utilisation', 'showDiscipline'],
     ['Show Personal Utilisation', 'showPersonal'],
-  ] as const)('wires %s to utilizationPrefs.%s', async (label, key) => {
+  ] as const)('wires %s to utilisationPrefs.%s', async (label, key) => {
     const user = userEvent.setup();
-    const before = useStore.getState().utilizationPrefs[key];
+    const before = useStore.getState().utilisationPrefs[key];
     render(<SettingsView />);
     await user.click(screen.getByRole('switch', { name: label }));
-    expect(useStore.getState().utilizationPrefs[key]).toBe(!before);
+    expect(useStore.getState().utilisationPrefs[key]).toBe(!before);
   });
 });
 

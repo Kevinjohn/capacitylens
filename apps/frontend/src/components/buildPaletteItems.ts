@@ -184,21 +184,21 @@ export function buildPaletteItems(input: BuildPaletteItemsInput): PaletteItem[] 
   const query = input.query.trim();
   const actions = filterPaletteItems({
     items: buildActionItems({ ...input, query }),
-    query: query,
+    query,
     showAllWithoutQuery: true,
   });
   const pages = filterPaletteItems({
     items: buildPageItems(input),
-    query: query,
+    query,
     showAllWithoutQuery: true,
   });
   if (!query) return [...actions, ...pages];
   return [
     actions,
     pages,
-    filterPaletteItems({ items: buildResourceItems(input), query: query }),
-    filterPaletteItems({ items: buildProjectItems(input), query: query }),
-    filterPaletteItems({ items: buildClientItems(input), query: query }),
-    filterPaletteItems({ items: buildActivityItems(input), query: query }),
+    filterPaletteItems({ items: buildResourceItems(input), query }),
+    filterPaletteItems({ items: buildProjectItems(input), query }),
+    filterPaletteItems({ items: buildClientItems(input), query }),
+    filterPaletteItems({ items: buildActivityItems(input), query }),
   ].flat();
 }

@@ -29,8 +29,7 @@ type TextFieldProps = {
   layout?: ProductFieldLayout;
 };
 
-type ResolveBooleanAttributeOptions = { value: boolean | undefined };
-function resolveBooleanAttribute({ value }: ResolveBooleanAttributeOptions): true | undefined {
+function resolveBooleanAttribute(value: boolean | undefined): true | undefined {
   return value ? true : undefined;
 }
 
@@ -84,8 +83,8 @@ function TextFieldControl({
       disabled={disabled}
       aria-label={ariaLabel}
       data-testid={testId}
-      aria-required={resolveBooleanAttribute({ value: required })}
-      aria-invalid={resolveBooleanAttribute({ value: invalid })}
+      aria-required={resolveBooleanAttribute(required)}
+      aria-invalid={resolveBooleanAttribute(invalid)}
       aria-describedby={ariaDescribedBy}
       onChange={(e) => onChange(e.target.value)}
     />
@@ -120,8 +119,8 @@ export function TextField(props: TextFieldProps) {
 
   return (
     <Field
-      data-invalid={resolveBooleanAttribute({ value: invalid })}
-      data-disabled={resolveBooleanAttribute({ value: disabled })}
+      data-invalid={resolveBooleanAttribute(invalid)}
+      data-disabled={resolveBooleanAttribute(disabled)}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel
@@ -164,8 +163,8 @@ export function NumberField({
   const id = useId();
   return (
     <Field
-      data-invalid={resolveBooleanAttribute({ value: invalid })}
-      data-disabled={resolveBooleanAttribute({ value: disabled })}
+      data-invalid={resolveBooleanAttribute(invalid)}
+      data-disabled={resolveBooleanAttribute(disabled)}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel
@@ -181,8 +180,8 @@ export function NumberField({
         max={max}
         step={step}
         disabled={disabled}
-        aria-required={resolveBooleanAttribute({ value: required })}
-        aria-invalid={resolveBooleanAttribute({ value: invalid })}
+        aria-required={resolveBooleanAttribute(required)}
+        aria-invalid={resolveBooleanAttribute(invalid)}
         aria-describedby={invalid ? describedById : undefined}
         // Clearing a native number field emits zero because Number("") is zero. Clamp on blur because native min/max validity does not repair typed or pasted values.
         onChange={(e) => onChange(Number(e.target.value))}
@@ -230,7 +229,7 @@ export function DateField({
   const id = useId();
   return (
     <Field
-      data-invalid={resolveBooleanAttribute({ value: invalid })}
+      data-invalid={resolveBooleanAttribute(invalid)}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel
@@ -242,8 +241,8 @@ export function DateField({
         id={id}
         type="date"
         value={value}
-        aria-required={resolveBooleanAttribute({ value: required })}
-        aria-invalid={resolveBooleanAttribute({ value: invalid })}
+        aria-required={resolveBooleanAttribute(required)}
+        aria-invalid={resolveBooleanAttribute(invalid)}
         aria-describedby={invalid ? describedById : undefined}
         min={min}
         max={max}

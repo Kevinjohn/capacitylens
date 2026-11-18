@@ -232,7 +232,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   });
   return (
     <Modal
-      title={resolveFormTitle({ resource: resource, isPlaceholder: isPlaceholder })}
+      title={resolveFormTitle({ resource, isPlaceholder })}
       onClose={onClose}
       onSubmit={() => {
         submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));

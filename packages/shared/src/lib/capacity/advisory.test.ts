@@ -61,7 +61,7 @@ describe('capacityAdvisory', () => {
         ignoreWorkingDays: false,
       }),
       otherAllocations: others,
-      timeOff: timeOff,
+      timeOff,
     });
     expect(timeOffDays).toBe(1);
     expect(overDays).toBe(4);
@@ -82,7 +82,7 @@ describe('capacityAdvisory', () => {
         otherAllocations: [],
         timeOff: [],
         accountWorkingDays: undefined,
-        closures: closures,
+        closures,
       }),
     ).toEqual({
       overDays: 0,
@@ -101,7 +101,7 @@ describe('capacityAdvisory', () => {
         ignoreWorkingDays: false,
       }),
       otherAllocations: [],
-      timeOff: timeOff,
+      timeOff,
     });
     expect(timeOffDays).toBe(0);
   });
@@ -129,7 +129,7 @@ describe('capacityAdvisory', () => {
     const resource = makeResource({ halfDays: [2] });
     expect(
       capacityAdvisory({
-        resource: resource,
+        resource,
         proposal: proposal({
           startDate: '2026-06-02',
           endDate: '2026-06-02',
@@ -142,7 +142,7 @@ describe('capacityAdvisory', () => {
     ).toBe(0);
     expect(
       capacityAdvisory({
-        resource: resource,
+        resource,
         proposal: proposal({
           startDate: '2026-06-02',
           endDate: '2026-06-02',
@@ -164,7 +164,7 @@ describe('capacityAdvisory', () => {
 
     expect(
       capacityAdvisory({
-        resource: resource,
+        resource,
         proposal: proposal({
           startDate: '2026-06-01',
           endDate: '2026-06-01',
@@ -177,7 +177,7 @@ describe('capacityAdvisory', () => {
     ).toBe(0);
     expect(
       capacityAdvisory({
-        resource: resource,
+        resource,
         proposal: proposal({
           startDate: '2026-06-01',
           endDate: '2026-06-01',

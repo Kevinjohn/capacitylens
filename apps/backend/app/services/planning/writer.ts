@@ -7,7 +7,7 @@ import { assertFrozenAccountFields } from '#services/planning/entity_policy';
 import { tables } from '#services/product_tables';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { validateEntityRow } from '#validators/entities/index';
+import { assertEntityRow } from '#validators/entities/index';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 
 export { PlanningOperationError };
@@ -95,7 +95,7 @@ export async function updateSettings(
   }
   const now = createServerRevision(existing.updatedAt);
   candidate.updatedAt = now;
-  const validated = await validateEntityRow('accounts', candidate);
+  const validated = await assertEntityRow('accounts', candidate);
   if (typeof validated.name === 'string') validated.name = cleanText(validated.name);
   await trx.from('accounts').where('id', companyId).update(encodeRow('accounts', validated));
   Object.assign(existing, validated);

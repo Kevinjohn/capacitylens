@@ -84,7 +84,7 @@ describe('projectAllocationDates', () => {
         base,
         ['2027-01-31', '2027-02-28'],
         repeatContext({
-          schedulingMode: schedulingMode,
+          schedulingMode,
           daysOver: 0,
           resource: resourceContext({ kind: 'external', workingDays: [] }),
         }),
@@ -203,7 +203,7 @@ describe('projectAllocationDates validation', () => {
         repeatContext({
           schedulingMode: 'days',
           daysOver: 5,
-          resource: resource,
+          resource,
           accountWorkingDays: [1, 2, 3, 4],
         }),
       );
@@ -221,7 +221,7 @@ describe('projectAllocationDates validation', () => {
         repeatContext({
           schedulingMode: 'days',
           daysOver: 1,
-          resource: resource,
+          resource,
           accountWorkingDays: [2],
         }),
       ),
@@ -238,7 +238,7 @@ describe('projectAllocationDates validation', () => {
         repeatContext({
           schedulingMode: 'days',
           daysOver: 2,
-          resource: resource,
+          resource,
           accountWorkingDays: [2],
         }),
       )[1],

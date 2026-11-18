@@ -319,7 +319,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(tag?.length).toBeGreaterThan(0);
   });
 
-  // ANON_FALLBACK_TAG branch of shortResourceTag(id): when the id yields no alphanumerics to
+  // SHORT_ID_FALLBACK_TAG branch of shortIdTag(id): when the id yields no alphanumerics to
   // derive a tag from, the token falls back to the documented '0000' rather than leaving a bare
   // 'Removed person #'. Both an empty id and an all-punctuation id must hit that same fallback.
   it("empty id ⇒ fallback tag '0000' (no alphanumerics to derive from)", () => {

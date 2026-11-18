@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import { formatUtilizationPercent } from '@/lib/formatUtilizationPercent';
+import { formatUtilisationPercent } from '@/lib/formatUtilisationPercent';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type { RowModel } from './schedulerModel';
 import type { DrawMode } from '@/store/useStore';
@@ -7,7 +7,7 @@ import type { DrawMode } from '@/store/useStore';
 /** View preferences and the visible window label used by the row's accessible summary. */
 export interface RowSummaryContext {
   /** The per-person utilisation view pref, the same gate the visible figure uses. */
-  showPersonalUtilization: boolean;
+  showPersonalUtilisation: boolean;
   /** Long form of the visible span ("4 weeks"), so the % says what it was measured over. */
   visibleSpanLabel: string;
   drawMode: DrawMode;
@@ -37,10 +37,10 @@ export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryCo
       count > 1 ? m.scheduler_sr_timeoff_other({ count }) : m.scheduler_sr_timeoff_one({ count }),
     );
   }
-  if (context.showPersonalUtilization && isCapacityTracked(row.resource)) {
+  if (context.showPersonalUtilisation && isCapacityTracked(row.resource)) {
     parts.push(
       m.scheduler_sr_utilisation({
-        percent: formatUtilizationPercent(row.utilization),
+        percent: formatUtilisationPercent(row.utilisation),
         span: context.visibleSpanLabel,
       }),
     );

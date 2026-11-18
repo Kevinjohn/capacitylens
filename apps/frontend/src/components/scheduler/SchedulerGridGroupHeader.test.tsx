@@ -9,7 +9,7 @@ import { SchedulerGridGroupHeader } from './SchedulerGridGroupHeader';
 
 function makeRow(
   id: string,
-  utilization: number,
+  utilisation: number,
   kind: RowModel['resource']['kind'] = 'person',
 ): RowModel {
   return {
@@ -20,7 +20,7 @@ function makeRow(
     conflictDayCount: 0,
     partialCapacityDayCount: 0,
     timeOff: [],
-    utilization,
+    utilisation,
     overSoon: false,
     dimmed: false,
   };
@@ -37,7 +37,7 @@ function renderGroup({ rows, external = false }: RenderGroupOptions) {
       density={SCHEDULER_DENSITY}
       toggleGroup={() => {}}
       geom={{ totalWidth: 700 } as ColumnGeometry}
-      utilizationPrefs={{ showTotal: true, showDiscipline: true, showPersonal: true }}
+      utilisationPrefs={{ showTotal: true, showDiscipline: true, showPersonal: true }}
     />,
   );
   return screen.getByTestId('discipline-group');

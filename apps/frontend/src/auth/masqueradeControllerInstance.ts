@@ -23,7 +23,7 @@ export const masqueradeController = new MasqueradeController({
     const snapshot = await createStorePlanningTransport().read(
       {
         identity: Symbol('masquerade bootstrap'),
-        companyId: companyId,
+        companyId,
         masqueradeContextToken: getMasqueradeContextToken(),
       },
       new AbortController().signal,

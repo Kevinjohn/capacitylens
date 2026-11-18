@@ -1,7 +1,7 @@
 import { RefusalError } from '#exceptions/refusal_error';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
-import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
+import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { refuseWhileViewing } from '#services/auth/password_confirmation';
 import { kitContextIn, type CurrentActor } from '#services/auth/current_actor';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
@@ -31,14 +31,14 @@ export async function transferOwnership({
   confirmationId,
   command,
 }: OwnershipTransferInput): Promise<OwnershipTransferReceipt> {
-  let currentRole: Awaited<ReturnType<typeof activeCompanyRole>>;
+  let currentRole: Awaited<ReturnType<typeof getActiveCompanyRole>>;
   return runAccountCommand(trx, {
     name: 'transfer-ownership',
     authorizeAccess: async () => {
       refuseWhileViewing(actor);
       // A membership proves its company exists, so an unknown company is refused like any other
       // company the caller does not belong to.
-      currentRole = await activeCompanyRole(actor.userId, companyId, trx);
+      currentRole = await getActiveCompanyRole(actor.userId, companyId, trx);
       if (!currentRole) throw new IdentityAuthorityError('Forbidden.');
     },
     authorizeReplay: (_context, receipt) => {

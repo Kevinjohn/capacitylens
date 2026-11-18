@@ -1,4 +1,4 @@
-import { resolveUtilizationFromCapacity } from '@capacitylens/shared/lib/capacity';
+import { resolveUtilisationFromCapacity } from '@capacitylens/shared/lib/capacity';
 import type { CapacitySection, DayCapacity } from '@capacitylens/shared/lib/capacity';
 import { bucketByCoveredDate, dayIndex, eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
@@ -49,12 +49,12 @@ export function readServerDayCapacity(
 }
 
 /** Visible utilisation summed from the server's figures; dates the read did not cover are left out. */
-export function resolveServerUtilization(
+export function resolveServerUtilisation(
   capacity: CapacitySection | null,
   resourceId: string,
   dates: ISODate[],
 ): number {
-  return resolveUtilizationFromCapacity(
+  return resolveUtilisationFromCapacity(
     dates.flatMap((date) => readServerDayCapacity(capacity, resourceId, date) ?? []),
   );
 }
@@ -66,7 +66,7 @@ function createUntrackedCapacitySource(): CapacitySource {
     resolveCapacityOnDay: () => undefined,
     countAllocationsOn: () => 0,
     countTimeOffOn: () => 0,
-    resolveUtilizationOver: () => 0,
+    resolveUtilisationOver: () => 0,
     overSoon: false,
   };
 }
@@ -84,7 +84,7 @@ function createTrackedCapacitySource(
     resolveCapacityOnDay: (date) => readServerDayCapacity(capacity, resource.id, date),
     countAllocationsOn: (date) => allocationsByDate.get(date)?.length ?? 0,
     countTimeOffOn: (date) => listTimeOffOn(date).length + (closuresByDate.get(date)?.length ?? 0),
-    resolveUtilizationOver: (dates) => resolveServerUtilization(capacity, resource.id, dates),
+    resolveUtilisationOver: (dates) => resolveServerUtilisation(capacity, resource.id, dates),
     overSoon: capacity?.resources[resource.id]?.overSoon ?? false,
   };
 }

@@ -4,21 +4,21 @@ import { SegmentedControl, SwitchField } from '@/components/common/ui';
 import { SettingsSection } from './SettingsSection';
 
 import type { StoreState } from '@/store/useStore';
-import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from './settingsLabels';
+import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILISATION_MESSAGES } from './settingsLabels';
 /** Edits this device's theme, bar-label and utilisation-display preferences. */
 export function SettingsAppearanceSection({
   barLabelPrefs: barLabelPreferences,
   setBarLabelPref: setBarLabelPreference,
-  utilizationPrefs: utilizationPreferences,
-  setUtilizationPref: setUtilizationPreference,
+  utilisationPrefs: utilisationPreferences,
+  setUtilisationPref: setUtilisationPreference,
   theme,
   setTheme,
   disciplinesEnabled,
 }: {
   barLabelPrefs: StoreState['barLabelPrefs'];
   setBarLabelPref: StoreState['setBarLabelPref'];
-  utilizationPrefs: StoreState['utilizationPrefs'];
-  setUtilizationPref: StoreState['setUtilizationPref'];
+  utilisationPrefs: StoreState['utilisationPrefs'];
+  setUtilisationPref: StoreState['setUtilisationPref'];
   theme: StoreState['theme'];
   setTheme: StoreState['setTheme'];
   disciplinesEnabled: boolean;
@@ -43,14 +43,14 @@ export function SettingsAppearanceSection({
         help={m.settings_utilisation_intro()}
       >
         <div className="flex flex-col gap-3">
-          {buildLabelOptions(buildLabels(UTILIZATION_MESSAGES))
+          {buildLabelOptions(buildLabels(UTILISATION_MESSAGES))
             .filter((option) => disciplinesEnabled || option.value !== 'showDiscipline')
             .map((option) => (
               <SwitchField
                 key={option.value}
                 label={option.label}
-                checked={utilizationPreferences[option.value]}
-                onChange={(next) => setUtilizationPreference({ key: option.value, value: next })}
+                checked={utilisationPreferences[option.value]}
+                onChange={(next) => setUtilisationPreference({ key: option.value, value: next })}
               />
             ))}
         </div>

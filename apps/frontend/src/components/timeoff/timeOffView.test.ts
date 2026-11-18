@@ -106,7 +106,7 @@ describe('buildTimeOffGroups', () => {
 
     expect(
       buildTimeOffGroups({
-        timeOff: timeOff,
+        timeOff,
         resources: [placeholder],
         weekStart: '2026-06-08',
         placeholdersEnabled: false,
@@ -114,7 +114,7 @@ describe('buildTimeOffGroups', () => {
     ).toEqual([]);
     expect(
       buildTimeOffGroups({
-        timeOff: timeOff,
+        timeOff,
         resources: [placeholder],
         weekStart: '2026-06-08',
         placeholdersEnabled: true,

@@ -6,7 +6,7 @@ import { LAYOUT } from './layout';
 import type { GroupModel } from './schedulerModel';
 import type { SchedulerUI, StoreState } from '@/store/useStore';
 import type { ColumnGeometry } from './columnGeometry';
-import { buildAverageUtilizationLabel } from './schedulerGridModal';
+import { buildAverageUtilisationLabel } from './schedulerGridModal';
 
 interface SchedulerGridGroupHeaderProps {
   group: GroupModel;
@@ -15,23 +15,23 @@ interface SchedulerGridGroupHeaderProps {
   density: ReturnType<typeof buildSchedulerDensity>;
   toggleGroup: (key: string) => void;
   geom: ColumnGeometry;
-  utilizationPrefs: StoreState['utilizationPrefs'];
+  utilisationPrefs: StoreState['utilisationPrefs'];
 }
 
 type ResolveGroupSummaryOptions = {
   group: GroupModel;
   collapsed: boolean;
-  showDisciplineUtilization: boolean;
+  showDisciplineUtilisation: boolean;
 };
 function resolveGroupSummary({
   group,
   collapsed,
-  showDisciplineUtilization,
+  showDisciplineUtilisation,
 }: ResolveGroupSummaryOptions): string {
   if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
-  if (group.external || !showDisciplineUtilization) return '';
+  if (group.external || !showDisciplineUtilisation) return '';
   // A group with no capacity-tracked row shows no average rather than 0%.
-  const percent = buildAverageUtilizationLabel(group.rows);
+  const percent = buildAverageUtilisationLabel(group.rows);
   return percent === null ? '' : m.scheduler_group_avg_utilisation({ percent });
 }
 
@@ -43,7 +43,7 @@ export function SchedulerGridGroupHeader({
   density,
   toggleGroup,
   geom: geometry,
-  utilizationPrefs: utilizationPreferences,
+  utilisationPrefs: utilisationPreferences,
 }: SchedulerGridGroupHeaderProps) {
   const collapsed = ui.collapsedGroups.includes(group.key);
   return (
@@ -85,9 +85,9 @@ export function SchedulerGridGroupHeader({
         style={{ width: geometry.totalWidth }}
       >
         {resolveGroupSummary({
-          group: group,
-          collapsed: collapsed,
-          showDisciplineUtilization: utilizationPreferences.showDiscipline,
+          group,
+          collapsed,
+          showDisciplineUtilisation: utilisationPreferences.showDiscipline,
         })}
       </div>
     </div>

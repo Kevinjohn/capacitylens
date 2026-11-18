@@ -169,11 +169,11 @@ describe('built-in Internal client bucketing + filter', () => {
   const buildInternal = (filters = buildEmptyFilters()) =>
     buildSchedulerModel({
       data: withInternal(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
-      filters: filters,
+      filters,
       preferences: {
         disciplinesEnabled: true,
         placeholdersEnabled: true,
@@ -332,9 +332,9 @@ describe('internal-work bars', () => {
     const ids = barIds(
       buildSchedulerModel({
         data: buildInternalAndRepeatableData(),
-        geom: geom,
-        days: days,
-        visibleWindow: { start: start, end: end },
+        geom,
+        days,
+        visibleWindow: { start, end },
         capacity: null,
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },

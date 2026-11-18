@@ -15,7 +15,7 @@ export const gettingStartedClient = {
     signal?: AbortSignal,
   ): Promise<{ dismissed: boolean; steps: GettingStartedSteps }> {
     const response = await apiFetch(
-      apiRouteUrl('api.getting-started.show', { params: { companyId: companyId } }),
+      apiRouteUrl('api.getting-started.show', { params: { companyId } }),
       {
         credentials: 'include',
         ...(signal ? { signal } : {}),
@@ -48,7 +48,7 @@ export const gettingStartedClient = {
    */
   async dismiss(companyId: string): Promise<void> {
     const response = await apiFetch(
-      apiRouteUrl('api.getting-started.update', { params: { companyId: companyId } }),
+      apiRouteUrl('api.getting-started.update', { params: { companyId } }),
       {
         method: 'PUT',
         credentials: 'include',

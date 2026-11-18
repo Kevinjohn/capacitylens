@@ -68,5 +68,7 @@ export default configApp(
       '@typescript-eslint/restrict-template-expressions': 'error',
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
     },
-  }
+  },
+  // `{ id: id }` is written `{ id }`, in tests as well.
+  { rules: { 'object-shorthand': ['error', 'properties'] } }
 );

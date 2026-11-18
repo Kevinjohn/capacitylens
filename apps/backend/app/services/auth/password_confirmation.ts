@@ -8,7 +8,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { RefusalError } from '#exceptions/refusal_error';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
-import { activeCompanyRole } from './authorization.js';
+import { getActiveCompanyRole } from './authorization.js';
 import { actorIn, type CurrentActor } from './current_actor.js';
 
 export const PASSWORD_CONFIRMATION_KINDS = ['transfer-ownership', 'import', 'anonymise'] as const;
@@ -58,7 +58,7 @@ export async function passwordConfirmationActor(
   if (!(await trx.from('accounts').where('id', companyId).select('id').first())) {
     throw new PasswordConfirmationError();
   }
-  if (!mayConfirmPassword(await activeCompanyRole(actor.userId, companyId, trx), kind)) {
+  if (!mayConfirmPassword(await getActiveCompanyRole(actor.userId, companyId, trx), kind)) {
     throw new PasswordConfirmationError();
   }
   return actor;

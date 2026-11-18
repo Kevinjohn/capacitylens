@@ -36,7 +36,7 @@ export function buildClosureList(closures: readonly Closure[], weekStart: ISODat
 /**
  * Build the Time off page's forward-looking grouped projection without mutating stored data.
  * Entries remain visible when they overlap the current week boundary; missing resource references
- * collect in one final fallback group so corrupt legacy data cannot crash or silently disappear.
+ * collect in one final fallback group so corrupt data cannot crash or silently disappear.
  */
 export function buildTimeOffGroups({
   timeOff,

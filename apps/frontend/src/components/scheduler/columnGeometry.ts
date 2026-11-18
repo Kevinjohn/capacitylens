@@ -26,7 +26,7 @@ export interface ColumnGeometry {
   x(index: number): number;
   /** Width px of column `index` (0 when out of range). */
   widthOf(index: number): number;
-  /** Px width spanning columns [startIdx, endIdx] inclusive (≥ 0; 0 when reversed). */
+  /** Px width spanning columns [startIndex, endIndex] inclusive (≥ 0; 0 when reversed). */
   spanWidth(startIndex: number, endIndex: number): number;
   /** Inverse of {@link x}: a lane-relative pointer x → day index, clamped to [0, n-1].
    * The exact inverse at boundaries: a click at offsets[i] → i, at offsets[i]-ε → i-1. */

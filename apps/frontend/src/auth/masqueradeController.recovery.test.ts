@@ -67,7 +67,7 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     readBootstrapAccount: async (companyId) => {
       if (bootstrapFailure) throw new Error('Bootstrap company read failed');
       const snapshot = await bootstrapTransport.read(
-        { companyId: companyId, identity: 'bootstrap' },
+        { companyId, identity: 'bootstrap' },
         new AbortController().signal,
       );
       return snapshot.data.accounts.find((candidate) => candidate.id === companyId)?.name ?? null;

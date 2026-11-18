@@ -23,7 +23,7 @@ import {
   CAPACITY_OVERVIEW_HORIZON_WEEKS,
   DEFAULT_RANGE_DAYS,
   PAST_BUFFER_DAYS,
-  UTILIZATION_WINDOW_DAYS,
+  UTILISATION_WINDOW_DAYS,
 } from '@capacitylens/shared/lib/planningWindows';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type { Account, AppData, ISODate } from '@capacitylens/shared/types/entities';
@@ -83,7 +83,7 @@ export function buildCapacitySection({
   const horizonBounds = boundsOf(horizon);
   const overSoonBounds = boundsOf({
     from: today,
-    to: addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1),
+    to: addDaysISO(today, UTILISATION_WINDOW_DAYS - 1),
   });
   // Only rows that reach a computed date can count, then each is indexed under the dates it covers.
   const first = range.from < horizon.from ? range.from : horizon.from;
