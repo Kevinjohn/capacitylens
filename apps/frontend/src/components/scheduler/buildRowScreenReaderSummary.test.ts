@@ -29,14 +29,14 @@ const row = (over: Partial<RowModel> = {}): RowModel => ({
   conflictDayCount: 0,
   partialCapacityDayCount: 0,
   timeOff: [],
-  utilization: 0,
+  utilisation: 0,
   overSoon: false,
   dimmed: false,
   ...over,
 });
 
 const ctx = {
-  showPersonalUtilization: false,
+  showPersonalUtilisation: false,
   visibleSpanLabel: '4 weeks',
   drawMode: 'work' as const,
 };
@@ -63,13 +63,13 @@ describe('rowScreenReaderSummary', () => {
   });
 
   it('folds in the visible-window utilisation only when the pref is on and the row has capacity', () => {
-    const busy = row({ utilization: 0.634 });
-    expect(buildRowScreenReaderSummary(busy, { ...ctx, showPersonalUtilization: true })).toBe(
+    const busy = row({ utilisation: 0.634 });
+    expect(buildRowScreenReaderSummary(busy, { ...ctx, showPersonalUtilisation: true })).toBe(
       '63% utilisation over the visible 4 weeks. 0 allocations.',
     );
 
-    const external = row({ resource: { ...person, kind: 'external' }, utilization: 0 });
-    expect(buildRowScreenReaderSummary(external, { ...ctx, showPersonalUtilization: true })).toBe(
+    const external = row({ resource: { ...person, kind: 'external' }, utilisation: 0 });
+    expect(buildRowScreenReaderSummary(external, { ...ctx, showPersonalUtilisation: true })).toBe(
       '0 allocations.',
     );
   });

@@ -3,10 +3,10 @@ import { hasActiveFilters, useStore } from '@/store/useStore';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { carriesHourlyLoad, emptyAppData } from '@capacitylens/shared/types/entities';
 import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
-import { buildSchedulerModel, applyVisibleUtilization } from './schedulerModel';
+import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { buildVisibleSpanLabels, resolveVisibleWindow } from './visibleSpan';
-import { buildAverageUtilizationLabel } from './schedulerGridModal';
+import { buildAverageUtilisationLabel } from './schedulerGridModal';
 import type { useSchedulerViewport } from './useSchedulerViewport';
 import {
   hasDisciplinesEnabled,
@@ -131,7 +131,7 @@ function useSchedulerModelProjection({
   );
   return useMemo(
     () =>
-      applyVisibleUtilization({
+      applyVisibleUtilisation({
         model: staticModel,
         capacity,
         start: visibleStart,
@@ -171,7 +171,7 @@ export function useSchedulerGridPreferences() {
   }, [activeAccount]);
   const ui = useStore((state) => state.ui);
 
-  const utilizationPreferences = useStore((state) => state.utilizationPrefs);
+  const utilisationPreferences = useStore((state) => state.utilisationPrefs);
 
   const minimiseWeekends = useStore((state) => state.minimiseWeekends);
   // Free-scroll snapping is normally enabled and has only a test override. Programmatic navigation anchors independently.
@@ -181,7 +181,7 @@ export function useSchedulerGridPreferences() {
     accountPrefs: accountPreferences,
     accountWorkingDays,
     ui,
-    utilizationPrefs: utilizationPreferences,
+    utilisationPrefs: utilisationPreferences,
     minimiseWeekends,
     weekSnapEnabled,
   };
@@ -224,7 +224,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
 
   const overallUtil = useMemo(
     // External / 3rd-party rows are excluded inside the shared average; with none tracked, read 0%.
-    () => buildAverageUtilizationLabel(model.flatMap((group) => group.rows)) ?? '0',
+    () => buildAverageUtilisationLabel(model.flatMap((group) => group.rows)) ?? '0',
     [model],
   );
 

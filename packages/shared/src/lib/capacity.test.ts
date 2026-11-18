@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyCapacityMode, isOnTimeOff, resolveUtilizationFromCapacity } from './capacity.js';
+import { applyCapacityMode, isOnTimeOff, resolveUtilisationFromCapacity } from './capacity.js';
 import { eachDayISO } from './dateMath.js';
 import type { Allocation, ISODate, Resource, Weekday } from '../types/entities.js';
 
@@ -10,7 +10,7 @@ import {
   allocatedHoursOnDay,
   dayCapacity,
   capacityForWindow,
-  utilization,
+  utilisation,
   capacityAdvisory,
   makeResource,
   makeAlloc,
@@ -148,7 +148,7 @@ describe('#257 characterization: effective-week capacity', () => {
       }),
     ).toBe(0);
     expect(
-      utilization({
+      utilisation({
         resource,
         allocations: [allocation],
         timeOff: [],
@@ -417,11 +417,11 @@ describe('dayCapacity over-allocation', () => {
   });
 });
 
-describe('utilization', () => {
+describe('utilisation', () => {
   const r = makeResource();
   it('reduces precomputed capacity while excluding zero-availability days', () => {
     expect(
-      resolveUtilizationFromCapacity([
+      resolveUtilisationFromCapacity([
         { date: '2026-06-01', allocated: 4, available: 8, over: false },
         { date: '2026-06-02', allocated: 8, available: 0, over: true },
         { date: '2026-06-03', allocated: 2, available: 4, over: false },
@@ -438,7 +438,7 @@ describe('utilization', () => {
       }),
     ];
     expect(
-      utilization({
+      utilisation({
         resource: r,
         allocations: allocs,
         timeOff: [],
@@ -454,7 +454,7 @@ describe('utilization', () => {
       makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 3 }),
     ];
     expect(
-      utilization({
+      utilisation({
         resource,
         allocations,
         timeOff: [],
@@ -466,7 +466,7 @@ describe('utilization', () => {
 
   it('returns 0 when there is no availability in the window', () => {
     expect(
-      utilization({
+      utilisation({
         resource: r,
         allocations: [makeAlloc()],
         timeOff: [],
@@ -488,7 +488,7 @@ describe('utilization', () => {
       }),
     ];
     expect(
-      utilization({
+      utilisation({
         resource: r,
         allocations: allocs,
         timeOff: [],
@@ -532,7 +532,7 @@ describe('utilization', () => {
       }),
     ];
     expect(
-      utilization({
+      utilisation({
         resource: r,
         allocations: allocs,
         timeOff: [],
@@ -555,7 +555,7 @@ describe('utilization', () => {
     const closures = [makeClosure({ startDate: '2026-06-01', endDate: '2026-06-01' })];
 
     expect(
-      utilization({
+      utilisation({
         resource: r,
         allocations,
         timeOff: [],
@@ -564,7 +564,7 @@ describe('utilization', () => {
       }),
     ).toBeCloseTo(0.75);
     expect(
-      utilization({
+      utilisation({
         resource: r,
         allocations,
         timeOff: [],

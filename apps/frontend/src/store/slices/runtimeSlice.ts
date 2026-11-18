@@ -5,11 +5,11 @@ import {
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
   readStoredWeekSnapOverride,
-  readStoredUtilizationPrefs,
+  readStoredUtilisationPrefs,
   writeStoredBarLabelPrefs,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
-  writeStoredUtilizationPrefs,
+  writeStoredUtilisationPrefs,
 } from '@/lib/displayPrefs';
 import { applyThemeToDom, readStoredTheme, writeStoredTheme } from '@/lib/theme';
 import type { StoreState } from '@/store/types';
@@ -24,7 +24,7 @@ type RuntimeSliceKeys =
   | 'dirtyFormSources'
   | 'draggingAllocationId'
   | 'theme'
-  | 'utilizationPrefs'
+  | 'utilisationPrefs'
   | 'barLabelPrefs'
   | 'sidebarOpen'
   | 'minimiseWeekends'
@@ -41,7 +41,7 @@ type RuntimeSliceKeys =
   | 'setDirtyFormSource'
   | 'setDraggingAllocation'
   | 'setTheme'
-  | 'setUtilizationPref'
+  | 'setUtilisationPref'
   | 'setBarLabelPref'
   | 'setSidebarOpen'
   | 'setMinimiseWeekends'
@@ -76,7 +76,7 @@ function readRuntimeInitialState() {
     dirtyFormSources: new Set<symbol>(),
     draggingAllocationId: null,
     theme: readStoredTheme(),
-    utilizationPrefs: readStoredUtilizationPrefs(),
+    utilisationPrefs: readStoredUtilisationPrefs(),
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? readDefaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
@@ -124,11 +124,11 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     },
     // The two pref maps stay written out: a shared factory over them needs a double cast to keep
     // the mapped key/value pair typed, which costs more clarity than the four lines it saves.
-    setUtilizationPref: ({ key, value }) =>
+    setUtilisationPref: ({ key, value }) =>
       set((state) => {
-        const next = { ...state.utilizationPrefs, [key]: value };
-        writeStoredUtilizationPrefs(next);
-        return { utilizationPrefs: next };
+        const next = { ...state.utilisationPrefs, [key]: value };
+        writeStoredUtilisationPrefs(next);
+        return { utilisationPrefs: next };
       }),
     setBarLabelPref: ({ key, value }) =>
       set((state) => {

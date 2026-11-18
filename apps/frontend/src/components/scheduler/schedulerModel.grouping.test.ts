@@ -188,7 +188,7 @@ describe('external / 3rd-party band', () => {
     const ext = buildExt().at(-1)?.rows[0];
     expect(ext).toBeDefined();
     if (!ext) throw new Error('Expected the external resource row.');
-    expect(ext.utilization).toBe(0);
+    expect(ext.utilisation).toBe(0);
     expect(ext.overSoon).toBe(false);
     expect(ext.dayStates.every((d) => !d.over)).toBe(true);
     expect(ext.dayStates.every((d) => !d.partialCapacity)).toBe(true);

@@ -450,7 +450,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ]);
     expect(r1.dayStates[4]).toMatchObject({ unavailable: true, timeOffConflict: false });
     expect(r1.dayStates[5]).toMatchObject({ unavailable: true, timeOffConflict: false });
-    expect(r1.utilization).toBe(0);
+    expect(r1.utilisation).toBe(0);
     expect(r1.overSoon).toBe(false);
     expect(r2.dayStates[2]).toMatchObject({
       unavailable: true,

@@ -92,8 +92,8 @@ export function SettingsView() {
           <SettingsAppearanceSection
             barLabelPrefs={display.barLabelPrefs}
             setBarLabelPref={display.setBarLabelPref}
-            utilizationPrefs={display.utilizationPrefs}
-            setUtilizationPref={display.setUtilizationPref}
+            utilisationPrefs={display.utilisationPrefs}
+            setUtilisationPref={display.setUtilisationPref}
             theme={display.theme}
             setTheme={display.setTheme}
             disciplinesEnabled={scheduling.disciplinesEnabled}

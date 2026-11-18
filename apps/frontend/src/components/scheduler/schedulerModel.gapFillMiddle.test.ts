@@ -277,7 +277,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
 
       expect(external.timeOff).toEqual([]);
       expect(external.conflictDayCount).toBe(0);
-      expect(external.utilization).toBe(0);
+      expect(external.utilisation).toBe(0);
       expect(external.overSoon).toBe(false);
       expect(external.dayStates[2]).toMatchObject({
         creationBlocked: false,

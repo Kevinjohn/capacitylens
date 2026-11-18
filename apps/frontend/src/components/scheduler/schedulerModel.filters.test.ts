@@ -96,7 +96,7 @@ describe('buildSchedulerModel', () => {
       'r1 scheduler row',
     );
 
-    expect(r1.utilization).toBeCloseTo(24 / 56);
+    expect(r1.utilisation).toBeCloseTo(24 / 56);
   });
 
   it('project filter limits bars to that project (resources still listed)', () => {

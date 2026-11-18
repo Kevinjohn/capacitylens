@@ -1,6 +1,6 @@
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { describe, it, expect } from 'vitest';
-import { buildSchedulerModel, applyVisibleUtilization } from './schedulerModel';
+import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import type { GroupModel } from './schedulerModel';
 import { buildColumnGeometry } from './columnGeometry';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
@@ -44,7 +44,7 @@ describe('buildSchedulerModel', () => {
       model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
       'r1 scheduler row',
     );
-    expect(r1.utilization).toBeCloseTo(0.5);
+    expect(r1.utilisation).toBeCloseTo(0.5);
 
     expect(r1.dayStates.length).toBe(days.length);
   });
@@ -99,7 +99,7 @@ describe('buildSchedulerModel', () => {
         externalEnabled: true,
       },
     });
-    const refreshed = applyVisibleUtilization({
+    const refreshed = applyVisibleUtilisation({
       model: base,
       capacity,
       start: '2026-06-03',
@@ -120,7 +120,7 @@ describe('buildSchedulerModel', () => {
     });
     const utilisationByResource = (groups: GroupModel[]) =>
       Object.fromEntries(
-        groups.flatMap((group) => group.rows.map((row) => [row.resource.id, row.utilization])),
+        groups.flatMap((group) => group.rows.map((row) => [row.resource.id, row.utilisation])),
       );
     expect(utilisationByResource(refreshed)).toEqual(utilisationByResource(rebuilt));
     // The day with no availability is left out: 4 of 16 hours.
@@ -196,7 +196,7 @@ describe('displayed utilisation % over the visible window (1/2/4/8 weeks)', () =
         .flatMap((g) => g.rows)
         .find((r) => r.resource.id === 'r1'),
       'r1 scheduler row',
-    ).utilization;
+    ).utilisation;
 
   const buildBoundaryModel = (bookedDate: ISODate) =>
     buildWindowModel(
@@ -234,9 +234,9 @@ describe('displayed utilisation % over the visible window (1/2/4/8 weeks)', () =
   it('inclusive-end boundary: a booking on the visible window LAST day counts; the day AFTER does not', () => {
     // Every day of the fixture has eight hours available, so the week holds 56.
     const inModel = buildBoundaryModel('2026-06-07');
-    expect(inModel.flatMap((g) => g.rows)[0]?.utilization).toBeCloseTo(8 / 56);
+    expect(inModel.flatMap((g) => g.rows)[0]?.utilisation).toBeCloseTo(8 / 56);
 
     const afterModel = buildBoundaryModel('2026-06-08');
-    expect(afterModel.flatMap((g) => g.rows)[0]?.utilization).toBe(0);
+    expect(afterModel.flatMap((g) => g.rows)[0]?.utilisation).toBe(0);
   });
 });

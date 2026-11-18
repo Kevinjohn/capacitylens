@@ -192,10 +192,10 @@ describe('buildSchedulerModel', () => {
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       })
         .flatMap((group) => group.rows)
-        .map(({ resource, dayStates, utilization }) => ({
+        .map(({ resource, dayStates, utilisation }) => ({
           id: resource.id,
           dayStates,
-          utilization,
+          utilisation,
         }));
     const clean = buildRows(d);
     expect(clean.some((row) => row.dayStates.some((state) => !state.creationBlocked))).toBe(true);

@@ -200,7 +200,7 @@ function SchedulerGridContents(props: GridViewProps) {
   const { preferences, gridModel, virtualization, interactions } = props;
   const { headerRef, timelineWidth, days, geom, visibleStartDate } = props;
   const { canEdit, toggleGroup, clearFilters, navigateToResources } = props;
-  const { ui, utilizationPrefs, accountPrefs } = preferences;
+  const { ui, utilisationPrefs, accountPrefs } = preferences;
   const {
     model,
     density,
@@ -215,7 +215,7 @@ function SchedulerGridContents(props: GridViewProps) {
     <>
       <SchedulerGridHeader
         headerRef={headerRef}
-        utilizationPrefs={utilizationPrefs}
+        utilisationPrefs={utilisationPrefs}
         visibleWeeksLabel={visibleWeeksLabel}
         visibleSpanCompact={visibleSpanCompact}
         overallUtil={overallUtil}
@@ -239,7 +239,7 @@ function SchedulerGridContents(props: GridViewProps) {
         density={density}
         toggleGroup={toggleGroup}
         geom={geom}
-        utilizationPrefs={utilizationPrefs}
+        utilisationPrefs={utilisationPrefs}
         visibleWeeksLabel={visibleWeeksLabel}
         canEdit={canEdit}
         visibleStartDate={visibleStartDate}

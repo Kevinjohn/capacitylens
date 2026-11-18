@@ -154,8 +154,8 @@ describe('buildSchedulerModel', () => {
         externalEnabled: true,
       },
     });
-    const avg = (rows: { utilization: number }[]) =>
-      rows.reduce((s, r) => s + r.utilization, 0) / rows.length;
+    const avg = (rows: { utilisation: number }[]) =>
+      rows.reduce((s, r) => s + r.utilisation, 0) / rows.length;
     const designOff = requireValue(
       off.find((g) => g.title === 'Design'),
       'Design group with placeholders hidden',

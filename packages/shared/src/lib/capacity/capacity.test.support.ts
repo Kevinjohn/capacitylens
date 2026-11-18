@@ -7,7 +7,7 @@ import {
   buildDayCapacity as dayCapacityWithWeek,
   isWorkingDay as isWorkingDayWithWeek,
   resolveScheduledHoursOnDay as scheduledHoursOnDayWithWeek,
-  resolveUtilization as utilizationWithWeek,
+  resolveUtilisation as utilisationWithWeek,
 } from '../capacity.js';
 import type { DayCapacity, CapacityAllocationInput } from '../capacity.js';
 import { effectiveWorkingWeek } from '../effectiveWorkingWeek.js';
@@ -57,7 +57,7 @@ export interface CapacityForWindowTestInput {
   accountWorkingDays?: Weekday[] | undefined;
 }
 
-export interface UtilizationTestInput {
+export interface UtilisationTestInput {
   resource: Resource;
   allocations: Allocation[];
   timeOff: TimeOff[];
@@ -157,7 +157,7 @@ export const capacityForWindow = ({
     effectiveWeek: weekFor(resource, accountWorkingDays),
     closures: [],
   });
-export const utilization = ({
+export const utilisation = ({
   resource,
   allocations,
   timeOff,
@@ -165,8 +165,8 @@ export const utilization = ({
   end,
   accountWorkingDays,
   closures = [],
-}: UtilizationTestInput) =>
-  utilizationWithWeek({
+}: UtilisationTestInput) =>
+  utilisationWithWeek({
     resource,
     allocations,
     timeOff,

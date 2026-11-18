@@ -1,8 +1,8 @@
 import type { ComponentProps, Dispatch, SetStateAction } from 'react';
 import { Plus } from 'lucide-react';
 import { m } from '@/i18n';
-import { formatUtilizationPercent } from '@/lib/formatUtilizationPercent';
-import { UTILIZATION_WINDOW_DAYS } from '@/lib/schedulerConfig';
+import { formatUtilisationPercent } from '@/lib/formatUtilisationPercent';
+import { UTILISATION_WINDOW_DAYS } from '@/lib/schedulerConfig';
 import { resolveResourceDisplayName } from '@/lib/metadata';
 import type { buildSchedulerDensity } from './layout';
 import { LAYOUT } from './layout';
@@ -24,7 +24,7 @@ export interface SchedulerGridRowProps {
   row: RowModel;
   rowIndex: number;
   density: ReturnType<typeof buildSchedulerDensity>;
-  utilizationPrefs: StoreState['utilizationPrefs'];
+  utilisationPrefs: StoreState['utilisationPrefs'];
   visibleWeeksLabel: string;
   ui: Pick<SchedulerUI, 'drawMode'>;
   canEdit: boolean;
@@ -88,13 +88,13 @@ function ResourceIdentity({
   );
 }
 
-function UtilizationCell({
-  utilization,
+function UtilisationCell({
+  utilisation,
   overSoon,
   visibleWeeksLabel,
-}: Pick<RowModel, 'utilization' | 'overSoon'> & { visibleWeeksLabel: string }) {
+}: Pick<RowModel, 'utilisation' | 'overSoon'> & { visibleWeeksLabel: string }) {
   const title = overSoon
-    ? m.scheduler_util_title_oversoon({ days: UTILIZATION_WINDOW_DAYS, span: visibleWeeksLabel })
+    ? m.scheduler_util_title_oversoon({ days: UTILISATION_WINDOW_DAYS, span: visibleWeeksLabel })
     : m.scheduler_util_title({ span: visibleWeeksLabel });
   return (
     <span
@@ -104,7 +104,7 @@ function UtilizationCell({
         overSoon ? 'font-semibold text-danger' : 'text-faint'
       }`}
     >
-      {formatUtilizationPercent(utilization)}%
+      {formatUtilisationPercent(utilisation)}%
     </span>
   );
 }
@@ -115,7 +115,7 @@ function ResourceActions({
   canEdit,
   visibleStartDate,
   setModal,
-  utilizationPrefs,
+  utilisationPrefs,
   visibleWeeksLabel,
 }: Pick<
   SchedulerGridRowProps,
@@ -124,12 +124,12 @@ function ResourceActions({
   | 'canEdit'
   | 'visibleStartDate'
   | 'setModal'
-  | 'utilizationPrefs'
+  | 'utilisationPrefs'
   | 'visibleWeeksLabel'
 >) {
-  const { resource, utilization, overSoon } = row;
+  const { resource, utilisation, overSoon } = row;
   const canCreate = canEdit && (ui.drawMode !== 'timeoff' || !isExternalResource(resource));
-  const showUtilization = utilizationPrefs.showPersonal && isCapacityTracked(resource);
+  const showUtilisation = utilisationPrefs.showPersonal && isCapacityTracked(resource);
   return (
     <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
       {canCreate && (
@@ -158,9 +158,9 @@ function ResourceActions({
           <Plus />
         </Button>
       )}
-      {showUtilization && (
-        <UtilizationCell
-          utilization={utilization}
+      {showUtilisation && (
+        <UtilisationCell
+          utilisation={utilisation}
           overSoon={overSoon}
           visibleWeeksLabel={visibleWeeksLabel}
         />
@@ -174,7 +174,7 @@ type RowHeaderProps = Pick<
   | 'group'
   | 'row'
   | 'density'
-  | 'utilizationPrefs'
+  | 'utilisationPrefs'
   | 'visibleWeeksLabel'
   | 'ui'
   | 'canEdit'
@@ -185,7 +185,7 @@ type RowHeaderProps = Pick<
 >;
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
-  const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui } = props;
+  const { row, group, density, utilisationPrefs, visibleWeeksLabel, ui } = props;
   const { resource } = row;
   return (
     <div
@@ -198,7 +198,7 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
     >
       <span className="sr-only">
         {buildRowScreenReaderSummary(row, {
-          showPersonalUtilization: utilizationPrefs.showPersonal,
+          showPersonalUtilisation: utilisationPrefs.showPersonal,
           visibleSpanLabel: visibleWeeksLabel,
           drawMode: ui.drawMode,
         })}
@@ -247,7 +247,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         group={props.group}
         row={row}
         density={density}
-        utilizationPrefs={props.utilizationPrefs}
+        utilisationPrefs={props.utilisationPrefs}
         visibleWeeksLabel={props.visibleWeeksLabel}
         ui={props.ui}
         canEdit={canEdit}

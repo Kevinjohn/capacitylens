@@ -98,7 +98,7 @@ function createBooleanPreference({
 }
 
 /** Visibility preferences for utilisation summaries. */
-export interface UtilizationPreferences {
+export interface UtilisationPreferences {
   /** Show the account-wide utilisation summary. */
   showTotal: boolean;
   /** Show per-discipline utilisation. */
@@ -108,7 +108,7 @@ export interface UtilizationPreferences {
 }
 
 /** Default visibility for utilisation summaries. */
-export const DEFAULT_UTILIZATION_PREFS: UtilizationPreferences = {
+export const DEFAULT_UTILISATION_PREFS: UtilisationPreferences = {
   showTotal: true,
   showDiscipline: true,
   showPersonal: true,
@@ -118,13 +118,13 @@ const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`;
 
 /** Read the saved preferences, falling back to the defaults for anything missing
  * or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
-export function readStoredUtilizationPrefs(): UtilizationPreferences {
-  return readBooleanRecordPreference(STORAGE_KEY, DEFAULT_UTILIZATION_PREFS);
+export function readStoredUtilisationPrefs(): UtilisationPreferences {
+  return readBooleanRecordPreference(STORAGE_KEY, DEFAULT_UTILISATION_PREFS);
 }
 
 /** Persist the preferences. Best-effort: if storage is unavailable the in-memory
  * store still honours the choice for this session. */
-export function writeStoredUtilizationPrefs(preferences: UtilizationPreferences): void {
+export function writeStoredUtilisationPrefs(preferences: UtilisationPreferences): void {
   writeBooleanRecordPreference(STORAGE_KEY, preferences);
 }
 
@@ -145,12 +145,12 @@ export const DEFAULT_BAR_LABEL_PREFS: BarLabelPreferences = {
 const BAR_LABEL_STORAGE_KEY = `${STORAGE_KEY_PREFIX}barLabelPrefs`;
 
 /** Read the saved bar-label preferences, same tolerant fallback behaviour as
- * readStoredUtilizationPrefs. */
+ * readStoredUtilisationPrefs. */
 export function readStoredBarLabelPrefs(): BarLabelPreferences {
   return readBooleanRecordPreference(BAR_LABEL_STORAGE_KEY, DEFAULT_BAR_LABEL_PREFS);
 }
 
-/** Persist the bar-label preferences. Best-effort, like writeStoredUtilizationPrefs. */
+/** Persist the bar-label preferences. Best-effort, like writeStoredUtilisationPrefs. */
 export function writeStoredBarLabelPrefs(preferences: BarLabelPreferences): void {
   writeBooleanRecordPreference(BAR_LABEL_STORAGE_KEY, preferences);
 }

@@ -21,14 +21,14 @@ import { groupByResourceId } from './schedulerModelIndexing';
 import { includeRenderableDateRange } from '@/lib/renderableDateRanges';
 import { createAllocationFilters } from './schedulerModelFilters';
 import { createRowBuilder } from './schedulerRowModel';
-import { createCapacitySource, resolveServerUtilization } from './schedulerRowCapacity';
+import { createCapacitySource, resolveServerUtilisation } from './schedulerRowCapacity';
 import type {
   GroupModel,
   SchedulerModelOptions,
   SchedulerResourceGroup,
 } from './schedulerModelTypes';
 
-interface ApplyVisibleUtilizationInput {
+interface ApplyVisibleUtilisationInput {
   model: GroupModel[];
   capacity: CapacitySection | null;
   start: ISODate;
@@ -96,14 +96,14 @@ function projectVisibleLanes({
 /** Recompute the visible-window percentage and lane layout while retaining the expensive bar
  * geometry and timeline-day model. Horizontal scrolling changes this projection, not the static
  * schedule. Off-screen overlaps must not make the row taller than the work currently in view. */
-export function applyVisibleUtilization({
+export function applyVisibleUtilisation({
   model,
   capacity,
   start,
   end,
   laneLayout = compactLaneLayout,
   partiallyExposesNextColumn = false,
-}: ApplyVisibleUtilizationInput): GroupModel[] {
+}: ApplyVisibleUtilisationInput): GroupModel[] {
   const days = eachDayISO(start, end);
   return model.map((group) => {
     const rows = group.rows.map((row) => {
@@ -116,15 +116,15 @@ export function applyVisibleUtilization({
       });
       const next = isExternalResource(row.resource)
         ? 0
-        : resolveServerUtilization(capacity, row.resource.id, days);
+        : resolveServerUtilisation(capacity, row.resource.id, days);
       if (
-        next === row.utilization &&
+        next === row.utilisation &&
         visibleLanes.bars === row.bars &&
         visibleLanes.rowHeight === row.rowHeight
       ) {
         return row;
       }
-      return { ...row, ...visibleLanes, utilization: next };
+      return { ...row, ...visibleLanes, utilisation: next };
     });
     return rows.some((row, index) => row !== group.rows[index]) ? { ...group, rows } : group;
   });
