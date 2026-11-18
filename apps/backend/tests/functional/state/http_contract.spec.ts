@@ -182,7 +182,7 @@ test.group('M1 HTTP contract', (group) => {
 
   test('diagnostics preserves the unavailable database projection', async ({ client, assert }) => {
     client = await resetAuthenticatedClient(client, true);
-    await db.rawQuery('DROP INDEX closures_account_id_index');
+    await db.rawQuery('DROP INDEX closures_company_id_index');
     try {
       const response = await client.get('/api/diagnostics');
       assert.equal(response.status(), 503);
@@ -195,7 +195,7 @@ test.group('M1 HTTP contract', (group) => {
         },
       });
     } finally {
-      await db.rawQuery('CREATE INDEX closures_account_id_index ON closures (company_id)');
+      await db.rawQuery('CREATE INDEX closures_company_id_index ON closures (company_id)');
     }
   });
 });
