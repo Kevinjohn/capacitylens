@@ -2,15 +2,17 @@ import { expect, test } from './dbFixtures';
 
 test.use({ javaScriptEnabled: false });
 
-test('JavaScript-disabled fallback replaces loading with one structured explanation', async ({
-  page,
-}) => {
-  await page.goto('/');
+test(
+  'JavaScript-disabled fallback replaces loading with one structured explanation',
+  { tag: '@engine' },
+  async ({ page }) => {
+    await page.goto('/');
 
-  await expect(page.getByRole('main')).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'CapacityLens requires JavaScript' }),
-  ).toBeVisible();
-  await expect(page.getByText('Loading…')).toBeHidden();
-  await expect(page.getByText(/JavaScript is disabled/)).toHaveCount(1);
-});
+    await expect(page.getByRole('main')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'CapacityLens requires JavaScript' }),
+    ).toBeVisible();
+    await expect(page.getByText('Loading…')).toBeHidden();
+    await expect(page.getByText(/JavaScript is disabled/)).toHaveCount(1);
+  },
+);

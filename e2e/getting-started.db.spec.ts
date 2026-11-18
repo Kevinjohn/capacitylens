@@ -92,7 +92,7 @@ test.describe('getting started', () => {
     await finishClientAndProjectMilestones(page);
   });
 
-  test('No keeps guidance and Yes dismisses it', async ({ page }) => {
+  test('No keeps guidance and Yes dismisses it', { tag: '@engine' }, async ({ page }) => {
     await openFirstCompanySetup(page);
     await finishFirstCompanySetup(page, 'Queen Consolidated');
     await page.getByTestId('getting-started-dismiss').click();
@@ -108,23 +108,27 @@ test.describe('getting started', () => {
     await finishTour(page.locator('.driver-popover'), 8, 'Viewer: Search, filters and weeks');
   });
 
-  test('"Show me around" runs the authenticated Owner tour', async ({ page }) => {
-    await openFirstCompanySetup(page);
-    await finishFirstCompanySetup(page, 'Queen Consolidated');
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    await page.getByRole('button', { name: 'Show checklist' }).click();
-    await page.getByTestId('getting-started-tour').click();
-    const popover = page.locator('.driver-popover');
-    await expect(popover).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
-    await expect(popover.getByText('Owner: Import and restore schedules')).toBeVisible();
-    await expect(popover.getByText('1 of 8')).toBeVisible();
-    for (const selector of TOUR_ANCHORS) await expect(page.locator(selector)).toBeVisible();
-    await finishTour(popover, 8, 'Viewer: Search, filters and weeks');
-  });
+  test(
+    '"Show me around" runs the authenticated Owner tour',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openFirstCompanySetup(page);
+      await finishFirstCompanySetup(page, 'Queen Consolidated');
+      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      await page.getByRole('button', { name: 'Show checklist' }).click();
+      await page.getByTestId('getting-started-tour').click();
+      const popover = page.locator('.driver-popover');
+      await expect(popover).toBeVisible();
+      await expect(page).toHaveURL(/\/$/);
+      await expect(popover.getByText('Owner: Import and restore schedules')).toBeVisible();
+      await expect(popover.getByText('1 of 8')).toBeVisible();
+      for (const selector of TOUR_ANCHORS) await expect(page.locator(selector)).toBeVisible();
+      await finishTour(popover, 8, 'Viewer: Search, filters and weeks');
+    },
+  );
 });
 
-test.describe('server-backed role tour', () => {
+test.describe('server-backed role tour', { tag: '@engine' }, () => {
   test('returns from Help to Schedule and shows all eight Owner stops', async ({ page }) => {
     await page.goto('/settings');
     await waitForAppLanding(page, page.locator('#main'));

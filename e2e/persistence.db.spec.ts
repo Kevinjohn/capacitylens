@@ -35,50 +35,54 @@ test.describe('database-backed persistence', () => {
     await page.getByRole('link', { name: 'Clients' }).click();
     await expect(page.getByText('Persisted DB Co')).toBeVisible();
   });
-  test('repeat creation persists one typed allocation group request', async ({ page, request }) => {
-    const before = requireStateRows(await serverState(request), 'allocations');
-    let groupRequests = 0;
-    let batchRequests = 0;
-    page.on('request', (outgoing) => {
-      if (outgoing.method() !== 'POST') return;
-      if (outgoing.url().endsWith('/api/batch')) batchRequests++;
-      if (outgoing.url().endsWith('/allocations/create-group')) groupRequests++;
-    });
-    await openApp(page);
-    await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
-    const dialog = page.getByRole('dialog', { name: 'New allocation' });
-    await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme');
-    await selectShadOption(
-      dialog.getByRole('combobox', { name: 'Activity', exact: true }),
-      't-wires',
-    );
-    await dialog.getByLabel('Start Date').fill('2026-06-10');
-    await dialog.getByLabel(/^End/).fill('2026-06-10');
-    await selectShadOption(dialog.getByRole('combobox', { name: 'Repeat' }), 'weekly');
-    await dialog.getByLabel('Repeat until').fill('2026-09-10');
-    await dialog.getByRole('button', { name: 'Save' }).click();
+  test(
+    'repeat creation persists one typed allocation group request',
+    { tag: '@engine' },
+    async ({ page, request }) => {
+      const before = requireStateRows(await serverState(request), 'allocations');
+      let groupRequests = 0;
+      let batchRequests = 0;
+      page.on('request', (outgoing) => {
+        if (outgoing.method() !== 'POST') return;
+        if (outgoing.url().endsWith('/api/batch')) batchRequests++;
+        if (outgoing.url().endsWith('/allocations/create-group')) groupRequests++;
+      });
+      await openApp(page);
+      await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
+      const dialog = page.getByRole('dialog', { name: 'New allocation' });
+      await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme');
+      await selectShadOption(
+        dialog.getByRole('combobox', { name: 'Activity', exact: true }),
+        't-wires',
+      );
+      await dialog.getByLabel('Start Date').fill('2026-06-10');
+      await dialog.getByLabel(/^End/).fill('2026-06-10');
+      await selectShadOption(dialog.getByRole('combobox', { name: 'Repeat' }), 'weekly');
+      await dialog.getByLabel('Repeat until').fill('2026-09-10');
+      await dialog.getByRole('button', { name: 'Save' }).click();
 
-    await expect
-      .poll(async () => requireStateRows(await serverState(request), 'allocations').length, {
-        timeout: 10_000,
-      })
-      .toBe(before.length + 14);
-    expect(groupRequests).toBe(1);
-    expect(batchRequests).toBe(0);
+      await expect
+        .poll(async () => requireStateRows(await serverState(request), 'allocations').length, {
+          timeout: 10_000,
+        })
+        .toBe(before.length + 14);
+      expect(groupRequests).toBe(1);
+      expect(batchRequests).toBe(0);
 
-    await openApp(page);
-    const afterReload = requireStateRows(await serverState(request), 'allocations');
-    expect(afterReload).toHaveLength(before.length + 14);
-    expect(before.every((row) => afterReload.some((persisted) => persisted.id === row.id))).toBe(
-      true,
-    );
-    const repeated = afterReload.filter((row) => !before.some(({ id }) => id === row.id));
-    const firstRepeated = repeated[0];
-    if (firstRepeated === undefined)
-      throw new Error('Repeat creation must persist new allocations');
-    expect(firstRepeated.seriesId).toEqual(expect.any(String));
-    expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
-  });
+      await openApp(page);
+      const afterReload = requireStateRows(await serverState(request), 'allocations');
+      expect(afterReload).toHaveLength(before.length + 14);
+      expect(before.every((row) => afterReload.some((persisted) => persisted.id === row.id))).toBe(
+        true,
+      );
+      const repeated = afterReload.filter((row) => !before.some(({ id }) => id === row.id));
+      const firstRepeated = repeated[0];
+      if (firstRepeated === undefined)
+        throw new Error('Repeat creation must persist new allocations');
+      expect(firstRepeated.seriesId).toEqual(expect.any(String));
+      expect(new Set(repeated.map(({ seriesId }) => seriesId)).size).toBe(1);
+    },
+  );
   test('edit + reload: a rename round-trips through the DB', async ({ page, request }) => {
     await openApp(page);
     await page.getByRole('link', { name: 'Clients' }).click();
