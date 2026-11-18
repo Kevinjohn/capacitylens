@@ -26,7 +26,7 @@ export type ResourceSubmitDraft = {
   projectId: string;
 };
 
-const optionalValue = (value: string): string | undefined => (value === '' ? undefined : value);
+const normalizeOptional = (value: string): string | undefined => (value === '' ? undefined : value);
 
 type Fail = (field: string | null, message: string) => void;
 type AddResource = StoreState['addResource'];
@@ -137,8 +137,8 @@ function buildResourcePatch(input: {
         kind,
         workingDays: input.workingDays,
         halfDays: input.halfDays,
-        firstAvailableDate: optionalValue(input.firstAvailableDate),
-        lastAvailableDate: optionalValue(input.lastAvailableDate),
+        firstAvailableDate: normalizeOptional(input.firstAvailableDate),
+        lastAvailableDate: normalizeOptional(input.lastAvailableDate),
       };
 }
 

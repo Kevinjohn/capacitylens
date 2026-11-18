@@ -20,7 +20,7 @@ import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './plannin
 const DECLINED = Symbol('declined');
 
 /** Neither direction is available: the state before a read reports the page's history. */
-const noHistory = (): PlanningHistory => ({ canUndo: false, canRedo: false });
+const buildEmptyHistory = (): PlanningHistory => ({ canUndo: false, canRedo: false });
 
 function cloneImmutable<T>(value: T): T {
   const cloned = structuredClone(value);
@@ -48,7 +48,7 @@ const initialMetadata = (
   today: null,
   capacity: null,
   status: context ? 'loading' : 'idle',
-  history: noHistory(),
+  history: buildEmptyHistory(),
   pending: null,
   outcome: null,
   error: null,
@@ -59,7 +59,7 @@ export function createPlanningCacheState(data: AppData = emptyAppData()): Planni
   return { data, planning: initialMetadata() };
 }
 
-function sameContext(
+function isSameContext(
   left: PlanningClientContext | null,
   right: PlanningClientContext | null,
 ): boolean {
@@ -75,7 +75,7 @@ function sameContext(
 
 // K2: only an ended session loses scope. Every 403, membership loss included, is a refusal that
 // keeps the readable rows and history.
-function losesScope(error: unknown): boolean {
+function isScopeLoss(error: unknown): boolean {
   const details = errorDetails(error);
   return details.status === 401;
 }
@@ -91,7 +91,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   const createHistoryId = options.createHistoryId ?? (() => crypto.randomUUID());
   // Replacing the id ends the page's history: the server never reports another id's steps.
   let historyId = createHistoryId();
-  const withContextToken = (context: PlanningClientContext): PlanningClientContext =>
+  const applyContextToken = (context: PlanningClientContext): PlanningClientContext =>
     context.masqueradeContextToken === undefined
       ? Object.freeze({ ...context, masqueradeContextToken: options.readMasqueradeContextToken() })
       : context;
@@ -106,7 +106,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     draft: PlanningDraft;
   } | null = null;
 
-  const ownsAttempt = (owner: NonNullable<typeof attempt>) =>
+  const isAttemptOwner = (owner: NonNullable<typeof attempt>) =>
     attempt === owner &&
     isCurrent(owner.draft.generation, owner.draft.context) &&
     store.getState().planning.pending?.execution.mutationId === owner.pending.execution.mutationId;
@@ -123,7 +123,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   };
   const finishRequest = (controller: AbortController) => controllers.delete(controller);
   const isCurrent = (capturedGeneration: number, context: PlanningClientContext) =>
-    generation === capturedGeneration && sameContext(store.getState().planning.context, context);
+    generation === capturedGeneration && isSameContext(store.getState().planning.context, context);
 
   function setContext(context: PlanningClientContext | null): void {
     const frozenContext = context
@@ -135,7 +135,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
             : { masqueradeContextToken: context.masqueradeContextToken }),
         })
       : null;
-    if (sameContext(store.getState().planning.context, frozenContext)) return;
+    if (isSameContext(store.getState().planning.context, frozenContext)) return;
     generation += 1;
     readSequence += 1;
     attempt = null;
@@ -199,7 +199,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     // The read is the only source of the page's undo and redo availability; none reported is none.
     const history = snapshot.history
       ? { canUndo: snapshot.history.canUndo, canRedo: snapshot.history.canRedo }
-      : noHistory();
+      : buildEmptyHistory();
     if (finalized) {
       attempt = null;
     }
@@ -258,7 +258,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     }
     try {
       const window = options.readCapacityWindow?.();
-      const snapshot = await transport.read(withContextToken(context), controller.signal, {
+      const snapshot = await transport.read(applyContextToken(context), controller.signal, {
         ...(window ? { window } : {}),
         historyId,
       });
@@ -269,7 +269,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       if (!isCurrent(capturedGeneration, context)) return false;
       if (sequence !== readSequence) return await (latestRead ?? false);
       if (controller.signal.aborted) return false;
-      if (losesScope(error)) {
+      if (isScopeLoss(error)) {
         loseScope();
         return false;
       }
@@ -311,7 +311,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   }
 
   function acknowledge(owner: NonNullable<typeof attempt>, revision: number): void {
-    if (!ownsAttempt(owner)) return;
+    if (!isAttemptOwner(owner)) return;
     owner.pending = { ...owner.pending, commitment: { revision } };
     store.setState((state) => ({
       planning: {
@@ -410,13 +410,13 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       ) {
         throw error;
       }
-      if (!ownsAttempt(owner) || controller.signal.aborted) throw error;
+      if (!isAttemptOwner(owner) || controller.signal.aborted) throw error;
       const accepted = await options.confirmRestorationCleanup(
         error.restorableItemCount,
         controller.signal,
       );
       controller.signal.throwIfAborted();
-      if (!ownsAttempt(owner)) {
+      if (!isAttemptOwner(owner)) {
         throw new PlanningControllerError('Planning context changed before confirmation.');
       }
       if (!accepted) {
@@ -448,7 +448,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     receipt: PlanningMutationSuccess,
   ): Promise<PlanningMutationSuccess | null> {
     const { pending, draft } = owner;
-    if (!ownsAttempt(owner)) {
+    if (!isAttemptOwner(owner)) {
       throw new PlanningControllerError('Planning context changed while the request was pending.');
     }
     if (!isValidReceipt(receipt, pending.execution)) {
@@ -502,7 +502,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         pending: null,
         outcome: { kind: 'unconfirmed', mutationId: owner.pending.execution.mutationId },
         error: null,
-        history: noHistory(),
+        history: buildEmptyHistory(),
       },
     }));
     await refresh();
@@ -512,16 +512,16 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   async function settleFailure(owner: NonNullable<typeof attempt>, error: unknown): Promise<never> {
     const details = errorDetails(error);
     if (error instanceof PlanningControllerError && error.uncertain) throw error;
-    if (losesScope(error)) {
-      if (ownsAttempt(owner)) loseScope();
+    if (isScopeLoss(error)) {
+      if (isAttemptOwner(owner)) loseScope();
       throw new PlanningControllerError(details.message, details.code, details.status);
     }
     if (details.code === 'MUTATION_ID_REUSED') {
-      if (ownsAttempt(owner)) await settleUnconfirmed(owner);
+      if (isAttemptOwner(owner)) await settleUnconfirmed(owner);
       throw new PlanningControllerError(details.message, details.code, details.status, true);
     }
     if (details.code === 'STALE_REVISION' || details.status === 409) {
-      if (ownsAttempt(owner)) {
+      if (isAttemptOwner(owner)) {
         markRefused(owner, error, details.code ?? 'STALE_REVISION');
         await refresh();
       }
@@ -538,14 +538,14 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         details.code === 'NO_CHANGE' ||
         (details.status !== undefined && details.status < 500))
     ) {
-      if (ownsAttempt(owner)) {
+      if (isAttemptOwner(owner)) {
         markRefused(owner, error, details.code);
         // A refused undo or redo ends the page's history on the server; the read shows that.
         if (owner.pending.kind !== 'new') await refresh();
       }
       throw new PlanningControllerError(details.message, details.code, details.status);
     }
-    if (ownsAttempt(owner)) await settleUnconfirmed(owner);
+    if (isAttemptOwner(owner)) await settleUnconfirmed(owner);
     throw new PlanningControllerError(details.message, details.code, details.status, true);
   }
 

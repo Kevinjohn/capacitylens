@@ -32,7 +32,7 @@ import type { PlanningCommand } from '@/data/planning/planningCommands';
 import type { CreateResult, Draft, Patch, RepeatRange, StoreState } from './types';
 import type { StoreInternals } from './storeInternal';
 
-function createdId(value: unknown): string {
+function requireCreatedId(value: unknown): string {
   if (typeof value !== 'string') throw new Error('The planning row has no id.');
   return value;
 }
@@ -45,7 +45,7 @@ export function createTypedPlanningActions(
   const blocked = blockedByViewer;
   // The guard admits a company still loading from the summaries; no command can be built for it
   // until its row is published, which the person sees as no company being selected yet.
-  const unprepared = (companyId: string, message: string) =>
+  const buildUnpreparedError = (companyId: string, message: string) =>
     new Error(
       get().data.accounts.some((row) => row.id === companyId)
         ? message
@@ -69,8 +69,10 @@ export function createTypedPlanningActions(
   const send = async (command: PlanningCommand | null) =>
     command ? get().sendPlanningCommand(command) : undefined;
   /** Adds the edited row's opening `updatedAt` to an update, when the form supplied one. */
-  const expecting = (command: PlanningCommand | null, expectedUpdatedAt: string | undefined) =>
-    command && expectedUpdatedAt !== undefined ? { ...command, expectedUpdatedAt } : command;
+  const applyExpectedUpdatedAt = (
+    command: PlanningCommand | null,
+    expectedUpdatedAt: string | undefined,
+  ) => (command && expectedUpdatedAt !== undefined ? { ...command, expectedUpdatedAt } : command);
   const created = <
     K extends keyof Pick<
       StoreState['data'],
@@ -103,7 +105,9 @@ export function createTypedPlanningActions(
       companyId,
       args: { entity: key, id, fields } as Parameters<typeof buildCatalogueCreate>[0]['args'],
     });
-    if (!command) throw unprepared(companyId, 'The planning change could not be prepared.');
+    if (!command) {
+      throw buildUnpreparedError(companyId, 'The planning change could not be prepared.');
+    }
     await send(command);
     return { kind: 'created', value: created(key, id) as T };
   };
@@ -118,7 +122,7 @@ export function createTypedPlanningActions(
     const original = owned(key, id, companyId);
     if (!original) return;
     await send(
-      expecting(
+      applyExpectedUpdatedAt(
         buildCatalogueUpdate({
           data: get().data,
           companyId,
@@ -144,7 +148,9 @@ export function createTypedPlanningActions(
       companyId,
       args: { id, fields: input },
     });
-    if (!command) throw unprepared(companyId, 'The time-off entry could not be prepared.');
+    if (!command) {
+      throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.');
+    }
     await send(command);
     return { kind: 'created', value: created('timeOff', id) };
   };
@@ -185,7 +191,7 @@ export function createTypedPlanningActions(
         companyId,
         args: { id, fields },
       });
-      if (!command) throw unprepared(companyId, 'The resource could not be prepared.');
+      if (!command) throw buildUnpreparedError(companyId, 'The resource could not be prepared.');
       await send(command);
       return { kind: 'created', value: created('resources', id) };
     },
@@ -199,7 +205,7 @@ export function createTypedPlanningActions(
           ? patch
           : { ...patch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) };
       await send(
-        expecting(
+        applyExpectedUpdatedAt(
           buildResourceUpdate({
             data: get().data,
             companyId,
@@ -228,12 +234,12 @@ export function createTypedPlanningActions(
         args: { id: newId(), fields: input },
       });
       if (!command || command.intent.operation !== 'timeOff.create') {
-        throw unprepared(companyId, 'The time-off entry could not be prepared.');
+        throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.');
       }
       const timeOff = command.intent.timeOff;
       // Later entry ids are minted here too, so every created row can be returned by id.
       const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
-      const ids = [createdId(timeOff.id), ...occurrenceIds];
+      const ids = [requireCreatedId(timeOff.id), ...occurrenceIds];
       await send({ intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds } });
       return { kind: 'created', value: ids.map((id) => created('timeOff', id)) };
     },
@@ -243,7 +249,7 @@ export function createTypedPlanningActions(
       const original = owned('timeOff', id, companyId);
       if (original) {
         await send(
-          expecting(
+          applyExpectedUpdatedAt(
             buildTimeOffUpdate({
               data: get().data,
               companyId,
@@ -269,7 +275,7 @@ export function createTypedPlanningActions(
         companyId,
         args: { id, fields: input },
       });
-      if (!command) throw unprepared(companyId, 'The closure could not be prepared.');
+      if (!command) throw buildUnpreparedError(companyId, 'The closure could not be prepared.');
       await send(command);
       return { kind: 'created', value: created('closures', id) };
     },
@@ -279,7 +285,7 @@ export function createTypedPlanningActions(
       const original = owned('closures', id, companyId);
       if (original) {
         await send(
-          expecting(
+          applyExpectedUpdatedAt(
             buildClosureUpdate({
               data: get().data,
               companyId,

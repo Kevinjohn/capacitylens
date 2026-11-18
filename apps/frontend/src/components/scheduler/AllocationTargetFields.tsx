@@ -9,7 +9,7 @@ import type { AllocationModalState } from './useAllocationModalState';
 
 type AllocationTargetFieldsProps = AllocationModalState['targetFields'];
 
-function newActivityPlaceholder(
+function getNewActivityPlaceholder(
   kind: AllocationTargetFieldsProps['activityScope']['kind'],
 ): string {
   if (kind === 'internal') return m.form_allocation_new_internal_activity_placeholder();
@@ -38,7 +38,7 @@ function InlineActivityField({
       <Field orientation="horizontal">
         <Input
           value={newActivityName}
-          placeholder={newActivityPlaceholder(activityScope.kind)}
+          placeholder={getNewActivityPlaceholder(activityScope.kind)}
           aria-label={m.form_allocation_new_activity_aria()}
           aria-invalid={errorField === 'newactivity' || undefined}
           aria-describedby={errorField === 'newactivity' ? errorId : undefined}

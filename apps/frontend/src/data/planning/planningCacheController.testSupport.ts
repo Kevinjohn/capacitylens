@@ -49,7 +49,7 @@ export function harness(
     capacity: emptyCapacity(),
   };
   const history = createServerHistoryModel();
-  const withHistory = (snapshot: PlanningSnapshot, historyId: string | undefined) =>
+  const applyHistory = (snapshot: PlanningSnapshot, historyId: string | undefined) =>
     snapshot.history || typeof snapshot.revision !== 'number'
       ? snapshot
       : { ...snapshot, history: history.report(historyId, snapshot.revision) };
@@ -57,13 +57,13 @@ export function harness(
     const snapshot = snapshots.shift();
     if (snapshot) {
       serverSnapshot = snapshot;
-      return withHistory(snapshot, request?.historyId);
+      return applyHistory(snapshot, request?.historyId);
     }
     const result: unknown = await transport.read(clientContext, signal, request);
     if (typeof result === 'object' && result !== null) {
-      return withHistory(result as PlanningSnapshot, request?.historyId);
+      return applyHistory(result as PlanningSnapshot, request?.historyId);
     }
-    return withHistory(serverSnapshot, request?.historyId);
+    return applyHistory(serverSnapshot, request?.historyId);
   });
   const step =
     (kind: 'undo' | 'redo'): PlanningTransport['undo'] =>

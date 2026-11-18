@@ -50,12 +50,12 @@ function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcut
 export function useGlobalShortcuts(input: GlobalShortcutsInput) {
   const { paletteOpen, redo, setPaletteOpen, undo } = input;
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
+    const dispatchShortcut = (event: KeyboardEvent) => {
       if (!applyPaletteShortcutEffect(event, { paletteOpen, setPaletteOpen })) {
         applyHistoryShortcutEffect(event, { redo, undo });
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', dispatchShortcut);
+    return () => window.removeEventListener('keydown', dispatchShortcut);
   }, [paletteOpen, redo, setPaletteOpen, undo]);
 }

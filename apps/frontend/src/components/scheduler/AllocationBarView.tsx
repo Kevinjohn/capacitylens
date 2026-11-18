@@ -42,7 +42,7 @@ interface AllocationBarViewProps {
 
 const BAR_LABEL_INSETS = buildVisibleSpanInsets('x', 'var(--bar-left)', 'var(--bar-width)');
 
-const allocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`;
+const buildAllocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`;
 
 const gripClass =
   'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center';
@@ -118,7 +118,7 @@ function BarTrigger(props: AllocationBarViewProps) {
       role={canEdit ? 'button' : 'img'}
       tabIndex={0}
       aria-label={props.ariaLabel}
-      aria-describedby={props.popoverOpen && !dragging ? allocationPopoverId(bar) : undefined}
+      aria-describedby={props.popoverOpen && !dragging ? buildAllocationPopoverId(bar) : undefined}
       onPointerDown={props.onPointerDown}
       onMouseEnter={props.onMouseEnter}
       onMouseLeave={props.onMouseLeave}
@@ -177,7 +177,7 @@ function BarPopover({
       sideOffset={6}
       showArrow={false}
       data-testid="allocation-popover"
-      id={allocationPopoverId(bar)}
+      id={buildAllocationPopoverId(bar)}
       aria-hidden
       aria-label={popoverFooter}
       className="scheduler-alloc-popover pointer-events-none z-(--z-index-popover) w-60 rounded-lg p-3 font-normal"

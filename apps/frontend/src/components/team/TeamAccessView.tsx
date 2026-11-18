@@ -40,14 +40,15 @@ interface AccessManagementProps {
 
 // Rendered from the server's grant, so a view-as lists only what the read-only view allows.
 function listCapabilities(grant: AccessGrant): Capability[] {
-  const holds = (key: AccessGrant['permissions'][number]) => grant.permissions.includes(key);
+  const hasPermission = (key: AccessGrant['permissions'][number]) =>
+    grant.permissions.includes(key);
   return [
-    { label: m.access_cap_view_schedule(), allowed: holds('planning:read') },
-    { label: m.access_cap_edit_schedule(), allowed: holds('planning:write') },
-    { label: m.access_cap_manage_team(), allowed: holds('members:manage') },
+    { label: m.access_cap_view_schedule(), allowed: hasPermission('planning:read') },
+    { label: m.access_cap_edit_schedule(), allowed: hasPermission('planning:write') },
+    { label: m.access_cap_manage_team(), allowed: hasPermission('members:manage') },
     { label: m.access_cap_timeoff_notes(), allowed: grant.canSeeTimeOffNote },
     { label: m.access_cap_private_names(), allowed: grant.canSeePrivateNames },
-    { label: m.access_cap_transfer_owner(), allowed: holds('ownership:transfer') },
+    { label: m.access_cap_transfer_owner(), allowed: hasPermission('ownership:transfer') },
   ];
 }
 

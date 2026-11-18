@@ -83,7 +83,7 @@ function SelectFieldOptions({
   ));
 }
 
-function trueOrUndefined(value: boolean | undefined): true | undefined {
+function normalizeFlag(value: boolean | undefined): true | undefined {
   return value ? true : undefined;
 }
 
@@ -110,8 +110,8 @@ export function SelectField({
   const optionGroups = buildOptionGroups(options);
   return (
     <Field
-      data-invalid={trueOrUndefined(invalid)}
-      data-disabled={trueOrUndefined(disabled)}
+      data-invalid={normalizeFlag(invalid)}
+      data-disabled={normalizeFlag(disabled)}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel
@@ -200,8 +200,8 @@ function SelectFieldControl({
         autoFocus={autoFocus}
         data-autofocus={autoFocus ? '' : undefined}
         className="w-full"
-        aria-required={trueOrUndefined(required)}
-        aria-invalid={trueOrUndefined(invalid)}
+        aria-required={normalizeFlag(required)}
+        aria-invalid={normalizeFlag(invalid)}
         aria-describedby={invalid ? describedById : undefined}
         aria-label={ariaLabel}
         data-testid={testId}

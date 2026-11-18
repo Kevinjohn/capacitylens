@@ -103,13 +103,13 @@ export function useMemberResourceLinkRequests({
     const { userId } = member;
     const generation = ++requestCount.current;
     latestRequestByMember.current.set(userId, generation);
-    const current = () =>
+    const isCurrent = () =>
       latestRequestByMember.current.get(userId) === generation &&
       currentCompany.current === activeCompanyId;
     update(userId, { sending: true, error: null, expectedResourceId: undefined });
     void requestResourceLinkChange(member, companyId, resourceId)
       .then((result) => {
-        if (!current()) return;
+        if (!isCurrent()) return;
         if (result.kind === 'unknown' || result.kind === 'invalid') {
           update(userId, { error: m.settings_member_resource_unknown() });
         } else if (result.kind === 'rejected') {
@@ -120,10 +120,10 @@ export function useMemberResourceLinkRequests({
       })
       .catch((cause: unknown) => {
         console.warn('Resource link request failed', cause);
-        if (current()) update(userId, { error: m.settings_member_resource_unknown() });
+        if (isCurrent()) update(userId, { error: m.settings_member_resource_unknown() });
       })
       .finally(() => {
-        if (current()) update(userId, { sending: false, requiredReadGeneration: reload() });
+        if (isCurrent()) update(userId, { sending: false, requiredReadGeneration: reload() });
       });
   };
 

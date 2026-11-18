@@ -4,7 +4,7 @@ import type { BrowserAccountCommand } from './accountCommands';
 import { buildCommandRequestInit, runCommand } from './commandRequest';
 
 /** Build the account-owned URL for one member/person association. */
-export function memberResourceLinkUrl(companyId: string, principalId: string): string {
+export function buildMemberResourceLinkUrl(companyId: string, principalId: string): string {
   return apiRouteUrl('api.member-resources.set', {
     params: { companyId, userId: principalId },
   });
@@ -29,7 +29,7 @@ export function setMemberResourceLink(
       `${input.resourceId}:${input.expectedRevision ?? 'none'}`,
     explicit: command,
     request: (resolved) => {
-      const [url, init] = memberResourceLinkRequest(input);
+      const [url, init] = buildMemberResourceLinkRequest(input);
       return apiFetch(url, buildCommandRequestInit(init, resolved));
     },
     ambiguousStatus: 409,
@@ -37,11 +37,11 @@ export function setMemberResourceLink(
 }
 
 /** Build a link-change request for the member-resource command adapter. */
-export function memberResourceLinkRequest(
+export function buildMemberResourceLinkRequest(
   input: MemberResourceLinkRequestInput,
 ): [string, RequestInit] {
   return [
-    memberResourceLinkUrl(input.companyId, input.principalId),
+    buildMemberResourceLinkUrl(input.companyId, input.principalId),
     {
       method: 'PUT',
       credentials: 'include',
@@ -61,7 +61,7 @@ export function clearMemberResourceLinkRequest(
   expectedRevision: string,
 ): [string, RequestInit] {
   return [
-    memberResourceLinkUrl(companyId, principalId),
+    buildMemberResourceLinkUrl(companyId, principalId),
     {
       method: 'DELETE',
       credentials: 'include',

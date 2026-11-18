@@ -17,7 +17,7 @@ import {
   buildArchivedRows,
   buildResourceArchivedGroups,
   entityConfig,
-  rowName,
+  getRowName,
 } from './archivedEntityRows';
 import type { ArchivedEntity, ArchivedRowModel, LifecycleRow } from './archivedEntityRows';
 
@@ -37,7 +37,7 @@ function ArchivedRow({
   mayAnonymise: boolean;
 }) {
   const direct = lifecycleStatus(row) === 'archived';
-  const name = rowName(row);
+  const name = getRowName(row);
   return (
     <Item
       id={`archived-${row.id}`}
@@ -230,7 +230,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
       {anonymising && anonymising.companyId === activeAccountId && (
         <ConfirmDialog
           title={m.settings_archived_anonymise_title()}
-          message={m.settings_archived_anonymise_message({ name: rowName(anonymising.row) })}
+          message={m.settings_archived_anonymise_message({ name: getRowName(anonymising.row) })}
           confirmLabel={m.settings_archived_anonymise()}
           onConfirm={() => {
             run(

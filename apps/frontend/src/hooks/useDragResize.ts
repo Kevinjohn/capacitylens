@@ -81,7 +81,7 @@ function createPointerHandlers(
   const { argsRef, mode, startX, startY, pointerId, threshold } = state;
   // Geometry owns snapping validation; this DOM wrapper relies on its total index lookup.
   // Keep the click threshold in raw pixels so narrow columns do not change gesture arming.
-  const onMove = (event: PointerEvent) => {
+  const moveDrag = (event: PointerEvent) => {
     if (isOtherPointer(event, pointerId)) return;
     const dx = event.clientX - startX;
     const dy = event.clientY - startY;
@@ -96,7 +96,7 @@ function createPointerHandlers(
       pointer: { clientX: event.clientX, clientY: event.clientY },
     });
   };
-  const onUp = (event: PointerEvent) => {
+  const endDrag = (event: PointerEvent) => {
     if (isOtherPointer(event, pointerId) || event.button !== 0) return;
     detach();
     if (!progress.dragging) {
@@ -107,7 +107,7 @@ function createPointerHandlers(
       argsRef.current.indexAtClientX(event.clientX) - argsRef.current.indexAtClientX(startX);
     argsRef.current.onCommit(mode, deltaDays, { clientX: event.clientX, clientY: event.clientY });
   };
-  return { onMove, onUp };
+  return { onMove: moveDrag, onUp: endDrag };
 }
 
 function createGestureHandlers(state: GestureState): GestureHandlers {
@@ -131,23 +131,23 @@ function createGestureHandlers(state: GestureState): GestureHandlers {
     detach();
     argsRef.current.onCancel?.();
   };
-  const onCancel = (event: PointerEvent) => {
+  const cancelDrag = (event: PointerEvent) => {
     if (isOtherPointer(event, pointerId)) return;
     abort();
   };
-  const onLostPointerCapture = () => abort();
+  const abandonOnLostCapture = () => abort();
   // Keyboard escape hatch: a pointer-only gesture has no way to back out once armed (a
   // resize/move drag has no native "cancel" gesture). Escape takes the same abandon path
   // rather than committing whatever the last preview was.
-  const onKeyDown = (event: KeyboardEvent) => {
+  const abandonOnEscape = (event: KeyboardEvent) => {
     if (event.key !== 'Escape') return;
     abort();
   };
   const handlers: GestureHandlers = {
     ...createPointerHandlers(state, progress, detach),
-    onCancel,
-    onKeyDown,
-    onLostPointerCapture,
+    onCancel: cancelDrag,
+    onKeyDown: abandonOnEscape,
+    onLostPointerCapture: abandonOnLostCapture,
     detach,
   };
   return handlers;
@@ -189,13 +189,20 @@ export function useDragResize(args: UseDragResizeArgs) {
       captureTarget,
       threshold: argsRef.current.threshold ?? 4,
     });
-    const { onMove, onUp, onCancel, onKeyDown, onLostPointerCapture, detach } = handlers;
+    const {
+      onMove: moveDrag,
+      onUp: endDrag,
+      onCancel: cancelDrag,
+      onKeyDown: abandonOnEscape,
+      onLostPointerCapture: abandonOnLostCapture,
+      detach,
+    } = handlers;
 
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', onUp);
-    document.addEventListener('pointercancel', onCancel);
-    document.addEventListener('keydown', onKeyDown);
-    captureTarget.addEventListener('lostpointercapture', onLostPointerCapture);
+    document.addEventListener('pointermove', moveDrag);
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', cancelDrag);
+    document.addEventListener('keydown', abandonOnEscape);
+    captureTarget.addEventListener('lostpointercapture', abandonOnLostCapture);
     captureTarget.setPointerCapture(pointerId);
     teardownRef.current = detach;
     return true;

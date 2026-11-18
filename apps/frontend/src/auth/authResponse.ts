@@ -78,7 +78,7 @@ function resolveAccessGate(fields: AuthResponseFields, admitted: boolean): Acces
 }
 
 /** Reject identity responses that cannot be trusted. */
-export function invalidResponse(): AuthStatusResult {
+export function rejectInvalidResponse(): AuthStatusResult {
   console.warn(
     'AuthProvider: /api/auth/me returned an unexpected body; nothing trustworthy learned',
   );
@@ -88,7 +88,7 @@ export function invalidResponse(): AuthStatusResult {
 function parsePassResult(body: unknown): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
   if (!fields) {
-    return invalidResponse();
+    return rejectInvalidResponse();
   }
   const user = parseAuthUser(fields.user);
   if (!user) {
@@ -102,7 +102,7 @@ function parsePassResult(body: unknown): AuthStatusResult {
     typeof fields.emailVerified !== 'boolean' ||
     typeof fields.membershipRequired !== 'boolean'
   ) {
-    return invalidResponse();
+    return rejectInvalidResponse();
   }
   const accessGate = resolveAccessGate(fields, admission.admitted);
   const next: Extract<AuthStatusResult, { kind: 'pass' }> = {

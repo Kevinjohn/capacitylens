@@ -47,12 +47,12 @@ export function useDocumentTitle(input: DocumentTitleInput) {
 /** Warns before unload while a form is dirty or a planning write is pending. */
 export function useBeforeUnloadWarning(dirtyForm: boolean) {
   useEffect(() => {
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirtyForm && useStore.getState().planning.pending === null) return;
       event.preventDefault();
       event.returnValue = '';
     };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
   }, [dirtyForm]);
 }

@@ -30,7 +30,7 @@ export const entityConfig: Record<
   },
 };
 
-export function rowName(row: LifecycleRow): string {
+export function getRowName(row: LifecycleRow): string {
   if ('name' in row && row.name) return row.name;
   if ('role' in row) return row.role;
   return '';
@@ -67,7 +67,7 @@ const resourceArchivedGroups: readonly {
   },
 ];
 
-function archivedAncestor(
+function getArchivedAncestor(
   indexes: Map<AppDataKey, Map<string, LifecycleAncestryRow>>,
   entity: ArchivedEntity,
   row: LifecycleRow,
@@ -109,12 +109,13 @@ export function buildArchivedRows(data: AppData, entity: ArchivedEntity): Archiv
   return entityConfig[entity]
     .list(data)
     .filter((row) => lifecycleStatus(row) !== 'deleted')
-    .map((row) => ({ row, ancestor: archivedAncestor(indexes, entity, row) }))
+    .map((row) => ({ row, ancestor: getArchivedAncestor(indexes, entity, row) }))
     .filter(({ row, ancestor }) => lifecycleStatus(row) === 'archived' || ancestor !== null)
     .toSorted(
       (left, right) =>
-        rowName(left.row).localeCompare(rowName(right.row), undefined, { sensitivity: 'base' }) ||
-        left.row.id.localeCompare(right.row.id),
+        getRowName(left.row).localeCompare(getRowName(right.row), undefined, {
+          sensitivity: 'base',
+        }) || left.row.id.localeCompare(right.row.id),
     );
 }
 

@@ -37,9 +37,9 @@ export function RotateHint() {
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
     const mediaQuery = window.matchMedia(PORTRAIT_PHONE_QUERY);
-    const onChange = (e: MediaQueryListEvent) => setPortrait(e.matches);
-    mediaQuery.addEventListener('change', onChange);
-    return () => mediaQuery.removeEventListener('change', onChange);
+    const updatePortrait = (e: MediaQueryListEvent) => setPortrait(e.matches);
+    mediaQuery.addEventListener('change', updatePortrait);
+    return () => mediaQuery.removeEventListener('change', updatePortrait);
   }, []);
 
   if (!portrait || dismissed) return null;

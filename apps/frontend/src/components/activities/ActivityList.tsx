@@ -142,7 +142,7 @@ interface ActivitySectionsProps {
 }
 
 function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
-  const box = (input: BoxInput) => <ActivityBox {...input} renderRow={renderRow} />;
+  const renderBox = (input: BoxInput) => <ActivityBox {...input} renderRow={renderRow} />;
   return model.kindOrder.map((kind, index) => {
     const headingClassName = `mb-4 flex items-center justify-between${index > 0 ? ' mt-8' : ''}`;
     if (kind === 'internal') {
@@ -151,7 +151,7 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
           <div className={headingClassName}>
             <h2 className="text-lg font-semibold">{m.list_activities_internal_heading()}</h2>
           </div>
-          {box({
+          {renderBox({
             rows: model.internal,
             empty: m.list_activities_internal_empty(),
             testid: 'internal-activities',
@@ -166,7 +166,7 @@ function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
           <div className={headingClassName}>
             <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
           </div>
-          {box({
+          {renderBox({
             rows: model.crossProject,
             empty: m.list_activities_repeatable_empty(),
             testid: 'cross-project-activities',

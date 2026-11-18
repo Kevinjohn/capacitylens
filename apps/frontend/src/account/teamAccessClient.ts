@@ -26,7 +26,7 @@ export type {
 } from './teamAccessTypes';
 export type { OwnershipTransferReceipt } from './ownershipTransferAccess';
 
-const noContent = (): true => true;
+const parseNoContent = (): true => true;
 
 type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
 /** Provides typed request methods for team and access administration. */
@@ -67,7 +67,7 @@ export const teamAccessClient = {
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
       await memberRequests.changeMemberRole({ companyId, principalId, role }),
-      noContent,
+      parseNoContent,
     );
   },
 
@@ -78,7 +78,7 @@ export const teamAccessClient = {
   ): Promise<TeamAccessResult<true>> {
     return readCommandResult(
       await memberRequests.changeMemberStatus({ companyId, principalId, status }),
-      noContent,
+      parseNoContent,
     );
   },
 
@@ -98,7 +98,7 @@ export const teamAccessClient = {
   async clearMemberResourceLink(companyId: string, principalId: string, expectedRevision: string) {
     return readCommandResult(
       await memberRequests.clearMemberResourceLink({ companyId, principalId, expectedRevision }),
-      noContent,
+      parseNoContent,
       204,
     );
   },
@@ -147,13 +147,13 @@ export const teamAccessClient = {
     userId: string,
     decision: 'approve' | 'reject',
   ): Promise<TeamAccessResult<true>> {
-    return readResult(await admissionRequests.decideAdmission(userId, decision), noContent);
+    return readResult(await admissionRequests.decideAdmission(userId, decision), parseNoContent);
   },
 
   async revokeInvitation(companyId: string, invitationId: string): Promise<TeamAccessResult<true>> {
     return readCommandResult(
       await invitationRequests.revokeInvitation(companyId, invitationId),
-      noContent,
+      parseNoContent,
     );
   },
 };

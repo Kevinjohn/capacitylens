@@ -46,7 +46,7 @@ type SetDirectory = Dispatch<SetStateAction<DirectoryState>>;
 // still starts on generation 0, so a revisit shows the cached directory while it refetches.
 let lastRequestedReadGeneration = 0;
 
-function directorySnapshot(state: DirectoryState, companyId: string): DirectorySnapshot | null {
+function getDirectorySnapshot(state: DirectoryState, companyId: string): DirectorySnapshot | null {
   if (state.companyId !== companyId) return null;
   if (state.kind === 'ready') return state.snapshot;
   return state.kind === 'error' && state.content.kind === 'authorized'
@@ -54,8 +54,8 @@ function directorySnapshot(state: DirectoryState, companyId: string): DirectoryS
     : null;
 }
 
-function errorDirectory(state: DirectoryState, companyId: string): DirectoryState {
-  const snapshot = directorySnapshot(state, companyId);
+function markDirectoryError(state: DirectoryState, companyId: string): DirectoryState {
+  const snapshot = getDirectorySnapshot(state, companyId);
   return {
     kind: 'error',
     companyId,
@@ -68,7 +68,7 @@ function replaceInvites(
   companyId: string,
   invites: TeamInvitation[],
 ): DirectoryState {
-  const snapshot = directorySnapshot(state, companyId);
+  const snapshot = getDirectorySnapshot(state, companyId);
   if (snapshot === null) return state;
   const nextSnapshot = { ...snapshot, invites };
   if (state.kind === 'ready') return { ...state, snapshot: nextSnapshot };
@@ -78,7 +78,7 @@ function replaceInvites(
   return state;
 }
 
-function failureMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
+function getFailureMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
   return result.kind === 'rejected' && result.message ? result.message : fallback;
 }
 
@@ -156,13 +156,13 @@ function useMemberQueryEffects({
       return;
     }
     if (result.kind === 'invalid') {
-      setDirectory((previous) => errorDirectory(previous, activeAccountId));
+      setDirectory((previous) => markDirectoryError(previous, activeAccountId));
       fail(null, 'The server returned an invalid members response.');
       return;
     }
     if (result.kind !== 'ok') {
-      setDirectory((previous) => errorDirectory(previous, activeAccountId));
-      fail(null, failureMessage(result, m.settings_members_err_load({ status: result.status })));
+      setDirectory((previous) => markDirectoryError(previous, activeAccountId));
+      fail(null, getFailureMessage(result, m.settings_members_err_load({ status: result.status })));
       return;
     }
     authorizedAccountRef.current = { scopeId, companyId: activeAccountId };
@@ -173,7 +173,7 @@ function useMemberQueryEffects({
         members: result.value.members,
         signInTrackingEnabled: result.value.signInTrackingEnabled,
         resourceCandidates: result.value.resourceCandidates,
-        invites: directorySnapshot(previous, activeAccountId)?.invites ?? [],
+        invites: getDirectorySnapshot(previous, activeAccountId)?.invites ?? [],
       },
     }));
     acceptReadGeneration(readGeneration);
@@ -189,7 +189,7 @@ function useMemberQueryEffects({
   ]);
   useEffect(() => {
     if (membersQuery.error && activeAccountId) {
-      setDirectory((previous) => errorDirectory(previous, activeAccountId));
+      setDirectory((previous) => markDirectoryError(previous, activeAccountId));
       fail(null, m.settings_err_server({ error: resolveErrorMessage(membersQuery.error) }));
     }
   }, [activeAccountId, membersQuery.error, fail, setDirectory]);
@@ -216,7 +216,7 @@ function useInvitationQueryEffects({
       return;
     }
     if (result.kind !== 'ok') {
-      fail(null, failureMessage(result, m.settings_invites_err_load({ status: result.status })));
+      fail(null, getFailureMessage(result, m.settings_invites_err_load({ status: result.status })));
       return;
     }
     setDirectory((previous) => replaceInvites(previous, activeAccountId, result.value));

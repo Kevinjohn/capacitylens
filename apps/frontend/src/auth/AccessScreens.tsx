@@ -33,7 +33,7 @@ export function AccessScreen(props: AccessScreenProps) {
           <CardHeader className="text-center">
             <div className="text-2xl font-bold text-brand">{APP_NAME}</div>
             <CardTitle>
-              <h1>{heading(props.gate)}</h1>
+              <h1>{getGateHeading(props.gate)}</h1>
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -53,7 +53,7 @@ export function AccessScreen(props: AccessScreenProps) {
   );
 }
 
-function heading(gate: AccessGate) {
+function getGateHeading(gate: AccessGate) {
   if (gate === 'verify-email') return m.limited_verify_heading();
   if (gate === 'admission') return m.limited_admission_heading();
   return m.limited_membership_heading();

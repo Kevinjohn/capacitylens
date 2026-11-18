@@ -140,7 +140,7 @@ function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null
   };
 }
 
-function rejectsNewPlacement({ command, draft, operation }: RejectNewPlacementInput): boolean {
+function isNewPlacementRejected({ command, draft, operation }: RejectNewPlacementInput): boolean {
   const editing = operation === 'save' ? command.editing : null;
   if (
     editing?.resourceId === draft.resourceId ||
@@ -236,7 +236,7 @@ export function createAllocationCommands(input: CommandInput) {
       return;
     }
     const draft = validateDraft();
-    if (!draft || rejectsNewPlacement({ command: input, draft, operation: 'save' })) return;
+    if (!draft || isNewPlacementRejected({ command: input, draft, operation: 'save' })) return;
     try {
       const saved = await saveDraft(input, draft);
       if (!saved) return;
@@ -250,7 +250,7 @@ export function createAllocationCommands(input: CommandInput) {
   const duplicateAllocation = async () => {
     if (!input.editing) return;
     const draft = validateDraft();
-    if (!draft || rejectsNewPlacement({ command: input, draft, operation: 'duplicate' })) return;
+    if (!draft || isNewPlacementRejected({ command: input, draft, operation: 'duplicate' })) return;
     try {
       const result = await input.duplicateAllocation(input.editing.id, draft);
       if (result.kind !== 'created') return;
@@ -272,7 +272,7 @@ export function createAllocationCommands(input: CommandInput) {
   };
   // Each command awaits its typed write and reports every failure in the dialog, so none escapes.
   // One write runs at a time: a repeated submit before the dialog closes must not save twice.
-  const exclusive = async (command: () => Promise<void>) => {
+  const runExclusive = async (command: () => Promise<void>) => {
     if (input.writing.current) return;
     input.writing.current = true;
     try {
@@ -283,8 +283,9 @@ export function createAllocationCommands(input: CommandInput) {
   };
   return {
     validatedDraft: validateDraft,
-    submit: () => void exclusive(submit),
-    onDuplicate: () => void exclusive(duplicateAllocation),
-    onDelete: (scope?: 'one' | 'future') => void exclusive(() => deleteSelectedAllocation(scope)),
+    submit: () => void runExclusive(submit),
+    onDuplicate: () => void runExclusive(duplicateAllocation),
+    onDelete: (scope?: 'one' | 'future') =>
+      void runExclusive(() => deleteSelectedAllocation(scope)),
   };
 }

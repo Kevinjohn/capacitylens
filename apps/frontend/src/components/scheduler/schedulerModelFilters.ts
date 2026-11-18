@@ -52,14 +52,14 @@ function createWorkVisibility({
     }
     return true;
   };
-  const passesTentativeFilter = (allocation: Allocation): boolean =>
+  const isIncludedByTentativeFilter = (allocation: Allocation): boolean =>
     !(filters.hideTentative && allocation.status === 'tentative');
   return {
     allocVisible: (allocation: Allocation) =>
       hasMatchingProjectClient(allocation) &&
       hasMatchingActivity(allocation) &&
-      passesTentativeFilter(allocation),
-    notTentativeHidden: passesTentativeFilter,
+      isIncludedByTentativeFilter(allocation),
+    notTentativeHidden: isIncludedByTentativeFilter,
   };
 }
 

@@ -129,11 +129,11 @@ export function createPlanningSessionSlice(
         ...(authLost ? { planningAuthLossVersion: state.planningAuthLossVersion + 1 } : {}),
       }));
     };
-    const commandsSuspended = () => {
+    const checkCommandsSuspended = () => {
       syncContext(get().activeAccountId);
       return commandLocks.size > 0;
     };
-    const replacementReady = () => {
+    const isReplacementReady = () => {
       const companyId = get().activeAccountId;
       const planning = get().planning;
       return (
@@ -145,7 +145,7 @@ export function createPlanningSessionSlice(
     };
     const send = async (command: PlanningCommand): Promise<PlanningMutationSuccess | undefined> => {
       if (blockedByViewer()) return;
-      if (commandsSuspended()) {
+      if (checkCommandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
       const receipt = await controller.execute(
@@ -201,11 +201,11 @@ export function createPlanningSessionSlice(
           if (epoch === contextEpoch) commandLocks.delete(token);
         };
       },
-      planningReadyForReplacement: () => replacementReady(),
+      planningReadyForReplacement: () => isReplacementReady(),
       undoPlanning: () =>
-        blockedByViewer() || commandsSuspended() ? Promise.resolve(false) : controller.undo(),
+        blockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : controller.undo(),
       redoPlanning: () =>
-        blockedByViewer() || commandsSuspended() ? Promise.resolve(false) : controller.redo(),
+        blockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : controller.redo(),
     };
   };
 }
