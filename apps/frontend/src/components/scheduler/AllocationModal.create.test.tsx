@@ -13,27 +13,8 @@ import {
   renderAsOwner,
 } from '@/test/allocationModalTestKit';
 
-type CapacityAdvisoryMockInput =
-  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisory>[0]
-  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
-const capacityAdvisoryMock = vi.hoisted(() =>
-  vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
-    overDays: 0,
-    timeOffDays: 0,
-  })),
-);
-const lastAdvisoryProposal = () => capacityAdvisoryMock.mock.calls.at(-1)?.[0]?.proposal;
-// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
-vi.mock('@capacitylens/shared/lib/capacity', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@capacitylens/shared/lib/capacity')>()),
-  buildCapacityAdvisory: capacityAdvisoryMock,
-  buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
-}));
-
 beforeEach(async () => {
   await resetAllocationModalStore();
-  capacityAdvisoryMock.mockClear();
-  capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
 describe('AllocationModal create', () => {
@@ -210,9 +191,6 @@ describe('AllocationModal create', () => {
       if (scope === 'Ferris / Lightning') {
         expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(scope);
       }
-      if (expectedProjectId) {
-        expect(lastAdvisoryProposal()).toHaveProperty('projectId', expectedProjectId);
-      } else expect(lastAdvisoryProposal()).not.toHaveProperty('projectId');
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
       const allocation = useStore.getState().data.allocations[0];
@@ -384,33 +362,8 @@ describe('AllocationModal create', () => {
   });
 });
 
-describe('AllocationModal advisory work bounds', () => {
-  it('does not recompute the advisory when only the note changes', async () => {
-    const resource = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    renderAsOwner(
-      <AllocationModal
-        kind="create"
-        create={{
-          resourceId: resource.id,
-          startDate: '2026-06-01',
-          endDate: '2026-06-03',
-        }}
-        onClose={vi.fn()}
-      />,
-    );
-    expect(capacityAdvisoryMock).toHaveBeenCalledTimes(1);
-
-    capacityAdvisoryMock.mockClear();
-    fireEvent.change(screen.getByLabelText('Note'), {
-      target: { value: 'Unrelated edit' },
-    });
-
-    expect(capacityAdvisoryMock).not.toHaveBeenCalled();
-  });
-
-  it('skips the advisory and rejects an over-limit Hours-mode date span', async () => {
+describe('AllocationModal date span bounds', () => {
+  it('rejects an over-limit Hours-mode date span', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
     );
@@ -429,7 +382,6 @@ describe('AllocationModal advisory work bounds', () => {
     );
     await chooseOption(user, 'Project', 'Ferris / Lightning');
     await chooseOption(user, 'Activity', 'Wireframes');
-    capacityAdvisoryMock.mockClear();
 
     fireEvent.change(screen.getByLabelText('End'), {
       target: { value: '9999-12-31' },
@@ -437,7 +389,6 @@ describe('AllocationModal advisory work bounds', () => {
     fireEvent.change(screen.getByLabelText('Note'), {
       target: { value: 'Still responsive' },
     });
-    expect(capacityAdvisoryMock).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onClose).not.toHaveBeenCalled();

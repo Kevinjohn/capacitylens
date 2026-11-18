@@ -4,7 +4,10 @@ import {
   generateRepeatingStartDates,
   type RepeatPattern,
 } from '@capacitylens/shared/lib/repeatingDates';
-import { buildRepeatedAllocationDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
+import {
+  buildRepeatedAllocationDrafts,
+  buildRepeatedTimeOffDrafts,
+} from '@capacitylens/shared/lib/repeatingOccurrences';
 import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { existingRow, PlanningOperationError } from './writer.js';
@@ -48,7 +51,7 @@ export function allocationOccurrences(
     ...(effectiveWeek.kind === 'days' ? { workingDays: effectiveWeek.days } : {}),
     ignoreWorkingDays: first.ignoreWorkingDays,
   };
-  try {
+  return refuseInvalidRepeat(() => {
     const { startDates } = generateRepeatingStartDates(
       first.startDate,
       repeat.until,
@@ -60,6 +63,29 @@ export function allocationOccurrences(
       resource,
       effectiveWeek,
     }).map(({ startDate, endDate }) => ({ startDate, endDate }));
+  });
+}
+
+/**
+ * Dates of every occurrence, the first included, for time off repeated from `first` under the
+ * time-off horizon and occurrence limit. Each occurrence keeps the first one's calendar span.
+ *
+ * @throws PlanningOperationError 400 when the repeat or a projected span is invalid.
+ */
+export function timeOffOccurrences(
+  first: { startDate: ISODate; endDate: ISODate },
+  repeat: RepeatRange
+): Array<{ startDate: ISODate; endDate: ISODate }> {
+  return refuseInvalidRepeat(() =>
+    buildRepeatedTimeOffDrafts(first, repeat.until, repeat.pattern).drafts.map(
+      ({ startDate, endDate }) => ({ startDate, endDate })
+    )
+  );
+}
+
+function refuseInvalidRepeat<T>(expand: () => T): T {
+  try {
+    return expand();
   } catch (error) {
     // RepeatingDateError is a RangeError; both describe input the repeat cannot produce.
     if (error instanceof RangeError) {

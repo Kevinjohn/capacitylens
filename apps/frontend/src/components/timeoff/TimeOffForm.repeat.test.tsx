@@ -8,6 +8,7 @@ import { useStore } from '@/store/useStore';
 import { TimeOffForm } from './TimeOffForm';
 import type { ReactElement } from 'react';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningFixtures';
 import { permissionValue } from '@/test/permissionGrants';
 
 function render(ui: ReactElement) {
@@ -15,36 +16,6 @@ function render(ui: ReactElement) {
     <PermissionContext.Provider value={permissionValue('owner', 'resolved')}>
       {ui}
     </PermissionContext.Provider>,
-  );
-}
-
-function queueRepeatedEntries(): void {
-  getStubPlanningTransport().respondNext(
-    (execution) => ({
-      status: 'committed',
-      mutationId: execution.mutationId,
-      revision: execution.baseRevision + 1,
-      restoration: { consumedGroupId: null, replacementGroupId: null },
-    }),
-    undefined,
-    (execution) => {
-      if (execution.intent.operation !== 'timeOff.repeat') {
-        throw new Error('Expected repeated time off');
-      }
-      return {
-        upserts: execution.intent.entries.map((row) => ({
-          entity: 'timeOff' as const,
-          row: {
-            createdAt: '2026-01-15T12:00:00.000Z',
-            updatedAt: '2026-01-15T12:00:00.000Z',
-            ...row,
-            note: row.note ?? null,
-            accountId: useStore.getState().data.accounts[0]?.id ?? 'unit-fixture',
-          },
-        })),
-        removed: [],
-      };
-    },
   );
 }
 
@@ -80,7 +51,7 @@ async function renderCreateForm(startDate = '2026-01-30', endDate = startDate, o
 }
 
 function chooseRepeat(optionName: string): void {
-  queueRepeatedEntries();
+  queueTimeOffRepeatResponse();
   const repeat = screen.getByLabelText('Repeat');
   fireEvent.keyDown(repeat, { key: 'ArrowDown' });
   fireEvent.click(screen.getByRole('option', { name: optionName }));
@@ -162,6 +133,20 @@ describe('TimeOffForm repeat creation', () => {
       .getState()
       .data.timeOff.filter((entry) => entry.resourceId === resource.id);
     expect(saved).toHaveLength(12);
+    // The form sends the first entry and the pattern; the server places the other eleven.
+    const sent = getStubPlanningTransport().calls.at(-1);
+    expect(sent).toEqual({
+      operation: 'timeOff.repeat',
+      timeOff: {
+        id: saved[0]?.id,
+        resourceId: resource.id,
+        startDate: '2026-01-30',
+        endDate: '2026-01-30',
+        type: 'holiday',
+      },
+      repeat: { pattern: { kind: 'monthly-last-weekday' }, until: '2026-12-31' },
+      occurrenceIds: saved.slice(1).map(({ id }) => id),
+    });
     expect(saved.map(({ startDate }) => startDate)).toEqual([
       '2026-01-30',
       '2026-02-27',
@@ -266,8 +251,8 @@ describe('TimeOffForm repeat creation', () => {
 
   it('releases the submit guard after an asynchronous store rejection', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const addMany = vi.spyOn(useStore.getState(), 'addTimeOffs');
-    addMany.mockImplementationOnce(async () => {
+    const addRepeated = vi.spyOn(useStore.getState(), 'addRepeatedTimeOff');
+    addRepeated.mockImplementationOnce(async () => {
       throw new Error('Temporary store refusal');
     });
     const { onClose } = await renderCreateForm();

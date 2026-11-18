@@ -1,5 +1,6 @@
 import vine from '@vinejs/vine';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
+import { isIsoTimestamp } from '@kevinjohn/adonisjs-lucid-checked-columns';
 import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
@@ -118,6 +119,23 @@ export const meta = () => ({
   mutationId: uuid(),
   baseRevision: revision(),
   confirmedRestorationCount: revision().optional(),
+  /**
+   * The edited row's `updatedAt` when its form opened; an update refuses a row that has moved on.
+   * Only the canonical `toISOString()` form passes, because the server compares it as a string.
+   */
+  expectedUpdatedAt: vine
+    .string()
+    .use(
+      vine.createRule((value, _options, field) => {
+        if (isIsoTimestamp(value)) return;
+        field.report(
+          'The {{ field }} field must be a UTC timestamp with milliseconds.',
+          'timestamp',
+          field
+        );
+      })()
+    )
+    .optional(),
 });
 
 export const requireChanges = (allowedFields: readonly string[]) =>
@@ -162,30 +180,21 @@ export const repeatPattern = () =>
 /** A repeat's pattern and its inclusive last start date; the server generates the occurrences. */
 export const repeatRange = () => vine.object({ pattern: repeatPattern(), until: calendarDate() });
 
-/** Later occurrence ids must differ from the first allocation's id. */
-export const occurrenceIdsExcludeFirst = () =>
+/** Later occurrence ids must differ from the id of the first occurrence, held in `property`. */
+export const occurrenceIdsExcludeFirst = (property: 'allocation' | 'timeOff') =>
   vine.createRule((value, _options, field) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-    const { occurrenceIds, allocation: first } = value as {
-      occurrenceIds?: unknown;
-      allocation?: { id?: unknown };
-    };
+    const { occurrenceIds } = value as { occurrenceIds?: unknown };
+    const first = (value as Record<string, unknown>)[property] as { id?: unknown } | undefined;
     if (!Array.isArray(occurrenceIds) || !occurrenceIds.includes(first?.id)) return;
     field.report('Entity IDs must be unique.', 'distinctIds', field);
   })();
 
-export const uniqueArrayIds = (property: 'ids' | 'entries' | 'occurrenceIds') =>
+export const uniqueArrayIds = (property: 'ids' | 'occurrenceIds') =>
   vine.createRule((value, _options, field) => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) return;
-    const items = (value as Record<string, unknown>)[property];
-    if (!Array.isArray(items)) return;
-    const ids = items.map((item) =>
-      property === 'ids' || property === 'occurrenceIds'
-        ? item
-        : item !== null && typeof item === 'object' && !Array.isArray(item)
-          ? (item as { id?: unknown }).id
-          : undefined
-    );
+    const ids = (value as Record<string, unknown>)[property];
+    if (!Array.isArray(ids)) return;
     if (ids.some((id) => typeof id !== 'string') || new Set(ids).size !== ids.length) {
       field.report('Entity IDs must be unique.', 'distinctIds', field);
     }

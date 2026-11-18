@@ -3,15 +3,10 @@ import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
+import { capacityOver, onlyRange } from '@/test/capacityFixtures';
 import { buildEmptyFilters } from '@/store/useStore';
-import {
-  makeActivity,
-  makeAllocation,
-  makeClosure,
-  makeResource,
-  makeTimeOff,
-  requireValue,
-} from '@/test/fixtures';
+import { makeActivity, makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import { buildColumnGeometry } from './columnGeometry';
 import { applyVisibleUtilization, buildSchedulerModel } from './schedulerModel';
 import type { GroupModel, RowModel } from './schedulerModel';
@@ -71,13 +66,31 @@ function dataset(): AppData {
   };
 }
 
-function buildModel(data: AppData, window: { start: ISODate; end: ISODate } = FULL) {
+// The server's figures: Bruce is booked four hours a day in the first week and Alfred not at all;
+// the external partner has no entry.
+const CAPACITY = capacityOver(
+  { from: FULL.start, to: FULL.end },
+  {
+    r1: {
+      byDate: Object.fromEntries(
+        eachDayISO('2026-06-01', '2026-06-07').map((date) => [date, { allocated: 4 }]),
+      ),
+    },
+    r2: {},
+  },
+);
+
+function buildModel(
+  data: AppData,
+  window: { start: ISODate; end: ISODate } = FULL,
+  capacity: CapacitySection | null = CAPACITY,
+) {
   return buildSchedulerModel({
     data,
     geom,
     days,
     visibleWindow: window,
-    overSoonWindow: window,
+    capacity,
     filters: buildEmptyFilters(),
     preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
   });
@@ -85,15 +98,13 @@ function buildModel(data: AppData, window: { start: ISODate; end: ISODate } = FU
 
 function project(
   model: GroupModel[],
-  data: AppData,
   window: { start: ISODate; end: ISODate },
   partiallyExposesNextColumn?: boolean,
 ) {
   return applyVisibleUtilization({
     model,
-    data,
+    capacity: CAPACITY,
     ...window,
-    accountWorkingDays: [1, 2, 3, 4, 5],
     ...(partiallyExposesNextColumn === undefined ? {} : { partiallyExposesNextColumn }),
   });
 }
@@ -126,7 +137,7 @@ describe('applyVisibleUtilization identity', () => {
   it('returns every group and row by identity when nothing in view changed', () => {
     const data = dataset();
     const model = buildModel(data);
-    const projected = project(model, data, FULL);
+    const projected = project(model, FULL);
     expect(projected).toHaveLength(model.length);
     projected.forEach((group, index) => expect(group).toBe(model[index]));
   });
@@ -134,7 +145,7 @@ describe('applyVisibleUtilization identity', () => {
   it('gives a resource with no allocations or time off zero utilisation, not a stale row', () => {
     const data = dataset();
     const model = buildModel(data);
-    const projected = project(model, data, SECOND_WEEK);
+    const projected = project(model, SECOND_WEEK);
     expect(rowOf(projected, 'r2')).toBe(rowOf(model, 'r2'));
     expect(rowOf(projected, 'r2').utilization).toBe(0);
   });
@@ -142,7 +153,7 @@ describe('applyVisibleUtilization identity', () => {
   it('replaces only the group whose row changed, keeping its unchanged rows', () => {
     const data = dataset();
     const model = buildModel(data);
-    const projected = project(model, data, SECOND_WEEK);
+    const projected = project(model, SECOND_WEEK);
     const designIndex = model.findIndex((group) => group.key === 'd-design');
     expect(projected[designIndex]).not.toBe(model[designIndex]);
     expect(rowOf(projected, 'r1')).not.toBe(rowOf(model, 'r1'));
@@ -152,10 +163,10 @@ describe('applyVisibleUtilization identity', () => {
   it.each(['r1', 'ext1'])('recomputes %s when only its bars changed', (resourceId) => {
     const data = dataset();
     const model = buildModel(data);
-    const narrowed = rowOf(project(model, data, SECOND_WEEK), resourceId);
+    const narrowed = rowOf(project(model, SECOND_WEEK), resourceId);
     const stale = { ...narrowed, bars: rowOf(model, resourceId).bars };
     expect(stale.bars).not.toEqual(narrowed.bars);
-    const projected = rowOf(project(withRow(model, stale), data, SECOND_WEEK), resourceId);
+    const projected = rowOf(project(withRow(model, stale), SECOND_WEEK), resourceId);
     expect(projected).not.toBe(stale);
     expect(projected.bars).toEqual(narrowed.bars);
   });
@@ -163,10 +174,10 @@ describe('applyVisibleUtilization identity', () => {
   it.each(['r1', 'ext1'])('recomputes %s when only its row height changed', (resourceId) => {
     const data = dataset();
     const model = buildModel(data);
-    const narrowed = rowOf(project(model, data, SECOND_WEEK), resourceId);
+    const narrowed = rowOf(project(model, SECOND_WEEK), resourceId);
     const stale = { ...narrowed, rowHeight: rowOf(model, resourceId).rowHeight };
     expect(stale.rowHeight).not.toBe(narrowed.rowHeight);
-    const projected = rowOf(project(withRow(model, stale), data, SECOND_WEEK), resourceId);
+    const projected = rowOf(project(withRow(model, stale), SECOND_WEEK), resourceId);
     expect(projected).not.toBe(stale);
     expect(projected.rowHeight).toBe(narrowed.rowHeight);
   });
@@ -175,10 +186,7 @@ describe('applyVisibleUtilization identity', () => {
     const data = dataset();
     const model = buildModel(data);
     const row = rowOf(model, 'r1');
-    const projected = rowOf(
-      project(withRow(model, { ...row, utilization: 0.123 }), data, FULL),
-      'r1',
-    );
+    const projected = rowOf(project(withRow(model, { ...row, utilization: 0.123 }), FULL), 'r1');
     expect(projected.utilization).toBe(row.utilization);
     expect(projected.bars).toBe(row.bars);
   });
@@ -188,13 +196,10 @@ describe('applyVisibleUtilization identity', () => {
     const model = buildModel(data);
     const row = rowOf(model, 'ext1');
     expect(row.utilization).toBe(0);
-    const projected = rowOf(
-      project(withRow(model, { ...row, utilization: 0.5 }), data, FULL),
-      'ext1',
-    );
+    const projected = rowOf(project(withRow(model, { ...row, utilization: 0.5 }), FULL), 'ext1');
     expect(projected.utilization).toBe(0);
     expect(projected.bars).toBe(row.bars);
-    expect(rowOf(project(model, data, SECOND_WEEK), 'ext1').utilization).toBe(0);
+    expect(rowOf(project(model, SECOND_WEEK), 'ext1').utilization).toBe(0);
   });
 });
 
@@ -208,72 +213,13 @@ describe('applyVisibleUtilization inputs', () => {
     ];
     const model = buildModel(data);
     const week = { start: '2026-06-01', end: '2026-06-07' } as const;
-    const byDefault = rowOf(project(model, data, week), 'r1');
-    expect(byDefault).toEqual(rowOf(project(model, data, week, false), 'r1'));
-    expect(byDefault.rowHeight).toBeLessThan(
-      rowOf(project(model, data, week, true), 'r1').rowHeight,
-    );
-  });
-
-  const invalid = { startDate: '2026-02-30', endDate: '2026-06-05' } as const;
-  it.each([
-    [
-      'allocation',
-      (data: AppData) =>
-        data.allocations.push(allocation('bad', 'r1', invalid.startDate, invalid.endDate)),
-    ],
-    [
-      'time off',
-      (data: AppData) =>
-        data.timeOff.push(makeTimeOff({ id: 'bad', accountId: ACCOUNT, ...invalid })),
-    ],
-    [
-      'closure',
-      (data: AppData) =>
-        data.closures.push(makeClosure({ id: 'bad', accountId: ACCOUNT, ...invalid })),
-    ],
-  ])('omits an invalid %s from utilisation and reports it once', (_table, addInvalid) => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const data = dataset();
-    const model = buildModel(data);
-    const corrupt = dataset();
-    addInvalid(corrupt);
-    expect(project(model, corrupt, FULL)).toEqual(project(model, data, FULL));
-    expect(project(model, corrupt, FULL)).toEqual(project(model, data, FULL));
-    expect(error).toHaveBeenCalledExactlyOnceWith('Scheduler omitted bad: invalid date range.');
+    const byDefault = rowOf(project(model, week), 'r1');
+    expect(byDefault).toEqual(rowOf(project(model, week, false), 'r1'));
+    expect(byDefault.rowHeight).toBeLessThan(rowOf(project(model, week, true), 'r1').rowHeight);
   });
 });
 
 describe('buildSchedulerModel grouping and order', () => {
-  // Day states read closures separately; this pins only the capacity path the model filters.
-  it('omits an invalid closure from rendered utilisation', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const corrupt = dataset();
-    expect(corrupt.activities[0]).toMatchObject({
-      kind: 'internal',
-      projectId: null,
-      phaseId: null,
-    });
-    corrupt.closures.push(
-      makeClosure({
-        id: 'bad',
-        accountId: ACCOUNT,
-        startDate: '2026-02-30',
-        endDate: '2026-06-05',
-      }),
-    );
-    const utilisationOf = (model: GroupModel[]) =>
-      model.flatMap((group) => group.rows.map((row) => [row.resource.id, row.utilization]));
-    const baseline = buildModel(dataset());
-    expect(rowOf(baseline, 'r1').utilization).toBe(0.5);
-    expect(utilisationOf(buildModel(corrupt))).toEqual(utilisationOf(baseline));
-    const closed = dataset();
-    closed.closures.push(
-      makeClosure({ accountId: ACCOUNT, startDate: '2026-06-02', endDate: '2026-06-02' }),
-    );
-    expect(rowOf(buildModel(closed), 'r1').utilization).toBeCloseTo(32 / 72);
-  });
-
   it('keys unassigned resources by the unassigned band and colours only coloured disciplines', () => {
     const data = dataset();
     data.disciplines.push(discipline('d-dev', 'Development', '#2d75da'));
@@ -334,5 +280,57 @@ describe('buildSchedulerModel grouping and order', () => {
     expect(seriesEndOf('s-early')).toBe('2026-06-10');
     expect(seriesEndOf('s-late')).toBe('2026-06-10');
     expect(seriesEndOf('single')).toBeUndefined();
+  });
+});
+
+describe("drawing the server's figures", () => {
+  it('draws each day from the figures for its date and sums the visible ones', () => {
+    const capacity = onlyRange(
+      capacityOver(
+        { from: FULL.start, to: FULL.end },
+        {
+          r1: {
+            overSoon: true,
+            byDate: {
+              '2026-06-02': { allocated: 10, over: true },
+              '2026-06-03': { allocated: 0, available: 0 },
+              '2026-06-04': { allocated: 6 },
+            },
+          },
+        },
+      ),
+      'window',
+    );
+    const row = rowOf(
+      buildModel(dataset(), { start: '2026-06-02', end: '2026-06-04' }, capacity),
+      'r1',
+    );
+    const stateOn = (date: ISODate) => requireValue(row.dayStates[days.indexOf(date)]);
+
+    expect(stateOn('2026-06-02')).toMatchObject({ over: true, unavailable: false });
+    expect(stateOn('2026-06-03')).toMatchObject({ over: false, unavailable: true });
+    expect(stateOn('2026-06-04')).toMatchObject({ over: false, unavailable: false });
+    expect(row.conflictDayCount).toBe(1);
+    expect(row.overSoon).toBe(true);
+    // The day with no availability is left out: 16 of 16 hours.
+    expect(row.utilization).toBe(1);
+  });
+
+  it('draws no capacity cue on a date the read did not cover', () => {
+    // The grid has moved back a week and the read for its new window has not arrived.
+    const capacity = capacityOver(
+      { from: '2026-06-08', to: '2026-06-21' },
+      { r1: { fill: { allocated: 12, over: true } } },
+    );
+    const row = rowOf(buildModel(dataset(), FULL, capacity), 'r1');
+    const stateOn = (date: ISODate) => requireValue(row.dayStates[days.indexOf(date)]);
+
+    expect(stateOn('2026-06-02')).toMatchObject({ over: false, unavailable: false });
+    expect(stateOn('2026-06-09')).toMatchObject({ over: true });
+    expect(row.utilization).toBe(1.5);
+    expect(
+      rowOf(buildModel(dataset(), { start: '2026-06-01', end: '2026-06-05' }, capacity), 'r1')
+        .utilization,
+    ).toBe(0);
   });
 });

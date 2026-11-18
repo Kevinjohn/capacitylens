@@ -61,7 +61,7 @@ describe('visible-window lane projection', () => {
       geom: buildColumnGeometry(timelineDays, 48, { minimiseWeekends: false, weekendWidth: 22 }),
       days: timelineDays,
       visibleWindow: { start: '2026-05-01', end: '2026-06-30' },
-      overSoonWindow: { start: '2026-05-01', end: '2026-06-30' },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: false, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -69,10 +69,9 @@ describe('visible-window lane projection', () => {
     return requireValue(
       applyVisibleUtilization({
         model: base,
-        data,
+        capacity: null,
         start: '2026-05-06',
         end: '2026-06-02',
-        accountWorkingDays: [1, 2, 3, 4, 5],
         partiallyExposesNextColumn: exposesNextColumn,
       })
         .flatMap((group) => group.rows)
@@ -145,7 +144,7 @@ describe('visible-window lane projection', () => {
       geom: buildColumnGeometry(timelineDays, 48, { minimiseWeekends: false, weekendWidth: 22 }),
       days: timelineDays,
       visibleWindow: { start: '2026-08-17', end: '2026-08-30' },
-      overSoonWindow: { start: '2026-09-14', end: '2026-09-27' },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: false, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -153,10 +152,9 @@ describe('visible-window lane projection', () => {
       requireValue(
         applyVisibleUtilization({
           model: base,
-          data,
+          capacity: null,
           start,
           end,
-          accountWorkingDays: [1, 2, 3, 4, 5],
         })
           .flatMap((group) => group.rows)
           .find((row) => row.resource.id === 'r1'),

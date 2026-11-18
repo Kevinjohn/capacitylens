@@ -9,7 +9,6 @@ import {
   TextField,
 } from '@/components/common/ui';
 import type { Option } from '@/components/common/ui';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FieldError } from '@/components/ui/field';
 import { buildAllocationStatusOptions } from '@/lib/metadata';
 import { formatShortDateEndpoint } from '@/lib/dateDisplay';
@@ -231,7 +230,6 @@ type DetailProps = Pick<
   | 'setNoteEdited'
   | 'ignoreWorkingDays'
   | 'setIgnoreWorkingDays'
-  | 'advisory'
   | 'error'
   | 'errorField'
   | 'errorId'
@@ -268,11 +266,6 @@ function DetailFields(props: DetailProps) {
           onChange={props.setIgnoreWorkingDays}
           layout="label-control"
         />
-      )}
-      {props.advisory && (
-        <Alert variant="warn" role="status">
-          <AlertDescription>{props.advisory}</AlertDescription>
-        </Alert>
       )}
       <FieldError
         id={props.errorId}

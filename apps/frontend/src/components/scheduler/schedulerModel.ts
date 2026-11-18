@@ -1,10 +1,5 @@
-import {
-  applyCapacityMode,
-  buildDayCapacity,
-  resolveUtilizationFromCapacity,
-} from '@capacitylens/shared/lib/capacity';
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
   buildExternalBand,
@@ -22,17 +17,11 @@ import {
   buildResourceBand,
   createResourceComparator,
 } from '@/lib/resourceGrouping';
-import {
-  bucketByCoveredDate,
-  groupByResourceId,
-  NO_ALLOCATIONS,
-  NO_TIME_OFF,
-  NO_CLOSURES,
-} from './schedulerModelIndexing';
+import { groupByResourceId } from './schedulerModelIndexing';
 import { includeRenderableDateRange } from '@/lib/renderableDateRanges';
 import { createAllocationFilters } from './schedulerModelFilters';
 import { createRowBuilder } from './schedulerRowModel';
-import { createCapacitySource } from './schedulerRowCapacity';
+import { createCapacitySource, resolveServerUtilization } from './schedulerRowCapacity';
 import type {
   GroupModel,
   SchedulerModelOptions,
@@ -41,11 +30,9 @@ import type {
 
 interface ApplyVisibleUtilizationInput {
   model: GroupModel[];
-  data: AppData;
+  capacity: CapacitySection | null;
   start: ISODate;
   end: ISODate;
-  accountWorkingDays: Weekday[];
-  blocksMode?: boolean | undefined;
   laneLayout?: LaneLayout | undefined;
   partiallyExposesNextColumn?: boolean | undefined;
 }
@@ -111,21 +98,13 @@ function projectVisibleLanes({
  * schedule. Off-screen overlaps must not make the row taller than the work currently in view. */
 export function applyVisibleUtilization({
   model,
-  data,
+  capacity,
   start,
   end,
-  accountWorkingDays,
-  blocksMode = false,
   laneLayout = compactLaneLayout,
   partiallyExposesNextColumn = false,
 }: ApplyVisibleUtilizationInput): GroupModel[] {
   const days = eachDayISO(start, end);
-  const allocations = groupByResourceId(data.allocations, { include: includeRenderableDateRange });
-  const personalTimeOff = groupByResourceId(data.timeOff, { include: includeRenderableDateRange });
-  const closuresByDate = bucketByCoveredDate(
-    data.closures.filter(includeRenderableDateRange),
-    days,
-  );
   return model.map((group) => {
     const rows = group.rows.map((row) => {
       const visibleLanes = projectVisibleLanes({
@@ -135,38 +114,9 @@ export function applyVisibleUtilization({
         layout: laneLayout,
         partiallyExposesNextColumn,
       });
-
-      if (isExternalResource(row.resource)) {
-        if (
-          row.utilization === 0 &&
-          visibleLanes.bars === row.bars &&
-          visibleLanes.rowHeight === row.rowHeight
-        ) {
-          return row;
-        }
-        return { ...row, ...visibleLanes, utilization: 0 };
-      }
-      const resourceAllocations = applyCapacityMode({
-        allocations: allocations.get(row.resource.id) ?? [],
-        blocksMode: blocksMode,
-      });
-      const resourceTimeOff = personalTimeOff.get(row.resource.id) ?? [];
-      const effectiveWeek = effectiveWorkingWeek(row.resource, accountWorkingDays);
-      // Bucket load once per row so scrolling does not rescan every allocation for every date. Preserve insertion order because floating-point addition is order-dependent.
-      const allocationsByDate = bucketByCoveredDate(resourceAllocations, days);
-      const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
-      const next = resolveUtilizationFromCapacity(
-        days.map((date) =>
-          buildDayCapacity({
-            resource: row.resource,
-            date: date,
-            allocations: allocationsByDate.get(date) ?? NO_ALLOCATIONS,
-            timeOff: personalTimeOffByDate.get(date) ?? NO_TIME_OFF,
-            effectiveWeek: effectiveWeek,
-            closures: closuresByDate.get(date) ?? NO_CLOSURES,
-          }),
-        ),
-      );
+      const next = isExternalResource(row.resource)
+        ? 0
+        : resolveServerUtilization(capacity, row.resource.id, days);
       if (
         next === row.utilization &&
         visibleLanes.bars === row.bars &&
@@ -226,7 +176,7 @@ function createSchedulerRowBuilder({
   accountWorkingDays,
   blocksMode,
 }: CreateSchedulerRowBuilderInput) {
-  const { data, geom, days, visibleWindow, overSoonWindow, filters, preferences } = options;
+  const { data, geom, days, visibleWindow, capacity, filters, preferences } = options;
   const allocationFilters = createAllocationFilters(filters, preferences, data);
   const seriesEndByKey = new Map<string, ISODate>();
   const allocationsByResource = groupByResourceId(data.allocations, {
@@ -251,13 +201,7 @@ function createSchedulerRowBuilder({
       closures,
       seriesEndByKey,
       allocationFilters,
-      capacitySource: createCapacitySource({
-        days,
-        visibleWindow,
-        overSoonWindow,
-        closures,
-        blocksMode,
-      }),
+      capacitySource: createCapacitySource({ days, visibleWindow, capacity, closures }),
     }),
     resourceVisible: allocationFilters.resourceVisible,
   };

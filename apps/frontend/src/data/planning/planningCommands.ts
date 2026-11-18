@@ -24,6 +24,8 @@ import type { Draft, Patch } from '@/lib/entityDrafts';
 export interface PlanningCommand {
   intent: PlanningIntent;
   inverse: PlanningIntent | null;
+  /** The edited row's `updatedAt` when its form opened; the server refuses a row that has moved on. */
+  expectedUpdatedAt?: string;
 }
 
 interface CommandContext {

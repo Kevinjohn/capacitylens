@@ -1,5 +1,6 @@
 import { resetSchedulerView } from '@/store/storeConstants';
 import { readCurrentWeekAnchor } from './schedulerSlice';
+import { buildVisibleRange } from '@/store/selectors';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
@@ -96,6 +97,13 @@ export function createPlanningSessionSlice(
       onAuthLoss: () => clearPrivatePlanning(true),
       confirmRestorationCleanup: requestRestorationCleanup,
       readMasqueradeContextToken: getMasqueradeContextToken,
+      // The grid holds a placeholder week until the first read anchors it, so that read asks for
+      // the server's default window, which is the anchored grid's window.
+      readCapacityWindow: () => {
+        if (get().planning.today === null) return undefined;
+        const { start, end } = buildVisibleRange(get().ui);
+        return { from: start, to: end };
+      },
     });
     let contextEpoch = 0;
     let contextCompanyId: string | null = null;
@@ -140,7 +148,12 @@ export function createPlanningSessionSlice(
       if (commandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
-      const receipt = await controller.execute(controller.begin(), command.intent, command.inverse);
+      const receipt = await controller.execute(
+        controller.begin(),
+        command.intent,
+        command.inverse,
+        command.expectedUpdatedAt,
+      );
       if (!receipt) throw new PlanningSaveCancelledError();
       return receipt;
     };
@@ -157,7 +170,7 @@ export function createPlanningSessionSlice(
         syncContext(companyId);
         if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise;
         const promise = controller
-          .refresh()
+          .refresh({ quiet: options?.quiet === true })
           .then(
             (accepted) =>
               accepted && get().activeAccountId === companyId && contextCompanyId === companyId,

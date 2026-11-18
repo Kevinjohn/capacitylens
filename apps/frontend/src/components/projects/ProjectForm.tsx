@@ -169,7 +169,10 @@ function prepareProjectSave({
     return null;
   }
   if (!validatePresetColor(color, fail)) return null;
-  if (project) return () => update(project.id, { name: trimmed, clientId, color, ...privacy });
+  if (project) {
+    return () =>
+      update(project.id, { name: trimmed, clientId, color, ...privacy }, project.updatedAt);
+  }
   return () =>
     add({
       name: trimmed,

@@ -34,8 +34,14 @@ async function timeOffSetup() {
   return { resource, draft };
 }
 
+/** A weekly repeat whose last start is `until`. */
+const weekly = (until: string) => ({
+  pattern: { kind: 'weeks' as const, interval: 1 as const },
+  until,
+});
+
 describe('atomic time-off creation: happy path', () => {
-  it('creates a complete batch with unique ids, account stamps, and copied notes', async () => {
+  it('sends the first entry and the pattern, then returns every entry with unique ids, account stamps, and the copied note', async () => {
     const { draft } = await timeOffSetup();
     const publishedBatchSizes: number[] = [];
     let data = state().data;
@@ -48,19 +54,29 @@ describe('atomic time-off creation: happy path', () => {
 
     queueTimeOffRepeatResponse();
     const created = await requireCreated(
-      state().addTimeOffs([
-        draft({ note: 'First note' }),
-        draft({ startDate: '2026-06-08', endDate: '2026-06-10', note: 'Second note' }),
-      ]),
+      state().addRepeatedTimeOff(draft({ note: 'Family trip' }), weekly('2026-06-08'), 2),
     );
     unsubscribe();
+
+    const sent = getStubPlanningTransport().calls.at(-1);
+    expect(sent).toMatchObject({
+      operation: 'timeOff.repeat',
+      timeOff: { id: created[0]?.id, startDate: '2026-06-01', endDate: '2026-06-02' },
+      repeat: weekly('2026-06-08'),
+      occurrenceIds: [created[1]?.id],
+    });
+    expect(sent).not.toHaveProperty('entries');
 
     expect(publishedBatchSizes.length).toBeGreaterThan(0);
     expect(publishedBatchSizes.every((size) => size === 2)).toBe(true);
     expect(created).toHaveLength(2);
     expect(new Set(created.map((timeOff) => timeOff.id)).size).toBe(2);
     expect(created.every((timeOff) => timeOff.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
-    expect(created.map((timeOff) => timeOff.note)).toEqual(['First note', 'Second note']);
+    expect(created.map((timeOff) => [timeOff.startDate, timeOff.endDate])).toEqual([
+      ['2026-06-01', '2026-06-02'],
+      ['2026-06-08', '2026-06-09'],
+    ]);
+    expect(created.map((timeOff) => timeOff.note)).toEqual(['Family trip', 'Family trip']);
     expect(created.every((timeOff) => !Object.hasOwn(timeOff, 'seriesId'))).toBe(true);
     expect(state().data.timeOff).toEqual(created);
     expect(state().planning.history.past).toHaveLength(2);
@@ -68,12 +84,12 @@ describe('atomic time-off creation: happy path', () => {
 });
 
 describe('atomic time-off creation: atomic validation', () => {
-  it('rejects empty batches locally and preserves the server refusal for an invalid row', async () => {
+  it('rejects a repeat of fewer than two entries locally and preserves the server refusal', async () => {
     const { draft } = await timeOffSetup();
 
-    await expect(requireCreated(state().addTimeOffs([]))).rejects.toThrow(
-      /at least one time-off entry/i,
-    );
+    await expect(
+      requireCreated(state().addRepeatedTimeOff(draft(), weekly('2026-06-08'), 1)),
+    ).rejects.toThrow(/at least two entries/i);
     expect(state().data.timeOff).toHaveLength(0);
 
     let dataPublications = 0;
@@ -92,23 +108,15 @@ describe('atomic time-off creation: atomic validation', () => {
       ),
     );
     await expect(
-      requireCreated(
-        state().addTimeOffs([
-          draft(),
-          draft({ startDate: '2026-07-10', endDate: '2026-07-01' }),
-          draft({ startDate: '2026-08-01', endDate: '2026-08-02' }),
-        ]),
-      ),
+      requireCreated(state().addRepeatedTimeOff(draft(), weekly('2026-06-15'), 3)),
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
     unsubscribe();
 
     expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
       operation: 'timeOff.repeat',
-      entries: [
-        { startDate: '2026-06-01', endDate: '2026-06-02' },
-        { startDate: '2026-07-10', endDate: '2026-07-01' },
-        { startDate: '2026-08-01', endDate: '2026-08-02' },
-      ],
+      timeOff: { startDate: '2026-06-01', endDate: '2026-06-02' },
+      repeat: weekly('2026-06-15'),
+      occurrenceIds: [expect.any(String), expect.any(String)],
     });
     expect(dataPublications).toBe(0);
     expect(state().data.timeOff).toHaveLength(0);
@@ -128,17 +136,31 @@ describe('atomic time-off creation: resource validation', () => {
     });
 
     await expect(
-      requireCreated(state().addTimeOffs([draft(), draft({ resourceId: 'missing-resource' })])),
+      requireCreated(
+        state().addRepeatedTimeOff(
+          draft({ resourceId: 'missing-resource' }),
+          weekly('2026-06-08'),
+          2,
+        ),
+      ),
     ).rejects.toThrow(/existing resource in this company/i);
     await expect(
-      requireCreated(state().addTimeOffs([draft(), draft({ resourceId: foreignResource.id })])),
+      requireCreated(
+        state().addRepeatedTimeOff(
+          draft({ resourceId: foreignResource.id }),
+          weekly('2026-06-08'),
+          2,
+        ),
+      ),
     ).rejects.toThrow(/existing resource in this company/i);
 
     const external = await requireCreated(
       state().addResource({ ...makeResourceDraft(), kind: 'external', name: 'Partner' }),
     );
     await expect(
-      requireCreated(state().addTimeOffs([draft(), draft({ resourceId: external.id })])),
+      requireCreated(
+        state().addRepeatedTimeOff(draft({ resourceId: external.id }), weekly('2026-06-08'), 2),
+      ),
     ).rejects.toThrow(/external.*3rd-party/i);
 
     expect(state().data.timeOff).toHaveLength(0);
@@ -152,13 +174,17 @@ describe('atomic time-off creation: history', () => {
     const historyBeforeBatch = state().planning.history.past.length;
     queueTimeOffRepeatResponse();
     const created = await requireCreated(
-      state().addTimeOffs([draft(), draft({ startDate: '2026-06-08', endDate: '2026-06-10' })]),
+      state().addRepeatedTimeOff(draft(), weekly('2026-06-15'), 3),
     );
     expect(state().planning.history.past).toHaveLength(historyBeforeBatch + 1);
 
     const ids = created.map(({ id }) => id);
     queueTimeOffDeleteGroupResponse(ids, 'group-timeoff-undo');
     await state().undoPlanning();
+    expect(getStubPlanningTransport().calls.at(-1)).toEqual({
+      operation: 'timeOff.deleteGroup',
+      ids,
+    });
     expect(state().data.timeOff).toHaveLength(0);
     queueTimeOffRestoreResponse(created, 'group-timeoff-undo');
     await state().redoPlanning();
@@ -184,10 +210,7 @@ describe('atomic time-off creation: viewer guard', () => {
     const pastBefore = state().planning.history.past;
     const futureBefore = state().planning.history.future;
     state().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
-    const returned = await state().addTimeOffs([
-      draft(),
-      draft({ startDate: '2026-06-08', endDate: '2026-06-10' }),
-    ]);
+    const returned = await state().addRepeatedTimeOff(draft(), weekly('2026-06-08'), 2);
 
     expect(returned).toEqual({ kind: 'blocked' });
     expect(state().data.timeOff).toHaveLength(0);

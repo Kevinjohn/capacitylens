@@ -12,32 +12,8 @@ import {
   renderAsOwner,
 } from '@/test/allocationModalTestKit';
 
-type CapacityAdvisoryMockInput =
-  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisory>[0]
-  | Parameters<typeof import('@capacitylens/shared/lib/capacity').buildCapacityAdvisoryFromLoad>[0];
-const capacityAdvisoryMock = vi.hoisted(() =>
-  vi.fn<(input: CapacityAdvisoryMockInput) => { overDays: number; timeOffDays: number }>(() => ({
-    overDays: 0,
-    timeOffDays: 0,
-  })),
-);
-
-const lastAdvisoryOthers = () => {
-  const input = capacityAdvisoryMock.mock.calls.at(-1)?.[0];
-  return input && 'otherAllocations' in input ? input.otherAllocations : undefined;
-};
-
-// Single and repeat advisory paths share one verdict stub so these modal tests exercise presentation rather than load calculations.
-vi.mock('@capacitylens/shared/lib/capacity', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@capacitylens/shared/lib/capacity')>()),
-  buildCapacityAdvisory: capacityAdvisoryMock,
-  buildCapacityAdvisoryFromLoad: capacityAdvisoryMock,
-}));
-
 beforeEach(async () => {
   await resetAllocationModalStore();
-  capacityAdvisoryMock.mockClear();
-  capacityAdvisoryMock.mockImplementation(() => ({ overDays: 0, timeOffDays: 0 }));
 });
 
 const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMode: 'blocks' });
@@ -80,46 +56,6 @@ describe('AllocationModal blocks mode', () => {
       endDate: '2026-06-12',
       hoursPerDay: 0,
     });
-  });
-
-  it('counts the existing load through the blocks projection, like the grid and the drag path', async () => {
-    const r = await requireCreated(
-      useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
-    );
-    // Legacy hourly allocation persisted before the account switched to blocks: it keeps its stored
-    // 8h/day, and every capacity surface must read it as zero load while the account is in blocks.
-    await useStore.getState().addAllocation({
-      resourceId: r.id,
-      activityId: 't1',
-      startDate: '2026-06-01',
-      endDate: '2026-06-05',
-      hoursPerDay: 8,
-      status: 'confirmed',
-    });
-
-    const renderCreate = () =>
-      renderAsOwner(
-        <AllocationModal
-          kind="create"
-          create={{
-            resourceId: r.id,
-            startDate: '2026-06-01',
-            endDate: '2026-06-05',
-          }}
-          onClose={vi.fn()}
-        />,
-      );
-
-    const hourly = renderCreate();
-    expect(lastAdvisoryOthers()).toEqual([expect.objectContaining({ hoursPerDay: 8 })]);
-    hourly.unmount();
-
-    await enableBlocks();
-    capacityAdvisoryMock.mockClear();
-    renderCreate();
-    // Blocks carry placement but no hourly load. The advisory must not see the legacy 8h and warn
-    // "over capacity" on days the grid's over-markers leave clean.
-    expect(lastAdvisoryOthers()).toEqual([expect.objectContaining({ hoursPerDay: 0 })]);
   });
 
   it('rejects a block span that would leave the four-digit-year date domain', async () => {

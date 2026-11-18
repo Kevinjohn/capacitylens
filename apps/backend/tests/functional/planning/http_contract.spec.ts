@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import env from '#start/env';
 import { updateSettings, PlanningOperationError } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
 import {
@@ -58,6 +60,154 @@ test.group('authenticated typed planning transactions', (group) => {
     anonymous.assertStatus(401);
   });
 
+  test('read carries capacity for the default or the requested window', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    // The default window and the horizon follow today, so the date is pinned.
+    const pinned = env.get('CAPACITYLENS_FIXED_TODAY');
+    cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
+    env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
+    const { cookie } = await signIn(client, 'viewer');
+    const data = await readState(accountId, false);
+
+    const read = await session(client.get(planningUrl), cookie).send();
+    read.assertStatus(200);
+    const { capacity } = read.body();
+    assert.deepEqual(capacity.window, { from: '2026-05-04', to: '2026-09-28' });
+    assert.deepEqual(capacity.horizon, { from: '2026-06-03', to: '2026-08-23' });
+    assert.sameMembers(
+      Object.keys(capacity.resources),
+      data.resources.filter((row) => row.kind !== 'external').map((row) => row.id)
+    );
+    const [first] = Object.values(capacity.resources) as Array<{
+      window: { over: boolean[] };
+      horizon: { over: boolean[] };
+    }>;
+    assert.lengthOf(first!.window.over, 148);
+    assert.lengthOf(first!.horizon.over, 82);
+
+    const requested = await session(
+      client.get(planningUrl).qs({ from: '2026-01-05', to: '2026-01-11' }),
+      cookie
+    ).send();
+    requested.assertStatus(200);
+    assert.deepEqual(requested.body().capacity.window, { from: '2026-01-05', to: '2026-01-11' });
+    assert.deepEqual(requested.body().capacity.horizon, capacity.horizon);
+  });
+
+  test('read capacity leaves deleted allocations and those of an archived activity out', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const pinned = env.get('CAPACITYLENS_FIXED_TODAY');
+    cleanup(() => env.set('CAPACITYLENS_FIXED_TODAY', pinned ?? ''));
+    env.set('CAPACITYLENS_FIXED_TODAY', '2026-06-03');
+    const { cookie } = await signIn(client);
+    const stored = await readState(accountId, true);
+    const { resourceId } = newAllocation(stored);
+    // One allocation is deleted; the other is hidden by archiving its activity, because allocations
+    // have no archive of their own.
+    const [deletedActivity, archivedActivity] = stored.activities.filter(
+      (row) => row.accountId === accountId && !row.archivedAt && !row.deletedAt
+    );
+    assert.exists(archivedActivity);
+    type Days = { available: number[]; over: boolean[] };
+    const readWindow = async () => {
+      const response = await session(client.get(planningUrl), cookie).send();
+      response.assertStatus(200);
+      const { capacity } = response.body();
+      return {
+        from: capacity.window.from as string,
+        days: capacity.resources[resourceId] as { window: Days },
+      };
+    };
+    const before = await readWindow();
+    const openDays = before.days.window.over
+      .map((over, index) => (!over && before.days.window.available[index]! > 0 ? index : -1))
+      .filter((index) => index >= 0)
+      .slice(0, 2);
+    assert.lengthOf(openDays, 2);
+    const ids: string[] = [];
+    const activities = [deletedActivity!, archivedActivity!];
+    for (const [revision, index] of openDays.entries()) {
+      const date = addDaysISO(before.from, index);
+      const allocation = {
+        ...newAllocation(stored),
+        resourceId,
+        activityId: activities[revision]!.id,
+        startDate: date,
+        endDate: date,
+        hoursPerDay: 24,
+      };
+      const created = await session(client.post(`/api/accounts/${accountId}/allocations`), cookie)
+        .json({
+          mutationId: randomUUID(),
+          baseRevision: revision,
+          intent: { operation: 'allocation.create', allocation },
+        })
+        .send();
+      created.assertStatus(200);
+      ids.push(allocation.id);
+    }
+    const booked = await readWindow();
+    assert.deepEqual(
+      openDays.map((index) => booked.days.window.over[index]),
+      [true, true]
+    );
+
+    const now = new Date().toISOString();
+    await db.from('allocations').where('id', ids[0]!).update({ deleted_at: now });
+    await db.from('activities').where('id', archivedActivity!.id).update({ archived_at: now });
+    const after = await readWindow();
+    assert.deepEqual(
+      openDays.map((index) => after.days.window.over[index]),
+      [false, false]
+    );
+  });
+
+  test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client, 'viewer');
+    const refusals: Array<[Record<string, string>, string]> = [
+      [{ from: '2026-06-02', to: '2026-06-01' }, 'The to date must be on or after the from date.'],
+      [{ from: '2026-01-01', to: '2027-01-02' }, 'The range may cover at most 366 days.'],
+      // 2028 is a leap year: from the last day of 2027 to its last day is 367 days.
+      [{ from: '2027-12-31', to: '2028-12-31' }, 'The range may cover at most 366 days.'],
+      [{ from: '2026-06-01' }, 'Send both from and to, or neither.'],
+      [{ to: '2026-06-01' }, 'Send both from and to, or neither.'],
+      [{ from: '2026-02-30', to: '2026-03-01' }, 'The from field must be a datetime value'],
+    ];
+    for (const [query, error] of refusals) {
+      const response = await session(client.get(planningUrl).qs(query), cookie).send();
+      response.assertStatus(400);
+      assert.deepEqual(response.body(), { error, code: 'VALIDATION_ERROR' }, JSON.stringify(query));
+    }
+    const longest = await session(
+      client.get(planningUrl).qs({ from: '2026-01-01', to: '2027-01-01' }),
+      cookie
+    ).send();
+    longest.assertStatus(200);
+    const [resource] = Object.values(longest.body().capacity.resources) as Array<{
+      window: { over: boolean[] };
+    }>;
+    assert.lengthOf(resource!.window.over, 366);
+    const leapYear = await session(
+      client.get(planningUrl).qs({ from: '2028-01-01', to: '2028-12-31' }),
+      cookie
+    ).send();
+    leapYear.assertStatus(200);
+    assert.deepEqual(leapYear.body().capacity.window, { from: '2028-01-01', to: '2028-12-31' });
+  });
+
   test('create and move commit once, stale and duplicate identities never commit again', async ({
     client,
     assert,
@@ -84,6 +234,7 @@ test.group('authenticated typed planning transactions', (group) => {
       mutationId,
       revision: 1,
       restoration: { consumedGroupId: null, replacementGroupId: null },
+      advisory: { overDays: 0, timeOffDays: 0 },
     });
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);

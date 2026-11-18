@@ -1,14 +1,7 @@
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
+import { dayIndex, eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { isCapacityTracked, isPlaceholderResource } from '@capacitylens/shared/types/entities';
-import type {
-  Allocation,
-  AppData,
-  Closure,
-  Resource,
-  TimeOff,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
+import type { AppData, Resource } from '@capacitylens/shared/types/entities';
 import {
   buildEngagementGroups,
   buildResourceBand,
@@ -17,7 +10,6 @@ import {
 } from '@/lib/resourceGrouping';
 import type { ResourceBandGroup } from '@/lib/resourceGrouping';
 import { buildDisciplineGroups, hasSupplementaryResources } from '@/store/selectors';
-import { buildDayCapacity } from '@capacitylens/shared/lib/capacity';
 import type { CapacityOverviewPeriod } from './capacityOverviewDates';
 import { buildCapacityOverviewPeriods } from './capacityOverviewDates';
 import type {
@@ -37,7 +29,6 @@ export type {
   CapacityOverviewPeriodResult,
 } from './capacityOverviewTypes';
 
-const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
 /** Hours represented by one capacity day in overview totals. */
 export const HOURS_PER_DISPLAY_DAY = 8;
 const QUARTER_DAY_HOURS = HOURS_PER_DISPLAY_DAY / 4;
@@ -46,10 +37,8 @@ const ROUNDING_EPSILON_HOURS = 1e-9;
 interface CalculatePeriodInput {
   resource: Resource;
   period: CapacityOverviewPeriod;
-  allocations: Allocation[];
-  timeOff: TimeOff[];
-  closures: Closure[];
-  accountWorkingDays: Weekday[];
+  capacity: CapacitySection | null;
+  includeTentative: boolean;
 }
 
 interface BuildGroupSeedsInput {
@@ -57,11 +46,6 @@ interface BuildGroupSeedsInput {
   eligible: Set<string>;
   disciplinesEnabled: boolean;
   groupByEngagement: boolean;
-}
-
-interface OverviewIndexes {
-  allocationsByResource: Map<string, Allocation[]>;
-  timeOffByResource: Map<string, TimeOff[]>;
 }
 
 /** Free capacity rounds down to the quarter-day so a printed figure never promises time that is not there. */
@@ -85,41 +69,35 @@ function resolvePersonState(
 function calculatePeriod({
   resource,
   period,
-  allocations,
-  timeOff,
-  closures,
-  accountWorkingDays,
+  capacity,
+  includeTentative,
 }: CalculatePeriodInput): CapacityOverviewPeriodResult {
-  const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-  // Tentative work is measured as the free time it consumes: the difference between the free
-  // hours with confirmed work only and the free hours with every included allocation. That keeps
-  // it clamped to the person's real spare capacity, so free + tentative never exceeds available.
-  const confirmedAllocations = allocations.filter(
-    (allocation) => allocation.status !== 'tentative',
-  );
-  const hasTentative = confirmedAllocations.length !== allocations.length;
+  const days = capacity?.resources[resource.id]?.horizon;
   let availableHours = 0;
   let freeHours = 0;
   let overHours = 0;
   let tentativeHours = 0;
   let unassignedDemandHours = 0;
   for (const date of eachDayISO(period.start, period.end)) {
-    const dayInput = { resource, date, timeOff, effectiveWeek, closures };
-    const day = buildDayCapacity({ ...dayInput, allocations });
+    // A date outside the server's horizon contributes nothing.
+    const index = capacity ? dayIndex(date, capacity.horizon.from) : -1;
+    const available = days?.available[index];
+    const allAllocated = days?.allocated[index];
+    const confirmed = days?.confirmedAllocated[index];
+    if (available === undefined || allAllocated === undefined || confirmed === undefined) continue;
+    const allocated = includeTentative ? allAllocated : confirmed;
     if (isPlaceholderResource(resource)) {
-      unassignedDemandHours += day.allocated;
+      unassignedDemandHours += allocated;
       continue;
     }
-    const dayFree = Math.max(day.available - day.allocated, 0);
-    availableHours += day.available;
+    const dayFree = Math.max(available - allocated, 0);
+    availableHours += available;
     freeHours += dayFree;
-    overHours += Math.max(day.allocated - day.available, 0);
-    if (hasTentative) {
-      const confirmed = buildDayCapacity({ ...dayInput, allocations: confirmedAllocations });
-      tentativeHours += Math.max(
-        Math.max(confirmed.available - confirmed.allocated, 0) - dayFree,
-        0,
-      );
+    overHours += Math.max(allocated - available, 0);
+    // Tentative work is measured as the free time it consumes: the free hours with confirmed work
+    // only less the free hours with every allocation, so free + tentative never exceeds available.
+    if (includeTentative) {
+      tentativeHours += Math.max(Math.max(available - confirmed, 0) - dayFree, 0);
     }
   }
   const freeDays = roundDownQuarterDays(freeHours);
@@ -198,48 +176,17 @@ function isEligibleResource({ resource, placeholdersEnabled }: IsEligibleResourc
   return isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled: false });
 }
 
-function buildIndexes({
-  data,
-  eligible,
-  includeTentative,
-  timeOff,
-}: {
-  data: AppData;
-  eligible: Set<string>;
-  includeTentative: boolean;
-  timeOff: TimeOff[];
-}): OverviewIndexes {
-  const allocationsByResource = new Map<string, Allocation[]>();
-  for (const allocation of data.allocations) {
-    if (!eligible.has(allocation.resourceId)) continue;
-    if (!includeTentative && allocation.status === 'tentative') continue;
-    const rows = allocationsByResource.get(allocation.resourceId);
-    if (rows) rows.push(allocation);
-    else allocationsByResource.set(allocation.resourceId, [allocation]);
-  }
-  const timeOffByResource = new Map<string, TimeOff[]>();
-  for (const entry of timeOff) {
-    if (!eligible.has(entry.resourceId)) continue;
-    const rows = timeOffByResource.get(entry.resourceId);
-    if (rows) rows.push(entry);
-    else timeOffByResource.set(entry.resourceId, [entry]);
-  }
-  return { allocationsByResource, timeOffByResource };
-}
-
 function buildRows({
   seeds,
   periods,
-  indexes,
-  closures,
-  accountWorkingDays,
+  capacity,
+  includeTentative,
   groupByEngagement,
 }: {
   seeds: ResourceBandGroup[];
   periods: CapacityOverviewPeriod[];
-  indexes: OverviewIndexes;
-  closures: Closure[];
-  accountWorkingDays: Weekday[];
+  capacity: CapacitySection | null;
+  includeTentative: boolean;
   groupByEngagement: boolean;
 }): CapacityOverviewGroup[] {
   const compareResources = createResourceComparator(groupByEngagement);
@@ -249,14 +196,7 @@ function buildRows({
       .sort(compareResources)
       .map((resource) => {
         const resourcePeriods = periods.map((period) =>
-          calculatePeriod({
-            resource,
-            period,
-            allocations: indexes.allocationsByResource.get(resource.id) ?? [],
-            timeOff: indexes.timeOffByResource.get(resource.id) ?? [],
-            closures,
-            accountWorkingDays,
-          }),
+          calculatePeriod({ resource, period, capacity, includeTentative }),
         );
         return { resource, periods: resourcePeriods };
       });
@@ -288,14 +228,12 @@ export function buildCapacityOverviewModel({
   today,
   weekStartsOn = 1,
   horizon = '4-weeks',
-  accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
+  capacity,
   includeTentative = true,
   placeholdersEnabled = false,
   hasAvailability = false,
   disciplinesEnabled = true,
   blocksMode = false,
-  timeOff = data.timeOff,
-  closures = data.closures,
 }: BuildCapacityOverviewModelInput): CapacityOverviewModel {
   const periods = buildCapacityOverviewPeriods({ today, weekStartsOn, horizon });
   if (blocksMode) {
@@ -309,15 +247,12 @@ export function buildCapacityOverviewModel({
       )
       .map((resource) => resource.id),
   );
-  const indexes = buildIndexes({ data, eligible, includeTentative, timeOff });
-
   const groupByEngagement = hasSupplementaryResources(data.resources);
   const groups = buildRows({
     seeds: buildGroupSeeds({ data, eligible, disciplinesEnabled, groupByEngagement }),
     periods,
-    indexes,
-    closures,
-    accountWorkingDays,
+    capacity,
+    includeTentative,
     groupByEngagement,
   });
   return {

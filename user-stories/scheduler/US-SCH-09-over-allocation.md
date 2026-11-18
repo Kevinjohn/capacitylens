@@ -37,10 +37,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useSchedulerGridModel builds fixed and visible windows"] --> B["buildSchedulerModel derives resource day capacity"]
-  B --> C["buildDayCapacity compares load with availability"]
-  C --> D["DayState marks over-capacity or time-off conflict"]
+  A["The server's planning read computes each resource day's over flag for the grid's window"] --> B["buildSchedulerModel reads the flag for each timeline date"]
+  B --> D["DayState marks over-capacity or time-off conflict"]
   D --> E["ResourceLane ScheduleSignals renders over-marker"]
 ```
 
-**Code references:** [useSchedulerGridModel.ts](../../apps/frontend/src/components/scheduler/useSchedulerGridModel.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)
+**Code references:** [capacity_section.ts](../../apps/backend/app/services/planning/capacity_section.ts), [schedulerRowCapacity.ts](../../apps/frontend/src/components/scheduler/schedulerRowCapacity.ts), [schedulerModel.ts](../../apps/frontend/src/components/scheduler/schedulerModel.ts), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

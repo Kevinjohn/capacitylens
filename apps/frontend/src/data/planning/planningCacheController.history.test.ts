@@ -11,6 +11,7 @@ import {
   success,
   harness,
 } from './planningCacheController.testSupport';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -29,6 +30,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     for (let index = 0; index < 51; index += 1) {
       await h.controller.execute(h.controller.begin(), intent, inverse);
@@ -57,6 +59,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const draft = h.controller.begin();
     await h.controller.execute(draft, intent, inverse);
@@ -66,6 +69,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     expect(h.state().planning.history.past).toHaveLength(1);
     await h.readSnapshot({
@@ -73,6 +77,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
@@ -93,6 +98,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     await h.controller.execute(h.controller.begin(), intent, inverse);
     expect(await h.controller.undo()).toBe(true);
@@ -115,6 +121,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     await expect(h.controller.execute(h.controller.begin(), intent, inverse)).rejects.toMatchObject(
       {
@@ -144,12 +151,14 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       })
       .mockResolvedValueOnce({
         revision: 2,
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       });
     const h = harness({ execute, read });
     h.controller.setContext(context);
@@ -175,6 +184,7 @@ describe('planning activity history via a receipt', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       });
       await h.controller.execute(h.controller.begin(), intent, inverse);
       await h.controller.execute(h.controller.begin(), intent, inverse);
@@ -198,6 +208,7 @@ describe('planning activity history via a receipt', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       });
       execute.mockImplementationOnce(async (_context, execution) =>
         success(execution.mutationId, 5),

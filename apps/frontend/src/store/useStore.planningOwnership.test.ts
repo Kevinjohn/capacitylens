@@ -188,7 +188,8 @@ describe('planning ownership of allocations', () => {
     expect(afterChange).not.toBe(beforeChange);
     expect(await afterChange).toBe(true);
     releaseOld();
-    expect(await beforeChange).toBe(false);
+    // The superseded read resolves with the newer read's outcome and never applies its own rows.
+    expect(await beforeChange).toBe(true);
     expect(useStore.getState().data.clients.find((row) => row.id === oldClient.id)).toBeUndefined();
   });
 

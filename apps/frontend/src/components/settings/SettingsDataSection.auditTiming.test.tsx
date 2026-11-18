@@ -15,6 +15,7 @@ import {
 } from '@/test/planningTransportHandle';
 import { m } from '@/i18n';
 import { SettingsDataSection } from './SettingsDataSection';
+import { emptyCapacity } from '@/test/capacityFixtures';
 import { permissionValue } from '@/test/permissionGrants';
 
 const hold = vi.hoisted(() => ({
@@ -116,6 +117,7 @@ it.each(
         revision: revision + 1,
         canWrite: true,
         today: getStubPlanningTransport().todayFor(accountId),
+        capacity: emptyCapacity(),
       };
       vi.spyOn(getPlanningTransportHandle(), 'read').mockImplementationOnce(async () => {
         hold.entered = true;

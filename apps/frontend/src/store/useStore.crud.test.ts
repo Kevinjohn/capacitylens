@@ -197,7 +197,7 @@ describe('store CRUD covers every entity', () => {
         status: 'confirmed',
       }),
     );
-    expect(await s().updateAllocation(a.id, { hoursPerDay: 4, status: 'tentative' })).toBe(true);
+    expect(await s().updateAllocation(a.id, { hoursPerDay: 4, status: 'tentative' })).toEqual({});
     expect(s().data.allocations[0]).toMatchObject({
       hoursPerDay: 4,
       status: 'tentative',

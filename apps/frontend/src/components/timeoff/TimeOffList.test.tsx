@@ -526,12 +526,16 @@ it.each(['editor', 'viewer'] as const)('hides and omits Note for role %s', async
 
   expect(screen.queryByLabelText('Note')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-  expect(update).toHaveBeenCalledWith(entry.id, {
-    resourceId: resource.id,
-    startDate: '2026-09-01',
-    endDate: '2026-09-05',
-    type: 'holiday',
-  });
+  expect(update).toHaveBeenCalledWith(
+    entry.id,
+    {
+      resourceId: resource.id,
+      startDate: '2026-09-01',
+      endDate: '2026-09-05',
+      type: 'holiday',
+    },
+    entry.updatedAt,
+  );
 });
 
 describe('TimeOffForm resource picker (placeholder gating)', () => {

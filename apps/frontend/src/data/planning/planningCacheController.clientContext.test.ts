@@ -13,6 +13,7 @@ import {
   harness,
   deferred,
 } from './planningCacheController.testSupport';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -29,6 +30,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
 
     const draft = h.controller.begin();
@@ -47,6 +49,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const h = harness({ execute: vi.fn(), read });
     h.controller.setContext(context);
@@ -80,6 +83,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: { ...emptyAppData(), accounts: [{ id: 'leak' } as never] },
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     await readPromise;
     expect(h.state().data).toEqual(emptyAppData());
@@ -107,6 +111,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const write = h.controller
       .execute(h.controller.begin(), intent, inverse)
@@ -118,6 +123,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     release(success('mutation-1', 2));
     await write;
@@ -154,6 +160,7 @@ describe('planning receipt completion context', () => {
           canWrite: true,
           data: canonicalData(),
           today: companyToday,
+          capacity: emptyCapacity(),
           accessKey: 'owner',
         });
         await h.controller.execute(h.controller.begin(), intent, inverse);
@@ -179,6 +186,7 @@ describe('planning receipt completion context', () => {
           canWrite: true,
           data: canonicalData(),
           today: companyToday,
+          capacity: emptyCapacity(),
           accessKey: change === 'authority change' ? 'editor' : 'owner',
         });
         await expect(completion).resolves.toBe(action === 'execute' ? null : false);

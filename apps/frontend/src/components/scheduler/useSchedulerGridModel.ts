@@ -19,8 +19,6 @@ import {
   defaultAccountWorkingDays,
   normalizeAccountWorkingDays,
 } from '@capacitylens/shared/lib/accountWorkingDays';
-import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { UTILIZATION_WINDOW_DAYS } from '@/lib/schedulerConfig';
 
 type GridPreferences = ReturnType<typeof useSchedulerGridPreferences>;
 type GridViewport = Pick<
@@ -31,8 +29,6 @@ type GridViewport = Pick<
 interface SchedulerModelProjectionInput {
   preferences: GridPreferences;
   viewport: GridViewport;
-  overStart: string;
-  overEnd: string;
   visibleStart: string;
   visibleEnd: string;
   rowLaneLayout: typeof SCHEDULER_LANE_LAYOUT;
@@ -108,8 +104,6 @@ function buildModelPreferences(
 function useSchedulerModelProjection({
   preferences: { data, accountPrefs, accountWorkingDays, ui },
   viewport: { days, geom },
-  overStart,
-  overEnd,
   visibleStart,
   visibleEnd,
   rowLaneLayout,
@@ -119,42 +113,33 @@ function useSchedulerModelProjection({
     () => buildModelPreferences(accountPrefs, accountWorkingDays),
     [accountPrefs, accountWorkingDays],
   );
+  const capacity = useStore((state) => state.planning.capacity);
+  // The static model spans the timeline so scrolling does not rebuild it. It sums no utilisation,
+  // because the visible projection below sets the visible window's.
   const staticModel = useMemo(
     () =>
       buildSchedulerModel({
         data,
         geom,
         days,
-        visibleWindow: { start: overStart, end: overEnd },
-        overSoonWindow: { start: overStart, end: overEnd },
+        capacity,
         filters: ui.filters,
         preferences: modelPreferences,
         laneLayout: rowLaneLayout,
       }),
-    [data, geom, days, overStart, overEnd, ui.filters, modelPreferences, rowLaneLayout],
+    [data, geom, days, capacity, ui.filters, modelPreferences, rowLaneLayout],
   );
   return useMemo(
     () =>
       applyVisibleUtilization({
         model: staticModel,
-        data,
+        capacity,
         start: visibleStart,
         end: visibleEnd,
-        accountWorkingDays,
-        blocksMode: accountPrefs.blocksMode,
         laneLayout: rowLaneLayout,
         partiallyExposesNextColumn: exposesNextColumn,
       }),
-    [
-      staticModel,
-      data,
-      visibleStart,
-      visibleEnd,
-      accountWorkingDays,
-      accountPrefs.blocksMode,
-      rowLaneLayout,
-      exposesNextColumn,
-    ],
+    [staticModel, capacity, visibleStart, visibleEnd, rowLaneLayout, exposesNextColumn],
   );
 }
 
@@ -208,9 +193,6 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   const { days, leftEdgeIdx: leftEdgeIndex, start, end, geom: geometry } = viewport;
   const partiallyExposesNextColumnState = usePartiallyExposedNextColumn(viewport, ui.zoom);
   const today = useCompanyToday();
-  // overSoon uses a fixed forward window from today, independently of zoom and pan.
-  const overStart = today;
-  const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1);
 
   // Visible utilisation uses an inclusive zoom window, clamped to materialized dates and updated only when its left-edge date changes.
   const { start: visibleStart, end: visibleEnd } = useMemo(
@@ -230,8 +212,6 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   const model = useSchedulerModelProjection({
     preferences,
     viewport,
-    overStart,
-    overEnd,
     visibleStart,
     visibleEnd,
     rowLaneLayout,

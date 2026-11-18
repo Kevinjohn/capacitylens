@@ -139,7 +139,12 @@ const cases: Array<{
     path: `time-off/${id}`,
   },
   {
-    intent: { operation: 'timeOff.repeat', entries: [timeOff] },
+    intent: {
+      operation: 'timeOff.repeat',
+      timeOff,
+      repeat: { pattern: { kind: 'monthly-date' }, until: '2026-12-02' },
+      occurrenceIds: ['occurrence-2'],
+    },
     method: 'POST',
     path: 'time-off/repeat',
   },
@@ -311,6 +316,29 @@ describe('generated planning transport', () => {
     expect(requests[0]?.url).toBe('http://planning.test/api/accounts/wayne/planning');
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
+  });
+
+  it('asks for the capacity window it is given and returns the server figures', async () => {
+    const capacity = {
+      window: { from: '2026-05-04', to: '2026-09-28' },
+      horizon: { from: '2026-06-03', to: '2026-08-23' },
+      resources: {},
+    };
+    const authority = {
+      actorId: 'bruce',
+      effectiveActorId: 'bruce',
+      role: 'owner',
+      canWrite: true,
+    };
+    const reply = { accountId: 'wayne', revision: 5, authority, data: emptyAppData(), capacity };
+    const { transport, requests } = harness(reply);
+
+    const result = await transport.read(context, signal, capacity.window);
+    await transport.read(context, signal);
+
+    expect(result.capacity).toEqual(capacity);
+    expect(new URL(requests[0]?.url ?? '').search).toBe('?from=2026-05-04&to=2026-09-28');
+    expect(new URL(requests[1]?.url ?? '').search).toBe('');
   });
 
   it('surfaces a stale proof on a canonical read without replaying it', async () => {

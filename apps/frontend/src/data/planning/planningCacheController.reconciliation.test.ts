@@ -12,6 +12,7 @@ import {
   success,
   harness,
 } from './planningCacheController.testSupport';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -34,6 +35,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const draft = h.controller.begin();
     const write = h.controller.execute(draft, intent, inverse);
@@ -42,6 +44,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     expect(h.state().planning.history.past).toHaveLength(0);
     release(success('mutation-1', 2));
@@ -52,6 +55,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     expect(h.state().planning.history.past).toHaveLength(0);
   });
@@ -63,17 +67,20 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: { ...emptyAppData(), accounts: [{ id: 'other-company' }] },
       today: companyToday,
+      capacity: emptyCapacity(),
     },
     {
       revision: 3,
       data: { ...emptyAppData(), accounts: [{ id: 'company-1', name: 'Unverified' }] },
       today: companyToday,
+      capacity: emptyCapacity(),
     },
     {
       revision: 4,
       canWrite: true,
       data: { ...canonicalData(), accounts: [] },
       today: companyToday,
+      capacity: emptyCapacity(),
     },
     {
       revision: 5,
@@ -83,6 +90,7 @@ describe('planning cache controller', () => {
         accounts: [...canonicalData().accounts, ...canonicalData().accounts],
       },
       today: companyToday,
+      capacity: emptyCapacity(),
     },
     { revision: 6, canWrite: true, data: canonicalData(), today: '2026-02-30' },
     { revision: 7, canWrite: true, data: canonicalData() },
@@ -131,6 +139,7 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       });
       await h.controller.execute(h.controller.begin(), action, inverse);
       expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 2 });

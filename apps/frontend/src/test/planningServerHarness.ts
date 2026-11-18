@@ -81,7 +81,7 @@ export async function initializePlanningServerHarness(key: string, companyId: st
   const realTransport = createPlanningTransport();
   const executions: Harness['executions'] = [];
   const transport: PlanningTransport = {
-    read: (context, signal) => realTransport.read(context, signal),
+    read: (context, signal, window) => realTransport.read(context, signal, window),
     execute: (context, execution, signal) => {
       executions.push(execution);
       return realTransport.execute(context, execution, signal);

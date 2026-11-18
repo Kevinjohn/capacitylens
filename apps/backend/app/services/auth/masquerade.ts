@@ -22,7 +22,7 @@ import {
   activeCompanyRole,
   IdentityAuthorityError,
 } from '#services/auth/authorization';
-import access from '#config/access_control';
+import { canViewAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { accessGrant } from '#services/auth/access_grant';
 
@@ -68,7 +68,7 @@ export async function currentMasquerade(
   if (requestedAccountId) {
     const actorRole = await activeCompanyRole(actor.id, requestedAccountId, undefined);
     const targetRole = await activeCompanyRole(view.targetId, requestedAccountId, undefined);
-    if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) {
+    if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
       accountId = requestedAccountId;
       effectiveRole = targetRole;
     }
@@ -81,7 +81,7 @@ export async function currentMasquerade(
     for (const candidate of memberships) {
       const actorRole = await activeCompanyRole(actor.id, candidate, undefined);
       const targetRole = await activeCompanyRole(view.targetId, candidate, undefined);
-      if (actorRole && access.can(actorRole, 'viewAs:use') && targetRole) {
+      if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
         accountId = candidate;
         effectiveRole = targetRole;
         break;
@@ -134,10 +134,12 @@ export async function effectiveReadPrincipal(
   if (!context || context.actorId !== actor.userId) {
     throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   }
-  if (context.isMasquerading && accountId) {
+  if (context.isMasquerading) {
+    // Without a company there is no rank to check, so a view never reads company-free.
+    if (!accountId) throw new IdentityAuthorityError('Masquerade company authority changed.');
     const actorRole = await activeCompanyRole(actor.userId, accountId, trx);
     const targetRole = await activeCompanyRole(context.effectiveId, accountId, trx);
-    if (!actorRole || !access.can(actorRole, 'viewAs:use') || !targetRole) {
+    if (!actorRole || !targetRole || !canViewAs(actorRole, targetRole)) {
       throw new IdentityAuthorityError('Masquerade company authority changed.');
     }
   }

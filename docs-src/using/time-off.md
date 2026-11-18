@@ -114,8 +114,8 @@ skip them. Bookings still place their time on closure days, as they do on person
 
 <span id="time-off-and-allocations"></span>
 
-Time off doesn't remove or block overlapping bookings. The booking form warns you about the
-overlap, so you decide.
+Time off doesn't remove or block overlapping bookings. When you save the booking, a notice tells
+you about the overlap, so you decide.
 
 Hours and Days bookings show the usual red over-capacity band. A Block carries no hours, so
 utilisation stays at 0%, but its overlap with time off is still marked red.

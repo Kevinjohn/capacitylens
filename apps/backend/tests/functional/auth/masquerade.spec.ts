@@ -87,6 +87,76 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 
   return { cookie, ownerId, targetId };
 }
 
+/** `fixture` with the signed-in viewer as an Admin under a separate company Owner, Diana Prince. */
+async function adminFixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 'editor') {
+  const { cookie, ownerId: adminId, targetId } = await fixture(client, targetRole);
+  const companyOwnerId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db.table('users').insert({
+    id: companyOwnerId,
+    email: 'diana.prince@themyscira.example',
+    display_name: 'Diana Prince',
+    email_verified_at: now,
+    password: null,
+    created_at: now,
+    updated_at: now,
+  });
+  await db.table('memberships').insert({
+    scope_id: 'a-studio',
+    user_id: companyOwnerId,
+    role: 'owner',
+    status: 'active',
+    created_at: now,
+    updated_at: now,
+  });
+  await db
+    .from('memberships')
+    .where({ scope_id: 'a-studio', user_id: adminId })
+    .update({ role: 'admin' });
+  return { cookie, adminId, companyOwnerId, targetId };
+}
+
+/** Makes the target the Owner of a-studio and the former Owner an Admin, as a transfer would. */
+async function promoteToOwner(targetId: string, formerOwnerId: string) {
+  await db
+    .from('memberships')
+    .where({ scope_id: 'a-studio', user_id: formerOwnerId })
+    .update({ role: 'admin' });
+  await db
+    .from('memberships')
+    .where({ scope_id: 'a-studio', user_id: targetId })
+    .update({ role: 'owner' });
+}
+
+const privateClientName = 'Wayne Confidential Client';
+
+/** A private a-studio client whose real name only an effective Owner receives. */
+async function insertPrivateClient() {
+  const now = new Date().toISOString();
+  await db.table('clients').insert({
+    id: crypto.randomUUID(),
+    account_id: 'a-studio',
+    name: privateClientName,
+    code_name: 'Nightwing',
+    color: '#123456',
+    is_private: 'true',
+    created_at: now,
+    updated_at: now,
+  });
+}
+
+async function endView(client: any, cookie: string) {
+  const token = await contextToken(client, cookie);
+  const ended = await asSession(
+    client.delete('/api/masquerade').header('sec-fetch-site', 'same-origin'),
+    cookie,
+    token
+  )
+    .json({ token, reason: 'explicit' })
+    .send();
+  ended.assertStatus(200);
+}
+
 test.group('native read-only masquerade', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
@@ -1011,6 +1081,166 @@ test.group('native read-only masquerade', (group) => {
       }
     } finally {
       service.start = originalStart;
+    }
+  });
+
+  test('refuses an Admin a view as the Owner and creates no mode', async ({ client, assert }) => {
+    const { cookie, companyOwnerId } = await adminFixture(client);
+    const refused = await startView(client, cookie, companyOwnerId);
+    refused.assertStatus(403);
+    const status = await asSession(client.get('/api/masquerade?accountId=a-studio'), cookie).send();
+    status.assertStatus(200);
+    assert.isFalse((status.body() as { active: boolean }).active);
+  });
+
+  test('lets an Admin view as an Admin, Editor or Viewer', async ({ client, assert }) => {
+    const { cookie, targetId } = await adminFixture(client, 'admin');
+    for (const role of ['admin', 'editor', 'viewer'] as const) {
+      await db
+        .from('memberships')
+        .where({ scope_id: 'a-studio', user_id: targetId })
+        .update({ role });
+      const started = await startView(client, cookie, targetId);
+      started.assertStatus(200);
+      assert.equal((started.body() as { effectiveRole: string }).effectiveRole, role);
+      const read = await asSession(client.get('/api/accounts/a-studio/planning'), cookie).send();
+      read.assertStatus(200);
+      await endView(client, cookie);
+    }
+  });
+
+  test("ends an Admin's view when the target is promoted to Owner", async ({ client, assert }) => {
+    const { cookie, adminId, companyOwnerId, targetId } = await adminFixture(client);
+    await insertPrivateClient();
+    // The first refused read ends the mode, so each read gets its own view.
+    for (const [index, path] of [
+      '/api/accounts/a-studio/planning',
+      '/api/state?accountId=a-studio',
+      '/api/accounts/a-studio/export',
+    ].entries()) {
+      await db
+        .from('memberships')
+        .where({ scope_id: 'a-studio', user_id: companyOwnerId })
+        .update({ role: 'owner' });
+      await db
+        .from('memberships')
+        .where({ scope_id: 'a-studio', user_id: targetId })
+        .update({ role: 'editor' });
+      const started = await startView(client, cookie, targetId);
+      started.assertStatus(200);
+      await promoteToOwner(targetId, companyOwnerId);
+      const read = await asSession(client.get(path), cookie).send();
+      const ended = await db
+        .from('masquerade_events')
+        .where({ actor_id: adminId, kind: 'invalidated', outcome_code: 'policy_denied' });
+      assert.lengthOf(ended, index + 1, path);
+      read.assertStatus(409);
+      assert.notInclude(read.text(), privateClientName, path);
+      const status = await asSession(
+        client.get('/api/masquerade?accountId=a-studio'),
+        cookie
+      ).send();
+      status.assertStatus(200);
+      const current = status.body() as { active: boolean; effectiveRole?: string };
+      assert.isFalse(current.active, path);
+      assert.notEqual(current.effectiveRole, 'owner', path);
+    }
+  });
+
+  test('refuses a planning read admitted before the target was promoted above the Admin', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, companyOwnerId, targetId } = await adminFixture(client);
+    await insertPrivateClient();
+    const started = await startView(client, cookie, targetId);
+    started.assertStatus(200);
+    const service = await masqueradeAdmission();
+    const serviceWithTestGate = service as unknown as {
+      resolve(request: HttpContext): Promise<ResolvedContext>;
+    };
+    const originalResolve = service.resolve.bind(service);
+    const admitted = deferred();
+    const release = deferred();
+    serviceWithTestGate.resolve = async (request) => {
+      const resolved = await originalResolve(request);
+      if (request.request.header('x-test-admission-pause') === 'promote') {
+        admitted.resolve();
+        await release.promise;
+      }
+      return resolved;
+    };
+    try {
+      const pendingRead = asSession(
+        client.get('/api/accounts/a-studio/planning').header('x-test-admission-pause', 'promote'),
+        cookie
+      ).send();
+      await admitted.promise;
+      await promoteToOwner(targetId, companyOwnerId);
+      release.resolve();
+      const read = await pendingRead;
+      read.assertStatus(403);
+      assert.equal((read.body() as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
+      assert.notInclude(read.text(), privateClientName);
+    } finally {
+      release.resolve();
+      serviceWithTestGate.resolve = originalResolve;
+    }
+  });
+
+  test('refuses a state read in the company where the target outranks the Admin', async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, adminId, companyOwnerId, targetId } = await adminFixture(client);
+    await insertPrivateClient();
+    await createFixtureCompanyForOwner(adminId, 'Stark Industries', 'a-tower');
+    const now = new Date().toISOString();
+    await db.table('memberships').insert({
+      scope_id: 'a-tower',
+      user_id: targetId,
+      role: 'editor',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
+    const started = await startView(client, cookie, targetId);
+    started.assertStatus(200);
+    await promoteToOwner(targetId, companyOwnerId);
+    // The query names no route company, so admission accepts the view through a-tower and only
+    // the in-transaction check sees that the target outranks the Admin in a-studio.
+    const read = await asSession(client.get('/api/state?accountId=a-studio'), cookie).send();
+    read.assertStatus(403);
+    assert.notInclude(read.text(), privateClientName);
+  });
+
+  test("reports an Admin's view only where the target does not outrank them", async ({
+    client,
+    assert,
+  }) => {
+    const { cookie, adminId, companyOwnerId, targetId } = await adminFixture(client);
+    await createFixtureCompanyForOwner(adminId, 'Stark Industries', 'a-tower');
+    const now = new Date().toISOString();
+    await db.table('memberships').insert({
+      scope_id: 'a-tower',
+      user_id: targetId,
+      role: 'editor',
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    });
+    const started = await startView(client, cookie, targetId);
+    started.assertStatus(200);
+    await promoteToOwner(targetId, companyOwnerId);
+    // a-studio sorts first, so the status search reaches it before a-tower.
+    for (const path of ['/api/masquerade?accountId=a-studio', '/api/masquerade']) {
+      const status = await asSession(client.get(path), cookie).send();
+      status.assertStatus(200);
+      assert.deepInclude(
+        status.body(),
+        { active: true, accountId: 'a-tower', effectiveRole: 'editor' },
+        path
+      );
     }
   });
 });

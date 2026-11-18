@@ -42,12 +42,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["TimeOffRepeatFields: choose repeat and cutoff"] --> B["timeOffFormSubmission.buildTimeOffDraftsForSave"]
-  B -->|valid| C["Build dated independent drafts"]
+  A["TimeOffRepeatFields: choose repeat and cutoff"] --> B["timeOffFormSubmission.acceptRepeat"]
+  B -->|valid| C["Count the entries the repeat makes"]
   B -->|invalid| D["Repeat field error; no mutation"]
-  C --> E["addTimeOffs"]
-  E --> F["typedPlanningActions.addTimeOffs builds timeOff.repeat intent"]
-  F --> G["Planning cache reconciles independent time-off rows"]
+  C --> E["addRepeatedTimeOff"]
+  E --> F["typedPlanningActions.addRepeatedTimeOff sends the first entry, the pattern and the ids for later entries"]
+  F --> H["executePlanningIntent writes the first entry, then repeat_occurrences expands and writes the rest"]
+  H --> G["Planning cache reconciles independent time-off rows"]
 ```
 
 **Code references:**
@@ -57,3 +58,5 @@ flowchart TD
 - [timeOffFormSubmission.ts](../../apps/frontend/src/components/timeoff/timeOffFormSubmission.ts)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
 - [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+- [repeat_occurrences.ts](../../apps/backend/app/services/planning/repeat_occurrences.ts)

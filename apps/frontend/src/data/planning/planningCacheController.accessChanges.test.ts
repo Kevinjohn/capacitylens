@@ -11,6 +11,7 @@ import {
   success,
   harness,
 } from './planningCacheController.testSupport';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -30,6 +31,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const first = h.controller.begin();
     await expect(h.controller.execute(first, intent, inverse)).rejects.toMatchObject({
@@ -58,6 +60,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
       accessKey: 'owner:private',
     });
     await h.controller.execute(h.controller.begin(), intent, inverse);
@@ -69,6 +72,7 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
         accessKey: 'editor:public',
       }),
     ).resolves.toBe(true);
@@ -90,6 +94,7 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: cached,
         today: companyToday,
+        capacity: emptyCapacity(),
         accessKey: 'owner:private',
       }),
     ).resolves.toBe(true);
@@ -100,6 +105,7 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
         accessKey: 'viewer:public',
       }),
     ).resolves.toBe(false);
@@ -116,6 +122,7 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       })
       .mockRejectedValueOnce({ status: 403, code: 'AUTHORIZATION_DENIED' })
       .mockRejectedValueOnce({ status: 403, code: 'ACCOUNT_MEMBERSHIP_LOST' });
@@ -150,6 +157,7 @@ describe('canonical planning write capability', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     await h.controller.execute(h.controller.begin(), intent, inverse);
     expect(h.state().planning.history.past).toHaveLength(1);
@@ -159,6 +167,7 @@ describe('canonical planning write capability', () => {
       canWrite: false,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     expect(h.state().planning.history.past).toHaveLength(0);
     expect(() => h.controller.begin()).toThrow(/read-only/);

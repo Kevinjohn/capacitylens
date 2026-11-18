@@ -18,6 +18,8 @@ import {
   queueAllocationGroupResponse,
   queueAllocationRestoreResponse,
 } from '@/test/planning/queuePlanningFixtures';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { grantFor } from '@/test/permissionGrants';
 
 const state = () => useStore.getState();
@@ -204,7 +206,7 @@ describe('atomic allocation creation', () => {
     expect(created[0]?.seriesId).toBeTruthy();
     expect(created[1]?.seriesId).toBe(created[0]?.seriesId);
     const first = requireValue(created[0], 'first repeated allocation');
-    expect(await state().updateAllocation(first.id, { note: 'Only this week' })).toBe(true);
+    expect(await state().updateAllocation(first.id, { note: 'Only this week' })).toEqual({});
     expect(
       state().data.allocations.find((allocation) => allocation.id === first.id),
     ).toHaveProperty('note', 'Only this week');
@@ -223,6 +225,55 @@ describe('atomic allocation creation', () => {
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory().past).toHaveLength(historyBefore);
     expect(state().notice).toMatchObject({ tone: 'error' });
+  });
+});
+
+describe('allocation save advisory', () => {
+  it('passes the save reply advisory through every allocation write', async () => {
+    const { draft } = await allocationSetup();
+    const advisory = { overDays: 3, timeOffDays: 1 };
+    const createdAt = new Date().toISOString();
+    queuePlanningPatch(
+      (execution) => {
+        if (execution.intent.operation !== 'allocation.create') {
+          throw new Error('Expected a create.');
+        }
+        const row = {
+          ...NULLABLE_FIELDS.allocations,
+          ...execution.intent.allocation,
+          accountId: DEFAULT_ACCOUNT_ID,
+          createdAt,
+          updatedAt: createdAt,
+        } as Allocation;
+        return { removed: [], upserts: [{ entity: 'allocations', row }] };
+      },
+      { advisory },
+    );
+    const created = await state().addAllocation(draft());
+    expect(created).toMatchObject({ kind: 'created', advisory });
+    const allocation = requireCreated(created);
+    queuePlanningPatch(
+      () => ({
+        removed: [],
+        upserts: [{ entity: 'allocations', row: { ...allocation, hoursPerDay: 6 } }],
+      }),
+      { advisory },
+    );
+    expect(await state().updateAllocation(allocation.id, { hoursPerDay: 6 })).toEqual({ advisory });
+
+    const repeatAdvisory = {
+      overCapacityAllocations: 1,
+      timeOffAllocations: 0,
+      nonEffectiveStartAllocations: 1,
+    };
+    queueAllocationGroupResponse(null, repeatAdvisory);
+    expect(
+      await state().addRepeatedAllocation(
+        draft({ startDate: '2026-06-15', endDate: '2026-06-15' }),
+        weekly('2026-06-22'),
+        2,
+      ),
+    ).toMatchObject({ kind: 'created', repeatAdvisory });
   });
 });
 
@@ -284,7 +335,7 @@ describe('resource availability boundaries', () => {
     expect(state().data.allocations).toContainEqual(allocation);
     await expect(
       state().updateAllocation(allocation.id, { note: 'Retained conflict' }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({});
     await expect(
       state().updateAllocation(allocation.id, {
         resourceId: allocation.resourceId,
@@ -294,7 +345,7 @@ describe('resource availability boundaries', () => {
         status: 'tentative',
         task: 'Prepare retained work',
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({});
     await expect(
       state().updateAllocation(allocation.id, { endDate: '2026-06-04' }),
     ).rejects.toThrow(/before.*available/i);
@@ -325,7 +376,7 @@ describe('resource availability boundaries', () => {
     ).rejects.toThrow(/after.*available/i);
     await expect(
       state().updateAllocation(allocation.id, { resourceId: resource.id }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({});
     await state().updateResource(bounded.id, {
       firstAvailableDate: '2026-07-01',
       lastAvailableDate: null,

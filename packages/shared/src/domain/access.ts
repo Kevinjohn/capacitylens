@@ -48,6 +48,18 @@ export function can(role: Role, key: PermissionKey): boolean {
 }
 
 /**
+ * Reports whether an actor with `actorRole` may view as a member with `targetRole` in the same
+ * company: the actor holds `viewAs:use` and the target does not rank above the actor. Unknown roles
+ * return false.
+ */
+export function canViewAs(actorRole: Role, targetRole: Role): boolean {
+  const targetRank = accessRoles.indexOf(targetRole);
+  return (
+    can(actorRole, 'viewAs:use') && targetRank >= 0 && targetRank <= accessRoles.indexOf(actorRole)
+  );
+}
+
+/**
  * Reports whether `role` is Owner or Admin. This is the one spelling of that pair for rules that
  * sit beside the permission table; an absent or unknown role returns false.
  */

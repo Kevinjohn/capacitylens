@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { m } from '@/i18n';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { rangesOverlap } from '@capacitylens/shared/lib/dateMath';
-import { carriesHourlyLoad, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
 import { useDragResize } from '@/hooks/useDragResize';
 import type { DragResizePreviewInput, Pointer } from '@/hooks/useDragResize';
@@ -12,19 +12,15 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { applyGesture } from '@/lib/gestureMath';
 import type { DateRange, DragMode } from '@/lib/gestureMath';
 import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
-import {
-  buildVisibleRange,
-  listAccountWorkingDays,
-  resolveSchedulingMode,
-} from '@/store/selectors';
+import { buildVisibleRange, listAccountWorkingDays } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import {
   reconcileReassignedHours,
   resolveGesture,
   resolveVolumePreservingHours,
 } from './allocationDrag';
-import { buildCapacityAnnouncement, buildCapacityGestureAdvisory } from './gestureAnnouncements';
-import type { GestureCapacitySource } from './gestureAnnouncements';
+import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
+import { buildCapacityAnnouncement } from './gestureAnnouncements';
 import { buildGesturePreviewDates } from './gestureGeometry';
 import {
   hasEffectiveDaysFor,
@@ -34,7 +30,7 @@ import {
   resolveMemoisedWorkingDays,
 } from './gestureWorkingWeeks';
 import type { GestureCalendar } from './gestureWorkingWeeks';
-import { buildActiveGestureData, readLaneSnapshots, resolveLaneAt } from './gestureLanes';
+import { readLaneSnapshots, resolveLaneAt } from './gestureLanes';
 import type { LaneSnapshot } from './gestureLanes';
 import type { BarLayout } from './schedulerModel';
 import { useAllocationFocus } from './useAllocationFocus';
@@ -76,21 +72,14 @@ function readGestureCalendar(): GestureCalendar {
   };
 }
 
-function readGestureCapacitySource(): GestureCapacitySource {
-  const { data, activeAccountId } = useStore.getState();
-  return {
-    data: buildActiveGestureData(data, activeAccountId),
-    accountWorkingDays: listAccountWorkingDays(data, activeAccountId),
-  };
-}
-
+// Reads the figures the store holds now; the caller checks they come from a read after the write.
 function readCapacityAnnouncement(resourceId: ID): string {
-  const { data, activeAccountId, ui } = useStore.getState();
+  const { data, planning, ui } = useStore.getState();
   return buildCapacityAnnouncement({
-    source: readGestureCapacitySource(),
+    resources: data.resources,
+    capacity: planning.capacity,
     resourceId,
     visibleRange: buildVisibleRange(ui),
-    blocksMode: !carriesHourlyLoad(resolveSchedulingMode(data, activeAccountId)),
   });
 }
 
@@ -234,18 +223,12 @@ function reconcileCommitHours({ options, targetResourceId, dates, hours }: Recon
 
 interface SavePointerCommitInput {
   options: ControllerOptions;
-  effectiveResourceId: ID;
   targetResourceId: ID | null;
   result: ReturnType<typeof resolveCommitDates>;
 }
 
-async function savePointerCommit({
-  options,
-  effectiveResourceId,
-  targetResourceId,
-  result,
-}: SavePointerCommitInput) {
-  const { bar, isBlocks } = options;
+async function savePointerCommit({ options, targetResourceId, result }: SavePointerCommitInput) {
+  const { bar } = options;
   const { setNotice, updateAllocation } = useStore.getState();
   const reconciledHours = reconcileCommitHours({
     options,
@@ -253,8 +236,9 @@ async function savePointerCommit({
     dates: result.dates,
     hours: result.hours,
   });
+  let updated: Awaited<ReturnType<typeof updateAllocation>>;
   try {
-    const updated = await updateAllocation(bar.allocation.id, {
+    updated = await updateAllocation(bar.allocation.id, {
       ...result.dates,
       ...(reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null),
       ...(targetResourceId ? { resourceId: targetResourceId } : {}),
@@ -270,15 +254,8 @@ async function savePointerCommit({
     );
     return;
   }
-  // Advisory work follows the mutation so a programmer error cannot be mislabeled as rejection.
-  const advisory = buildCapacityGestureAdvisory({
-    source: readGestureCapacitySource(),
-    bar,
-    effectiveResourceId,
-    isBlocks,
-    dates: result.dates,
-    reconciledHours,
-  });
+  // The server measured the saved row; its advisory follows the reply.
+  const advisory = updated.advisory ? formatCapacityAdvisory(updated.advisory, 'toast') : '';
   const dayCapacity = result.clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : '';
   setNotice(
     `${targetResourceId ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${dayCapacity}${m.scheduler_toast_undo_hint({ shortcut: buildUndoShortcut() })}`,
@@ -325,7 +302,7 @@ function commitPointerGesture(
     useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), 'error');
     return;
   }
-  void savePointerCommit({ options, effectiveResourceId, targetResourceId, result });
+  void savePointerCommit({ options, targetResourceId, result });
 }
 
 function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, deltaDays: number) {
@@ -376,7 +353,12 @@ async function saveKeyboardGesture(
         'warning',
       );
     }
-    announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
+    // A cleared pending write means a read at or after its revision was accepted. Otherwise the
+    // follow-up read, or the read that replaced it, failed; the figures may predate the write, and
+    // nothing is said.
+    if (useStore.getState().planning.pending === null) {
+      announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
+    }
     scheduleFocus(bar.allocation.id, activeAccountId);
   } catch (error) {
     // Surface a refused gesture commit so preview feedback cannot imply that a rejected move saved.

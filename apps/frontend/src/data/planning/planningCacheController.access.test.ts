@@ -5,6 +5,7 @@ import { makeAccount, makeAppData, makeClient } from '@/test/fixtures';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import { PlanningControllerError } from './planningErrors';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 type RequestStage = 'read' | 'execute';
 type Success = Awaited<ReturnType<PlanningTransport['execute']>>;
@@ -31,6 +32,7 @@ function snapshot(name: string, revision = 1): PlanningSnapshot {
       clients: [makeClient({ accountId: 'wayne', name })],
     }),
     today: '2026-06-03',
+    capacity: emptyCapacity(),
   };
 }
 

@@ -167,7 +167,7 @@ export function ActivityForm({
       ...(kind === 'project' && projectId ? { projectId } : {}),
       ...(kind === 'project' ? { phaseId: phaseId || null } : {}),
     };
-    return activity ? () => update(activity.id, patch) : () => add(patch);
+    return activity ? () => update(activity.id, patch, activity.updatedAt) : () => add(patch);
   };
 
   return (

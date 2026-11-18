@@ -163,6 +163,11 @@
       "types": "./src/lib/isRecord.ts",
       "default": "./dist/lib/isRecord.js"
     },
+    "./lib/planningWindows": {
+      "development": "./src/lib/planningWindows.ts",
+      "types": "./src/lib/planningWindows.ts",
+      "default": "./dist/lib/planningWindows.js"
+    },
     "./lib/repeatingDates": {
       "development": "./src/lib/repeatingDates.ts",
       "types": "./src/lib/repeatingDates.ts",

@@ -6,7 +6,11 @@ import {
   type SchedulingMode,
 } from '@capacitylens/shared/types/entities';
 import { PlanningOperationError } from '#services/planning/execute';
-import { allocationOccurrences, type RepeatRange } from '#services/planning/repeat_occurrences';
+import {
+  allocationOccurrences,
+  timeOffOccurrences,
+  type RepeatRange,
+} from '#services/planning/repeat_occurrences';
 
 const accountId = FIXTURE_ACCOUNT.id;
 const first = {
@@ -87,6 +91,47 @@ test.group('allocation repeat occurrences', () => {
     for (const until of ['2026-06-07', '2026-12-02']) {
       assert.throws(
         () => occurrences('days', { pattern: { kind: 'weeks', interval: 1 }, until }),
+        PlanningOperationError
+      );
+    }
+  });
+});
+
+test.group('time-off repeat occurrences', () => {
+  const dates = (entry: { startDate: string; endDate: string }, repeat: RepeatRange) =>
+    timeOffOccurrences(entry, repeat).map(({ startDate, endDate }) => [startDate, endDate]);
+
+  test('a monthly last-weekday repeat keeps the calendar span on each last Tuesday', ({
+    assert,
+  }) => {
+    assert.deepEqual(
+      dates(
+        { startDate: '2026-06-30', endDate: '2026-07-01' },
+        { pattern: { kind: 'monthly-last-weekday' }, until: '2026-09-30' }
+      ),
+      [
+        ['2026-06-30', '2026-07-01'],
+        ['2026-07-28', '2026-07-29'],
+        ['2026-08-25', '2026-08-26'],
+        ['2026-09-29', '2026-09-30'],
+      ]
+    );
+  });
+
+  test('time off repeats over its own horizon, past where an allocation stops', ({ assert }) => {
+    const weekly = dates(
+      { startDate: '2026-06-01', endDate: '2026-06-01' },
+      { pattern: { kind: 'weeks', interval: 1 }, until: '2027-01-04' }
+    );
+    assert.lengthOf(weekly, 32);
+    assert.deepEqual(weekly.at(-1), ['2027-01-04', '2027-01-04']);
+  });
+
+  test('a repeat the shared rules refuse is a validation error', ({ assert }) => {
+    const entry = { startDate: '2026-06-30', endDate: '2026-07-01' };
+    for (const until of ['2026-06-29', '2027-06-30']) {
+      assert.throws(
+        () => dates(entry, { pattern: { kind: 'monthly-last-weekday' }, until }),
         PlanningOperationError
       );
     }
