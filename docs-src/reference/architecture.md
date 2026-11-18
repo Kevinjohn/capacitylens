@@ -235,7 +235,7 @@ These transitions are pinned in `apps/frontend/src/data/planning/planningCacheCo
 
 Backend paths are relative to `apps/backend/`. Every product transaction is the Account Kit
 `withCurrent` transaction opened by `withActor` unless the row says otherwise; "live role" means
-`activeCompanyRole` or `assertCompanyAction` read inside that transaction.
+`getActiveCompanyRole` or `assertCompanyAction` read inside that transaction.
 
 | Capability | Entry | Owning module | Transaction owner | Live authority check | Projection point | Failure codes | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
