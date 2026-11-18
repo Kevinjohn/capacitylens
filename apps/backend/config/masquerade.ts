@@ -6,7 +6,7 @@ import { accountKitAuthority } from '@kevinjohn/adonisjs-masquerade/account-kit'
 import { LucidControlStore } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
 import { managedGuard } from '#services/auth/managed_guard';
 import { sessionUsers } from '#config/auth';
-import { listActiveCompanyIds, activeCompanyRole } from '#services/auth/authorization';
+import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
 import { canViewAs } from '@capacitylens/shared/domain/access';
 import type User from '#models/user';
 
@@ -36,8 +36,8 @@ async function sharesViewAsCompany(actorId: string, targetId: string, request?: 
   const requested = requestedAccountId(request);
   const companies = requested ? [requested] : await listActiveCompanyIds(actorId, undefined);
   for (const companyId of companies) {
-    const actorRole = await activeCompanyRole(actorId, companyId, undefined);
-    const targetRole = await activeCompanyRole(targetId, companyId, undefined);
+    const actorRole = await getActiveCompanyRole(actorId, companyId, undefined);
+    const targetRole = await getActiveCompanyRole(targetId, companyId, undefined);
     if (actorRole && targetRole && canViewAs(actorRole, targetRole)) return true;
   }
   return false;

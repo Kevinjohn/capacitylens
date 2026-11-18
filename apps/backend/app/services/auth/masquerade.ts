@@ -19,7 +19,7 @@ import type {
 } from '@adonisjs/lucid/types/database';
 import {
   listActiveCompanyIds,
-  activeCompanyRole,
+  getActiveCompanyRole,
   IdentityAuthorityError,
 } from '#services/auth/authorization';
 import { canViewAs } from '@capacitylens/shared/domain/access';
@@ -66,8 +66,8 @@ export async function currentMasquerade(
   let companyId: string | null = null;
   let effectiveRole: Role | null = null;
   if (requestedAccountId) {
-    const actorRole = await activeCompanyRole(actor.id, requestedAccountId, undefined);
-    const targetRole = await activeCompanyRole(view.targetId, requestedAccountId, undefined);
+    const actorRole = await getActiveCompanyRole(actor.id, requestedAccountId, undefined);
+    const targetRole = await getActiveCompanyRole(view.targetId, requestedAccountId, undefined);
     if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
       companyId = requestedAccountId;
       effectiveRole = targetRole;
@@ -79,8 +79,8 @@ export async function currentMasquerade(
   if (!companyId) {
     const memberships = await listActiveCompanyIds(actor.id, undefined);
     for (const candidate of memberships) {
-      const actorRole = await activeCompanyRole(actor.id, candidate, undefined);
-      const targetRole = await activeCompanyRole(view.targetId, candidate, undefined);
+      const actorRole = await getActiveCompanyRole(actor.id, candidate, undefined);
+      const targetRole = await getActiveCompanyRole(view.targetId, candidate, undefined);
       if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
         companyId = candidate;
         effectiveRole = targetRole;
@@ -137,8 +137,8 @@ export async function effectiveReadPrincipal(
   if (context.isMasquerading) {
     // Without a company there is no rank to check, so a view never reads company-free.
     if (!companyId) throw new IdentityAuthorityError('Masquerade company authority changed.');
-    const actorRole = await activeCompanyRole(actor.userId, companyId, trx);
-    const targetRole = await activeCompanyRole(context.effectiveId, companyId, trx);
+    const actorRole = await getActiveCompanyRole(actor.userId, companyId, trx);
+    const targetRole = await getActiveCompanyRole(context.effectiveId, companyId, trx);
     if (!actorRole || !targetRole || !canViewAs(actorRole, targetRole)) {
       throw new IdentityAuthorityError('Masquerade company authority changed.');
     }
