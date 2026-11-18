@@ -1,5 +1,3 @@
-import { addDaysISO, daysInclusive } from '@capacitylens/shared/lib/dateMath';
-import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
 import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { Allocation, ID, TimeOff } from '@capacitylens/shared/types/entities';
@@ -7,9 +5,9 @@ import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningC
 import { DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { queuePlanningPatch } from './queuePlanningPatch';
 
-/** Queue a canonical group receipt for tests that exercise frontend batch command wiring. Later
- * occurrences follow the repeat pattern and keep the first occurrence's calendar span. */
+/** Queue the server-returned occurrence dates for a frontend batch command test. */
 export function queueAllocationGroupResponse(
+  dates: readonly (readonly [startDate: string, endDate: string])[],
   seriesId: ID | null = null,
   repeatAdvisory?: PlanningMutationSuccess['repeatAdvisory'],
 ): void {
@@ -19,28 +17,22 @@ export function queueAllocationGroupResponse(
       if (intent.operation !== 'allocation.createGroup') {
         throw new Error(`Expected allocation.createGroup, received ${intent.operation}.`);
       }
-      const { allocation, repeat, occurrenceIds } = intent;
-      const { startDates } = generateRepeatingStartDates(
-        allocation.startDate,
-        repeat.until,
-        repeat.pattern,
-      );
+      const { allocation, occurrenceIds } = intent;
       const ids = [allocation.id, ...occurrenceIds];
-      if (startDates.length !== ids.length) {
-        throw new Error('The occurrence identities do not match the repeat.');
+      if (dates.length !== ids.length) {
+        throw new Error('The supplied allocation dates do not match the occurrence identities.');
       }
-      const span = daysInclusive(allocation.startDate, allocation.endDate);
       const createdAt = new Date().toISOString();
       return {
         removed: [],
-        upserts: startDates.map((startDate, index) => ({
+        upserts: dates.map(([startDate, endDate], index) => ({
           entity: 'allocations',
           row: {
             ...NULLABLE_FIELDS.allocations,
             ...allocation,
             id: ids[index],
             startDate,
-            endDate: addDaysISO(startDate, span - 1),
+            endDate,
             companyId: DEFAULT_ACCOUNT_ID,
             createdAt,
             updatedAt: createdAt,

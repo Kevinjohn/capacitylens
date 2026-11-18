@@ -47,10 +47,16 @@ const weekly = (until: string) => ({
   until,
 });
 
+const twoWeeklyDates = [
+  ['2026-06-01', '2026-06-03'],
+  ['2026-06-08', '2026-06-10'],
+] as const;
+const threeWeeklyDates = [...twoWeeklyDates, ['2026-06-15', '2026-06-17']] as const;
+
 describe('atomic allocation creation', () => {
   it('shares the single/repeat path, mints unique rows, preserves valid hours and records one typed history step', async () => {
     const { draft } = await allocationSetup();
-    queueAllocationGroupResponse();
+    queueAllocationGroupResponse(twoWeeklyDates);
     const created = requireCreated(
       await state().addRepeatedAllocation(draft({ hoursPerDay: 24 }), weekly('2026-06-08'), 2),
     );
@@ -76,6 +82,31 @@ describe('atomic allocation creation', () => {
     expect(state().data.allocations.at(-1)).toEqual(single);
     expect(typedHistory().canUndo).toBe(true);
   });
+  it('applies the monthly end dates returned for a three-day working week', async () => {
+    const { resource, draft } = await allocationSetup();
+    await state().updateAccount(DEFAULT_ACCOUNT_ID, {
+      schedulingMode: 'days',
+      workingDays: WORKDAYS,
+    });
+    await state().updateResource(resource.id, { workingDays: [1, 2, 3] });
+    const repeat = { pattern: { kind: 'monthly-date' as const }, until: '2026-08-01' };
+    queueAllocationGroupResponse([
+      ['2026-06-01', '2026-06-03'],
+      ['2026-07-01', '2026-07-07'],
+      ['2026-08-01', '2026-08-05'],
+    ]);
+    const created = requireCreated(await state().addRepeatedAllocation(draft(), repeat, 3));
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'allocation.createGroup',
+      allocation: { resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' },
+      repeat,
+      occurrenceIds: [created[1]?.id, created[2]?.id],
+    });
+    expect(state().data.allocations.find((row) => row.startDate === '2026-07-01')?.endDate).toBe(
+      '2026-07-07',
+    );
+  });
+
   it('rejects a repeat of fewer than two occurrences', async () => {
     const { draft } = await allocationSetup();
     await expect(state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 1)).rejects.toThrow(
@@ -170,7 +201,7 @@ describe('atomic allocation creation', () => {
   });
   it('creates one typed Undo/Redo unit for the complete batch', async () => {
     const { draft } = await allocationSetup();
-    queueAllocationGroupResponse();
+    queueAllocationGroupResponse(threeWeeklyDates);
     const created = requireCreated(
       await state().addRepeatedAllocation(draft(), weekly('2026-06-15'), 3),
     );
@@ -185,7 +216,7 @@ describe('atomic allocation creation', () => {
 
   it('links a repeated set under one series and isolates a single-occurrence edit', async () => {
     const { draft } = await allocationSetup();
-    queueAllocationGroupResponse('server-series');
+    queueAllocationGroupResponse(twoWeeklyDates, 'server-series');
     const created = requireCreated(
       await state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2),
     );
@@ -253,7 +284,14 @@ describe('allocation save advisory', () => {
       timeOffAllocations: 0,
       nonEffectiveStartAllocations: 1,
     };
-    queueAllocationGroupResponse(null, repeatAdvisory);
+    queueAllocationGroupResponse(
+      [
+        ['2026-06-15', '2026-06-15'],
+        ['2026-06-22', '2026-06-22'],
+      ],
+      null,
+      repeatAdvisory,
+    );
     expect(
       await state().addRepeatedAllocation(
         draft({ startDate: '2026-06-15', endDate: '2026-06-15' }),
@@ -377,7 +415,7 @@ describe('resource availability boundaries', () => {
 describe('repeat-series allocation mutations', () => {
   it('deletes the selected and future occurrences as one typed Undo step', async () => {
     const { draft } = await allocationSetup();
-    queueAllocationGroupResponse('server-series');
+    queueAllocationGroupResponse(threeWeeklyDates, 'server-series');
     const [earlier, selected, later] = requireCreated(
       await state().addRepeatedAllocation(draft(), weekly('2026-06-15'), 3),
     );
@@ -400,7 +438,7 @@ describe('repeat-series allocation mutations', () => {
 
   it('keeps series membership system-owned while editing linked and one-off allocations', async () => {
     const { draft } = await allocationSetup();
-    queueAllocationGroupResponse('server-series');
+    queueAllocationGroupResponse(twoWeeklyDates, 'server-series');
     const [linked] = requireCreated(
       await state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2),
     );

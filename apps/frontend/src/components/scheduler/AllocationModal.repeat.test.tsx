@@ -21,6 +21,12 @@ import {
   renderAsOwner,
 } from '@/test/allocationModalTestKit';
 
+const juneWeeklyOccurrences = [
+  ['2099-06-01', '2099-06-03'],
+  ['2099-06-08', '2099-06-10'],
+  ['2099-06-15', '2099-06-17'],
+] as const;
+
 beforeEach(async () => {
   await resetAllocationModalStore();
 });
@@ -164,7 +170,9 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     }
 
     await chooseOption(user, 'Repeat', 'Weekly');
-    queueAllocationGroupResponse('server-repeat-series');
+    await user.clear(screen.getByLabelText('Repeat until'));
+    await user.type(screen.getByLabelText('Repeat until'), '2099-06-15');
+    queueAllocationGroupResponse(juneWeeklyOccurrences, 'server-repeat-series');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     const intent = getStubPlanningTransport().calls.at(-1);
     expect(intent?.operation).toBe('allocation.createGroup');
@@ -173,14 +181,14 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     }
     // The browser sends the first occurrence and the pattern; the server places the rest.
     expect(intent.allocation).toMatchObject({ startDate: '2099-06-01', endDate: '2099-06-03' });
-    expect(intent.repeat).toEqual({ pattern: { kind: 'weeks', interval: 1 }, until: '2099-09-01' });
-    expect(intent.occurrenceIds).toHaveLength(13);
+    expect(intent.repeat).toEqual({ pattern: { kind: 'weeks', interval: 1 }, until: '2099-06-15' });
+    expect(intent.occurrenceIds).toHaveLength(2);
     expect(intent).not.toHaveProperty('allocations');
     // The typed group write assigns one series id to every stored occurrence.
     expect('seriesId' in intent.allocation).toBe(false);
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     const seriesIds = useStore.getState().data.allocations.map(({ seriesId }) => seriesId);
-    expect(seriesIds).toHaveLength(14);
+    expect(seriesIds).toHaveLength(3);
     expect(seriesIds[0]).toEqual(expect.any(String));
     expect(new Set(seriesIds).size).toBe(1);
   });
@@ -207,7 +215,9 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       await chooseOption(user, 'Project', scope);
       await chooseOption(user, 'Activity', activityName);
       await chooseOption(user, 'Repeat', 'Weekly');
-      queueAllocationGroupResponse('server-repeat-series');
+      await user.clear(screen.getByLabelText('Repeat until'));
+      await user.type(screen.getByLabelText('Repeat until'), '2099-06-15');
+      queueAllocationGroupResponse(juneWeeklyOccurrences, 'server-repeat-series');
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
       const intent = getStubPlanningTransport().calls.at(-1);
@@ -244,7 +254,15 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/clamp|month-end|fallback/i)).not.toBeInTheDocument();
-    queueAllocationGroupResponse('server-repeat-series');
+    queueAllocationGroupResponse(
+      [
+        ['2099-01-31', '2099-02-02'],
+        ['2099-02-28', '2099-03-02'],
+        ['2099-03-31', '2099-04-02'],
+        ['2099-04-30', '2099-05-02'],
+      ],
+      'server-repeat-series',
+    );
     await user.click(screen.getByRole('button', { name: 'Save' }));
     const intent = getStubPlanningTransport().calls.at(-1);
     expect(intent?.operation).toBe('allocation.createGroup');
@@ -500,7 +518,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     await user.type(screen.getByLabelText('Repeat until'), '2099-06-15');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
-    queueAllocationGroupResponse('server-repeat-series', {
+    queueAllocationGroupResponse(juneWeeklyOccurrences, 'server-repeat-series', {
       overCapacityAllocations: 1,
       timeOffAllocations: 2,
       nonEffectiveStartAllocations: 1,
