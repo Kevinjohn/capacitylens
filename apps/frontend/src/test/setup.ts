@@ -115,6 +115,15 @@ if (pointerCapturePrototype && typeof pointerCapturePrototype.setPointerCapture 
   };
 }
 
-afterEach(() => {
+// Captured before any test installs fake timers, so the teardown below always waits on a real one.
+const realSetTimeout = globalThis.setTimeout;
+
+afterEach(async () => {
   cleanup();
+  // Unmounting a Radix focus scope schedules its focus return on a zero-delay timer. Left pending,
+  // it can fire after the file's jsdom environment is removed, where `CustomEvent` is Node's own
+  // and jsdom rejects it as an unhandled error. A later zero-delay timer runs after it.
+  await new Promise<void>((resolve) => {
+    realSetTimeout(resolve, 0);
+  });
 });
