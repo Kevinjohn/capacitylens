@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   backendSpecsImportingFrom,
   changedPaths,
+  main,
   planChecks,
   ranNoTests,
   runStep,
@@ -16,6 +17,9 @@ import {
   testCount,
   toolingScope,
 } from './check-changed.mjs';
+
+// Fixtures run the CLI in this test process. Keep their plans out of the real CI job summary.
+delete process.env.GITHUB_STEP_SUMMARY;
 
 const everything = () => true;
 const noImporters = () => [];
@@ -487,8 +491,68 @@ test('end-to-end support changes select the Chromium and auth suites; deleted sp
   assert.equal(selectE2eSpecs(['e2e/a.spec.ts'], everything).run, 'specs');
 });
 
+test('--plan prints the combined plan in order without executing any steps', async (t) => {
+  const paths = ['package.json', 'e2e/resources.db.spec.ts'];
+  const steps = planChecks(paths);
+  assert.ok(steps.some((item) => item.prepare));
+  assert.ok(steps.some((item) => !item.prepare && item.args));
+  assert.ok(steps.some((item) => item.skip));
+  const log = t.mock.method(console, 'log', () => {});
+  const execute = t.mock.fn();
+  await main(
+    ['--plan', 'HEAD'],
+    (base) => {
+      assert.equal(base, 'HEAD');
+      return paths;
+    },
+    execute,
+  );
+  assert.equal(execute.mock.callCount(), 0);
+  assert.deepEqual(
+    log.mock.calls.map(({ arguments: [message] }) => message),
+    [
+      'check:changed: 2 changed path(s) since HEAD',
+      ...steps.map((item) => {
+        const why = item.reason ? `\n      why: ${item.reason}` : '';
+        if (item.skip) return `skip  ${item.label} (${item.skip})${why}`;
+        const command = [item.command ?? 'pnpm', ...item.args].join(' ');
+        return `plan  ${item.label}${why}\n      $ ${command}`;
+      }),
+    ],
+  );
+});
+
+test('--plan reports an empty diff against the default base', async (t) => {
+  const log = t.mock.method(console, 'log', () => {});
+  const execute = t.mock.fn();
+  await main(
+    ['--plan'],
+    (base) => {
+      assert.equal(base, 'origin/main');
+      return [];
+    },
+    execute,
+  );
+  assert.equal(execute.mock.callCount(), 0);
+  assert.deepEqual(
+    log.mock.calls.map((call) => call.arguments),
+    [['No changes since origin/main.']],
+  );
+});
+
+test('--plan preserves the invocation error for an invalid ref', () => {
+  const result = spawnSync(
+    process.execPath,
+    [fileURLToPath(new URL('./check-changed.mjs', import.meta.url)), '--plan', 'invalid ref'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /check:changed failed:/);
+});
+
 test('selection modes cannot be combined', () => {
   for (const pair of [
+    ['--plan', '--static'],
     ['--static', '--e2e-plan'],
     ['--tests-only', '--static'],
     ['--static-scope', '--tests-only'],

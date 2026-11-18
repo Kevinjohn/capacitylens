@@ -2,6 +2,7 @@
 //
 //   pnpm run check:changed           changes since the merge-base with origin/main
 //   pnpm run check:changed <base>    changes since the merge-base with <base>
+//   pnpm run check:changed --plan    preview the combined checks, in execution order
 //   pnpm run check:changed --static  the same, without dependency lookups or whole test suites
 //   pnpm run check:changed --tests-only
 //                                    only the tests; CI's static analysis job owns format, lint and
@@ -634,7 +635,14 @@ export async function runStep(step, limits = stepLimits) {
   });
 }
 
-const modes = ['--static', '--tests-only', '--static-scope', '--tooling-scope', '--e2e-plan'];
+const modes = [
+  '--plan',
+  '--static',
+  '--tests-only',
+  '--static-scope',
+  '--tooling-scope',
+  '--e2e-plan',
+];
 
 /** Append a Markdown table of the planned checks to the GitHub Actions job summary, when present. */
 function writeSummary(heading, rows) {
@@ -648,16 +656,16 @@ function writeSummary(heading, rows) {
   );
 }
 
-async function main() {
+/** Select and report checks for the command-line arguments, executing them only in run modes. */
+export async function main(args, pathsSince = changedPaths, execute = runStep) {
   try {
     assertSupportedNodeVersion();
-    const args = process.argv.slice(2);
     const chosen = modes.filter((mode) => args.includes(mode));
     const [base = defaultBase, ...extra] = args.filter((arg) => !modes.includes(arg));
     if (extra.length || base.startsWith('-') || chosen.length > 1)
       throw new Error(`Expected at most one of ${modes.join(', ')}, and at most one base ref.`);
     const [mode] = chosen;
-    const paths = changedPaths(base);
+    const paths = pathsSince(base);
     if (mode === '--static-scope') {
       // Standard output carries only the scope, so a workflow can branch on it.
       const { scope, reason } = staticScope(paths);
@@ -706,7 +714,12 @@ async function main() {
         rows.push([step.label, 'skipped', step.skip]);
         continue;
       }
-      const result = await runStep(step);
+      if (mode === '--plan') {
+        console.log(`plan  ${step.label}${why}\n      $ ${commandLine(step)}`);
+        rows.push([step.label, 'selected', step.reason]);
+        continue;
+      }
+      const result = await execute(step);
       // Name what each test step ran, so a log shows the selected files or suite.
       const command = step.label.startsWith('test:') ? `\n      $ ${commandLine(step)}` : '';
       if (result.passed) {
@@ -735,4 +748,5 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+  await main(process.argv.slice(2));
