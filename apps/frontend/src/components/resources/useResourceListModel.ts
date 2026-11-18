@@ -56,7 +56,7 @@ export function useResourceListModel() {
     hasExternalResourcesEnabled(state.data, state.activeAccountId),
   );
   const groups = useMemo(
-    () => partitionResources({ resources: resources, groupByEngagement: groupByEngagement }),
+    () => partitionResources({ resources, groupByEngagement }),
     [resources, groupByEngagement],
   );
   const resolveDisciplineName = (id?: string | null) =>

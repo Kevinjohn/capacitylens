@@ -22,8 +22,8 @@ function useDisplayPreferences() {
   return {
     theme: useStore((state) => state.theme),
     setTheme: useStore((state) => state.setTheme),
-    utilizationPrefs: useStore((state) => state.utilizationPrefs),
-    setUtilizationPref: useStore((state) => state.setUtilizationPref),
+    utilisationPrefs: useStore((state) => state.utilisationPrefs),
+    setUtilisationPref: useStore((state) => state.setUtilisationPref),
     barLabelPrefs: useStore((state) => state.barLabelPrefs),
     setBarLabelPref: useStore((state) => state.setBarLabelPref),
     minimiseWeekends: useStore((state) => state.minimiseWeekends),

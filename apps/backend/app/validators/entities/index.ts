@@ -120,8 +120,12 @@ export const requiredFields: Record<AppDataKey, readonly string[]> = {
 
 const validators = new Map<string, ReturnType<typeof vine.compile>>();
 
-/** Validate one complete entity row without coercing its supplied scalar values. */
-export async function validateEntityRow(table: AppDataKey, row: Record<string, unknown>) {
+/**
+ * Checks one complete entity row without coercing its supplied scalar values.
+ *
+ * @throws Vine's validation error when a field is refused.
+ */
+export async function assertEntityRow(table: AppDataKey, row: Record<string, unknown>) {
   // Only these discriminators affect field rules. Reuse compiled schemas while preserving
   // row-dependent color validation for external resources and the built-in client.
   const isExternalResource = table === 'resources' && row.kind === 'external';

@@ -56,7 +56,7 @@ describe('store slice composition', () => {
         'setDirtyFormSource',
         'setDraggingAllocation',
         'setTheme',
-        'setUtilizationPref',
+        'setUtilisationPref',
         'setBarLabelPref',
         'setSidebarOpen',
         'setMinimiseWeekends',

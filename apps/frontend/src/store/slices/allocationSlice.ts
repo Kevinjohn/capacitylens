@@ -42,7 +42,7 @@ function assertSuppliedHours(hours: number): void {
   }
 }
 
-function validateNewAllocations(
+function assertNewAllocations(
   internals: AllocationSliceInternals,
   data: AppData,
   companyId: ID,
@@ -124,7 +124,7 @@ export function createAllocationSlice(
       if (blockedByViewer()) return null;
       const data = get().data;
       for (const input of inputs) assertSuppliedHours(input.hoursPerDay);
-      validateNewAllocations(internals, data, companyId, inputs);
+      assertNewAllocations(internals, data, companyId, inputs);
       // Row ids are minted here, on the typed command path; the server assigns any series id.
       return { companyId, data, drafts: inputs.map((fields) => ({ id: newId(), fields })) };
     };

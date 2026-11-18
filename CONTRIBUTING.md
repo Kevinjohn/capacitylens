@@ -170,7 +170,7 @@ Dispatch [Validation](.github/workflows/validation.yml) for any required pre-mer
 
 User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
 spec. New domain fields must flow through shared types, full fixtures, server table columns and
-sanitisation so the compile-time exhaustiveness checks can protect them.
+validators so the compile-time exhaustiveness checks can protect them.
 
 ## Pull requests
 

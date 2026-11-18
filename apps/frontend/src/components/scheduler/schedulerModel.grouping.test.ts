@@ -159,15 +159,15 @@ describe('external / 3rd-party band', () => {
   }: BuildExtOptions = {}) =>
     buildSchedulerModel({
       data: withExternal(),
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
-      filters: filters,
+      filters,
       preferences: {
-        disciplinesEnabled: disciplinesEnabled,
+        disciplinesEnabled,
         placeholdersEnabled: true,
-        externalEnabled: externalEnabled,
+        externalEnabled,
       },
     });
 
@@ -188,7 +188,7 @@ describe('external / 3rd-party band', () => {
     const ext = buildExt().at(-1)?.rows[0];
     expect(ext).toBeDefined();
     if (!ext) throw new Error('Expected the external resource row.');
-    expect(ext.utilization).toBe(0);
+    expect(ext.utilisation).toBe(0);
     expect(ext.overSoon).toBe(false);
     expect(ext.dayStates.every((d) => !d.over)).toBe(true);
     expect(ext.dayStates.every((d) => !d.partialCapacity)).toBe(true);

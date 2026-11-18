@@ -6,7 +6,7 @@ import type { ISODate } from '@capacitylens/shared/types/entities';
 import { buildEmptyFilters, useStore } from '@/store/useStore';
 import { makeActivity, makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import { buildColumnGeometry } from './columnGeometry';
-import { applyVisibleUtilization, buildSchedulerModel } from './schedulerModel';
+import { applyVisibleUtilisation, buildSchedulerModel } from './schedulerModel';
 import { partiallyExposesNextColumn, usePartiallyExposedNextColumn } from './useSchedulerGridModel';
 
 type ProjectWindowOptions = { partiallyExposesNextColumn: boolean };
@@ -67,7 +67,7 @@ describe('visible-window lane projection', () => {
     });
 
     return requireValue(
-      applyVisibleUtilization({
+      applyVisibleUtilisation({
         model: base,
         capacity: null,
         start: '2026-05-06',
@@ -150,7 +150,7 @@ describe('visible-window lane projection', () => {
     });
     const windowRow = (start: ISODate, end: ISODate) =>
       requireValue(
-        applyVisibleUtilization({
+        applyVisibleUtilisation({
           model: base,
           capacity: null,
           start,

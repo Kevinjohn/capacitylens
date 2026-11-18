@@ -39,7 +39,7 @@ export const UNANCHORED_WEEK_START = '1970-01-05';
 export {
   DEFAULT_RANGE_DAYS,
   PAST_BUFFER_DAYS,
-  UTILIZATION_WINDOW_DAYS,
+  UTILISATION_WINDOW_DAYS,
 } from '@capacitylens/shared/lib/planningWindows';
 
 /**

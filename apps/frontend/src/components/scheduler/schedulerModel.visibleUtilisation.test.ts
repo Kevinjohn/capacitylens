@@ -8,7 +8,7 @@ import { capacityOver, onlyRange } from '@/test/capacityFixtures';
 import { buildEmptyFilters } from '@/store/useStore';
 import { makeActivity, makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import { buildColumnGeometry } from './columnGeometry';
-import { applyVisibleUtilization, buildSchedulerModel } from './schedulerModel';
+import { applyVisibleUtilisation, buildSchedulerModel } from './schedulerModel';
 import type { GroupModel, RowModel } from './schedulerModel';
 
 const ACCOUNT = 'a-studio';
@@ -101,7 +101,7 @@ function project(
   window: { start: ISODate; end: ISODate },
   partiallyExposesNextColumn?: boolean,
 ) {
-  return applyVisibleUtilization({
+  return applyVisibleUtilisation({
     model,
     capacity: CAPACITY,
     ...window,
@@ -133,7 +133,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('applyVisibleUtilization identity', () => {
+describe('applyVisibleUtilisation identity', () => {
   it('returns every group and row by identity when nothing in view changed', () => {
     const data = dataset();
     const model = buildModel(data);
@@ -147,7 +147,7 @@ describe('applyVisibleUtilization identity', () => {
     const model = buildModel(data);
     const projected = project(model, SECOND_WEEK);
     expect(rowOf(projected, 'r2')).toBe(rowOf(model, 'r2'));
-    expect(rowOf(projected, 'r2').utilization).toBe(0);
+    expect(rowOf(projected, 'r2').utilisation).toBe(0);
   });
 
   it('replaces only the group whose row changed, keeping its unchanged rows', () => {
@@ -186,8 +186,8 @@ describe('applyVisibleUtilization identity', () => {
     const data = dataset();
     const model = buildModel(data);
     const row = rowOf(model, 'r1');
-    const projected = rowOf(project(withRow(model, { ...row, utilization: 0.123 }), FULL), 'r1');
-    expect(projected.utilization).toBe(row.utilization);
+    const projected = rowOf(project(withRow(model, { ...row, utilisation: 0.123 }), FULL), 'r1');
+    expect(projected.utilisation).toBe(row.utilisation);
     expect(projected.bars).toBe(row.bars);
   });
 
@@ -195,15 +195,15 @@ describe('applyVisibleUtilization identity', () => {
     const data = dataset();
     const model = buildModel(data);
     const row = rowOf(model, 'ext1');
-    expect(row.utilization).toBe(0);
-    const projected = rowOf(project(withRow(model, { ...row, utilization: 0.5 }), FULL), 'ext1');
-    expect(projected.utilization).toBe(0);
+    expect(row.utilisation).toBe(0);
+    const projected = rowOf(project(withRow(model, { ...row, utilisation: 0.5 }), FULL), 'ext1');
+    expect(projected.utilisation).toBe(0);
     expect(projected.bars).toBe(row.bars);
-    expect(rowOf(project(model, SECOND_WEEK), 'ext1').utilization).toBe(0);
+    expect(rowOf(project(model, SECOND_WEEK), 'ext1').utilisation).toBe(0);
   });
 });
 
-describe('applyVisibleUtilization inputs', () => {
+describe('applyVisibleUtilisation inputs', () => {
   it('packs only the visible window unless the next column is partially exposed', () => {
     // The second allocation only overlaps the first on the day after the visible week.
     const data = dataset();
@@ -313,7 +313,7 @@ describe("drawing the server's figures", () => {
     expect(row.conflictDayCount).toBe(1);
     expect(row.overSoon).toBe(true);
     // The day with no availability is left out: 16 of 16 hours.
-    expect(row.utilization).toBe(1);
+    expect(row.utilisation).toBe(1);
   });
 
   it('draws no capacity cue on a date the read did not cover', () => {
@@ -327,10 +327,10 @@ describe("drawing the server's figures", () => {
 
     expect(stateOn('2026-06-02')).toMatchObject({ over: false, unavailable: false });
     expect(stateOn('2026-06-09')).toMatchObject({ over: true });
-    expect(row.utilization).toBe(1.5);
+    expect(row.utilisation).toBe(1.5);
     expect(
       rowOf(buildModel(dataset(), { start: '2026-06-01', end: '2026-06-05' }, capacity), 'r1')
-        .utilization,
+        .utilisation,
     ).toBe(0);
   });
 });

@@ -7,9 +7,9 @@ import {
   writeStoredMinimiseWeekends,
   readStoredWeekSnapOverride,
   WEEK_SNAP_OVERRIDE_KEY,
-  readStoredUtilizationPrefs,
-  writeStoredUtilizationPrefs,
-  DEFAULT_UTILIZATION_PREFS,
+  readStoredUtilisationPrefs,
+  writeStoredUtilisationPrefs,
+  DEFAULT_UTILISATION_PREFS,
   readStoredBarLabelPrefs,
   writeStoredBarLabelPrefs,
   DEFAULT_BAR_LABEL_PREFS,
@@ -26,9 +26,9 @@ describe('sidebar preference', () => {
   });
 
   it('round-trips an explicit open/closed choice', () => {
-    writeStoredSidebarOpen({ open: false });
+    writeStoredSidebarOpen(false);
     expect(readStoredSidebarOpen()).toBe(false);
-    writeStoredSidebarOpen({ open: true });
+    writeStoredSidebarOpen(true);
     expect(readStoredSidebarOpen()).toBe(true);
   });
 
@@ -105,13 +105,13 @@ describe('week-snap test override', () => {
   });
 });
 
-describe('utilization display preferences', () => {
+describe('utilisation display preferences', () => {
   beforeEach(() => {
     localStorage.removeItem('capacitylens/utilizationPrefs');
   });
 
   it('defaults to showing everything', () => {
-    expect(DEFAULT_UTILIZATION_PREFS).toEqual({
+    expect(DEFAULT_UTILISATION_PREFS).toEqual({
       showTotal: true,
       showDiscipline: true,
       showPersonal: true,
@@ -119,7 +119,7 @@ describe('utilization display preferences', () => {
   });
 
   it('reads the show-everything defaults when never chosen', () => {
-    expect(readStoredUtilizationPrefs()).toEqual({
+    expect(readStoredUtilisationPrefs()).toEqual({
       showTotal: true,
       showDiscipline: true,
       showPersonal: true,
@@ -127,8 +127,8 @@ describe('utilization display preferences', () => {
   });
 
   it('round-trips a mixed explicit choice', () => {
-    writeStoredUtilizationPrefs({ showTotal: false, showDiscipline: true, showPersonal: false });
-    expect(readStoredUtilizationPrefs()).toEqual({
+    writeStoredUtilisationPrefs({ showTotal: false, showDiscipline: true, showPersonal: false });
+    expect(readStoredUtilisationPrefs()).toEqual({
       showTotal: false,
       showDiscipline: true,
       showPersonal: false,
@@ -137,7 +137,7 @@ describe('utilization display preferences', () => {
 
   it('fills in defaults for fields missing from a partial stored shape', () => {
     localStorage.setItem('capacitylens/utilizationPrefs', JSON.stringify({ showTotal: false }));
-    expect(readStoredUtilizationPrefs()).toEqual({
+    expect(readStoredUtilisationPrefs()).toEqual({
       showTotal: false,
       showDiscipline: true,
       showPersonal: true,
@@ -149,7 +149,7 @@ describe('utilization display preferences', () => {
       'capacitylens/utilizationPrefs',
       JSON.stringify({ showTotal: 'yes', showDiscipline: 1, showPersonal: null }),
     );
-    expect(readStoredUtilizationPrefs()).toEqual({
+    expect(readStoredUtilisationPrefs()).toEqual({
       showTotal: true,
       showDiscipline: true,
       showPersonal: true,
@@ -158,7 +158,7 @@ describe('utilization display preferences', () => {
 
   it('falls back to defaults on malformed JSON', () => {
     localStorage.setItem('capacitylens/utilizationPrefs', '{not json');
-    expect(readStoredUtilizationPrefs()).toEqual(DEFAULT_UTILIZATION_PREFS);
+    expect(readStoredUtilisationPrefs()).toEqual(DEFAULT_UTILISATION_PREFS);
   });
 
   it('swallows a blocked read to the defaults', () => {
@@ -166,7 +166,7 @@ describe('utilization display preferences', () => {
       throw new DOMException('blocked', 'SecurityError');
     });
     try {
-      expect(readStoredUtilizationPrefs()).toEqual(DEFAULT_UTILIZATION_PREFS);
+      expect(readStoredUtilisationPrefs()).toEqual(DEFAULT_UTILISATION_PREFS);
     } finally {
       spy.mockRestore();
     }
@@ -177,14 +177,14 @@ describe('utilization display preferences', () => {
       throw new DOMException('quota', 'QuotaExceededError');
     });
     try {
-      expect(() => writeStoredUtilizationPrefs(DEFAULT_UTILIZATION_PREFS)).not.toThrow();
+      expect(() => writeStoredUtilisationPrefs(DEFAULT_UTILISATION_PREFS)).not.toThrow();
     } finally {
       spy.mockRestore();
     }
   });
 
   it('persists under the documented storage key', () => {
-    writeStoredUtilizationPrefs({ showTotal: false, showDiscipline: false, showPersonal: false });
+    writeStoredUtilisationPrefs({ showTotal: false, showDiscipline: false, showPersonal: false });
     expect(localStorage.getItem('capacitylens/utilizationPrefs')).toBe(
       JSON.stringify({ showTotal: false, showDiscipline: false, showPersonal: false }),
     );

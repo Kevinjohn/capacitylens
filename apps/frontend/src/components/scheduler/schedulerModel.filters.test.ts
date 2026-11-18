@@ -96,7 +96,7 @@ describe('buildSchedulerModel', () => {
       'r1 scheduler row',
     );
 
-    expect(r1.utilization).toBeCloseTo(24 / 56);
+    expect(r1.utilisation).toBeCloseTo(24 / 56);
   });
 
   it('project filter limits bars to that project (resources still listed)', () => {
@@ -193,9 +193,9 @@ describe('buildSchedulerModel', () => {
     offTimeline.endDate = '2035-01-02';
     const filtered = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), projectId: 'p1', showUnmatched: false },
       preferences: {
@@ -209,9 +209,9 @@ describe('buildSchedulerModel', () => {
 
     const staffing = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: { ...buildEmptyFilters(), projectId: 'p1', showUnmatched: true },
       preferences: {

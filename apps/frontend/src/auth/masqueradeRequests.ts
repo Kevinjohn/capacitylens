@@ -11,7 +11,7 @@ import type {
  */
 export const masqueradeRequests = {
   startMasquerade(companyId: string, body: StartMasqueradePayload): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.masquerade.start', { params: { companyId: companyId } }), {
+    return apiFetch(apiRouteUrl('api.masquerade.start', { params: { companyId } }), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

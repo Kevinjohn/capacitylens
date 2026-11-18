@@ -38,7 +38,7 @@ export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleE
   (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(entityKey);
 
 /** Lifecycle state is derived only from a canonical, parseable tombstone. Applying this rule at
- * the read boundary prevents legacy/direct database corruption from creating a hidden state with
+ * the read boundary prevents direct database corruption from creating a hidden state with
  * no legal transition. Imports validate tombstones rather than repairing them. */
 export function isValidTombstone(value: ISOTimestamp | null | undefined): value is ISOTimestamp {
   return value != null && parseISOTimestamp(value) !== null;

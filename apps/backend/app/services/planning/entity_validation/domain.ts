@@ -117,8 +117,21 @@ export function assertEntityDomain(
     const resource = row as unknown as Resource;
     // The stored row comes from the same table, so it is a Resource.
     const previous = existing as Resource | undefined;
-    assertResourceProjectAllowsDependents(state, companyId, id, resource, previous, lookup);
-    assertResourceKindAllowsDependents(state, companyId, id, resource.kind, lookup);
+    assertResourceProjectAllowsDependents({
+      data: state,
+      companyId,
+      resourceId: id,
+      merged: resource,
+      existing: previous,
+      lookup,
+    });
+    assertResourceKindAllowsDependents({
+      data: state,
+      companyId,
+      resourceId: id,
+      mergedKind: resource.kind,
+      lookup,
+    });
     const availability = validateResourceAvailabilityPair(
       resource.firstAvailableDate ?? undefined,
       resource.lastAvailableDate ?? undefined
@@ -131,16 +144,16 @@ export function assertEntityDomain(
       );
     }
   } else if (table === 'activities') {
-    assertActivityProjectAllowsDependents(
-      state,
+    assertActivityProjectAllowsDependents({
+      data: state,
       companyId,
-      id,
+      activityId: id,
       // The row is validated client input typed as a plain record, so it does not overlap the entity type.
-      row as unknown as Activity,
+      merged: row as unknown as Activity,
       // The stored row comes from the same table, so it is an Activity.
-      existing as Activity | undefined,
-      lookup
-    );
+      existing: existing as Activity | undefined,
+      lookup,
+    });
   } else if (table === 'allocations') {
     // The row is validated client input typed as a plain record, so it does not overlap the entity type.
     const allocation = row as unknown as Allocation;
@@ -168,13 +181,13 @@ export function assertEntityDomain(
   } else if (table === 'timeOff') {
     // The row is validated client input typed as a plain record, so it does not overlap the entity type.
     const timeOff = row as unknown as TimeOff;
-    assertResourceExists(
-      state,
+    assertResourceExists({
+      data: state,
       companyId,
-      timeOff.resourceId,
-      existing as Pick<TimeOff, 'resourceId'> | undefined,
-      lookup
-    );
+      resourceId: timeOff.resourceId,
+      existing: existing as Pick<TimeOff, 'resourceId'> | undefined,
+      lookup,
+    });
     assertDateRange(timeOff.startDate, timeOff.endDate);
   } else if (table === 'closures') {
     assertDateRange(row.startDate as string, row.endDate as string);

@@ -123,7 +123,7 @@ export const FIXTURE_RESOURCE: Resource = {
 
 /** A fully-populated person fixture, including both optional availability boundaries. Keep the
  * placeholder fixture above for resource-kind coverage; this row exercises the person-only fields
- * that non-person sanitisation intentionally strips. */
+ * that the other resource kinds do not carry. */
 export const FIXTURE_RESOURCE_PERSON: Resource = {
   ...NULLABLE_FIELDS.resources,
   id: 'fix-r-person',

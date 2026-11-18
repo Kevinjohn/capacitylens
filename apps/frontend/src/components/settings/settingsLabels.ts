@@ -1,6 +1,6 @@
 import { m } from '@/i18n';
 import type { CapacityOverviewAccess, SchedulingMode } from '@capacitylens/shared/types/entities';
-import type { BarLabelPreferences, UtilizationPreferences } from '@/lib/displayPrefs';
+import type { BarLabelPreferences, UtilisationPreferences } from '@/lib/displayPrefs';
 import type { LabelMessages } from '@/lib/metadata';
 import type { ThemePreference } from '@/lib/theme';
 import type { DateStyle } from '@capacitylens/shared/types/entities';
@@ -35,8 +35,8 @@ export const CAPACITY_OVERVIEW_ACCESS_MESSAGES: LabelMessages<CapacityOverviewAc
   everyone: m.settings_capacity_overview_access_everyone,
 };
 
-/** Localized labels for utilization display preferences. */
-export const UTILIZATION_MESSAGES: LabelMessages<keyof UtilizationPreferences> = {
+/** Localized labels for utilisation display preferences. */
+export const UTILISATION_MESSAGES: LabelMessages<keyof UtilisationPreferences> = {
   showTotal: m.settings_utilisation_show_total,
   showDiscipline: m.settings_utilisation_show_discipline,
   showPersonal: m.settings_utilisation_show_personal,

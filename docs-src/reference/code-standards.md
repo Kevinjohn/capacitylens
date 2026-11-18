@@ -88,7 +88,9 @@ and `b` inside a comparator.
 
 Parameters are at most three, subject first. A fourth parameter, or a boolean flag in any
 position, turns the list into one options object with a named type ending in `Options` or
-`Input`. Dependencies (the transaction, the clock, the fetch) are parameters, never imports of a
+`Input`. A function's only parameter stays positional,
+even a boolean: it is the subject, not a flag.
+Dependencies (the transaction, the clock, the fetch) are parameters, never imports of a
 singleton; a clock parameter may default to the current time so production callers need not pass
 it. A backend service that serves a request takes the verified actor and the transaction from its
 controller, and only controllers and middleware read the request; a service that wraps a package

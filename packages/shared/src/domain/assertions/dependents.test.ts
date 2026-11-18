@@ -120,13 +120,27 @@ describe('assertResourceKindAllowsDependents', () => {
       resources: [person('r1')],
       allocations: [allocation('al1', 'r1', 't1')],
     });
-    expect(codeOf(() => assertResourceKindAllowsDependents(loaded, A1, 'r1', 'external'))).toBe(
-      'resource_external_dependents',
-    );
+    expect(
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: loaded,
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'external',
+        }),
+      ),
+    ).toBe('resource_external_dependents');
     const away = data({ resources: [person('r1')], timeOff: [timeOff('to1', 'r1')] });
-    expect(codeOf(() => assertResourceKindAllowsDependents(away, A1, 'r1', 'external'))).toBe(
-      'resource_external_dependents',
-    );
+    expect(
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: away,
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'external',
+        }),
+      ),
+    ).toBe('resource_external_dependents');
   });
 
   it('passes for a zero-load allocation and for a non-external target kind', () => {
@@ -135,14 +149,28 @@ describe('assertResourceKindAllowsDependents', () => {
       allocations: [allocation('al1', 'r1', 't1', 0)],
     });
     expect(
-      codeOf(() => assertResourceKindAllowsDependents(zero, A1, 'r1', 'external')),
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: zero,
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'external',
+        }),
+      ),
     ).toBeUndefined();
     const loaded = data({
       resources: [person('r1')],
       allocations: [allocation('al1', 'r1', 't1')],
     });
     expect(
-      codeOf(() => assertResourceKindAllowsDependents(loaded, A1, 'r1', 'placeholder')),
+      codeOf(() =>
+        assertResourceKindAllowsDependents({
+          data: loaded,
+          companyId: A1,
+          resourceId: 'r1',
+          mergedKind: 'placeholder',
+        }),
+      ),
     ).toBeUndefined();
   });
 });
@@ -156,33 +184,40 @@ describe('assertResourceProjectAllowsDependents', () => {
   it('names the placeholder code when rebinding newly invalidates assigned work', () => {
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(
-          bound,
-          A1,
-          'r1',
-          placeholder('r1', 'p2'),
-          placeholder('r1', 'p1'),
-        ),
+        assertResourceProjectAllowsDependents({
+          data: bound,
+          companyId: A1,
+          resourceId: 'r1',
+          merged: placeholder('r1', 'p2'),
+          existing: placeholder('r1', 'p1'),
+        }),
       ),
     ).toBe('placeholder_project_dependents');
   });
 
   it('treats an omitted existing row as previously valid and still throws the domain code', () => {
     expect(
-      codeOf(() => assertResourceProjectAllowsDependents(bound, A1, 'r1', placeholder('r1', 'p2'))),
+      codeOf(() =>
+        assertResourceProjectAllowsDependents({
+          data: bound,
+          companyId: A1,
+          resourceId: 'r1',
+          merged: placeholder('r1', 'p2'),
+        }),
+      ),
     ).toBe('placeholder_project_dependents');
   });
 
   it('skips the check when neither kind nor project changed', () => {
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(
-          bound,
-          A1,
-          'r1',
-          placeholder('r1', 'p1'),
-          placeholder('r1', 'p1'),
-        ),
+        assertResourceProjectAllowsDependents({
+          data: bound,
+          companyId: A1,
+          resourceId: 'r1',
+          merged: placeholder('r1', 'p1'),
+          existing: placeholder('r1', 'p1'),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -194,13 +229,13 @@ describe('assertResourceProjectAllowsDependents', () => {
     });
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(
-          personWithWork,
-          A1,
-          'r1',
-          placeholder('r1', null),
-          person('r1'),
-        ),
+        assertResourceProjectAllowsDependents({
+          data: personWithWork,
+          companyId: A1,
+          resourceId: 'r1',
+          merged: placeholder('r1', null),
+          existing: person('r1'),
+        }),
       ),
     ).toBe('placeholder_project_dependents');
   });
@@ -212,24 +247,24 @@ describe('assertResourceProjectAllowsDependents', () => {
     });
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(
-          misbound,
-          A1,
-          'r1',
-          placeholder('r1', 'p3'),
-          placeholder('r1', 'p2'),
-        ),
+        assertResourceProjectAllowsDependents({
+          data: misbound,
+          companyId: A1,
+          resourceId: 'r1',
+          merged: placeholder('r1', 'p3'),
+          existing: placeholder('r1', 'p2'),
+        }),
       ),
     ).toBeUndefined();
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(
-          misbound,
-          A1,
-          'r1',
-          placeholder('r1', 'p1'),
-          placeholder('r1', 'p2'),
-        ),
+        assertResourceProjectAllowsDependents({
+          data: misbound,
+          companyId: A1,
+          resourceId: 'r1',
+          merged: placeholder('r1', 'p1'),
+          existing: placeholder('r1', 'p2'),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -241,13 +276,13 @@ describe('assertResourceProjectAllowsDependents', () => {
     });
     expect(
       codeOf(() =>
-        assertResourceProjectAllowsDependents(
-          orphaned,
-          A1,
-          'r1',
-          placeholder('r1', 'p2'),
-          placeholder('r1', 'p1'),
-        ),
+        assertResourceProjectAllowsDependents({
+          data: orphaned,
+          companyId: A1,
+          resourceId: 'r1',
+          merged: placeholder('r1', 'p2'),
+          existing: placeholder('r1', 'p1'),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -262,18 +297,23 @@ describe('assertActivityProjectAllowsDependents', () => {
   it('names the activity code when moving the project newly invalidates placeholder work', () => {
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(
-          bound,
-          A1,
-          't1',
-          projectActivity('t1', 'p2'),
-          projectActivity('t1', 'p1'),
-        ),
+        assertActivityProjectAllowsDependents({
+          data: bound,
+          companyId: A1,
+          activityId: 't1',
+          merged: projectActivity('t1', 'p2'),
+          existing: projectActivity('t1', 'p1'),
+        }),
       ),
     ).toBe('activity_project_dependents');
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(bound, A1, 't1', projectActivity('t1', 'p2')),
+        assertActivityProjectAllowsDependents({
+          data: bound,
+          companyId: A1,
+          activityId: 't1',
+          merged: projectActivity('t1', 'p2'),
+        }),
       ),
     ).toBe('activity_project_dependents');
   });
@@ -281,13 +321,13 @@ describe('assertActivityProjectAllowsDependents', () => {
   it('skips an unchanged edit and tolerates work that was already invalid', () => {
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(
-          bound,
-          A1,
-          't1',
-          projectActivity('t1', 'p1'),
-          projectActivity('t1', 'p1'),
-        ),
+        assertActivityProjectAllowsDependents({
+          data: bound,
+          companyId: A1,
+          activityId: 't1',
+          merged: projectActivity('t1', 'p1'),
+          existing: projectActivity('t1', 'p1'),
+        }),
       ),
     ).toBeUndefined();
     const misassigned = data({
@@ -297,13 +337,13 @@ describe('assertActivityProjectAllowsDependents', () => {
     });
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(
-          misassigned,
-          A1,
-          't1',
-          projectActivity('t1', 'p3'),
-          projectActivity('t1', 'p2'),
-        ),
+        assertActivityProjectAllowsDependents({
+          data: misassigned,
+          companyId: A1,
+          activityId: 't1',
+          merged: projectActivity('t1', 'p3'),
+          existing: projectActivity('t1', 'p2'),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -317,13 +357,13 @@ describe('assertActivityProjectAllowsDependents', () => {
     });
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(
-          legacy,
-          A1,
-          't1',
-          projectActivity('t1', 'p1'),
-          projectActivity('t1', 'p1'),
-        ),
+        assertActivityProjectAllowsDependents({
+          data: legacy,
+          companyId: A1,
+          activityId: 't1',
+          merged: projectActivity('t1', 'p1'),
+          existing: projectActivity('t1', 'p1'),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -332,13 +372,13 @@ describe('assertActivityProjectAllowsDependents', () => {
     const orphaned = data({ allocations: [allocation('al1', 'ghost', 't1')] });
     expect(
       codeOf(() =>
-        assertActivityProjectAllowsDependents(
-          orphaned,
-          A1,
-          't1',
-          projectActivity('t1', 'p2'),
-          projectActivity('t1', 'p1'),
-        ),
+        assertActivityProjectAllowsDependents({
+          data: orphaned,
+          companyId: A1,
+          activityId: 't1',
+          merged: projectActivity('t1', 'p2'),
+          existing: projectActivity('t1', 'p1'),
+        }),
       ),
     ).toBeUndefined();
   });
@@ -346,24 +386,39 @@ describe('assertActivityProjectAllowsDependents', () => {
 
 describe('assertResourceExists', () => {
   it('names the invalid, inactive and external time-off codes', () => {
-    expect(codeOf(() => assertResourceExists(data(), A1, 'r1'))).toBe('time_off_resource_invalid');
+    expect(
+      codeOf(() => assertResourceExists({ data: data(), companyId: A1, resourceId: 'r1' })),
+    ).toBe('time_off_resource_invalid');
     const archived = data({ resources: [person('r1', { archivedAt: TS })] });
-    expect(codeOf(() => assertResourceExists(archived, A1, 'r1'))).toBe(
-      'time_off_resource_inactive',
-    );
+    expect(
+      codeOf(() => assertResourceExists({ data: archived, companyId: A1, resourceId: 'r1' })),
+    ).toBe('time_off_resource_inactive');
     const externalParty = data({ resources: [person('r1', { kind: 'external' })] });
-    expect(codeOf(() => assertResourceExists(externalParty, A1, 'r1'))).toBe(
-      'time_off_external_resource',
-    );
+    expect(
+      codeOf(() => assertResourceExists({ data: externalParty, companyId: A1, resourceId: 'r1' })),
+    ).toBe('time_off_external_resource');
   });
 
   it('passes for an active person and for an unchanged archived reference', () => {
     expect(
-      codeOf(() => assertResourceExists(data({ resources: [person('r1')] }), A1, 'r1')),
+      codeOf(() =>
+        assertResourceExists({
+          data: data({ resources: [person('r1')] }),
+          companyId: A1,
+          resourceId: 'r1',
+        }),
+      ),
     ).toBeUndefined();
     const archived = data({ resources: [person('r1', { archivedAt: TS })] });
     expect(
-      codeOf(() => assertResourceExists(archived, A1, 'r1', { resourceId: 'r1' })),
+      codeOf(() =>
+        assertResourceExists({
+          data: archived,
+          companyId: A1,
+          resourceId: 'r1',
+          existing: { resourceId: 'r1' },
+        }),
+      ),
     ).toBeUndefined();
   });
 });

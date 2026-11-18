@@ -6,7 +6,7 @@ import { buildCommandRequestInit, runCommand } from './commandRequest';
 /** Build the account-owned URL for one member/person association. */
 export function memberResourceLinkUrl(companyId: string, principalId: string): string {
   return apiRouteUrl('api.member-resources.set', {
-    params: { companyId: companyId, userId: principalId },
+    params: { companyId, userId: principalId },
   });
 }
 

@@ -34,7 +34,7 @@ type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
  */
 export const memberRequests = {
   listMembers(companyId: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.members.index', { params: { companyId: companyId } }), {
+    return apiFetch(apiRouteUrl('api.members.index', { params: { companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
@@ -48,7 +48,7 @@ export const memberRequests = {
     companyId,
     enabled,
   }: SetMemberSignInTrackingOptions): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.members.tracking', { params: { companyId: companyId } }), {
+    return apiFetch(apiRouteUrl('api.members.tracking', { params: { companyId } }), {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ export const memberRequests = {
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.members.role', {
-            params: { companyId: companyId, userId: principalId },
+            params: { companyId, userId: principalId },
           }),
           buildJsonCommandRequestInit('PATCH', { role }, resolved),
         ),
@@ -87,7 +87,7 @@ export const memberRequests = {
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.members.status', {
-            params: { companyId: companyId, userId: principalId },
+            params: { companyId, userId: principalId },
           }),
           buildJsonCommandRequestInit('PATCH', { status }, resolved),
         ),
@@ -105,7 +105,7 @@ export const memberRequests = {
       explicit: command,
       request: (resolved) =>
         apiFetch(
-          apiRouteUrl('api.ownership.transfer', { params: { companyId: companyId } }),
+          apiRouteUrl('api.ownership.transfer', { params: { companyId } }),
           buildJsonCommandRequestInit(
             'POST',
             { toUserId: targetPrincipalId, confirmationId },

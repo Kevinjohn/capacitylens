@@ -361,7 +361,7 @@ export class StubPlanningTransport implements PlanningTransport {
         updatedAt: now,
         ...fields,
         id,
-        ...(entity === 'accounts' ? {} : { companyId: companyId }),
+        ...(entity === 'accounts' ? {} : { companyId }),
       } as Row;
       this.replaceRows(entity, [...this.rows(entity).filter((current) => current.id !== id), row]);
     };

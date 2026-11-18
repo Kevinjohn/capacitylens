@@ -61,7 +61,7 @@ function resolveTrimmedValue(value: string | null | undefined, fallback: string)
 
 /** Label for one allocation status, for the render sites that hold a single status and would
  * otherwise build (and discard) the whole map to read one key out of it. An unrecognised runtime
- * value from legacy or hand-edited data renders blank instead of taking down the scheduler. */
+ * value from hand-edited data renders blank instead of taking down the scheduler. */
 export function resolveAllocationStatusLabel(status: AllocationStatus): string {
   return resolveMessage(allocationStatusMessages, status);
 }

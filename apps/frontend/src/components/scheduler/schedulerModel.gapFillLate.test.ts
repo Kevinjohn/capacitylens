@@ -25,9 +25,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     });
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
@@ -66,9 +66,9 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     // Even a capacity entry for the external partner draws no overSoon.
     const model = buildSchedulerModel({
       data: d,
-      geom: geom,
-      days: days,
-      visibleWindow: { start: start, end: end },
+      geom,
+      days,
+      visibleWindow: { start, end },
       capacity: capacityOver({ from: start, to: end }, { ext1: { overSoon: true } }),
       filters: buildEmptyFilters(),
       preferences: {

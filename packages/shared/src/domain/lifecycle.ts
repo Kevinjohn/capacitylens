@@ -1,4 +1,4 @@
-// Pure lifecycle helpers retained for archive/restore and legacy deletion-state compatibility.
+// Pure lifecycle helpers for archive and restore, and for reading a row's deletion state.
 // Current resource and catalogue actions archive or restore; other planning deletion/recovery
 // has its own ledger. Explicit timestamps keep these helpers independent of an ambient clock.
 //

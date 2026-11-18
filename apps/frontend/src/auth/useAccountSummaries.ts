@@ -163,7 +163,7 @@ export async function refreshAccountSummaries(requestOptions?: {
   if (list !== null && callerAcceptsEffects()) {
     const published = useStore
       .getState()
-      .setAccountSummaries({ list: list, requestId: requestId, complete: completeness.value });
+      .setAccountSummaries({ list, requestId, complete: completeness.value });
     const activeAccountId = useStore.getState().activeAccountId;
     if (
       published &&
