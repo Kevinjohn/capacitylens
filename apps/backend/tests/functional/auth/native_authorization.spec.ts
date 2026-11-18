@@ -6,7 +6,7 @@ import type { ApiClient } from '@japa/api-client';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
-import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '../../helpers/identities.js';
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
@@ -86,7 +86,7 @@ async function writeDismissal(client: ApiClient, cookie: string) {
 }
 
 async function importSeed(client: ApiClient, cookie: string) {
-  const document = buildBetaExport(await readState(accountId, true), {
+  const document = buildCompanyExport(await readState(accountId, true), {
     accountId,
     completeness: 'full',
   });

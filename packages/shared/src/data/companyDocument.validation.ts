@@ -20,9 +20,9 @@ import {
   placeholderCapacityDefaults,
 } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
-import { assert, isId, isOneOf, own } from './betaTransfer.errors.js';
-import { FIELDS } from './betaTransfer.fields.js';
-import type { Row } from './betaTransfer.fields.js';
+import { assert, isId, isOneOf, own } from './companyDocument.errors.js';
+import { FIELDS } from './companyDocument.fields.js';
+import type { Row } from './companyDocument.fields.js';
 
 const weekdays = [0, 1, 2, 3, 4, 5, 6];
 const nullable = (value: unknown, test: (candidate: unknown) => boolean) =>

@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
-  BetaTransferError,
-  buildBetaExport,
-  parseBetaExport,
-  prepareBetaImport,
-  type BetaExportDocument,
-} from '@capacitylens/shared/data/betaTransfer';
+  CompanyDocumentError,
+  buildCompanyExport,
+  parseCompanyExport,
+  prepareCompanyImport,
+  type CompanyExportDocument,
+} from '@capacitylens/shared/data/companyDocument';
 import {
   APP_DATA_KEYS,
   SCOPED_KEYS,
@@ -21,27 +21,27 @@ import { writeAudit } from '#services/audit';
 import { discardRestorationGroups } from '#services/planning/restoration';
 
 /**
- * Validates a document taken from a parsed request body, throwing a {@link BetaTransferError} that
+ * Validates a document taken from a parsed request body, throwing a {@link CompanyDocumentError} that
  * names the reason when it is not a valid export. Nesting too deep to serialise is one such reason;
  * any other failure propagates.
  */
-export function readRequestDocument(value: unknown): BetaExportDocument {
+export function readRequestDocument(value: unknown): CompanyExportDocument {
   try {
-    return parseBetaExport(JSON.stringify(value));
+    return parseCompanyExport(JSON.stringify(value));
   } catch (error) {
     if (error instanceof RangeError) {
-      throw new BetaTransferError('document', 'is nested too deeply');
+      throw new CompanyDocumentError('document', 'is nested too deeply');
     }
     throw error;
   }
 }
 
 /** Like {@link readRequestDocument}, but returns null instead of naming why the document is invalid. */
-export function parseRequestDocument(value: unknown): BetaExportDocument | null {
+export function parseRequestDocument(value: unknown): CompanyExportDocument | null {
   try {
     return readRequestDocument(value);
   } catch (error) {
-    if (error instanceof BetaTransferError) return null;
+    if (error instanceof CompanyDocumentError) return null;
     throw error;
   }
 }
@@ -58,7 +58,7 @@ function fingerprint(data: AppData) {
 }
 
 function portableFingerprint(data: AppData, accountId: string) {
-  return fingerprint(buildBetaExport(data, { accountId, completeness: 'full' }).data);
+  return fingerprint(buildCompanyExport(data, { accountId, completeness: 'full' }).data);
 }
 
 // Scheduling IDs are primary keys across every company, so a document exported from another
@@ -109,14 +109,14 @@ async function context(trx: TransactionClientContract, accountId: string) {
  * Validates one full document against current company links and returns its visible impact: the
  * document's company name and its row count per scoped table.
  */
-export async function previewBetaAccountTransfer(
+export async function previewCompanyImport(
   trx: TransactionClientContract,
   accountId: string,
-  document: BetaExportDocument
+  document: CompanyExportDocument
 ) {
   const current = await readStateWithClient(trx, accountId, true);
   if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
-  const prepared = prepareBetaImport(document, await context(trx, accountId));
+  const prepared = prepareCompanyImport(document, await context(trx, accountId));
   await assertNoForeignIdCollision(trx, accountId, prepared.data);
   const changed = portableFingerprint(current, accountId) !== fingerprint(prepared.data);
   const baseRevision = await getPlanningRevision(trx, accountId);
@@ -132,10 +132,10 @@ export async function previewBetaAccountTransfer(
 }
 
 /** Replaces the company slice with stable IDs; the caller owns authorization and password confirmation consumption. */
-export async function applyBetaAccountTransfer(
+export async function applyCompanyImport(
   trx: TransactionClientContract,
   accountId: string,
-  document: BetaExportDocument,
+  document: CompanyExportDocument,
   baseRevision: number,
   actorId: string
 ) {
@@ -150,7 +150,7 @@ export async function applyBetaAccountTransfer(
       'IMPORT_SNAPSHOT_STALE'
     );
   }
-  const prepared = prepareBetaImport(document, await context(trx, accountId));
+  const prepared = prepareCompanyImport(document, await context(trx, accountId));
   await assertNoForeignIdCollision(trx, accountId, prepared.data);
   if (portableFingerprint(current, accountId) === fingerprint(prepared.data)) {
     return { imported: prepared.imported, changed: false, revision };

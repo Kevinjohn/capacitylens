@@ -1,6 +1,9 @@
 import { test, expect } from './fixtures';
 import type { APIRequestContext, Page } from './fixtures';
-import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import {
+  buildCompanyExport,
+  serializeCompanyExport,
+} from '@capacitylens/shared/data/companyDocument';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from './authTestSupport';
 import { waitForAppLanding } from './browserTestSupport';
@@ -26,11 +29,11 @@ async function companyState(
   return (await response.json()) as AppData;
 }
 
-async function chooseFile(page: Page, document: ReturnType<typeof buildBetaExport>) {
+async function chooseFile(page: Page, document: ReturnType<typeof buildCompanyExport>) {
   await page.getByTestId('import-input').setInputFiles({
     name: 'wayne-transfer.json',
     mimeType: 'application/json',
-    buffer: Buffer.from(serializeBetaExport(document)),
+    buffer: Buffer.from(serializeCompanyExport(document)),
   });
   await page.getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByRole('alertdialog', { name: 'Import data?' })).toBeVisible();
@@ -43,7 +46,7 @@ test('an Owner previews, cancels, then confirms one password-bound company impor
   const owner = await signUpUser(OWNER, 'Bruce Wayne');
   const accountId = await bootstrapOrg(request, owner.cookie, COMPANY);
   const before = await companyState(request, owner.cookie, accountId);
-  const document = buildBetaExport(before, { accountId, completeness: 'full' });
+  const document = buildCompanyExport(before, { accountId, completeness: 'full' });
   const account = document.data.accounts[0];
   if (!account) throw new Error('The company export is empty.');
   account.name = `Wayne Transfer Restored ${STAMP}`;

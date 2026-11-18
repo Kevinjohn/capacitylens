@@ -7,7 +7,7 @@ import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { buildBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import { admissionDecision, actorIn, kitContextIn, withActor } from '#services/auth/current_actor';
 import { withTransaction } from '#services/with_transaction';
@@ -201,7 +201,7 @@ test.group('package proof adoption boundaries', (group) => {
   }) => {
     const { cookie } = await resetAuthenticatedData(client);
     const scope = 'x'.repeat(256);
-    const document = buildBetaExport(await readState(accountId, true), {
+    const document = buildCompanyExport(await readState(accountId, true), {
       accountId,
       completeness: 'full',
     });

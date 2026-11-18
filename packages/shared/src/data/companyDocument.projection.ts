@@ -1,12 +1,12 @@
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import type { AppData } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
-import { fail, own } from './betaTransfer.errors.js';
-import { FIELDS } from './betaTransfer.fields.js';
-import type { Row } from './betaTransfer.fields.js';
+import { fail, own } from './companyDocument.errors.js';
+import { FIELDS } from './companyDocument.fields.js';
+import type { Row } from './companyDocument.fields.js';
 
 /** Copy only the named portable fields for one already scoped account. */
-export function projectBetaData(data: AppData, accountId: string): AppData {
+export function projectCompanyData(data: AppData, accountId: string): AppData {
   const projected = {} as AppData;
   for (const key of APP_DATA_KEYS) {
     const source = data[key] as unknown[];

@@ -7,7 +7,7 @@ import { m } from '@/i18n';
 import { Button } from './ui/button';
 import { reloadPage } from '@/lib/reloadPage';
 import { useServerImport } from './import-export/useServerImport';
-import { BetaImportPreview } from './import-export/BetaImportPreview';
+import { ImportPreview } from './import-export/ImportPreview';
 import { summarize } from './import-export/importExportMessages';
 import { useExportAction } from './import-export/useExportAction';
 import { usePendingImport } from './import-export/usePendingImport';
@@ -211,7 +211,7 @@ export function ImportExport() {
           }}
           guardDirty={false}
         >
-          <BetaImportPreview
+          <ImportPreview
             preview={preview}
             error={previewError}
             onContinue={() => preview && setContinued(true)}

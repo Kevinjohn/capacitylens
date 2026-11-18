@@ -48,10 +48,10 @@
       "types": "./src/data/seed.ts",
       "default": "./dist/data/seed.js"
     },
-    "./data/betaTransfer": {
-      "development": "./src/data/betaTransfer.ts",
-      "types": "./src/data/betaTransfer.ts",
-      "default": "./dist/data/betaTransfer.js"
+    "./data/companyDocument": {
+      "development": "./src/data/companyDocument.ts",
+      "types": "./src/data/companyDocument.ts",
+      "default": "./dist/data/companyDocument.js"
     },
     "./domain/access": {
       "development": "./src/domain/access.ts",
