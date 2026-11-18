@@ -46,7 +46,7 @@ export function CompanyAnonymiseSection() {
     }
     inFlight.current = true;
     const submittedGeneration = generation.current;
-    const stillCurrent = () =>
+    const isCurrent = () =>
       generation.current === submittedGeneration &&
       useStore.getState().activeAccountId === companyId;
     setBusy(true);
@@ -66,13 +66,13 @@ export function CompanyAnonymiseSection() {
         failure.kind === 'status'
           ? `HTTP ${failure.status} left the operation outcome uncertain.`
           : resolveErrorMessage(failure.cause);
-      if (stillCurrent()) {
+      if (isCurrent()) {
         setRequiresReload(true);
         setNotice(message, 'error');
       } else reloadPage();
       return;
     }
-    if (stillCurrent()) {
+    if (isCurrent()) {
       if (outcome.kind === 'blocked') setNotice(m.data_import_blocked_unsynced(), 'error');
       if (outcome.kind === 'refused') {
         setNotice(
@@ -83,7 +83,7 @@ export function CompanyAnonymiseSection() {
     }
     inFlight.current = false;
     setBusy(false);
-    if (stillCurrent()) setConfirming(false);
+    if (isCurrent()) setConfirming(false);
   };
 
   return (
