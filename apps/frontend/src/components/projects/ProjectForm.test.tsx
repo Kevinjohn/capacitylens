@@ -293,6 +293,15 @@ describe('ProjectForm', () => {
     );
     renderOwner(<ProjectForm project={project} onClose={onClose} />);
 
+    queuePlanningPatch(() => ({
+      upserts: [
+        {
+          entity: 'projects',
+          row: { ...project, color: '#e02727', updatedAt: '2098-01-01T00:00:00.000Z' },
+        },
+      ],
+      removed: [],
+    }));
     await useStore.getState().updateProject(project.id, { color: '#e02727' });
     await user.clear(screen.getByLabelText('Name'));
     await user.type(screen.getByLabelText('Name'), 'Launch renamed');

@@ -1,4 +1,5 @@
 import { requireCreated } from '@/test/requireCreated';
+import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render as renderTestingLibrary, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -295,6 +296,15 @@ it('rejects a stale edit instead of overwriting a concurrently changed client', 
   );
   render(<ClientForm client={client} onClose={onClose} />);
 
+  queuePlanningPatch(() => ({
+    upserts: [
+      {
+        entity: 'clients',
+        row: { ...client, color: '#e02727', updatedAt: '2098-01-01T00:00:00.000Z' },
+      },
+    ],
+    removed: [],
+  }));
   await useStore.getState().updateClient(client.id, { color: '#e02727' });
   await user.clear(screen.getByLabelText('Name'));
   await user.type(screen.getByLabelText('Name'), 'Ferris renamed');
