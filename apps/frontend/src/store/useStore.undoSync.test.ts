@@ -1,5 +1,5 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from './useStore';
 import {
   DEFAULT_ACCOUNT_ID,
@@ -15,6 +15,9 @@ const T = '2026-01-01T00:00:00.000Z';
 const meta = { companyId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('typed undo restores cascade bindings', () => {
   it('re-stamps an undo whose content is identical but stored revision changed', async () => {
@@ -27,10 +30,14 @@ describe('typed undo restores cascade bindings', () => {
       DEFAULT_ACCOUNT_ID,
     );
 
+    // Pin the clock so the save and the undo cannot share a millisecond on a fast runner.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-02-01T09:00:00.000Z'));
     await useStore.getState().updateClient('c1', { name: 'Changed' });
     const afterNoOpSave = useStore.getState().data;
     const savedRevision = requireValue(afterNoOpSave.clients[0], 'saved client').updatedAt;
     expect(afterNoOpSave.clients[0]?.name).toBe('Changed');
+    vi.setSystemTime(new Date('2026-02-01T09:00:00.001Z'));
     await useStore.getState().undoPlanning();
 
     expect(useStore.getState().data.clients[0]).toMatchObject({ name: 'Client', color: '#111111' });
