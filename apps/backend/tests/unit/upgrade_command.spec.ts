@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import { cpSync, copyFileSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, realpath, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -310,7 +310,7 @@ test('a failing later migration rolls back its own DDL after an earlier file com
 test('upgrade fallback creates a private backup directory without changing its parent', async ({
   assert,
 }) => {
-  const root = await mkdtemp(join(tmpdir(), 'capacitylens-upgrade-'));
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'capacitylens-upgrade-')));
   try {
     const databasePath = join(root, 'live.db');
     const database = new Database(databasePath);
