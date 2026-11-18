@@ -258,10 +258,6 @@ jobs:
             target: Linux x64
             platform: linux
             architecture: x64
-          - runner: macos-15
-            target: macOS arm64
-            platform: darwin
-            architecture: arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
     steps:
