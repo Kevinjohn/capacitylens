@@ -56,7 +56,7 @@ export async function requireConfirmedAdmission(account: KitContext['account'], 
  * that does not use the effective guard. The package caches one admission per request, and this
  * reads it before the product transaction opens.
  */
-async function admittedMasqueradeContext(ctx: HttpContext): Promise<ResolvedContext | undefined> {
+async function admitMasqueradeContext(ctx: HttpContext): Promise<ResolvedContext | undefined> {
   const runtime = await ctx.containerResolver.make('masquerade.runtime');
   if (runtime.selectGuard(ctx).kind !== 'effective') return undefined;
   const admitted = await runtime.admit(ctx);
@@ -76,7 +76,7 @@ export async function withActor<T>(
   options: { limited?: boolean } = {}
 ): Promise<T> {
   const input = await managedGuard.current(ctx);
-  const masqueradeContext = await admittedMasqueradeContext(ctx);
+  const masqueradeContext = await admitMasqueradeContext(ctx);
   return accountKit.authentication.withCurrent(input, async (context) => {
     const { account, signInId, trx } = context;
     if (signInId === undefined) throw new InvalidSessionError();
@@ -128,7 +128,7 @@ export function kitContextIn(trx: Trx): KitContext {
  * The caller's verified sign-in for request-wide checks, or null when the request carries none or
  * it is no longer valid. Route handlers still authorize through `withActor`.
  */
-export async function signedInSession(ctx: HttpContext) {
+export async function getSignedInSession(ctx: HttpContext) {
   if (!ctx.session.get(handleKey)) return null;
   try {
     return await withActor(ctx, async (actor) => actor, { limited: true });

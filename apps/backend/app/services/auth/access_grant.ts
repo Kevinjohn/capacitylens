@@ -17,7 +17,7 @@ const permissionKeys = Object.entries(accessPermissions).flatMap(([resource, act
  * controls. A view-as is read-only, so it keeps only `planning:read`; the flags stay the role's,
  * matching the projection the target receives. Server enforcement does not read this.
  */
-export function accessGrant(role: Role, viewingAs: boolean): AccessGrant {
+export function buildAccessGrant(role: Role, viewingAs: boolean): AccessGrant {
   const held = permissionKeys.filter((key) => access.can(role, key));
   return {
     permissions: viewingAs ? held.filter((key) => key === 'planning:read') : held,

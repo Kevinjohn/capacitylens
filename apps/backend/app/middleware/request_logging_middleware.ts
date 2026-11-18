@@ -1,18 +1,18 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import env from '#start/env';
-import { safeRequestMethod, safeRoutePattern } from '#services/logging_safety';
+import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety';
 
 /** Emit one bounded completion record for every request, including parser and route failures. */
 export default class RequestLoggingMiddleware {
   async handle(ctx: HttpContext, next: () => Promise<void>) {
-    const method = safeRequestMethod(ctx.request.method());
+    const method = normalizeRequestMethod(ctx.request.method());
     try {
       await next();
     } finally {
       if (env.get('CAPACITYLENS_LOG') === '1') {
         const status = ctx.response.getStatus();
         const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
-        const path = safeRoutePattern(ctx.route?.pattern);
+        const path = normalizeRoutePattern(ctx.route?.pattern);
         try {
           ctx.logger.log(
             level,

@@ -4,8 +4,8 @@ import { catalogueIntent } from '#validators/planning/catalogue';
 import { closureIntent } from '#validators/planning/closure';
 import {
   meta,
-  operationMatches,
-  operationStartsWith,
+  hasOperation,
+  hasOperationPrefix,
   revision,
   uuid,
 } from '#validators/planning/fields';
@@ -15,14 +15,14 @@ import { timeOffIntent } from '#validators/planning/time_off';
 
 const planningIntent = vine.union([
   vine.union.if(
-    (value) => operationMatches(value, 'planning.restoreGroup'),
+    (value) => hasOperation(value, 'planning.restoreGroup'),
     vine.object({ operation: vine.literal('planning.restoreGroup'), restorationGroupId: uuid() })
   ),
-  vine.union.if((value) => operationStartsWith(value, 'allocation.'), allocationIntent),
-  vine.union.if((value) => operationStartsWith(value, 'catalogue.'), catalogueIntent),
-  vine.union.if((value) => operationStartsWith(value, 'resource.'), resourceIntent),
-  vine.union.if((value) => operationStartsWith(value, 'timeOff.'), timeOffIntent),
-  vine.union.if((value) => operationStartsWith(value, 'closure.'), closureIntent),
+  vine.union.if((value) => hasOperationPrefix(value, 'allocation.'), allocationIntent),
+  vine.union.if((value) => hasOperationPrefix(value, 'catalogue.'), catalogueIntent),
+  vine.union.if((value) => hasOperationPrefix(value, 'resource.'), resourceIntent),
+  vine.union.if((value) => hasOperationPrefix(value, 'timeOff.'), timeOffIntent),
+  vine.union.if((value) => hasOperationPrefix(value, 'closure.'), closureIntent),
   vine.union.else(settingsIntent),
 ]);
 

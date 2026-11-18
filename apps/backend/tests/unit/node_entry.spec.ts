@@ -1,4 +1,4 @@
-import { supportsNodeVersion } from '#start/node_version';
+import { isSupportedNodeVersion } from '#start/node_version';
 import { test } from '@japa/runner';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -40,9 +40,9 @@ test('native web and Ace entries refuse unsupported Node before creating a datab
 
 test('native server runtime versions preserve the released acceptance boundary', ({ assert }) => {
   for (const version of ['24.19.0', '24.21.0', '26.9.0', '26.11.1'])
-    assert.isTrue(supportsNodeVersion(version), version);
+    assert.isTrue(isSupportedNodeVersion(version), version);
   for (const version of ['22.0.0', '24.18.9', '25.0.0', '26.8.9', '27.0.0', '24.19', 'v24.19.0'])
-    assert.isFalse(supportsNodeVersion(version), version);
+    assert.isFalse(isSupportedNodeVersion(version), version);
 });
 
 test('native web entry reports an invalid environment through the framework printer', ({

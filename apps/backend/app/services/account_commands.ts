@@ -43,7 +43,7 @@ export function parseAccountCommand(
 }
 
 /** Adapts package refusals to the existing account-command HTTP contract. */
-export function toAccountCommandError(error: unknown): unknown {
+export function mapAccountCommandError(error: unknown): unknown {
   if (error instanceof E_DUPLICATE_REQUEST_CONFLICT) {
     return new AccountCommandError('Command identity already used.', 409, 'IDEMPOTENCY_CONFLICT');
   }
@@ -63,6 +63,6 @@ export async function runAccountCommand<Payload, Authorization, Result>(
     return outcome.result;
   } catch (error) {
     // Translate package refusals; other failures retain their identity for rollback and reporting.
-    throw toAccountCommandError(error);
+    throw mapAccountCommandError(error);
   }
 }

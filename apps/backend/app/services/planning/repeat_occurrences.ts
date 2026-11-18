@@ -35,7 +35,7 @@ interface FirstAllocation {
  *
  * @throws PlanningOperationError 400 when the repeat or a projected span is invalid.
  */
-export function allocationOccurrences(
+export function buildAllocationOccurrences(
   data: AppData,
   companyId: string,
   first: FirstAllocation,
@@ -72,7 +72,7 @@ export function allocationOccurrences(
  *
  * @throws PlanningOperationError 400 when the repeat or a projected span is invalid.
  */
-export function timeOffOccurrences(
+export function buildTimeOffOccurrences(
   first: { startDate: ISODate; endDate: ISODate },
   repeat: RepeatRange
 ): Array<{ startDate: ISODate; endDate: ISODate }> {

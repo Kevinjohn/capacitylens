@@ -25,13 +25,13 @@ export function classifyLogError(error: unknown): string {
 }
 
 /** Keep request methods bounded before they enter structured diagnostics. */
-export function safeRequestMethod(method: string): string {
+export function normalizeRequestMethod(method: string): string {
   const normalized = method.toUpperCase();
   return SAFE_METHODS.has(normalized) ? normalized : 'OTHER';
 }
 
 /** Log only framework route patterns, never caller-controlled unmatched paths. */
-export function safeRoutePattern(pattern: string | undefined): string {
+export function normalizeRoutePattern(pattern: string | undefined): string {
   if (!pattern || pattern.length > 256 || !pattern.startsWith('/')) return '[unmatched]';
   return pattern;
 }

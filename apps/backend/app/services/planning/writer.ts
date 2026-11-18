@@ -18,7 +18,7 @@ export type Row = Record<string, unknown> & { id: string };
  * Returns a table's rows as untyped records. The write path treats every table's rows this way;
  * this is the single seam where the typed snapshot is widened.
  */
-export function rowsOf(data: AppData, table: AppDataKey): Row[] {
+export function listRows(data: AppData, table: AppDataKey): Row[] {
   return data[table] as unknown as Row[];
 }
 
@@ -62,7 +62,7 @@ export async function writeRow({
     Object.assign(existing, row);
   } else {
     await trx.table(tables[table]).insert(encodeRow(tables[table], row));
-    rowsOf(data, table).push(row as Row);
+    listRows(data, table).push(row as Row);
   }
   return row;
 }

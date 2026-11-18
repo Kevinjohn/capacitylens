@@ -4,7 +4,7 @@ import env from '#start/env';
 
 const maxLimit = 1_000_000;
 
-export function configuredApiLimit(): number {
+export function readApiLimit(): number {
   const raw = env.get('CAPACITYLENS_RATE_LIMIT');
   if (raw === undefined || raw === '') return app.inProduction ? 300 : 0;
   if (!/^\d+$/.test(raw)) return 0;

@@ -47,7 +47,7 @@ export type RefusalSurface = 'product' | 'planning' | 'admission';
  * Admission refusals carry the decision so the limited screens can explain it. Planning routes use
  * their own shorter wording; `account_gate.spec.ts` pins both.
  */
-export function admissionRequiredResponse(
+export function buildAdmissionRequiredResponse(
   error: AdmissionRequiredError,
   surface: Exclude<RefusalSurface, 'admission'>
 ): SharedRefusal {
@@ -128,14 +128,14 @@ const MASQUERADE_RESPONSES: Record<string, { status: number; code: string; messa
   },
 };
 
-function masqueradeResponse(error: MasqueradeError): HttpErrorResponse | undefined {
+function buildMasqueradeResponse(error: MasqueradeError): HttpErrorResponse | undefined {
   const known = Object.hasOwn(MASQUERADE_RESPONSES, error.code)
     ? MASQUERADE_RESPONSES[error.code]
     : undefined;
   return known && { status: known.status, body: { error: known.message, code: known.code } };
 }
 
-function confirmationResponse(error: unknown): HttpErrorResponse | undefined {
+function buildConfirmationResponse(error: unknown): HttpErrorResponse | undefined {
   if (
     error instanceof PasswordConfirmationRequiredException ||
     error instanceof PasswordConfirmationStaleException ||
@@ -168,7 +168,7 @@ function confirmationResponse(error: unknown): HttpErrorResponse | undefined {
   }
 }
 
-function parserFailureResponse(error: unknown): HttpErrorResponse | undefined {
+function buildParserFailureResponse(error: unknown): HttpErrorResponse | undefined {
   if (
     error instanceof Error &&
     'status' in error &&
@@ -224,7 +224,7 @@ const CONSTRAINT_CODES = new Set([
   'SQLITE_CONSTRAINT_CHECK',
 ]);
 
-function frameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
+function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
   if (typeof error !== 'object' || error === null) return;
   const code = 'code' in error ? error.code : undefined;
   if (code === 'E_ROUTE_NOT_FOUND') {
@@ -272,10 +272,12 @@ function frameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
  */
 export function mapHttpError(error: unknown): HttpErrorResponse | undefined {
   if (error instanceof MasqueradeError) {
-    const masquerade = masqueradeResponse(error);
+    const masquerade = buildMasqueradeResponse(error);
     if (masquerade) return masquerade;
   }
-  if (error instanceof AdmissionRequiredError) return admissionRequiredResponse(error, 'product');
+  if (error instanceof AdmissionRequiredError) {
+    return buildAdmissionRequiredResponse(error, 'product');
+  }
   const kitRefusal = buildKitRefusal(error);
   if (kitRefusal) {
     return {
@@ -289,7 +291,7 @@ export function mapHttpError(error: unknown): HttpErrorResponse | undefined {
   const accessRefusal = buildAccessRefusal(error);
   if (accessRefusal) return { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } };
   if (error instanceof RefusalError) return { status: error.status, body: error.body() };
-  const confirmation = confirmationResponse(error);
+  const confirmation = buildConfirmationResponse(error);
   if (confirmation) return confirmation;
   if (error instanceof IdentityAuthorityError) return identityAuthorityResponse(error, 'product');
   if (error instanceof vineErrors.E_VALIDATION_ERROR) {
@@ -301,5 +303,5 @@ export function mapHttpError(error: unknown): HttpErrorResponse | undefined {
       } satisfies ProductValidationFailure['body'],
     };
   }
-  return parserFailureResponse(error) ?? frameworkCodeResponse(error);
+  return buildParserFailureResponse(error) ?? buildFrameworkCodeResponse(error);
 }

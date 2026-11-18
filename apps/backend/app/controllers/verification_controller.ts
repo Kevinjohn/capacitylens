@@ -8,7 +8,7 @@ import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
 import { currentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
 
-function tokenBody(value: unknown, extra: string[] = []): Record<string, unknown> | null {
+function parseTokenBody(value: unknown, extra: string[] = []): Record<string, unknown> | null {
   const body = value;
   if (!hasOnlyFields(body, ['token', ...extra])) return null;
   return typeof body.token === 'string' && body.token.length > 0 && body.token.length <= 512
@@ -43,7 +43,7 @@ export default class VerificationController {
   /** Reports whether a confirmation link is still usable without spending it. */
   async inspect(ctx: HttpContext) {
     proofHeaders(ctx);
-    const body = tokenBody(ctx.request.body());
+    const body = parseTokenBody(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid confirmation request.' });
     return ctx.response.ok({
       valid: await accountKit.emailVerification.inspect({ token: body.token as string }),
@@ -56,7 +56,7 @@ export default class VerificationController {
    */
   async complete(ctx: HttpContext) {
     proofHeaders(ctx);
-    const body = tokenBody(ctx.request.body(), ['password']);
+    const body = parseTokenBody(ctx.request.body(), ['password']);
     if (!body || typeof body.password !== 'string' || passwordLengthFailure(body.password)) {
       return ctx.response.badRequest({ error: 'Invalid confirmation request.' });
     }

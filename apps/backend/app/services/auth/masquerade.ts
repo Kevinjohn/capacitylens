@@ -24,7 +24,7 @@ import {
 } from '#services/auth/authorization';
 import { canViewAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
-import { accessGrant } from '#services/auth/access_grant';
+import { buildAccessGrant } from '#services/auth/access_grant';
 
 export { PackageMasqueradeError as MasqueradeError };
 
@@ -104,7 +104,7 @@ export async function currentMasquerade(
     contextToken: view.contextToken,
     token: view.contextToken,
     principal: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
-    ...accessGrant(effectiveRole, true),
+    ...buildAccessGrant(effectiveRole, true),
   };
 }
 

@@ -19,7 +19,7 @@ import {
   nullableId,
   nullableUserText,
   number,
-  operationMatches,
+  hasOperation,
   presetColor,
   requireChanges,
   resourceAvatar,
@@ -71,7 +71,7 @@ const resourceChanges = {
 
 export const resourceIntent = vine.union([
   vine.union.if(
-    (value) => operationMatches(value, 'resource.create'),
+    (value) => hasOperation(value, 'resource.create'),
     vine.object({
       operation: vine.literal('resource.create'),
       id: uuid(),
@@ -150,7 +150,7 @@ export const resourceIntent = vine.union([
     })
   ),
   vine.union.if(
-    (value) => operationMatches(value, 'resource.update'),
+    (value) => hasOperation(value, 'resource.update'),
     vine.object({
       operation: vine.literal('resource.update'),
       id: entityId(),

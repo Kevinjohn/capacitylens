@@ -4,7 +4,7 @@ import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planni
 type Restoration = PlanningMutationSuccess['restoration'];
 
 /** The earlier values of exactly the fields an update supplied; an absent value restores as null. */
-function earlierValues(row: object | undefined, changes: object) {
+function buildEarlierValues(row: object | undefined, changes: object) {
   if (!row) return null;
   return Object.fromEntries(
     Object.keys(changes).map((field) => [field, (Reflect.get(row, field) as unknown) ?? null])
@@ -21,7 +21,7 @@ function restore(restoration: Restoration): PlanningIntent | null {
  * The intent that reverses a committed one, built from the state it replaced. Null means the change
  * cannot be undone. A restore has no inverse here: only its caller knows the delete it reversed.
  */
-export function inverseIntent(
+export function buildInverseIntent(
   intent: PlanningIntent,
   before: AppData,
   companyId: string,
@@ -38,7 +38,7 @@ export function inverseIntent(
     case 'allocation.duplicate':
       return { operation: 'allocation.delete', id: intent.occurrence.id };
     case 'allocation.update': {
-      const changes = earlierValues(
+      const changes = buildEarlierValues(
         before.allocations.find((row) => row.id === intent.id),
         intent.changes
       );
@@ -54,7 +54,7 @@ export function inverseIntent(
     }
     case 'catalogue.update': {
       const { entity, id } = intent.entity;
-      const changes = earlierValues(
+      const changes = buildEarlierValues(
         before[entity].find((row) => row.id === id),
         intent.entity.changes
       );
@@ -76,7 +76,7 @@ export function inverseIntent(
     case 'resource.create':
       return { operation: 'resource.archive', id: intent.id };
     case 'resource.update': {
-      const changes = earlierValues(
+      const changes = buildEarlierValues(
         before.resources.find((row) => row.id === intent.id),
         intent.changes
       );
@@ -96,7 +96,7 @@ export function inverseIntent(
         ids: [intent.timeOff.id, ...intent.occurrenceIds],
       };
     case 'timeOff.update': {
-      const changes = earlierValues(
+      const changes = buildEarlierValues(
         before.timeOff.find((row) => row.id === intent.id),
         intent.changes
       );
@@ -105,14 +105,14 @@ export function inverseIntent(
     case 'closure.create':
       return { operation: 'closure.delete', id: intent.id };
     case 'closure.update': {
-      const changes = earlierValues(
+      const changes = buildEarlierValues(
         before.closures.find((row) => row.id === intent.id),
         intent.changes
       );
       return changes && ({ operation: 'closure.update', id: intent.id, changes } as PlanningIntent);
     }
     case 'settings.update': {
-      const changes = earlierValues(
+      const changes = buildEarlierValues(
         before.accounts.find((row) => row.id === companyId),
         intent.changes
       );

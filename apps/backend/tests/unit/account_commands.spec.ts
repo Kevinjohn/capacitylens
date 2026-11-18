@@ -4,7 +4,7 @@ import {
   E_DUPLICATE_REQUEST_CONFLICT,
   E_INVALID_COMMAND_VALUE,
 } from '@kevinjohn/adonisjs-duplicate-request-guard';
-import { toAccountCommandError } from '#services/account_commands';
+import { mapAccountCommandError } from '#services/account_commands';
 import { renderAdmissionFailure } from '#services/admission/http';
 
 test('package command refusals retain the exact HTTP status and body', ({ assert }) => {
@@ -27,8 +27,8 @@ test('package command refusals retain the exact HTTP status and body', ({ assert
         }),
       },
     } as unknown as HttpContext;
-    assert.deepEqual(renderAdmissionFailure(ctx, toAccountCommandError(error)), { status, body });
+    assert.deepEqual(renderAdmissionFailure(ctx, mapAccountCommandError(error)), { status, body });
   }
   const unexpected = new Error('Database unavailable.');
-  assert.strictEqual(toAccountCommandError(unexpected), unexpected);
+  assert.strictEqual(mapAccountCommandError(unexpected), unexpected);
 });

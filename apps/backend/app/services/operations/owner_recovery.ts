@@ -9,7 +9,7 @@ import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-
 
 const ineligible = 'Recovery requires a sole active Owner with a local password';
 
-async function soleOwnerAccounts(userId: string, trx: Pick<Trx, 'from'>) {
+async function requireSoleOwnerAccounts(userId: string, trx: Pick<Trx, 'from'>) {
   const memberships = await trx
     .from(access.config.membershipsTable)
     .where({ user_id: userId, role: 'owner', status: 'active' })
@@ -40,7 +40,7 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     const user = await db.from('users').where('email', email).select('id', 'password').first();
     if (!user?.password) throw new Error(ineligible);
     const userId = String(user.id);
-    const accountIds = await soleOwnerAccounts(userId, db);
+    const accountIds = await requireSoleOwnerAccounts(userId, db);
     const issued = await accountKit.operator.resetLink({ email, deliver: 'print' });
     if (!issued.url || String(issued.user.id) !== userId) {
       throw new Error('Owner recovery failed; no recovery link was delivered');

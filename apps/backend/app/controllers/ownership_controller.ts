@@ -4,7 +4,7 @@ import { transferOwnership } from '#services/membership/ownership_transfer';
 import { withActor } from '#services/auth/current_actor';
 import { hasOnlyFields, USER_ID_PATTERN } from '#services/request_helpers';
 
-function validBody(value: unknown): value is { toUserId: string; confirmationId?: string } {
+function isTransferBody(value: unknown): value is { toUserId: string; confirmationId?: string } {
   return (
     hasOnlyFields(value, ['toUserId', 'confirmationId']) &&
     typeof value.toUserId === 'string' &&
@@ -16,7 +16,7 @@ function validBody(value: unknown): value is { toUserId: string; confirmationId?
 
 export default class OwnershipController {
   async transfer(ctx: HttpContext) {
-    if (!validBody(ctx.request.body())) {
+    if (!isTransferBody(ctx.request.body())) {
       return ctx.response.badRequest({
         error: 'An eligible target user is required.',
         code: 'VALIDATION_ERROR',

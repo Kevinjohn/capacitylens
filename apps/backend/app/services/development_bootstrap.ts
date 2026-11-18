@@ -11,7 +11,7 @@ import User from '#models/user';
 import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 
 /** Keeps interrupted-bootstrap recovery explicit rather than adopting an identity by address. */
-export function bootstrapRecoveryMessage() {
+export function buildBootstrapRecoveryMessage() {
   return [
     'The development bootstrap identity exists but is not admitted.',
     'Set CAPACITYLENS_CREATE_ADMIN_ADMIN=false, start the server, sign in, and inspect GET /api/admission.',
@@ -33,7 +33,7 @@ export async function recordBootstrapAdmission(
     await admission.operator.grantInvitation({ email, role: 'admin' });
     await admission.operator.approve({ email });
   } catch (cause) {
-    throw new Error(bootstrapRecoveryMessage(), { cause });
+    throw new Error(buildBootstrapRecoveryMessage(), { cause });
   }
 }
 
@@ -52,7 +52,7 @@ export async function bootstrapDevelopmentCredential(app: ApplicationService) {
     if (!user) return;
     const admission = await app.container.make(AccountAdmission);
     if (await admission.isAdmitted(user.id)) return;
-    throw new Error(bootstrapRecoveryMessage());
+    throw new Error(buildBootstrapRecoveryMessage());
   }
   const passwordHash = await hash.make(password);
   const now = new Date().toISOString();

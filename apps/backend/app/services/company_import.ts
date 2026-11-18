@@ -50,7 +50,7 @@ export function parseRequestDocument(value: unknown): CompanyExportDocument | nu
 const INSERT_CHUNK_SIZE = 32;
 const ID_LOOKUP_CHUNK_SIZE = 200;
 
-function fingerprint(data: AppData) {
+function buildFingerprint(data: AppData) {
   const rows = APP_DATA_KEYS.map((key) => [
     key,
     [...data[key]].sort((a, b) => a.id.localeCompare(b.id)),
@@ -58,8 +58,8 @@ function fingerprint(data: AppData) {
   return createHash('sha256').update(JSON.stringify(rows)).digest('hex');
 }
 
-function portableFingerprint(data: AppData, companyId: string) {
-  return fingerprint(buildCompanyExport(data, { companyId, completeness: 'full' }).data);
+function buildPortableFingerprint(data: AppData, companyId: string) {
+  return buildFingerprint(buildCompanyExport(data, { companyId, completeness: 'full' }).data);
 }
 
 // Scheduling IDs are primary keys across every company, so a document exported from another
@@ -92,7 +92,7 @@ async function assertNoForeignIdCollision(
   }
 }
 
-async function context(trx: TransactionClientContract, companyId: string) {
+async function readImportContext(trx: TransactionClientContract, companyId: string) {
   const links = await trx
     .from('account_member_resources')
     .where('company_id', companyId)
@@ -117,9 +117,9 @@ export async function previewCompanyImport(
 ) {
   const current = await readStateWithClient(trx, companyId, true);
   if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
-  const prepared = prepareCompanyImport(document, await context(trx, companyId));
+  const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
   await assertNoForeignIdCollision(trx, companyId, prepared.data);
-  const changed = portableFingerprint(current, companyId) !== fingerprint(prepared.data);
+  const changed = buildPortableFingerprint(current, companyId) !== buildFingerprint(prepared.data);
   const baseRevision = await getPlanningRevision(trx, companyId);
   const company = prepared.data.accounts.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one account.');
@@ -151,9 +151,9 @@ export async function applyCompanyImport(
       'IMPORT_SNAPSHOT_STALE'
     );
   }
-  const prepared = prepareCompanyImport(document, await context(trx, companyId));
+  const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
   await assertNoForeignIdCollision(trx, companyId, prepared.data);
-  if (portableFingerprint(current, companyId) === fingerprint(prepared.data)) {
+  if (buildPortableFingerprint(current, companyId) === buildFingerprint(prepared.data)) {
     return { imported: prepared.imported, changed: false, revision };
   }
 

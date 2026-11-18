@@ -5,7 +5,7 @@ import {
   entityId,
   meta,
   nameText,
-  operationMatches,
+  hasOperation,
   requireChanges,
   uuid,
 } from '#validators/planning/fields';
@@ -22,7 +22,7 @@ const closureChanges = {
 };
 export const closureIntent = vine.union([
   vine.union.if(
-    (value) => operationMatches(value, 'closure.create'),
+    (value) => hasOperation(value, 'closure.create'),
     vine.object({
       operation: vine.literal('closure.create'),
       id: uuid(),
@@ -30,7 +30,7 @@ export const closureIntent = vine.union([
     })
   ),
   vine.union.if(
-    (value) => operationMatches(value, 'closure.update'),
+    (value) => hasOperation(value, 'closure.update'),
     vine.object({
       operation: vine.literal('closure.update'),
       id: entityId(),

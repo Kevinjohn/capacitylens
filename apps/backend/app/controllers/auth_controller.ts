@@ -10,7 +10,7 @@ import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types'
 import env from '#start/env';
 import { isMailConfigured } from '#services/mail_delivery';
 import { FirstCompanyPendingError } from '#models/user';
-import { requiresFirstCompanySetup } from '#services/first_company_setup';
+import { isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { isMembershipRequired } from '#services/membership/admission_membership';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { buildUserProjection } from '#services/auth/user_projection';
@@ -22,7 +22,7 @@ import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { hasAnyIdentity, hasNoCompany } from '#models/installation_company';
 import { managedGuard } from '#services/auth/managed_guard';
 
-function invalidAuthRequest(error: unknown, operation: 'sign-in' | 'sign-up') {
+function buildAuthRequestMessage(error: unknown, operation: 'sign-in' | 'sign-up') {
   if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
   const shape = error.messages.some(
     (message: { rule: string }) => message.rule === 'unknownField' || message.rule === 'object'
@@ -50,7 +50,8 @@ export default class AuthController {
             user: buildUserProjection(actor),
             emailVerified: actor.emailVerified,
             admission,
-            companySetupRequired: admitted && (await requiresFirstCompanySetup(actor.userId, trx)),
+            companySetupRequired:
+              admitted && (await isFirstCompanySetupRequired(actor.userId, trx)),
             // Admitted but not yet a member: the person completes their membership explicitly.
             membershipRequired: admitted && (await isMembershipRequired(actor.userId, trx)),
           };
@@ -74,7 +75,7 @@ export default class AuthController {
     try {
       body = await ctx.request.validateUsing(signInValidator, { data: ctx.request.body() });
     } catch (error) {
-      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-in') });
+      return ctx.response.badRequest({ error: buildAuthRequestMessage(error, 'sign-in') });
     }
     const { email } = body;
     try {
@@ -102,7 +103,7 @@ export default class AuthController {
     try {
       body = await ctx.request.validateUsing(signUpValidator, { data: ctx.request.body() });
     } catch (error) {
-      return ctx.response.badRequest({ error: invalidAuthRequest(error, 'sign-up') });
+      return ctx.response.badRequest({ error: buildAuthRequestMessage(error, 'sign-up') });
     }
     const { email, name } = body;
     if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || (await hasNoCompany(db))) {

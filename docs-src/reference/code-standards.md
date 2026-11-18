@@ -143,7 +143,7 @@ whose cause would otherwise be invisible leaves a `console.warn` breadcrumb.
 
 Backend boundary rule: `ctx.params`, `request.body()` and Lucid query rows arrive typed `any`.
 Narrow them where they enter, with a `validateUsing` schema for bodies and queries, a one-line
-checked read for route parameters (`userIdParam` in `app/controllers/admission_controller.ts`),
+checked read for route parameters (`parseUserIdParam` in `app/controllers/admission_controller.ts`),
 and `String(row.column)` or a typed model for rows. An `as` cast is not a narrowing; a comment
 beside any remaining cast says why it is sound.
 

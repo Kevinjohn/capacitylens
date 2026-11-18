@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
-import { parseFirstCompanyInput, requiresFirstCompanySetup } from '#services/first_company_setup';
+import { parseFirstCompanyInput, isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { createInitialCompany } from '#services/initial_company_defaults';
 import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings';
 
@@ -19,7 +19,7 @@ export default class FirstCompanySetupController {
       });
     }
     const result = await withActor(ctx, async (actor, trx) => {
-      if (!(await requiresFirstCompanySetup(actor.userId, trx))) return null;
+      if (!(await isFirstCompanySetupRequired(actor.userId, trx))) return null;
       return createInitialCompany(trx, {
         name: input.name,
         ownerId: actor.userId,

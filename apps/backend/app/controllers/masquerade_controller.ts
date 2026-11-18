@@ -5,7 +5,7 @@ import { currentMasquerade, endMasquerade, startMasquerade } from '#services/aut
 import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { hasOnlyFields } from '#services/request_helpers';
-import { signedInSession } from '#services/auth/current_actor';
+import { getSignedInSession } from '#services/auth/current_actor';
 
 /** Package refusals reach the global handler's single mapping; only the authority refusal is reworded. */
 async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
@@ -51,7 +51,7 @@ export default class MasqueradeController {
   async status(ctx: HttpContext) {
     return respond(ctx, async () => {
       try {
-        const signIn = await signedInSession(ctx);
+        const signIn = await getSignedInSession(ctx);
         if (!signIn) return ctx.response.ok({ active: false, contextToken: null });
         const input: unknown = ctx.request.input('companyId');
         const companyId = typeof input === 'string' && input ? input : undefined;

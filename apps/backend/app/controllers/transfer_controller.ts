@@ -12,7 +12,7 @@ import {
   readRequestDocument,
 } from '#services/company_import';
 
-function input(value: unknown) {
+function parseImportBody(value: unknown) {
   const expected = ['companyId', 'document', 'baseRevision'];
   const body = value;
   if (
@@ -39,7 +39,7 @@ function input(value: unknown) {
   };
 }
 
-function failure(ctx: HttpContext, error: unknown) {
+function sendTransferFailure(ctx: HttpContext, error: unknown) {
   if (error instanceof EntityWriteError) {
     return ctx.response.status(error.status).send({
       error: error.message,
@@ -74,12 +74,12 @@ export default class TransferController {
       });
       return ctx.response.ok(result);
     } catch (error) {
-      return failure(ctx, error);
+      return sendTransferFailure(ctx, error);
     }
   }
 
   async apply(ctx: HttpContext) {
-    const body = input(ctx.request.body());
+    const body = parseImportBody(ctx.request.body());
     if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
@@ -100,7 +100,7 @@ export default class TransferController {
       });
       return ctx.response.ok(result);
     } catch (error) {
-      return failure(ctx, error);
+      return sendTransferFailure(ctx, error);
     }
   }
 }

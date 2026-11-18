@@ -21,7 +21,7 @@ interface SemanticMutationInput<T> {
   work: (trx: TransactionClientContract, actor: { actorId: string }) => Promise<T>;
 }
 
-async function semanticMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
+async function runMemberMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
   const { companyId, operation, payload, work } = input;
   const command = parseAccountCommand(
     ctx.request.header('x-account-command-id'),
@@ -76,7 +76,7 @@ export default class MembersController {
     const role = body.role;
     const companyId = readRouteParam(ctx.params.companyId);
     const userId = readRouteParam(ctx.params.userId);
-    const result = await semanticMutation(ctx, {
+    const result = await runMemberMutation(ctx, {
       companyId,
       operation: 'change-member-role',
       payload: {
@@ -102,7 +102,7 @@ export default class MembersController {
     const status = body.status;
     const companyId = readRouteParam(ctx.params.companyId);
     const userId = readRouteParam(ctx.params.userId);
-    const result = await semanticMutation(ctx, {
+    const result = await runMemberMutation(ctx, {
       companyId,
       operation: 'change-member-status',
       payload: {

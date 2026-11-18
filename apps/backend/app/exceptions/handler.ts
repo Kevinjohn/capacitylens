@@ -4,8 +4,8 @@ import { mapHttpError } from '#exceptions/http_error_mapping';
 import {
   classifyLogError,
   reportPrivateFailure,
-  safeRequestMethod,
-  safeRoutePattern,
+  normalizeRequestMethod,
+  normalizeRoutePattern,
 } from '#services/logging_safety';
 
 export default class HttpExceptionHandler extends ExceptionHandler {
@@ -51,8 +51,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       {
         event: 'http.request.error',
         errorType: failure.errorType,
-        method: safeRequestMethod(ctx.request.method()),
-        path: safeRoutePattern(ctx.route?.pattern),
+        method: normalizeRequestMethod(ctx.request.method()),
+        path: normalizeRoutePattern(ctx.route?.pattern),
         status: failure.status,
       },
       'HTTP request failed'

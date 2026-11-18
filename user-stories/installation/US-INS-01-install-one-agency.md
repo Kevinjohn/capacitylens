@@ -45,7 +45,7 @@ flowchart TD
   caddy --> ready["/health/ready calls healthChecks.run"]
   ready --> bootstrap["Account Kit admission bootstrap CLI issues invitation"]
   bootstrap --> browser["FirstCompanySetupController.store validates setup"]
-  browser --> guard["requiresFirstCompanySetup checks first-company conditions"]
+  browser --> guard["isFirstCompanySetupRequired checks first-company conditions"]
   guard --> create["createInitialCompany writes company and Owner membership"]
 ```
 

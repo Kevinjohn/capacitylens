@@ -11,7 +11,7 @@ import {
   withOperatorDatabase,
 } from '@kevinjohn/adonisjs-sqlite-backup';
 
-function destinationEntryExists(path: string) {
+function hasDestinationEntry(path: string) {
   try {
     lstatSync(path);
     return true;
@@ -34,7 +34,7 @@ export async function resetInstallation(input: {
   if (
     sourcePath === databasePath ||
     [databasePath, `${databasePath}-wal`, `${databasePath}-shm`, `${databasePath}-journal`].some(
-      destinationEntryExists
+      hasDestinationEntry
     )
   ) {
     throw new Error('Reset destination or its sidecars already exist; choose a new database path');

@@ -35,7 +35,7 @@ export async function installationCompanyId(reader: CompanyReader): Promise<stri
 }
 
 /** The installation's single company and its name, both null before first setup. */
-export async function installationCompany(reader: CompanyReader) {
+export async function getInstallationCompany(reader: CompanyReader) {
   const companyId = await installationCompanyId(reader);
   const account = companyId
     ? await reader.from('accounts').where('id', companyId).select('name').first()

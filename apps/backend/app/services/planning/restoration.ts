@@ -29,7 +29,7 @@ type DeletableTable = RetainedTable;
 type SavedRow = { kind: 'row' };
 type SavedLink = { kind: 'link'; parentId: string };
 
-function conflict(): never {
+function refuseRestorationConflict(): never {
   throw new PlanningOperationError(409, null, 'The deleted records can no longer be restored.');
 }
 
@@ -38,7 +38,7 @@ function assertRestorationCandidate(assertion: () => void) {
   try {
     assertion();
   } catch (error) {
-    if (error instanceof DomainError) conflict();
+    if (error instanceof DomainError) refuseRestorationConflict();
     throw error;
   }
 }
@@ -103,12 +103,12 @@ export async function deleteRows(
       .from(tables[link.entity])
       .where({ id: link.rowId, company_id: companyId, [column]: link.parentId })
       .update({ [column]: null });
-    if (affectedRows(detached) !== 1) conflict();
+    if (affectedRows(detached) !== 1) refuseRestorationConflict();
   }
   for (let start = 0; start < ids.length; start += 500) {
     const selected = ids.slice(start, start + 500);
     const deleted = await retainedQuery(trx, companyId, table).whereIn('id', selected).softDelete();
-    if (deleted !== selected.length) conflict();
+    if (deleted !== selected.length) refuseRestorationConflict();
     const attached = await trx
       .from(tables[table])
       .where('company_id', companyId)
@@ -116,7 +116,7 @@ export async function deleteRows(
       .whereNotNull('deleted_at')
       .whereNull('deletion_group_id')
       .update({ deletion_group_id: groupId });
-    if (affectedRows(attached) !== selected.length) conflict();
+    if (affectedRows(attached) !== selected.length) refuseRestorationConflict();
   }
   return groupId;
 }
@@ -181,13 +181,13 @@ export async function restoreGroup(
     const payload = JSON.parse(String(item.payload_json)) as SavedRow | SavedLink;
     if (payload.kind === 'row') {
       const entity = item.entity as DeletableTable;
-      if (!isRetainedTable(entity)) conflict();
+      if (!isRetainedTable(entity)) refuseRestorationConflict();
       const stored = await retainedQuery(trx, companyId, entity)
         .onlyTrashed()
         .where('id', String(item.row_id))
         .where('deletion_group_id', groupId)
         .first();
-      if (!stored) conflict();
+      if (!stored) refuseRestorationConflict();
       rows.push({ entity, id: String(item.row_id), row: stored.serialize() });
     } else {
       links.push({
@@ -197,7 +197,7 @@ export async function restoreGroup(
       });
     }
   }
-  if (rows.length === 0) conflict();
+  if (rows.length === 0) refuseRestorationConflict();
   const dependencies = await readStateWithClient(trx, companyId, true);
   const account = dependencies.accounts.find((row) => row.id === companyId);
   const accountWorkingDays = normalizeAccountWorkingDays(
@@ -233,19 +233,19 @@ export async function restoreGroup(
     });
   }
   for (const { entity, id, row } of rows) {
-    if (row.companyId !== companyId || row.id !== id) conflict();
+    if (row.companyId !== companyId || row.id !== id) refuseRestorationConflict();
     const cleared = await trx
       .from(tables[entity])
       .where({ id, company_id: companyId, deletion_group_id: groupId })
       .whereNotNull('deleted_at')
       .update({ deletion_group_id: null });
-    if (affectedRows(cleared) !== 1) conflict();
+    if (affectedRows(cleared) !== 1) refuseRestorationConflict();
     const restored = await retainedQuery(trx, companyId, entity)
       .onlyTrashed()
       .where('id', id)
       .whereNull('deletion_group_id')
       .restore();
-    if (restored !== 1) conflict();
+    if (restored !== 1) refuseRestorationConflict();
   }
   const current = await readStateWithClient(trx, companyId, true);
   for (const { entity, rowId, parentId } of links) {
@@ -257,7 +257,7 @@ export async function restoreGroup(
     );
     // The link field differs by table, and an entity interface has no index signature.
     if (!child || !parent || (child as unknown as Record<string, unknown>)[field] !== null) {
-      conflict();
+      refuseRestorationConflict();
     }
     const candidate = { ...child, [field]: parentId };
     assertRestorationCandidate(() => {
@@ -292,7 +292,7 @@ export async function reclaimRetainedId(
   if (prior.company_id !== companyId || !prior.deleted_at || !prior.deletion_group_id) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
-  if (!(await ownsUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
+  if (!(await hasOwnUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   const purged = await retainedQuery(trx, companyId, table)
@@ -306,7 +306,7 @@ export async function reclaimRetainedId(
 }
 
 /** Whether the caller's own session holds the unconsumed group that retained a row. */
-export async function ownsUnconsumedGroup(
+export async function hasOwnUnconsumedGroup(
   trx: TransactionClientContract,
   companyId: string,
   groupId: string,

@@ -3,13 +3,13 @@ import { ACTIVITY_KINDS } from '@capacitylens/shared/types/entities';
 import {
   boolean,
   entityId,
-  entityMatches,
+  hasEntity,
   meta,
   nameText,
   nullableId,
   nullableUserText,
   number,
-  operationMatches,
+  hasOperation,
   presetColor,
   requireChanges,
   uuid,
@@ -23,7 +23,7 @@ const privateName = {
 
 const catalogueCreate = vine.union([
   vine.union.if(
-    (value) => entityMatches(value, 'clients'),
+    (value) => hasEntity(value, 'clients'),
     vine.object({
       entity: vine.literal('clients'),
       id: uuid(),
@@ -31,7 +31,7 @@ const catalogueCreate = vine.union([
     })
   ),
   vine.union.if(
-    (value) => entityMatches(value, 'projects'),
+    (value) => hasEntity(value, 'projects'),
     vine.object({
       entity: vine.literal('projects'),
       id: uuid(),
@@ -39,7 +39,7 @@ const catalogueCreate = vine.union([
     })
   ),
   vine.union.if(
-    (value) => entityMatches(value, 'phases'),
+    (value) => hasEntity(value, 'phases'),
     vine.object({
       entity: vine.literal('phases'),
       id: uuid(),
@@ -47,7 +47,7 @@ const catalogueCreate = vine.union([
     })
   ),
   vine.union.if(
-    (value) => entityMatches(value, 'activities'),
+    (value) => hasEntity(value, 'activities'),
     vine.object({
       entity: vine.literal('activities'),
       id: uuid(),
@@ -79,7 +79,7 @@ const catalogueCreate = vine.union([
 
 const catalogueChanges = vine.union([
   vine.union.if(
-    (value) => entityMatches(value, 'clients'),
+    (value) => hasEntity(value, 'clients'),
     vine.object({
       entity: vine.literal('clients'),
       id: entityId(),
@@ -94,7 +94,7 @@ const catalogueChanges = vine.union([
     })
   ),
   vine.union.if(
-    (value) => entityMatches(value, 'projects'),
+    (value) => hasEntity(value, 'projects'),
     vine.object({
       entity: vine.literal('projects'),
       id: entityId(),
@@ -110,7 +110,7 @@ const catalogueChanges = vine.union([
     })
   ),
   vine.union.if(
-    (value) => entityMatches(value, 'phases'),
+    (value) => hasEntity(value, 'phases'),
     vine.object({
       entity: vine.literal('phases'),
       id: entityId(),
@@ -123,7 +123,7 @@ const catalogueChanges = vine.union([
     })
   ),
   vine.union.if(
-    (value) => entityMatches(value, 'activities'),
+    (value) => hasEntity(value, 'activities'),
     vine.object({
       entity: vine.literal('activities'),
       id: entityId(),
@@ -161,7 +161,7 @@ const catalogueChanges = vine.union([
 
 const catalogueDelete = vine.union([
   vine.union.if(
-    (value) => entityMatches(value, 'phases'),
+    (value) => hasEntity(value, 'phases'),
     vine.object({ entity: vine.literal('phases'), id: entityId() })
   ),
   vine.union.else(vine.object({ entity: vine.literal('disciplines'), id: entityId() })),
@@ -169,11 +169,11 @@ const catalogueDelete = vine.union([
 
 const catalogueLifecycleEntity = vine.union([
   vine.union.if(
-    (value) => entityMatches(value, 'clients'),
+    (value) => hasEntity(value, 'clients'),
     vine.object({ entity: vine.literal('clients'), id: entityId() })
   ),
   vine.union.if(
-    (value) => entityMatches(value, 'projects'),
+    (value) => hasEntity(value, 'projects'),
     vine.object({ entity: vine.literal('projects'), id: entityId() })
   ),
   vine.union.else(vine.object({ entity: vine.literal('activities'), id: entityId() })),
@@ -181,17 +181,16 @@ const catalogueLifecycleEntity = vine.union([
 
 export const catalogueIntent = vine.union([
   vine.union.if(
-    (value) => operationMatches(value, 'catalogue.create'),
+    (value) => hasOperation(value, 'catalogue.create'),
     vine.object({ operation: vine.literal('catalogue.create'), entity: catalogueCreate })
   ),
   vine.union.if(
-    (value) => operationMatches(value, 'catalogue.update'),
+    (value) => hasOperation(value, 'catalogue.update'),
     vine.object({ operation: vine.literal('catalogue.update'), entity: catalogueChanges })
   ),
   vine.union.if(
     (value) =>
-      operationMatches(value, 'catalogue.archive') ||
-      operationMatches(value, 'catalogue.unarchive'),
+      hasOperation(value, 'catalogue.archive') || hasOperation(value, 'catalogue.unarchive'),
     vine.object({
       operation: vine.enum(['catalogue.archive', 'catalogue.unarchive'] as const),
       entity: catalogueLifecycleEntity,

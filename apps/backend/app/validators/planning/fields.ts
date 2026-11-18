@@ -96,20 +96,20 @@ export const dateRange = vine.createRule((value, _options, field) => {
   }
 });
 
-export const operationMatches = (value: unknown, operation: string): boolean =>
+export const hasOperation = (value: unknown, operation: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
   (value as { operation?: unknown }).operation === operation;
 
-export const operationStartsWith = (value: unknown, prefix: string): boolean =>
+export const hasOperationPrefix = (value: unknown, prefix: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
   typeof (value as { operation?: unknown }).operation === 'string' &&
   (value as { operation: string }).operation.startsWith(prefix);
 
-export const entityMatches = (value: unknown, entity: string): boolean =>
+export const hasEntity = (value: unknown, entity: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
@@ -152,7 +152,7 @@ export const requireChanges = (allowedFields: readonly string[]) =>
     field.report('At least one writable field is required.', 'emptyChanges', field);
   })();
 
-const kindMatches = (value: unknown, kind: string): boolean =>
+const hasKind = (value: unknown, kind: string): boolean =>
   value !== null &&
   typeof value === 'object' &&
   !Array.isArray(value) &&
@@ -163,15 +163,15 @@ export const repeatPattern = () =>
   vine
     .union([
       vine.union.if(
-        (value) => kindMatches(value, 'weeks'),
+        (value) => hasKind(value, 'weeks'),
         vine.object({ kind: vine.literal('weeks'), interval: vine.enum([1, 2, 3, 4] as const) })
       ),
       vine.union.if(
-        (value) => kindMatches(value, 'monthly-date'),
+        (value) => hasKind(value, 'monthly-date'),
         vine.object({ kind: vine.literal('monthly-date') })
       ),
       vine.union.if(
-        (value) => kindMatches(value, 'monthly-last-weekday'),
+        (value) => hasKind(value, 'monthly-last-weekday'),
         vine.object({ kind: vine.literal('monthly-last-weekday') })
       ),
     ])

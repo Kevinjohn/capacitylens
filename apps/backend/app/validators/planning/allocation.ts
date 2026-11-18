@@ -10,7 +10,7 @@ import {
   nullableId,
   nullableUserText,
   occurrenceIdsExcludeFirst,
-  operationMatches,
+  hasOperation,
   repeatRange,
   requireChanges,
   uniqueArrayIds,
@@ -71,11 +71,11 @@ const duplicateIdIsDistinct = vine.createRule((value, _options, field) => {
 export const allocationIntent = vine
   .union([
     vine.union.if(
-      (value) => operationMatches(value, 'allocation.create'),
+      (value) => hasOperation(value, 'allocation.create'),
       vine.object({ operation: vine.literal('allocation.create'), allocation: allocationCreate })
     ),
     vine.union.if(
-      (value) => operationMatches(value, 'allocation.update'),
+      (value) => hasOperation(value, 'allocation.update'),
       vine.object({
         operation: vine.literal('allocation.update'),
         id: entityId(),
@@ -96,11 +96,11 @@ export const allocationIntent = vine
       })
     ),
     vine.union.if(
-      (value) => operationMatches(value, 'allocation.delete'),
+      (value) => hasOperation(value, 'allocation.delete'),
       vine.object({ operation: vine.literal('allocation.delete'), id: entityId() })
     ),
     vine.union.if(
-      (value) => operationMatches(value, 'allocation.deleteGroup'),
+      (value) => hasOperation(value, 'allocation.deleteGroup'),
       vine
         .object({
           operation: vine.literal('allocation.deleteGroup'),
@@ -109,7 +109,7 @@ export const allocationIntent = vine
         .use(uniqueArrayIds('ids'))
     ),
     vine.union.if(
-      (value) => operationMatches(value, 'allocation.createGroup'),
+      (value) => hasOperation(value, 'allocation.createGroup'),
       vine
         .object({
           operation: vine.literal('allocation.createGroup'),
@@ -124,7 +124,7 @@ export const allocationIntent = vine
         .use(occurrenceIdsExcludeFirst('allocation'))
     ),
     vine.union.if(
-      (value) => operationMatches(value, 'allocation.duplicate'),
+      (value) => hasOperation(value, 'allocation.duplicate'),
       vine
         .object({
           operation: vine.literal('allocation.duplicate'),

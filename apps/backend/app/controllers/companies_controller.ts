@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import access from '#config/access_control';
 import { withActor } from '#services/auth/current_actor';
 import { hasMultipleCompanies } from '#models/installation_company';
-import { accessGrant } from '#services/auth/access_grant';
+import { buildAccessGrant } from '#services/auth/access_grant';
 import { isAccountRole } from '@capacitylens/shared/account/types';
 
 /** Returns the companies this principal may enter, or 409 while the installation has more than one. */
@@ -22,7 +22,7 @@ export default class CompaniesController {
           name: row.name,
           role: row.role,
           ...(isAccountRole(row.role)
-            ? accessGrant(row.role, false)
+            ? buildAccessGrant(row.role, false)
             : { permissions: [], canSeePrivateNames: false, canSeeTimeOffNote: false }),
         }));
     });
