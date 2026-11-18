@@ -97,6 +97,11 @@ lookups while still running the changed test files, when one full run on a combi
 several changes. It does not replace the submission gate in
 [Before opening a pull request](#before-opening-a-pull-request).
 
+Run `pnpm check:changed --plan origin/main` to preview the same commands in execution order,
+including preparation, selection reasons and skips. The wrapper claims a lane, but no planned
+command runs. The preview reflects the current diff and filesystem. For example, the application
+build drops out once its assets exist.
+
 ## Checks by change type
 
 `pnpm run check:changed [base]` picks the checks for the files you changed. Before opening a pull
