@@ -36,41 +36,45 @@ test.describe('Beta company transfer through the server', () => {
     await expect(page.getByText('Bruce Wayne')).toBeVisible();
   });
 
-  test('previews a full document without writing and Cancel keeps the current company', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await importFile(page, serializeCompanyExport(restoredDocument()));
-    await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    const dialog = page.getByRole('alertdialog', { name: 'Import data?' });
-    await expect(dialog).toContainText('company-transfer.json');
-    await expect(dialog).toContainText(/replaces this company’s data/i);
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-    await expect(page.getByText('Bruce Wayne')).toBeVisible();
-    await expect(page.getByText('Terry McGinnis')).toHaveCount(0);
-  });
+  test(
+    'previews a full document without writing and Cancel keeps the current company',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await importFile(page, serializeCompanyExport(restoredDocument()));
+      await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible();
+      await page.getByRole('button', { name: 'Continue' }).click();
+      const dialog = page.getByRole('alertdialog', { name: 'Import data?' });
+      await expect(dialog).toContainText('company-transfer.json');
+      await expect(dialog).toContainText(/replaces this company’s data/i);
+      await dialog.getByRole('button', { name: 'Cancel' }).click();
+      await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+      await expect(page.getByText('Bruce Wayne')).toBeVisible();
+      await expect(page.getByText('Terry McGinnis')).toHaveCount(0);
+    },
+  );
 
-  test('replaces the company atomically and a reload retains the imported rows', async ({
-    page,
-  }) => {
-    await openApp(page);
-    await importFile(page, serializeCompanyExport(restoredDocument()));
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await page.getByRole('button', { name: 'Replace data' }).click();
-    await page.getByLabel('Password', { exact: true }).fill('auth-e2e-password-2026');
-    await page.getByTestId('password-confirmation-submit').click();
-    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-    await expect(page.getByText('Terry McGinnis')).toBeVisible();
-    await expect(page.getByText('Bruce Wayne')).toHaveCount(0);
-    await page.keyboard.press('Meta+z');
-    await expect(page.getByText('Terry McGinnis')).toBeVisible();
-    await page.reload();
-    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-    await expect(page.getByText('Terry McGinnis')).toBeVisible();
-    await expect(page.getByText('Bruce Wayne')).toHaveCount(0);
-  });
+  test(
+    'replaces the company atomically and a reload retains the imported rows',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page);
+      await importFile(page, serializeCompanyExport(restoredDocument()));
+      await page.getByRole('button', { name: 'Continue' }).click();
+      await page.getByRole('button', { name: 'Replace data' }).click();
+      await page.getByLabel('Password', { exact: true }).fill('auth-e2e-password-2026');
+      await page.getByTestId('password-confirmation-submit').click();
+      await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+      await expect(page.getByText('Terry McGinnis')).toBeVisible();
+      await expect(page.getByText('Bruce Wayne')).toHaveCount(0);
+      await page.keyboard.press('Meta+z');
+      await expect(page.getByText('Terry McGinnis')).toBeVisible();
+      await page.reload();
+      await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+      await expect(page.getByText('Terry McGinnis')).toBeVisible();
+      await expect(page.getByText('Bruce Wayne')).toHaveCount(0);
+    },
+  );
 
   const refusals: Array<[string, string, RegExp]> = [
     ['invalid JSON', '{ "format":', /not valid CapacityLens JSON/i],
@@ -92,21 +96,25 @@ test.describe('Beta company transfer through the server', () => {
     ],
   ];
   for (const [name, body, message] of refusals) {
-    test(`refuses ${name} and preserves the current company`, async ({ page }) => {
-      await openApp(page);
-      await importFile(page, body);
-      if (name !== 'invalid JSON') {
-        const preview = page.getByRole('dialog', { name: 'Import data?' });
-        await expect(preview.getByRole('alert')).toContainText(message);
-        await page.keyboard.press('Escape');
-        await expect(preview).toHaveCount(0);
-      } else {
-        await expect(page.locator('[data-sonner-toast]')).toContainText(message);
-        await expect(page.getByRole('dialog', { name: 'Import data?' })).toHaveCount(0);
-      }
-      await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-      await expect(page.getByText('Bruce Wayne')).toBeVisible();
-      await expect(page.getByText('Terry McGinnis')).toHaveCount(0);
-    });
+    test(
+      `refuses ${name} and preserves the current company`,
+      { tag: '@engine' },
+      async ({ page }) => {
+        await openApp(page);
+        await importFile(page, body);
+        if (name !== 'invalid JSON') {
+          const preview = page.getByRole('dialog', { name: 'Import data?' });
+          await expect(preview.getByRole('alert')).toContainText(message);
+          await page.keyboard.press('Escape');
+          await expect(preview).toHaveCount(0);
+        } else {
+          await expect(page.locator('[data-sonner-toast]')).toContainText(message);
+          await expect(page.getByRole('dialog', { name: 'Import data?' })).toHaveCount(0);
+        }
+        await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+        await expect(page.getByText('Bruce Wayne')).toBeVisible();
+        await expect(page.getByText('Terry McGinnis')).toHaveCount(0);
+      },
+    );
   }
 });

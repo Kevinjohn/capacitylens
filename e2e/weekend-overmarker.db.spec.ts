@@ -25,7 +25,7 @@ async function openScheduleWithInlineActivityCreation(page: Page) {
   await setZoom(page, 2);
 }
 
-test.describe('Weekend over-marker', () => {
+test.describe('Weekend over-marker', { tag: '@engine' }, () => {
   test('draws the over-capacity markers the server reports', async ({ page }) => {
     await openScheduleWithInlineActivityCreation(page);
 

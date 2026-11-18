@@ -51,68 +51,70 @@ async function configureHalfDays(page: Page) {
   await goToSeedWeek(page);
 }
 
-test('saved half days tint the lower cell while preserving schedule signals and creation', async ({
-  page,
-}, testInfo) => {
-  await configureHalfDays(page);
+test(
+  'saved half days tint the lower cell while preserving schedule signals and creation',
+  { tag: '@engine' },
+  async ({ page }, testInfo) => {
+    await configureHalfDays(page);
 
-  const row = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
-  const lane = row.getByTestId('resource-lane');
-  const overHalfDay = dated(lane, 'half-day', '2026-06-03');
-  await expect(overHalfDay).toBeVisible();
-  await expect(overHalfDay).toHaveClass(/pointer-events-none/);
-  await expect(overHalfDay).toHaveAttribute('aria-hidden', 'true');
-  await expectBottomHalf(overHalfDay, lane);
-  await expect(dated(lane, 'half-day', '2026-06-01')).toHaveCount(0);
-  const nonWorkingDay = dated(lane, 'unavailable-day', '2026-06-06');
-  await expect(nonWorkingDay).toBeVisible();
-  await expectFullHeight(nonWorkingDay, lane);
-  await expect(row).toContainText(/half working days\./);
+    const row = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
+    const lane = row.getByTestId('resource-lane');
+    const overHalfDay = dated(lane, 'half-day', '2026-06-03');
+    await expect(overHalfDay).toBeVisible();
+    await expect(overHalfDay).toHaveClass(/pointer-events-none/);
+    await expect(overHalfDay).toHaveAttribute('aria-hidden', 'true');
+    await expectBottomHalf(overHalfDay, lane);
+    await expect(dated(lane, 'half-day', '2026-06-01')).toHaveCount(0);
+    const nonWorkingDay = dated(lane, 'unavailable-day', '2026-06-06');
+    await expect(nonWorkingDay).toBeVisible();
+    await expectFullHeight(nonWorkingDay, lane);
+    await expect(row).toContainText(/half working days\./);
 
-  const marker = dated(lane, 'over-marker', '2026-06-03');
-  await expect(marker).toBeVisible();
-  expect(
-    await lane.evaluate((element) => {
-      const overlay = element.querySelector('[data-testid="half-day"][data-date="2026-06-03"]');
-      const markerElement = element.querySelector(
-        '[data-testid="over-marker"][data-date="2026-06-03"]',
-      );
-      return Boolean(
-        overlay &&
-        markerElement &&
-        overlay.compareDocumentPosition(markerElement) & Node.DOCUMENT_POSITION_FOLLOWING,
-      );
-    }),
-  ).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath('issue_316_half_day_light.png') });
+    const marker = dated(lane, 'over-marker', '2026-06-03');
+    await expect(marker).toBeVisible();
+    expect(
+      await lane.evaluate((element) => {
+        const overlay = element.querySelector('[data-testid="half-day"][data-date="2026-06-03"]');
+        const markerElement = element.querySelector(
+          '[data-testid="over-marker"][data-date="2026-06-03"]',
+        );
+        return Boolean(
+          overlay &&
+          markerElement &&
+          overlay.compareDocumentPosition(markerElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+      }),
+    ).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('issue_316_half_day_light.png') });
 
-  await setZoom(page, 2);
-  await goToSeedWeek(page);
-  const emptyHalfDay = dated(lane, 'half-day', '2026-06-09');
-  await expect(emptyHalfDay).toBeVisible();
-  await expectBottomHalf(emptyHalfDay, lane);
-  const timeOffDay = dated(lane, 'unavailable-day', '2026-06-10');
-  await expect(timeOffDay).toBeVisible();
-  await expectFullHeight(timeOffDay, lane);
-  await expect(dated(lane, 'half-day', '2026-06-10')).toHaveCount(0);
-  await expect(lane.getByTestId('timeoff-block')).toContainText('Holiday');
+    await setZoom(page, 2);
+    await goToSeedWeek(page);
+    const emptyHalfDay = dated(lane, 'half-day', '2026-06-09');
+    await expect(emptyHalfDay).toBeVisible();
+    await expectBottomHalf(emptyHalfDay, lane);
+    const timeOffDay = dated(lane, 'unavailable-day', '2026-06-10');
+    await expect(timeOffDay).toBeVisible();
+    await expectFullHeight(timeOffDay, lane);
+    await expect(dated(lane, 'half-day', '2026-06-10')).toHaveCount(0);
+    await expect(lane.getByTestId('timeoff-block')).toContainText('Holiday');
 
-  const point = await pointInBottomHalf(page, lane, '2026-06-09');
-  await page.mouse.move(point.x, point.y);
-  await expect(lane.getByTestId('day-add-hint')).toBeVisible();
-  await page.mouse.click(point.x, point.y);
-  const allocation = page.getByRole('dialog', { name: 'New allocation' });
-  await expect(allocation).toBeVisible();
-  await expect(allocation.getByLabel('Start Date')).toHaveValue('2026-06-09');
-  await expect(allocation.getByLabel(/^End/)).toHaveValue('2026-06-09');
-  await allocation.getByRole('button', { name: 'Cancel' }).click();
+    const point = await pointInBottomHalf(page, lane, '2026-06-09');
+    await page.mouse.move(point.x, point.y);
+    await expect(lane.getByTestId('day-add-hint')).toBeVisible();
+    await page.mouse.click(point.x, point.y);
+    const allocation = page.getByRole('dialog', { name: 'New allocation' });
+    await expect(allocation).toBeVisible();
+    await expect(allocation.getByLabel('Start Date')).toHaveValue('2026-06-09');
+    await expect(allocation.getByLabel(/^End/)).toHaveValue('2026-06-09');
+    await allocation.getByRole('button', { name: 'Cancel' }).click();
 
-  await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await page.getByRole('radio', { name: 'Dark' }).click();
-  await page.getByRole('link', { name: 'Schedule', exact: true }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(
-    dated(page.locator('[data-resource-id="r-tyler"]'), 'half-day', '2026-06-09'),
-  ).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath('issue_316_half_day_dark.png') });
-});
+    await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await page.getByRole('radio', { name: 'Dark' }).click();
+    await page.getByRole('link', { name: 'Schedule', exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(
+      dated(page.locator('[data-resource-id="r-tyler"]'), 'half-day', '2026-06-09'),
+    ).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('issue_316_half_day_dark.png') });
+  },
+);

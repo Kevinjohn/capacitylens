@@ -32,42 +32,50 @@ async function openChrome(page: Page, theme: 'light' | 'dark') {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`chrome bands seat controls on a distinct surface in ${theme} mode`, async ({ page }) => {
-    await openChrome(page, theme);
+  test(
+    `chrome bands seat controls on a distinct surface in ${theme} mode`,
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openChrome(page, theme);
 
-    const toolbar = page.locator('[data-chrome-band="toolbar"]');
-    const filterbar = page.locator('[data-chrome-band="filterbar"]');
-    const surfaces = await Promise.all(
-      [page.getByTestId('app-sidebar'), toolbar, filterbar, page.getByTestId('scheduler-grid')].map(
-        async (locator) =>
+      const toolbar = page.locator('[data-chrome-band="toolbar"]');
+      const filterbar = page.locator('[data-chrome-band="filterbar"]');
+      const surfaces = await Promise.all(
+        [
+          page.getByTestId('app-sidebar'),
+          toolbar,
+          filterbar,
+          page.getByTestId('scheduler-grid'),
+        ].map(async (locator) =>
           luminance((await computedStyles(locator, ['background-color']))['background-color']),
-      ),
-    );
-    expect(surfaces[0]).toBeLessThan(surfaces[1]!);
-    expect(surfaces[1]).toBeLessThan(surfaces[2]!);
-    expect(surfaces[2]).toBeLessThan(surfaces[3]!);
+        ),
+      );
+      expect(surfaces[0]).toBeLessThan(surfaces[1]!);
+      expect(surfaces[1]).toBeLessThan(surfaces[2]!);
+      expect(surfaces[2]).toBeLessThan(surfaces[3]!);
 
-    const controls = [
-      toolbar.getByRole('button', { name: 'Today', exact: true }),
-      toolbar.getByRole('combobox', { name: 'Weeks visible' }),
-      filterbar.getByRole('textbox', { name: 'Search people' }),
-      filterbar.getByRole('combobox', { name: 'Discipline' }),
-      filterbar.getByRole('button', { name: 'Clear filters' }),
-    ];
-    for (const control of controls) {
-      const controlBackground = (await computedStyles(control, ['background-color']))[
-        'background-color'
+      const controls = [
+        toolbar.getByRole('button', { name: 'Today', exact: true }),
+        toolbar.getByRole('combobox', { name: 'Weeks visible' }),
+        filterbar.getByRole('textbox', { name: 'Search people' }),
+        filterbar.getByRole('combobox', { name: 'Discipline' }),
+        filterbar.getByRole('button', { name: 'Clear filters' }),
       ];
-      const band = (await control.evaluate((element) =>
-        element.closest('[data-chrome-band]')?.getAttribute('data-chrome-band'),
-      ))!;
-      const bandLocator = page.locator(`[data-chrome-band="${band}"]`);
-      const bandBackground = (await computedStyles(bandLocator, ['background-color']))[
-        'background-color'
-      ];
-      expect(controlBackground).not.toBe(bandBackground);
-    }
-  });
+      for (const control of controls) {
+        const controlBackground = (await computedStyles(control, ['background-color']))[
+          'background-color'
+        ];
+        const band = (await control.evaluate((element) =>
+          element.closest('[data-chrome-band]')?.getAttribute('data-chrome-band'),
+        ))!;
+        const bandLocator = page.locator(`[data-chrome-band="${band}"]`);
+        const bandBackground = (await computedStyles(bandLocator, ['background-color']))[
+          'background-color'
+        ];
+        expect(controlBackground).not.toBe(bandBackground);
+      }
+    },
+  );
 }
 
 async function expectSegmentGeometry(
@@ -104,46 +112,48 @@ async function expectSegmentGeometry(
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`all six segmented-control contexts render the shared geometry in ${theme} mode`, async ({
-    page,
-  }) => {
-    await openChrome(page, theme);
+  test(
+    `all six segmented-control contexts render the shared geometry in ${theme} mode`,
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openChrome(page, theme);
 
-    const drawMode = page.getByRole('radiogroup', { name: 'Draw mode' });
-    await expectSegmentGeometry(drawMode, { trackRadius: '6px', itemRadius: '4px', gap: '2px' });
+      const drawMode = page.getByRole('radiogroup', { name: 'Draw mode' });
+      await expectSegmentGeometry(drawMode, { trackRadius: '6px', itemRadius: '4px', gap: '2px' });
 
-    await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
-    const allocation = page.getByRole('dialog', { name: 'New allocation' });
-    const status = allocation.getByRole('radiogroup', { name: 'Status' });
-    await expectSegmentGeometry(status, {
-      trackRadius: '7px',
-      itemRadius: '5px',
-      gap: '0px',
-      equalWidth: true,
-    });
-    await expectConnectedSelectionEdges(status);
-    await allocation.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(allocation).toHaveCount(0);
+      await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
+      const allocation = page.getByRole('dialog', { name: 'New allocation' });
+      const status = allocation.getByRole('radiogroup', { name: 'Status' });
+      await expectSegmentGeometry(status, {
+        trackRadius: '7px',
+        itemRadius: '5px',
+        gap: '0px',
+        equalWidth: true,
+      });
+      await expectConnectedSelectionEdges(status);
+      await allocation.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(allocation).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Activities', exact: true }).click();
-    await page.getByRole('button', { name: 'Add activity' }).click();
-    const activity = page.getByRole('dialog', { name: 'Add activity' });
-    await expectSegmentGeometry(activity.getByRole('radiogroup', { name: 'Activity kind' }), {
-      trackRadius: '7px',
-      itemRadius: '5px',
-      gap: '2px',
-      equalWidth: true,
-    });
-    await activity.getByRole('button', { name: 'Cancel', exact: true }).click();
-
-    await page.getByRole('link', { name: 'Settings', exact: true }).click();
-    for (const name of ['Scheduling input', 'Date format', 'Theme']) {
-      const group = page.getByRole('radiogroup', { name });
-      await expectSegmentGeometry(group, {
+      await page.getByRole('link', { name: 'Activities', exact: true }).click();
+      await page.getByRole('button', { name: 'Add activity' }).click();
+      const activity = page.getByRole('dialog', { name: 'Add activity' });
+      await expectSegmentGeometry(activity.getByRole('radiogroup', { name: 'Activity kind' }), {
         trackRadius: '7px',
         itemRadius: '5px',
         gap: '2px',
+        equalWidth: true,
       });
-    }
-  });
+      await activity.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+      await page.getByRole('link', { name: 'Settings', exact: true }).click();
+      for (const name of ['Scheduling input', 'Date format', 'Theme']) {
+        const group = page.getByRole('radiogroup', { name });
+        await expectSegmentGeometry(group, {
+          trackRadius: '7px',
+          itemRadius: '5px',
+          gap: '2px',
+        });
+      }
+    },
+  );
 }

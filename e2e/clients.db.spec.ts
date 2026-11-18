@@ -3,21 +3,25 @@ import { openApp, showScheduleFilters } from './browserTestSupport';
 
 test.describe('Clients', () => {
   // Covers US-CLI-01..03.
-  test('adds a client and makes it available as a schedule filter', async ({ page }) => {
-    await openApp(page, '/clients');
-    await page.getByRole('button', { name: 'Add client' }).click();
-    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Kord Industries');
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(
-      page.getByTestId('client-row').filter({ hasText: 'Kord Industries' }),
-    ).toBeVisible();
+  test(
+    'adds a client and makes it available as a schedule filter',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page, '/clients');
+      await page.getByRole('button', { name: 'Add client' }).click();
+      await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Kord Industries');
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(
+        page.getByTestId('client-row').filter({ hasText: 'Kord Industries' }),
+      ).toBeVisible();
 
-    await page.getByRole('link', { name: 'Schedule' }).click();
-    await showScheduleFilters(page);
-    await page.getByLabel('Filter by client').click();
-    await expect(page.getByRole('option', { name: 'Kord Industries' })).toBeVisible();
-    await page.keyboard.press('Escape');
-  });
+      await page.getByRole('link', { name: 'Schedule' }).click();
+      await showScheduleFilters(page);
+      await page.getByLabel('Filter by client').click();
+      await expect(page.getByRole('option', { name: 'Kord Industries' })).toBeVisible();
+      await page.keyboard.press('Escape');
+    },
+  );
   test('an owner can add a private client with a code name', async ({ page }) => {
     await openApp(page, '/clients');
     await page.getByRole('button', { name: 'Add client' }).click();
@@ -77,26 +81,28 @@ test.describe('Clients', () => {
   // The row action archives the client. It leaves the active list but remains in storage, and its
   // projects keep their own active status because archiving does not cascade. Booking-only Undo
   // leaves the archive in place.
-  test('archiving a client hides it from the list, and undo leaves it archived', async ({
-    page,
-  }) => {
-    await openApp(page, '/clients');
-    await page
-      .getByTestId('client-row')
-      .filter({ hasText: 'Queen Consolidated' })
-      .getByRole('button', { name: 'Archive Queen Consolidated' })
-      .click();
-    await page
-      .getByRole('alertdialog', { name: 'Archive client?' })
-      .getByRole('button', { name: 'Archive', exact: true })
-      .click();
-    await expect(
-      page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' }),
-    ).toHaveCount(0);
+  test(
+    'archiving a client hides it from the list, and undo leaves it archived',
+    { tag: '@engine' },
+    async ({ page }) => {
+      await openApp(page, '/clients');
+      await page
+        .getByTestId('client-row')
+        .filter({ hasText: 'Queen Consolidated' })
+        .getByRole('button', { name: 'Archive Queen Consolidated' })
+        .click();
+      await page
+        .getByRole('alertdialog', { name: 'Archive client?' })
+        .getByRole('button', { name: 'Archive', exact: true })
+        .click();
+      await expect(
+        page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' }),
+      ).toHaveCount(0);
 
-    await page.keyboard.press('Meta+z');
-    await expect(
-      page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' }),
-    ).toHaveCount(0);
-  });
+      await page.keyboard.press('Meta+z');
+      await expect(
+        page.getByTestId('client-row').filter({ hasText: 'Queen Consolidated' }),
+      ).toHaveCount(0);
+    },
+  );
 });

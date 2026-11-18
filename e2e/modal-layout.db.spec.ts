@@ -62,7 +62,7 @@ async function openStackedDialog(
   await dialog.getByRole('button', { name: 'Cancel' }).click();
 }
 
-test.describe('compact input modal layouts', () => {
+test.describe('compact input modal layouts', { tag: '@engine' }, () => {
   test("uses the Resource form's 25/75 rows across the six management flows", async ({ page }) => {
     await openApp(page, '/settings');
     await page.getByRole('switch', { name: 'Show external resources' }).click();

@@ -36,51 +36,55 @@ function rowAvatar(row: Locator): Locator {
   return row.getByRole('rowheader').locator('span.rounded-full.ring-2').first();
 }
 
-test.describe('Colour invariant (preset swatch → renders on the scheduler)', () => {
-  test('a discipline colour pick tints its group dot + member avatars', async ({ page }) => {
-    await openApp(page, '/disciplines');
+test.describe(
+  'Colour invariant (preset swatch → renders on the scheduler)',
+  { tag: '@engine' },
+  () => {
+    test('a discipline colour pick tints its group dot + member avatars', async ({ page }) => {
+      await openApp(page, '/disciplines');
 
-    await page
-      .getByTestId('discipline-row')
-      .filter({ hasText: 'Design' })
-      .getByRole('button', { name: /^Edit / })
-      .click();
-    const dialog = page.getByRole('dialog', { name: 'Edit discipline' });
-    await pickSwatch(dialog, PICK_LABEL);
-    await expect(dialog.getByRole('button', { name: `Colour (${PICK_LABEL})` })).toBeVisible();
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(dialog).toBeHidden();
+      await page
+        .getByTestId('discipline-row')
+        .filter({ hasText: 'Design' })
+        .getByRole('button', { name: /^Edit / })
+        .click();
+      const dialog = page.getByRole('dialog', { name: 'Edit discipline' });
+      await pickSwatch(dialog, PICK_LABEL);
+      await expect(dialog.getByRole('button', { name: `Colour (${PICK_LABEL})` })).toBeVisible();
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(dialog).toBeHidden();
 
-    await page.getByRole('link', { name: 'Schedule' }).click();
-    const designGroup = page.getByTestId('discipline-group').filter({ hasText: 'Design' });
-    await expect(designGroup).toBeVisible();
-    await expect(disciplineDot(designGroup)).toHaveCSS('background-color', PICK_RGB);
+      await page.getByRole('link', { name: 'Schedule' }).click();
+      const designGroup = page.getByTestId('discipline-group').filter({ hasText: 'Design' });
+      await expect(designGroup).toBeVisible();
+      await expect(disciplineDot(designGroup)).toHaveCSS('background-color', PICK_RGB);
 
-    const bruceRow = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
-    await expect(rowAvatar(bruceRow)).toHaveCSS('background-color', PICK_RGB);
-  });
+      const bruceRow = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
+      await expect(rowAvatar(bruceRow)).toHaveCSS('background-color', PICK_RGB);
+    });
 
-  test('a project colour pick tints its allocation bars', async ({ page }) => {
-    await openApp(page, '/projects');
+    test('a project colour pick tints its allocation bars', async ({ page }) => {
+      await openApp(page, '/projects');
 
-    await page
-      .getByTestId('project-row')
-      .filter({ hasText: 'Project Watchtower' })
-      .getByRole('button', { name: /^Edit / })
-      .click();
-    const dialog = page.getByRole('dialog', { name: 'Edit project' });
-    await pickSwatch(dialog, PICK_LABEL);
-    await expect(dialog.getByRole('button', { name: `Colour (${PICK_LABEL})` })).toBeVisible();
-    await page.getByRole('button', { name: 'Save' }).click();
-    await expect(dialog).toBeHidden();
+      await page
+        .getByTestId('project-row')
+        .filter({ hasText: 'Project Watchtower' })
+        .getByRole('button', { name: /^Edit / })
+        .click();
+      const dialog = page.getByRole('dialog', { name: 'Edit project' });
+      await pickSwatch(dialog, PICK_LABEL);
+      await expect(dialog.getByRole('button', { name: `Colour (${PICK_LABEL})` })).toBeVisible();
+      await page.getByRole('button', { name: 'Save' }).click();
+      await expect(dialog).toBeHidden();
 
-    // The "Wireframes" bar (a Project Watchtower activity) must render the picked hex. Seed bars
-    // sit in early June and are visible at 4w with the grid scrolled fully left.
-    await page.getByRole('link', { name: 'Schedule' }).click();
-    await setZoom(page, 4);
-    await resetSchedulerScroll(page);
-    const wireframesBar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
-    await expect(wireframesBar.first()).toBeVisible();
-    await expect(wireframesBar.first()).toHaveCSS('background-color', PICK_RGB);
-  });
-});
+      // The "Wireframes" bar (a Project Watchtower activity) must render the picked hex. Seed bars
+      // sit in early June and are visible at 4w with the grid scrolled fully left.
+      await page.getByRole('link', { name: 'Schedule' }).click();
+      await setZoom(page, 4);
+      await resetSchedulerScroll(page);
+      const wireframesBar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' });
+      await expect(wireframesBar.first()).toBeVisible();
+      await expect(wireframesBar.first()).toHaveCSS('background-color', PICK_RGB);
+    });
+  },
+);

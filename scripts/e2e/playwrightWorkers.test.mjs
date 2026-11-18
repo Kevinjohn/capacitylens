@@ -4,6 +4,7 @@ import {
   browserWorkerCount,
   configurationWorkerCount,
   E2E_GUARDIAN_MEMORY_BYTES,
+  macosAvailableMemoryBytes,
   WORKER_MEMORY_BYTES,
 } from './playwrightWorkers.mjs';
 
@@ -79,4 +80,26 @@ test('worker configuration reloads reuse coordinator admission after server memo
         configurationWorkerCount({ ...worker, CAPACITYLENS_E2E_ADMITTED_WORKERS: invalid }, memory),
       /valid coordinator memory admission/,
     );
+});
+
+const vmStat = `Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                   100.
+Pages active:                                 607605.
+Pages inactive:                               2000.
+Pages speculative:                            30.
+Pages throttled:                              0.
+Pages wired down:                             312668.
+Pages purgeable:                              4.
+`;
+
+test('macOS counts memory the system hands back on demand, not only free pages', () => {
+  assert.equal(macosAvailableMemoryBytes(vmStat), (100 + 2000 + 30 + 4) * 16384);
+});
+
+test('unreadable macOS memory statistics refuse instead of admitting workers', () => {
+  assert.throws(
+    () => macosAvailableMemoryBytes(vmStat.replace('Pages inactive:', 'Pages idle:')),
+    /Cannot determine available memory/,
+  );
+  assert.throws(() => macosAvailableMemoryBytes(''), /Cannot determine available memory/);
 });
