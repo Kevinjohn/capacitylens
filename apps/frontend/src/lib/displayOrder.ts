@@ -61,7 +61,7 @@ export function createDisplayNameComparator<T extends Identified>(
 }
 
 /** The label the server chose for this reader; rows built without it order by name. */
-const orderingName = (item: DisplayNamed) => item.displayName ?? item.name;
+const getOrderingName = (item: DisplayNamed) => item.displayName ?? item.name;
 
 /** Shared client-first project ordering for project selectors and management views. */
 export function createClientProjectDisplayNameComparator<T extends ClientProject>(
@@ -72,17 +72,17 @@ export function createClientProjectDisplayNameComparator<T extends ClientProject
     const leftClient = clientsById.get(left.clientId);
     const rightClient = clientsById.get(right.clientId);
     const clientOrder = compareDisplayNames({
-      leftName: leftClient ? orderingName(leftClient) : '',
+      leftName: leftClient ? getOrderingName(leftClient) : '',
       leftId: left.clientId,
-      rightName: rightClient ? orderingName(rightClient) : '',
+      rightName: rightClient ? getOrderingName(rightClient) : '',
       rightId: right.clientId,
     });
     return (
       clientOrder ||
       compareDisplayNames({
-        leftName: orderingName(left),
+        leftName: getOrderingName(left),
         leftId: left.id,
-        rightName: orderingName(right),
+        rightName: getOrderingName(right),
         rightId: right.id,
       })
     );
