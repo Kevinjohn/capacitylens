@@ -9,6 +9,7 @@ import { useStore } from '@/store/useStore';
 import { schedulerDataset } from '@/test/schedulerTestKit';
 import { SchedulerGrid } from './SchedulerGrid';
 import { OwnerPermissions } from '@/test/ownerPermissions';
+import { permissionValue } from '@/test/permissionGrants';
 
 function OwnerRouter({ children }: { children: ReactNode }) {
   return (
@@ -78,7 +79,7 @@ describe('SchedulerGrid component identity and row variants', () => {
 
   it('keeps viewer rows readable without exposing create, draw or edit controls', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider value={permissionValue('viewer')}>
         <SchedulerGrid />
       </PermissionContext.Provider>,
       { wrapper: OwnerRouter },

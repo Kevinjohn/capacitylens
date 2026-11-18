@@ -49,6 +49,7 @@ export type ScannedRoutes = {
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
+    'api.export': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'accountId': ParamValue,'id': ParamValue} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -99,6 +100,7 @@ export type ScannedRoutes = {
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
+    'api.export': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.auth.me': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
@@ -116,6 +118,7 @@ export type ScannedRoutes = {
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.accounts.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
+    'api.export': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }
     'api.auth.me': { paramsTuple?: []; params?: {} }
     'api.members.index': { paramsTuple: [ParamValue]; params: {'accountId': ParamValue} }

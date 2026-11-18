@@ -77,6 +77,7 @@ export interface ApiDefinition {
       apply: typeof routes['api.transfer.apply']
     }
     state: typeof routes['api.state']
+    export: typeof routes['api.export']
     resources: {
       anonymise: typeof routes['api.resources.anonymise']
     }

@@ -6,6 +6,7 @@ import { m } from '@/i18n';
 import { makeAccount, makeAppData, resetStoreWithData, WORKDAYS } from '@/test/fixtures';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import type { AppData } from '@capacitylens/shared/types/entities';
+import { grantFor } from '@/test/permissionGrants';
 
 // The store is the strict per-account write boundary: an update/delete must own
 // the target row, and every foreign key on an add/update must point inside the
@@ -92,7 +93,7 @@ beforeEach(async () => {
     ],
   });
   s().setActiveAccount(A);
-  s().setActiveRole('owner');
+  s().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
   expect(s().activeAccountId).toBe(A);
 });
 
@@ -123,7 +124,7 @@ describe('active-account replacement invariant', () => {
 
 describe('active-account permission publication', () => {
   it('atomically fail-closes a switched tenant before an imperative write can use the prior role', async () => {
-    s().setActiveRole('editor');
+    s().setActiveRole('editor', 'resolved', grantFor('editor').permissions);
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {
       if (state.activeAccountId === B) rolesPublishedForB.push(state.activeRole);
@@ -170,7 +171,7 @@ describe('active-account permission publication', () => {
   });
 
   it('honors canonical read-only authority even when the local role says owner', async () => {
-    s().setActiveRole('owner');
+    s().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const transport = getStubPlanningTransport();
     transport.setCanWrite(false);
     expect(await s().refreshPlanning({ fresh: true })).toBe(true);

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useStore } from '@/store/useStore';
 import type { AccountSummary } from '@/store/useStore';
 import { isAccountRole } from '@capacitylens/shared/account/types';
+import { parseAccessGrant } from './accessGrant';
 import { sessionRequests } from '@/account/sessionRequests';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
@@ -12,25 +13,20 @@ import { api, scopeQueryKey } from '@/api/queryClient';
 // The company directory is loaded before a tenant is selected because the active company slice
 // cannot enumerate other memberships.
 
-// Validate directory entries before publication. Unknown roles remain selectable but
-// fail closed without claiming an authoritative Viewer membership.
+// Validate directory entries before publication. Unknown roles and malformed grants remain
+// selectable but fail closed without claiming an authoritative Viewer membership.
 function parseAccountSummary(entry: unknown): AccountSummary | null {
-  if (typeof entry !== 'object' || entry === null) return null;
-  const summaryRecord = entry as { id?: unknown; name?: unknown; role?: unknown };
-  if (typeof summaryRecord.id !== 'string' || summaryRecord.id.length === 0) return null;
-  if (typeof summaryRecord.name !== 'string') return null;
-  if (!isAccountRole(summaryRecord.role)) {
+  if (!isRecord(entry)) return null;
+  if (typeof entry.id !== 'string' || entry.id.length === 0) return null;
+  if (typeof entry.name !== 'string') return null;
+  const grant = parseAccessGrant(entry);
+  if (!isAccountRole(entry.role) || !grant) {
     console.warn(
-      'fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable',
+      'fetchAccountSummaries: /api/accounts returned an unrecognized role or grant; marking it unavailable',
     );
-    return {
-      id: summaryRecord.id,
-      name: summaryRecord.name,
-      role: 'viewer',
-      roleStatus: 'unavailable',
-    };
+    return { id: entry.id, name: entry.name, role: 'viewer', roleStatus: 'unavailable' };
   }
-  return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
+  return { id: entry.id, name: entry.name, role: entry.role, grant };
 }
 
 type AccountSummaryParseOutcome =

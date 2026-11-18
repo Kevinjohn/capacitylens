@@ -3,6 +3,7 @@ import { m } from '@/i18n';
 import { canViewAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember } from '@/account/teamAccessClient';
+import { useCan } from '@/auth/permissionContext';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,12 +17,14 @@ import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 // The server decides `manage` with the Access Control package and authorizes each operation again.
 function buildMemberAffordances(
+  mayViewAs: boolean,
   myRole: Role | undefined,
   member: TeamMember,
 ): { mayMasquerade: boolean; mayTouch: boolean; hasMenu: boolean } {
   const active = member.status === 'active';
   return {
-    mayMasquerade: active && !member.isSelf && !!myRole && canViewAs(myRole, member.role),
+    mayMasquerade:
+      active && !member.isSelf && mayViewAs && !!myRole && canViewAs(myRole, member.role),
     mayTouch: active && member.manage,
     hasMenu: member.manage,
   };
@@ -194,7 +197,7 @@ export function MemberRow({
   companyId: string | null;
   resourceLinkRequest: MemberResourceLinkRequest;
 }) {
-  const affordances = buildMemberAffordances(myRole, member);
+  const affordances = buildMemberAffordances(useCan('viewAs:use'), myRole, member);
   const memberLabel = resolveMemberLabel(member);
   return (
     <tr

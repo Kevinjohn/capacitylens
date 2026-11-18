@@ -4,6 +4,7 @@ import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessClient';
 import { useAuth } from '@/auth/authContext';
+import { useAccessGrant } from '@/auth/permissionContext';
 import { useDeadlineClock } from '@/hooks/useDeadlineClock';
 import { useFieldError } from '@/hooks/useFieldError';
 import { useStore } from '@/store/useStore';
@@ -259,6 +260,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     acceptedReadGeneration: directoryState.acceptedReadGeneration,
   });
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
+  const { permissions } = useAccessGrant();
   return {
     activeAccountId,
     enabled,
@@ -271,7 +273,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     getResourceLinkRequest,
     members: directoryState.members,
     resourceCandidates,
-    ...buildMemberDirectoryPresentation(directoryState.members),
+    ...buildMemberDirectoryPresentation(directoryState.members, permissions),
     changeSignInTracking: mutationState.actions.changeSignInTracking,
     busyAction: directoryState.busyAction,
     ...inviteState,

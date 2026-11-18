@@ -16,6 +16,7 @@ import {
   resetStoreWithAccount,
 } from '@/test/fixtures';
 import { SettingsDataSection } from './SettingsDataSection';
+import { permissionValue } from '@/test/permissionGrants';
 
 vi.mock('@/data/requestTimeout', () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock('@/lib/reloadPage', () => ({ reloadPage: vi.fn() }));
@@ -29,7 +30,7 @@ vi.mock('@/auth/PasswordConfirmationDialog', () => ({
 
 function renderSection({ role = 'owner' }: { role?: Role | null } = {}) {
   return render(
-    <PermissionContext.Provider value={{ role }}>
+    <PermissionContext.Provider value={permissionValue(role)}>
       <SettingsDataSection />
     </PermissionContext.Provider>,
   );

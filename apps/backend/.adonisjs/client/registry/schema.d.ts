@@ -593,6 +593,19 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
     }
   }
+  'api.export': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/accounts/:accountId/export'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { accountId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['download']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['download']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['download']>>>
+    }
+  }
   'api.accounts.anonymise': {
     methods: ["POST"]
     pattern: '/api/accounts/:accountId/anonymise'

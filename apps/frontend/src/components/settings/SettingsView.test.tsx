@@ -9,6 +9,7 @@ import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { resolveDateStyle } from '@/store/selectors';
 import { OwnerPermissions } from '@/test/ownerPermissions';
+import { permissionValue } from '@/test/permissionGrants';
 
 const render = (ui: ReactNode) => rtlRender(<OwnerPermissions>{ui}</OwnerPermissions>);
 
@@ -69,7 +70,7 @@ describe('SettingsView — Overview access', () => {
   it('defaults to Owner and Admin and lets an administrator widen access', async () => {
     const user = userEvent.setup();
     render(
-      <PermissionContext.Provider value={{ role: 'admin', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('admin', 'resolved')}>
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -87,7 +88,7 @@ describe('SettingsView — Overview access', () => {
 
   it('shows the policy read-only to editors', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('editor', 'resolved')}>
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -123,7 +124,7 @@ describe('SettingsView — section help', () => {
 
   it('keeps help and the account summary available while company controls remain read-only for viewers', () => {
     render(
-      <PermissionContext.Provider value={{ role: 'viewer', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('viewer', 'resolved')}>
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -328,7 +329,7 @@ describe('SettingsView — Import and export disclosure (issue #169)', () => {
   it('keeps import/export closed by default above company details', async () => {
     const user = userEvent.setup();
     render(
-      <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('owner', 'resolved')}>
         <SettingsView />
       </PermissionContext.Provider>,
     );
@@ -540,7 +541,7 @@ it('opens and focuses the Import section reached from onboarding', () => {
   try {
     window.history.replaceState(null, '', '/settings#getting-started-import');
     render(
-      <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('owner', 'resolved')}>
         <SettingsView />
       </PermissionContext.Provider>,
     );

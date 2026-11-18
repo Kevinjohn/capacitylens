@@ -1,8 +1,8 @@
-import { can, isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
+import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Check } from 'lucide-react';
-import { useRole } from '@/auth/permissionContext';
+import { useCan, useRole } from '@/auth/permissionContext';
 import { useTourAction } from '@/hooks/useTourAction';
 import { gettingStartedClient } from '@/account/gettingStartedClient';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
@@ -53,11 +53,11 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
 export function GettingStarted() {
   const accountId = useStore((state) => state.activeAccountId);
   const masqueradeKind = useStore((state) => state.masquerade.kind);
-  const activeRole = useRole();
+  const canWrite = useCan('planning:write');
   // Company onboarding is outside the read-only member projection, including its transitions.
   if (!accountId || masqueradeKind !== 'inactive') return null;
   // Readers never see the panel, so they must not read its state or receive its load notice.
-  if (activeRole !== null && !can(activeRole, 'planning:write')) return null;
+  if (!canWrite) return null;
   return <GettingStartedForAccount key={accountId} accountId={accountId} />;
 }
 

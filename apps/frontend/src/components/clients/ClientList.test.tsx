@@ -18,6 +18,7 @@ import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+import { permissionValue } from '@/test/permissionGrants';
 
 const { archiveRequest } = vi.hoisted(() => ({ archiveRequest: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -185,7 +186,7 @@ describe('ClientList archive flow', () => {
     await useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' });
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+        <PermissionContext.Provider value={permissionValue('editor', 'resolved')}>
           <ClientList />
         </PermissionContext.Provider>
       </QueryClientProvider>,
@@ -226,7 +227,7 @@ describe('ClientList archive flow', () => {
     });
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+        <PermissionContext.Provider value={permissionValue('editor', 'resolved')}>
           <ClientList />
         </PermissionContext.Provider>
       </QueryClientProvider>,
@@ -255,7 +256,7 @@ describe('ClientList archive flow', () => {
     markClientArchived(client.id);
 
     render(
-      <PermissionContext.Provider value={{ role, status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
         <ClientList />
       </PermissionContext.Provider>,
     );

@@ -7,9 +7,8 @@ import { resolveRejectionMessage } from '@/account/accessResult';
 import type { TeamAccessResult } from '@/account/accessResult';
 import { api, queryClient, scopeQueryKey } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
-import { can } from '@capacitylens/shared/domain/access';
 import { useAuth } from '@/auth/authContext';
-import { usePermissionStatus, useRole } from '@/auth/permissionContext';
+import { useCan, usePermissionStatus } from '@/auth/permissionContext';
 import { reprojectAccess } from '@/auth/reprojectAccess';
 import { useStore } from '@/store/useStore';
 
@@ -183,7 +182,7 @@ export function useOwnershipTransfer(
   refreshAuth: () => Promise<void>,
 ): OwnershipTransferController {
   const { user } = useAuth();
-  const role = useRole();
+  const mayTransfer = useCan('ownership:transfer');
   const permissionStatus = usePermissionStatus();
   const masquerade = useStore((state) => state.masquerade);
   const scope: ApiQueryScope = {
@@ -193,8 +192,7 @@ export function useOwnershipTransfer(
   };
   const available =
     user !== null &&
-    role !== null &&
-    can(role, 'ownership:transfer') &&
+    mayTransfer &&
     permissionStatus === 'resolved' &&
     masquerade.kind === 'inactive';
   const directory = useOwnerDirectory({

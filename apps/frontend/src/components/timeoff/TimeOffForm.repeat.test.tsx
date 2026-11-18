@@ -9,10 +9,11 @@ import { TimeOffForm } from './TimeOffForm';
 import type { ReactElement } from 'react';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningFixtures';
+import { permissionValue } from '@/test/permissionGrants';
 
 function render(ui: ReactElement) {
   return rtlRender(
-    <PermissionContext.Provider value={{ role: 'owner', status: 'resolved' }}>
+    <PermissionContext.Provider value={permissionValue('owner', 'resolved')}>
       {ui}
     </PermissionContext.Provider>,
   );
@@ -269,7 +270,7 @@ describe('TimeOffForm repeat creation', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const resource = await requireCreated(useStore.getState().addResource(resourceDraft));
     render(
-      <PermissionContext.Provider value={{ role: 'editor', status: 'resolved' }}>
+      <PermissionContext.Provider value={permissionValue('editor', 'resolved')}>
         <TimeOffForm
           defaults={{ resourceId: resource.id, startDate: '2026-01-30', endDate: '2026-01-30' }}
           onClose={() => {}}

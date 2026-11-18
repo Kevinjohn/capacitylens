@@ -5,7 +5,7 @@ import { readApiError } from '@/lib/readApiError';
 import { apiReadRouteUrl } from '@/api/queryClient';
 import { apiFetch, API_BULK_TIMEOUT_MS } from './requestTimeout';
 
-// The shared inactive-slice reader checks the tenant projection is structurally complete so backup and lifecycle views cannot accept a partial response. The rows are the server's own; it does not re-validate them.
+// The shared inactive-slice reader checks the tenant projection is structurally complete so the archived-records section cannot accept a partial response. The rows are the server's own; it does not re-validate them.
 
 /**
  * A non-OK response from the inactive-slice read. Carries the raw {@link status} so callers can
@@ -49,7 +49,7 @@ export async function fetchInactiveSlice(accountId: ID, signal?: AbortSignal): P
     apiReadRouteUrl('api.state', { query: { accountId, includeInactive: '1' } }),
     { credentials: 'include', ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) slice is the heaviest read the app makes, the bulk
-    // tier, not the interactive 15s, so a large tenant's export/backup isn't aborted mid-flight.
+    // tier, not the interactive 15s, so a large tenant's archived records aren't aborted mid-flight.
     API_BULK_TIMEOUT_MS,
   );
   if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res));

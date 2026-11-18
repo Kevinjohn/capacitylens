@@ -77,7 +77,7 @@ function listHiddenMarkers(role: Role) {
   return hidden;
 }
 
-/** Only an effective Owner or Admin asks the state route for archived rows. */
+/** Only an effective Owner or Admin gets archived rows from the state and export routes. */
 function canReadInactive(role: Role) {
   return role === 'owner' || role === 'admin';
 }
@@ -150,6 +150,17 @@ const replies: Record<string, Exposure> = {
     carries: [MARKER_ARCHIVED_CLIENT],
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('planning/archive')), fixture.cookie).send(),
+  },
+  'api.export': {
+    write: false,
+    carries: (principal) => [
+      MARKER_CLIENT,
+      MARKER_PROJECT,
+      MARKER_NOTE,
+      ...(canReadInactive(principal.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
+    ],
+    call: (fixture) =>
+      session(fixture.client.get(buildCompanyRoute('export')), fixture.cookie).send(),
   },
   'api.state': {
     write: false,
@@ -517,6 +528,11 @@ test.group('restricted values in replies', (group) => {
             if (!hidden.includes(marker)) assert.include(text, marker, where);
             else if (codeName) assert.include(text, `\\"${codeName}\\"`, where);
           }
+        }
+        // The export is labelled full only for an effective Owner, whoever is signed in.
+        if (name === 'api.export' && reply.status() === 200) {
+          const { completeness } = JSON.parse(text) as { completeness: string };
+          assert.equal(completeness, principal.effective === 'owner' ? 'full' : 'redacted', where);
         }
         // A committed write carries no rows, so no marker appears even for a reader who may see it.
         if (exposure.write && reply.status() === 200) {

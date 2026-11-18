@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import { can } from '@capacitylens/shared/domain/access';
-import { useRole } from '@/auth/permissionContext';
+import { useCan } from '@/auth/permissionContext';
 import { ConfirmDialog, Modal } from './common/ui';
 import { m } from '@/i18n';
 import { Button } from './ui/button';
@@ -134,9 +133,8 @@ function DataToolControls({
 /** Offers scoped data export and guarded import for the active account. */
 export function ImportExport() {
   const setNotice = useStore((state) => state.setNotice);
-  const role = useRole();
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const canImport = role !== null && can(role, 'company:import');
+  const canImport = useCan('company:import');
   // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
     pending: pendingImport,

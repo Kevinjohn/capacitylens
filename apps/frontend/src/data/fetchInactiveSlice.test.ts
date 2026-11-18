@@ -72,7 +72,7 @@ describe('fetchInactiveSlice', () => {
     expect((err as InactiveSliceHttpError).serverMessage).toBeUndefined();
   });
 
-  // A partial 200 must not be repaired into an apparently complete backup.
+  // A partial 200 must not be repaired into an apparently complete slice.
   it('throws InactiveSliceShapeError on a structurally incomplete 200 body', async () => {
     for (const body of [
       null,

@@ -31,6 +31,7 @@ type RuntimeSliceKeys =
   | 'weekSnapEnabled'
   | 'activeRole'
   | 'activeRoleStatus'
+  | 'activePermissions'
   | 'membershipRevision'
   | 'masquerade'
   | 'setHydrated'
@@ -82,6 +83,7 @@ function readRuntimeInitialState() {
     weekSnapEnabled: readStoredWeekSnapOverride(),
     activeRole: null,
     activeRoleStatus: 'not-applicable' as const,
+    activePermissions: [],
     membershipRevision: 0,
     masquerade: { kind: 'inactive' as const },
   };
@@ -144,8 +146,8 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       'minimiseWeekends',
       writeStoredMinimiseWeekends,
     ),
-    setActiveRole: (role, status = role === null ? 'not-applicable' : 'resolved') =>
-      set({ activeRole: role, activeRoleStatus: status }),
+    setActiveRole: (role, status = role === null ? 'not-applicable' : 'resolved', permissions) =>
+      set({ activeRole: role, activeRoleStatus: status, activePermissions: permissions ?? [] }),
     invalidateMemberships: () =>
       set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
     setMasquerade: (masquerade) => set({ masquerade }),

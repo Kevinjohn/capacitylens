@@ -125,7 +125,9 @@ This is the short, present-tense record of decisions that constrain future work.
   Unknown request fields are stripped by the validator.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
-  Identity, sessions, membership and admission records are never part of the export.
+  Identity, sessions, membership and admission records are never part of the export. The server
+  builds the export for the reader's role, labels it full or redacted and serves it as a download;
+  the browser only saves the file.
 - Beta transfer uses the versioned full company document, binds the exported company scope to
   the selected destination company, preserves scheduling IDs and existing member links, and replaces
   supported company settings. Validate every source row against the exported company before binding;
@@ -197,8 +199,11 @@ This is the short, present-tense record of decisions that constrain future work.
   with the company in its path refuses a caller without an active membership before its handler,
   with the refusal the handler would give. The server always authorizes inside the request
   transaction; a route that takes the company from the request body has only that check. The
-  browser reads the permissions only to show or hide controls. A membership is active or suspended.
-  Nobody manages their own membership, and an Admin cannot manage the Owner.
+  server sends the effective member's permission keys and the private-name and time-off-note flags
+  with the company directory and the view-as state; the browser shows or hides permission-gated
+  controls from them, and a view-as sends only `planning:read`. The browser's Owner-or-Admin,
+  Capacity Overview and sole-Owner checks and the view-as rank check still read the role. A
+  membership is active or suspended. Nobody manages their own membership, and an Admin cannot manage the Owner.
 - Admission is cumulative and owned by the kit: an optional allowed email domain, invitation
   evidence and Owner or Admin approval, all from static configuration (restart to change).
   Accepting an emailed invitation records the evidence, confirms the address and creates the

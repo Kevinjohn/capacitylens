@@ -6,6 +6,13 @@ import { activeCompanyRole, IdentityAuthorityError } from '#services/auth/author
 import { effectiveReadPrincipal } from '#services/auth/masquerade';
 import { withActor } from '#services/auth/current_actor';
 import access from '#config/access_control';
+import { resolvePlanningAuthority } from '#services/planning/authority';
+import { sendRefusal } from '#services/planning/http_refusal';
+import {
+  BetaTransferError,
+  buildBetaExport,
+  serializeBetaExport,
+} from '@capacitylens/shared/data/betaTransfer';
 
 export default class ExportsController {
   async show(ctx: HttpContext) {
@@ -22,5 +29,39 @@ export default class ExportsController {
       const state = await readStateWithClient(trx, accountId, includeInactive === '1');
       return response.ok(transformState(state, accountId, role));
     });
+  }
+
+  /**
+   * Serves the company's export document as a download. The server reads the rows, projects them
+   * for the effective member's role, includes inactive rows only for `members:manage`, and labels
+   * the document `full` only for a reader who may see private names.
+   */
+  async download(ctx: HttpContext) {
+    try {
+      const accountId = String(ctx.params.accountId);
+      const text = await withActor(ctx, async (_actor, trx) => {
+        const { authority } = await resolvePlanningAuthority(trx, accountId);
+        const rows = await readStateWithClient(
+          trx,
+          accountId,
+          access.can(authority.role, 'members:manage')
+        );
+        return serializeBetaExport(
+          buildBetaExport(transformState(rows, accountId, authority.role), {
+            accountId,
+            completeness: authority.canSeePrivateNames ? 'full' : 'redacted',
+          })
+        );
+      });
+      ctx.response.header('Content-Type', 'application/json; charset=utf-8');
+      ctx.response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
+      return ctx.response.send(text);
+    } catch (error) {
+      // A document that fails validation is refused as the import path refuses one.
+      if (error instanceof BetaTransferError) {
+        return ctx.response.badRequest({ error: error.message });
+      }
+      return sendRefusal(error, ctx);
+    }
   }
 }

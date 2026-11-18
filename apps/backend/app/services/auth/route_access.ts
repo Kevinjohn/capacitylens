@@ -46,6 +46,7 @@ const admittedRoutes = new Set([
   'api.admission.complete',
   'api.diagnostics',
   'api.example-data',
+  'api.export',
   'api.getting-started.show',
   'api.getting-started.update',
   'api.installation.company',

@@ -9,6 +9,7 @@ import { useStore } from '@/store/useStore';
 import { MembersSection } from './MembersSection';
 import { useTeamDirectory } from './useTeamDirectory';
 import { authValue, mockApi, rawMember, renderSection } from './MembersSection.testSupport';
+import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const accountTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
@@ -152,6 +153,7 @@ describe('MembersSection — directory error retention', () => {
           targetUserId: 'target-user',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
+          ...viewAsGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',

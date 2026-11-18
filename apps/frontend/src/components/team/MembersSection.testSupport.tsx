@@ -3,6 +3,9 @@ import type userEvent from '@testing-library/user-event';
 import { expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthContext } from '@/auth/authContext';
+import { PermissionContext } from '@/auth/permissionContext';
+import type { Role } from '@capacitylens/shared/domain/access';
+import { permissionValue } from '@/test/permissionGrants';
 import type { AuthContextValue } from '@/auth/authContext';
 import { DEFAULT_ACCOUNT_ID, jsonResponse } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
@@ -138,13 +141,15 @@ export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValu
   ...over,
 });
 
-/** Renders the member section with the supplied authentication context. */
-export function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
+/** Renders the member section with the supplied authentication context and the caller's role grant. */
+export function renderSection(authOverrides: Partial<AuthContextValue> = {}, role: Role = 'owner') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authValue(authOverrides)}>
-        <MembersSection />
+        <PermissionContext.Provider value={permissionValue(role)}>
+          <MembersSection />
+        </PermissionContext.Provider>
       </AuthContext.Provider>
     </QueryClientProvider>,
   );

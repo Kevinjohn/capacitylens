@@ -11,7 +11,7 @@ export function publishMasqueradeAccount(store: StoreState, state: MasqueradeSta
     list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
     complete: account !== undefined,
   });
-  store.setActiveRole(state.effectiveRole, 'resolved');
+  store.setActiveRole(state.effectiveRole, 'resolved', state.permissions);
 }
 
 interface RestoreMasqueradeProjectionInput {

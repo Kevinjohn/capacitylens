@@ -13,6 +13,7 @@ import {
   resetAllocationModalStore,
   renderAsOwner,
 } from '@/test/allocationModalTestKit';
+import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetAllocationModalStore();
@@ -211,7 +212,7 @@ describe('AllocationModal inline activity creation pref', () => {
     await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     const view = renderAsOwner(
-      <PermissionContext.Provider value={{ role: 'editor' }}>
+      <PermissionContext.Provider value={permissionValue('editor')}>
         <AllocationModal
           kind="create"
           create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
@@ -222,7 +223,7 @@ describe('AllocationModal inline activity creation pref', () => {
     await user.type(screen.getByLabelText('New activity name'), 'Unsaved viewer activity');
 
     view.rerender(
-      <PermissionContext.Provider value={{ role: 'viewer' }}>
+      <PermissionContext.Provider value={permissionValue('viewer')}>
         <AllocationModal
           kind="create"
           create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}

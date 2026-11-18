@@ -52,7 +52,7 @@ describe('MembersSection — admin affordances', () => {
 
   it('does NOT offer the owner option in the invite role picker', async () => {
     vi.stubGlobal('fetch', mockApi(members));
-    renderSection();
+    renderSection({}, 'admin');
     await screen.findByTestId('members-section');
     await openInviteDialog();
 
@@ -60,13 +60,12 @@ describe('MembersSection — admin affordances', () => {
     expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Editor' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('member-sign-in-tracking')).not.toBeInTheDocument();
   });
 
   it('marks and describes an invalid invitation pre-authorisation email', async () => {
     const user = userEvent.setup();
     vi.stubGlobal('fetch', mockApi(members));
-    renderSection();
+    renderSection({}, 'admin');
     await openInviteDialog();
     const email = await screen.findByTestId('invite-preauth');
 
@@ -83,7 +82,7 @@ describe('MembersSection — admin affordances', () => {
     // Email validation must reject disallowed characters independently of the length cap.
     const user = userEvent.setup();
     vi.stubGlobal('fetch', mockApi(members));
-    renderSection();
+    renderSection({}, 'admin');
     await openInviteDialog();
     const email = await screen.findByTestId('invite-preauth');
 
@@ -96,7 +95,7 @@ describe('MembersSection — admin affordances', () => {
   });
   it("shows no role control or member actions on an OWNER row (admin can't touch an owner)", async () => {
     vi.stubGlobal('fetch', mockApi(members));
-    renderSection();
+    renderSection({}, 'admin');
     await screen.findByTestId('members-section');
 
     const ownerRow = await waitForMemberRow(/theowner@x\.io/);
@@ -114,7 +113,7 @@ describe('MembersSection — admin affordances', () => {
   it('offers masquerade only for other active members ranked at or below the viewer, and confirms by name', async () => {
     const user = userEvent.setup();
     vi.stubGlobal('fetch', mockApi(members));
-    renderSection();
+    renderSection({}, 'admin');
     const selfRow = await waitForMemberRow(/me@x\.io/);
     const ownerRow = await waitForMemberRow(/theowner@x\.io/);
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
@@ -136,7 +135,7 @@ describe('MembersSection — admin affordances', () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
     vi.stubGlobal('fetch', fetchMock);
-    renderSection();
+    renderSection({}, 'admin');
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, 'member-suspend');
@@ -162,7 +161,7 @@ describe('MembersSection — admin affordances', () => {
     const fetchMock = mockApi(members);
     vi.stubGlobal('fetch', fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
-    renderSection();
+    renderSection({}, 'admin');
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await user.click(within(editorRow).getByTestId('member-edit'));
@@ -201,7 +200,7 @@ describe('MembersSection — admin affordances', () => {
       releasePatch = () => resolve(new Response(null, { status: 204 }));
     });
     vi.stubGlobal('fetch', mockApi(members, { 'PATCH /members/theeditor': () => patchResponse }));
-    renderSection();
+    renderSection({}, 'admin');
     const editorRow = await waitForMemberRow(/theeditor@x\.io/);
 
     await saveRoleVia(user, editorRow, 'Viewer');

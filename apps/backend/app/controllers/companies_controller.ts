@@ -2,6 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http';
 import access from '#config/access_control';
 import { withActor } from '#services/auth/current_actor';
 import { hasMultipleCompanies } from '#models/installation_company';
+import { accessGrant } from '#services/auth/access_grant';
+import { isAccountRole } from '@capacitylens/shared/account/types';
 
 /** Returns the companies this principal may enter, or 409 while the installation has more than one. */
 export default class CompaniesController {
@@ -13,7 +15,16 @@ export default class CompaniesController {
         .innerJoin('accounts as account', 'account.id', 'member.scope_id')
         .where({ 'member.user_id': actor.userId, 'member.status': 'active' })
         .select('account.id', 'account.name', 'member.role');
-      return rows.sort((left, right) => String(left.name).localeCompare(String(right.name)));
+      return rows
+        .sort((left, right) => String(left.name).localeCompare(String(right.name)))
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+          role: row.role,
+          ...(isAccountRole(row.role)
+            ? accessGrant(row.role, false)
+            : { permissions: [], canSeePrivateNames: false, canSeeTimeOffNote: false }),
+        }));
     });
     if (summaries === null) {
       return ctx.response.conflict({

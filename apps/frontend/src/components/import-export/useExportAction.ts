@@ -1,23 +1,16 @@
 import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
+import { apiRouteUrl } from '@/api/queryClient';
+import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { downloadTextFile } from '@/lib/download';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import {
-  fetchInactiveSlice,
-  InactiveSliceHttpError,
-  InactiveSliceShapeError,
-} from '@/data/fetchInactiveSlice';
-import { useRole } from '@/auth/permissionContext';
-import { can, canSeePrivateNames } from '@capacitylens/shared/domain/access';
+import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
 
-/** Downloads the active company's export, reporting a failed or incomplete export as an error. */
+/** Saves the export document the server builds for the active company, reporting a refusal as an error. */
 export function useExportAction() {
-  const data = useStore((state) => state.data);
   const setNotice = useStore((state) => state.setNotice);
   const activeAccountId = useStore((state) => state.activeAccountId);
-  const role = useRole();
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
 
@@ -26,27 +19,23 @@ export function useExportAction() {
     inFlight.current = true;
     setBusy(true);
     try {
-      let exported = data;
       if (!activeAccountId) throw new Error('An active company is required before exporting.');
-      if (role !== null && can(role, 'resources:anonymise')) {
-        exported = await fetchInactiveSlice(activeAccountId);
-      }
-      const completeness = role !== null && canSeePrivateNames(role) ? 'full' : 'redacted';
-      downloadTextFile(
-        'capacitylens-data.json',
-        serializeBetaExport(
-          buildBetaExport(exported, { accountId: activeAccountId, completeness }),
-        ),
+      const response = await apiFetch(
+        apiRouteUrl('api.export', { params: { accountId: activeAccountId } }),
+        { credentials: 'include' },
+        API_BULK_TIMEOUT_MS,
       );
-    } catch (error) {
-      // Report the export failure instead of suggesting that an incomplete or unavailable backup was saved.
-      if (error instanceof InactiveSliceHttpError) {
-        setNotice(error.serverMessage ?? m.data_export_failed({ status: error.status }), 'error');
-      } else if (error instanceof InactiveSliceShapeError) {
-        setNotice(m.data_export_incomplete(), 'error');
-      } else {
-        setNotice(m.data_export_error({ error: resolveErrorMessage(error) }), 'error');
+      if (!response.ok) {
+        setNotice(
+          (await readApiError(response)) ?? m.data_export_failed({ status: response.status }),
+          'error',
+        );
+        return;
       }
+      downloadTextFile('capacitylens-data.json', await response.text());
+    } catch (error) {
+      // Report the export failure instead of suggesting that an unavailable backup was saved.
+      setNotice(m.data_export_error({ error: resolveErrorMessage(error) }), 'error');
     } finally {
       inFlight.current = false;
       setBusy(false);

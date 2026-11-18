@@ -7,6 +7,7 @@ import {
 } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { useStore } from './useStore';
+import { grantFor } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
@@ -56,7 +57,7 @@ describe('planning command suspension', () => {
     if (!releaseA) throw new Error('Company A did not acquire its replacement lock.');
     useStore.getState().setActiveAccount('a2');
     await useStore.getState().refreshPlanning();
-    useStore.getState().setActiveRole('owner');
+    useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const releaseB = useStore.getState().suspendPlanningCommands();
     if (!releaseB) throw new Error('Company B did not acquire its replacement lock.');
     releaseA();
@@ -69,7 +70,7 @@ describe('planning command suspension', () => {
     releaseB();
     useStore.getState().setActiveAccount('acct-test');
     await useStore.getState().refreshPlanning();
-    useStore.getState().setActiveRole('owner');
+    useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const releaseSecondA = useStore.getState().suspendPlanningCommands();
     if (!releaseSecondA) throw new Error('The new company A incarnation did not acquire its lock.');
     releaseA();
@@ -102,7 +103,7 @@ describe('planning command suspension', () => {
 
     useStore.getState().setActiveAccount('acct-test');
     await useStore.getState().refreshPlanning();
-    useStore.getState().setActiveRole('owner');
+    useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const releaseNewA = useStore.getState().suspendPlanningCommands();
     if (!releaseNewA) throw new Error('The re-entered company A context was not ready.');
     releaseOldA();

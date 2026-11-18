@@ -278,6 +278,12 @@ const routes = {
     tokens: [[0,"api"],[0,"state"]],
     types: placeholder as Registry['api.state']['types'],
   },
+  'api.export': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/accounts/:accountId/export',
+    tokens: [[0,"api"],[0,"accounts"],[1,"accountId"],[0,"export"]],
+    types: placeholder as Registry['api.export']['types'],
+  },
   'api.accounts.anonymise': {
     methods: ["POST"],
     pattern: '/api/accounts/:accountId/anonymise',

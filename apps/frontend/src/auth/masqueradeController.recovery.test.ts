@@ -8,6 +8,7 @@ import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { reprojectAccess } from './reprojectAccess';
 import { MasqueradeController } from './masqueradeController';
+import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const reads = vi.hoisted(() => ({ fail: false, count: 0 }));
 
@@ -34,6 +35,7 @@ const state: MasqueradeState & { contextToken: string } = {
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',
+  ...viewAsGrantFor('viewer'),
   startedAt: '2026-09-01T10:00:00.000Z',
   expiresAt: '2026-09-01T10:15:00.000Z',
   token: 'token-1',

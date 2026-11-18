@@ -17,8 +17,6 @@ import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
 import { formatDayMonth } from '@/lib/dateDisplay';
 import { resolveDateStyle } from './selectors';
-import { buildBetaExport, serializeBetaExport } from '@capacitylens/shared/data/betaTransfer';
-import { seed } from '@capacitylens/shared/data/seed';
 import { PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
 
 const s = () => useStore.getState();
@@ -231,7 +229,7 @@ describe('store scheduler UI', () => {
     expect(s().weekSnapEnabled).toBe(true);
   });
 
-  it('the date format is account data: undoable, exported, and mirrored to the formatters', async () => {
+  it('the date format is account data: undoable and mirrored to the formatters', async () => {
     const accountId = s().activeAccountId;
     if (!accountId) throw new Error('Expected an active account.');
     await s().updateAccount(accountId, { dateStyle: 'month-day' });
@@ -242,22 +240,6 @@ describe('store scheduler UI', () => {
     await s().undoPlanning();
     expect(resolveDateStyle(s().data, accountId)).toBe('day-month');
     expect(formatDayMonth('2026-09-09')).toBe('9 Sep');
-
-    await s().updateAccount(accountId, { dateStyle: 'month-day' });
-    const exportData = seed();
-    const exportAccount = exportData.accounts[0];
-    if (!exportAccount) throw new Error('Expected a valid export fixture account.');
-    exportAccount.dateStyle =
-      s().data.accounts.find((account) => account.id === accountId)?.dateStyle ?? null;
-    expect(
-      serializeBetaExport(
-        buildBetaExport(exportData, { accountId: exportAccount.id, completeness: 'full' }),
-      ),
-    ).toContain('"dateStyle": "month-day"');
-
-    // Restore the default. The store is a singleton, so leaving it changed would bleed into
-    // later specs that format a date.
-    await s().updateAccount(accountId, { dateStyle: 'day-month' });
   });
 
   it('setDrawMode toggles between work and time off', () => {

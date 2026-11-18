@@ -23,8 +23,7 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities';
-import { canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
-import { useRole } from '@/auth/permissionContext';
+import { useAccessGrant } from '@/auth/permissionContext';
 import { useTimeOffRepeat } from './useTimeOffRepeat';
 import { TimeOffRepeatFields } from './TimeOffRepeatFields';
 import { prepareTimeOffSave } from './timeOffFormSubmission';
@@ -146,8 +145,7 @@ function buildTimeOffRepeatFields(options: {
 }
 
 function useCanEditTimeOffNote(): boolean {
-  const role = useRole();
-  return role !== null && canSeeTimeOffNote(role);
+  return useAccessGrant().canSeeTimeOffNote;
 }
 
 /** Creates or edits time off for an authorised resource. */

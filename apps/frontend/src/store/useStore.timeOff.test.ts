@@ -16,6 +16,7 @@ import {
   queueTimeOffRestoreResponse,
   queueTimeOffRepeatResponse,
 } from '@/test/planning/queuePlanningFixtures';
+import { grantFor } from '@/test/permissionGrants';
 
 const state = () => useStore.getState();
 
@@ -208,7 +209,7 @@ describe('atomic time-off creation: viewer guard', () => {
     const { draft } = await timeOffSetup();
     const pastBefore = state().planning.history.past;
     const futureBefore = state().planning.history.future;
-    state().setActiveRole('viewer');
+    state().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
     const returned = await state().addRepeatedTimeOff(draft(), weekly('2026-06-08'), 2);
 
     expect(returned).toEqual({ kind: 'blocked' });
