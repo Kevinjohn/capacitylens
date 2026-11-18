@@ -19,6 +19,7 @@ import { EntityWriteError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 import { discardRestorationGroups } from '#services/planning/restoration';
+import { discardHistory } from '#services/planning/history';
 
 /**
  * Validates a document taken from a parsed request body, throwing a {@link CompanyDocumentError} that
@@ -157,6 +158,7 @@ export async function applyCompanyImport(
   }
 
   await discardRestorationGroups(trx, companyId);
+  await discardHistory(trx, companyId);
   for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
     await trx.from(tables[key]).where('company_id', companyId).delete();
   }

@@ -2,7 +2,13 @@ import vine from '@vinejs/vine';
 import { allocationIntent } from '#validators/planning/allocation';
 import { catalogueIntent } from '#validators/planning/catalogue';
 import { closureIntent } from '#validators/planning/closure';
-import { meta, operationMatches, operationStartsWith, uuid } from '#validators/planning/fields';
+import {
+  meta,
+  operationMatches,
+  operationStartsWith,
+  revision,
+  uuid,
+} from '#validators/planning/fields';
 import { resourceIntent } from '#validators/planning/resource';
 import { settingsIntent } from '#validators/planning/settings';
 import { timeOffIntent } from '#validators/planning/time_off';
@@ -28,4 +34,9 @@ const planningIntent = vine.union([
  */
 export const planningMutationValidator = vine.compile(
   vine.object({ ...meta(), intent: planningIntent })
+);
+
+/** One undo or redo: the server holds the intent, so the body names only the page's history. */
+export const planningHistoryStepValidator = vine.compile(
+  vine.object({ mutationId: uuid(), baseRevision: revision(), historyId: uuid() })
 );

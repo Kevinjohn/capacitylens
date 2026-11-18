@@ -12,6 +12,8 @@ export type ScannedRoutes = {
     'api.planning.allocation.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.deleteGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.restoreGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning.undo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning.redo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.resource.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -137,6 +139,8 @@ export type ScannedRoutes = {
     'api.planning.allocation.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.planning.allocation.deleteGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.restoreGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning.undo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning.redo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.timeOff.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }

@@ -44,6 +44,12 @@ router
       ])
       .as('api.planning.restoreGroup');
     router
+      .post('/api/companies/:companyId/planning/undo', [PlanningController, 'undo'])
+      .as('api.planning.undo');
+    router
+      .post('/api/companies/:companyId/planning/redo', [PlanningController, 'redo'])
+      .as('api.planning.redo');
+    router
       .post('/api/companies/:companyId/resources', [PlanningController, 'resourceCreate'])
       .as('api.planning.resource.create');
     router

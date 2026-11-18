@@ -126,6 +126,34 @@ async function archiveAsOwner(fixture: Fixture, path: string, intent: object) {
   archived.assertStatus(200);
 }
 
+/** Recolours the marked client under a history, a change every writer may make and undo. */
+async function recolourClient(fixture: Fixture, historyId: string) {
+  return session(
+    fixture.client.patch(buildCompanyRoute(`clients/${fixture.clientId}`)),
+    fixture.cookie
+  )
+    .json({
+      mutationId: randomUUID(),
+      baseRevision: await readRevision(),
+      historyId,
+      intent: {
+        operation: 'catalogue.update',
+        entity: {
+          entity: 'clients',
+          id: fixture.clientId,
+          changes: { color: await pickOtherColor('clients', fixture.clientId) },
+        },
+      },
+    })
+    .send();
+}
+
+async function stepHistory(fixture: Fixture, step: 'undo' | 'redo', historyId: string) {
+  return session(fixture.client.post(buildCompanyRoute(`planning/${step}`)), fixture.cookie)
+    .json({ mutationId: randomUUID(), baseRevision: await readRevision(), historyId })
+    .send();
+}
+
 type Exposure =
   | {
       call: (fixture: Fixture, principal: Principal) => Promise<ApiResponse>;
@@ -309,6 +337,25 @@ const replies: Record<string, Exposure> = {
           restorationGroupId: groupId,
         }
       );
+    },
+  },
+  'api.planning.undo': {
+    write: true,
+    carries: WRITE_REPLY,
+    call: async (fixture) => {
+      const historyId = randomUUID();
+      await recolourClient(fixture, historyId);
+      return stepHistory(fixture, 'undo', historyId);
+    },
+  },
+  'api.planning.redo': {
+    write: true,
+    carries: WRITE_REPLY,
+    call: async (fixture) => {
+      const historyId = randomUUID();
+      await recolourClient(fixture, historyId);
+      await stepHistory(fixture, 'undo', historyId);
+      return stepHistory(fixture, 'redo', historyId);
     },
   },
   'api.accounts.anonymise': { none: COUNTS },

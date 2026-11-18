@@ -15,6 +15,8 @@ export interface ApiDefinition {
         duplicate: typeof routes['api.planning.allocation.duplicate']
       }
       restoreGroup: typeof routes['api.planning.restoreGroup']
+      undo: typeof routes['api.planning.undo']
+      redo: typeof routes['api.planning.redo']
       resource: {
         create: typeof routes['api.planning.resource.create']
         update: typeof routes['api.planning.resource.update']

@@ -112,6 +112,32 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['restoreGroup']>>>
     }
   }
+  'api.planning.undo': {
+    methods: ["POST"]
+    pattern: '/api/companies/:companyId/planning/undo'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { companyId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
+    }
+  }
+  'api.planning.redo': {
+    methods: ["POST"]
+    pattern: '/api/companies/:companyId/planning/redo'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { companyId: ParamValue }
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
+    }
+  }
   'api.planning.resource.create': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/resources'

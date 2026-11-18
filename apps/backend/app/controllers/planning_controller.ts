@@ -1,5 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { readPlanning, readArchiveRecovery, mutatePlanning } from '#services/planning';
+import {
+  abandonPlanningHistory,
+  EmptyHistoryError,
+  readPlanning,
+  readArchiveRecovery,
+  mutatePlanning,
+  stepPlanningHistory,
+} from '#services/planning';
 import { PlanningOperationError } from '#services/planning/execute';
 import { allocationMutationValidator } from '#validators/planning/allocation';
 import { catalogueMutationValidator } from '#validators/planning/catalogue';
@@ -7,7 +14,10 @@ import { resourceMutationValidator } from '#validators/planning/resource';
 import { timeOffMutationValidator } from '#validators/planning/time_off';
 import { closureMutationValidator } from '#validators/planning/closure';
 import { settingsMutationValidator } from '#validators/planning/settings';
-import { planningMutationValidator } from '#validators/planning_operations';
+import {
+  planningHistoryStepValidator,
+  planningMutationValidator,
+} from '#validators/planning_operations';
 import { planningReadValidator } from '#validators/planning/read';
 import type { PlanningMutationInput } from '#validators/planning/contracts';
 import { sendRefusal } from '#services/planning/http_refusal';
@@ -18,11 +28,13 @@ export default class PlanningController {
   async show(ctx: HttpContext) {
     try {
       const companyId = String(ctx.params.companyId);
-      const { from, to } = await ctx.request.validateUsing(planningReadValidator, {
+      const { from, to, historyId } = await ctx.request.validateUsing(planningReadValidator, {
         data: ctx.request.qs(),
       });
       const window = from !== undefined && to !== undefined ? { from, to } : undefined;
-      return await withActor(ctx, (_actor, trx) => readPlanning(trx, companyId, window));
+      return await withActor(ctx, (actor, trx) =>
+        readPlanning(trx, companyId, window, { sessionId: actor.sessionId, historyId })
+      );
     } catch (error) {
       return sendRefusal(error, ctx);
     }
@@ -33,6 +45,41 @@ export default class PlanningController {
       const companyId = String(ctx.params.companyId);
       return await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, companyId));
     } catch (error) {
+      return sendRefusal(error, ctx);
+    }
+  }
+
+  async undo(ctx: HttpContext) {
+    return this.step(ctx, 'undo');
+  }
+
+  async redo(ctx: HttpContext) {
+    return this.step(ctx, 'redo');
+  }
+
+  private async step(ctx: HttpContext, step: 'undo' | 'redo') {
+    const companyId = String(ctx.params.companyId);
+    let historyId: string | undefined;
+    try {
+      const input = await ctx.request.validateUsing(planningHistoryStepValidator);
+      historyId = input.historyId;
+      return await withActor(ctx, (actor, trx) =>
+        stepPlanningHistory({ trx, actor, companyId, input, step })
+      );
+    } catch (error) {
+      // The refused step rolled back with its transaction, so ending its history needs its own.
+      if (
+        historyId !== undefined &&
+        error instanceof PlanningOperationError &&
+        !(error instanceof EmptyHistoryError) &&
+        error.code !== 'STALE_REVISION' &&
+        error.code !== 'MUTATION_ID_REUSED'
+      ) {
+        const refused = historyId;
+        await withActor(ctx, (actor, trx) =>
+          abandonPlanningHistory({ trx, actor, companyId, historyId: refused })
+        );
+      }
       return sendRefusal(error, ctx);
     }
   }

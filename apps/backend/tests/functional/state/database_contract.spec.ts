@@ -61,6 +61,7 @@ test.group('M1 database contract', (group) => {
         'database/migrations/202611110001_unbind_password_confirmation_scope_from_companies',
         'database/migrations/202611120001_rename_ignore_weekends_to_ignore_working_days',
         'database/migrations/202611120002_drop_ownership_transfers',
+        'database/migrations/202611180001_create_planning_histories',
       ]
     );
     const rows = await db.from('sqlite_master').select('name').where('type', 'table');

@@ -588,6 +588,23 @@ export class PhaseSchema extends BaseModel {
   declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
 }
 
+export class PlanningHistorySchema extends BaseModel {
+  static $columns = ['actorId', 'companyId', 'entriesJson', 'historyId', 'revision', 'sessionId'] as const
+  $columns = PlanningHistorySchema.$columns
+  @column()
+  declare actorId: string
+  @column({ isPrimary: true })
+  declare companyId: string
+  @column()
+  declare entriesJson: any
+  @column()
+  declare historyId: string
+  @column()
+  declare revision: number
+  @column()
+  declare sessionId: number
+}
+
 export class PlanningMutationSchema extends BaseModel {
   static $columns = ['actorId', 'companyId', 'mutationId', 'originSessionId', 'restorationGroupId', 'revision'] as const
   $columns = PlanningMutationSchema.$columns
