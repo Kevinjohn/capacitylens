@@ -64,7 +64,7 @@ it('keeps discipline groups while ordering engagement partitions and externals d
     geom,
     days,
     visibleWindow: { start, end },
-    overSoonWindow: { start, end },
+    capacity: null,
     filters: buildEmptyFilters(),
     preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
   });
@@ -90,7 +90,7 @@ it('keeps discipline groups while ordering engagement partitions and externals d
     geom,
     days,
     visibleWindow: { start, end },
-    overSoonWindow: { start, end },
+    capacity: null,
     filters: buildEmptyFilters(),
     preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
   });
@@ -121,7 +121,7 @@ describe('buildSchedulerModel', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: false, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -162,7 +162,7 @@ describe('external / 3rd-party band', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: filters,
       preferences: {
         disciplinesEnabled: disciplinesEnabled,
@@ -263,7 +263,7 @@ it('uses a neutral unassigned scheduler band while preserving stored resource co
     geom,
     days,
     visibleWindow: { start, end },
-    overSoonWindow: { start, end },
+    capacity: null,
     filters: buildEmptyFilters(),
     preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
   });

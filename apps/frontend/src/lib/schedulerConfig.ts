@@ -35,20 +35,12 @@ export const WEEK_SNAP_IDLE_MS = 120;
 /** A Monday the scheduler view holds until the first planning read anchors it on the company's week. */
 export const UNANCHORED_WEEK_START = '1970-01-05';
 
-/** How many days the timeline spans forward from the focus date. */
-export const DEFAULT_RANGE_DAYS = 120;
-/** Scrollable history kept to the left of the focus date (default view, Today,
- * go to date, account switch). The view still opens scrolled to the focus date,
- * the buffer exists so a leftward swipe pans into the past instead of overscrolling
- * the left edge, which macOS treats as browser back-navigation. A whole number of
- * weeks, so the origin stays on the same weekday as the focused Monday. */
-export const PAST_BUFFER_DAYS = 28;
-
-/** Forward day window for the zoom-independent overSoon signal. Visible utilisation
- * uses the current zoom and scroll window; per-day conflict markers cover the
- * materialized timeline. These windows remain independent.
- */
-export const UTILIZATION_WINDOW_DAYS = 14;
+// The timeline's range and the overSoon window are shared with the server's capacity section.
+export {
+  DEFAULT_RANGE_DAYS,
+  PAST_BUFFER_DAYS,
+  UTILIZATION_WINDOW_DAYS,
+} from '@capacitylens/shared/lib/planningWindows';
 
 /**
  * Integer column fit for one of the scheduler's week zooms.

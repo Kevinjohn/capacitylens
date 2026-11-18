@@ -10,7 +10,6 @@ import {
   allBars,
   barIds,
   build,
-  capacityForWindowOf,
   dataset as buildDataset,
   days,
   end,
@@ -28,7 +27,7 @@ function buildCompanyWorkingWeekRow(data: AppData, accountWorkingDays: Weekday[]
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -44,27 +43,10 @@ function buildCompanyWorkingWeekRow(data: AppData, accountWorkingDays: Weekday[]
 }
 
 describe('#257 characterization: company-off tint/capacity agreement', () => {
-  it('tints a company-closed Friday unavailable with zero available capacity', () => {
-    const data = dataset();
-    const resource = requireValue(
-      data.resources.find((candidate) => candidate.id === 'r1'),
-      'r1 resource',
-    );
-    const row = buildCompanyWorkingWeekRow(data, [1, 2, 3, 4]);
-    const fridayCapacity = requireValue(
-      capacityForWindowOf({
-        resource,
-        allocations: data.allocations.filter((allocation) => allocation.resourceId === resource.id),
-        timeOff: [],
-        windowStart: '2026-06-05',
-        windowEnd: '2026-06-05',
-        accountWorkingDays: [1, 2, 3, 4],
-      })[0],
-      'Friday capacity',
-    );
+  it('tints a company-closed Friday unavailable', () => {
+    const row = buildCompanyWorkingWeekRow(dataset(), [1, 2, 3, 4]);
 
     expect(row.dayStates[4]).toMatchObject({ unavailable: true, creationBlocked: true });
-    expect(fridayCapacity.available).toBe(0);
   });
 
   it('marks every visible day creation-blocked for a resource with no effective working week', () => {
@@ -123,7 +105,7 @@ describe('buildSchedulerModel', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -167,7 +149,7 @@ describe('buildSchedulerModel', () => {
           geom,
           days,
           visibleWindow: { start, end },
-          overSoonWindow: { start, end },
+          capacity: null,
           filters: buildEmptyFilters(),
           preferences: {
             disciplinesEnabled: true,
@@ -205,7 +187,7 @@ describe('buildSchedulerModel', () => {
         geom,
         days,
         visibleWindow: { start, end },
-        overSoonWindow: { start, end },
+        capacity: null,
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       })
@@ -295,7 +277,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -314,7 +296,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,

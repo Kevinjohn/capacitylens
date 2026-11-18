@@ -342,12 +342,13 @@ async function sendOperation(
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
 export function createPlanningTransport(apiClient: PlanningClient = client): PlanningTransport {
   return {
-    async read(context, signal) {
+    async read(context, signal, window) {
       try {
         const scopedClient = withMasqueradeContext(apiClient, capturedContextToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { accountId: context.companyId },
+            query: window ? { from: window.from, to: window.to } : {},
             signal,
           }),
         );
@@ -363,6 +364,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           canWrite: authority.canWrite,
           data: snapshot.data,
           today: snapshot.today,
+          capacity: snapshot.capacity,
           accessKey: JSON.stringify([
             authority.actorId,
             authority.effectiveActorId,

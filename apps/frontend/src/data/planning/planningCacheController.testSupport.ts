@@ -7,6 +7,7 @@ import { createPlanningCacheController, createPlanningCacheState } from './plann
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { makeAccount } from '@/test/fixtures';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 export const context = { identity: 'actor-1', companyId: 'company-1' };
 export const intent = {
@@ -41,6 +42,7 @@ export function harness(transport: PlanningTransport) {
     canWrite: true,
     data: canonicalData(),
     today: companyToday,
+    capacity: emptyCapacity(),
   };
   const read = vi.fn(
     async (clientContext: Parameters<PlanningTransport['read']>[0], signal: AbortSignal) => {

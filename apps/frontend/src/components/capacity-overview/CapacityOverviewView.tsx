@@ -1,4 +1,3 @@
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { useMemo, useState } from 'react';
 import { useActiveScopedData } from '@/store/useScopedData';
 import {
@@ -27,13 +26,7 @@ export function CapacityOverviewView() {
   const today = useCompanyToday();
   const schedulingMode = resolveSchedulingMode(data, activeAccountId);
   const weekStartsOn = resolveWeekStart(data, activeAccountId);
-  const activeAccount = useStore((state) =>
-    state.data.accounts.find((account) => account.id === state.activeAccountId),
-  );
-  const accountWorkingDays = useMemo(
-    () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
-    [activeAccount],
-  );
+  const capacity = useStore((state) => state.planning.capacity);
   const placeholdersEnabled = hasPlaceholdersEnabled(data, activeAccountId);
   const disciplinesEnabled = hasDisciplinesEnabled(data, activeAccountId);
   const model = useMemo(
@@ -43,7 +36,7 @@ export function CapacityOverviewView() {
         today,
         weekStartsOn,
         horizon,
-        accountWorkingDays,
+        capacity,
         includeTentative,
         placeholdersEnabled,
         hasAvailability,
@@ -51,7 +44,7 @@ export function CapacityOverviewView() {
         blocksMode: schedulingMode === 'blocks',
       }),
     [
-      accountWorkingDays,
+      capacity,
       disciplinesEnabled,
       horizon,
       hasAvailability,

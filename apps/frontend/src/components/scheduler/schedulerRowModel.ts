@@ -120,7 +120,9 @@ function buildDayStates(input: {
   let conflictDayCount = 0;
   let partialCapacityDayCount = 0;
   for (const date of input.days) {
+    // A date the server's read did not cover draws no capacity cue until its read arrives.
     const dayCapacity = input.capacity.resolveCapacityOnDay(date);
+    const over = dayCapacity?.over ?? false;
     const creationBlocked = isCreationStartBlockedForEffectiveWeek({
       resource: input.resource,
       date,
@@ -128,17 +130,16 @@ function buildDayStates(input: {
       effectiveWeek: input.effectiveWeek,
       closures: input.closures,
     });
-    const unavailable = (input.capacity.tracked && dayCapacity.available === 0) || creationBlocked;
+    const unavailable = (input.capacity.tracked && dayCapacity?.available === 0) || creationBlocked;
     const partialCapacity =
       input.capacity.tracked && !unavailable && isHalfDay(input.resource, weekdayOf(date));
     const hasTimeOff = input.capacity.countTimeOffOn(date) > 0;
     const timeOffConflict =
-      hasTimeOff &&
-      (input.blocksMode ? input.capacity.countAllocationsOn(date) > 0 : dayCapacity.over);
-    if (dayCapacity.over || timeOffConflict) conflictDayCount++;
+      hasTimeOff && (input.blocksMode ? input.capacity.countAllocationsOn(date) > 0 : over);
+    if (over || timeOffConflict) conflictDayCount++;
     if (partialCapacity) partialCapacityDayCount++;
     dayStates.push({
-      over: dayCapacity.over,
+      over,
       timeOffConflict,
       unavailable,
       partialCapacity,
@@ -160,7 +161,7 @@ export function createRowBuilder({
   closures,
   seriesEndByKey,
   allocationFilters,
-  capacitySource: { capacitySourceFor, visDays: visibleDays, overDays },
+  capacitySource: { capacitySourceFor, visDays: visibleDays },
 }: CreateRowBuilderInput) {
   const hasTimelineIntersection = createTimelineIntersection(days);
 
@@ -196,7 +197,6 @@ export function createRowBuilder({
       resource,
       allocations: allAllocations,
       resourceTimeOff,
-      effectiveWeek,
     });
     const daySummary = buildDayStates({
       resource,
@@ -211,9 +211,8 @@ export function createRowBuilder({
       .filter(hasTimelineIntersection)
       .map((entry) => buildTimeOffBlock(entry, geometry));
     const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS;
-    // Visible utilisation excludes dates with no available capacity; overSoon independently detects overload in its fixed forward window. Untracked externals report neither signal.
+    // Visible utilisation sums the server's figures over the visible dates; overSoon is the server's flag. Untracked externals report neither signal.
     const utilization = capacity.resolveUtilizationOver(visibleDays);
-    const overSoon = capacity.isOverOn(overDays);
     return {
       resource,
       rowHeight: resolveRowHeightForLanes(laneCount, laneLayout),
@@ -221,7 +220,7 @@ export function createRowBuilder({
       ...daySummary,
       timeOff,
       utilization,
-      overSoon,
+      overSoon: capacity.overSoon,
       dimmed,
     };
   };

@@ -128,7 +128,7 @@ describe('repeatable allocation effective project', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters,
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -172,7 +172,7 @@ describe('built-in Internal client bucketing + filter', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: filters,
       preferences: {
         disciplinesEnabled: true,
@@ -209,7 +209,7 @@ describe('built-in Internal client bucketing + filter', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), clientId: internalId },
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
@@ -254,7 +254,7 @@ describe('built-in Internal client bucketing + filter', () => {
         geom,
         days,
         visibleWindow: { start, end },
-        overSoonWindow: { start, end },
+        capacity: null,
         filters,
         preferences: {
           disciplinesEnabled: true,
@@ -335,7 +335,7 @@ describe('internal-work bars', () => {
         geom: geom,
         days: days,
         visibleWindow: { start: start, end: end },
-        overSoonWindow: { start: start, end: end },
+        capacity: null,
         filters: buildEmptyFilters(),
         preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
       }),

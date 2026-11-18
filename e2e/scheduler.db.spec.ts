@@ -481,7 +481,7 @@ test.describe('Scheduler', () => {
     await expect(page.getByTestId('overall-utilization')).toContainText('%');
     await expect(page.getByTestId('discipline-group').first()).toContainText(/avg utilisation/);
   });
-  test('the week-range toggle recomputes utilisation over the visible window (US-SCH-14)', async ({
+  test('the week-range toggle redraws utilisation over the visible window (US-SCH-14)', async ({
     page,
   }) => {
     await openApp(page);
@@ -535,24 +535,12 @@ test.describe('Scheduler', () => {
       return prev;
     };
 
-    // The seed concentrates work in week 1 (early June, the frozen-clock week) and tapers off, so the
-    // utilisation read over the visible window falls as the span widens (idle later weeks dilute the
-    // dense first week). Monotone non-increasing because every span shares the same left edge.
+    // The browser sums the server's per-day figures over the visible window, so widening the
+    // window over the seed's quieter later weeks changes the drawn number. The figures themselves
+    // are the server's (apps/backend/tests/unit/planning/capacity_section.spec.ts).
     const wk1 = await readAtZoom(1);
-    const wk2 = await readAtZoom(2);
-    const wk4 = await readAtZoom(4);
     const wk8 = await readAtZoom(8);
-    expect(wk1.overall).toBeGreaterThan(0);
-    // Changing the toggle genuinely changes the overall number to reflect the visible span.
     expect(wk1.overall).toBeGreaterThan(wk8.overall);
-    expect(wk2.overall).toBeLessThanOrEqual(wk1.overall);
-    expect(wk4.overall).toBeLessThanOrEqual(wk2.overall);
-    expect(wk8.overall).toBeLessThanOrEqual(wk4.overall);
-    // Per-person % moves in the same direction for a front-loaded resource: Bruce's dense week 1
-    // reads higher at 1w than at 8w (the idle later weeks dilute it). Direction/inequality only,
-    // no flaky exact-number race for the intermediate spans.
-    expect(wk1.bruce).toBeGreaterThan(0);
-    expect(wk1.bruce).toBeGreaterThanOrEqual(wk8.bruce);
   });
   test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {
     await openApp(page);

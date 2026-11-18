@@ -11,6 +11,7 @@ import {
   resetStoreWithAccount,
 } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
+import { capacityOver } from '@/test/capacityFixtures';
 import { CapacityOverviewView } from './CapacityOverviewView';
 
 function render(ui: ReactNode) {
@@ -53,6 +54,28 @@ describe('CapacityOverviewView', () => {
     expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
     expect(screen.getByRole('row', { name: /Clark Kent/ })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: '10 – 13 Sep' })).toBeInTheDocument();
+  });
+
+  it("draws the planning read's capacity figures", () => {
+    // Thursday 10 to Sunday 13 September: two free weekdays, one booked in full, and a weekend.
+    const capacity = capacityOver(
+      { from: '2026-09-10', to: '2026-12-06' },
+      {
+        clark: {
+          byDate: {
+            '2026-09-10': { allocated: 8 },
+            '2026-09-12': { available: 0 },
+            '2026-09-13': { available: 0 },
+          },
+        },
+      },
+    );
+    useStore.setState((state) => ({ planning: { ...state.planning, capacity } }));
+
+    renderOverview();
+
+    const cells = within(screen.getByRole('row', { name: /Clark Kent/ })).getAllByRole('cell');
+    expect(cells[0]).toHaveAttribute('title', '10 – 13 Sep · 1d free of 2d');
   });
 
   it('starts on the Ledger with tentative work shown and totals hidden', () => {

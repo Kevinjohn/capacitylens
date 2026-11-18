@@ -11,6 +11,7 @@ import {
   success,
   harness,
 } from './planningCacheController.testSupport';
+import { emptyCapacity } from '@/test/capacityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -24,6 +25,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const h = harness({ execute, read });
     h.controller.setContext(context);
@@ -32,6 +34,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const draft = h.controller.begin();
     await h.readSnapshot({
@@ -39,6 +42,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     expect(draft.baseRevision).toBe(3);
     await expect(h.controller.execute(draft, intent, inverse)).rejects.toMatchObject({
@@ -60,6 +64,7 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       }),
     });
     h.controller.setContext(context);
@@ -68,6 +73,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const gesture = h.controller.begin();
     await h.readSnapshot({
@@ -75,6 +81,7 @@ describe('planning cache controller', () => {
       canWrite: true,
       data: canonicalData(),
       today: companyToday,
+      capacity: emptyCapacity(),
     });
     const finalIntent = {
       operation: 'settings.update',
@@ -94,6 +101,7 @@ describe('planning cache controller', () => {
         canWrite: true,
         data: canonicalData(),
         today: companyToday,
+        capacity: emptyCapacity(),
       })
       .mockRejectedValueOnce(new TypeError('read unavailable'));
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>

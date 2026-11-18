@@ -129,3 +129,37 @@ export function rangesOverlap(
 ): boolean {
   return aEnd >= bStart && aStart <= bEnd;
 }
+
+/** Index of the first entry of the sorted, de-duplicated `dates` that is >= `target`
+ * (`dates.length` when every entry is earlier). Date-only ISO strings are zero-padded, so
+ * lexicographic order is chronological order and a plain string compare is a valid ordering. */
+function resolveFirstDateIndexAtOrAfter(dates: ISODate[], target: ISODate): number {
+  let lowerIndex = 0;
+  let upperIndex = dates.length;
+  while (lowerIndex < upperIndex) {
+    const middleIndex = (lowerIndex + upperIndex) >> 1;
+    const middleDate = dates[middleIndex];
+    if (middleDate !== undefined && middleDate < target) lowerIndex = middleIndex + 1;
+    else upperIndex = middleIndex;
+  }
+  return lowerIndex;
+}
+
+/** Indexes each row under the queried dates it covers so capacity lookup reads only overlapping rows. Preserve source insertion order because floating-point sums depend on it. */
+export function bucketByCoveredDate<T extends { startDate: ISODate; endDate: ISODate }>(
+  rows: T[],
+  dates: ISODate[],
+): Map<ISODate, T[]> {
+  const byDate = new Map<ISODate, T[]>();
+  for (const row of rows) {
+    for (let i = resolveFirstDateIndexAtOrAfter(dates, row.startDate); i < dates.length; i++) {
+      const date = dates[i];
+      if (date === undefined) continue;
+      if (date > row.endDate) break;
+      const list = byDate.get(date);
+      if (list) list.push(row);
+      else byDate.set(date, [row]);
+    }
+  }
+  return byDate;
+}

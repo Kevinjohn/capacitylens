@@ -2,6 +2,7 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, expect, it } from 'vitest';
 import { buildEmptyFilters } from '@/store/useStore';
 import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
+import { capacityOver } from '@/test/capacityFixtures';
 import { buildSchedulerModel } from './schedulerModel';
 import { allBars, build, dataset, days, end, geom, start } from './schedulerModel.testSupport';
 
@@ -45,7 +46,7 @@ function buildBlockTimeOffRows() {
     geom,
     days,
     visibleWindow: { start, end },
-    overSoonWindow: { start, end },
+    capacity: null,
     filters: buildEmptyFilters(),
     preferences: {
       disciplinesEnabled: true,
@@ -88,7 +89,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), search: 'zed ' },
       preferences: {
         disciplinesEnabled: true,
@@ -113,7 +114,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), search: 'stryker' },
       preferences: {
         disciplinesEnabled: true,
@@ -141,7 +142,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: { ...buildEmptyFilters(), search: 'zibblequork' },
       preferences: {
         disciplinesEnabled: true,
@@ -185,7 +186,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -207,7 +208,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         geom: geom,
         days: days,
         visibleWindow: { start: start, end: end },
-        overSoonWindow: { start: start, end: end },
+        capacity: null,
         filters: buildEmptyFilters(),
         preferences: {
           disciplinesEnabled: true,
@@ -249,7 +250,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom: geom,
       days: days,
       visibleWindow: { start: start, end: end },
-      overSoonWindow: { start: start, end: end },
+      capacity: null,
       filters: buildEmptyFilters(),
       preferences: {
         disciplinesEnabled: true,
@@ -302,7 +303,22 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
         geom,
         days,
         visibleWindow: { start, end },
-        overSoonWindow: { start, end },
+        // The server's figures: no capacity on the holiday Monday or past the four-day week, and an
+        // over-booked half-day Tuesday.
+        capacity: capacityOver(
+          { from: start, to: end },
+          {
+            r1: {
+              byDate: {
+                '2026-06-01': { available: 0 },
+                '2026-06-02': { allocated: 8, available: 4, over: true },
+                '2026-06-05': { available: 0 },
+                '2026-06-06': { available: 0 },
+                '2026-06-07': { available: 0 },
+              },
+            },
+          },
+        ),
         filters: buildEmptyFilters(),
         preferences: {
           disciplinesEnabled: true,
@@ -333,7 +349,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     });
     expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false });
   });
-  it('marks only the holiday day of a partial allocation overlap as over', () => {
+  it('marks a holiday the server flags over as a time-off conflict, and only that day', () => {
     const d = dataset();
 
     d.timeOff.push(
@@ -366,7 +382,13 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       geom,
       days,
       visibleWindow: { start, end },
-      overSoonWindow: { start, end },
+      capacity: capacityOver(
+        { from: start, to: end },
+        {
+          r1: { byDate: { '2026-06-02': { allocated: 4, available: 0, over: true } } },
+          r2: { byDate: { '2026-06-03': { available: 0 } } },
+        },
+      ),
       filters: buildEmptyFilters(),
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
