@@ -16,13 +16,9 @@ export type IsoInstant = string;
 export function isIsoInstant(value: unknown): value is IsoInstant {
   if (typeof value !== 'string') return false;
   const milliseconds = Date.parse(value);
+  // `Date.parse` yields NaN for anything outside the representable range, so the date is valid here.
   if (!Number.isFinite(milliseconds)) return false;
-  try {
-    return new Date(milliseconds).toISOString() === value;
-  } catch {
-    // Date values outside the ISO range cannot be represented canonically.
-    return false;
-  }
+  return new Date(milliseconds).toISOString() === value;
 }
 
 /** Every membership role, most to least privileged. */

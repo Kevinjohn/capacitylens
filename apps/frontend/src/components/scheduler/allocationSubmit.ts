@@ -213,15 +213,17 @@ function showSaveAdvisory(input: CommandInput, saved: AllocationSaveAdvisory): v
   if (message) input.setNotice(message, 'warning');
 }
 
+// Shows a failed write at form level, keeping the dialog open for another attempt.
+function reportFailure(input: CommandInput, error: unknown, fallback: string): void {
+  input.fail(null, error instanceof Error ? resolveErrorMessage(error) : fallback);
+}
+
 function reportSaveError(input: CommandInput, error: unknown): void {
   if (input.repeat !== 'none' && error instanceof RangeError) {
     input.fail('repeatUntil', m.form_allocation_err_repeat_date_domain());
     return;
   }
-  input.fail(
-    null,
-    error instanceof Error ? resolveErrorMessage(error) : m.form_allocation_err_save_failed(),
-  );
+  reportFailure(input, error, m.form_allocation_err_save_failed());
 }
 
 /** Builds validated create and update commands for the allocation dialog. */
@@ -255,11 +257,7 @@ export function createAllocationCommands(input: CommandInput) {
       input.onClose();
       showSaveAdvisory(input, result);
     } catch (e) {
-      // Surface a failed duplication at form level without closing the dialog.
-      input.fail(
-        null,
-        e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed(),
-      );
+      reportFailure(input, e, m.form_allocation_err_save_failed());
     }
   };
   const deleteSelectedAllocation = async (scope: 'one' | 'future' = 'one') => {
@@ -269,11 +267,7 @@ export function createAllocationCommands(input: CommandInput) {
       if (scope === 'future') await input.deleteAllocationSeriesFrom(input.editing.id);
       else await input.deleteAllocation(input.editing.id);
     } catch (e) {
-      // Surface a failed deletion at form level without closing the dialog.
-      input.fail(
-        null,
-        e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_delete_failed(),
-      );
+      reportFailure(input, e, m.form_allocation_err_delete_failed());
     }
   };
   // Each command awaits its typed write and reports every failure in the dialog, so none escapes.

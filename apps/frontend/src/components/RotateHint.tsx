@@ -15,14 +15,9 @@ const PORTRAIT_PHONE_QUERY = '(orientation: portrait) and (max-width: 767px)';
 const DISMISS_KEY = `${STORAGE_KEY_PREFIX}rotateHintDismissed`;
 
 function isPortraitPhone(): boolean {
-  try {
-    if (typeof window.matchMedia === 'function') {
-      return window.matchMedia(PORTRAIT_PHONE_QUERY).matches;
-    }
-  } catch {
-    // When a display query is unavailable, omit the optional orientation hint.
-  }
-  return false;
+  // Without display queries, omit the optional orientation hint.
+  if (typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia(PORTRAIT_PHONE_QUERY).matches;
 }
 
 function isDismissed(): boolean {
