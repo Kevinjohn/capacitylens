@@ -29,7 +29,7 @@ function watchLaneGeometry(
     lanesRef.current = readLaneSnapshots();
     lanesDirtyRef.current = false;
   };
-  const onGeometryChange = () => {
+  const markLanesDirty = () => {
     lanesDirtyRef.current = true;
     if (animationFrame) return;
     animationFrame = requestAnimationFrame(() => {
@@ -37,14 +37,14 @@ function watchLaneGeometry(
       refreshDirtyLanes();
     });
   };
-  document.addEventListener('scroll', onGeometryChange, true);
-  window.addEventListener('resize', onGeometryChange);
+  document.addEventListener('scroll', markLanesDirty, true);
+  window.addEventListener('resize', markLanesDirty);
   const resizeObserver =
-    typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onGeometryChange);
+    typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(markLanesDirty);
   for (const lane of lanesRef.current) resizeObserver?.observe(lane.el);
   return () => {
-    document.removeEventListener('scroll', onGeometryChange, true);
-    window.removeEventListener('resize', onGeometryChange);
+    document.removeEventListener('scroll', markLanesDirty, true);
+    window.removeEventListener('resize', markLanesDirty);
     resizeObserver?.disconnect();
     if (animationFrame) cancelAnimationFrame(animationFrame);
   };

@@ -32,7 +32,7 @@ export const days = eachDayISO(start, end);
 /** Uniform column geometry for the fixed model-test week. */
 export const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
 
-function defaultDisciplines(): AppData['disciplines'] {
+function makeDefaultDisciplines(): AppData['disciplines'] {
   return [
     {
       ...NULLABLE_FIELDS.disciplines,
@@ -56,7 +56,7 @@ function defaultDisciplines(): AppData['disciplines'] {
 }
 
 /** Builds scoped scheduler fixtures with optional discipline overrides. */
-export function dataset(disciplines: AppData['disciplines'] = defaultDisciplines()): AppData {
+export function dataset(disciplines: AppData['disciplines'] = makeDefaultDisciplines()): AppData {
   return {
     ...emptyAppData(),
     disciplines,
