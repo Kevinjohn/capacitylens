@@ -26,9 +26,9 @@ describe('sidebar preference', () => {
   });
 
   it('round-trips an explicit open/closed choice', () => {
-    writeStoredSidebarOpen({ open: false });
+    writeStoredSidebarOpen(false);
     expect(readStoredSidebarOpen()).toBe(false);
-    writeStoredSidebarOpen({ open: true });
+    writeStoredSidebarOpen(true);
     expect(readStoredSidebarOpen()).toBe(true);
   });
 

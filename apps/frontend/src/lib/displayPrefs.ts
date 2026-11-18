@@ -19,10 +19,6 @@ interface CreateBooleanPreferenceInput {
   fallback: boolean;
 }
 
-interface WriteStoredSidebarOpenInput {
-  open: boolean;
-}
-
 // Boolean records read only declared fields so legacy or unknown preference keys
 // cannot widen the shape. Sidebar choice remains tri-state to preserve first-run defaults.
 
@@ -180,7 +176,7 @@ export function readStoredSidebarOpen(): boolean | null {
 }
 
 /** Persist the sidebar choice. Best-effort, like the prefs above. */
-export function writeStoredSidebarOpen({ open }: WriteStoredSidebarOpenInput): void {
+export function writeStoredSidebarOpen(open: boolean): void {
   try {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? 'open' : 'closed');
   } catch {

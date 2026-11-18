@@ -137,7 +137,7 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
         return { barLabelPrefs: next };
       }),
     setSidebarOpen: createPersistedFlagSetter(set, 'sidebarOpen', (open) =>
-      writeStoredSidebarOpen({ open }),
+      writeStoredSidebarOpen(open),
     ),
     setMinimiseWeekends: createPersistedFlagSetter(
       set,

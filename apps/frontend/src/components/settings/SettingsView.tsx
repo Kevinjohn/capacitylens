@@ -16,8 +16,7 @@ import { useSettingsViewController } from './useSettingsViewController';
 
 type Controller = ReturnType<typeof useSettingsViewController>;
 
-type UseSettingsOnboardingTargetOptions = { ready: boolean };
-function useSettingsOnboardingTarget({ ready }: UseSettingsOnboardingTargetOptions) {
+function useSettingsOnboardingTarget(ready: boolean) {
   useEffect(() => {
     if (!ready) return;
     const id = window.location.hash.slice(1);
@@ -62,7 +61,7 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
 /** Coordinates account, scheduling, data, and security settings for the current role. */
 export function SettingsView() {
   const controller = useSettingsViewController();
-  useSettingsOnboardingTarget({ ready: controller.activeAccount !== null });
+  useSettingsOnboardingTarget(controller.activeAccount !== null);
   if (!controller.activeAccount) return null;
   const { scheduling, display } = controller;
   return (
