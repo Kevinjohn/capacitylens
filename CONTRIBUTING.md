@@ -241,10 +241,9 @@ engine declaration and backend startup guard also accept Node 26.9.0 or later wi
 path remains experimental and best-effort: [`.nvmrc`](.nvmrc) selects Node 24 for development and
 standard CI setup, while [`check:node26`](scripts/ci/check-node26.mjs) covers selected compatibility
 paths rather than the complete gate. Keep the documented production host boundary in the
-[self-hosting installation guide](docs-src/self-hosting/install.md): Linux. CI also builds and
-smoke-tests native packages on macOS arm64; that job does not add a production-host support
-promise. The runtime floors are declared in [package.json](package.json) and enforced before the
-backend starts in [node_version.ts](apps/backend/start/node_version.ts).
+[self-hosting installation guide](docs-src/self-hosting/install.md): Linux. The runtime floors are
+declared in [package.json](package.json) and enforced before the backend starts in
+[node_version.ts](apps/backend/start/node_version.ts).
 
 Keep patch and minor updates within the existing runtime and browser requirements. Check dependency
 engines, peers and generated output, and verify on the minimum supported Node 24 version. Treat an
@@ -281,9 +280,8 @@ need generated route types and the relevant backend/client type checks. Dependen
 use the applicable [repository gate](.github/workflows/gate.yml) and
 [browser suite](.github/workflows/e2e.yml).
 Backend, runtime, native-module or packaged-runtime changes need the native package build and
-packaged-server smoke checks on the workflow's Linux x64 and macOS arm64 targets. A prose-only
-change needs formatting and content/link review; changes under `docs-src/` also need
-`pnpm run docs:build`.
+packaged-server smoke checks on the workflow's Linux x64 target. A prose-only change needs
+formatting and content/link review; changes under `docs-src/` also need `pnpm run docs:build`.
 
 When a release changes the runtime floor or host, required configuration, database migration,
 package format or recovery action, update the release notes and the relevant operator instructions
