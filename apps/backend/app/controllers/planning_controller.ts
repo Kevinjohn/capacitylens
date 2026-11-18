@@ -19,7 +19,10 @@ import {
   planningMutationValidator,
 } from '#validators/planning_operations';
 import { planningReadValidator } from '#validators/planning/read';
-import type { PlanningMutationInput } from '#validators/planning/contracts';
+import type {
+  PlanningHistoryStepInput,
+  PlanningMutationInput,
+} from '#validators/planning/contracts';
 import { sendRefusal } from '#services/planning/http_refusal';
 import { withActor } from '#services/auth/current_actor';
 
@@ -50,18 +53,23 @@ export default class PlanningController {
   }
 
   async undo(ctx: HttpContext) {
-    return this.step(ctx, 'undo');
+    return this.step(ctx, 'undo', () => ctx.request.validateUsing(planningHistoryStepValidator));
   }
 
   async redo(ctx: HttpContext) {
-    return this.step(ctx, 'redo');
+    return this.step(ctx, 'redo', () => ctx.request.validateUsing(planningHistoryStepValidator));
   }
 
-  private async step(ctx: HttpContext, step: 'undo' | 'redo') {
+  /** Each action passes its own validateUsing call so the route registry can type the body. */
+  private async step(
+    ctx: HttpContext,
+    step: 'undo' | 'redo',
+    validate: () => Promise<PlanningHistoryStepInput>
+  ) {
     const companyId = String(ctx.params.companyId);
     let historyId: string | undefined;
     try {
-      const input = await ctx.request.validateUsing(planningHistoryStepValidator);
+      const input = await validate();
       historyId = input.historyId;
       return await withActor(ctx, (actor, trx) =>
         stepPlanningHistory({ trx, actor, companyId, input, step })

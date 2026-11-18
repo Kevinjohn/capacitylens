@@ -2,11 +2,7 @@ import { readProductHttpFailure } from '@/api/productHttpError';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { client } from '@/api/queryClient';
 import { PlanningControllerError } from './planningErrors';
-import type {
-  PlanningClientContext,
-  PlanningHistoryStep,
-  PlanningTransport,
-} from './planningCacheTypes';
+import type { PlanningClientContext, PlanningTransport } from './planningCacheTypes';
 
 type PlanningClient = typeof client;
 
@@ -335,20 +331,6 @@ async function sendOperation(
   );
 }
 
-/**
- * The request for one undo or redo. The generated declarations for those two routes name no body,
- * because their controller validates it in a step helper the route generator does not follow; the
- * server still requires it, so it is added by spreading rather than through the declared type.
- */
-function historyStepArgs(
-  context: PlanningClientContext,
-  step: PlanningHistoryStep,
-  signal: AbortSignal,
-) {
-  const body: PlanningHistoryStep = { ...step };
-  return { params: { companyId: context.companyId }, signal, ...{ body } };
-}
-
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
 export function createPlanningTransport(apiClient: PlanningClient = client): PlanningTransport {
   return {
@@ -409,7 +391,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
         return requireReply(
           await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
             'api.planning.undo',
-            historyStepArgs(context, step, signal),
+            { params: { companyId: context.companyId }, body: step, signal },
           ),
         );
       } catch (error) {
@@ -421,7 +403,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
         return requireReply(
           await withMasqueradeContext(apiClient, capturedContextToken(context)).request(
             'api.planning.redo',
-            historyStepArgs(context, step, signal),
+            { params: { companyId: context.companyId }, body: step, signal },
           ),
         );
       } catch (error) {

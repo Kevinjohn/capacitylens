@@ -116,10 +116,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/undo'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
@@ -129,10 +129,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/redo'
     types: {
-      body: {}
+      body: ExtractBody<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>

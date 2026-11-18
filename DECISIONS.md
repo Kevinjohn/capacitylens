@@ -106,8 +106,9 @@ This is the short, present-tense record of decisions that constrain future work.
   that their change is there. It never replays the write.
 - Undo and redo are held on the server in one history row per company for its last writer, keyed
   to that writer's sign-in, the page's history id and the company revision. The row holds up to 50
-  changes, and its stored inverses never leave the server. Deleted planning rows remain in their own tables under package-managed soft deletion, bound to a session, actor
-  and company through the recovery ledger. Restore is one atomic operation under current authority;
+  changes, and its stored inverses never leave the server. Deleted planning rows remain in their
+  own tables under package-managed soft deletion, bound to a session, actor and company through the
+  recovery ledger. Restore is one atomic operation under current authority;
   internal deletion fields and hidden values never leave the server.
   Restoration groups are removed in the same transaction as anonymisation and import.
   A change to a client or project privacy or code-name field, or to an activity kind, also clears that company's
