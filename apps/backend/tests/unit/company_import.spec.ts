@@ -6,7 +6,7 @@ import {
   prepareCompanyImport,
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyDocument';
-import { assertEntityRow } from '#validators/entities/index';
+import { validateRow } from '#validators/planning/row';
 import { transformState } from '#transformers/state_transformer';
 
 function confidentialSource() {
@@ -121,7 +121,7 @@ test.group('Beta transfer backend contract regressions', () => {
       const keys = ['accounts', 'clients', 'projects', 'resources', 'disciplines'] as const;
       for (const [index, row] of rows.entries()) {
         row.color = color;
-        const validated = await assertEntityRow(
+        const validated = await validateRow(
           keys[index]!,
           row as unknown as Record<string, unknown>
         );

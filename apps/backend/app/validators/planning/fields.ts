@@ -3,6 +3,9 @@ import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { isIsoTimestamp } from '@kevinjohn/adonisjs-lucid-checked-columns';
 import { isWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
+import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient';
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
+import type { FieldSpec } from '@capacitylens/shared/types/entityFields';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import {
   hasDisallowedChars,
@@ -12,7 +15,128 @@ import {
   unicodeCharacterCount,
 } from '@capacitylens/shared/lib/strings';
 
-// Vine field builders and intent-matching helpers shared by every planning validator.
+// Field rules, Vine field builders and intent-matching helpers shared by every planning validator
+// and by the merged-row check in `row.ts`. Each bound is written once here; the request schemas and
+// the merged-row check keep the sentences they report.
+
+/** Why both layers refuse a text value, or nothing when it is acceptable. */
+export function findTextProblem(value: string, multiline: boolean) {
+  const canonical = value.normalize('NFC');
+  if (hasDisallowedChars(canonical, { multiline })) return 'unsupported';
+  const maximum = multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH;
+  const length = unicodeCharacterCount(normalizeUserText(canonical, { multiline }));
+  return length > maximum ? 'tooLong' : undefined;
+}
+
+/** A preset swatch, or the neutral or Internal client colour where the row allows it. */
+export function isAcceptedColor(
+  value: unknown,
+  allow: { neutral?: boolean; internalClient?: boolean } = {}
+) {
+  return (
+    isPresetColor(value) ||
+    (allow.neutral === true && value === NEUTRAL_COLOR) ||
+    (allow.internalClient === true && value === INTERNAL_CLIENT_COLOR)
+  );
+}
+
+/** A time zone name of at most 128 characters that the runtime accepts. */
+export function isSupportedTimeZone(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 128) return false;
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The row facts that change a field rule: external resources and the built-in client. */
+export interface RowRuleContext {
+  externalResource: boolean;
+  builtinClient: boolean;
+}
+
+/**
+ * The merged-row check for one stored field: the refusal it reports, or nothing when the value is
+ * acceptable. A missing value is not checked here; required fields are checked before.
+ */
+export function findFieldProblem(
+  field: string,
+  spec: FieldSpec,
+  value: unknown,
+  context: RowRuleContext
+): { message: string; rule: string } | undefined {
+  const fail = (reason: string) => ({ message: `${field} ${reason}.`, rule: 'entityField' });
+  if (value === undefined) return undefined;
+  if (value === null) return spec.nullable ? undefined : fail('cannot be null');
+  switch (spec.kind) {
+    case 'text':
+    case 'note': {
+      if (typeof value !== 'string') return fail('must be text');
+      const problem = findTextProblem(value, spec.kind === 'note');
+      if (problem === 'unsupported') return fail('contains unsupported characters');
+      if (problem === 'tooLong') return fail('is too long');
+      if (field === 'name' && normalizeUserText(value.normalize('NFC')).length === 0) {
+        return fail('is required');
+      }
+      return undefined;
+    }
+    case 'boolean':
+      return typeof value === 'boolean' ? undefined : fail('must be a boolean');
+    case 'number':
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return fail('must be a finite number');
+      }
+      if (field === 'sortOrder' && !Number.isSafeInteger(value)) {
+        return fail('must be a safe integer');
+      }
+      if (field === 'hoursPerDay' && (value < 0 || value > MAX_HOURS_PER_DAY)) {
+        return fail(`must be between 0 and ${MAX_HOURS_PER_DAY}`);
+      }
+      if (field === 'workingHoursPerDay' && (value <= 0 || value > MAX_HOURS_PER_DAY)) {
+        return fail(`must be greater than 0 and at most ${MAX_HOURS_PER_DAY}`);
+      }
+      return undefined;
+    case 'date':
+      return isValidISODate(value) ? undefined : fail('must be a valid calendar date (YYYY-MM-DD)');
+    case 'weekdays':
+      if (!isWeekdaySet(value)) return fail('must contain distinct weekdays from 0 to 6');
+      if (field === 'workingDays' && value.length === 0) return fail('must contain a working day');
+      return undefined;
+    case 'weekStart':
+      return value === 0 || value === 1 ? undefined : fail('must be Sunday or Monday');
+    case 'choice':
+      return spec.choices?.includes(value as string | number)
+        ? undefined
+        : fail('is not supported');
+    case 'color':
+      return isAcceptedColor(value, {
+        neutral: context.externalResource,
+        internalClient: context.builtinClient,
+      })
+        ? undefined
+        : fail('must be a preset colour');
+    case 'avatar': {
+      const parsed = parseResourceAvatarUrl(value);
+      return parsed === null || parsed === undefined
+        ? {
+            message: 'Avatar URL must be an HTTPS URL without embedded credentials.',
+            rule: 'resource_avatar_url_invalid',
+          }
+        : undefined;
+    }
+    case 'timezone':
+      return isSupportedTimeZone(value) ? undefined : fail('must be a supported time zone');
+    case 'identifier':
+      return typeof value === 'string' &&
+        value.length > 0 &&
+        value.length <= 256 &&
+        !/[\p{C}\s]/u.test(value)
+        ? undefined
+        : fail('must be a bounded identifier');
+  }
+}
 
 export const uuid = () => vine.string().uuid();
 // Existing rows retain their stable identifiers during the transport transition.
@@ -25,20 +149,16 @@ export const userText = (multiline = false, required = false) =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
       if (typeof value !== 'string') return;
-      const canonical = value.normalize('NFC');
-      if (hasDisallowedChars(canonical, { multiline })) {
+      const problem = findTextProblem(value, multiline);
+      if (problem === 'unsupported') {
         field.report('Text contains unsupported characters.', 'text', field);
         return;
       }
-      const maximum = multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH;
-      const normalized = normalizeUserText(canonical, { multiline });
-      if (required && normalized.length === 0) {
+      if (required && normalizeUserText(value.normalize('NFC'), { multiline }).length === 0) {
         field.report('Text is required.', 'text', field);
         return;
       }
-      if (unicodeCharacterCount(normalized) > maximum) {
-        field.report('Text is too long.', 'text', field);
-      }
+      if (problem === 'tooLong') field.report('Text is too long.', 'text', field);
     })()
   );
 export const nullableUserText = (multiline = false) => userText(multiline).nullable();
@@ -60,12 +180,12 @@ export const revision = () =>
         field.report('The {{ field }} field must be a safe integer.', 'safeInteger', field);
       })()
     );
-export const hours = () => number().min(0).max(24);
+export const hours = () => number().min(0).max(MAX_HOURS_PER_DAY);
 const weekday = vine.enum([0, 1, 2, 3, 4, 5, 6] as const);
 export const presetColor = (allowNeutral = false) =>
   vine.string().use(
     vine.createRule((value, _options, field) => {
-      if (isPresetColor(value) || (allowNeutral && value === NEUTRAL_COLOR)) return;
+      if (isAcceptedColor(value, { neutral: allowNeutral })) return;
       field.report('The color must be a preset color.', 'presetColor', field);
     })()
   );
