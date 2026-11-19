@@ -5,7 +5,7 @@ import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelle
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
-import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
 import {
   createPlanningCacheController,
   createPlanningCacheState,
@@ -54,13 +54,9 @@ function publishPlanning(
   if (state.planning.context?.companyId !== planning.context.companyId) {
     return { planning, data: emptyAppData() };
   }
+  // The controller publishes only a read accepted for this company, so the rows need no filter.
   const companyId = planning.context.companyId;
-  const data = emptyAppData();
-  data.accounts = next.data.accounts.filter((company) => company.id === companyId);
-  for (const key of SCOPED_KEYS) {
-    const rows = next.data[key].filter((row) => row.companyId === companyId);
-    Object.assign(data, { [key]: rows });
-  }
+  const data = next.data;
   const company = data.accounts.find((row) => row.id === companyId);
   return {
     planning,

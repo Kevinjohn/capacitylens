@@ -1,13 +1,6 @@
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { byCompany } from '@capacitylens/shared/domain/tenancy';
-import {
-  emptyAppData,
-  isCapacityTracked,
-  isExternalResource,
-  scopedTables,
-  SCOPED_KEYS,
-} from '@capacitylens/shared/types/entities';
+import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities';
 import { DATE_STYLES, DEFAULT_DATE_STYLE } from '@capacitylens/shared/types/entities';
 import type { DateStyle } from '@capacitylens/shared/types/entities';
 import type {
@@ -106,24 +99,6 @@ export const listCompanyWorkingDays = (data: AppData, activeCompanyId: ID | null
     company?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON,
   );
 };
-
-/** Narrow the full store data to a single company: every scoped array filtered to
- * `companyId`, and `accounts` blanked (scoped views never read the tenant list).
- *
- * This is the read-side tenancy boundary, and its correctness rests on a non-local fact:
- * `SCOPED_KEYS` must be exhaustive over AppData's scoped tables. `scoped` starts as emptyAppData()
- * and only the SCOPED_KEYS are copied across, so a scoped table that AppData gains but SCOPED_KEYS
- * omits would render empty in every scoped view (the rows silently vanish). The exhaustiveness gate
- * shared/types/entities.ts keeps SCOPED_KEYS complete; never add a scoped table without it. */
-export function scopeData(data: AppData, companyId: ID): AppData {
-  const scoped = emptyAppData();
-  const sourceTables = scopedTables(data);
-  const destinationTables = scopedTables(scoped);
-  for (const key of SCOPED_KEYS) {
-    destinationTables[key] = sourceTables[key].filter(byCompany(companyId));
-  }
-  return scoped;
-}
 
 // Pure derived-state helpers. Components call these inside useMemo (keyed on the
 // relevant slice) so Zustand selectors never return fresh objects directly,
