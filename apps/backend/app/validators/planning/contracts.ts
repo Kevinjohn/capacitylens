@@ -4,19 +4,6 @@ import type { ArchiveImpact } from '@capacitylens/shared/domain/lifecycle';
 import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity';
 import type { RepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory';
 import type {
-  Company,
-  Activity,
-  Allocation,
-  AppDataKey,
-  Client,
-  Closure,
-  Discipline,
-  Phase,
-  Project,
-  Resource,
-  TimeOff,
-} from '@capacitylens/shared/types/entities';
-import type {
   planningHistoryStepValidator,
   planningMutationValidator,
 } from '#validators/planning_operations';
@@ -32,23 +19,6 @@ export interface PlanningHistoryState {
   canUndo: boolean;
   canRedo: boolean;
 }
-
-type PlanningRowByEntity = {
-  accounts: Company;
-  disciplines: Discipline;
-  resources: Resource;
-  clients: Client;
-  projects: Project;
-  phases: Phase;
-  activities: Activity;
-  allocations: Allocation;
-  timeOff: TimeOff;
-  closures: Closure;
-};
-
-export type ProjectedPlanningRow = {
-  [Entity in AppDataKey]: { entity: Entity; row: PlanningRowByEntity[Entity] };
-}[AppDataKey];
 
 export interface PlanningMutationSuccess {
   status: 'committed';

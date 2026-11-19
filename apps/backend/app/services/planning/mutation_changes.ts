@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
-import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
-import type { PlanningMutationInput, ProjectedPlanningRow } from '#validators/planning/contracts';
+import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
+import type { PlanningMutationInput } from '#validators/planning/contracts';
 import type { WrittenRow } from '#services/planning/writer';
 
 /** Whether every written row is the same before and after, ignoring its revision timestamp. */
@@ -33,42 +33,6 @@ export function listAuditedEntities(written: WrittenRow[], before: AppData, afte
         .map(({ entity }) => entity)
     ),
   ];
-}
-
-/** Planning rows compared without their timestamps, for no-change detection. */
-export function buildSemanticState(data: AppData) {
-  return JSON.stringify(
-    APP_DATA_KEYS.map((entity) =>
-      data[entity]
-        .map((row) =>
-          Object.fromEntries(
-            Object.entries(row)
-              .filter(([field]) => field !== 'updatedAt')
-              .sort(([a], [b]) => a.localeCompare(b))
-          )
-        )
-        .sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    )
-  );
-}
-
-/** Rows a mutation inserted, changed or removed between two projections. */
-export function projectionChanges(before: AppData, after: AppData) {
-  const upserts: ProjectedPlanningRow[] = [];
-  const removed: Array<{ entity: (typeof APP_DATA_KEYS)[number]; id: string }> = [];
-  for (const entity of APP_DATA_KEYS) {
-    const previous = new Map(before[entity].map((row) => [row.id, row]));
-    const currentIds = new Set(after[entity].map((row) => row.id));
-    for (const row of after[entity]) {
-      if (JSON.stringify(previous.get(row.id)) !== JSON.stringify(row)) {
-        upserts.push({ entity, row } as ProjectedPlanningRow);
-      }
-    }
-    for (const row of before[entity]) {
-      if (!currentIds.has(row.id)) removed.push({ entity, id: row.id });
-    }
-  }
-  return { upserts, removed };
 }
 
 /**
