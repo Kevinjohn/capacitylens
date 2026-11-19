@@ -7,7 +7,7 @@ import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
   await resetStoreWithAccount();
-  useStore.setState({ activeAccountLoadFailed: null });
+  useStore.setState({ activeCompanyLoadFailed: null });
 });
 
 function refuseNextPlanningMutation(): void {
@@ -18,18 +18,18 @@ function refuseNextPlanningMutation(): void {
 
 describe('typed planning domain rejections', () => {
   it("refuses a write while the active company's load failed", async () => {
-    useStore.setState({ activeAccountLoadFailed: useStore.getState().activeAccountId });
+    useStore.setState({ activeCompanyLoadFailed: useStore.getState().activeCompanyId });
     await expect(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
     ).rejects.toThrow(/not loaded/i);
   });
 
   it('passes the shared company guard when the company is known only from the summaries', async () => {
-    const { activeAccountId, data } = useStore.getState();
-    if (!activeAccountId) throw new Error('Expected an active account.');
+    const { activeCompanyId, data } = useStore.getState();
+    if (!activeCompanyId) throw new Error('Expected an active account.');
     useStore.setState({
       data: { ...data, accounts: [] },
-      accountSummaries: [{ id: activeAccountId, name: 'Daily Planet', role: 'owner' }],
+      companySummaries: [{ id: activeCompanyId, name: 'Daily Planet', role: 'owner' }],
     });
     const sent = getStubPlanningTransport().calls.length;
     // The guard admits a company whose slice is still loading; no command can be built until the

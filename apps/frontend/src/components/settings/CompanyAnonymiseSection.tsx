@@ -13,7 +13,7 @@ import { SettingsSection } from './SettingsSection';
 
 /** Confirms anonymising all people against the active native session. */
 export function CompanyAnonymiseSection() {
-  const companyId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
   const allowed = useCan('company:anonymise');
   const [confirming, setConfirming] = useState(false);
@@ -24,11 +24,11 @@ export function CompanyAnonymiseSection() {
   const inFlight = useRef(false);
 
   useEffect(() => {
-    let previous = useStore.getState().activeAccountId;
+    let previous = useStore.getState().activeCompanyId;
     return useStore.subscribe((state) => {
-      if (state.activeAccountId === previous) return;
+      if (state.activeCompanyId === previous) return;
       const leavingCompany = previous !== null;
-      previous = state.activeAccountId;
+      previous = state.activeCompanyId;
       generation.current += 1;
       if (leavingCompany) {
         setProving(false);
@@ -41,14 +41,14 @@ export function CompanyAnonymiseSection() {
   if (!allowed || !companyId) return null;
 
   const submit = async (confirmationId: string) => {
-    if (inFlight.current || requiresReload || useStore.getState().activeAccountId !== companyId) {
+    if (inFlight.current || requiresReload || useStore.getState().activeCompanyId !== companyId) {
       return;
     }
     inFlight.current = true;
     const submittedGeneration = generation.current;
     const isCurrent = () =>
       generation.current === submittedGeneration &&
-      useStore.getState().activeAccountId === companyId;
+      useStore.getState().activeCompanyId === companyId;
     setBusy(true);
     const outcome = await runSuspendedReplacement({
       send: () => companyDataRequests.anonymiseCompanyPeople(companyId, confirmationId),

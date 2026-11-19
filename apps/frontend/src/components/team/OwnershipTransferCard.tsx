@@ -115,9 +115,9 @@ export function OwnershipTransferCard() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState('');
   const [confirmationTarget, setConfirmationTarget] = useState<string | null>(null);
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const { refreshAuth } = useAuth();
-  const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
+  const controller = useOwnershipTransfer(activeCompanyId, refreshAuth);
   const requestTransfer = (target: string) => setConfirmationTarget(target);
   if (!controller.available) return null;
 
@@ -160,10 +160,10 @@ export function OwnershipTransferCard() {
           />
         </Modal>
       )}
-      {confirmationTarget && activeAccountId && (
+      {confirmationTarget && activeCompanyId && (
         <PasswordConfirmationDialog
           action="transfer-ownership"
-          companyId={activeAccountId}
+          companyId={activeCompanyId}
           intent={{ toUserId: confirmationTarget }}
           onConfirmed={(id) => {
             const target = confirmationTarget;

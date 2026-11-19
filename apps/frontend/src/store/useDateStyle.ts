@@ -7,5 +7,5 @@ import type { DateStyle } from '@capacitylens/shared/types/entities';
  * cannot trigger a render.
  */
 export function useDateStyle(): DateStyle {
-  return useStore((state) => resolveDateStyle(state.data, state.activeAccountId));
+  return useStore((state) => resolveDateStyle(state.data, state.activeCompanyId));
 }

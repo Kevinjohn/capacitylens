@@ -35,7 +35,7 @@ export function usePersonScheduleDrawer({
     [data],
   );
   const viewSchedule = useCallback((resourceId: ID, opener: HTMLButtonElement) => {
-    const companyId = useStore.getState().activeAccountId;
+    const companyId = useStore.getState().activeCompanyId;
     if (!companyId) return;
     setSelection({ companyId, resourceId, opener });
     setOpen(true);

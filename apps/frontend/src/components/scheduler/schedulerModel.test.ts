@@ -20,7 +20,7 @@ import {
 
 const dataset = () => buildDataset(makeDisciplines());
 
-function buildCompanyWorkingWeekRow(data: AppData, accountWorkingDays: Weekday[]) {
+function buildCompanyWorkingWeekRow(data: AppData, companyWorkingDays: Weekday[]) {
   return requireValue(
     buildSchedulerModel({
       data,
@@ -33,7 +33,7 @@ function buildCompanyWorkingWeekRow(data: AppData, accountWorkingDays: Weekday[]
         disciplinesEnabled: true,
         placeholdersEnabled: true,
         externalEnabled: true,
-        accountWorkingDays,
+        companyWorkingDays,
       },
     })
       .flatMap((group) => group.rows)

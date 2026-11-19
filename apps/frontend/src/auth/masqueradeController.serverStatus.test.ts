@@ -15,7 +15,7 @@ describe('MasqueradeController', () => {
     await resetStoreWithAccount('a-studio');
     const { controller } = harness({
       switchAccount: vi.fn(async (companyId: string | null) => {
-        useStore.getState().setActiveAccount(companyId);
+        useStore.getState().setActiveCompany(companyId);
         return { kind: 'reloaded' as const };
       }),
     });

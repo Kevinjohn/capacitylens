@@ -107,7 +107,7 @@ export interface SchedulerModelOptions {
     // When disabled, external data remains persisted but neither its rows nor an empty group header appear. The setting defaults off.
     externalEnabled: boolean;
     /** Account-wide hard boundary for the start of a schedule creation gesture. */
-    accountWorkingDays?: Weekday[];
+    companyWorkingDays?: Weekday[];
     blocksMode?: boolean;
   };
   // Lane geometry controls both bar positions and row heights. The grid supplies its density projection; callers omitting it receive the base layout.

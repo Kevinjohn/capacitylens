@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeActivity,
   makeResource,
   makeResourceDraft,
@@ -71,7 +71,7 @@ describe('atomic allocation creation', () => {
     expect(sent).not.toHaveProperty('allocations');
     expect(created).toHaveLength(2);
     expect(new Set(created.map((allocation) => allocation.id)).size).toBe(2);
-    expect(created.every((allocation) => allocation.companyId === DEFAULT_ACCOUNT_ID)).toBe(true);
+    expect(created.every((allocation) => allocation.companyId === DEFAULT_COMPANY_ID)).toBe(true);
     expect(requireValue(created[0], 'first allocation').hoursPerDay).toBe(24);
     expect(state().data.allocations).toEqual(created);
     expect(typedHistory().canUndo).toBe(true);
@@ -84,7 +84,7 @@ describe('atomic allocation creation', () => {
   });
   it('applies the monthly end dates returned for a three-day working week', async () => {
     const { resource, draft } = await allocationSetup();
-    await state().updateAccount(DEFAULT_ACCOUNT_ID, {
+    await state().updateAccount(DEFAULT_COMPANY_ID, {
       schedulingMode: 'days',
       workingDays: WORKDAYS,
     });
@@ -259,7 +259,7 @@ describe('allocation save advisory', () => {
         const row = {
           ...NULLABLE_FIELDS.allocations,
           ...execution.intent.allocation,
-          companyId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_COMPANY_ID,
           createdAt,
           updatedAt: createdAt,
         } as Allocation;
@@ -337,7 +337,7 @@ describe('resource availability boundaries', () => {
 
   it('uses the company and person working-day intersection for boundary checks', async () => {
     const { resource, draft } = await allocationSetup();
-    await state().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
+    await state().updateAccount(DEFAULT_COMPANY_ID, { workingDays: [1, 2, 3, 4] });
     await state().updateResource(resource.id, {
       workingDays: [1, 2, 3, 4, 5],
       lastAvailableDate: '2026-06-04',

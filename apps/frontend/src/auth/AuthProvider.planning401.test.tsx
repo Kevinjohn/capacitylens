@@ -55,7 +55,7 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
   expect(await screen.findByText('app-content')).toBeInTheDocument();
   queryClient.setQueryData(['private-account'], 'sensitive data');
   await act(async () => {
-    useStore.setState({ activeAccountId: 'a-studio' });
+    useStore.setState({ activeCompanyId: 'a-studio' });
     await useStore.getState().refreshPlanning({ fresh: true });
   });
 

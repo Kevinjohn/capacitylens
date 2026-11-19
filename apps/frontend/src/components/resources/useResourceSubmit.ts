@@ -41,7 +41,7 @@ type SubmitInputBase = {
   onClose: () => void;
   add: AddResource;
   update: UpdateResource;
-  readActiveAccountId: () => string | null;
+  readActiveCompanyId: () => string | null;
 };
 
 type ValidatedFields = { name: string; role: string };
@@ -202,7 +202,7 @@ export function useResourceSubmit(input: SubmitInputBase) {
   // A save that settles after the form closed or the company changed must not close or mark the
   // form now showing.
   const isCurrent = () =>
-    mountedRef.current && input.readActiveAccountId() === submittedAccountId.current;
+    mountedRef.current && input.readActiveCompanyId() === submittedAccountId.current;
   const { pending, submit } = useEditSubmit({
     editing: input.resource,
     rows: input.resources,
@@ -218,7 +218,7 @@ export function useResourceSubmit(input: SubmitInputBase) {
   return {
     submit: () =>
       submit(() => {
-        submittedAccountId.current = input.readActiveAccountId();
+        submittedAccountId.current = input.readActiveCompanyId();
         return prepareResourceSave(input);
       }),
     submitting: pending,

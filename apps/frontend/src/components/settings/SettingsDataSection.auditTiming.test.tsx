@@ -53,7 +53,7 @@ it.each(
   'retains the action outcome after a delayed $outcome read (audit warning: $warning)',
   async ({ outcome, warning }) => {
     const companyId = requireValue(
-      useStore.getState().activeAccountId ?? undefined,
+      useStore.getState().activeCompanyId ?? undefined,
       'active company',
     );
     const revision = requireValue(
@@ -139,7 +139,7 @@ it.each(
       }
       if (outcome === 'context changed') {
         act(() => {
-          useStore.getState().setActiveAccount(null);
+          useStore.getState().setActiveCompany(null);
           useStore.getState().setNotice('New context notice');
         });
       }

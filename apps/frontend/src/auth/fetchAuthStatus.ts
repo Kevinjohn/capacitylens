@@ -71,7 +71,7 @@ export async function fetchAuthStatus(
   let masquerade: Awaited<ReturnType<typeof masqueradeApi.status>>;
   try {
     isCurrent = await captureMasqueradeStatusGuard();
-    masquerade = await masqueradeApi.status(useStore.getState().activeAccountId ?? undefined);
+    masquerade = await masqueradeApi.status(useStore.getState().activeCompanyId ?? undefined);
   } catch (error) {
     // /me can resolve only a 401 here; a successful response does not prove inactivity.
     console.warn('AuthProvider: masquerade status could not be checked', error);

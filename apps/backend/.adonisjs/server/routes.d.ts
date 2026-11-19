@@ -47,12 +47,12 @@ export type ScannedRoutes = {
     'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.installation.company': { paramsTuple?: []; params?: {} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
+    'api.companies.index': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.export': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.companies.anonymise': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -100,7 +100,7 @@ export type ScannedRoutes = {
   GET: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
+    'api.companies.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.export': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -118,7 +118,7 @@ export type ScannedRoutes = {
   HEAD: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.accounts.index': { paramsTuple?: []; params?: {} }
+    'api.companies.index': { paramsTuple?: []; params?: {} }
     'api.state': { paramsTuple?: []; params?: {} }
     'api.export': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.getting-started.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
@@ -167,7 +167,7 @@ export type ScannedRoutes = {
     'api.installation.company': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
-    'api.accounts.anonymise': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.companies.anonymise': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.resources.anonymise': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
     'api.example-data': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.auth.sign-up': { paramsTuple?: []; params?: {} }

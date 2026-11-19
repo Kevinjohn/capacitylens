@@ -66,16 +66,16 @@ function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState
 
 type GatedAppProps = {
   hydrated: boolean;
-  hasActiveAccount: boolean;
+  hasActiveCompany: boolean;
   ambiguousAccountDirectory: boolean;
-  allowWithoutActiveAccount: boolean;
-  activeAccountId: ReturnType<typeof useStore.getState>['activeAccountId'];
-  activeAccountLoadFailed: ReturnType<typeof useStore.getState>['activeAccountLoadFailed'];
+  allowWithoutActiveCompany: boolean;
+  activeCompanyId: ReturnType<typeof useStore.getState>['activeCompanyId'];
+  activeCompanyLoadFailed: ReturnType<typeof useStore.getState>['activeCompanyLoadFailed'];
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   activeAccount:
     | ReturnType<typeof useStore.getState>['data']['accounts'][number]
-    | ReturnType<typeof useStore.getState>['accountSummaries'][number]
+    | ReturnType<typeof useStore.getState>['companySummaries'][number]
     | undefined;
   dirtyForm: boolean;
   paletteOpen: boolean;
@@ -86,11 +86,11 @@ type GatedAppProps = {
 
 function GatedApp({
   hydrated,
-  hasActiveAccount,
+  hasActiveCompany,
   ambiguousAccountDirectory,
-  allowWithoutActiveAccount,
-  activeAccountId,
-  activeAccountLoadFailed,
+  allowWithoutActiveCompany,
+  activeCompanyId,
+  activeCompanyLoadFailed,
   sidebarOpen,
   setSidebarOpen,
   activeAccount,
@@ -103,20 +103,20 @@ function GatedApp({
   const { user } = useAuth();
   const orientation = useProductOrientation({
     userId: user?.id ?? null,
-    companyId: activeAccountId,
+    companyId: activeCompanyId,
   });
 
   return (
     <AppEntryGate
       hydrated={hydrated}
-      hasActiveAccount={hasActiveAccount}
+      hasActiveCompany={hasActiveCompany}
       ambiguousAccountDirectory={ambiguousAccountDirectory}
-      allowWithoutActiveAccount={allowWithoutActiveAccount}
-      activeAccountId={activeAccountId}
-      activeAccountLoadFailed={activeAccountLoadFailed}
-      activeAccountName={activeAccount?.name ?? m.account_load_fallback_name()}
-      onRetryActiveAccountLoad={() =>
-        activeAccountId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
+      allowWithoutActiveCompany={allowWithoutActiveCompany}
+      activeCompanyId={activeCompanyId}
+      activeCompanyLoadFailed={activeCompanyLoadFailed}
+      activeCompanyName={activeAccount?.name ?? m.account_load_fallback_name()}
+      onRetryActiveCompanyLoad={() =>
+        activeCompanyId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
       }
     >
       <PermissionProvider>
@@ -221,14 +221,14 @@ export function AppShell() {
   // explicit light and dark preferences pass through as concrete schemes.
   const themePreference = useStore((state) => state.theme);
   const accounts = useStore((state) => state.data.accounts);
-  const accountSummaries = useStore((state) => state.accountSummaries);
-  const accountSummariesAmbiguous = useStore((state) => state.accountSummariesAmbiguous);
-  const activeAccountId = useStore((state) => state.activeAccountId);
-  const activeAccountLoadFailed = useStore((state) => state.activeAccountLoadFailed);
+  const companySummaries = useStore((state) => state.companySummaries);
+  const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
+  const activeCompanyLoadFailed = useStore((state) => state.activeCompanyLoadFailed);
   // Account summaries keep the tenant gate valid while the selected company's authoritative slice is still loading. Child content remains behind its hydration boundary.
   const activeAccount =
-    accounts.find((account) => account.id === activeAccountId) ??
-    accountSummaries.find((a) => a.id === activeAccountId);
+    accounts.find((account) => account.id === activeCompanyId) ??
+    companySummaries.find((a) => a.id === activeCompanyId);
   const accountRoute =
     matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
 
@@ -241,13 +241,13 @@ export function AppShell() {
       <AppShellToaster theme={themePreference} />
       <GatedApp
         hydrated={hydrated}
-        hasActiveAccount={activeAccount !== undefined}
-        ambiguousAccountDirectory={accountSummariesAmbiguous}
-        allowWithoutActiveAccount={
+        hasActiveCompany={activeAccount !== undefined}
+        ambiguousAccountDirectory={companySummariesAmbiguous}
+        allowWithoutActiveCompany={
           accountRoute || (masquerade.kind !== 'inactive' && masquerade.state !== undefined)
         }
-        activeAccountId={activeAccountId}
-        activeAccountLoadFailed={activeAccountLoadFailed}
+        activeCompanyId={activeCompanyId}
+        activeCompanyLoadFailed={activeCompanyLoadFailed}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         activeAccount={activeAccount}

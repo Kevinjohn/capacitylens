@@ -4,7 +4,7 @@ import { useStore } from '@/store/useStore';
 import { useAuth } from './authContext';
 import { NO_ACCESS, PermissionContext } from './permissionContext';
 import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
-import { refreshAccountSummaries } from './useAccountSummaries';
+import { refreshCompanySummaries } from './useAccountSummaries';
 import { masqueradeApi } from './masqueradeApi';
 import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
 import type { AccessPermissionStatus } from '@/lib/accessCopy';
@@ -31,7 +31,7 @@ interface PermissionRefresh {
 
 interface PermissionValueInput {
   enabled: boolean;
-  activeAccountId: string | null;
+  activeCompanyId: string | null;
   fetched: FetchedPermission | null;
   masqueradeActive: boolean;
   masqueradeRole: Role | null;
@@ -70,7 +70,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     if (!refresh.isCurrent()) return;
     // One validated request drives the company directory and permission projection while retaining their
     // distinct failure postures.
-    const summaries = await refreshAccountSummaries({
+    const summaries = await refreshCompanySummaries({
       acceptEffects: refresh.isCurrent,
     });
     if (summaries === null) {
@@ -106,7 +106,7 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
       ? { role: input.masqueradeRole, status: 'resolved', grant: input.masqueradeGrant }
       : { role: 'viewer', status: 'pending', grant: NO_ACCESS };
   }
-  if (!input.enabled || !input.activeAccountId) {
+  if (!input.enabled || !input.activeCompanyId) {
     return { role: null, status: 'not-applicable', grant: NO_ACCESS };
   }
   if (input.fetched?.status === 'resolved' && input.fetched.role && input.fetched.grant) {
@@ -118,7 +118,7 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
 /** Publishes the active company role and the server's grant from the shared validated directory. Unresolved membership projects to Viewer with no keys; the store independently applies the same read-only guard. */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setActiveRole = useStore((state) => state.setActiveRole);
   const membershipRevision = useStore((state) => state.membershipRevision);
   const masquerade = useStore((state) => state.masquerade);
@@ -130,7 +130,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (masquerade.kind !== 'inactive') {
       const state = masquerade.state;
-      if (state && state.companyId === activeAccountId) {
+      if (state && state.companyId === activeCompanyId) {
         setActiveRole(state.effectiveRole, 'resolved', state.permissions);
       } else {
         setActiveRole('viewer', 'pending');
@@ -138,13 +138,13 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!enabled || !activeAccountId) {
+    if (!enabled || !activeCompanyId) {
       setActiveRole(null, 'not-applicable');
       return;
     }
     let cancelled = false;
     void refreshPermission({
-      companyId: activeAccountId,
+      companyId: activeCompanyId,
       membershipRevision,
       isCurrent: () => !cancelled,
       setFetched,
@@ -153,14 +153,14 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, activeAccountId, membershipRevision, masquerade, setActiveRole]);
+  }, [enabled, activeCompanyId, membershipRevision, masquerade, setActiveRole]);
 
   const currentFetched =
-    fetched?.companyId === activeAccountId && fetched.membershipRevision === membershipRevision
+    fetched?.companyId === activeCompanyId && fetched.membershipRevision === membershipRevision
       ? fetched
       : null;
   const masqueradeState =
-    masquerade.kind !== 'inactive' && masquerade.state?.companyId === activeAccountId
+    masquerade.kind !== 'inactive' && masquerade.state?.companyId === activeCompanyId
       ? masquerade.state
       : null;
   // Keyed on the state object so the grant, and the context value, keep their identity per state.
@@ -177,7 +177,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   );
   const { role, status, grant } = resolvePermissionValue({
     enabled,
-    activeAccountId,
+    activeCompanyId,
     fetched: currentFetched,
     masqueradeActive: masquerade.kind !== 'inactive',
     masqueradeRole: masqueradeState?.effectiveRole ?? null,

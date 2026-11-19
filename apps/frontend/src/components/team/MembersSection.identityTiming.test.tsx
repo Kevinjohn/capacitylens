@@ -174,7 +174,7 @@ it.each(
   const held = deferred<Response>();
   holdDirectory = held.promise;
   try {
-    const companyId = useStore.getState().activeAccountId;
+    const companyId = useStore.getState().activeCompanyId;
     if (kind === 'observed sign-out') {
       fireEvent(
         window,

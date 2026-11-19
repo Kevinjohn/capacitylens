@@ -1,7 +1,7 @@
 import {
   RESOURCE_KINDS,
   externalCapacityDefaults,
-  type Account,
+  type Company,
   type AppData,
   type ScopedEntityKey,
 } from '@capacitylens/shared/types/entities';
@@ -74,7 +74,7 @@ export function assertMayWriteRestrictedFields(
   if (named) throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', rule.refusal);
 }
 
-const IMMUTABLE_ACCOUNT_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const;
+const IMMUTABLE_COMPANY_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const;
 
 function reject(field: string, reason: string): never {
   throw new EntityWriteError(`${field} ${reason}.`);
@@ -225,12 +225,12 @@ function assertManagedFields(
 }
 
 /** Keep typed settings and entity writes on one frozen-field policy. */
-export function assertFrozenAccountFields(
+export function assertFrozenCompanyFields(
   requested: Record<string, unknown>,
   candidate: Record<string, unknown>,
-  existing: Partial<Pick<Account, (typeof IMMUTABLE_ACCOUNT_FIELDS)[number]>>
+  existing: Partial<Pick<Company, (typeof IMMUTABLE_COMPANY_FIELDS)[number]>>
 ) {
-  for (const field of IMMUTABLE_ACCOUNT_FIELDS) {
+  for (const field of IMMUTABLE_COMPANY_FIELDS) {
     if (
       Object.hasOwn(requested, field) &&
       existing[field] !== undefined &&

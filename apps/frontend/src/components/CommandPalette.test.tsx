@@ -10,7 +10,7 @@ import { useStore, buildEmptyFilters } from '@/store/useStore';
 import {
   resetStoreWithData,
   makeResourceDraft,
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   resetStoreWithAccount,
   setExternalEnabled,
   setPlaceholdersEnabled,
@@ -52,7 +52,7 @@ async function addInternalSearchItems() {
   const data = useStore.getState().data;
   const internal =
     data.clients.find((client) => client.builtin === true) ??
-    buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
+    buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z');
   await resetStoreWithData({
     ...data,
     clients: data.clients.some((client) => client.id === internal.id)
@@ -201,7 +201,7 @@ describe('CommandPalette', () => {
     expect(screen.getAllByText('Account', { exact: true })).toHaveLength(1);
 
     await act(async () => {
-      await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+      await useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { disciplinesEnabled: false });
     });
     expect(pageLabels()).toEqual(expectedWithoutDisciplines);
     expect(screen.getAllByText('Account', { exact: true })).toHaveLength(1);

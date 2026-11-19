@@ -15,18 +15,18 @@ import type { TeamMember } from '@/account/teamAccessClient';
 
 /** Shows member administration only after the members read authorizes the authenticated user. Ordinary controls exclude ownership changes, which use the transfer ceremony. */
 export function MembersSection() {
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const { user } = useAuth();
   const generation = useStore((state) =>
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
-  const scope = JSON.stringify([user?.id ?? null, activeAccountId, generation]);
-  return <AccountMembersSection key={scope} activeAccountId={activeAccountId} />;
+  const scope = JSON.stringify([user?.id ?? null, activeCompanyId, generation]);
+  return <AccountMembersSection key={scope} activeCompanyId={activeCompanyId} />;
 }
 
 // Member intent belongs to one principal, company and projection lifetime.
-function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
-  const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeAccountId);
+function AccountMembersSection({ activeCompanyId }: { activeCompanyId: string | null }) {
+  const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeCompanyId);
 
   if (!orchestration.enabled) return null;
   // Privileged controls stay fail-closed until the current account's members read authorizes this
@@ -100,7 +100,7 @@ type MemberTableCapabilities = Pick<
   | 'setRoleEdit'
   | 'chooseMemberAction'
   | 'getResourceLinkRequest'
-  | 'activeAccountId'
+  | 'activeCompanyId'
   | 'resourceCandidates'
   | 'error'
   | 'errorField'
@@ -191,7 +191,7 @@ function MembersTable({
               chooseMemberAction={memberActions.chooseMemberAction}
               linkedResourceIds={linkedResourceIds}
               resourceCandidates={memberActions.resourceCandidates}
-              companyId={memberActions.activeAccountId}
+              companyId={memberActions.activeCompanyId}
               resourceLinkRequest={memberActions.getResourceLinkRequest(member)}
             />
           ))}

@@ -9,13 +9,13 @@ const mocks = vi.hoisted(() => ({
   status: vi.fn(),
   retryProjection: vi.fn(),
   end: vi.fn(),
-  activeAccountId: 'a-studio' as string | null,
+  activeCompanyId: 'a-studio' as string | null,
 }));
 
 vi.mock('@/store/useStore', () => ({
   useStore: {
     getState: () => ({
-      activeAccountId: mocks.activeAccountId,
+      activeCompanyId: mocks.activeCompanyId,
     }),
   },
 }));
@@ -48,7 +48,7 @@ describe('account transition boundary', () => {
     mocks.status.mockReset();
     mocks.retryProjection.mockReset();
     mocks.end.mockReset();
-    mocks.activeAccountId = 'a-studio';
+    mocks.activeCompanyId = 'a-studio';
   });
 
   it('rechecks refresh ownership after the controller finishes loading', async () => {

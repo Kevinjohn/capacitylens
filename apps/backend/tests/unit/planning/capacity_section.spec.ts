@@ -1,11 +1,11 @@
 import { test } from '@japa/runner';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import { buildCapacityWindow } from '@capacitylens/shared/lib/capacity';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type {
-  Account,
+  Company,
   Allocation,
   AppData,
   Closure,
@@ -25,7 +25,7 @@ import { resetPlanningFixture } from '../../functional/planning/helpers.js';
 const ACCOUNT = 'a-themyscira';
 const stamp = { companyId: ACCOUNT, createdAt: 't', updatedAt: 't' };
 
-function account(changes: Partial<Account> = {}): Account {
+function account(changes: Partial<Company> = {}): Company {
   return {
     ...NULLABLE_FIELDS.accounts,
     id: ACCOUNT,
@@ -103,7 +103,7 @@ function data(rows: Partial<AppData>): AppData {
   };
 }
 
-function section(rows: Partial<AppData>, options: { account?: Account; today?: string } = {}) {
+function section(rows: Partial<AppData>, options: { account?: Company; today?: string } = {}) {
   return buildCapacitySection({
     data: data(rows),
     account: options.account ?? account(),
@@ -282,7 +282,7 @@ test.group('capacity section on the sample company', (group) => {
     const company = stored.accounts[0]!;
     const today = '2026-06-03';
     const result = buildCapacitySection({ data: stored, account: company, today });
-    const accountWorkingDays: Weekday[] = normalizeAccountWorkingDays(
+    const companyWorkingDays: Weekday[] = normalizeCompanyWorkingDays(
       company.workingDays,
       company.weekStartsOn ?? 1
     );
@@ -302,7 +302,7 @@ test.group('capacity section on the sample company', (group) => {
           timeOff: stored.timeOff.filter((entry) => entry.resourceId === row.id),
           start: range.from,
           end: range.to,
-          effectiveWeek: effectiveWorkingWeek(row, accountWorkingDays),
+          effectiveWeek: effectiveWorkingWeek(row, companyWorkingDays),
           closures: stored.closures,
         });
       const expected = (range: { from: string; to: string }) => {

@@ -53,7 +53,7 @@ describe('AuthProvider — server mode', () => {
 
     expect(await screen.findByText('user:real-principal')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(useStore.getState().activeAccountId).toBe('a-studio');
+    expect(useStore.getState().activeCompanyId).toBe('a-studio');
     expect(useStore.getState().masquerade.kind).toBe('active');
   });
 
@@ -101,8 +101,8 @@ describe('AuthProvider — server mode', () => {
         });
       });
       vi.stubGlobal('fetch', fetchSpy);
-      expect(useStore.getState().activeAccountId).toBeNull();
-      expect(useStore.getState().accountSummaries).toEqual([]);
+      expect(useStore.getState().activeCompanyId).toBeNull();
+      expect(useStore.getState().companySummaries).toEqual([]);
 
       render(
         <AuthProvider>
@@ -111,8 +111,8 @@ describe('AuthProvider — server mode', () => {
       );
 
       expect(await screen.findByText('member-content')).toBeInTheDocument();
-      expect(useStore.getState().activeAccountId).toBe('a-studio');
-      expect(useStore.getState().accountSummaries).toEqual([
+      expect(useStore.getState().activeCompanyId).toBe('a-studio');
+      expect(useStore.getState().companySummaries).toEqual([
         { id: 'a-studio', name: 'Wayne Enterprises', role: 'viewer' },
       ]);
       expect(useStore.getState().masquerade.kind).toBe('active');

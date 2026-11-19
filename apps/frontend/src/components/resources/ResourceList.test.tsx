@@ -8,7 +8,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ResourceList } from './ResourceList';
 import { useStore } from '@/store/useStore';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   WORKDAYS,
   loadPlanningData,
   resetStoreWithAccount,
@@ -44,7 +44,7 @@ function mockInactiveRead() {
     'fetch',
     vi.fn(async () => {
       const data = structuredClone(useStore.getState().data);
-      const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z');
+      const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
         ...data,
         clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
@@ -233,7 +233,7 @@ describe('ResourceList display', () => {
 
 describe('ResourceList display', () => {
   it('omits both fixed hours text and dangling metadata separators', async () => {
-    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+    await useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { disciplinesEnabled: false });
     await useStore.getState().addResource({ ...personDraft('Alice'), role: '' });
     render(<ResourceList />);
 

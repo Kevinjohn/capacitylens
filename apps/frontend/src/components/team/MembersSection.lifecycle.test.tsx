@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 
 import {
   resetStoreWithAccount,
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   jsonResponse,
   makeResourceDraft,
 } from '@/test/fixtures';
@@ -80,7 +80,7 @@ describe('MembersSection — member lifecycle', () => {
     await user.click(within(dialog).getByRole('button', { name: /Suspend/ }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/companies/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        `/api/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({ status: 'suspended' }),
@@ -116,7 +116,7 @@ describe('MembersSection — member lifecycle', () => {
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/companies/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
+        `/api/companies/${DEFAULT_COMPANY_ID}/members/ed/status`,
         expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) }),
       ),
     );

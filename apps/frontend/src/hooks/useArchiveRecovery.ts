@@ -37,7 +37,7 @@ export function useArchiveRecovery() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const mayWrite = useCan('planning:write');
-  const companyId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeCompanyId);
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);
   const [reloadKey, setReloadKey] = useState(0);
@@ -45,7 +45,7 @@ export function useArchiveRecovery() {
   useEffect(
     () =>
       subscribeToInactiveDataChanges((changedCompanyId) => {
-        if (changedCompanyId === useStore.getState().activeAccountId) reload();
+        if (changedCompanyId === useStore.getState().activeCompanyId) reload();
       }),
     [reload],
   );

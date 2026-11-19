@@ -1,7 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { DatabaseQueryBuilderContract } from '@adonisjs/lucid/types/querybuilder';
 import {
-  isAccountRole,
+  isRole,
   isMembershipStatus,
   type MembershipStatus,
   type Role,
@@ -81,7 +81,7 @@ export async function readMemberDirectory(
   const members: MemberDirectoryEntry[] = [];
   for (const row of rows) {
     const userId = row.user_id;
-    if (!isAccountRole(row.role)) throw new Error('Membership has an invalid role.');
+    if (!isRole(row.role)) throw new Error('Membership has an invalid role.');
     if (!isMembershipStatus(row.status)) throw new Error('Membership has an invalid status.');
     // The lookup producer seeds every requested member ID before applying any links.
     const memberResourceFields = resourceFields.get(userId) as MemberResourceFields;

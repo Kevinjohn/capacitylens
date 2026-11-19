@@ -30,29 +30,29 @@ export interface LifecycleActions {
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   const mutationQueue = useRef<Promise<void>>(Promise.resolve());
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
 
   const dispatchServer = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
-      if (!activeAccountId) return;
+      if (!activeCompanyId) return;
       if (verb !== 'anonymise' || entity !== 'resources') {
         throw new Error('Unsupported anonymisation target.');
       }
-      const reloaded = await runResourceAnonymisation(activeAccountId, id, setNotice);
+      const reloaded = await runResourceAnonymisation(activeCompanyId, id, setNotice);
       if (reloaded) {
-        notifyInactiveDataChanged(activeAccountId);
+        notifyInactiveDataChanged(activeCompanyId);
         onReloaded?.();
       }
     },
-    [activeAccountId, setNotice, onReloaded],
+    [activeCompanyId, setNotice, onReloaded],
   );
 
   const run = useCallback(
     (verb: LifecycleVerb, entity: LifecycleEntity, id: string): Promise<void> => {
       const execute = async () => {
         try {
-          if (!activeAccountId || useStore.getState().activeAccountId !== activeAccountId) return;
+          if (!activeCompanyId || useStore.getState().activeCompanyId !== activeCompanyId) return;
           if (verb === 'archive' || verb === 'unarchive') {
             // Archiving from a list is confirmed there and is not offered for undo.
             const command: PlanningCommand =
@@ -70,7 +70,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
                       endsHistory: true,
                     };
             const receipt = await useStore.getState().sendPlanningCommand(command);
-            if (activeAccountId) notifyInactiveDataChanged(activeAccountId);
+            if (activeCompanyId) notifyInactiveDataChanged(activeCompanyId);
             if (entity !== 'resources' && verb === 'archive' && receipt?.archived) {
               const notice = buildArchiveImpactNotice(entity, receipt.archived);
               if (notice) setNotice(notice);
@@ -91,7 +91,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
       mutationQueue.current = scheduled;
       return scheduled;
     },
-    [activeAccountId, dispatchServer, setNotice],
+    [activeCompanyId, dispatchServer, setNotice],
   );
 
   // Stabilize the returned surface so consumers do not rerender solely because its object identity changes.

@@ -18,7 +18,7 @@ import { useStore } from '@/store/useStore';
 
 interface TeamDirectoryOptions {
   enabled: boolean;
-  activeAccountId: string | null;
+  activeCompanyId: string | null;
   fail: FieldError['fail'];
 }
 
@@ -93,31 +93,31 @@ function useScopedDirectoryQueries({
   inviteReloadKey: number;
   scope: ApiQueryScope;
 }) {
-  const { enabled, activeAccountId } = options;
+  const { enabled, activeCompanyId } = options;
   const scopeId = JSON.stringify([scope.principalId, scope.companyId, scope.masqueradeGeneration]);
   const memberRouteKey = api.api.members.index.queryKey({
-    params: { companyId: activeAccountId ?? '' },
+    params: { companyId: activeCompanyId ?? '' },
   });
   const membersQuery = useQuery<TeamAccessResult<TeamDirectory>>({
     queryKey: scopeQueryKey(scope, ['team-members', reloadKey, ...memberRouteKey]),
-    enabled: enabled && !!activeAccountId,
+    enabled: enabled && !!activeCompanyId,
     refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => teamAccessClient.listMembers(activeAccountId ?? '', signal),
+    queryFn: ({ signal }) => teamAccessClient.listMembers(activeCompanyId ?? '', signal),
   });
   const inviteRouteKey = api.api.invites.index.queryKey({
-    params: { companyId: activeAccountId ?? '' },
+    params: { companyId: activeCompanyId ?? '' },
   });
   const invitationsQuery = useQuery<TeamAccessResult<TeamInvitation[]>>({
     queryKey: scopeQueryKey(scope, ['team-invitations', inviteReloadKey, ...inviteRouteKey]),
-    enabled: enabled && !!activeAccountId && membersQuery.data?.kind === 'ok',
+    enabled: enabled && !!activeCompanyId && membersQuery.data?.kind === 'ok',
     refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => teamAccessClient.listInvitations(activeAccountId ?? '', signal),
+    queryFn: ({ signal }) => teamAccessClient.listInvitations(activeCompanyId ?? '', signal),
   });
   return { membersQuery, invitationsQuery, scopeId };
 }
 
 function useMemberQueryEffects({
-  activeAccountId,
+  activeCompanyId,
   fail,
   authorizedAccountRef,
   setDirectory,
@@ -126,7 +126,7 @@ function useMemberQueryEffects({
   readGeneration,
   acceptReadGeneration,
 }: {
-  activeAccountId: string | null;
+  activeCompanyId: string | null;
   fail: FieldError['fail'];
   authorizedAccountRef: { current: { scopeId: string; companyId: string } | null };
   setDirectory: SetDirectory;
@@ -137,48 +137,48 @@ function useMemberQueryEffects({
   acceptReadGeneration(generation: number): void;
 }) {
   useEffect(() => {
-    if (!activeAccountId || !membersQuery.data) return;
+    if (!activeCompanyId || !membersQuery.data) return;
     const result = membersQuery.data;
     if (result.kind === 'rejected' && result.status === 403) {
       if (
         authorizedAccountRef.current?.scopeId === scopeId &&
-        authorizedAccountRef.current.companyId === activeAccountId
+        authorizedAccountRef.current.companyId === activeCompanyId
       ) {
         setDirectory({
           kind: 'error',
-          companyId: activeAccountId,
+          companyId: activeCompanyId,
           content: { kind: 'unavailable' },
         });
         fail(null, m.settings_members_err_access_changed());
       } else {
-        setDirectory({ kind: 'hidden', companyId: activeAccountId });
+        setDirectory({ kind: 'hidden', companyId: activeCompanyId });
       }
       return;
     }
     if (result.kind === 'invalid') {
-      setDirectory((previous) => markDirectoryError(previous, activeAccountId));
+      setDirectory((previous) => markDirectoryError(previous, activeCompanyId));
       fail(null, 'The server returned an invalid members response.');
       return;
     }
     if (result.kind !== 'ok') {
-      setDirectory((previous) => markDirectoryError(previous, activeAccountId));
+      setDirectory((previous) => markDirectoryError(previous, activeCompanyId));
       fail(null, getFailureMessage(result, m.settings_members_err_load({ status: result.status })));
       return;
     }
-    authorizedAccountRef.current = { scopeId, companyId: activeAccountId };
+    authorizedAccountRef.current = { scopeId, companyId: activeCompanyId };
     setDirectory((previous) => ({
       kind: 'ready',
-      companyId: activeAccountId,
+      companyId: activeCompanyId,
       snapshot: {
         members: result.value.members,
         signInTrackingEnabled: result.value.signInTrackingEnabled,
         resourceCandidates: result.value.resourceCandidates,
-        invites: getDirectorySnapshot(previous, activeAccountId)?.invites ?? [],
+        invites: getDirectorySnapshot(previous, activeCompanyId)?.invites ?? [],
       },
     }));
     acceptReadGeneration(readGeneration);
   }, [
-    activeAccountId,
+    activeCompanyId,
     membersQuery.data,
     fail,
     authorizedAccountRef,
@@ -188,28 +188,28 @@ function useMemberQueryEffects({
     acceptReadGeneration,
   ]);
   useEffect(() => {
-    if (membersQuery.error && activeAccountId) {
-      setDirectory((previous) => markDirectoryError(previous, activeAccountId));
+    if (membersQuery.error && activeCompanyId) {
+      setDirectory((previous) => markDirectoryError(previous, activeCompanyId));
       fail(null, m.settings_err_server({ error: resolveErrorMessage(membersQuery.error) }));
     }
-  }, [activeAccountId, membersQuery.error, fail, setDirectory]);
+  }, [activeCompanyId, membersQuery.error, fail, setDirectory]);
 }
 
 function useInvitationQueryEffects({
-  activeAccountId,
+  activeCompanyId,
   fail,
   membersQuery,
   invitationsQuery,
   setDirectory,
 }: {
-  activeAccountId: string | null;
+  activeCompanyId: string | null;
   fail: FieldError['fail'];
   membersQuery: ReturnType<typeof useScopedDirectoryQueries>['membersQuery'];
   invitationsQuery: ReturnType<typeof useScopedDirectoryQueries>['invitationsQuery'];
   setDirectory: SetDirectory;
 }) {
   useEffect(() => {
-    if (!activeAccountId || membersQuery.data?.kind !== 'ok' || !invitationsQuery.data) return;
+    if (!activeCompanyId || membersQuery.data?.kind !== 'ok' || !invitationsQuery.data) return;
     const result = invitationsQuery.data;
     if (result.kind === 'invalid') {
       fail(null, 'The server returned an invalid invites response.');
@@ -219,8 +219,8 @@ function useInvitationQueryEffects({
       fail(null, getFailureMessage(result, m.settings_invites_err_load({ status: result.status })));
       return;
     }
-    setDirectory((previous) => replaceInvites(previous, activeAccountId, result.value));
-  }, [activeAccountId, membersQuery.data, invitationsQuery.data, fail, setDirectory]);
+    setDirectory((previous) => replaceInvites(previous, activeCompanyId, result.value));
+  }, [activeCompanyId, membersQuery.data, invitationsQuery.data, fail, setDirectory]);
   useEffect(() => {
     if (membersQuery.data?.kind === 'ok' && invitationsQuery.error) {
       fail(null, m.settings_err_server({ error: resolveErrorMessage(invitationsQuery.error) }));
@@ -229,7 +229,7 @@ function useInvitationQueryEffects({
 }
 
 function useDirectoryRead(options: TeamDirectoryOptions) {
-  const { activeAccountId, fail } = options;
+  const { activeCompanyId, fail } = options;
   const { user } = useAuth();
   const masqueradeGeneration = useStore((state) =>
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
@@ -237,13 +237,13 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const scope: ApiQueryScope = {
     principalId: user?.id ?? null,
-    companyId: activeAccountId,
+    companyId: activeCompanyId,
     masqueradeGeneration,
   };
   const scopeId = JSON.stringify([scope.principalId, scope.companyId, scope.masqueradeGeneration]);
   const [directoryState, setDirectoryState] = useState({
     scopeId,
-    directory: { kind: 'loading', companyId: activeAccountId } as DirectoryState,
+    directory: { kind: 'loading', companyId: activeCompanyId } as DirectoryState,
   });
   const setDirectory = useCallback<SetDirectory>(
     (next) =>
@@ -251,10 +251,10 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
         const previous: DirectoryState =
           current.scopeId === scopeId
             ? current.directory
-            : { kind: 'loading', companyId: activeAccountId };
+            : { kind: 'loading', companyId: activeCompanyId };
         return { scopeId, directory: typeof next === 'function' ? next(previous) : next };
       }),
-    [activeAccountId, scopeId],
+    [activeCompanyId, scopeId],
   );
   // Remember which principal projection returned an authorized company directory.
   const authorizedAccountRef = useRef<{ scopeId: string; companyId: string } | null>(null);
@@ -278,7 +278,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     scope,
   });
   useMemberQueryEffects({
-    activeAccountId,
+    activeCompanyId,
     fail,
     authorizedAccountRef,
     setDirectory,
@@ -288,7 +288,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     acceptReadGeneration: setAcceptedReadGeneration,
   });
   useInvitationQueryEffects({
-    activeAccountId,
+    activeCompanyId,
     fail,
     membersQuery,
     invitationsQuery,
@@ -299,7 +299,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     directory:
       directoryState.scopeId === scopeId
         ? directoryState.directory
-        : ({ kind: 'loading', companyId: activeAccountId } satisfies DirectoryState),
+        : ({ kind: 'loading', companyId: activeCompanyId } satisfies DirectoryState),
     setDirectory,
     reload,
     acceptedReadGeneration,
@@ -309,10 +309,10 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
 
 /** Owns authoritative directory reads, self-gating and reload generations. */
 export function useTeamDirectory(options: TeamDirectoryOptions) {
-  const { activeAccountId } = options;
+  const { activeCompanyId } = options;
   const { directory, setDirectory, reload, acceptedReadGeneration, reloadInvites } =
     useDirectoryRead(options);
-  const currentAccountLoaded = directory.companyId === activeAccountId;
+  const currentAccountLoaded = directory.companyId === activeCompanyId;
   const replaceAuthorizedDirectory = useCallback(
     (next: TeamDirectory, invites: TeamInvitation[]) => {
       setDirectory((previous) => {
@@ -335,7 +335,7 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
     directory:
       currentAccountLoaded && directory.companyId !== null
         ? directory
-        : ({ kind: 'loading', companyId: activeAccountId } satisfies DirectoryState),
+        : ({ kind: 'loading', companyId: activeCompanyId } satisfies DirectoryState),
     replaceAuthorizedDirectory,
     reload,
     acceptedReadGeneration,

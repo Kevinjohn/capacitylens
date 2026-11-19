@@ -9,7 +9,7 @@ import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeActivity,
   makeAllocation,
   makeAppData,
@@ -60,7 +60,7 @@ export async function chooseOption(
 
 /** Builds a minimal scoped scheduler fixture; callers may replace individual table arrays. */
 export function schedulerDataset(overrides: Partial<AppData> = {}): AppData {
-  const ACC = DEFAULT_ACCOUNT_ID;
+  const ACC = DEFAULT_COMPANY_ID;
   return makeAppData({
     disciplines: [
       {

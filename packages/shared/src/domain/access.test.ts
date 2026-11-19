@@ -7,13 +7,12 @@ import {
   canViewCapacityOverview,
   isOwnerOrAdmin,
 } from './access.js';
+import { ROLES } from '../account/types.js';
 import type { CapacityOverviewAccess } from '../types/entities.js';
 import type { PermissionKey, Role } from './access.js';
 
 // An independent oracle of the CapacityLens permission declaration: the expected roles below are
 // written by hand from DECISIONS.md, not derived from the implementation.
-const ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer'];
-
 const LOWEST_ROLE: Record<PermissionKey, Role> = {
   'planning:read': 'viewer',
   'planning:write': 'editor',

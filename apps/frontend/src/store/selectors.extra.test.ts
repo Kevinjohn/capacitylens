@@ -4,7 +4,7 @@ import { byDisciplineOrder, resourceById, activityById } from './selectors';
 import type { Discipline } from '@capacitylens/shared/types/entities';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures';
 
 const data: AppData = {
   ...emptyAppData(),
@@ -64,7 +64,7 @@ const data: AppData = {
     },
   ],
   resources: [
-    makeResource({ id: 'r1', companyId: DEFAULT_ACCOUNT_ID, name: 'A', role: 'Dev', color: '#4' }),
+    makeResource({ id: 'r1', companyId: DEFAULT_COMPANY_ID, name: 'A', role: 'Dev', color: '#4' }),
   ],
   allocations: [
     {

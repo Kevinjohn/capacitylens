@@ -1,6 +1,6 @@
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
-import Account from '#models/account';
+import Company from '#models/company';
 import Activity from '#models/activity';
 import Allocation from '#models/allocation';
 import Client from '#models/client';
@@ -20,7 +20,7 @@ const buildSnakeKey = (key: string) =>
   key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 const models = {
-  accounts: Account,
+  accounts: Company,
   clients: Client,
   disciplines: Discipline,
   projects: Project,
@@ -79,7 +79,7 @@ export async function readStateWithClient(
     timeOff,
     closures,
   ] = await Promise.all([
-    Account.query({ client }).where('id', companyId),
+    Company.query({ client }).where('id', companyId),
     Client.query({ client })
       .withTrashed()
       .withScopes((scopes) => scopes.forCompany(companyId)),

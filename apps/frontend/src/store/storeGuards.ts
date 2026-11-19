@@ -13,16 +13,16 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
   // account must either exist in the published data or in the server-authorised summaries while a
   // switch is loading its slice. Typed command context and revision checks still gate writes; this
   // guard only prevents stamping an orphan companyId into the slice.
-  const requireAccount = (): ID => {
+  const requireCompany = (): ID => {
     const state = get();
-    const id = state.activeAccountId;
+    const id = state.activeCompanyId;
     if (!id) throw new Error('No active company is selected.');
-    if (state.activeAccountLoadFailed === id) {
+    if (state.activeCompanyLoadFailed === id) {
       throw new Error('The active account is not loaded — cannot mutate scoped data.');
     }
     if (
       !state.data.accounts.some((account) => account.id === id) &&
-      !state.accountSummaries.some((account) => account.id === id)
+      !state.companySummaries.some((account) => account.id === id)
     ) {
       throw new Error('The active account is not loaded — cannot mutate scoped data.');
     }
@@ -47,24 +47,24 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return true;
   };
 
-  return buildGuards({ requireAccount, blockedByViewer });
+  return buildGuards({ requireCompany, blockedByViewer });
 }
 
 interface BuildGuardsInput {
-  requireAccount: () => ID;
+  requireCompany: () => ID;
   blockedByViewer: () => boolean;
 }
 
-function buildGuards({ requireAccount, blockedByViewer }: BuildGuardsInput) {
+function buildGuards({ requireCompany, blockedByViewer }: BuildGuardsInput) {
   const resolveOwnedRow = <K extends ScopedEntityKey>(
     data: AppData,
     key: K,
     id: ID,
-  ): AppData[K][number] | null => findOwnedIn(data, requireAccount(), key, id);
+  ): AppData[K][number] | null => findOwnedIn(data, requireCompany(), key, id);
   const assertAllocation = assertAllocationRefs;
 
   return {
-    requireAccount,
+    requireCompany,
     blockedByViewer,
     resolveOwnedRow,
     assertAllocation,

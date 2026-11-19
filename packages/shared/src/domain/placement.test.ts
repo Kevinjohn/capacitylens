@@ -54,7 +54,7 @@ describe('assertAllocationPlacement', () => {
         allocation: allocation(),
         existing: allocation(),
         resource: resource({ firstAvailableDate: '2026-06-20' }),
-        accountWorkingDays: [1, 2, 3, 4, 5],
+        companyWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).not.toThrow();
   });
@@ -64,7 +64,7 @@ describe('assertAllocationPlacement', () => {
       assertAllocationPlacement({
         allocation: allocation(),
         resource: resource({ firstAvailableDate: '2026-06-20' }),
-        accountWorkingDays: [1, 2, 3, 4, 5],
+        companyWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
@@ -83,7 +83,7 @@ describe('changed allocation placement', () => {
           allocation: next,
           existing,
           resource: subject,
-          accountWorkingDays: [1, 2, 3, 4, 5],
+          companyWorkingDays: [1, 2, 3, 4, 5],
         }),
       ).toThrowError(
         expect.objectContaining<Partial<DomainError>>({

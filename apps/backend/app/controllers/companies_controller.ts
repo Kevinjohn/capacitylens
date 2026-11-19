@@ -3,7 +3,7 @@ import access from '#config/access_control';
 import { withActor } from '#services/auth/current_actor';
 import { hasMultipleCompanies } from '#models/installation_company';
 import { buildAccessGrant } from '#services/auth/access_grant';
-import { isAccountRole } from '@capacitylens/shared/account/types';
+import { isRole } from '@capacitylens/shared/account/types';
 
 /** Returns the companies this principal may enter, or 409 while the installation has more than one. */
 export default class CompaniesController {
@@ -21,7 +21,7 @@ export default class CompaniesController {
           id: row.id,
           name: row.name,
           role: row.role,
-          ...(isAccountRole(row.role)
+          ...(isRole(row.role)
             ? buildAccessGrant(row.role, false)
             : { permissions: [], canSeePrivateNames: false, canSeeTimeOffNote: false }),
         }));

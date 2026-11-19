@@ -14,7 +14,7 @@ export const masqueradeController = new MasqueradeController({
   suspend: () => useStore.getState().suspendPlanningCommands(),
   reproject: reprojectAccess,
   switchAccount: async (companyId) => {
-    useStore.getState().setActiveAccount(companyId);
+    useStore.getState().setActiveCompany(companyId);
     return companyId === null || (await useStore.getState().refreshPlanning())
       ? { kind: 'reloaded' }
       : { kind: 'failed' };

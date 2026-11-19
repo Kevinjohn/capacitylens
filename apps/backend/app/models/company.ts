@@ -14,7 +14,9 @@ import {
 } from '@kevinjohn/adonisjs-lucid-checked-columns';
 import { isWeekday } from '#models/scalar_column';
 
-export default class Account extends AccountSchema {
+export default class Company extends AccountSchema {
+  static table = 'accounts';
+
   @column(jsonColumn('accounts', 'week_starts_on', isOneOf([0, 1] as const)))
   declare weekStartsOn: 0 | 1 | null;
 

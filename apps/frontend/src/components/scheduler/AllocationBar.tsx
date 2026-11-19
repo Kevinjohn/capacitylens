@@ -195,7 +195,7 @@ export const AllocationBar = memo(function AllocationBarComponent(props: Allocat
   const { insetLeft, insetWidth } = buildAllocationBarInset(gesture.left, gesture.width);
   const { label: labelText, viewerLabel: viewerLabelText } = useBarLabelText(bar);
   const showTaskFieldInSchedule = useStore((state) =>
-    hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId),
+    hasVisibleTaskFieldInSchedule(state.data, state.activeCompanyId),
   );
   const ariaLabel = useBarAriaLabel({
     bar,

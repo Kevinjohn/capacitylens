@@ -123,7 +123,7 @@ describe('Overview route access', () => {
 
   it('allows a viewer when the company setting allows everyone', async () => {
     await resetStoreWithAccount();
-    const companyId = useStore.getState().activeAccountId;
+    const companyId = useStore.getState().activeCompanyId;
     if (!companyId) throw new Error('Expected an active account');
     await useStore.getState().updateAccount(companyId, { capacityOverviewAccess: 'everyone' });
     renderRoute('viewer', 'resolved');

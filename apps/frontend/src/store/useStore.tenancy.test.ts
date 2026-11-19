@@ -86,33 +86,33 @@ function twoAccountData(): AppData {
 
 beforeEach(async () => {
   await resetStoreWithData(twoAccountData(), A);
-  s().setAccountSummaries({
+  s().setCompanySummaries({
     list: [
       { id: A, name: 'Company A', role: 'owner' },
       { id: B, name: 'Company B', role: 'owner' },
     ],
   });
-  s().setActiveAccount(A);
+  s().setActiveCompany(A);
   s().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
-  expect(s().activeAccountId).toBe(A);
+  expect(s().activeCompanyId).toBe(A);
 });
 
 describe('active-account replacement invariant', () => {
   it("rejects scoped writes only while the active account's hydration is marked failed", async () => {
-    useStore.setState({ activeAccountLoadFailed: A });
+    useStore.setState({ activeCompanyLoadFailed: A });
     await expect(
       requireCreated(s().addClient({ name: 'Wayne Enterprises', color: '#111111' })),
     ).rejects.toThrow(/not loaded/i);
 
-    useStore.setState({ activeAccountLoadFailed: B });
+    useStore.setState({ activeCompanyLoadFailed: B });
     await expect(
       requireCreated(s().addClient({ name: 'Wayne Foundation', color: '#111111' })),
     ).resolves.toBeDefined();
   });
 
   it('rejects scoped writes when a non-null active id has no loaded account row', async () => {
-    s().setAccountSummaries({ list: [] });
-    useStore.setState({ activeAccountId: 'missing-account' });
+    s().setCompanySummaries({ list: [] });
+    useStore.setState({ activeCompanyId: 'missing-account' });
     const dataBefore = s().data;
 
     await expect(
@@ -127,10 +127,10 @@ describe('active-account permission publication', () => {
     s().setActiveRole('editor', 'resolved', grantFor('editor').permissions);
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {
-      if (state.activeAccountId === B) rolesPublishedForB.push(state.activeRole);
+      if (state.activeCompanyId === B) rolesPublishedForB.push(state.activeRole);
     });
 
-    s().setActiveAccount(B);
+    s().setActiveCompany(B);
     // B is known from the summaries before its rows load, so the write reaches the role check,
     // which refuses it under the fail-closed viewer role.
     await expect(s().addClient({ name: 'Must not land', color: '#111111' })).resolves.toEqual({
@@ -150,7 +150,7 @@ describe('active-account permission publication', () => {
 
   it('denies a write with null role across an account switch', async () => {
     s().setActiveRole(null);
-    s().setActiveAccount(B);
+    s().setActiveCompany(B);
     await s().refreshPlanning();
 
     expect(s().activeRole).toBeNull();
@@ -232,13 +232,13 @@ describe('foreign-key refs must stay in the active account', () => {
 });
 
 describe('unknown company selection', () => {
-  it('surfaces the not-found notice even when activeAccountId is already null', () => {
-    s().setActiveAccount(null);
+  it('surfaces the not-found notice even when activeCompanyId is already null', () => {
+    s().setActiveCompany(null);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    s().setActiveAccount('company-does-not-exist');
+    s().setActiveCompany('company-does-not-exist');
 
-    expect(s().activeAccountId).toBeNull();
+    expect(s().activeCompanyId).toBeNull();
     expect(s().notice).toMatchObject({ tone: 'error' });
     warn.mockRestore();
   });
@@ -252,9 +252,9 @@ describe('unknown company selection', () => {
     s().announceCapacity('Company A capacity changed');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    s().setActiveAccount('company-does-not-exist');
+    s().setActiveCompany('company-does-not-exist');
 
-    expect(s().activeAccountId).toBeNull();
+    expect(s().activeCompanyId).toBeNull();
     expect(s().notice).toMatchObject({ tone: 'error' });
     expect(s().notice?.message).toMatch(/company no longer exists/i);
     expect(s().dirtyForm).toBe(false);

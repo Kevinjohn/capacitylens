@@ -44,10 +44,10 @@ function publishPlanning(
     return {
       data: emptyAppData(),
       planning,
-      activeAccountId: null,
-      accountSummaries: [],
-      accountSummariesComplete: false,
-      accountSummariesRequestId: state.accountSummariesRequestId + 1,
+      activeCompanyId: null,
+      companySummaries: [],
+      companySummariesComplete: false,
+      companySummariesRequestId: state.companySummariesRequestId + 1,
     };
   }
   // A new context publishes nothing yet: its first canonical read replaces its scoped rows.
@@ -70,7 +70,7 @@ function publishPlanning(
       : {}),
     ...(account
       ? {
-          accountSummaries: state.accountSummaries.map((summary) =>
+          companySummaries: state.companySummaries.map((summary) =>
             summary.id === companyId ? { ...summary, name: account.name } : summary,
           ),
         }
@@ -122,19 +122,19 @@ export function createPlanningSessionSlice(
       syncContext(null);
       set((state) => ({
         data: emptyAppData(),
-        activeAccountId: null,
-        accountSummaries: [],
-        accountSummariesComplete: false,
-        accountSummariesRequestId: state.accountSummariesRequestId + 1,
+        activeCompanyId: null,
+        companySummaries: [],
+        companySummariesComplete: false,
+        companySummariesRequestId: state.companySummariesRequestId + 1,
         ...(authLost ? { planningAuthLossVersion: state.planningAuthLossVersion + 1 } : {}),
       }));
     };
     const checkCommandsSuspended = () => {
-      syncContext(get().activeAccountId);
+      syncContext(get().activeCompanyId);
       return commandLocks.size > 0;
     };
     const isReplacementReady = () => {
-      const companyId = get().activeAccountId;
+      const companyId = get().activeCompanyId;
       const planning = get().planning;
       return (
         companyId !== null &&
@@ -162,7 +162,7 @@ export function createPlanningSessionSlice(
       planning: createPlanningCacheState().planning,
       sendPlanningCommand: send,
       refreshPlanning: (options) => {
-        const companyId = get().activeAccountId;
+        const companyId = get().activeCompanyId;
         if (companyId === null) {
           syncContext(null);
           return Promise.resolve(false);
@@ -173,7 +173,7 @@ export function createPlanningSessionSlice(
           .refresh({ quiet: options?.quiet === true })
           .then(
             (accepted) =>
-              accepted && get().activeAccountId === companyId && contextCompanyId === companyId,
+              accepted && get().activeCompanyId === companyId && contextCompanyId === companyId,
           );
         activeRead = { companyId, promise };
         void promise.finally(() => {
@@ -183,7 +183,7 @@ export function createPlanningSessionSlice(
       },
       clearPlanning: () => clearPrivatePlanning(),
       suspendPlanningCommands: () => {
-        const companyId = get().activeAccountId;
+        const companyId = get().activeCompanyId;
         syncContext(companyId);
         const planning = get().planning;
         if (

@@ -16,7 +16,7 @@ import { ActivityList } from './ActivityList';
 import { useStore } from '@/store/useStore';
 import {
   loadPlanningData,
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeAppData,
   resetStoreWithAccount,
   requireValue,
@@ -49,7 +49,7 @@ function mockInactiveRead() {
     'fetch',
     vi.fn(async () => {
       const data = structuredClone(useStore.getState().data);
-      const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z');
+      const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
         ...data,
         clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
@@ -388,7 +388,7 @@ describe('ActivityList', () => {
           {
             ...NULLABLE_FIELDS.activities,
             id: 'act-orphan',
-            companyId: DEFAULT_ACCOUNT_ID,
+            companyId: DEFAULT_COMPANY_ID,
             createdAt: 't',
             updatedAt: 't',
             name: 'Orphan Activity',
@@ -398,7 +398,7 @@ describe('ActivityList', () => {
         ],
       }),
     );
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    useStore.getState().setActiveCompany(DEFAULT_COMPANY_ID);
   };
 
   it('retains an activity whose project resolves nowhere', () => {

@@ -55,7 +55,7 @@ describe('planning command suspension', () => {
     });
     const releaseA = useStore.getState().suspendPlanningCommands();
     if (!releaseA) throw new Error('Company A did not acquire its replacement lock.');
-    useStore.getState().setActiveAccount('a2');
+    useStore.getState().setActiveCompany('a2');
     await useStore.getState().refreshPlanning();
     useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const releaseB = useStore.getState().suspendPlanningCommands();
@@ -67,7 +67,7 @@ describe('planning command suspension', () => {
       }),
     ).rejects.toThrow(/suspended/);
     releaseB();
-    useStore.getState().setActiveAccount('acct-test');
+    useStore.getState().setActiveCompany('acct-test');
     await useStore.getState().refreshPlanning();
     useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const releaseSecondA = useStore.getState().suspendPlanningCommands();
@@ -88,18 +88,18 @@ describe('planning command suspension', () => {
     });
     const releaseOldA = useStore.getState().suspendPlanningCommands();
     if (!releaseOldA) throw new Error('The first company A context was not ready.');
-    useStore.getState().setActiveAccount(null);
+    useStore.getState().setActiveCompany(null);
     expect(useStore.getState().planning.context).toBeNull();
     expect(useStore.getState().data.accounts).toEqual([]);
 
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: [
         { id: 'acct-test', name: 'Test Co', role: 'owner' },
         { id: 'a2', name: 'Test Co', role: 'owner' },
       ],
     });
 
-    useStore.getState().setActiveAccount('acct-test');
+    useStore.getState().setActiveCompany('acct-test');
     await useStore.getState().refreshPlanning();
     useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
     const releaseNewA = useStore.getState().suspendPlanningCommands();
@@ -157,13 +157,13 @@ describe('planning command suspension', () => {
     useStore.getState().clearPlanning();
     useStore.setState((state) => ({
       data: { ...state.data, accounts: [makeAccount()] },
-      accountSummaries: [{ id: 'acct-test', name: 'Test Co', role: 'owner' }],
+      companySummaries: [{ id: 'acct-test', name: 'Test Co', role: 'owner' }],
     }));
     expect(useStore.getState().planning.context).toBeNull();
 
     useStore.getState().clearPlanning();
 
     expect(useStore.getState().data.accounts).toEqual([]);
-    expect(useStore.getState().accountSummaries).toEqual([]);
+    expect(useStore.getState().companySummaries).toEqual([]);
   });
 });

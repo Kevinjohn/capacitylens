@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { AuthContext } from '@/auth/authContext';
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from '@/test/fixtures';
+import { resetStoreWithAccount, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { MembersSection } from './MembersSection';
 import { useTeamDirectory } from './useTeamDirectory';
@@ -37,7 +37,7 @@ describe('MembersSection — self-gate', () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
       const target = String(url);
       const isRead = !init || init.method === undefined || init.method === 'GET';
-      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+      if (target.endsWith(`/${DEFAULT_COMPANY_ID}/members`) && isRead) {
         return jsonResponse({
           members: [
             rawMember({
@@ -63,7 +63,7 @@ describe('MembersSection — self-gate', () => {
     renderSection();
     expect(await screen.findByText('first@example.test')).toBeInTheDocument();
 
-    act(() => useStore.setState({ activeAccountId: nextAccountId }));
+    act(() => useStore.setState({ activeCompanyId: nextAccountId }));
     expect(screen.queryByText('first@example.test')).not.toBeInTheDocument();
 
     await act(async () => {
@@ -149,7 +149,7 @@ describe('MembersSection — directory error retention', () => {
         kind: 'active',
         generation: 2,
         state: {
-          companyId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_COMPANY_ID,
           targetUserId: 'target-user',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
@@ -169,7 +169,7 @@ describe('MembersSection — directory error retention', () => {
       () =>
         useTeamDirectory({
           enabled: true,
-          activeAccountId: DEFAULT_ACCOUNT_ID,
+          activeCompanyId: DEFAULT_COMPANY_ID,
           fail,
         }),
       {
@@ -219,7 +219,7 @@ describe('MembersSection — directory error retention', () => {
       () =>
         useTeamDirectory({
           enabled: true,
-          activeAccountId: DEFAULT_ACCOUNT_ID,
+          activeCompanyId: DEFAULT_COMPANY_ID,
           fail,
         }),
       { wrapper },
@@ -255,7 +255,7 @@ describe('MembersSection — directory error retention', () => {
       () =>
         useTeamDirectory({
           enabled: true,
-          activeAccountId: DEFAULT_ACCOUNT_ID,
+          activeCompanyId: DEFAULT_COMPANY_ID,
           fail,
         }),
       {
@@ -273,7 +273,7 @@ describe('MembersSection — directory error retention', () => {
     await waitFor(() => expect(result.current.directory.kind).toBe('error'));
     expect(result.current.directory).toMatchObject({
       kind: 'error',
-      companyId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_COMPANY_ID,
       content: { kind: 'unavailable' },
     });
   });
@@ -303,7 +303,7 @@ describe('MembersSection — transient directory state', () => {
       () =>
         useTeamDirectory({
           enabled: true,
-          activeAccountId: DEFAULT_ACCOUNT_ID,
+          activeCompanyId: DEFAULT_COMPANY_ID,
           fail,
         }),
       {
@@ -325,7 +325,7 @@ describe('MembersSection — transient directory state', () => {
     await waitFor(() => expect(result.current.directory.kind).toBe('error'));
     expect(result.current.directory).toMatchObject({
       kind: 'error',
-      companyId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_COMPANY_ID,
       content: { kind: 'authorized', snapshot: readyDirectory.snapshot },
     });
   });

@@ -130,7 +130,7 @@ describe('runSuspendedReplacement', () => {
   it('reports a departure when the company changes during the request', async () => {
     const outcome = await runSuspendedReplacement({
       send: async () => {
-        useStore.setState({ activeAccountId: 'acct-other' });
+        useStore.setState({ activeCompanyId: 'acct-other' });
         return new Response(null, { status: 503 });
       },
       recovery: 'refresh',

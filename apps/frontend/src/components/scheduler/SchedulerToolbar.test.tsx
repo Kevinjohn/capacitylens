@@ -15,7 +15,7 @@ import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { SchedulerToolbar } from './SchedulerToolbar';
 import { buildEmptyFilters, useStore } from '@/store/useStore';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeResourceDraft,
   resetStoreWithAccount,
   resetStoreWithData,
@@ -153,7 +153,7 @@ describe('SchedulerToolbar discipline filter visibility', () => {
       data: {
         ...state.data,
         accounts: state.data.accounts.map((account) =>
-          account.id === state.activeAccountId ? { ...account, disciplinesEnabled: true } : account,
+          account.id === state.activeCompanyId ? { ...account, disciplinesEnabled: true } : account,
         ),
         disciplines: [],
       },
@@ -186,10 +186,10 @@ describe('SchedulerToolbar discipline and client ordering', () => {
   });
 
   it('pins Internal before alphabetically ordered clients', async () => {
-    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
+    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z');
     await resetStoreWithData(
       { ...useStore.getState().data, clients: [internal] },
-      DEFAULT_ACCOUNT_ID,
+      DEFAULT_COMPANY_ID,
     );
     await useStore.getState().addClient({ name: 'Queen Consolidated', color: '#111' });
     await useStore.getState().addClient({ name: 'LexCorp', color: '#222' });
@@ -207,10 +207,10 @@ describe('SchedulerToolbar discipline and client ordering', () => {
 
 describe('SchedulerToolbar project and activity ordering', () => {
   it('orders projects by effective client name, then effective project name', async () => {
-    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
+    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z');
     await resetStoreWithData(
       { ...useStore.getState().data, clients: [internal] },
-      DEFAULT_ACCOUNT_ID,
+      DEFAULT_COMPANY_ID,
     );
     const queen = await requireCreated(
       useStore.getState().addClient({

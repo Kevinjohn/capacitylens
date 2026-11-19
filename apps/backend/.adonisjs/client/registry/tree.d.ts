@@ -70,9 +70,9 @@ export interface ApiDefinition {
     installation: {
       company: typeof routes['api.installation.company']
     }
-    accounts: {
-      index: typeof routes['api.accounts.index']
-      anonymise: typeof routes['api.accounts.anonymise']
+    companies: {
+      index: typeof routes['api.companies.index']
+      anonymise: typeof routes['api.companies.anonymise']
     }
     transfer: {
       preview: typeof routes['api.transfer.preview']

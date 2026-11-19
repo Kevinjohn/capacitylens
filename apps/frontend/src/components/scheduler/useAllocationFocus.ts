@@ -18,7 +18,7 @@ export function useAllocationFocus(): ScheduleAllocationFocus {
     if (focusRafRef.current) cancelAnimationFrame(focusRafRef.current);
     focusRafRef.current = requestAnimationFrame(() => {
       focusRafRef.current = 0;
-      if (useStore.getState().activeAccountId !== companyId) return;
+      if (useStore.getState().activeCompanyId !== companyId) return;
       const element = Array.from(document.querySelectorAll<HTMLElement>('[data-alloc-id]')).find(
         (candidate) => candidate.dataset.allocId === allocationId,
       );

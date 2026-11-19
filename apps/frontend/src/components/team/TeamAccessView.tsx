@@ -152,7 +152,7 @@ function AccessManagement({
 
 /** Coordinates member management, invitations, admission approval, and ownership. */
 export function TeamAccessView() {
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const { user } = useAuth();
   const role = useRole();
   const permissionStatus = usePermissionStatus();
@@ -194,7 +194,7 @@ export function TeamAccessView() {
       />
 
       {!masqueradeActive && isOwnerOrAdmin(resolvedRole) && (
-        <AdmissionRequestsPanel key={JSON.stringify([activeAccountId, user?.id])} />
+        <AdmissionRequestsPanel key={JSON.stringify([activeCompanyId, user?.id])} />
       )}
 
       {/* Ownership changes remain an online action of the real Owner, never the masqueraded target. */}

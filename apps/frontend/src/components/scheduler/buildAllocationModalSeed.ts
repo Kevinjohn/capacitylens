@@ -1,4 +1,4 @@
-import type { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import type { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { daysInclusive, eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import {
   effectiveWorkingWeek,
@@ -14,7 +14,7 @@ import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
 
 type SeedInput = Pick<AllocationModalSnapshot, 'editing' | 'create' | 'data' | 'mode'> & {
   resourceById: Map<string, Resource>;
-  accountWorkingDays: ReturnType<typeof normalizeAccountWorkingDays>;
+  companyWorkingDays: ReturnType<typeof normalizeCompanyWorkingDays>;
   today: ISODate;
 };
 
@@ -85,7 +85,7 @@ function resolveDraftSeedValues({
 }
 
 function resolveSeedSelection(input: SeedInput) {
-  const { editing, data, resourceById, accountWorkingDays } = input;
+  const { editing, data, resourceById, companyWorkingDays } = input;
   const initialActivity = editing
     ? data.activities.find((activity) => activity.id === editing.activityId)
     : undefined;
@@ -93,7 +93,7 @@ function resolveSeedSelection(input: SeedInput) {
   const { initialResourceId } = draftValues;
   const initialResource = resourceById.get(initialResourceId);
   const initialEffectiveWeek = initialResource
-    ? effectiveWorkingWeek(initialResource, accountWorkingDays)
+    ? effectiveWorkingWeek(initialResource, companyWorkingDays)
     : null;
   const initialPlaceholderProjectId =
     initialResource?.kind === 'placeholder' ? (initialResource.projectId ?? undefined) : undefined;
@@ -127,7 +127,7 @@ export function buildAllocationModalSeed({
   data,
   mode,
   resourceById: resourcesById,
-  accountWorkingDays,
+  companyWorkingDays,
   today,
 }: SeedInput) {
   const selection = resolveSeedSelection({
@@ -136,7 +136,7 @@ export function buildAllocationModalSeed({
     data,
     mode,
     resourceById: resourcesById,
-    accountWorkingDays,
+    companyWorkingDays,
     today,
   });
   const {

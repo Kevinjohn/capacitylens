@@ -4,8 +4,8 @@ import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
-import type { AccountSummary } from '@/store/useStore';
-import { loadPlanningData, makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import type { CompanySummary } from '@/store/useStore';
+import { loadPlanningData, makeAppData, makeAccount, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 import { LocationProbe } from '@/test/LocationProbe';
 import { grantFor } from '@/test/permissionGrants';
@@ -19,7 +19,7 @@ export const authenticatedUser = {
 };
 
 /** Account directory the stubbed `fetch` answers with; each test may change it. */
-export const accountDirectory: { response: AccountSummary[]; pending: boolean; refused: boolean } =
+export const accountDirectory: { response: CompanySummary[]; pending: boolean; refused: boolean } =
   {
     response: [],
     pending: false,
@@ -45,7 +45,7 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
   beforeEach(() => {
     syncLocaleFromAccount.mockReset();
     accountDirectory.response = [
-      { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' },
+      { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' },
     ];
     accountDirectory.pending = false;
     accountDirectory.refused = false;
@@ -87,14 +87,14 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
     );
     // Seed an active account so these tests exercise the shell.
     localStorage.setItem(
-      buildProductOrientationKey(authenticatedUser.user.id, DEFAULT_ACCOUNT_ID),
+      buildProductOrientationKey(authenticatedUser.user.id, DEFAULT_COMPANY_ID),
       'dismissed',
     );
     loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
-    useStore.getState().setAccountSummaries({
-      list: [{ id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' }],
+    useStore.getState().setCompanySummaries({
+      list: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' }],
     });
-    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+    useStore.getState().setActiveCompany(DEFAULT_COMPANY_ID);
     useStore.getState().clearFilters();
     // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
     // toast layer is module-global; the store notice is the source of truth the bridge reads).

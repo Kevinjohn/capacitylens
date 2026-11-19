@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { SettingsView } from './SettingsView';
 import { AuthContext } from '@/auth/authContext';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { resetStoreWithAccount, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { resolveDateStyle } from '@/store/selectors';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -46,7 +46,7 @@ describe('SettingsView — scheduling mode', () => {
 
     await user.click(days);
 
-    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID);
+    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_COMPANY_ID);
     expect(account?.schedulingMode).toBe('days');
     expect(days).toHaveAttribute('aria-checked', 'true');
   });
@@ -60,7 +60,7 @@ describe('SettingsView — scheduling mode', () => {
 
     await user.click(blocks);
 
-    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID);
+    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_COMPANY_ID);
     expect(account?.schedulingMode).toBe('blocks');
     expect(blocks).toHaveAttribute('aria-checked', 'true');
   });
@@ -82,7 +82,7 @@ describe('SettingsView — Overview access', () => {
     await user.click(everyone);
 
     expect(
-      useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID),
+      useStore.getState().data.accounts.find((account) => account.id === DEFAULT_COMPANY_ID),
     ).toHaveProperty('capacityOverviewAccess', 'everyone');
   });
 
@@ -175,7 +175,7 @@ it('defaults to the first five days and persists checkbox changes', async () => 
   await user.click(screen.getByRole('checkbox', { name: 'Saturday' }));
 
   expect(
-    useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)
+    useStore.getState().data.accounts.find((account) => account.id === DEFAULT_COMPANY_ID)
       ?.workingDays,
   ).toEqual([1, 2, 3, 4, 6]);
 });
@@ -191,7 +191,7 @@ it('toggles a company working day when its visible weekday label is clicked', as
 
   expect(screen.getByRole('checkbox', { name: 'Saturday' })).toBeChecked();
   expect(
-    useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)
+    useStore.getState().data.accounts.find((account) => account.id === DEFAULT_COMPANY_ID)
       ?.workingDays,
   ).toEqual([1, 2, 3, 4, 5, 6]);
 });
@@ -218,7 +218,7 @@ it('warns that calendar changes reinterpret existing allocations without moving 
 it('reorders from Sunday without changing an explicit saved selection', async () => {
   await useStore
     .getState()
-    .updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
+    .updateAccount(DEFAULT_COMPANY_ID, { workingDays: [1, 3, 5], weekStartsOn: 0 });
   render(<SettingsView />);
 
   expect(screen.getAllByRole('checkbox').map((checkbox) => checkbox.id)).toEqual([
@@ -263,7 +263,7 @@ describe('SettingsView — minimum company working week', () => {
     await user.click(screen.getByText('Fri', { exact: true }));
 
     expect(
-      useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)
+      useStore.getState().data.accounts.find((account) => account.id === DEFAULT_COMPANY_ID)
         ?.workingDays,
     ).toEqual([5]);
   });
@@ -319,7 +319,7 @@ describe('SettingsView — date style', () => {
 
     await user.click(monthDay);
 
-    expect(resolveDateStyle(useStore.getState().data, DEFAULT_ACCOUNT_ID)).toBe('month-day');
+    expect(resolveDateStyle(useStore.getState().data, DEFAULT_COMPANY_ID)).toBe('month-day');
     expect(monthDay).toHaveAttribute('aria-checked', 'true');
     expect(dayMonth).toHaveAttribute('aria-checked', 'false');
   });
@@ -408,13 +408,13 @@ describe('SettingsView — account toggle wiring', () => {
     render(<SettingsView />);
     const before = useStore
       .getState()
-      .data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
+      .data.accounts.find((account) => account.id === DEFAULT_COMPANY_ID)?.[key];
 
     await user.click(screen.getByRole('switch', { name: label }));
 
     const after = useStore
       .getState()
-      .data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
+      .data.accounts.find((account) => account.id === DEFAULT_COMPANY_ID)?.[key];
     expect(after).toBe(!(before ?? whenAbsent));
   });
 

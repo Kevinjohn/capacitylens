@@ -2,7 +2,7 @@ import { test } from '@japa/runner';
 import { transformState } from '#transformers/state_transformer';
 import { displayNameOf } from '#services/planning/restricted_fields';
 import {
-  FIXTURE_ACCOUNT,
+  FIXTURE_COMPANY,
   FIXTURE_ACTIVITY,
   FIXTURE_ALLOCATION,
   FIXTURE_CLIENT,
@@ -15,7 +15,7 @@ import {
 } from '@capacitylens/shared/data/fixtures';
 
 const data = {
-  accounts: [FIXTURE_ACCOUNT],
+  accounts: [FIXTURE_COMPANY],
   clients: [FIXTURE_CLIENT],
   disciplines: [FIXTURE_DISCIPLINE],
   projects: [FIXTURE_PROJECT],
@@ -29,7 +29,7 @@ const data = {
 
 test('projects private names and time-off notes for every role', ({ assert }) => {
   for (const role of ['admin', 'editor', 'viewer'] as const) {
-    const projected = transformState(data, FIXTURE_ACCOUNT.id, role);
+    const projected = transformState(data, FIXTURE_COMPANY.id, role);
     assert.equal(projected.clients[0]?.name, '"Fixture Nightwing"');
     assert.property(projected.clients[0]!, 'codeName');
     assert.isNull(projected.clients[0]?.codeName);
@@ -38,7 +38,7 @@ test('projects private names and time-off notes for every role', ({ assert }) =>
     assert.isNull(projected.projects[0]?.codeName);
     assert.equal(projected.timeOff[0]?.note, role === 'admin' ? FIXTURE_TIMEOFF.note : null);
   }
-  const owner = transformState(data, FIXTURE_ACCOUNT.id, 'owner');
+  const owner = transformState(data, FIXTURE_COMPANY.id, 'owner');
   assert.equal(owner.clients[0]?.name, FIXTURE_CLIENT.name);
   assert.equal(owner.clients[0]?.codeName, FIXTURE_CLIENT.codeName);
   assert.equal(owner.timeOff[0]?.note, FIXTURE_TIMEOFF.note);
@@ -66,7 +66,7 @@ test('sends one display name per client and project for the reader role', ({ ass
     projects: [FIXTURE_PROJECT, publicProject],
   };
   const labels = (role: 'owner' | 'admin' | 'editor' | 'viewer') => {
-    const projected = transformState(mixed, FIXTURE_ACCOUNT.id, role);
+    const projected = transformState(mixed, FIXTURE_COMPANY.id, role);
     return [...projected.clients, ...projected.projects].map((row) => row.displayName);
   };
   assert.deepEqual(labels('owner'), [

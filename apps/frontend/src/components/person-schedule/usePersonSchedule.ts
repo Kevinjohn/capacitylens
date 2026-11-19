@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import type { Account, AppData, ID, ISODate, Resource } from '@capacitylens/shared/types/entities';
+import type { Company, AppData, ID, ISODate, Resource } from '@capacitylens/shared/types/entities';
 import { useAccessGrant, usePermissionStatus, useRole } from '@/auth/permissionContext';
 import { m } from '@/i18n';
 import { resolveResourceDisplayName } from '@/lib/metadata';
@@ -48,8 +48,8 @@ export function resolvePersonScheduleIdentity(resource: Resource, data: AppData)
 }
 
 interface AvailableScheduleInput extends UsePersonScheduleInput {
-  activeAccount: Account | undefined;
-  activeAccountId: ID | null;
+  activeAccount: Company | undefined;
+  activeCompanyId: ID | null;
   accountView: AppData;
   data: AppData;
   today: ISODate;
@@ -58,9 +58,9 @@ interface AvailableScheduleInput extends UsePersonScheduleInput {
 }
 
 function buildAvailableSchedule(input: AvailableScheduleInput) {
-  const { companyId, resourceId, activeAccount, activeAccountId } = input;
+  const { companyId, resourceId, activeAccount, activeCompanyId } = input;
   if (!companyId || !resourceId || !activeAccount || !input.permissionAvailable) return null;
-  if (companyId !== activeAccountId || activeAccount.id !== companyId) return null;
+  if (companyId !== activeCompanyId || activeAccount.id !== companyId) return null;
   const resource = input.data.resources.find(
     (candidate) => candidate.id === resourceId && candidate.companyId === companyId,
   );
@@ -85,9 +85,9 @@ export function usePersonSchedule({
   resourceId,
 }: UsePersonScheduleInput): PersonScheduleResult {
   const data = useActiveScopedData();
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const activeAccount = useStore((state) =>
-    state.data.accounts.find((candidate) => candidate.id === state.activeAccountId),
+    state.data.accounts.find((candidate) => candidate.id === state.activeCompanyId),
   );
   const role = useRole();
   const grant = useAccessGrant();
@@ -106,7 +106,7 @@ export function usePersonSchedule({
         companyId,
         resourceId,
         activeAccount,
-        activeAccountId,
+        activeCompanyId,
         accountView,
         data,
         today,
@@ -117,7 +117,7 @@ export function usePersonSchedule({
       companyId,
       accountView,
       activeAccount,
-      activeAccountId,
+      activeCompanyId,
       canSeeTimeOffNotes,
       data,
       permissionAvailable,

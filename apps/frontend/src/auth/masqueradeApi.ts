@@ -5,7 +5,7 @@ import type {
   MasqueradeStatus,
   StartMasqueradePayload,
 } from '@capacitylens/shared/domain/masquerade';
-import { isAccountRole } from '@capacitylens/shared/account/types';
+import { isRole } from '@capacitylens/shared/account/types';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { isTimestamp } from '@/account/accessResult';
 import { masqueradeRequests } from './masqueradeRequests';
@@ -22,7 +22,7 @@ function parseMasqueradeState(value: unknown, accountIdFallback?: string): Masqu
     typeof state.targetUserId !== 'string' ||
     state.targetUserId.length === 0 ||
     typeof state.targetName !== 'string' ||
-    !isAccountRole(state.effectiveRole) ||
+    !isRole(state.effectiveRole) ||
     !isTimestamp(state.startedAt) ||
     !isTimestamp(state.expiresAt) ||
     typeof state.token !== 'string' ||

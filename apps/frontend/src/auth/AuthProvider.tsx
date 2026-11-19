@@ -101,7 +101,7 @@ function useAuthRevalidation({
       // A returning tab must reconcile its planning revision after identity has been checked.
       // A refused identity clears the private cache in checkAuth, so it cannot start a read.
       void checkAuth('keep-previous').then((next) => {
-        if (next?.kind === 'pass' && useStore.getState().activeAccountId !== null) {
+        if (next?.kind === 'pass' && useStore.getState().activeCompanyId !== null) {
           return useStore.getState().refreshPlanning();
         }
       });
@@ -109,7 +109,7 @@ function useAuthRevalidation({
     window.addEventListener('focus', revalidateVisibleSession);
     document.addEventListener('visibilitychange', revalidateVisibleSession);
     const interval = window.setInterval(() => {
-      if (useStore.getState().activeAccountId !== null) revalidateVisibleSession();
+      if (useStore.getState().activeCompanyId !== null) revalidateVisibleSession();
     }, 60_000);
     return () => {
       window.clearInterval(interval);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACCOUNT_ROLES, isAccountRole, isIsoInstant } from './types.js';
+import { ROLES, isRole, isIsoInstant } from './types.js';
 
 describe('IsoInstant', () => {
   it('accepts only the canonical UTC millisecond representation', () => {
@@ -14,8 +14,8 @@ describe('IsoInstant', () => {
 
 describe('account role vocabulary', () => {
   it('is immutable and keeps the narrowing guard closed', () => {
-    expect(Object.isFrozen(ACCOUNT_ROLES)).toBe(true);
-    expect(() => (ACCOUNT_ROLES as unknown as string[]).push('super-admin')).toThrow();
-    expect(isAccountRole('super-admin')).toBe(false);
+    expect(Object.isFrozen(ROLES)).toBe(true);
+    expect(() => (ROLES as unknown as string[]).push('super-admin')).toThrow();
+    expect(isRole('super-admin')).toBe(false);
   });
 });

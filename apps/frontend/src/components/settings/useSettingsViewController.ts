@@ -9,7 +9,7 @@ import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
-  listAccountWorkingDays,
+  listCompanyWorkingDays,
   resolveCapacityOverviewAccess,
   resolveDateStyle,
   resolveSchedulingMode,
@@ -39,7 +39,7 @@ function readSchedulingSettings(
   return {
     schedulingMode: resolveSchedulingMode(data, companyId),
     weekStartsOn,
-    workingDays: listAccountWorkingDays(data, companyId),
+    workingDays: listCompanyWorkingDays(data, companyId),
     workingDayOrder: orderedWeekdays(weekStartsOn),
     timezone: resolveTimeZone(data, companyId),
     disciplinesEnabled: hasDisciplinesEnabled(data, companyId),
@@ -58,12 +58,12 @@ export function useSettingsViewController() {
   const canEdit = useCanEdit();
   const role = useRole();
   const data = useStore((state) => state.data);
-  const activeAccountId = useStore((state) => state.activeAccountId);
-  const activeAccount = data.accounts.find((account) => account.id === activeAccountId) ?? null;
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
+  const activeAccount = data.accounts.find((account) => account.id === activeCompanyId) ?? null;
   const updateAccount = useStore((state) => state.updateAccount);
   const setNotice = useStore((state) => state.setNotice);
   const display = useDisplayPreferences();
-  const scheduling = readSchedulingSettings(data, activeAccountId);
+  const scheduling = readSchedulingSettings(data, activeCompanyId);
   const updateSetting = async (patch: Parameters<typeof updateAccount>[1]) => {
     if (!activeAccount) return;
     try {

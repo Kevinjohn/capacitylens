@@ -6,7 +6,7 @@ import { useStore } from '@/store/useStore';
 import type { SchedulerUI } from '@/store/useStore';
 import { useCanEdit } from '@/auth/permissionContext';
 import { resolveSharedScopedData } from '@/store/useScopedData';
-import { listAccountWorkingDays } from '@/store/selectors';
+import { listCompanyWorkingDays } from '@/store/selectors';
 import { EmptyState } from '@/components/common/ui';
 import { LAYOUT } from './layout';
 import { SchedulerGridHeader } from './SchedulerGridHeader';
@@ -124,13 +124,13 @@ function openDrawModal({
   const drawMode = state.ui.drawMode;
   const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
   if (!resource) return;
-  const scopedData = resolveSharedScopedData(state.data, state.activeAccountId);
+  const scopedData = resolveSharedScopedData(state.data, state.activeCompanyId);
   if (
     isCreationStartBlocked({
       resource,
       date: startDate,
       timeOff: listRenderableDateRanges(scopedData.timeOff),
-      accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+      companyWorkingDays: listCompanyWorkingDays(state.data, state.activeCompanyId),
       closures: drawMode === 'timeoff' ? [] : listRenderableDateRanges(scopedData.closures),
     })
   ) {

@@ -45,7 +45,7 @@ interface BuildResourceGroupsInput {
 
 interface CreateSchedulerRowBuilderInput {
   options: SchedulerModelOptions;
-  accountWorkingDays: Weekday[];
+  companyWorkingDays: Weekday[];
   blocksMode: boolean;
 }
 
@@ -173,7 +173,7 @@ function buildResourceGroups({
 
 function createSchedulerRowBuilder({
   options,
-  accountWorkingDays,
+  companyWorkingDays,
   blocksMode,
 }: CreateSchedulerRowBuilderInput) {
   const { data, geom, days, visibleWindow, capacity, filters, preferences } = options;
@@ -193,7 +193,7 @@ function createSchedulerRowBuilder({
   return {
     buildRow: createRowBuilder({
       model: { geom, days },
-      accountWorkingDays,
+      companyWorkingDays,
       blocksMode,
       laneLayout: options.laneLayout ?? compactLaneLayout,
       allocationsByResource,
@@ -212,7 +212,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   const { data, filters, preferences } = options;
   const {
     disciplinesEnabled,
-    accountWorkingDays = [1, 2, 3, 4, 5],
+    companyWorkingDays = [1, 2, 3, 4, 5],
     blocksMode = false,
   } = preferences;
 
@@ -220,7 +220,7 @@ export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[
   const byResourceOrder = createResourceComparator(groupByEngagement);
   const { buildRow, resourceVisible } = createSchedulerRowBuilder({
     options,
-    accountWorkingDays,
+    companyWorkingDays,
     blocksMode,
   });
 

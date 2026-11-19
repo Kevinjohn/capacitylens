@@ -7,7 +7,7 @@ export type RealProjectionResult =
 
 export function publishMasqueradeAccount(store: StoreState, state: MasqueradeState): void {
   const account = store.data.accounts.find((candidate) => candidate.id === state.companyId);
-  store.setAccountSummaries({
+  store.setCompanySummaries({
     list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
     complete: account !== undefined,
   });

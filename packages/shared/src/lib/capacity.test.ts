@@ -34,7 +34,7 @@ function registerSemanticsTableTests(
           date,
           allocations: [...allocations],
           timeOff: [...timeOff],
-          accountWorkingDays: companyMondayOnly,
+          companyWorkingDays: companyMondayOnly,
         }),
       ).toMatchObject(expected);
       expect(isOnTimeOff(resource.id, date, [...timeOff])).toBe(timeOff.length > 0);
@@ -122,7 +122,7 @@ function buildCompanyDayOffCases(monday: ISODate, friday: ISODate): readonly Cap
 describe('#257 characterization: effective-week capacity', () => {
   // Effective company and personal calendars determine which covered days count as load.
   it('removes Friday capacity, load and utilisation when the company calendar excludes Friday', () => {
-    const accountWorkingDays: Weekday[] = [1, 2, 3, 4];
+    const companyWorkingDays: Weekday[] = [1, 2, 3, 4];
     const resource = makeResource({ workingDays: [1, 2, 3, 4, 5] });
     const allocation = makeAlloc({
       startDate: '2026-06-01',
@@ -130,13 +130,13 @@ describe('#257 characterization: effective-week capacity', () => {
       hoursPerDay: 8,
     });
 
-    expect(scheduledHoursOnDay(resource, '2026-06-05', accountWorkingDays)).toBe(0);
+    expect(scheduledHoursOnDay(resource, '2026-06-05', companyWorkingDays)).toBe(0);
     expect(
       availableHoursOnDay({
         resource,
         date: '2026-06-05',
         timeOff: [],
-        accountWorkingDays,
+        companyWorkingDays,
       }),
     ).toBe(0);
     expect(
@@ -144,7 +144,7 @@ describe('#257 characterization: effective-week capacity', () => {
         resource,
         date: '2026-06-05',
         allocations: [allocation],
-        accountWorkingDays,
+        companyWorkingDays,
       }),
     ).toBe(0);
     expect(
@@ -154,7 +154,7 @@ describe('#257 characterization: effective-week capacity', () => {
         timeOff: [],
         start: '2026-06-05',
         end: '2026-06-05',
-        accountWorkingDays,
+        companyWorkingDays,
       }),
     ).toBe(0);
   });
@@ -197,7 +197,7 @@ describe('effective working-week semantics table', () => {
         resource,
         date: monday,
         timeOff: [],
-        accountWorkingDays: noneCompanyWeek,
+        companyWorkingDays: noneCompanyWeek,
       }),
     ).toBe(0);
     expect(
@@ -205,7 +205,7 @@ describe('effective working-week semantics table', () => {
         resource,
         date: monday,
         allocations: normal,
-        accountWorkingDays: noneCompanyWeek,
+        companyWorkingDays: noneCompanyWeek,
       }),
     ).toBe(0);
     expect(
@@ -214,7 +214,7 @@ describe('effective working-week semantics table', () => {
         date: monday,
         allocations: normal,
         timeOff: [],
-        accountWorkingDays: noneCompanyWeek,
+        companyWorkingDays: noneCompanyWeek,
       }).over,
     ).toBe(false);
     expect(
@@ -222,7 +222,7 @@ describe('effective working-week semantics table', () => {
         resource,
         date: monday,
         allocations: ignored,
-        accountWorkingDays: noneCompanyWeek,
+        companyWorkingDays: noneCompanyWeek,
       }),
     ).toBe(8);
     expect(
@@ -231,7 +231,7 @@ describe('effective working-week semantics table', () => {
         date: monday,
         allocations: ignored,
         timeOff: [],
-        accountWorkingDays: noneCompanyWeek,
+        companyWorkingDays: noneCompanyWeek,
       }),
     ).toMatchObject({
       allocated: 8,
@@ -570,7 +570,7 @@ describe('utilisation', () => {
         timeOff: [],
         start: '2026-06-01',
         end: '2026-06-02',
-        accountWorkingDays: undefined,
+        companyWorkingDays: undefined,
         closures,
       }),
     ).toBeCloseTo(0.5);

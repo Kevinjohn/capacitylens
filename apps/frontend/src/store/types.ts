@@ -9,7 +9,7 @@ import type { BarLabelPreferences, UtilisationPreferences } from '@/lib/displayP
 import type { ThemePreference } from '@/lib/theme';
 import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
-import type { Account, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
+import type { Company, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningControllerMetadata } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
@@ -37,7 +37,7 @@ export interface Notice {
 /** A directory entry for a company the current identity may access. Entries stay separate
  * from the active company slice. An unavailable role stays unresolved until refreshed.
  */
-export interface AccountSummary {
+export interface CompanySummary {
   id: ID;
   name: string;
   role: Role;
@@ -75,7 +75,7 @@ export interface SchedulerUI {
 }
 
 type SetAccountSummariesOptions = {
-  list: AccountSummary[];
+  list: CompanySummary[];
   requestId?: number | undefined;
   complete?: boolean | undefined;
   ambiguous?: boolean | undefined;
@@ -93,21 +93,21 @@ export interface StoreState extends StoreEntityActions {
   ui: SchedulerUI;
   hydrated: boolean;
   /** The company currently in view, or null when no company is active. Never persisted. */
-  activeAccountId: ID | null;
+  activeCompanyId: ID | null;
   /** Account whose selected slice failed to hydrate. Transient and never persisted. */
-  activeAccountLoadFailed: ID | null;
-  /** The server-sourced directory of companies this login may access. Set by useAccountSummaries
+  activeCompanyLoadFailed: ID | null;
+  /** The server-sourced directory of companies this login may access. Set by useCompanySummaries
    * from the login’s memberships. Separate from `data` because `data` holds only the active slice.
    * Never persisted. */
-  accountSummaries: AccountSummary[];
+  companySummaries: CompanySummary[];
   /** Whether the published directory was wholly valid. A partial response cannot prove uniqueness.
    * Transient and never persisted. */
-  accountSummariesComplete: boolean;
+  companySummariesComplete: boolean;
   /** A server directory read found multiple installation companies. Kept until an authoritative refresh/reset. */
-  accountSummariesAmbiguous: boolean;
+  companySummariesAmbiguous: boolean;
   /** Latest issued server-directory read. Direct list mutations advance this too, so an older
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
-  accountSummariesRequestId: number;
+  companySummariesRequestId: number;
   /** Planning cache metadata, including the server-reported Undo/Redo availability. Page-local. */
   planning: PlanningControllerMetadata;
   /** Advances only when a current planning request confirms that sign-in authority was lost. */
@@ -173,14 +173,14 @@ export interface StoreState extends StoreEntityActions {
   masquerade: MasqueradeRuntimeState;
 
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
-  updateAccount: (id: ID, patch: Patch<Account>) => Promise<void>;
+  updateAccount: (id: ID, patch: Patch<Company>) => Promise<void>;
   /** Enter a company, or clear the active company. An unknown id clears selection with a notice. */
-  setActiveAccount: (id: ID | null) => void;
+  setActiveCompany: (id: ID | null) => void;
   /** Start one server-directory read and return its monotonic identity. */
-  beginAccountSummariesRequest: () => number;
+  beginCompanySummariesRequest: () => number;
   /** Replace the company directory. A request-bound result applies only while it is still the latest;
    * an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
-  setAccountSummaries: (options: SetAccountSummariesOptions) => boolean;
+  setCompanySummaries: (options: SetAccountSummariesOptions) => boolean;
 
   /** Record whether the initial load has finished. */
   setHydrated: (value: boolean) => void;

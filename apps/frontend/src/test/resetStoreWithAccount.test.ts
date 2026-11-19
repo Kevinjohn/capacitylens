@@ -43,7 +43,7 @@ describe('resetStoreWithAccount', () => {
     await useStore.getState().addResource(makeResourceDraft({ name: 'Clark Kent' }));
     expect(useStore.getState().data.resources).toHaveLength(1);
     useStore.setState({ planning: { ...useStore.getState().planning, context: null } });
-    expect(useStore.getState().activeAccountId).toBe(companyId);
+    expect(useStore.getState().activeCompanyId).toBe(companyId);
     await expect(resetStoreWithAccount(companyId)).resolves.toBe(true);
     expect(useStore.getState().data.resources).toHaveLength(0);
     await useStore.getState().updateAccount(companyId, { name: 'New Company' });
@@ -61,7 +61,7 @@ describe('resetStoreWithAccount', () => {
       ],
     });
     await resetStoreWithData(data, first.id);
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: [
         { id: first.id, name: first.name, role: 'owner' },
         { id: second.id, name: second.name, role: 'owner' },
@@ -69,15 +69,15 @@ describe('resetStoreWithAccount', () => {
     });
     replaceFixtureData(data);
 
-    useStore.getState().setActiveAccount(second.id);
+    useStore.getState().setActiveCompany(second.id);
     await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
     expect(useStore.getState().data.resources.map(({ id }) => id)).toEqual(['resource-second']);
 
-    useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setActiveCompany(null);
+    useStore.getState().setCompanySummaries({
       list: [{ id: first.id, name: first.name, role: 'owner' }],
     });
-    useStore.getState().setActiveAccount(first.id);
+    useStore.getState().setActiveCompany(first.id);
     await expect(useStore.getState().refreshPlanning({ fresh: true })).resolves.toBe(true);
     expect(useStore.getState().data.resources.map(({ id }) => id)).toEqual(['resource-first']);
   });

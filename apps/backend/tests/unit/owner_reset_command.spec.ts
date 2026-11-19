@@ -39,8 +39,8 @@ test('owner command prints an audited single-use link without changing the crede
       '--confirm-server-stopped',
     ]);
     assert.equal(first.status, 0, first.output);
-    const firstResult = JSON.parse(first.stdout.trim()) as { link: string; accountIds: string[] };
-    assert.deepEqual(firstResult.accountIds, ['a-studio']);
+    const firstResult = JSON.parse(first.stdout.trim()) as { link: string; companyIds: string[] };
+    assert.deepEqual(firstResult.companyIds, ['a-studio']);
     assert.match(firstResult.link, /^http:\/\/localhost:8787\/reset-password\//);
     const second = f.command(args);
     assert.equal(second.status, 0, second.output);
@@ -142,7 +142,7 @@ test('a sole-owned company permits recovery even when another company has joint 
     database.close();
     const recovered = f.command(args);
     assert.equal(recovered.status, 0, recovered.output);
-    assert.deepEqual(JSON.parse(recovered.stdout.trim()).accountIds, ['a-studio']);
+    assert.deepEqual(JSON.parse(recovered.stdout.trim()).companyIds, ['a-studio']);
     const inspect = f.inspect();
     inspect.prepare("DELETE FROM memberships WHERE scope_id='a-studio'").run();
     inspect.close();

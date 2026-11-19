@@ -96,7 +96,7 @@ export function useAllocationGesture({
   onEdit,
 }: AllocationGestureOptions) {
   const schedulingMode = useStore((state) =>
-    resolveSchedulingMode(state.data, state.activeAccountId),
+    resolveSchedulingMode(state.data, state.activeCompanyId),
   );
   const isDays = schedulingMode === 'days';
   const isBlocks = !carriesHourlyLoad(schedulingMode);

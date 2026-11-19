@@ -44,16 +44,16 @@ export function useResourceListModel() {
     [disciplines],
   );
   const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeAccountId),
+    hasDisciplinesEnabled(state.data, state.activeCompanyId),
   );
   const groupByEngagement = useStore((state) =>
-    hasResourceEngagementGrouping(state.data, state.activeAccountId),
+    hasResourceEngagementGrouping(state.data, state.activeCompanyId),
   );
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
   );
   const externalEnabled = useStore((state) =>
-    hasExternalResourcesEnabled(state.data, state.activeAccountId),
+    hasExternalResourcesEnabled(state.data, state.activeCompanyId),
   );
   const groups = useMemo(
     () => partitionResources({ resources, groupByEngagement }),

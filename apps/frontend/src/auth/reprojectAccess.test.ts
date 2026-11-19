@@ -1,39 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { invalidateMemberships, refreshAccountSummaries, refreshPlanning, state } = vi.hoisted(
+const { invalidateMemberships, refreshCompanySummaries, refreshPlanning, state } = vi.hoisted(
   () => ({
     invalidateMemberships: vi.fn(),
-    refreshAccountSummaries: vi.fn(),
+    refreshCompanySummaries: vi.fn(),
     refreshPlanning: vi.fn(),
-    state: { activeAccountId: 'a-studio' },
+    state: { activeCompanyId: 'a-studio' },
   }),
 );
 
 vi.mock('@/store/useStore', () => ({
   useStore: { getState: () => ({ invalidateMemberships, refreshPlanning, ...state }) },
 }));
-vi.mock('./useAccountSummaries', () => ({ refreshAccountSummaries }));
+vi.mock('./useAccountSummaries', () => ({ refreshCompanySummaries }));
 
 import { reprojectAccess } from './reprojectAccess';
 
 describe('reprojectAccess', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    refreshAccountSummaries.mockResolvedValue([]);
+    refreshCompanySummaries.mockResolvedValue([]);
     refreshPlanning.mockResolvedValue(true);
   });
 
   it('invalidates actor-dependent membership data before reloading the active account', async () => {
     await expect(reprojectAccess('a-studio')).resolves.toBe(true);
     expect(invalidateMemberships).toHaveBeenCalledOnce();
-    expect(refreshAccountSummaries).toHaveBeenCalledWith({
-      preserveActiveAccountIfMissing: true,
+    expect(refreshCompanySummaries).toHaveBeenCalledWith({
+      preserveActiveCompanyIfMissing: true,
     });
     expect(refreshPlanning).toHaveBeenCalledExactlyOnceWith({ fresh: true });
   });
 
   it('stops when authoritative account summaries cannot be loaded', async () => {
-    refreshAccountSummaries.mockResolvedValue(null);
+    refreshCompanySummaries.mockResolvedValue(null);
 
     await expect(reprojectAccess('a-studio')).resolves.toBe(false);
     expect(refreshPlanning).not.toHaveBeenCalled();

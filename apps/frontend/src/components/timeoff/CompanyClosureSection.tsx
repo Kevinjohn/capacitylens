@@ -77,7 +77,7 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
 export function CompanyClosureSection() {
   const data = useActiveScopedData();
   const calendarWeekStartsOn = useStore((state) =>
-    resolveWeekStart(state.data, state.activeAccountId),
+    resolveWeekStart(state.data, state.activeCompanyId),
   );
   const deleteEntity = useStore((state) => state.deleteClosure);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =

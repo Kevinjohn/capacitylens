@@ -2,7 +2,7 @@ import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOc
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { Allocation, ID, TimeOff } from '@capacitylens/shared/types/entities';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
-import { DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { queuePlanningPatch } from './queuePlanningPatch';
 
 /** Queue the server-returned occurrence dates for a frontend batch command test. */
@@ -33,7 +33,7 @@ export function queueAllocationGroupResponse(
             id: ids[index],
             startDate,
             endDate,
-            companyId: DEFAULT_ACCOUNT_ID,
+            companyId: DEFAULT_COMPANY_ID,
             createdAt,
             updatedAt: createdAt,
             seriesId,
@@ -81,7 +81,7 @@ export function queueTimeOffRepeatResponse(): void {
           ...NULLABLE_FIELDS.timeOff,
           ...entry,
           id: String(ids[index]),
-          companyId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_COMPANY_ID,
           createdAt,
           updatedAt: createdAt,
         } as TimeOff,

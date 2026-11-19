@@ -4,7 +4,7 @@ import { OwnerPermissions } from '@/test/ownerPermissions';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeAccount,
   makeAppData,
   makeResource,
@@ -27,11 +27,11 @@ describe('CapacityOverviewView', () => {
 
   function renderOverview() {
     useStore.setState({
-      activeAccountId: DEFAULT_ACCOUNT_ID,
+      activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
         accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
-          makeResource({ id: 'clark', companyId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
+          makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
       }),
     });
@@ -40,11 +40,11 @@ describe('CapacityOverviewView', () => {
 
   it('builds the current company overview from active scoped data', () => {
     useStore.setState({
-      activeAccountId: DEFAULT_ACCOUNT_ID,
+      activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
         accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
-          makeResource({ id: 'clark', companyId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
+          makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
       }),
     });
@@ -152,11 +152,11 @@ describe('CapacityOverviewView', () => {
   it('opens the person schedule drawer from an Overview row', async () => {
     const user = userEvent.setup();
     useStore.setState({
-      activeAccountId: DEFAULT_ACCOUNT_ID,
+      activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
         accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
-          makeResource({ id: 'clark', companyId: DEFAULT_ACCOUNT_ID, name: 'Clark Kent' }),
+          makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
       }),
     });
@@ -173,7 +173,7 @@ describe('CapacityOverviewView', () => {
 
   it('uses the Blocks-mode explanation for an unmeasured company', () => {
     useStore.setState({
-      activeAccountId: DEFAULT_ACCOUNT_ID,
+      activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({ accounts: [makeAccount({ schedulingMode: 'blocks' })] }),
     });
 

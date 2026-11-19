@@ -7,10 +7,10 @@ import type { AuthContextValue } from './authContext';
 import { useCanEdit, usePermissionStatus, useRole } from './permissionContext';
 import { loadPlanningData, makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { useAccountSummaries } from './useAccountSummaries';
+import { useCompanySummaries } from './useAccountSummaries';
 import * as accountTransition from './accountTransition';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { isAccountRole } from '@capacitylens/shared/account/types';
+import { isRole } from '@capacitylens/shared/account/types';
 import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
 
 const permissionMocks = vi.hoisted(() => ({
@@ -47,7 +47,7 @@ function renderProvider() {
 }
 
 function SharedDirectoryProvider() {
-  useAccountSummaries();
+  useCompanySummaries();
   return (
     <PermissionProvider>
       <Probe />
@@ -84,7 +84,7 @@ function accountResponse(id: string, role: string) {
         id,
         name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries',
         role,
-        ...(isAccountRole(role) ? grantFor(role) : {}),
+        ...(isRole(role) ? grantFor(role) : {}),
       },
     ]),
     {
@@ -102,7 +102,7 @@ function addSecondAccount() {
       ],
     }),
   );
-  useStore.getState().setActiveAccount('acct-test');
+  useStore.getState().setActiveCompany('acct-test');
 }
 
 beforeEach(async () => {
@@ -123,7 +123,7 @@ afterEach(() => {
 describe('PermissionProvider authenticated lookup posture', () => {
   it('uses the active target role without requesting account membership', async () => {
     useStore.setState({
-      activeAccountId: 'a-studio',
+      activeCompanyId: 'a-studio',
       masquerade: {
         kind: 'active',
         generation: 4,
@@ -179,7 +179,7 @@ describe('PermissionProvider refresh behavior', () => {
         new Response(
           JSON.stringify([
             {
-              id: useStore.getState().activeAccountId,
+              id: useStore.getState().activeCompanyId,
               name: 'Wayne Enterprises',
               role: 'editor',
               ...grantFor('editor'),
@@ -210,7 +210,7 @@ describe('PermissionProvider membership invalidation', () => {
       new Response(
         JSON.stringify([
           {
-            id: useStore.getState().activeAccountId,
+            id: useStore.getState().activeCompanyId,
             name: 'Wayne Enterprises',
             role: 'owner',
             ...grantFor('owner'),
@@ -252,7 +252,7 @@ describe('PermissionProvider membership generation', () => {
         new Response(
           JSON.stringify([
             {
-              id: useStore.getState().activeAccountId,
+              id: useStore.getState().activeCompanyId,
               name: 'Wayne Enterprises',
               role,
               ...grantFor(role),
@@ -281,7 +281,7 @@ describe('PermissionProvider membership generation', () => {
         new Response(
           JSON.stringify([
             {
-              id: useStore.getState().activeAccountId,
+              id: useStore.getState().activeCompanyId,
               name: 'Wayne Enterprises',
               role,
               ...grantFor(role),
@@ -319,7 +319,7 @@ describe('PermissionProvider account-switch safety', () => {
     renderProvider();
 
     expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
-    act(() => useStore.getState().setActiveAccount('a-studio'));
+    act(() => useStore.getState().setActiveCompany('a-studio'));
 
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe('viewer');
@@ -342,7 +342,7 @@ describe('PermissionProvider account-switch safety', () => {
     renderProvider();
 
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
-    act(() => useStore.getState().setActiveAccount('a-studio'));
+    act(() => useStore.getState().setActiveCompany('a-studio'));
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe('editor');
@@ -407,7 +407,7 @@ describe('PermissionProvider stale directory safety', () => {
     renderProvider();
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    act(() => useStore.getState().setActiveAccount('a-studio'));
+    act(() => useStore.getState().setActiveCompany('a-studio'));
     expect(await screen.findByText('resolved:admin:edit')).toBeInTheDocument();
     await act(async () => a.resolve(accountResponse('acct-test', 'owner')));
 
@@ -427,7 +427,7 @@ describe('PermissionProvider stale directory safety', () => {
     renderProvider();
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    act(() => useStore.getState().setActiveAccount('a-studio'));
+    act(() => useStore.getState().setActiveCompany('a-studio'));
     expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
     await act(async () => a.reject(new Error('A timed out')));
 
@@ -448,17 +448,17 @@ describe('PermissionProvider fail-closed responses', () => {
     );
     renderProvider();
 
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBeNull());
     expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
 
     // Simulate a stale active company selection after the complete directory proved the
     // authenticated identity has no membership there.
-    act(() => useStore.setState({ activeAccountId: 'acct-test' }));
+    act(() => useStore.setState({ activeCompanyId: 'acct-test' }));
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
-    expect(useStore.getState().activeAccountId).toBe('acct-test');
+    expect(useStore.getState().activeCompanyId).toBe('acct-test');
     expect(useStore.getState().activeRole).toBe('viewer');
     expect(useStore.getState().activeRoleStatus).toBe('unavailable');
   });
@@ -471,7 +471,7 @@ describe('PermissionProvider fail-closed responses', () => {
         .mockResolvedValue(
           new Response(
             JSON.stringify([
-              { id: useStore.getState().activeAccountId, name: 'Wayne Enterprises', role: 'owner' },
+              { id: useStore.getState().activeCompanyId, name: 'Wayne Enterprises', role: 'owner' },
             ]),
             { status: 200 },
           ),
@@ -487,7 +487,7 @@ describe('PermissionProvider fail-closed responses', () => {
   it('does not request permissions until an active account is selected', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    useStore.setState({ activeAccountId: null });
+    useStore.setState({ activeCompanyId: null });
 
     renderProvider();
     expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();

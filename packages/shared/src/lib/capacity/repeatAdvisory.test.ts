@@ -17,7 +17,7 @@ interface RepeatContextTestInput {
   schedulingMode: RepeatProjectionContext['schedulingMode'];
   daysOver: number;
   resource?: ReturnType<typeof resourceContext> | undefined;
-  accountWorkingDays?: Weekday[] | undefined;
+  companyWorkingDays?: Weekday[] | undefined;
 }
 
 interface RepeatingAllocationAdvisoryTestInput {
@@ -53,12 +53,12 @@ const repeatContext = ({
   schedulingMode,
   daysOver,
   resource = resourceContext(),
-  accountWorkingDays = [1, 2, 3, 4, 5],
+  companyWorkingDays = [1, 2, 3, 4, 5],
 }: RepeatContextTestInput): RepeatProjectionContext => ({
   schedulingMode,
   daysOver,
   resource,
-  effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
+  effectiveWeek: effectiveWorkingWeek(resource, companyWorkingDays),
 });
 
 const fullResource = (

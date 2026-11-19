@@ -6,7 +6,7 @@ import { SchedulerGrid } from './SchedulerGrid';
 import { useStore } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeClosure,
   makeResource,
   makeTimeOff,
@@ -29,7 +29,7 @@ function OwnerRouter({ children }: { children: ReactNode }) {
   );
 }
 
-const ACC = DEFAULT_ACCOUNT_ID;
+const ACC = DEFAULT_COMPANY_ID;
 
 // SchedulerGrid calls useNavigate (the empty-state "Go to Resources" CTA), so every render must
 // sit inside a Router.

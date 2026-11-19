@@ -41,7 +41,7 @@ export async function masqueradeService(): Promise<MasqueradeService<HttpContext
 export async function currentMasquerade(
   ctx: HttpContext,
   client: QueryClientContract,
-  requestedAccountId: string | undefined
+  requestedCompanyId: string | undefined
 ) {
   const service = await masqueradeService();
   try {
@@ -65,11 +65,11 @@ export async function currentMasquerade(
   if (!target) throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
   let companyId: string | null = null;
   let effectiveRole: Role | null = null;
-  if (requestedAccountId) {
-    const actorRole = await getActiveCompanyRole(actor.id, requestedAccountId, undefined);
-    const targetRole = await getActiveCompanyRole(view.targetId, requestedAccountId, undefined);
+  if (requestedCompanyId) {
+    const actorRole = await getActiveCompanyRole(actor.id, requestedCompanyId, undefined);
+    const targetRole = await getActiveCompanyRole(view.targetId, requestedCompanyId, undefined);
     if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
-      companyId = requestedAccountId;
+      companyId = requestedCompanyId;
       effectiveRole = targetRole;
     }
   }

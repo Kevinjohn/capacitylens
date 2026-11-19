@@ -1,7 +1,7 @@
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import { emptyAppData } from '../../types/entities.js';
 import type {
-  Account,
+  Company,
   Allocation,
   AppData,
   Client,
@@ -44,7 +44,7 @@ export const makeMeta = (id: ID, companyId: ID) => ({
   updatedAt: TS,
 });
 
-export const makeAccount = (id: ID, name = 'Co'): Account => ({
+export const makeAccount = (id: ID, name = 'Co'): Company => ({
   ...NULLABLE_FIELDS.accounts,
   id,
   name,

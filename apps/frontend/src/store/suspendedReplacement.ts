@@ -59,12 +59,12 @@ export async function runSuspendedReplacement({
   if (!useStore.getState().planningReadyForReplacement()) return { kind: 'blocked' };
   const release = useStore.getState().suspendPlanningCommands();
   if (!release) return { kind: 'blocked' };
-  const { activeAccountId, planning } = useStore.getState();
+  const { activeCompanyId, planning } = useStore.getState();
   const planningContext = planning.context;
   const hasDeparted = () => {
     if (recovery === 'reload') return false;
     const state = useStore.getState();
-    return state.activeAccountId !== activeAccountId || state.planning.context !== planningContext;
+    return state.activeCompanyId !== activeCompanyId || state.planning.context !== planningContext;
   };
   let held = false;
   const refresh = async (): Promise<boolean> => {

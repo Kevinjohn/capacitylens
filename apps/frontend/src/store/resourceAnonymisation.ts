@@ -24,17 +24,17 @@ function describeUncertainFailure(failure: UncertainReplacementFailure): string 
  * blocks further anonymisation in this company until the page reloads.
  */
 export async function runResourceAnonymisation(
-  activeAccountId: string,
+  activeCompanyId: string,
   id: string,
   setNotice: SetNotice,
 ): Promise<boolean> {
-  const reloadRequiredMessage = reloadRequiredByAccount.get(activeAccountId);
+  const reloadRequiredMessage = reloadRequiredByAccount.get(activeCompanyId);
   if (reloadRequiredMessage) {
     setNotice(reloadRequiredMessage, 'error');
     return false;
   }
   const outcome = await runSuspendedReplacement({
-    send: () => companyDataRequests.anonymiseResource(activeAccountId, id),
+    send: () => companyDataRequests.anonymiseResource(activeCompanyId, id),
     recovery: 'refresh',
   });
   switch (outcome.kind) {
@@ -52,7 +52,7 @@ export async function runResourceAnonymisation(
     case 'committed':
       if (outcome.reloadRequired) {
         const message = m.settings_archived_committed_refresh_failed();
-        reloadRequiredByAccount.set(activeAccountId, message);
+        reloadRequiredByAccount.set(activeCompanyId, message);
         setNotice(message, 'error');
         return false;
       }
@@ -62,7 +62,7 @@ export async function runResourceAnonymisation(
       if (outcome.reloadRequired) {
         // Keep the gate so another destructive attempt cannot race the unknown server state.
         const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. Authoritative reload did not complete (failed). Original request: ${cause}`;
-        reloadRequiredByAccount.set(activeAccountId, message);
+        reloadRequiredByAccount.set(activeCompanyId, message);
         setNotice(message, 'error');
         return false;
       }

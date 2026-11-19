@@ -1,5 +1,5 @@
 // Decodes untrusted team and access responses into the typed shapes the client returns.
-import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types';
+import { isRole, isMembershipStatus } from '@capacitylens/shared/account/types';
 import type { AdmissionStatus } from './admissionRequests';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { isNullableString, isTimestamp } from './accessResult';
@@ -20,7 +20,7 @@ function hasValidMemberIdentity(
   return (
     typeof row.userId === 'string' &&
     row.userId.length > 0 &&
-    isAccountRole(row.role) &&
+    isRole(row.role) &&
     isMembershipStatus(row.status) &&
     isTimestamp(row.createdAt)
   );
@@ -144,7 +144,7 @@ function parseInvitation(row: unknown): TeamInvitation | null {
     typeof row.id === 'number' && Number.isSafeInteger(row.id) && row.id > 0
       ? String(row.id)
       : null;
-  if (id === null || !isAccountRole(row.role) || row.role === 'owner') return null;
+  if (id === null || !isRole(row.role) || row.role === 'owner') return null;
   if (
     typeof row.preauthEmail !== 'string' ||
     !isTimestamp(row.expiresAt) ||

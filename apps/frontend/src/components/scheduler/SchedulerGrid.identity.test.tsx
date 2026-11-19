@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { PermissionContext } from '@/auth/permissionContext';
-import { resetStoreWithData, DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
+import { resetStoreWithData, DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { schedulerDataset } from '@/test/schedulerTestKit';
 import { SchedulerGrid } from './SchedulerGrid';
@@ -20,7 +20,7 @@ function OwnerRouter({ children }: { children: ReactNode }) {
 }
 
 beforeEach(async () => {
-  await resetStoreWithData(schedulerDataset(), DEFAULT_ACCOUNT_ID);
+  await resetStoreWithData(schedulerDataset(), DEFAULT_COMPANY_ID);
   useStore.getState().setOriginDate('2026-06-01');
   useStore.getState().setZoom(1);
   useStore.getState().setDrawMode('work');
@@ -145,7 +145,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
     // The switch clears the company date until a2's read lands; `CompanyDateRoute` holds the grid
     // behind its loader meanwhile, so the date arrives here in the same render.
     act(() => {
-      useStore.getState().setActiveAccount('a2');
+      useStore.getState().setActiveCompany('a2');
       useStore.setState((state) => ({ planning: { ...state.planning, today: '2026-06-03' } }));
     });
 
@@ -153,16 +153,16 @@ describe('SchedulerGrid individual schedule drawer', () => {
   });
 
   it('preserves the dimmed placeholder surface and work-mode creation affordance', async () => {
-    await useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { placeholdersEnabled: true });
+    await useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { placeholdersEnabled: true });
     await resetStoreWithData(
       {
         ...useStore.getState().data,
         resources: [
-          makeResource({ companyId: DEFAULT_ACCOUNT_ID, kind: 'placeholder', disciplineId: 'd1' }),
+          makeResource({ companyId: DEFAULT_COMPANY_ID, kind: 'placeholder', disciplineId: 'd1' }),
         ],
         allocations: [],
       },
-      DEFAULT_ACCOUNT_ID,
+      DEFAULT_COMPANY_ID,
     );
     useStore.getState().setFilters({ projectId: 'p1', showUnmatched: true });
     render(<SchedulerGrid />, { wrapper: OwnerRouter });

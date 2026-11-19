@@ -3,9 +3,9 @@ import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import {
-  fetchAccountSummaries,
-  refreshAccountSummaries,
-  useAccountSummaries,
+  fetchCompanySummaries,
+  refreshCompanySummaries,
+  useCompanySummaries,
 } from './useAccountSummaries';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
@@ -14,8 +14,8 @@ import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
 // Only a genuine empty array may clear the directory. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
 afterEach(() => {
-  useStore.setState({ activeAccountId: null, masquerade: { kind: 'inactive' } });
-  useStore.getState().setAccountSummaries({ list: [] });
+  useStore.setState({ activeCompanyId: null, masquerade: { kind: 'inactive' } });
+  useStore.getState().setCompanySummaries({ list: [] });
   useStore.getState().setNotice(null);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -41,21 +41,21 @@ function createBasicResponseClassificationTests() {
       'fetch',
       vi.fn(async () => json(200, [])),
     );
-    await expect(fetchAccountSummaries()).resolves.toEqual([]);
+    await expect(fetchCompanySummaries()).resolves.toEqual([]);
   });
 
   it("clears stale company choices and shows the server's ambiguous-installation error", async () => {
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: [{ id: 'old-company', name: 'Old company', role: 'owner' }],
     });
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => json(409, { error: 'This installation has more than one company.' })),
     );
-    await expect(fetchAccountSummaries()).resolves.toBeNull();
-    expect(useStore.getState().accountSummaries).toEqual([]);
-    expect(useStore.getState().accountSummariesComplete).toBe(false);
-    expect(useStore.getState().accountSummariesAmbiguous).toBe(true);
+    await expect(fetchCompanySummaries()).resolves.toBeNull();
+    expect(useStore.getState().companySummaries).toEqual([]);
+    expect(useStore.getState().companySummariesComplete).toBe(false);
+    expect(useStore.getState().companySummariesAmbiguous).toBe(true);
     expect(useStore.getState().notice?.message).toBe(m.account_directory_ambiguous());
   });
 
@@ -69,7 +69,7 @@ function createBasicResponseClassificationTests() {
       'fetch',
       vi.fn(async () => json(200, body)),
     );
-    await expect(fetchAccountSummaries()).resolves.toEqual([
+    await expect(fetchCompanySummaries()).resolves.toEqual([
       { id: 'a1', name: 'Studio A', role: 'editor', grant: grantFor('editor') },
     ]);
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
@@ -93,7 +93,7 @@ function createBasicResponseClassificationTests() {
       ),
     );
 
-    await expect(fetchAccountSummaries()).resolves.toBeNull();
+    await expect(fetchCompanySummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate account identities'));
     expect(useStore.getState().notice).toEqual({
       message: m.account_directory_incomplete(),
@@ -111,7 +111,7 @@ function createUnknownRoleResponseTest() {
       vi.fn(async () => json(200, [row])),
     );
 
-    await expect(fetchAccountSummaries()).resolves.toEqual([
+    await expect(fetchCompanySummaries()).resolves.toEqual([
       { id: 'a1', name: 'Studio A', role: 'viewer', roleStatus: 'unavailable' },
     ]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('unrecognized role'));
@@ -130,7 +130,7 @@ function createUnknownRoleResponseTest() {
       vi.fn(async () => json(200, [{ id: 'a1', name: 'Studio A', role: 'owner', ...grant }])),
     );
 
-    await expect(fetchAccountSummaries()).resolves.toEqual([
+    await expect(fetchCompanySummaries()).resolves.toEqual([
       { id: 'a1', name: 'Studio A', role: 'viewer', roleStatus: 'unavailable' },
     ]);
   });
@@ -144,7 +144,7 @@ function createMalformedResponseClassificationTests() {
       'fetch',
       vi.fn(async () => json(200, [null])),
     );
-    await expect(fetchAccountSummaries()).resolves.toBeNull();
+    await expect(fetchCompanySummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'));
     expect(useStore.getState().notice).toEqual({
       message: m.account_directory_incomplete(),
@@ -158,7 +158,7 @@ function createMalformedResponseClassificationTests() {
       'fetch',
       vi.fn(async () => json(200, [{ id: 'a' }])),
     );
-    await expect(fetchAccountSummaries()).resolves.toBeNull();
+    await expect(fetchCompanySummaries()).resolves.toBeNull();
   });
 
   it('a 200 whose body is NOT an array -> null (malformed, not "no accounts") + a warn breadcrumb', async () => {
@@ -167,7 +167,7 @@ function createMalformedResponseClassificationTests() {
       'fetch',
       vi.fn(async () => json(200, { error: 'proxy said what' })),
     );
-    await expect(fetchAccountSummaries()).resolves.toBeNull();
+    await expect(fetchCompanySummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('non-array'));
   });
 
@@ -176,11 +176,11 @@ function createMalformedResponseClassificationTests() {
       'fetch',
       vi.fn(async () => json(503, { error: 'down' })),
     );
-    await expect(fetchAccountSummaries()).resolves.toBeNull();
+    await expect(fetchCompanySummaries()).resolves.toBeNull();
   });
 }
 
-describe('fetchAccountSummaries — response classification', () => {
+describe('fetchCompanySummaries — response classification', () => {
   createBasicResponseClassificationTests();
   createUnknownRoleResponseTest();
   createMalformedResponseClassificationTests();
@@ -188,7 +188,7 @@ describe('fetchAccountSummaries — response classification', () => {
 
 function createOrderedRefreshTests() {
   it('clears the active company when the live directory no longer contains its membership', async () => {
-    useStore.setState({ activeAccountId: 'a1' });
+    useStore.setState({ activeCompanyId: 'a1' });
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
@@ -196,9 +196,9 @@ function createOrderedRefreshTests() {
       ),
     );
 
-    await refreshAccountSummaries();
+    await refreshCompanySummaries();
 
-    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().activeCompanyId).toBeNull();
     expect(useStore.getState().notice).toMatchObject({
       message: m.notice_company_access_removed(),
       tone: 'warning',
@@ -216,14 +216,14 @@ function createOrderedRefreshTests() {
         .mockImplementationOnce(() => later.promise),
     );
 
-    const earlierRefresh = refreshAccountSummaries();
-    const laterRefresh = refreshAccountSummaries();
+    const earlierRefresh = refreshCompanySummaries();
+    const laterRefresh = refreshCompanySummaries();
     later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner', ...grantFor('owner') }]));
     await laterRefresh;
     earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner', ...grantFor('owner') }]));
     await earlierRefresh;
 
-    expect(useStore.getState().accountSummaries).toEqual([
+    expect(useStore.getState().companySummaries).toEqual([
       { id: 'new', name: 'Newest', role: 'owner', grant: grantFor('owner') },
     ]);
   });
@@ -231,7 +231,7 @@ function createOrderedRefreshTests() {
   it('does not let a superseded response clear the active company or publish a removal notice', async () => {
     const earlier = deferred<Response>();
     const later = deferred<Response>();
-    useStore.setState({ activeAccountId: 'new' });
+    useStore.setState({ activeCompanyId: 'new' });
     vi.stubGlobal(
       'fetch',
       vi
@@ -240,14 +240,14 @@ function createOrderedRefreshTests() {
         .mockImplementationOnce(() => later.promise),
     );
 
-    const earlierRefresh = refreshAccountSummaries();
-    const laterRefresh = refreshAccountSummaries();
+    const earlierRefresh = refreshCompanySummaries();
+    const laterRefresh = refreshCompanySummaries();
     later.resolve(json(200, [{ id: 'new', name: 'Newest', role: 'owner', ...grantFor('owner') }]));
     await laterRefresh;
     earlier.resolve(json(200, [{ id: 'old', name: 'Older', role: 'owner', ...grantFor('owner') }]));
     await earlierRefresh;
 
-    expect(useStore.getState().activeAccountId).toBe('new');
+    expect(useStore.getState().activeCompanyId).toBe('new');
     expect(useStore.getState().notice).toBeNull();
   });
 }
@@ -259,17 +259,17 @@ function createMutationRefreshTests() {
       'fetch',
       vi.fn(() => response.promise),
     );
-    const refresh = refreshAccountSummaries();
+    const refresh = refreshCompanySummaries();
 
     useStore
       .getState()
-      .setAccountSummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
+      .setCompanySummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
     response.resolve(
       json(200, [{ id: 'old', name: 'Before create', role: 'owner', ...grantFor('owner') }]),
     );
     await refresh;
 
-    expect(useStore.getState().accountSummaries).toEqual([
+    expect(useStore.getState().companySummaries).toEqual([
       { id: 'created', name: 'Just created', role: 'owner' },
     ]);
   });
@@ -280,18 +280,18 @@ function createMutationRefreshTests() {
       'fetch',
       vi.fn(() => response.promise),
     );
-    const refresh = refreshAccountSummaries();
+    const refresh = refreshCompanySummaries();
 
     useStore
       .getState()
-      .setAccountSummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
-    useStore.setState({ activeAccountId: 'created' });
+      .setCompanySummaries({ list: [{ id: 'created', name: 'Just created', role: 'owner' }] });
+    useStore.setState({ activeCompanyId: 'created' });
     response.resolve(
       json(200, [{ id: 'old', name: 'Before create', role: 'owner', ...grantFor('owner') }]),
     );
     await refresh;
 
-    expect(useStore.getState().activeAccountId).toBe('created');
+    expect(useStore.getState().activeCompanyId).toBe('created');
     expect(useStore.getState().notice).toBeNull();
   });
 }
@@ -299,7 +299,7 @@ function createMutationRefreshTests() {
 function createCompletenessRefreshTests() {
   it('publishes valid rows from an incomplete directory without treating the dropped active row as revoked', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    useStore.setState({ activeAccountId: 'active' });
+    useStore.setState({ activeCompanyId: 'active' });
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
@@ -310,13 +310,13 @@ function createCompletenessRefreshTests() {
       ),
     );
 
-    await refreshAccountSummaries();
+    await refreshCompanySummaries();
 
-    expect(useStore.getState().accountSummaries).toEqual([
+    expect(useStore.getState().companySummaries).toEqual([
       { id: 'other', name: 'Other', role: 'viewer', grant: grantFor('viewer') },
     ]);
-    expect(useStore.getState().accountSummariesComplete).toBe(false);
-    expect(useStore.getState().activeAccountId).toBe('active');
+    expect(useStore.getState().companySummariesComplete).toBe(false);
+    expect(useStore.getState().activeCompanyId).toBe('active');
     expect(useStore.getState().notice).toEqual({
       message: m.account_directory_incomplete(),
       tone: 'warning',
@@ -332,20 +332,20 @@ function createCompletenessRefreshTests() {
       ),
     );
 
-    await refreshAccountSummaries();
+    await refreshCompanySummaries();
 
-    expect(useStore.getState().accountSummariesComplete).toBe(true);
+    expect(useStore.getState().companySummariesComplete).toBe(true);
   });
 }
 
-describe('refreshAccountSummaries — shared request ordering', () => {
+describe('refreshCompanySummaries — shared request ordering', () => {
   createOrderedRefreshTests();
   createMutationRefreshTests();
   createCompletenessRefreshTests();
 });
 
 function HookHost() {
-  useAccountSummaries();
+  useCompanySummaries();
   return null;
 }
 
@@ -359,7 +359,7 @@ function createYieldingHookTest() {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     useStore.setState({
-      activeAccountId: null,
+      activeCompanyId: null,
       masquerade: {
         kind: 'active',
         generation: 1,
@@ -386,7 +386,7 @@ function createYieldingHookTest() {
   it('yields active-account reads when the permission provider owns that generation', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    useStore.setState({ activeAccountId: 'a1' });
+    useStore.setState({ activeCompanyId: 'a1' });
 
     const view = renderWithQuery(<HookHost />);
     await act(async () => {});
@@ -397,10 +397,10 @@ function createYieldingHookTest() {
 }
 
 function createMalformedHookTests() {
-  it('store.accountSummaries is preserved when /api/companies 200s with a non-array body', async () => {
+  it('store.companySummaries is preserved when /api/companies 200s with a non-array body', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const existing = [{ id: 'a1', name: 'Studio A', role: 'owner' as const }];
-    useStore.getState().setAccountSummaries({ list: existing });
+    useStore.getState().setCompanySummaries({ list: existing });
     let resolveFetch!: () => void;
     const done = new Promise<void>((r) => (resolveFetch = r));
     vi.stubGlobal(
@@ -415,20 +415,20 @@ function createMalformedHookTests() {
     renderWithQuery(<HookHost />);
     await act(async () => {
       await done;
-      // One extra macrotask so the hook's `await fetchAccountSummaries()` continuation (json parse +
+      // One extra macrotask so the hook's `await fetchCompanySummaries()` continuation (json parse +
       // the null early-return) has run before we assert.
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(useStore.getState().accountSummaries).toEqual(existing);
+    expect(useStore.getState().companySummaries).toEqual(existing);
   });
 }
 
 function createMembershipHookTest() {
-  it('store.accountSummaries is preserved when /api/companies 200s with an all-malformed array ([null])', async () => {
+  it('store.companySummaries is preserved when /api/companies 200s with an all-malformed array ([null])', async () => {
     // An array with no valid rows is not evidence that the company directory is empty.
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const existing = [{ id: 'a1', name: 'Studio A', role: 'owner' as const }];
-    useStore.getState().setAccountSummaries({ list: existing });
+    useStore.getState().setCompanySummaries({ list: existing });
     let resolveFetch!: () => void;
     const done = new Promise<void>((r) => (resolveFetch = r));
     vi.stubGlobal(
@@ -443,7 +443,7 @@ function createMembershipHookTest() {
       await done;
       await new Promise((r) => setTimeout(r, 0));
     });
-    expect(useStore.getState().accountSummaries).toEqual(existing);
+    expect(useStore.getState().companySummaries).toEqual(existing);
   });
 
   it('refetches account roles when membership projections are invalidated', async () => {
@@ -456,19 +456,19 @@ function createMembershipHookTest() {
     renderWithQuery(<HookHost />);
 
     await act(async () => {
-      await vi.waitFor(() => expect(useStore.getState().accountSummaries[0]?.role).toBe('owner'));
+      await vi.waitFor(() => expect(useStore.getState().companySummaries[0]?.role).toBe('owner'));
     });
     role = 'admin';
     act(() => useStore.getState().invalidateMemberships());
 
     await act(async () => {
-      await vi.waitFor(() => expect(useStore.getState().accountSummaries[0]?.role).toBe('admin'));
+      await vi.waitFor(() => expect(useStore.getState().companySummaries[0]?.role).toBe('admin'));
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 }
 
-describe('useAccountSummaries — a malformed 200 leaves the existing list alone', () => {
+describe('useCompanySummaries — a malformed 200 leaves the existing list alone', () => {
   createYieldingHookTest();
   createMalformedHookTests();
   createMembershipHookTest();

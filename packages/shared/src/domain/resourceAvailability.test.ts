@@ -24,7 +24,7 @@ describe('resource availability boundaries', () => {
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-15', endDate: '2026-06-15' },
         resource: person({ firstAvailableDate: '2026-06-15', lastAvailableDate: '2026-06-15' }),
-        accountWorkingDays: [1, 2, 3, 4, 5],
+        companyWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).not.toThrow();
   });
@@ -34,14 +34,14 @@ describe('resource availability boundaries', () => {
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-13', endDate: '2026-06-14' },
         resource: person({ firstAvailableDate: '2026-06-15' }),
-        accountWorkingDays: [1, 2, 3, 4, 5],
+        companyWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).not.toThrow();
     expect(() =>
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-13', endDate: '2026-06-14', ignoreWorkingDays: true },
         resource: person({ firstAvailableDate: '2026-06-15' }),
-        accountWorkingDays: [1, 2, 3, 4, 5],
+        companyWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
@@ -55,7 +55,7 @@ describe('resource availability boundaries', () => {
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-15', endDate: '2026-06-16' },
         resource: person({ lastAvailableDate: '2026-06-12' }),
-        accountWorkingDays: [1, 2, 3, 4, 5],
+        companyWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).toThrowError(
       expect.objectContaining<Partial<DomainError>>({
@@ -66,7 +66,7 @@ describe('resource availability boundaries', () => {
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-15', endDate: '2026-06-16' },
         resource: person({ kind: 'placeholder', firstAvailableDate: '2026-01-01' }),
-        accountWorkingDays: [1, 2, 3, 4, 5],
+        companyWorkingDays: [1, 2, 3, 4, 5],
       }),
     ).not.toThrow();
     expect(validateResourceAvailabilityPair('2026-06-16', '2026-06-15')).toMatchObject({
@@ -84,7 +84,7 @@ describe('resource availability boundaries', () => {
       assertAllocationWithinResourceAvailability({
         allocation: { startDate: '2026-06-15', endDate: '2026-06-15' },
         resource: person({ firstAvailableDate: '2026-06-16' }),
-        accountWorkingDays: [2, 3, 4, 5, 6],
+        companyWorkingDays: [2, 3, 4, 5, 6],
       }),
     ).not.toThrow();
   });

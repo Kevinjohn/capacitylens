@@ -118,7 +118,7 @@ describe('QueryCacheLifecycle', () => {
       refreshAuth: async () => {},
       signOut: async () => {},
     });
-    useStore.setState({ activeAccountId: null, masquerade: { kind: 'inactive' } });
+    useStore.setState({ activeCompanyId: null, masquerade: { kind: 'inactive' } });
     const tree = (principalId: string | null) => (
       <AuthContext.Provider value={authValue(principalId)}>
         <QueryCacheLifecycle cache={cache} />
@@ -133,7 +133,7 @@ describe('QueryCacheLifecycle', () => {
     expectCleared();
 
     seed();
-    await act(async () => useStore.setState({ activeAccountId: 'wayne' }));
+    await act(async () => useStore.setState({ activeCompanyId: 'wayne' }));
     expectCleared();
 
     seed();
@@ -154,6 +154,6 @@ describe('QueryCacheLifecycle', () => {
     remounted.unmount();
     render(tree('bruce'));
     expectCleared();
-    useStore.setState({ activeAccountId: null, masquerade: { kind: 'inactive' } });
+    useStore.setState({ activeCompanyId: null, masquerade: { kind: 'inactive' } });
   });
 });

@@ -54,10 +54,10 @@ function usePaletteItems(query: string, onClose: () => void) {
   const setFilters = useStore((state) => state.setFilters);
   const data = useActiveScopedData();
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
   );
   const externalEnabled = useStore((state) =>
-    hasExternalResourcesEnabled(state.data, state.activeAccountId),
+    hasExternalResourcesEnabled(state.data, state.activeCompanyId),
   );
   const routes = useVisibleRoutes();
   return useMemo(

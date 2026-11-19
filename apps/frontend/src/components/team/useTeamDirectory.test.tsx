@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { AuthContext } from '@/auth/authContext';
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
 import { authValue } from './MembersSection.testSupport';
 import { useTeamDirectory } from './useTeamDirectory';
@@ -60,7 +60,7 @@ function renderDirectory(
     </QueryClientProvider>
   );
   return renderHook(
-    () => useTeamDirectory({ enabled: true, activeAccountId: DEFAULT_ACCOUNT_ID, fail }),
+    () => useTeamDirectory({ enabled: true, activeCompanyId: DEFAULT_COMPANY_ID, fail }),
     { wrapper },
   );
 }

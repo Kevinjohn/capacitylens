@@ -17,7 +17,7 @@ describe('MasqueradeController', () => {
     expect(useStore.getState().masquerade.kind).toBe('starting');
     await controller.adoptStatus(inactiveStatus);
     expect(useStore.getState().masquerade.kind).toBe('inactive');
-    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().activeCompanyId).toBeNull();
   });
 
   it('loads a cold validated member view from canonical account data before selecting it', async () => {
@@ -35,13 +35,13 @@ describe('MasqueradeController', () => {
       }),
     });
     const adoption = controller.adoptStatus({ active: true, ...state });
-    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().activeCompanyId).toBeNull();
     expect(useStore.getState().masquerade.kind).toBe('starting');
     read.resolve('Wayne Enterprises');
     await adoption;
     expect(dependencies.readBootstrapAccount).toHaveBeenCalledExactlyOnceWith('a-studio');
     expect(dependencies.reproject).toHaveBeenCalledExactlyOnceWith('a-studio', false);
-    expect(useStore.getState().activeAccountId).toBe('a-studio');
+    expect(useStore.getState().activeCompanyId).toBe('a-studio');
     expect(useStore.getState().masquerade.kind).toBe('active');
   });
 
@@ -55,7 +55,7 @@ describe('MasqueradeController', () => {
     });
     await controller.adoptStatus({ active: true, ...state });
     expect(useStore.getState().masquerade.kind).toBe('starting');
-    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().activeCompanyId).toBeNull();
     await expect(controller.retryProjection()).resolves.toBe(true);
     expect(dependencies.readBootstrapAccount).toHaveBeenCalledTimes(2);
     expect(useStore.getState().masquerade.kind).toBe('active');
@@ -69,8 +69,8 @@ describe('MasqueradeController', () => {
     controller.invalidate();
     read.resolve('Wayne Enterprises');
     await adoption;
-    expect(useStore.getState().activeAccountId).toBeNull();
-    expect(useStore.getState().accountSummaries).toEqual([]);
+    expect(useStore.getState().activeCompanyId).toBeNull();
+    expect(useStore.getState().companySummaries).toEqual([]);
     expect(useStore.getState().masquerade.kind).toBe('inactive');
   });
 });

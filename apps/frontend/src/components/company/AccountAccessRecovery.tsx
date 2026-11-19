@@ -3,9 +3,9 @@ import { useStore } from '@/store/useStore';
 
 /** Shows loading or installation errors when no unambiguous active company is available. */
 export function AccountAccessRecovery() {
-  const accounts = useStore((state) => state.accountSummaries);
-  const complete = useStore((state) => state.accountSummariesComplete);
-  const ambiguous = useStore((state) => state.accountSummariesAmbiguous);
+  const accounts = useStore((state) => state.companySummaries);
+  const complete = useStore((state) => state.companySummariesComplete);
+  const ambiguous = useStore((state) => state.companySummariesAmbiguous);
 
   if (!complete && !ambiguous && accounts.length <= 1) {
     return (

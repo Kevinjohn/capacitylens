@@ -204,7 +204,7 @@ export function createSchedulerSlice(
               state,
               startOfWeekISO(
                 state.planning.today,
-                resolveWeekStart(state.data, state.activeAccountId),
+                resolveWeekStart(state.data, state.activeCompanyId),
               ),
             ),
       ),
@@ -212,7 +212,7 @@ export function createSchedulerSlice(
       set((state) =>
         recenterOn(
           state,
-          startOfWeekISO(date, resolveWeekStart(state.data, state.activeAccountId)),
+          startOfWeekISO(date, resolveWeekStart(state.data, state.activeCompanyId)),
         ),
       ),
     setDrawMode: (drawMode) => set((state) => ({ ui: { ...state.ui, drawMode } })),

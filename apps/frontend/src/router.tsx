@@ -111,7 +111,7 @@ export function CompanyDateRoute({ children }: { children: ReactNode }) {
 // Disciplines is an optional feature (account.disciplinesEnabled). When off, the nav
 // entry is hidden, guard the route too so a direct URL / bookmark can't reach the page.
 function DisciplineRoute() {
-  const enabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
+  const enabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeCompanyId));
   return enabled ? <DisciplineList /> : <Navigate to="/" replace />;
 }
 
@@ -120,7 +120,7 @@ export function CapacityOverviewRoute() {
   const role = useRole();
   const status = usePermissionStatus();
   const access = useStore((state) =>
-    resolveCapacityOverviewAccess(state.data, state.activeAccountId),
+    resolveCapacityOverviewAccess(state.data, state.activeCompanyId),
   );
   const decision = resolveCapacityOverviewAccessDecision({ role, status, access });
   if (decision === 'pending') {

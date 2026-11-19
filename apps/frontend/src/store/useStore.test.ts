@@ -104,10 +104,10 @@ describe('store scheduler UI', () => {
     s().panDays(7);
     expect(s().ui.originDate).toBe('2026-06-08');
   });
-  it('setActiveAccount reopens on the current week (resets a panned origin/focus)', () => {
+  it('setActiveCompany reopens on the current week (resets a panned origin/focus)', () => {
     s().setOriginDate('2020-01-01');
 
-    s().setActiveAccount(s().activeAccountId);
+    s().setActiveCompany(s().activeCompanyId);
     expect(s().ui.originDate).not.toBe('2020-01-01');
     expect(weekdayOf(s().ui.focusDate)).toBe(1);
 
@@ -198,13 +198,13 @@ describe('store scheduler UI', () => {
     're-anchors the first canonical snapshot to the selected account week start (%s)',
     async (weekStartsOn) => {
       const companyId = 'late-account';
-      s().setAccountSummaries({ list: [{ id: companyId, name: 'Late account', role: 'owner' }] });
+      s().setCompanySummaries({ list: [{ id: companyId, name: 'Late account', role: 'owner' }] });
       updatePlanningFixtureSource(
         makeAppData({
           accounts: [makeAccount({ id: companyId, weekStartsOn })],
         }),
       );
-      s().setActiveAccount(companyId);
+      s().setActiveCompany(companyId);
       s().goToDate('2031-09-10');
       await s().refreshPlanning();
 
@@ -220,7 +220,7 @@ describe('store scheduler UI', () => {
   });
 
   it('the date format is account data: undoable and mirrored to the formatters', async () => {
-    const companyId = s().activeAccountId;
+    const companyId = s().activeCompanyId;
     if (!companyId) throw new Error('Expected an active account.');
     await s().updateAccount(companyId, { dateStyle: 'month-day' });
     expect(resolveDateStyle(s().data, companyId)).toBe('month-day');

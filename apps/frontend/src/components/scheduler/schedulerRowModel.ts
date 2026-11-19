@@ -27,7 +27,7 @@ import type {
 
 interface CreateRowBuilderInput {
   model: Pick<SchedulerModelOptions, 'geom' | 'days'>;
-  accountWorkingDays: NonNullable<SchedulerModelOptions['preferences']['accountWorkingDays']>;
+  companyWorkingDays: NonNullable<SchedulerModelOptions['preferences']['companyWorkingDays']>;
   blocksMode: boolean;
   laneLayout: NonNullable<SchedulerModelOptions['laneLayout']>;
   allocationsByResource: Map<ID, Allocation[]>;
@@ -153,7 +153,7 @@ function buildDayStates(input: {
 /** Builds resource rows against one shared scheduler model context. */
 export function createRowBuilder({
   model: { geom: geometry, days },
-  accountWorkingDays,
+  companyWorkingDays,
   blocksMode,
   laneLayout,
   allocationsByResource,
@@ -172,7 +172,7 @@ export function createRowBuilder({
     const resourceTimeOff = timeOffByResource.get(resource.id) ?? [];
     const isExternal = isExternalResource(resource);
 
-    const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
+    const effectiveWeek = effectiveWorkingWeek(resource, companyWorkingDays);
     // Determine dimming from matching bars inside the displayed timeline so hidden or off-timeline work cannot create an empty full-opacity row. Unmatched staffing rows retain their real load.
     const matchingVisibleAllocations = allAllocations
       .filter(allocationFilters.allocVisible)

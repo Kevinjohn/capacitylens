@@ -8,7 +8,7 @@ import { apiFetch } from '@/data/requestTimeout';
 import { reloadPage } from '@/lib/reloadPage';
 import { useStore } from '@/store/useStore';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   jsonResponse,
   makeAllocation,
   makeClient,
@@ -36,7 +36,7 @@ function renderSection({ role = 'owner' }: { role?: Role | null } = {}) {
   );
 }
 
-const owned = { companyId: DEFAULT_ACCOUNT_ID };
+const owned = { companyId: DEFAULT_COMPANY_ID };
 const section = () => screen.queryByTestId('settings-example-data');
 const originalPlanning = {
   refreshPlanning: useStore.getState().refreshPlanning,
@@ -88,7 +88,7 @@ describe('Settings example data', () => {
             id: 'internal',
             name: 'Internal',
             builtin: true,
-            companyId: DEFAULT_ACCOUNT_ID,
+            companyId: DEFAULT_COMPANY_ID,
           }),
         ],
       },
@@ -120,7 +120,7 @@ describe('Settings example data', () => {
     renderSection();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
     await waitFor(() => expect(useStore.getState().notice?.message).toBe('Example data added.'));
-    expect(add).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID);
+    expect(add).toHaveBeenCalledWith(DEFAULT_COMPANY_ID);
     expect(planningProbe.reads).toBe(1);
     expect(planningProbe.freshReads).toBe(1);
     expect(planningProbe.releases).toBe(1);
@@ -208,7 +208,7 @@ describe('Company-wide people anonymisation', () => {
     await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
     expect(planningProbe.suspends).toBe(1);
     expect(apiFetch).toHaveBeenCalledWith(
-      expect.stringMatching(new RegExp(`/api/companies/${DEFAULT_ACCOUNT_ID}/anonymise$`)),
+      expect.stringMatching(new RegExp(`/api/companies/${DEFAULT_COMPANY_ID}/anonymise$`)),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ confirmationId: 'proof-one' }),

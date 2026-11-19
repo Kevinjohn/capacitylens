@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeAppData,
   makeResource,
   resetStoreWithData,
@@ -59,7 +59,7 @@ beforeEach(async () => {
   request.mockReset();
   const resource = makeResource({
     id: 'resource-archive',
-    companyId: DEFAULT_ACCOUNT_ID,
+    companyId: DEFAULT_COMPANY_ID,
     name: 'Diana Prince',
     role: 'Designer',
     avatarUrl: 'https://images.example/diana.png',
@@ -68,10 +68,10 @@ beforeEach(async () => {
     updatedAt: '2025-01-01T00:00:00.000Z',
   });
   serverData = makeAppData({
-    clients: [buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z')],
+    clients: [buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z')],
     resources: [resource],
   });
-  await resetStoreWithData(serverData, DEFAULT_ACCOUNT_ID);
+  await resetStoreWithData(serverData, DEFAULT_COMPANY_ID);
   setPlanningRole('owner');
   vi.stubGlobal(
     'fetch',
@@ -100,7 +100,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
       ...state.planning,
       status: 'ready',
       canWrite: true,
-      context: { identity: 'test-principal', companyId: DEFAULT_ACCOUNT_ID },
+      context: { identity: 'test-principal', companyId: DEFAULT_COMPANY_ID },
       accessKey: JSON.stringify(['test-principal', 'test-principal', role, true]),
     },
   }));
@@ -130,7 +130,7 @@ describe('archived resource actions', () => {
 
   it('lets an Editor recover an identity without inactive details or anonymisation', async () => {
     setPlanningRole('editor');
-    request.mockResolvedValue(archivedRecovery(DEFAULT_ACCOUNT_ID));
+    request.mockResolvedValue(archivedRecovery(DEFAULT_COMPANY_ID));
     render(
       <QueryClientProvider client={new QueryClient()}>
         {authenticated(<ArchivedEntitySection entity="resources" />, 'editor')}
@@ -139,7 +139,7 @@ describe('archived resource actions', () => {
     expect(await screen.findByRole('button', { name: 'Restore Diana Prince' })).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith(
       'api.planning.archive',
-      expect.objectContaining({ params: { companyId: DEFAULT_ACCOUNT_ID } }),
+      expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
     expect(screen.queryByText('Designer')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Anonymise/ })).not.toBeInTheDocument();
@@ -148,8 +148,8 @@ describe('archived resource actions', () => {
     await useStore.getState().refreshPlanning();
     setPlanningRole('editor');
     request
-      .mockResolvedValueOnce(archivedRecovery(DEFAULT_ACCOUNT_ID))
-      .mockResolvedValueOnce({ companyId: DEFAULT_ACCOUNT_ID, rows: [] });
+      .mockResolvedValueOnce(archivedRecovery(DEFAULT_COMPANY_ID))
+      .mockResolvedValueOnce({ companyId: DEFAULT_COMPANY_ID, rows: [] });
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -163,7 +163,7 @@ describe('archived resource actions', () => {
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeNull();
     expect(request).toHaveBeenCalledWith(
       'api.planning.archive',
-      expect.objectContaining({ params: { companyId: DEFAULT_ACCOUNT_ID } }),
+      expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
   });
 });

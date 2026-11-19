@@ -102,7 +102,7 @@ function lookupOver(view: AppData) {
     resourceHasTimeOff: vi.fn((companyId: ID, resourceId: ID) =>
       view.timeOff.some((t) => owned(t, companyId) && t.resourceId === resourceId),
     ),
-    accountWorkingDays: vi.fn((): Weekday[] => [1, 2, 3, 4, 5]),
+    companyWorkingDays: vi.fn((): Weekday[] => [1, 2, 3, 4, 5]),
   } satisfies ValidationDataLookup;
 }
 

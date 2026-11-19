@@ -43,7 +43,7 @@ export async function captureMasqueradeStatusGuard(): Promise<() => boolean> {
 /** Refresh the authoritative mode at its fixed deadline or after explicit reconciliation. */
 export async function reconcileMasqueradeStatus(): Promise<void> {
   const isCurrent = await captureMasqueradeStatusGuard();
-  const status = await masqueradeApi.status(useStore.getState().activeAccountId ?? undefined);
+  const status = await masqueradeApi.status(useStore.getState().activeCompanyId ?? undefined);
   await adoptMasqueradeStatus(status, isCurrent);
 }
 

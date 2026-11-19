@@ -103,7 +103,7 @@ export function useServerImport() {
   ): Promise<void> => {
     if (importInFlightRef.current) return;
     importInFlightRef.current = true;
-    const companyId = useStore.getState().activeAccountId;
+    const companyId = useStore.getState().activeCompanyId;
     if (companyId === null) {
       importInFlightRef.current = false;
       throw new Error('Import requires an active company.');
@@ -127,7 +127,7 @@ export function useServerImport() {
       if (!settled.reloadRequired) setBusy(false);
     } catch (error) {
       // Report a failed import-start boundary and release busy state so recovery controls remain usable.
-      if (useStore.getState().activeAccountId === companyId) {
+      if (useStore.getState().activeCompanyId === companyId) {
         setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), 'error');
       }
       setBusy(false);

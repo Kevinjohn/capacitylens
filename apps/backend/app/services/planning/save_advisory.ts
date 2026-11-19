@@ -1,4 +1,4 @@
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import {
   applyCapacityMode,
   buildCapacityAdvisory,
@@ -53,7 +53,7 @@ export function buildSaveAdvisory(
   const [proposal] = proposals;
   const effectiveWeek = effectiveWorkingWeek(
     resource,
-    normalizeAccountWorkingDays(account.workingDays, account.weekStartsOn === 0 ? 0 : 1)
+    normalizeCompanyWorkingDays(account.workingDays, account.weekStartsOn === 0 ? 0 : 1)
   );
   const timeOff = listTimeOffApplyingTo(resource.id, after.timeOff);
   if (intent.operation === 'allocation.createGroup') {

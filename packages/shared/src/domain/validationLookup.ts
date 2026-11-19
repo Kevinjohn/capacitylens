@@ -7,7 +7,7 @@ import type {
   Weekday,
 } from '../types/entities.js';
 import type { ValidationResult } from '../lib/integrity.js';
-import { belongsToAccount } from './tenancy.js';
+import { belongsToCompany } from './tenancy.js';
 import { throwDomainError } from './errors.js';
 import { inspectLifecycleAncestry, lifecycleStatus } from './lifecycle.js';
 import type { LifecycleAncestryRow, LifecycleFields } from './lifecycle.js';
@@ -54,7 +54,7 @@ export interface ValidationDataLookup {
   resourceHasLoadedAllocation(companyId: ID, resourceId: ID): boolean;
   resourceHasTimeOff(companyId: ID, resourceId: ID): boolean;
   /** Resolve the account's canonical working-day set for shared scheduling validation. */
-  accountWorkingDays(companyId: ID): Weekday[];
+  companyWorkingDays(companyId: ID): Weekday[];
 }
 
 /** Find a row by table and id through the lookup when given, otherwise by scanning `data`. Pure. */
@@ -85,7 +85,7 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
     id,
     ...(lookup === undefined ? {} : { lookup }),
   }) as T | undefined;
-  return row && belongsToAccount(row, companyId) ? row : undefined;
+  return row && belongsToCompany(row, companyId) ? row : undefined;
 };
 
 /** The account's allocations on one end of the pair, beside {@link resolveValidationRow}: the indexed
@@ -104,7 +104,7 @@ export const listValidationAllocations = ({
   }
   return data.allocations.filter(
     (allocation) =>
-      belongsToAccount(allocation, companyId) &&
+      belongsToCompany(allocation, companyId) &&
       (side === 'resource' ? allocation.resourceId : allocation.activityId) === id,
   );
 };

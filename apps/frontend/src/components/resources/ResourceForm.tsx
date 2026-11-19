@@ -202,7 +202,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   const form = useResourceFormState(resource);
   const { error, errorField, errorId, fail } = useFieldError();
   const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeAccountId),
+    hasDisciplinesEnabled(state.data, state.activeCompanyId),
   );
   const currentProjectId = resource?.projectId;
   const projectOptions = useMemo(
@@ -228,7 +228,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     onClose,
     add,
     update,
-    readActiveAccountId: () => useStore.getState().activeAccountId,
+    readActiveCompanyId: () => useStore.getState().activeCompanyId,
   });
   return (
     <Modal

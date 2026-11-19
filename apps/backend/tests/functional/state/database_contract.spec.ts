@@ -5,7 +5,7 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { checkDatabase } from '#services/database_health';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
-import Account from '#models/account';
+import Company from '#models/company';
 import { insertTenantFixture } from './database_contract_fixtures.js';
 import {
   accountIndexes,
@@ -18,7 +18,7 @@ import {
   insertInvalidReference,
 } from './database_contract_cases.js';
 
-const accountIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
+const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';
 
 const scopedTables = [
@@ -76,7 +76,7 @@ test.group('M1 database contract', (group) => {
   });
 
   test('physical account deletion cascades only its idempotency receipts', async ({ assert }) => {
-    const receipts = [accountIds.dc, accountIds.marvel].map((scopeId) => ({
+    const receipts = [companyIds.dc, companyIds.marvel].map((scopeId) => ({
       id: `receipt-${scopeId}`,
       scope_id: scopeId,
       command_id: `command-${scopeId}`,
@@ -96,7 +96,7 @@ test.group('M1 database contract', (group) => {
       ),
       2
     );
-    await db.from('accounts').where('id', accountIds.dc).delete();
+    await db.from('accounts').where('id', companyIds.dc).delete();
     assert.isNull(await db.from('request_receipts').where('id', receipts[0]!.id).first());
     assert.isNotNull(await db.from('request_receipts').where('id', receipts[1]!.id).first());
   });
@@ -257,21 +257,21 @@ test.group('M1 database contract', (group) => {
   test('keeps account discovery global while filtering scoped entity reads to one tenant', async ({
     assert,
   }) => {
-    const accounts = await Account.all();
+    const accounts = await Company.all();
     assert.includeMembers(
       accounts.map((account) => account.id),
-      [accountIds.dc, accountIds.marvel]
+      [companyIds.dc, companyIds.marvel]
     );
 
-    const state = await readState(accountIds.dc);
+    const state = await readState(companyIds.dc);
     assert.deepEqual(
       state.accounts.map((account) => account.id),
-      [accountIds.dc]
+      [companyIds.dc]
     );
     for (const [table, rows] of Object.entries(state)) {
       if (table === 'accounts') continue;
       assert.isTrue(
-        (rows as Array<{ companyId: string }>).every((row) => row.companyId === accountIds.dc),
+        (rows as Array<{ companyId: string }>).every((row) => row.companyId === companyIds.dc),
         `${table} contains only the requested tenant`
       );
     }
@@ -287,7 +287,7 @@ test.group('M1 database contract', (group) => {
     await db.from('clients').where('id', 'm1-dc-client').update({ archived_at: stamp });
     await db.from('projects').where('id', 'm1-dc-project').update({ deleted_at: stamp });
 
-    const active = await readState(accountIds.dc);
+    const active = await readState(companyIds.dc);
     assert.notInclude(
       active.clients.map((row) => row.id),
       'm1-dc-client'
@@ -297,7 +297,7 @@ test.group('M1 database contract', (group) => {
       'm1-dc-project'
     );
 
-    const complete = await readState(accountIds.dc, true);
+    const complete = await readState(companyIds.dc, true);
     assert.includeMembers(
       complete.clients.map((row) => row.id),
       ['m1-dc-client']
@@ -315,7 +315,7 @@ test.group('M1 database contract', (group) => {
     await db.table('clients').insert(
       names.map((name, index) => ({
         id: `m1-string-client-${index}`,
-        company_id: accountIds.dc,
+        company_id: companyIds.dc,
         name,
         color: '#111111',
         created_at: stamp,
@@ -381,7 +381,7 @@ test.group('M1 database contract', (group) => {
 
     await db
       .from('accounts')
-      .where('id', accountIds.dc)
+      .where('id', companyIds.dc)
       .update({ capacity_overview_access: JSON.stringify('all_users') });
     await assert.rejects(
       () => readState(),
@@ -471,7 +471,7 @@ test.group('M1 database contract', (group) => {
     ];
     for (const [index, table] of scopedTables.entries()) {
       await assert.rejects(
-        () => db.from(table).where('id', ids[index]!).update({ company_id: accountIds.marvel }),
+        () => db.from(table).where('id', ids[index]!).update({ company_id: companyIds.marvel }),
         /company_id is immutable/
       );
     }
@@ -534,7 +534,7 @@ test.group('M1 database contract', (group) => {
     await db.table('account_member_resources').insert([
       {
         id: 'm1-dc-member-resource',
-        company_id: accountIds.dc,
+        company_id: companyIds.dc,
         user_id: 'm1-dc-user',
         resource_id: 'm1-dc-resource',
         revision: stamp,
@@ -543,7 +543,7 @@ test.group('M1 database contract', (group) => {
       },
       {
         id: 'm1-marvel-member-resource',
-        company_id: accountIds.marvel,
+        company_id: companyIds.marvel,
         user_id: 'm1-marvel-user',
         resource_id: 'm1-marvel-resource',
         revision: stamp,
@@ -563,7 +563,7 @@ test.group('M1 database contract', (group) => {
     assert,
   }) => {
     const association = {
-      company_id: accountIds.dc,
+      company_id: companyIds.dc,
       revision: stamp,
       created_at: stamp,
       updated_at: stamp,
@@ -604,7 +604,7 @@ test.group('M1 database contract', (group) => {
           operation === 'SELECT *'
             ? `EXPLAIN QUERY PLAN SELECT * FROM ${table} WHERE ${column} = ?`
             : `EXPLAIN QUERY PLAN DELETE FROM ${table} WHERE ${column} = ?`;
-        const plan = await db.rawQuery(query, [accountIds.dc]);
+        const plan = await db.rawQuery(query, [companyIds.dc]);
         const details = JSON.stringify(plan);
         assert.match(
           details,
@@ -695,15 +695,15 @@ test.group('M1 database contract', (group) => {
   test('account deletion cascades exactly its scoped rows and preserves the other account', async ({
     assert,
   }) => {
-    await db.from('accounts').where('id', accountIds.dc).delete();
+    await db.from('accounts').where('id', companyIds.dc).delete();
     for (const table of scopedTables) {
       assert.equal(
-        await rowCount(table, { company_id: accountIds.dc }),
+        await rowCount(table, { company_id: companyIds.dc }),
         0,
         `${table} rows should cascade`
       );
       assert.isAbove(
-        await rowCount(table, { company_id: accountIds.marvel }),
+        await rowCount(table, { company_id: companyIds.marvel }),
         0,
         `${table} keeps Marvel rows or seeded content`
       );

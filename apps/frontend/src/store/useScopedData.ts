@@ -13,15 +13,15 @@ const activeCache = new WeakMap<AppData, AppData>();
  */
 export function resolveSharedScopedData(data: AppData, companyId: string | null): AppData {
   if (!companyId) return emptyScopedData;
-  let scopedDataByAccountId = scopedCache.get(data);
-  if (!scopedDataByAccountId) {
-    scopedDataByAccountId = new Map();
-    scopedCache.set(data, scopedDataByAccountId);
+  let scopedDataByCompanyId = scopedCache.get(data);
+  if (!scopedDataByCompanyId) {
+    scopedDataByCompanyId = new Map();
+    scopedCache.set(data, scopedDataByCompanyId);
   }
-  let scoped = scopedDataByAccountId.get(companyId);
+  let scoped = scopedDataByCompanyId.get(companyId);
   if (!scoped) {
     scoped = scopeData(data, companyId);
-    scopedDataByAccountId.set(companyId, scoped);
+    scopedDataByCompanyId.set(companyId, scoped);
   }
   return scoped;
 }
@@ -39,13 +39,13 @@ export function resolveSharedActiveData(data: AppData): AppData {
 /**
  * The read-side seam for multi-tenancy. Components receive only the active account's entities.
  *
- * Memoised on `(data, activeAccountId)` so the scoped object is stable between renders, avoiding the
+ * Memoised on `(data, activeCompanyId)` so the scoped object is stable between renders, avoiding the
  * `useSyncExternalStore` fresh-object trap.
  *
  * @returns The active account's {@link AppData} slice, or an empty `AppData` when no account is active.
  */
 export function useScopedData(): AppData {
-  return useStore((state) => resolveSharedScopedData(state.data, state.activeAccountId));
+  return useStore((state) => resolveSharedScopedData(state.data, state.activeCompanyId));
 }
 
 /**

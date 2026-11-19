@@ -8,7 +8,7 @@ import {
 import { LoggerFactory } from '@adonisjs/logger/factories';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
-import Account from '#models/account';
+import Company from '#models/company';
 import logger from '@adonisjs/core/services/logger';
 import env from '#start/env';
 import loggerConfig from '#config/logger';
@@ -139,11 +139,11 @@ test.group('general HTTP logging privacy', (group) => {
   }) => {
     client = await resetAuthenticatedClient(client, true);
     const secret = 'SENTINEL_DISABLED_LOG_PRIVATE_EXCEPTION';
-    const originalQuery = Account.query;
+    const originalQuery = Company.query;
     env.set('CAPACITYLENS_LOG', '0');
-    Account.query = (() => {
+    Company.query = (() => {
       throw new Error(secret);
-    }) as typeof Account.query;
+    }) as typeof Company.query;
     try {
       const { output, result } = await captureLogs(() =>
         client.get('/api/state?companyId=a-studio').send()
@@ -157,7 +157,7 @@ test.group('general HTTP logging privacy', (group) => {
       assert.notInclude(output, 'http.request.completed');
       assert.notInclude(output, secret);
     } finally {
-      Account.query = originalQuery;
+      Company.query = originalQuery;
       env.set('CAPACITYLENS_LOG', '1');
     }
   });
@@ -291,10 +291,10 @@ test.group('general HTTP logging privacy', (group) => {
     assert,
   }) => {
     client = await resetAuthenticatedClient(client, true);
-    const originalQuery = Account.query;
-    Account.query = (() => {
+    const originalQuery = Company.query;
+    Company.query = (() => {
       throw new Error(privateError);
-    }) as typeof Account.query;
+    }) as typeof Company.query;
     try {
       const captured = await captureLogs(() => client.get('/api/state?companyId=a-studio').send());
       assert.notInclude(captured.output, privateError);
@@ -304,7 +304,7 @@ test.group('general HTTP logging privacy', (group) => {
       assert.include(captured.output, '/api/state');
       assert.include(captured.output, '500');
     } finally {
-      Account.query = originalQuery;
+      Company.query = originalQuery;
     }
   });
 });

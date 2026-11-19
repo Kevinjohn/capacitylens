@@ -73,7 +73,7 @@ function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
       ...overrides,
     }),
   );
-  useStore.getState().setActiveAccount('a1');
+  useStore.getState().setActiveCompany('a1');
 }
 
 beforeEach(() => {

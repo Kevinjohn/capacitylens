@@ -12,7 +12,7 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { applyGesture } from '@/lib/gestureMath';
 import type { DateRange, DragMode } from '@/lib/gestureMath';
 import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
-import { buildVisibleRange, listAccountWorkingDays } from '@/store/selectors';
+import { buildVisibleRange, listCompanyWorkingDays } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import {
   reconcileReassignedHours,
@@ -68,7 +68,7 @@ function readGestureCalendar(): GestureCalendar {
   const state = useStore.getState();
   return {
     resources: state.data.resources,
-    accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
+    companyWorkingDays: listCompanyWorkingDays(state.data, state.activeCompanyId),
   };
 }
 
@@ -216,7 +216,7 @@ function reconcileCommitHours({ options, targetResourceId, dates, hours }: Recon
     startDate: dates.startDate,
     effectiveWeek: effectiveWorkingWeek(
       target,
-      listAccountWorkingDays(state.data, state.activeAccountId),
+      listCompanyWorkingDays(state.data, state.activeCompanyId),
     ),
   });
 }
@@ -340,7 +340,7 @@ async function saveKeyboardGesture(
 ) {
   const { bar } = options;
   const { next, rescale } = input;
-  const { activeAccountId, setNotice, updateAllocation, announceCapacity } = useStore.getState();
+  const { activeCompanyId, setNotice, updateAllocation, announceCapacity } = useStore.getState();
   try {
     const updated = await updateAllocation(bar.allocation.id, {
       ...next,
@@ -359,7 +359,7 @@ async function saveKeyboardGesture(
     if (useStore.getState().planning.pending === null) {
       announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
     }
-    scheduleFocus(bar.allocation.id, activeAccountId);
+    scheduleFocus(bar.allocation.id, activeCompanyId);
   } catch (error) {
     // Surface a refused gesture commit so preview feedback cannot imply that a rejected move saved.
     if (isShownByPlanningState(error)) return;

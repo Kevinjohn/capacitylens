@@ -3,7 +3,7 @@ import { screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
-import { DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { setUpAppShellTests, renderAppShell, renderAuthenticated } from './AppShell.testSupport';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
@@ -19,7 +19,7 @@ it('shows a fail-closed banner while a member view is starting', () => {
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_COMPANY_ID, targetUserId: 'u-viewer' },
   });
 
   renderAppShell({});
@@ -33,9 +33,9 @@ it('offers projection recovery after the server has prepared a starting member v
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_COMPANY_ID, targetUserId: 'u-viewer' },
     state: {
-      companyId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_COMPANY_ID,
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
@@ -57,9 +57,9 @@ it('hides old actor route data during a member-view projection while keeping rec
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_COMPANY_ID, targetUserId: 'u-viewer' },
     state: {
-      companyId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_COMPANY_ID,
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
@@ -94,9 +94,9 @@ it('offers Retry and End when an authenticated cold member view has no selected 
   useStore.getState().setMasquerade({
     kind: 'starting',
     generation: 1,
-    pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+    pending: { companyId: DEFAULT_COMPANY_ID, targetUserId: 'u-viewer' },
     state: {
-      companyId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_COMPANY_ID,
       targetUserId: 'u-viewer',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',

@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import { FIXTURE_ACCOUNT, FIXTURE_RESOURCE_PERSON } from '@capacitylens/shared/data/fixtures';
+import { FIXTURE_COMPANY, FIXTURE_RESOURCE_PERSON } from '@capacitylens/shared/data/fixtures';
 import {
   emptyAppData,
   type AppData,
@@ -12,7 +12,7 @@ import {
   type RepeatRange,
 } from '#services/planning/repeat_occurrences';
 
-const companyId = FIXTURE_ACCOUNT.id;
+const companyId = FIXTURE_COMPANY.id;
 const first = {
   resourceId: FIXTURE_RESOURCE_PERSON.id,
   startDate: '2026-06-01',
@@ -23,7 +23,7 @@ function companyData(schedulingMode: SchedulingMode): AppData {
   return {
     ...emptyAppData(),
     accounts: [
-      { ...FIXTURE_ACCOUNT, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
+      { ...FIXTURE_COMPANY, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
     ],
     resources: [{ ...FIXTURE_RESOURCE_PERSON, workingDays: [1, 2, 3] }],
   };

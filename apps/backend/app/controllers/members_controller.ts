@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { isAccountRole, isMembershipStatus } from '@capacitylens/shared/account/types';
+import { isRole, isMembershipStatus } from '@capacitylens/shared/account/types';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
@@ -70,7 +70,7 @@ export default class MembersController {
 
   async changeRole(ctx: HttpContext) {
     const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['role']) || !isAccountRole(body.role)) {
+    if (!hasOnlyFields(body, ['role']) || !isRole(body.role)) {
       return ctx.response.badRequest({ error: 'Invalid member role.' });
     }
     const role = body.role;

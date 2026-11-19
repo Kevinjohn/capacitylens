@@ -8,7 +8,7 @@ import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement
 import { newId } from '@capacitylens/shared/lib/id';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { Allocation, AppData, ID } from '@capacitylens/shared/types/entities';
 import {
   buildAllocationCreate,
@@ -33,7 +33,7 @@ type AllocationSlice = Pick<
 /** Store capabilities used by allocation actions. */
 export type AllocationSliceInternals = Pick<
   StoreInternals,
-  'requireAccount' | 'blockedByViewer' | 'assertAllocation' | 'resolveOwnedRow' | 'applyPatch'
+  'requireCompany' | 'blockedByViewer' | 'assertAllocation' | 'resolveOwnedRow' | 'applyPatch'
 >;
 
 function assertSuppliedHours(hours: number): void {
@@ -49,7 +49,7 @@ function assertNewAllocations(
   inputs: readonly Draft<Allocation>[],
 ): void {
   const account = data.accounts.find((candidate) => candidate.id === companyId);
-  const accountWorkingDays = normalizeAccountWorkingDays(
+  const companyWorkingDays = normalizeCompanyWorkingDays(
     account?.workingDays,
     account?.weekStartsOn ?? 1,
   );
@@ -68,7 +68,7 @@ function assertNewAllocations(
       (candidate) => candidate.companyId === companyId && candidate.id === allocation.resourceId,
     );
     if (resource) {
-      assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
+      assertAllocationWithinResourceAvailability({ allocation, resource, companyWorkingDays });
     }
   }
 }
@@ -83,12 +83,12 @@ function assertAvailabilityAfterPlacementChange(
       candidate.companyId === existing.companyId && candidate.id === effective.resourceId,
   );
   const account = data.accounts.find((candidate) => candidate.id === existing.companyId);
-  const accountWorkingDays = normalizeAccountWorkingDays(
+  const companyWorkingDays = normalizeCompanyWorkingDays(
     account?.workingDays,
     account?.weekStartsOn ?? 1,
   );
   if (resource) {
-    assertAllocationPlacement({ allocation: effective, existing, resource, accountWorkingDays });
+    assertAllocationPlacement({ allocation: effective, existing, resource, companyWorkingDays });
   }
 }
 
@@ -118,12 +118,12 @@ export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
-    const { requireAccount, blockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } =
+    const { requireCompany, blockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } =
       internals;
     const send = (command: PlanningCommand) => get().sendPlanningCommand(command);
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
       if (inputs.length === 0) throw new Error('At least one allocation is required.');
-      const companyId = requireAccount();
+      const companyId = requireCompany();
       if (blockedByViewer()) return null;
       const data = get().data;
       for (const input of inputs) assertSuppliedHours(input.hoursPerDay);

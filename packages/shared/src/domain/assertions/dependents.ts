@@ -16,7 +16,7 @@ import type {
   Resource,
   TimeOff,
 } from '../../types/entities.js';
-import { belongsToAccount } from '../tenancy.js';
+import { belongsToCompany } from '../tenancy.js';
 import { throwDomainError } from '../errors.js';
 import type { DomainErrorCode } from '../errors.js';
 import {
@@ -89,7 +89,7 @@ function assertResourceKindAllowsDependents({
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
   const isOwnedByResource = (entity: Allocation | TimeOff) =>
-    entity.resourceId === resourceId && belongsToAccount(entity, companyId);
+    entity.resourceId === resourceId && belongsToCompany(entity, companyId);
   const hasLoadedAllocation = lookup
     ? lookup.resourceHasLoadedAllocation(companyId, resourceId)
     : data.allocations.some(

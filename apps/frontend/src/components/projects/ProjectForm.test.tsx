@@ -7,7 +7,7 @@ import type { ReactElement } from 'react';
 import userEvent from '@testing-library/user-event';
 import { ProjectForm } from './ProjectForm';
 import { useStore } from '@/store/useStore';
-import { loadPlanningData, DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, DEFAULT_COMPANY_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -27,7 +27,7 @@ function renderOwner(ui: ReactElement, options?: Parameters<typeof render>[1]) {
 describe('ProjectForm', () => {
   const installInternalClient = async () => {
     const state = useStore.getState();
-    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
+    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z');
     loadPlanningData({ ...state.data, clients: [...state.data.clients, internal] });
     await useStore.getState().refreshPlanning();
     return internal;

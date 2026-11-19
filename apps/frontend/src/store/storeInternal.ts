@@ -12,11 +12,11 @@ const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
 
 /** Create the guard and patch capabilities shared by canonical planning actions. */
 export function createStoreInternals(get: () => StoreState) {
-  const { requireAccount, blockedByViewer, resolveOwnedRow, assertAllocation } = createGuards(get);
+  const { requireCompany, blockedByViewer, resolveOwnedRow, assertAllocation } = createGuards(get);
 
   return {
     applyPatch,
-    requireAccount,
+    requireCompany,
     blockedByViewer,
     resolveOwnedRow,
     assertAllocation,

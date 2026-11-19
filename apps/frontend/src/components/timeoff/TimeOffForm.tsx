@@ -155,7 +155,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
   const addRepeated = useStore((state) => state.addRepeatedTimeOff);
   const update = useStore((state) => state.updateTimeOff);
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
   );
   const today = useCompanyToday();
   const resources = useActiveScopedData().resources;

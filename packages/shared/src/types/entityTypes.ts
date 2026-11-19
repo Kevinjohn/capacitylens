@@ -79,8 +79,8 @@ export interface Entity {
   updatedAt: ISOTimestamp;
 }
 
-/** A tenant. Top-level: not scoped to any other account. */
-export interface Account extends Entity {
+/** A company, the tenant. Top-level: not scoped to any other company. */
+export interface Company extends Entity {
   name: string;
   color: string;
   /** How this company enters allocations. Null = 'hourly'. */
@@ -282,7 +282,7 @@ export interface Closure extends ScopedEntity {
 
 /** Every portable table, as held in memory and exported. */
 export interface AppData {
-  accounts: Account[];
+  accounts: Company[];
   disciplines: Discipline[];
   resources: Resource[];
   clients: Client[];

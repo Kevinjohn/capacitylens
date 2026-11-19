@@ -9,14 +9,14 @@ import type { StoreState } from '@/store/types';
 type AccountSlice = Pick<
   StoreState,
   | 'data'
-  | 'activeAccountId'
-  | 'accountSummaries'
-  | 'accountSummariesComplete'
-  | 'accountSummariesAmbiguous'
-  | 'accountSummariesRequestId'
-  | 'setActiveAccount'
-  | 'beginAccountSummariesRequest'
-  | 'setAccountSummaries'
+  | 'activeCompanyId'
+  | 'companySummaries'
+  | 'companySummariesComplete'
+  | 'companySummariesAmbiguous'
+  | 'companySummariesRequestId'
+  | 'setActiveCompany'
+  | 'beginCompanySummariesRequest'
+  | 'setCompanySummaries'
 >;
 
 type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
@@ -30,12 +30,12 @@ function resolveAccountSelection(
   if (
     rawId === null ||
     get().data.accounts.some((account) => account.id === rawId) ||
-    get().accountSummaries.some((account) => account.id === rawId)
+    get().companySummaries.some((account) => account.id === rawId)
   ) {
     return { id: rawId, unknown: false };
   }
   console.warn(
-    `setActiveAccount: no company with id ${JSON.stringify(rawId)} — clearing selection`,
+    `setActiveCompany: no company with id ${JSON.stringify(rawId)} — clearing selection`,
   );
   return { id: null, unknown: true };
 }
@@ -54,21 +54,21 @@ function buildAccountNoticeTransition({
   return switching ? { notice: null, ...buildClearedSession() } : {};
 }
 
-function createSetActiveAccountAction(
+function createSetActiveCompanyAction(
   set: AccountSliceSet,
   get: AccountSliceGet,
-): StoreState['setActiveAccount'] {
+): StoreState['setActiveCompany'] {
   return (rawId) => {
     const { id, unknown } = resolveAccountSelection(rawId, get);
     set((state) => {
-      const switching = id !== state.activeAccountId;
+      const switching = id !== state.activeCompanyId;
       return {
-        activeAccountId: id,
-        activeAccountLoadFailed:
+        activeCompanyId: id,
+        activeCompanyLoadFailed:
           id === null ||
-          (state.activeAccountLoadFailed !== null && state.activeAccountLoadFailed !== id)
+          (state.activeCompanyLoadFailed !== null && state.activeCompanyLoadFailed !== id)
             ? null
-            : state.activeAccountLoadFailed,
+            : state.activeCompanyLoadFailed,
         activeRole: switching && state.activeRole !== null ? 'viewer' : state.activeRole,
         activeRoleStatus:
           switching && state.activeRole !== null ? 'pending' : state.activeRoleStatus,
@@ -83,25 +83,25 @@ function createSetActiveAccountAction(
   };
 }
 
-function createSetAccountSummariesAction(
+function createSetCompanySummariesAction(
   set: AccountSliceSet,
   get: AccountSliceGet,
-): StoreState['setAccountSummaries'] {
+): StoreState['setCompanySummaries'] {
   return ({ list, requestId, complete = true, ambiguous = false }) => {
     if (requestId !== undefined) {
-      if (requestId !== get().accountSummariesRequestId) return false;
+      if (requestId !== get().companySummariesRequestId) return false;
       set({
-        accountSummaries: list,
-        accountSummariesComplete: complete,
-        accountSummariesAmbiguous: ambiguous,
+        companySummaries: list,
+        companySummariesComplete: complete,
+        companySummariesAmbiguous: ambiguous,
       });
       return true;
     }
     set((state) => ({
-      accountSummaries: list,
-      accountSummariesComplete: complete,
-      accountSummariesAmbiguous: ambiguous,
-      accountSummariesRequestId: state.accountSummariesRequestId + 1,
+      companySummaries: list,
+      companySummariesComplete: complete,
+      companySummariesAmbiguous: ambiguous,
+      companySummariesRequestId: state.companySummariesRequestId + 1,
     }));
     return true;
   };
@@ -112,20 +112,20 @@ export function createAccountSlice(): StateCreator<StoreState, [], [], AccountSl
   return (set, get) => {
     return {
       data: emptyAppData(),
-      activeAccountId: null,
-      accountSummaries: [],
-      accountSummariesComplete: false,
-      accountSummariesAmbiguous: false,
-      accountSummariesRequestId: 0,
-      setActiveAccount: createSetActiveAccountAction(set, get),
+      activeCompanyId: null,
+      companySummaries: [],
+      companySummariesComplete: false,
+      companySummariesAmbiguous: false,
+      companySummariesRequestId: 0,
+      setActiveCompany: createSetActiveCompanyAction(set, get),
 
       // Directory state is transient and never part of AppData/export.
-      beginAccountSummariesRequest: () => {
-        const requestId = get().accountSummariesRequestId + 1;
-        set({ accountSummariesRequestId: requestId });
+      beginCompanySummariesRequest: () => {
+        const requestId = get().companySummariesRequestId + 1;
+        set({ companySummariesRequestId: requestId });
         return requestId;
       },
-      setAccountSummaries: createSetAccountSummariesAction(set, get),
+      setCompanySummaries: createSetCompanySummariesAction(set, get),
     };
   };
 }

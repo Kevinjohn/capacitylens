@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '@/store/useStore';
-import type { AccountSummary } from '@/store/useStore';
-import { isAccountRole } from '@capacitylens/shared/account/types';
+import type { CompanySummary } from '@/store/useStore';
+import { isRole } from '@capacitylens/shared/account/types';
 import { parseAccessGrant } from './accessGrant';
 import { sessionRequests } from '@/account/sessionRequests';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
@@ -15,42 +15,42 @@ import { api, scopeQueryKey } from '@/api/queryClient';
 
 // Validate directory entries before publication. Unknown roles and malformed grants remain
 // selectable but fail closed without claiming an authoritative Viewer membership.
-function parseAccountSummary(entry: unknown): AccountSummary | null {
+function parseCompanySummary(entry: unknown): CompanySummary | null {
   if (!isRecord(entry)) return null;
   if (typeof entry.id !== 'string' || entry.id.length === 0) return null;
   if (typeof entry.name !== 'string') return null;
   const grant = parseAccessGrant(entry);
-  if (!isAccountRole(entry.role) || !grant) {
+  if (!isRole(entry.role) || !grant) {
     console.warn(
-      'fetchAccountSummaries: /api/companies returned an unrecognized role or grant; marking it unavailable',
+      'fetchCompanySummaries: /api/companies returned an unrecognized role or grant; marking it unavailable',
     );
     return { id: entry.id, name: entry.name, role: 'viewer', roleStatus: 'unavailable' };
   }
   return { id: entry.id, name: entry.name, role: entry.role, grant };
 }
 
-type AccountSummaryParseOutcome =
-  | { kind: 'accepted'; valid: AccountSummary[]; complete: boolean; droppedCount: number }
+type CompanySummaryParseOutcome =
+  | { kind: 'accepted'; valid: CompanySummary[]; complete: boolean; droppedCount: number }
   | { kind: 'rejected'; droppedCount: number };
 
-function parseAccountSummaryList(body: unknown): AccountSummaryParseOutcome {
+function parseCompanySummaryList(body: unknown): CompanySummaryParseOutcome {
   if (!Array.isArray(body)) {
     console.warn(
-      'fetchAccountSummaries: /api/companies returned a non-array body; reporting null (callers keep their existing list)',
+      'fetchCompanySummaries: /api/companies returned a non-array body; reporting null (callers keep their existing list)',
     );
     return { kind: 'rejected', droppedCount: 0 };
   }
   const valid = body
-    .map(parseAccountSummary)
-    .filter((state): state is AccountSummary => state !== null);
+    .map(parseCompanySummary)
+    .filter((state): state is CompanySummary => state !== null);
   const droppedCount = body.length - valid.length;
   if (droppedCount > 0) {
-    console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/companies row(s)`);
+    console.warn(`fetchCompanySummaries: dropped ${droppedCount} malformed /api/companies row(s)`);
   }
   if (body.length > 0 && valid.length === 0) return { kind: 'rejected', droppedCount };
   if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
     console.warn(
-      'fetchAccountSummaries: /api/companies returned duplicate account identities; reporting null',
+      'fetchCompanySummaries: /api/companies returned duplicate account identities; reporting null',
     );
     return { kind: 'rejected', droppedCount };
   }
@@ -73,7 +73,7 @@ function applyLiveAccountSummaryEffects(options: ApplyLiveAccountSummaryEffectsO
 }
 
 function applyAccountSummaryParseEffects(
-  outcome: AccountSummaryParseOutcome,
+  outcome: CompanySummaryParseOutcome,
   acceptEffects: () => boolean,
 ): void {
   if (outcome.droppedCount > 0 && acceptEffects()) {
@@ -83,7 +83,7 @@ function applyAccountSummaryParseEffects(
 
 function reportAccountSummaryFailure(error: unknown): null {
   console.warn(
-    'fetchAccountSummaries: /api/companies read failed; reporting null (callers keep their existing list)',
+    'fetchCompanySummaries: /api/companies read failed; reporting null (callers keep their existing list)',
     error,
   );
   return null;
@@ -106,24 +106,24 @@ export async function readSoleCompanyOwnership(): Promise<boolean> {
 }
 
 /** Reads the validated company directory. Null means the read failed; only a genuine empty array means no companies. Mixed responses retain valid rows and log rejected entries. */
-export async function fetchAccountSummaries(requestOptions?: {
+export async function fetchCompanySummaries(requestOptions?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
   /** Reports whether the returned live list is complete enough to prove membership absence. */
   onCompleteness?: (complete: boolean) => void;
-}): Promise<AccountSummary[] | null> {
+}): Promise<CompanySummary[] | null> {
   const acceptEffects = requestOptions?.acceptEffects ?? (() => true);
   try {
     const res = await sessionRequests.listCompanies(requestOptions?.signal);
     if (!res.ok) {
       if (res.status === 409 && acceptEffects()) {
-        useStore.getState().setAccountSummaries({ list: [], complete: false, ambiguous: true });
+        useStore.getState().setCompanySummaries({ list: [], complete: false, ambiguous: true });
         useStore.getState().setNotice(m.account_directory_ambiguous(), 'warning');
       }
       return null;
     }
     const body: unknown = await res.json();
-    const parsed = parseAccountSummaryList(body);
+    const parsed = parseCompanySummaryList(body);
     applyAccountSummaryParseEffects(parsed, acceptEffects);
     if (parsed.kind === 'rejected') return null;
     applyLiveAccountSummaryEffects({
@@ -143,17 +143,17 @@ export async function fetchAccountSummaries(requestOptions?: {
  * to replace the company directory. The fetched list is also returned to reconcile active-account
  * selection; only publication to the shared store is sequenced.
  */
-export async function refreshAccountSummaries(requestOptions?: {
+export async function refreshCompanySummaries(requestOptions?: {
   signal?: AbortSignal;
   acceptEffects?: () => boolean;
-  preserveActiveAccountIfMissing?: boolean;
-}): Promise<AccountSummary[] | null> {
+  preserveActiveCompanyIfMissing?: boolean;
+}): Promise<CompanySummary[] | null> {
   const callerAcceptsEffects = requestOptions?.acceptEffects ?? (() => true);
-  const requestId = useStore.getState().beginAccountSummariesRequest();
+  const requestId = useStore.getState().beginCompanySummariesRequest();
   const requestIsCurrent = () =>
-    callerAcceptsEffects() && useStore.getState().accountSummariesRequestId === requestId;
+    callerAcceptsEffects() && useStore.getState().companySummariesRequestId === requestId;
   const completeness = { value: false };
-  const list = await fetchAccountSummaries({
+  const list = await fetchCompanySummaries({
     ...requestOptions,
     acceptEffects: requestIsCurrent,
     onCompleteness: (value) => {
@@ -163,18 +163,18 @@ export async function refreshAccountSummaries(requestOptions?: {
   if (list !== null && callerAcceptsEffects()) {
     const published = useStore
       .getState()
-      .setAccountSummaries({ list, requestId, complete: completeness.value });
-    const activeAccountId = useStore.getState().activeAccountId;
+      .setCompanySummaries({ list, requestId, complete: completeness.value });
+    const activeCompanyId = useStore.getState().activeCompanyId;
     if (
       published &&
       completeness.value &&
-      requestOptions?.preserveActiveAccountIfMissing !== true &&
-      activeAccountId !== null &&
-      !list.some((account) => account.id === activeAccountId)
+      requestOptions?.preserveActiveCompanyIfMissing !== true &&
+      activeCompanyId !== null &&
+      !list.some((account) => account.id === activeCompanyId)
     ) {
       // Internal membership repair: the authoritative directory proved this account is no longer
       // accessible, so close it synchronously before publishing the explanatory notice.
-      useStore.getState().setActiveAccount(null);
+      useStore.getState().setActiveCompany(null);
       useStore.getState().setNotice(m.notice_company_access_removed(), 'warning');
     }
   }
@@ -182,28 +182,28 @@ export async function refreshAccountSummaries(requestOptions?: {
 }
 
 /** Keeps the account directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list. */
-export function useAccountSummaries(): void {
+export function useCompanySummaries(): void {
   // Re-key the request owner on the active account so a sign-in or membership change re-pulls the list.
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const membershipRevision = useStore((state) => state.membershipRevision);
   const masqueradeGeneration = useStore((state) =>
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const { user } = useAuth();
-  const accountRouteKey = api.api.accounts.index.queryKey({});
-  useQuery<AccountSummary[] | null>({
+  const accountRouteKey = api.api.companies.index.queryKey({});
+  useQuery<CompanySummary[] | null>({
     queryKey: scopeQueryKey(
-      { principalId: user?.id ?? null, companyId: activeAccountId, masqueradeGeneration },
+      { principalId: user?.id ?? null, companyId: activeCompanyId, masqueradeGeneration },
       ['account-summaries', membershipRevision, ...accountRouteKey],
     ),
-    enabled: !masqueradeActive && activeAccountId === null,
+    enabled: !masqueradeActive && activeCompanyId === null,
     // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not
     // silently change the company directory.
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     queryFn: ({ signal }) =>
-      refreshAccountSummaries({
+      refreshCompanySummaries({
         signal,
         acceptEffects: () => !signal.aborted,
       }),

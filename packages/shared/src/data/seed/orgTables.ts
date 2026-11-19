@@ -1,6 +1,6 @@
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import type { AppData } from '../../types/entities.js';
-import { defaultAccountWorkingDays } from '../../lib/accountWorkingDays.js';
+import { defaultCompanyWorkingDays } from '../../lib/accountWorkingDays.js';
 import { buildInternalClient } from '../internalClient.js';
 import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
 
@@ -15,7 +15,7 @@ const ORG_TABLES: OrgTables = {
       updatedAt: SEED_TIMESTAMP,
       name: 'Wayne Enterprises',
       color: '#2d75da',
-      workingDays: defaultAccountWorkingDays(),
+      workingDays: defaultCompanyWorkingDays(),
     },
     {
       ...NULLABLE_FIELDS.accounts,
@@ -24,7 +24,7 @@ const ORG_TABLES: OrgTables = {
       updatedAt: SEED_TIMESTAMP,
       name: 'Stark Industries',
       color: '#2d75da',
-      workingDays: defaultAccountWorkingDays(),
+      workingDays: defaultCompanyWorkingDays(),
     },
   ],
   disciplines: [

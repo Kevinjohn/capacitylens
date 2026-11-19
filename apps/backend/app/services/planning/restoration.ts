@@ -8,7 +8,7 @@ import {
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
 import { DomainError } from '@capacitylens/shared/domain/errors';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
 import { affectedRows } from '#services/affected_rows';
@@ -200,7 +200,7 @@ export async function restoreGroup(
   if (rows.length === 0) refuseRestorationConflict();
   const dependencies = await readStateWithClient(trx, companyId, true);
   const account = dependencies.accounts.find((row) => row.id === companyId);
-  const accountWorkingDays = normalizeAccountWorkingDays(
+  const companyWorkingDays = normalizeCompanyWorkingDays(
     account?.workingDays,
     account?.weekStartsOn === 0 ? 0 : 1
   );
@@ -224,7 +224,7 @@ export async function restoreGroup(
         if (!resource) {
           throw new Error('The allocation reference check above guarantees the resource exists.');
         }
-        assertAllocationPlacement({ allocation, resource, accountWorkingDays });
+        assertAllocationPlacement({ allocation, resource, companyWorkingDays });
       }
       if (entity === 'phases') assertScopedRefs(dependencies, companyId, 'phases', row);
       if (entity === 'timeOff') {
