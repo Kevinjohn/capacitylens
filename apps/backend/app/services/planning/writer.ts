@@ -8,7 +8,7 @@ import { assertFrozenCompanyFields } from '#services/planning/entity_policy';
 import { tables } from '#services/product_tables';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { assertEntityRow } from '#validators/entities/index';
+import { validateRow } from '#validators/planning/row';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 
 export { PlanningOperationError };
@@ -110,7 +110,7 @@ export async function updateSettings(
   }
   const now = createServerRevision(existing.updatedAt);
   candidate.updatedAt = now;
-  const validated = await assertEntityRow('accounts', candidate);
+  const validated = await validateRow('accounts', candidate);
   if (typeof validated.name === 'string') validated.name = cleanText(validated.name);
   // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
   fillNullableFields('accounts', validated);

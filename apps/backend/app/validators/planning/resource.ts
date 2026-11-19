@@ -1,6 +1,7 @@
 import vine from '@vinejs/vine';
 import {
   EMPLOYMENT_TYPES,
+  MAX_HOURS_PER_DAY,
   RESOURCE_ENGAGEMENTS,
   RESOURCE_KINDS,
 } from '@capacitylens/shared/types/entities';
@@ -41,7 +42,7 @@ const resourceFields = {
   employmentType: vine.enum(EMPLOYMENT_TYPES),
   engagement: vine.enum(RESOURCE_ENGAGEMENTS),
   workingHoursPerDay: number()
-    .max(24)
+    .max(MAX_HOURS_PER_DAY)
     .use(
       vine.createRule((value, _options, field) => {
         if (typeof value === 'number' && value > 0) return;

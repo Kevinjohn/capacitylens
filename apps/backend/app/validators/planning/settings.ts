@@ -6,6 +6,7 @@ import {
 } from '@capacitylens/shared/types/entities';
 import {
   boolean,
+  isSupportedTimeZone,
   meta,
   nameText,
   presetColor,
@@ -24,14 +25,7 @@ export const settingsChanges = {
     .string()
     .use(
       vine.createRule((value, _options, field) => {
-        if (typeof value === 'string' && value.length <= 128) {
-          try {
-            new Intl.DateTimeFormat(undefined, { timeZone: value });
-            return;
-          } catch {
-            // Report unsupported timezone values below.
-          }
-        }
+        if (isSupportedTimeZone(value)) return;
         field.report('The timezone must be supported.', 'timezone', field);
       })()
     )

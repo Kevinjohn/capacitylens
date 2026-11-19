@@ -1,3 +1,4 @@
+import { errors } from '@vinejs/vine';
 import {
   RESOURCE_KINDS,
   externalCapacityDefaults,
@@ -19,7 +20,7 @@ import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvat
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { requiredFields } from '@capacitylens/shared/types/entityFields';
-import { assertEntityRow } from '#validators/entities/index';
+import { validateRow } from '#validators/planning/row';
 import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
 import { assertEntityDomain } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
@@ -303,21 +304,14 @@ export async function prepareEntityWrite(
   if (table === 'resources' && existing) assertResourceKind(candidate, existing);
   try {
     const visible = buildValidationView(table, candidate, existing, context);
-    const validated = await assertEntityRow(table, visible);
+    const validated = await validateRow(table, visible);
     const preserved: Record<string, unknown> = {};
     for (const field of hidden) {
       if (Object.hasOwn(candidate, field)) preserved[field] = candidate[field];
     }
     candidate = { ...validated, ...preserved };
   } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      error.code === 'E_VALIDATION_ERROR' &&
-      'messages' in error &&
-      Array.isArray(error.messages)
-    ) {
+    if (error instanceof errors.E_VALIDATION_ERROR) {
       const first = error.messages[0];
       if (typeof first?.message === 'string') {
         throw new EntityWriteError(
