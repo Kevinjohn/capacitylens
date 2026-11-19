@@ -1,4 +1,4 @@
-import { apiRouteUrl } from '@/api/queryClient';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import { apiFetch } from '@/data/requestTimeout';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
@@ -53,7 +53,7 @@ export const gettingStartedClient = {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dismissed: true }),
+        body: buildJsonBody('api.getting-started.update', { dismissed: true }),
       },
     );
     if (!response.ok) throw new Error(`Getting started dismissal failed (${response.status})`);

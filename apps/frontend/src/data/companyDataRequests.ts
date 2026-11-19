@@ -1,4 +1,4 @@
-import { apiRouteUrl } from '@/api/queryClient';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
@@ -64,7 +64,7 @@ export const companyDataRequests = {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyId, document }),
+      body: buildJsonBody('api.transfer.preview', { companyId, document }),
     });
     if (!response.ok) {
       throw new Error(
@@ -106,7 +106,12 @@ export const companyDataRequests = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ companyId, document, baseRevision, confirmationId }),
+        body: buildJsonBody('api.transfer.apply', {
+          companyId,
+          document,
+          baseRevision,
+          confirmationId,
+        }),
       },
       API_BULK_TIMEOUT_MS,
     );
@@ -120,7 +125,7 @@ export const companyDataRequests = {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmationId }),
+        body: buildJsonBody('api.companies.anonymise', { confirmationId }),
       },
       API_BULK_TIMEOUT_MS,
     );
@@ -134,7 +139,7 @@ export const companyDataRequests = {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: buildJsonBody('api.resources.anonymise', {}),
       },
       API_BULK_TIMEOUT_MS,
     );

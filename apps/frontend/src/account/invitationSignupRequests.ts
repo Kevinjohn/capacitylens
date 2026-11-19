@@ -1,5 +1,5 @@
 import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl } from '@/api/queryClient';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { InvitationSignupBody } from './accountRequestTypes';
 
 /**
@@ -18,7 +18,7 @@ export const invitationSignupRequests = {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: buildJsonBody('api.invites.sign-up', body),
     });
   },
 };

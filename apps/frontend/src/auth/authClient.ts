@@ -1,8 +1,8 @@
 import { readHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { RequestArgs, ResponseOf } from '@tuyau/core/types';
-import type { registry } from '@capacitylens/backend/registry';
-import { client, apiRouteUrl } from '@/api/queryClient';
+import type { registry, Route } from '@capacitylens/backend/registry';
+import { client, apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { ProductRoutes } from '@/api/queryClient';
 import { apiFetch } from '@/data/requestTimeout';
 
@@ -42,22 +42,21 @@ type AuthRoute = Exclude<
 async function request<Name extends AuthRoute>(
   method: 'GET' | 'POST',
   name: Name,
-  body: unknown,
+  body: string | null,
 ): Promise<AuthApiResult<ResponseOf<ProductRoutes[Name]>>> {
   const response = await apiFetch(apiRouteUrl<AuthRoute>(name, {}), {
     method,
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
+    ...(body === null ? {} : { body }),
   });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) };
   return { data: payload as ResponseOf<ProductRoutes[Name]>, error: null };
 }
 
-// The remaining credential controllers validate bodies manually. Keep their existing transport
-// until their generated registry describes those inputs, while deriving successes from it.
-const post = <Name extends AuthRoute>(name: Name, body: unknown) => request('POST', name, body);
+const post = <Name extends AuthRoute>(name: Name, body: Route.Body<Name>) =>
+  request('POST', name, buildJsonBody(name, body));
 
 /** Typed browser client for the product's session, credential, confirmation and admission endpoints. */
 export const authClient = {

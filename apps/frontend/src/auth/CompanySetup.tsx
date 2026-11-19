@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiRouteUrl } from '@/api/queryClient';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import { apiFetch } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import {
@@ -55,7 +55,11 @@ export function CompanySetup({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: canonicalName, weekStartsOn, timeZone }),
+        body: buildJsonBody('api.installation.company', {
+          name: canonicalName,
+          weekStartsOn,
+          timeZone,
+        }),
       });
       if (response.status === 409 && (await onConflict())) return;
       if (!response.ok) throw new Error((await readApiError(response)) ?? m.company_setup_failed());

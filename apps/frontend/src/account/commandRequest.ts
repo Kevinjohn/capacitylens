@@ -57,18 +57,15 @@ export function buildCommandRequestInit(
   return { ...requestOptions, headers };
 }
 
-/** Builds a JSON request carrying the account command identity. */
+/** Builds a JSON request carrying the account command identity; `body` comes from `buildJsonBody`. */
 export function buildJsonCommandRequestInit(
   // DELETE carries a body for exactly one caller: the ceremony cancellation, whose expected
   // revision is the compare half of a transition rather than an identifier, so it belongs in the
   // payload the server hashes, not in the path.
   method: 'POST' | 'PATCH' | 'DELETE',
-  body: unknown,
+  body: string,
   command?: BrowserAccountCommand,
 ): RequestInit {
   const headers = new Headers({ 'Content-Type': 'application/json' });
-  return buildCommandRequestInit(
-    { method, credentials: 'include', headers, body: JSON.stringify(body) },
-    command,
-  );
+  return buildCommandRequestInit({ method, credentials: 'include', headers, body }, command);
 }

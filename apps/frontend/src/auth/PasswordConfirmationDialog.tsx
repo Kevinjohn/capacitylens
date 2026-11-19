@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { apiRouteUrl } from '@/api/queryClient';
+import type { Route } from '@capacitylens/backend/registry';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import { apiFetch } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { Modal } from '@/components/common/ui';
@@ -8,23 +9,27 @@ import { Input } from '@/components/ui/input';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { m } from '@/i18n';
 
-type Action = 'transfer-ownership' | 'import' | 'anonymise';
+type ConfirmationBody = Route.Body<'api.auth.password-confirmation'>;
 
-interface PasswordConfirmationDialogProps {
-  action: Action;
+/** One action with its own intent shape, as the generated request body pairs them. */
+export type PasswordConfirmationRequest = ConfirmationBody extends infer Body
+  ? Body extends { action: unknown; intent: unknown }
+    ? Pick<Body, 'action' | 'intent'>
+    : never
+  : never;
+
+type PasswordConfirmationDialogProps = PasswordConfirmationRequest & {
   companyId: string;
-  intent: object;
   onConfirmed: (confirmationId: string) => void;
   onCancel: () => void;
-}
+};
 
 /** Confirms one exact action; each dialog receives only its own confirmation id. */
 export function PasswordConfirmationDialog({
-  action,
   companyId,
-  intent,
   onConfirmed,
   onCancel,
+  ...request
 }: PasswordConfirmationDialogProps) {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -36,12 +41,11 @@ export function PasswordConfirmationDialog({
     setError(null);
     try {
       const url = apiRouteUrl('api.auth.password-confirmation', {});
-      const body = { action, companyId, intent, password };
       const response = await apiFetch(url, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: buildJsonBody('api.auth.password-confirmation', { ...request, companyId, password }),
       });
       if (!response.ok) {
         setError((await readApiError(response)) ?? m.reauth_failed());

@@ -1,5 +1,5 @@
 import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl } from '@/api/queryClient';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { BrowserAccountCommand } from './accountCommands';
 import { buildCommandRequestInit, runCommand } from './commandRequest';
 
@@ -46,7 +46,7 @@ export function buildMemberResourceLinkRequest(
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      body: buildJsonBody('api.member-resources.set', {
         resourceId: input.resourceId,
         expectedRevision: input.expectedRevision,
       }),
@@ -66,7 +66,7 @@ export function clearMemberResourceLinkRequest(
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expectedRevision }),
+      body: buildJsonBody('api.member-resources.clear', { expectedRevision }),
     },
   ];
 }

@@ -1,6 +1,6 @@
 import type { RequestArgs } from '@tuyau/core/types';
 import { client, apiReadRouteUrl } from './queryClient';
-import type { registry } from '@capacitylens/backend/registry';
+import type { registry, Route } from '@capacitylens/backend/registry';
 
 type Routes = typeof registry.routes;
 
@@ -50,4 +50,116 @@ export function checkOrdinaryRequestContracts() {
     invalidStatus,
     invalidInactive,
   };
+}
+
+/** Each body the browser builds is the generated validator input; a wrongly typed key fails here. */
+export function checkBodyContracts() {
+  return [
+    {
+      // @ts-expect-error The company name is a string.
+      name: 42,
+    } satisfies Route.Body<'api.installation.company'>,
+    {
+      document: {},
+      // @ts-expect-error The transfer preview names its company by id.
+      companyId: 42,
+    } satisfies Route.Body<'api.transfer.preview'>,
+    {
+      companyId: 'a-studio',
+      document: {},
+      // @ts-expect-error The base revision is a number.
+      baseRevision: null,
+    } satisfies Route.Body<'api.transfer.apply'>,
+    {
+      // @ts-expect-error The anonymisation confirmation id is a string.
+      confirmationId: 42,
+    } satisfies Route.Body<'api.companies.anonymise'>,
+    {
+      action: 'transfer-ownership',
+      companyId: 'a-studio',
+      password: 'secret',
+      intent: { toUserId: 42 },
+      // @ts-expect-error A transfer-ownership intent names the new owner by id.
+    } satisfies Route.Body<'api.auth.password-confirmation'>,
+    {
+      // @ts-expect-error The recovery email is a string.
+      email: 42,
+    } satisfies Route.Body<'api.auth.request-reset'>,
+    {
+      // @ts-expect-error The reset token is a string.
+      token: 42,
+    } satisfies Route.Body<'api.auth.inspect-reset'>,
+    {
+      token: 'token',
+      // @ts-expect-error The new password is a string.
+      newPassword: 42,
+    } satisfies Route.Body<'api.auth.reset-password'>,
+    {
+      newPassword: 'secret',
+      // @ts-expect-error The current password is a string.
+      currentPassword: 42,
+    } satisfies Route.Body<'api.auth.change-password'>,
+    {
+      // @ts-expect-error The current password is a string.
+      currentPassword: 42,
+    } satisfies Route.Body<'api.auth.delete-account'>,
+    {
+      // @ts-expect-error The confirmation token is a string.
+      token: 42,
+    } satisfies Route.Body<'api.auth.verification.inspect'>,
+    {
+      token: 'token',
+      // @ts-expect-error The chosen password is a string.
+      password: 42,
+    } satisfies Route.Body<'api.auth.verification.complete'>,
+    {
+      // @ts-expect-error Sign-in tracking is switched by a flag.
+      enabled: null,
+    } satisfies Route.Body<'api.members.tracking'>,
+    {
+      // @ts-expect-error A member role is one of the account roles.
+      role: 'superuser',
+    } satisfies Route.Body<'api.members.role'>,
+    {
+      // @ts-expect-error A member status is active or suspended.
+      status: 'deleted',
+    } satisfies Route.Body<'api.members.status'>,
+    {
+      companyId: 'a-studio',
+      email: 'clark@wayne.example',
+      // @ts-expect-error An owner is never invited.
+      role: 'owner',
+    } satisfies Route.Body<'api.invites.create'>,
+    {
+      name: 'Clark Kent',
+      // @ts-expect-error The invited person's password is a string.
+      password: 42,
+    } satisfies Route.Body<'api.invites.sign-up'>,
+    {
+      expectedRevision: null,
+      // @ts-expect-error The linked resource is named by id.
+      resourceId: 42,
+    } satisfies Route.Body<'api.member-resources.set'>,
+    {
+      // @ts-expect-error Clearing a link needs the revision it replaces.
+      expectedRevision: null,
+    } satisfies Route.Body<'api.member-resources.clear'>,
+    {
+      // @ts-expect-error The viewed member is named by id.
+      targetUserId: 42,
+    } satisfies Route.Body<'api.masquerade.start'>,
+    {
+      token: 'token',
+      // @ts-expect-error A view ends for one of two reasons.
+      reason: 'timeout',
+    } satisfies Route.Body<'api.masquerade.end'>,
+    {
+      // @ts-expect-error The new owner is named by id.
+      toUserId: 42,
+    } satisfies Route.Body<'api.ownership.transfer'>,
+    {
+      // @ts-expect-error Getting started is only ever dismissed.
+      dismissed: false,
+    } satisfies Route.Body<'api.getting-started.update'>,
+  ];
 }
