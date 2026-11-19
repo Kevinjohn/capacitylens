@@ -4,18 +4,18 @@ import type { PlanningSnapshot } from './planningCacheTypes';
 import {
   context,
   snapshot,
-  deferred,
   setup,
   ready,
   readyWithHistory,
 } from '@/test/planningTransitionHarness';
+import { createDeferred } from '@/test/createDeferred';
 
 // Pins the coordinator transitions that no other controller test asserts directly.
 
 describe('planning context transitions', () => {
   it('keeps rows, history and an in-flight read when an equal context is installed again', async () => {
     const h = await readyWithHistory();
-    const read = deferred<PlanningSnapshot>();
+    const read = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh();
     const signal = h.read.mock.calls.at(-1)?.[1];
@@ -31,7 +31,7 @@ describe('planning context transitions', () => {
 
   it('aborts in-flight requests when the context is cleared', async () => {
     const h = await ready();
-    const read = deferred<PlanningSnapshot>();
+    const read = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh();
     const signal = h.read.mock.calls.at(-1)?.[1];

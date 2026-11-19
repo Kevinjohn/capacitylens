@@ -414,7 +414,7 @@ type CatalogueCreateFields =
     }
   | {
       entity: 'disciplines';
-      fields: Pick<Discipline, 'name' | 'sortOrder'> & Partial<Pick<Discipline, 'color'>>;
+      fields: Pick<Discipline, 'name'> & Partial<Pick<Discipline, 'color'>>;
     };
 
 /** Build an explicit catalogue creation intent, preserving supplied links for validation. */
@@ -468,7 +468,7 @@ export function buildCatalogueCreate(
       entity = {
         entity: 'disciplines',
         id: args.id,
-        fields: { ...args.fields, color: args.fields.color ?? null },
+        fields: { name: args.fields.name, color: args.fields.color ?? null },
       };
       break;
   }

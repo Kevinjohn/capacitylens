@@ -144,7 +144,7 @@ test.group('M1 HTTP contract', (group) => {
         entity: {
           entity: 'disciplines',
           id: randomUUID(),
-          fields: { name: 'Planning', color: '#2d75da', sortOrder: 10 },
+          fields: { name: 'Planning', color: '#2d75da' },
         },
       },
     };

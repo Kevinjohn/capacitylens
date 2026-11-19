@@ -10,6 +10,7 @@ import {
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
+import { createDeferred } from '@/test/createDeferred';
 
 // Only a genuine empty array may clear the directory. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
 
@@ -26,14 +27,6 @@ const json = (status: number, body: unknown) =>
     status,
     headers: { 'content-type': 'application/json' },
   });
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((complete) => {
-    resolve = complete;
-  });
-  return { promise, resolve };
-}
 
 function createBasicResponseClassificationTests() {
   it('a genuine empty array -> [] (the real "no accounts" answer)', async () => {
@@ -206,8 +199,8 @@ function createOrderedRefreshTests() {
   });
 
   it('keeps the later-issued directory when two responses resolve in reverse order', async () => {
-    const earlier = deferred<Response>();
-    const later = deferred<Response>();
+    const earlier = createDeferred<Response>();
+    const later = createDeferred<Response>();
     vi.stubGlobal(
       'fetch',
       vi
@@ -229,8 +222,8 @@ function createOrderedRefreshTests() {
   });
 
   it('does not let a superseded response clear the active company or publish a removal notice', async () => {
-    const earlier = deferred<Response>();
-    const later = deferred<Response>();
+    const earlier = createDeferred<Response>();
+    const later = createDeferred<Response>();
     useStore.setState({ activeCompanyId: 'new' });
     vi.stubGlobal(
       'fetch',
@@ -254,7 +247,7 @@ function createOrderedRefreshTests() {
 
 function createMutationRefreshTests() {
   it('does not let an in-flight response overwrite a later direct list mutation', async () => {
-    const response = deferred<Response>();
+    const response = createDeferred<Response>();
     vi.stubGlobal(
       'fetch',
       vi.fn(() => response.promise),
@@ -275,7 +268,7 @@ function createMutationRefreshTests() {
   });
 
   it('does not let a response superseded by a direct mutation clear that newly active company', async () => {
-    const response = deferred<Response>();
+    const response = createDeferred<Response>();
     vi.stubGlobal(
       'fetch',
       vi.fn(() => response.promise),

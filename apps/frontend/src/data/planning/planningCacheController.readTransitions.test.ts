@@ -6,7 +6,6 @@ import { readPlanningProblem } from './planningNotices';
 import type { PlanningSnapshot } from './planningCacheTypes';
 import {
   context,
-  deferred,
   ready,
   readyWithHistory,
   setup,
@@ -14,6 +13,7 @@ import {
 } from '@/test/planningTransitionHarness';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { createDeferred } from '@/test/createDeferred';
 
 // Pins the coordinator transitions that no other controller test asserts directly.
 
@@ -32,7 +32,7 @@ const undoable = { canUndo: true, canRedo: false };
 describe('planning read transitions', () => {
   it('publishes loading during a background read and refuses a new change until it settles', async () => {
     const h = await readyWithHistory();
-    const read = deferred<PlanningSnapshot>();
+    const read = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh();
     expect(h.state().planning.phase.kind).toBe('loading');
@@ -48,7 +48,7 @@ describe('planning read transitions', () => {
 
   it('keeps a settled status through a quiet read, so a change can start meanwhile', async () => {
     const h = await readyWithHistory();
-    const read = deferred<PlanningSnapshot>();
+    const read = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh({ quiet: true });
     expect(h.state().planning.phase.kind).toBe('ready');
@@ -66,7 +66,7 @@ describe('planning read transitions', () => {
     expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
 
-    const read = deferred<PlanningSnapshot>();
+    const read = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh({ quiet: true });
     expect(h.state().planning.phase.kind).toBe('loading');
@@ -119,8 +119,8 @@ describe('planning read transitions', () => {
 
   it("resolves a read that a newer read supersedes with the newer read's outcome", async () => {
     const h = await ready();
-    const first = deferred<PlanningSnapshot>();
-    const second = deferred<PlanningSnapshot>();
+    const first = createDeferred<PlanningSnapshot>();
+    const second = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => first.promise);
     h.read.mockImplementationOnce(() => second.promise);
     const fresh = h.controller.refresh();
@@ -134,7 +134,7 @@ describe('planning read transitions', () => {
 
   it('aborts a read that a newer read supersedes, without showing an error', async () => {
     const h = await ready();
-    const second = deferred<PlanningSnapshot>();
+    const second = createDeferred<PlanningSnapshot>();
     let firstSignal: AbortSignal | undefined;
     h.read.mockImplementationOnce(
       (_context, signal) =>
