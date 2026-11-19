@@ -1,21 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useExclusiveAction } from './useExclusiveAction';
+import { createDeferred } from '@/test/createDeferred';
 
 // The load-bearing property is the same-render one: the ref must already refuse a second action
 // inside the very click that started the first, before React has committed `busy = true` and had a
 // chance to disable anything. A test that only asserts on `busy` would pass against a
 // state-flag-only implementation and miss exactly the double-click this hook exists to stop.
-
-function deferred() {
-  let resolve!: () => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<void>((done, fail) => {
-    resolve = done;
-    reject = fail;
-  });
-  return { promise, resolve, reject };
-}
 
 describe('useExclusiveAction', () => {
   it('starts idle', () => {
@@ -25,7 +16,7 @@ describe('useExclusiveAction', () => {
   });
 
   it('locks synchronously, before React has committed the busy flag', () => {
-    const pending = deferred();
+    const pending = createDeferred();
     const { result } = renderHook(() => useExclusiveAction());
     const gate = result.current;
 
@@ -39,7 +30,7 @@ describe('useExclusiveAction', () => {
     expect(result.current.busy).toBe(true);
   });
   it('discards a second action started while one is in flight', async () => {
-    const pending = deferred();
+    const pending = createDeferred();
     const second = vi.fn(() => Promise.resolve());
     const { result } = renderHook(() => useExclusiveAction());
     const gate = result.current;
@@ -59,7 +50,7 @@ describe('useExclusiveAction', () => {
   });
 
   it('reopens the gate once the action settles', async () => {
-    const pending = deferred();
+    const pending = createDeferred();
     const { result } = renderHook(() => useExclusiveAction());
 
     act(() => result.current.run(() => pending.promise, vi.fn()));
@@ -76,7 +67,7 @@ describe('useExclusiveAction', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
   it('surfaces a rejection to onError and still reopens the gate', async () => {
-    const pending = deferred();
+    const pending = createDeferred();
     const onError = vi.fn();
     const failure = new Error('the server refused');
     const { result } = renderHook(() => useExclusiveAction());
