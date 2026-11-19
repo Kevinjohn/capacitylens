@@ -5,7 +5,7 @@ import {
   assertDateRange,
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
-import { newId } from '@capacitylens/shared/lib/id';
+import { createId } from '@capacitylens/shared/lib/id';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
@@ -129,7 +129,7 @@ export function createAllocationSlice(
       for (const input of inputs) assertSuppliedHours(input.hoursPerDay);
       assertNewAllocations(internals, data, companyId, inputs);
       // Row ids are minted here, on the typed command path; the server assigns any series id.
-      return { companyId, data, drafts: inputs.map((fields) => ({ id: newId(), fields })) };
+      return { companyId, data, drafts: inputs.map((fields) => ({ id: createId(), fields })) };
     };
 
     return {
@@ -156,7 +156,7 @@ export function createAllocationSlice(
           throw new Error('Unexpected allocation command.');
         }
         // Later occurrence ids are minted here too, so every created row can be returned by id.
-        const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
+        const occurrenceIds = Array.from({ length: count - 1 }, () => createId());
         const ids = [draft.id, ...occurrenceIds];
         const receipt = await send({
           intent: {

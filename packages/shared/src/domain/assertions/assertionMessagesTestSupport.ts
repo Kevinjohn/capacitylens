@@ -1,5 +1,5 @@
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import { emptyAppData } from '../../types/entities.js';
+import { createEmptyAppData } from '../../types/entities.js';
 import type {
   Company,
   Allocation,
@@ -52,7 +52,7 @@ export const makeCompany = (id: ID, name = 'Co'): Company => ({
   createdAt: TS,
   updatedAt: TS,
 });
-export const client = (id: ID, companyId: ID, name = 'Ferris'): Client => ({
+export const makeClient = (id: ID, companyId: ID, name = 'Ferris'): Client => ({
   ...NULLABLE_FIELDS.clients,
   ...makeMeta(id, companyId),
   name,
@@ -65,12 +65,12 @@ export const project = (id: ID, companyId: ID, clientId: ID): Project => ({
   clientId,
   color: '#3b82f6',
 });
-export const phase = (id: ID, companyId: ID, projectId: ID): Phase => ({
+export const makePhase = (id: ID, companyId: ID, projectId: ID): Phase => ({
   ...makeMeta(id, companyId),
   name: 'Discovery',
   projectId,
 });
-export const activity = ({ id, companyId, projectId, phaseId }: ActivityOptions): Activity => ({
+export const makeActivity = ({ id, companyId, projectId, phaseId }: ActivityOptions): Activity => ({
   ...NULLABLE_FIELDS.activities,
   ...makeMeta(id, companyId),
   name: 'Activity',
@@ -139,7 +139,7 @@ export const timeOff = ({
 
 export const A1 = 'acct-1';
 export const A2 = 'acct-2';
-export const base = (): AppData => ({
-  ...emptyAppData(),
+export const makeBaseData = (): AppData => ({
+  ...createEmptyAppData(),
   accounts: [makeCompany(A1), makeCompany(A2)],
 });

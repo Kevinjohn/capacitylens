@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import { emptyAppData } from '../../types/entities.js';
+import { createEmptyAppData } from '../../types/entities.js';
 import type {
   Activity,
   Allocation,
@@ -73,7 +73,7 @@ const placeholder = person('ph-p1', { kind: 'placeholder', name: 'Batgirl', proj
 
 function data(overrides: Partial<AppData> = {}): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     resources: [person('r1'), placeholder],
     activities: [activity('t1')],
     ...overrides,

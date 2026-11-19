@@ -5,7 +5,7 @@ import { APP_NAME } from '@capacitylens/shared/brand';
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
-  passwordLengthFailure,
+  getPasswordLengthFailure,
 } from '@capacitylens/shared/domain/password';
 import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,7 @@ export function VerifyEmail() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!token) return;
-    const lengthFailure = passwordLengthFailure(password);
+    const lengthFailure = getPasswordLengthFailure(password);
     if (lengthFailure) {
       setError(
         lengthFailure === 'too-short'

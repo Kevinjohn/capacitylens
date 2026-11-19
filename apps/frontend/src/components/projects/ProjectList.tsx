@@ -12,7 +12,7 @@ import { ProjectForm } from './ProjectForm';
 import type { Client, ID, Project } from '@capacitylens/shared/types/entities';
 import { useLifecycleActions } from '@/hooks/useLifecycleActions';
 import { m } from '@/i18n';
-import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames';
+import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames';
 import { resolveProjectColor } from '@capacitylens/shared/lib/color';
 import { Fragment, useMemo } from 'react';
 import { Folder, Plus } from 'lucide-react';
@@ -21,7 +21,7 @@ import { createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
 import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
 
 function buildProjectArchiveMessage(project: Project): string {
-  const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name;
+  const name = project.isPrivate === true ? buildQuotedContextName(project.name) : project.name;
   return m.list_projects_archive_message({ name });
 }
 

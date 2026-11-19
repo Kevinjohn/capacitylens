@@ -1,4 +1,4 @@
-import { dayIndex, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { calculateDayIndex, getWeekday } from '@capacitylens/shared/lib/dateMath';
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '@/lib/schedulerConfig';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 
@@ -117,7 +117,7 @@ function buildColumnMeasurements(
 
   for (let index = 0; index < dayCount; index++) {
     const day = requireDenseValue(days, index, 'Column geometry day window must be dense.');
-    const weekday = weekdayOf(day);
+    const weekday = getWeekday(day);
     const width = resolveColumnWidth({
       weekday,
       dayWidth,
@@ -183,13 +183,13 @@ function createGeometryAccessors(
   };
   const xForDateInGeom = (date: ISODate): number => {
     if (!input.origin) return 0;
-    const index = dayIndex(date, input.origin);
+    const index = calculateDayIndex(date, input.origin);
     return Number.isFinite(index) ? calculateDayIndexX(index) : 0;
   };
   const widthForDates = (start: ISODate, end: ISODate): number => {
     if (!input.origin) return 0;
-    const startIndex = dayIndex(start, input.origin);
-    const endIndex = dayIndex(end, input.origin);
+    const startIndex = calculateDayIndex(start, input.origin);
+    const endIndex = calculateDayIndex(end, input.origin);
     if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) return 0;
     return Math.max(0, calculateDayIndexX(endIndex + 1) - calculateDayIndexX(startIndex));
   };

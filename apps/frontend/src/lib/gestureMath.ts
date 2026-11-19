@@ -1,6 +1,6 @@
-import { addDaysISO, daysInclusive, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO, countDaysInclusive, getWeekday } from '@capacitylens/shared/lib/dateMath';
 import { endDateForWorkingDays, isWeekendAware } from '@capacitylens/shared/lib/workingWeek';
-import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
+import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 
 interface ResolveResizedEdgeInput {
@@ -64,7 +64,7 @@ type Direction = 1 | -1;
 // Search at most one week so an empty workweek cannot loop. Arithmetic weekday steps avoid parsing
 // and formatting a date for every candidate on each pointer move.
 function snapToWorkingDay(date: ISODate, workingDays: Weekday[], direction: Direction): ISODate {
-  let weekday = weekdayOf(date);
+  let weekday = getWeekday(date);
   for (let offset = 0; offset < 7; offset++) {
     if (workingDays.includes(weekday)) {
       return offset === 0 ? date : addDaysISO(date, offset * direction);
@@ -129,7 +129,7 @@ function applyMove({
   // An origin with no duration to carry: its range lands entirely on days it does not work, or
   // its working week has collapsed to none at all. Preserving the raw calendar span is the only
   // non-destructive answer; re-placing a zero span would silently delete the booking.
-  const span = sourceSpan > 0 ? sourceSpan : daysInclusive(range.startDate, range.endDate);
+  const span = sourceSpan > 0 ? sourceSpan : countDaysInclusive(range.startDate, range.endDate);
   const placeUnderTarget = sourceSpan > 0 && targetDays;
   // The inverse of `spanDays`, written out rather than borrowed from `endDateForSpan`: that one
   // clamps the span to the date domain, and a gesture should surface an impossible drag as the
@@ -173,7 +173,7 @@ function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined):
   if (workingDays?.length === 0 && !options?.ignoreWorkingDays) return 0;
   // `spanDays` owns the working-days-versus-calendar-days split for the whole product; measuring
   // through it is what keeps a dragged duration and a typed one meaning the same thing.
-  return spanDays(range.startDate, range.endDate, {
+  return countSpanDays(range.startDate, range.endDate, {
     ...(workingDays ? { workingDays } : {}),
     ...(options?.ignoreWorkingDays !== undefined
       ? { ignoreWorkingDays: options.ignoreWorkingDays }

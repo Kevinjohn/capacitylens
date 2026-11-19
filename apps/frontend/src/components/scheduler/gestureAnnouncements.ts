@@ -1,6 +1,6 @@
 import { m } from '@/i18n';
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type { ID, Resource } from '@capacitylens/shared/types/entities';
 import { resolveResourceDisplayName } from '@/lib/metadata';
@@ -33,7 +33,7 @@ export function buildVisibleOverCapacity({
 }: CapacityAnnouncementInput): VisibleOverCapacity | undefined {
   const resource = resources.find((candidate) => candidate.id === resourceId);
   if (!resource || !isCapacityTracked(resource)) return undefined;
-  const overDays = eachDayISO(visibleRange.start, visibleRange.end).filter(
+  const overDays = listDaysISO(visibleRange.start, visibleRange.end).filter(
     (date) => readServerDayCapacity(capacity, resourceId, date)?.over === true,
   ).length;
   return { name: resolveResourceDisplayName(resource), overDays };

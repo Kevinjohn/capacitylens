@@ -4,8 +4,8 @@ import {
   StalePlanningRevisionError,
 } from '#services/planning_revision';
 import {
-  externalCapacityDefaults,
-  placeholderCapacityDefaults,
+  buildExternalCapacityDefaults,
+  buildPlaceholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
 import { planningMutationValidator } from '#validators/planning_operations';
 import type {
@@ -515,7 +515,7 @@ test.group('planning operation contracts', () => {
       role: 'Consultant',
       avatarUrl: null,
       disciplineId: null,
-      ...externalCapacityDefaults(),
+      ...buildExternalCapacityDefaults(),
       projectId: null,
       color: '#9ca3af',
       isFavourite: false,
@@ -558,7 +558,7 @@ test.group('planning operation contracts', () => {
       employmentType: 'contractor',
       engagement: 'studio',
       workingHoursPerDay: 6,
-      ...placeholderCapacityDefaults(),
+      ...buildPlaceholderCapacityDefaults(),
       projectId: otherUuid,
       color: '#3ace6b',
       isFavourite: false,

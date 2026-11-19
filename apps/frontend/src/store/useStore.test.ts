@@ -14,7 +14,7 @@ import {
 } from '@/test/fixtures';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO, getWeekday } from '@capacitylens/shared/lib/dateMath';
 import { formatDayMonth } from '@/lib/dateDisplay';
 import { resolveDateStyle } from './selectors';
 import { PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
@@ -109,7 +109,7 @@ describe('store scheduler UI', () => {
 
     s().setActiveCompany(s().activeCompanyId);
     expect(s().ui.originDate).not.toBe('2020-01-01');
-    expect(weekdayOf(s().ui.focusDate)).toBe(1);
+    expect(getWeekday(s().ui.focusDate)).toBe(1);
 
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
@@ -209,7 +209,7 @@ describe('store scheduler UI', () => {
       s().goToDate('2031-09-10');
       await s().refreshPlanning();
 
-      expect(weekdayOf(s().ui.focusDate)).toBe(weekStartsOn);
+      expect(getWeekday(s().ui.focusDate)).toBe(weekStartsOn);
       // The panned week is deliberately far in the future so today's week does not coincide with it
       // until then; the assertion is about re-anchoring, not about the calendar.
       expect(s().ui.focusDate).not.toBe('2031-09-07');
@@ -353,7 +353,7 @@ describe('store scheduler UI', () => {
     expect(s().ui.recenterToken).toBe(before + 1);
     expect(s().ui.originDate).not.toBe('2020-01-01');
 
-    expect(weekdayOf(s().ui.focusDate)).toBe(1);
+    expect(getWeekday(s().ui.focusDate)).toBe(1);
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
 
@@ -378,7 +378,7 @@ describe('store scheduler UI', () => {
     const before = s().ui.recenterToken;
 
     s().goToDate('2026-09-09');
-    expect(weekdayOf(s().ui.focusDate)).toBe(1);
+    expect(getWeekday(s().ui.focusDate)).toBe(1);
     expect(s().ui.focusDate).toBe('2026-09-07');
     expect(s().ui.recenterToken).toBe(before + 1);
 
@@ -396,7 +396,7 @@ describe('store scheduler UI', () => {
 
     useStore.getState().goToDate('2026-09-09');
     expect(useStore.getState().ui.focusDate).toBe('2026-09-06');
-    expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0);
+    expect(getWeekday(useStore.getState().ui.focusDate)).toBe(0);
 
     expect(useStore.getState().ui.originDate).toBe(addDaysISO('2026-09-06', -PAST_BUFFER_DAYS));
   });

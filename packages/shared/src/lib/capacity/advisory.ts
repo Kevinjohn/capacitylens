@@ -1,6 +1,6 @@
-import { daysInclusive, eachDayISO, weekdayOf } from '../dateMath.js';
+import { countDaysInclusive, listDaysISO, getWeekday } from '../dateMath.js';
 import { MAX_SPAN_DAYS } from '../schedulingDays.js';
-import { effectiveWeekIncludes } from '../effectiveWorkingWeek.js';
+import { hasEffectiveWeekDay } from '../effectiveWorkingWeek.js';
 import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import type { Allocation, Closure, ISODate, Resource, TimeOff } from '../../types/entities.js';
 import { addCapacityHours, hasAllocationLoadOnDay, hasOverCapacity } from './primitives.js';
@@ -61,7 +61,7 @@ export function addCapacityLoad({
   // Zero-padded ISO dates compare lexicographically, so these min/max clamps are correct.
   const from = allocation.startDate > start ? allocation.startDate : start;
   const to = allocation.endDate < end ? allocation.endDate : end;
-  for (const day of eachDayISO(from, to)) {
+  for (const day of listDaysISO(from, to)) {
     if (
       !hasAllocationLoadOnDay({
         effectiveWeek,
@@ -119,9 +119,9 @@ export function bucketCapacityLoad({
 // Refuse empty or excessive draft windows before allocating a date array because
 // transient input has not reached the durable validation boundary.
 function listAdvisoryDays(proposal: CapacityAllocationInput): ISODate[] | null {
-  const span = daysInclusive(proposal.startDate, proposal.endDate);
+  const span = countDaysInclusive(proposal.startDate, proposal.endDate);
   if (span < 1 || span > MAX_SPAN_DAYS) return null;
-  return eachDayISO(proposal.startDate, proposal.endDate);
+  return listDaysISO(proposal.startDate, proposal.endDate);
 }
 
 interface TallyAdvisoryInput {
@@ -148,8 +148,8 @@ function tallyAdvisory({
   for (const day of days) {
     // Derive the weekday + time-off once per day and reuse for both tallies, resolveAvailableHoursOnDay
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
-    const weekday = weekdayOf(day);
-    const working = effectiveWeekIncludes(effectiveWeek, weekday);
+    const weekday = getWeekday(day);
+    const working = hasEffectiveWeekDay(effectiveWeek, weekday);
     const scheduledCapacity = resolveScheduledHoursOnDay(resource, day, effectiveWeek);
     const onTimeOff =
       scheduledCapacity > 0 && isUnavailable({ resource, date: day, timeOff, closures });

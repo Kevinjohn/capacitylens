@@ -5,7 +5,7 @@ import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { BarLayout } from './schedulerModel';
 import { useStore } from '@/store/useStore';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import {
   makeCompany,
@@ -20,7 +20,7 @@ import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetStoreWithData(
-    { ...emptyAppData(), accounts: [makeCompany({ id: 'acct-test' })] },
+    { ...createEmptyAppData(), accounts: [makeCompany({ id: 'acct-test' })] },
     'acct-test',
   );
   useStore.getState().clearFilters();
@@ -56,7 +56,7 @@ type SetTaskFieldVisibilityOptions = { enabled: boolean };
 async function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions) {
   await resetStoreWithData(
     {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       accounts: [makeCompany({ id: 'acct-test', showTaskFieldInSchedule: enabled })],
     },
     'acct-test',
@@ -66,7 +66,10 @@ async function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions
 describe('AllocationBar rendering', () => {
   it('re-reads its accessible name when the date style changes with a stable bar', async () => {
     await resetStoreWithData(
-      { ...emptyAppData(), accounts: [makeCompany({ id: 'acct-test', dateStyle: 'day-month' })] },
+      {
+        ...createEmptyAppData(),
+        accounts: [makeCompany({ id: 'acct-test', dateStyle: 'day-month' })],
+      },
       'acct-test',
     );
     const bar = makeBar(makeAllocation());
@@ -202,7 +205,7 @@ describe('AllocationBar rendering', () => {
   });
 
   it('hides hours in blocks mode, showing the activity name only', async () => {
-    const data = emptyAppData();
+    const data = createEmptyAppData();
     data.accounts = [
       {
         ...NULLABLE_FIELDS.accounts,

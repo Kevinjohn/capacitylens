@@ -1,5 +1,5 @@
 import type { ISODate, Weekday } from '../types/entities.js';
-import { addDaysISO, daysInclusive, weekdayOf } from './dateMath.js';
+import { addDaysISO, countDaysInclusive, getWeekday } from './dateMath.js';
 
 // Working-week policy over the calendar arithmetic in dateMath: which days of a resource's week
 // carry work, and how many working days a date range holds.
@@ -42,14 +42,14 @@ export function canAllocationWorkOnDay(
 /** Count the working days within the inclusive range [start, end], given which
  * weekdays are working. Returns 0 for a reversed/empty range. */
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
-  const span = daysInclusive(start, end);
+  const span = countDaysInclusive(start, end);
   if (span <= 0) return 0;
   const working = new Set(
     workingDays.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6),
   );
   const fullWeeks = Math.floor(span / 7);
   let count = fullWeeks * working.size;
-  const startWeekday = weekdayOf(start);
+  const startWeekday = getWeekday(start);
   for (let offset = 0; offset < span % 7; offset += 1) {
     if (working.has(((startWeekday + offset) % 7) as Weekday)) count += 1;
   }
@@ -88,7 +88,7 @@ export function endDateForWorkingDays(
   }
   // This branch runs only with between one and six distinct weekdays.
   const workingDayCount = working.size;
-  const startWd = weekdayOf(start);
+  const startWd = getWeekday(start);
   const fullWeeks = Math.floor((count - 1) / workingDayCount);
   // The remainder is at most one working week and is found by the loop below.
   const remaining = count - fullWeeks * workingDayCount;

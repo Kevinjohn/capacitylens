@@ -7,11 +7,11 @@ import { ResourceLane } from './ResourceLane';
 import { buildColumnGeometry } from './columnGeometry';
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel';
 import { useStore } from '@/store/useStore';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { renderWithTooltip as render } from '@/test/schedulerTestKit';
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().clearFilters();
 });
 

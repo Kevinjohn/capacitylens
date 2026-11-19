@@ -1,5 +1,5 @@
 import { canAllocationWorkOnDay } from '../workingWeek.js';
-import { blockHoursPerDay } from '../schedulingDays.js';
+import { resolveBlockHoursPerDay } from '../schedulingDays.js';
 import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import { FULL_DAY_HOURS } from '../../types/entities.js';
 import type { Allocation } from '../../types/entities.js';
@@ -42,7 +42,7 @@ export function hasOverCapacity(allocated: number | readonly number[], available
 }
 
 // Blocks-mode hourly capacity projection using the standard full working day as its reference.
-const BLOCK_PROJECTED_HOURS_PER_DAY = blockHoursPerDay(FULL_DAY_HOURS);
+const BLOCK_PROJECTED_HOURS_PER_DAY = resolveBlockHoursPerDay(FULL_DAY_HOURS);
 
 interface ApplyCapacityModeInput {
   allocations: Allocation[];

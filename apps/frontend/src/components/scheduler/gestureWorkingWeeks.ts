@@ -1,8 +1,8 @@
 import {
-  effectiveWorkingWeek,
-  lacksEffectiveWorkingDays,
+  resolveEffectiveWorkingWeek,
+  hasNoEffectiveWorkingDays,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { getWeekday } from '@capacitylens/shared/lib/dateMath';
 import type { ID, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
 import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from './creationAvailability';
 
@@ -35,8 +35,8 @@ export function hasEffectiveDaysFor({
 }: EffectiveDaysQuery) {
   const resource = calendar.resources.find((candidate) => candidate.id === resourceId);
   if (!resource) return true;
-  return !lacksEffectiveWorkingDays(
-    effectiveWorkingWeek(resource, calendar.companyWorkingDays),
+  return !hasNoEffectiveWorkingDays(
+    resolveEffectiveWorkingWeek(resource, calendar.companyWorkingDays),
     ignoreWorkingDays ?? undefined,
   );
 }
@@ -89,7 +89,7 @@ export function isDropStartBlockedForWorkingDays({
   ignoreWorkingDays,
 }: DropStartWorkingDaysQuery) {
   if (ignoreWorkingDays || workingDays === undefined) return false;
-  return !workingDays.includes(weekdayOf(date));
+  return !workingDays.includes(getWeekday(date));
 }
 
 /** Apply the destination start gate to the effective week already memoised for this preview. */

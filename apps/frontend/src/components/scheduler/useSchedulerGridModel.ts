@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { hasActiveFilters, useStore } from '@/store/useStore';
 import { useActiveScopedData } from '@/store/useScopedData';
-import { carriesHourlyLoad, emptyAppData } from '@capacitylens/shared/types/entities';
+import { hasHourlyLoad, createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import { useCompanyToday } from '@/hooks/useCompanyToday';
@@ -16,7 +16,7 @@ import {
   resolveWeekStart,
 } from '@/store/selectors';
 import {
-  defaultCompanyWorkingDays,
+  buildDefaultCompanyWorkingDays,
   normalizeCompanyWorkingDays,
 } from '@capacitylens/shared/lib/companyWorkingDays';
 
@@ -151,7 +151,7 @@ export function useSchedulerGridPreferences() {
   );
   // Resolve company preferences from one company row to avoid repeated lookups, while retaining each shared selector's absent-field default.
   const companyPreferences = useMemo(() => {
-    const view = { ...emptyAppData(), accounts: activeCompany ? [activeCompany] : [] };
+    const view = { ...createEmptyAppData(), accounts: activeCompany ? [activeCompany] : [] };
     const id = activeCompany?.id ?? null;
     return {
       placeholdersEnabled: hasPlaceholdersEnabled(view, id),
@@ -159,14 +159,14 @@ export function useSchedulerGridPreferences() {
       externalEnabled: hasExternalResourcesEnabled(view, id),
 
       disciplinesEnabled: hasDisciplinesEnabled(view, id),
-      blocksMode: !carriesHourlyLoad(resolveSchedulingMode(view, id)),
+      blocksMode: !hasHourlyLoad(resolveSchedulingMode(view, id)),
       calendarWeekStartsOn: resolveWeekStart(view, id),
     };
   }, [activeCompany]);
   const companyWorkingDays = useMemo(() => {
     const weekStartsOn = activeCompany?.weekStartsOn ?? 1;
     return activeCompany?.workingDays == null
-      ? defaultCompanyWorkingDays(weekStartsOn)
+      ? buildDefaultCompanyWorkingDays(weekStartsOn)
       : normalizeCompanyWorkingDays(activeCompany.workingDays, weekStartsOn);
   }, [activeCompany]);
   const ui = useStore((state) => state.ui);

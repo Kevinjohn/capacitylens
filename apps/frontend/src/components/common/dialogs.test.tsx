@@ -5,10 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { Modal, ConfirmDialog, ColorField, SegmentedControl } from './ui';
 import { useStore } from '@/store/useStore';
 import { resolveColorName } from '@/lib/palette';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
 });

@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
-  defaultCompanyWorkingDays,
+  buildDefaultCompanyWorkingDays,
   isWeekday,
   isWeekdaySet,
   normalizeCompanyWorkingDays,
-  orderedWeekdays,
+  listOrderedWeekdays,
 } from './companyWorkingDays.js';
 
 describe('account working days', () => {
   it('defaults to the first five days of the configured week', () => {
-    expect(defaultCompanyWorkingDays(1)).toEqual([1, 2, 3, 4, 5]);
-    expect(defaultCompanyWorkingDays(0)).toEqual([0, 1, 2, 3, 4]);
+    expect(buildDefaultCompanyWorkingDays(1)).toEqual([1, 2, 3, 4, 5]);
+    expect(buildDefaultCompanyWorkingDays(0)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it("repairs empty and malformed selections to the configured week's default", () => {
@@ -58,8 +58,8 @@ describe('account working days', () => {
   });
 
   it('orders the same saved set from the configured week start', () => {
-    expect(orderedWeekdays(1)).toEqual([1, 2, 3, 4, 5, 6, 0]);
-    expect(orderedWeekdays(0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(listOrderedWeekdays(1)).toEqual([1, 2, 3, 4, 5, 6, 0]);
+    expect(listOrderedWeekdays(0)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 });
 

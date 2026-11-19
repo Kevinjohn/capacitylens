@@ -7,7 +7,7 @@ import {
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import {
   companyId,
   configureAuth,
@@ -360,8 +360,8 @@ test.group('independent typed planning operations', (group) => {
     archived.assertStatus(200);
     const after = await readState(companyId, true);
     const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff') =>
-      activeOnly(before)[key].filter((row) => row.companyId === companyId).length -
-      activeOnly(after)[key].filter((row) => row.companyId === companyId).length;
+      buildActiveData(before)[key].filter((row) => row.companyId === companyId).length -
+      buildActiveData(after)[key].filter((row) => row.companyId === companyId).length;
     const reported = (archived.body() as { archived?: Record<string, number> }).archived;
     assert.deepEqual(reported, {
       projects: hidden('projects'),

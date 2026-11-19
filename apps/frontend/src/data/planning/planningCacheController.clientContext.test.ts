@@ -1,6 +1,6 @@
 import { readPlanningError } from './planningNotices';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
@@ -82,12 +82,12 @@ describe('planning cache controller', () => {
     resolveRead({
       revision: 9,
       authority: makePlanningAuthority(),
-      data: { ...emptyAppData(), accounts: [{ id: 'leak' } as never] },
+      data: { ...createEmptyAppData(), accounts: [{ id: 'leak' } as never] },
       today: companyToday,
       capacity: emptyCapacity(),
     });
     await readPromise;
-    expect(h.state().data).toEqual(emptyAppData());
+    expect(h.state().data).toEqual(createEmptyAppData());
     expect(h.state().planning.revision).toBeNull();
     expect(h.state().planning.history.canUndo).toBe(false);
   });

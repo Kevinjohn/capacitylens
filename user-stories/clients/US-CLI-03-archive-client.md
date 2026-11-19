@@ -31,7 +31,7 @@ flowchart TD
 flowchart TD
   A["ClientList archive confirmation"] --> B["useLifecycleActions.archive"] --> C["sendPlanningCommand: catalogue.archive"]
   C --> D["createPlanningTransport → api.planning.mutate"] --> E["PlanningController.mutate → mutatePlanning begins scoped transaction"]
-  E --> F["transitionLifecycle updates only the archived row"] --> K["mutatePlanning records revision/audit and commits"] --> F2["useActiveScopedData activeOnly hides archived ancestry"]
+  E --> F["transitionLifecycle updates only the archived row"] --> K["mutatePlanning records revision/audit and commits"] --> F2["useActiveScopedData buildActiveData hides archived ancestry"]
   F2 --> H["ArchivedEntitySection / ArchiveRecoverySection refresh"]
 ```
 

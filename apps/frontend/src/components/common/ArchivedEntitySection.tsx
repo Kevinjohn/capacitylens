@@ -1,6 +1,6 @@
 import { ArchiveRecoverySection } from './ArchiveRecoverySection';
 import { Fragment, useMemo, useState } from 'react';
-import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
+import { resolveLifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 import type { Resource } from '@capacitylens/shared/types/entities';
 import { Link } from 'react-router-dom';
 import { useInactiveCompanyData } from '@/hooks/useInactiveCompanyData';
@@ -36,7 +36,7 @@ function ArchivedRow({
   onAnonymise: () => void;
   mayAnonymise: boolean;
 }) {
-  const direct = lifecycleStatus(row) === 'archived';
+  const direct = resolveLifecycleStatus(row) === 'archived';
   const name = resolveRowName(row);
   return (
     <Item

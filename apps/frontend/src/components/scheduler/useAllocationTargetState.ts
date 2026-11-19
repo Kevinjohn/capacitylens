@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import { effectiveProjectId } from '@capacitylens/shared/lib/integrity';
+import { resolveEffectiveProjectId } from '@capacitylens/shared/lib/integrity';
 import type { Activity, Resource } from '@capacitylens/shared/types/entities';
 import { useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
@@ -145,7 +145,7 @@ function resolveSelectedEffectiveProjectId(
   attributedProjectId: string | undefined,
 ) {
   if (!selectedActivity) return undefined;
-  return effectiveProjectId(
+  return resolveEffectiveProjectId(
     attributedProjectId ? { projectId: attributedProjectId } : {},
     selectedActivity,
   );

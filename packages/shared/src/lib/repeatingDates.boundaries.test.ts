@@ -3,9 +3,9 @@ import { MAX_ISO_DATE } from './dateMath.js';
 import {
   ALLOCATION_REPEAT_POLICY,
   TIME_OFF_REPEAT_POLICY,
-  defaultRepeatUntilDate,
+  resolveDefaultRepeatUntilDate,
   generateRepeatingStartDates,
-  maximumRepeatUntilDate,
+  resolveMaximumRepeatUntilDate,
   RepeatingDateError,
 } from './repeatingDates.js';
 import type { RepeatingDatePolicy } from './repeatingDates.js';
@@ -29,7 +29,7 @@ function thrown(run: () => unknown): unknown {
 describe('repeat policies', () => {
   it('caps allocation repeats on the anchor day and time off on the month end', () => {
     expect(ALLOCATION_REPEAT_POLICY.maximumCutoff).toBe('anchor-day');
-    expect(maximumRepeatUntilDate('2026-01-15')).toBe('2026-07-15');
+    expect(resolveMaximumRepeatUntilDate('2026-01-15')).toBe('2026-07-15');
     expect(TIME_OFF_REPEAT_POLICY.maximumCutoff).toBe('month-end');
   });
 
@@ -80,48 +80,48 @@ describe('occurrence limit', () => {
 
 describe('default cutoff', () => {
   it('keeps the anchor day when the policy asks for it', () => {
-    expect(defaultRepeatUntilDate('2026-01-15', policy({ defaultCutoff: 'anchor-day' }))).toBe(
-      '2026-03-15',
-    );
-    expect(defaultRepeatUntilDate('2026-01-15')).toBe('2026-03-31');
+    expect(
+      resolveDefaultRepeatUntilDate('2026-01-15', policy({ defaultCutoff: 'anchor-day' })),
+    ).toBe('2026-03-15');
+    expect(resolveDefaultRepeatUntilDate('2026-01-15')).toBe('2026-03-31');
   });
 
   it('clamps a suggestion beyond the maximum and keeps one equal to it', () => {
     const longer = policy({ defaultCalendarMonths: 8, defaultCutoff: 'anchor-day' });
-    expect(defaultRepeatUntilDate('2026-01-15', longer)).toBe('2026-07-15');
+    expect(resolveDefaultRepeatUntilDate('2026-01-15', longer)).toBe('2026-07-15');
     const equal = policy({ defaultCalendarMonths: 6, defaultCutoff: 'anchor-day' });
-    expect(defaultRepeatUntilDate('2026-01-15', equal)).toBe('2026-07-15');
+    expect(resolveDefaultRepeatUntilDate('2026-01-15', equal)).toBe('2026-07-15');
   });
 
   it('clamps cutoffs past the calendar to its last supported date', () => {
-    expect(maximumRepeatUntilDate('9999-09-15')).toBe(MAX_ISO_DATE);
-    expect(defaultRepeatUntilDate('9999-12-15')).toBe(MAX_ISO_DATE);
+    expect(resolveMaximumRepeatUntilDate('9999-09-15')).toBe(MAX_ISO_DATE);
+    expect(resolveDefaultRepeatUntilDate('9999-12-15')).toBe(MAX_ISO_DATE);
   });
 });
 
 describe('calendar-month offsets', () => {
   it('accepts the first and last supported months exactly', () => {
     // A zero or negative offset is reachable only through a caller policy.
-    expect(maximumRepeatUntilDate('0001-01-15', policy({ maximumCalendarMonths: 0 }))).toBe(
+    expect(resolveMaximumRepeatUntilDate('0001-01-15', policy({ maximumCalendarMonths: 0 }))).toBe(
       '0001-01-15',
     );
-    expect(maximumRepeatUntilDate('0001-02-15', policy({ maximumCalendarMonths: -1 }))).toBe(
+    expect(resolveMaximumRepeatUntilDate('0001-02-15', policy({ maximumCalendarMonths: -1 }))).toBe(
       '0001-01-15',
     );
-    expect(maximumRepeatUntilDate('9999-06-15')).toBe('9999-12-15');
+    expect(resolveMaximumRepeatUntilDate('9999-06-15')).toBe('9999-12-15');
   });
 
   it('clamps an offset just beyond either end to the last supported date', () => {
-    expect(maximumRepeatUntilDate('0001-01-15', policy({ maximumCalendarMonths: -1 }))).toBe(
+    expect(resolveMaximumRepeatUntilDate('0001-01-15', policy({ maximumCalendarMonths: -1 }))).toBe(
       MAX_ISO_DATE,
     );
-    expect(maximumRepeatUntilDate('9999-07-15')).toBe(MAX_ISO_DATE);
+    expect(resolveMaximumRepeatUntilDate('9999-07-15')).toBe(MAX_ISO_DATE);
   });
 
   it('clamps a non-integer offset to the last supported date', () => {
-    expect(maximumRepeatUntilDate('2026-01-15', policy({ maximumCalendarMonths: 1.5 }))).toBe(
-      MAX_ISO_DATE,
-    );
+    expect(
+      resolveMaximumRepeatUntilDate('2026-01-15', policy({ maximumCalendarMonths: 1.5 })),
+    ).toBe(MAX_ISO_DATE);
   });
 });
 

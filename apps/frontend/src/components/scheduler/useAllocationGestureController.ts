@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { m } from '@/i18n';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { hasRangeOverlap } from '@capacitylens/shared/lib/dateMath';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
 import { useDragResize } from '@/hooks/useDragResize';
@@ -214,7 +214,7 @@ function reconcileCommitHours({ options, targetResourceId, dates, hours }: Recon
     target,
     zeroLoadMode: options.isBlocks,
     startDate: dates.startDate,
-    effectiveWeek: effectiveWorkingWeek(
+    effectiveWeek: resolveEffectiveWorkingWeek(
       target,
       listCompanyWorkingDays(state.data, state.activeCompanyId),
     ),
@@ -327,8 +327,8 @@ function refuseBlockedKeyboardGesture({ current, next }: KeyboardGateInput) {
   const state = useStore.getState();
   const visible = buildVisibleRange(state.ui);
   const leavesTimeline =
-    rangesOverlap(current.startDate, current.endDate, visible.start, visible.end) &&
-    !rangesOverlap(next.startDate, next.endDate, visible.start, visible.end);
+    hasRangeOverlap(current.startDate, current.endDate, visible.start, visible.end) &&
+    !hasRangeOverlap(next.startDate, next.endDate, visible.start, visible.end);
   if (leavesTimeline) state.setNotice(m.scheduler_keyboard_outside_timeline(), 'error');
   return leavesTimeline;
 }

@@ -1,10 +1,10 @@
 import type { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { daysInclusive, eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { countDaysInclusive, listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import {
-  effectiveWorkingWeek,
-  lacksEffectiveWorkingDays,
+  resolveEffectiveWorkingWeek,
+  hasNoEffectiveWorkingDays,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
+import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { ISODate, Resource } from '@capacitylens/shared/types/entities';
 import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
 import { resolveScheduledHoursOnDay } from '@capacitylens/shared/lib/capacity';
@@ -42,21 +42,21 @@ function resolveInitialDaysOver({
   seedEnd: ISODate | undefined;
   initialStart: ISODate;
   initialUsesWorkingSpan: boolean;
-  initialEffectiveWeek: ReturnType<typeof effectiveWorkingWeek> | null;
+  initialEffectiveWeek: ReturnType<typeof resolveEffectiveWorkingWeek> | null;
   initialIgnoreWorkingDays: boolean;
 }) {
   if (!seedEnd) return 1;
   if (
     initialUsesWorkingSpan &&
-    lacksEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWorkingDays)
+    hasNoEffectiveWorkingDays(initialEffectiveWeek, initialIgnoreWorkingDays)
   ) {
     return 1;
   }
-  if (!initialUsesWorkingSpan) return Math.max(1, daysInclusive(initialStart, seedEnd));
+  if (!initialUsesWorkingSpan) return Math.max(1, countDaysInclusive(initialStart, seedEnd));
   const workingDays = initialEffectiveWeek?.kind === 'days' ? initialEffectiveWeek.days : undefined;
   return Math.max(
     1,
-    spanDays(initialStart, seedEnd, {
+    countSpanDays(initialStart, seedEnd, {
       ...(workingDays ? { workingDays } : {}),
       ignoreWorkingDays: initialIgnoreWorkingDays,
     }),
@@ -93,7 +93,7 @@ function resolveSeedSelection(input: SeedInput) {
   const { initialResourceId } = draftValues;
   const initialResource = resourceById.get(initialResourceId);
   const initialEffectiveWeek = initialResource
-    ? effectiveWorkingWeek(initialResource, companyWorkingDays)
+    ? resolveEffectiveWorkingWeek(initialResource, companyWorkingDays)
     : null;
   const initialPlaceholderProjectId =
     initialResource?.kind === 'placeholder' ? (initialResource.projectId ?? undefined) : undefined;
@@ -114,7 +114,7 @@ function resolveInitialCapacityHours({
   initialDaysOver,
 }: ReturnType<typeof resolveSeedSelection> & { initialDaysOver: number }) {
   if (!initialResource || !initialEffectiveWeek) return initialDaysOver * FULL_DAY_HOURS;
-  return eachDayISO(initialStart, seedEnd ?? initialStart).reduce(
+  return listDaysISO(initialStart, seedEnd ?? initialStart).reduce(
     (sum, day) => sum + resolveScheduledHoursOnDay(initialResource, day, initialEffectiveWeek),
     0,
   );

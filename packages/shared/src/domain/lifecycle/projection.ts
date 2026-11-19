@@ -1,5 +1,5 @@
 import type { AppData, AppDataKey, ScopedEntityKey } from '../../types/entities.js';
-import { lifecycleStatus } from './types.js';
+import { resolveLifecycleStatus } from './types.js';
 import type { LifecycleFields } from './types.js';
 import { PARENT_TABLES, inspectAncestry } from './ancestry.js';
 import type {
@@ -33,8 +33,8 @@ void projectedKeysAreComplete;
  * Pure; returns a new object without changing the input. Filtered tables receive new arrays; retained rows and unchanged tables share references.
  * Unresolved references remain visible so integrity damage can be diagnosed.
  * Use only for read/view projection. Persistence, mutations, integrity checks, imports, migration and exports require the complete dataset. */
-export function activeOnly(data: AppData): AppData {
-  const isActive = (entity: LifecycleFields) => lifecycleStatus(entity) === 'active';
+export function buildActiveData(data: AppData): AppData {
+  const isActive = (entity: LifecycleFields) => resolveLifecycleStatus(entity) === 'active';
   const indexes = Object.fromEntries(
     PARENT_TABLES.map((table) => [
       table,

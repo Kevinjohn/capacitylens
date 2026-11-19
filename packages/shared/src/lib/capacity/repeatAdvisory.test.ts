@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import type { Allocation, Closure, Resource, TimeOff, Weekday } from '../../types/entities.js';
-import { effectiveWorkingWeek } from '../effectiveWorkingWeek.js';
+import { resolveEffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import { generateRepeatingStartDates } from '../repeatingDates.js';
 import { buildRepeatedAllocationDrafts } from '../repeatingOccurrences.js';
 import type { RepeatProjectionContext } from '../repeatingOccurrences.js';
@@ -58,7 +58,7 @@ const repeatContext = ({
   schedulingMode,
   daysOver,
   resource,
-  effectiveWeek: effectiveWorkingWeek(resource, companyWorkingDays),
+  effectiveWeek: resolveEffectiveWorkingWeek(resource, companyWorkingDays),
 });
 
 const fullResource = (
@@ -93,7 +93,7 @@ const repeatingAllocationAdvisory = ({
     existingLoad,
     timeOff,
     proposedDrafts,
-    effectiveWeek: effectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
+    effectiveWeek: resolveEffectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
     closures,
   });
 

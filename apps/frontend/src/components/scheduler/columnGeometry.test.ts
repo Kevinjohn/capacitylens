@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { buildColumnGeometry, resolveLeftEdgeDate } from './columnGeometry';
-import { eachDayISO, addDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO, addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { resolveColumnFit } from '@/lib/schedulerConfig';
 
-const WEEK = eachDayISO('2026-06-01', '2026-06-07');
+const WEEK = listDaysISO('2026-06-01', '2026-06-07');
 const OFF = { minimiseWeekends: false, weekendWidth: 20 };
 const ON = { minimiseWeekends: true, weekendWidth: 20 };
 
@@ -112,7 +112,7 @@ describe('buildColumnGeometry — minimise ON narrows the weekend columns', () =
 
 describe('buildColumnGeometry — viewport fit remainder', () => {
   it('distributes spare pixels within each week instead of exposing the following date', () => {
-    const twoWeeks = eachDayISO('2026-06-01', '2026-06-14');
+    const twoWeeks = listDaysISO('2026-06-01', '2026-06-14');
     const geom = buildColumnGeometry(twoWeeks, 97, {
       minimiseWeekends: true,
       weekendWidth: 22,
@@ -234,7 +234,7 @@ describe('buildColumnGeometry — gating + degenerate windows', () => {
 
 // A whole-week pan changes dates but preserves weekday widths and scroll offsets, so the visible-start date must advance by the same number of days.
 describe('pan invariant: a +7-day Back/Forward pan moves the visible-window start by exactly +7', () => {
-  const daysOld = eachDayISO('2026-06-01', '2026-07-12');
+  const daysOld = listDaysISO('2026-06-01', '2026-07-12');
   const daysNew = daysOld.map((d) => addDaysISO(d, 7));
 
   for (const opts of [

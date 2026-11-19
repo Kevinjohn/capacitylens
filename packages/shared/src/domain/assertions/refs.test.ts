@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import { emptyAppData } from '../../types/entities.js';
+import { createEmptyAppData } from '../../types/entities.js';
 import type {
   Company,
   Activity,
@@ -80,7 +80,7 @@ const activity = (id: ID, overrides: Partial<Activity> = {}): Activity => ({
 // whose rows must never be referenced.
 function data(): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: [company(A1, 'Wayne Enterprises'), company(A2, 'Stark Industries')],
     clients: [
       client('c1'),

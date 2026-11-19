@@ -13,12 +13,12 @@ import type {
 import {
   addDaysISO,
   bucketByCoveredDate,
-  eachDayISO,
-  rangesOverlap,
+  listDaysISO,
+  hasRangeOverlap,
   startOfWeekISO,
-  weekdayOf,
+  getWeekday,
 } from '@capacitylens/shared/lib/dateMath';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import {
   CAPACITY_OVERVIEW_HORIZON_WEEKS,
   DEFAULT_RANGE_DAYS,
@@ -75,7 +75,7 @@ export function buildCapacitySection({
   // each range is a slice. The overSoon days lie inside the horizon, which runs at least 11 weeks
   // past today.
   const dates = Array.from(
-    new Set([...eachDayISO(range.from, range.to), ...eachDayISO(horizon.from, horizon.to)])
+    new Set([...listDaysISO(range.from, range.to), ...listDaysISO(horizon.from, horizon.to)])
   ).sort();
   const buildBounds = ({ from, to }: CapacityRange) =>
     [dates.indexOf(from), dates.indexOf(to) + 1] as const;
@@ -89,7 +89,7 @@ export function buildCapacitySection({
   const first = range.from < horizon.from ? range.from : horizon.from;
   const last = range.to > horizon.to ? range.to : horizon.to;
   const isInWindow = (row: { startDate: ISODate; endDate: ISODate }) =>
-    rangesOverlap(row.startDate, row.endDate, first, last);
+    hasRangeOverlap(row.startDate, row.endDate, first, last);
   const allocationsByResource = groupByResource(data.allocations.filter(isInWindow));
   const timeOffByResource = groupByResource(data.timeOff.filter(isInWindow));
   const closuresByDate = bucketByCoveredDate(data.closures.filter(isInWindow), dates);
@@ -104,7 +104,7 @@ export function buildCapacitySection({
       dates
     );
     const timeOffByDate = bucketByCoveredDate(timeOffByResource.get(resource.id) ?? [], dates);
-    const effectiveWeek = effectiveWorkingWeek(resource, companyWorkingDays);
+    const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
     const all: CapacityDays = { allocated: [], confirmedAllocated: [], available: [], over: [] };
     for (const date of dates) {
       const allocations = allocationsByDate.get(date) ?? [];
@@ -122,7 +122,7 @@ export function buildCapacitySection({
             resource,
             date,
             allocations: allocations.filter((allocation) => allocation.status !== 'tentative'),
-            weekday: weekdayOf(date),
+            weekday: getWeekday(date),
             effectiveWeek,
           })
         : day.allocated;

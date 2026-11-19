@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { addDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
-import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
+import { resolveLifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import {
   DEFAULT_RANGE_DAYS,
@@ -101,7 +101,7 @@ function applyFilterPatch(
         (project) =>
           project.id === nextFilters.projectId &&
           project.clientId === patch.clientId &&
-          lifecycleStatus(project) === 'active',
+          resolveLifecycleStatus(project) === 'active',
       )
     ) {
       nextFilters.projectId = null;

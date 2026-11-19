@@ -1,7 +1,7 @@
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { buildEmptyFilters } from '@/store/useStore';
 import {
@@ -28,7 +28,7 @@ export const start = '2026-06-01';
 /** End of the fixed model-test week. */
 export const end = '2026-06-07';
 /** Dates in the fixed model-test week. */
-export const days = eachDayISO(start, end);
+export const days = listDaysISO(start, end);
 /** Uniform column geometry for the fixed model-test week. */
 export const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
 
@@ -58,7 +58,7 @@ function makeDefaultDisciplines(): AppData['disciplines'] {
 /** Builds scoped scheduler fixtures with optional discipline overrides. */
 export function dataset(disciplines: AppData['disciplines'] = makeDefaultDisciplines()): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     disciplines,
     clients: [makeClient({ companyId: 'acct-test', name: 'Ferris', color: '#1' })],
     projects: [

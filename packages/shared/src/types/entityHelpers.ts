@@ -9,9 +9,9 @@ import { FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from './entityKeys.js'
 import type { ScopedEntityKey } from './entityKeys.js';
 
 /** Does an allocation entered in this mode carry an hourly load? Blocks record placement and use
- * `blockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
+ * `resolveBlockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
  * validation use this predicate for a consistent distinction. */
-export function carriesHourlyLoad(mode: SchedulingMode): boolean {
+export function hasHourlyLoad(mode: SchedulingMode): boolean {
   return mode !== 'blocks';
 }
 
@@ -22,7 +22,7 @@ export function isScopedEntityKey(key: string): key is ScopedEntityKey {
 
 /** View AppData’s scoped tables through their common ScopedEntity shape.
  * Returns the same object and arrays; mutating the view also mutates data. Copy before changes that must preserve the input. */
-export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
+export function buildScopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
   return data;
 }
 
@@ -73,7 +73,7 @@ function buildDefaultCapacityWorkingPattern(): Pick<Resource, 'workingDays' | 'h
  * have no capacity, but the Resource type + store still require a positive working day and a
  * non-empty week. A factory (not a shared object) so each call gets its own weekday arrays. No
  * aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
-export function externalCapacityDefaults(): Pick<
+export function buildExternalCapacityDefaults(): Pick<
   Resource,
   'employmentType' | 'engagement' | 'workingHoursPerDay' | 'workingDays' | 'halfDays'
 > {
@@ -89,12 +89,12 @@ export function externalCapacityDefaults(): Pick<
  * their live working week from the company calendar, so these persisted fields are deliberately
  * inert and must never copy an account's current selection. A factory gives every caller fresh
  * arrays, avoiding aliases if a consumer mutates one. */
-export function placeholderCapacityDefaults(): Pick<Resource, 'workingDays' | 'halfDays'> {
+export function buildPlaceholderCapacityDefaults(): Pick<Resource, 'workingDays' | 'halfDays'> {
   return buildDefaultCapacityWorkingPattern();
 }
 
 /** A fresh, empty dataset, the starting point before seeding. */
-export function emptyAppData(): AppData {
+export function createEmptyAppData(): AppData {
   return {
     accounts: [],
     disciplines: [],

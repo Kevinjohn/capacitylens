@@ -1,8 +1,8 @@
 import { test } from '@japa/runner';
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import { buildCapacityWindow } from '@capacitylens/shared/lib/capacity';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type {
   Company,
@@ -278,7 +278,7 @@ test.group('capacity section on the sample company', (group) => {
 
   test('equals the shared straight-line capacity window for every resource', async ({ assert }) => {
     await resetPlanningFixture();
-    const stored = activeOnly(await readState('a-studio', true));
+    const stored = buildActiveData(await readState('a-studio', true));
     const company = stored.accounts[0]!;
     const today = '2026-06-03';
     const result = buildCapacitySection({ data: stored, company, today });
@@ -302,7 +302,7 @@ test.group('capacity section on the sample company', (group) => {
           timeOff: stored.timeOff.filter((entry) => entry.resourceId === row.id),
           start: range.from,
           end: range.to,
-          effectiveWeek: effectiveWorkingWeek(row, companyWorkingDays),
+          effectiveWeek: resolveEffectiveWorkingWeek(row, companyWorkingDays),
           closures: stored.closures,
         });
       const expected = (range: { from: string; to: string }) => {

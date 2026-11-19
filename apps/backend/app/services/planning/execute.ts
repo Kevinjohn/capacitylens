@@ -1,11 +1,11 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
+import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import {
   archive,
   canUnarchive,
   LifecycleTransitionError,
-  lifecycleStatus,
+  resolveLifecycleStatus,
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey, Client } from '@capacitylens/shared/types/entities';
@@ -66,7 +66,7 @@ async function transitionLifecycle(
     };
   } else {
     if (!canUnarchive(current)) {
-      const noChange = lifecycleStatus(current) === 'active';
+      const noChange = resolveLifecycleStatus(current) === 'active';
       throw new PlanningOperationError(
         400,
         noChange ? 'NO_CHANGE' : 'VALIDATION_ERROR',
@@ -224,7 +224,7 @@ async function applyIntent(
         });
         if (entity.entity === 'activities' && intent.operation === 'catalogue.update') {
           const activity = existingRow(data, 'activities', entity.id);
-          if (!allocationAttributionAllowed(activity.kind)) {
+          if (!isAllocationAttributionAllowed(activity.kind)) {
             for (const allocation of data.allocations) {
               if (allocation.activityId !== entity.id || allocation.projectId === null) continue;
               const updatedAt = createServerRevision(allocation.updatedAt);

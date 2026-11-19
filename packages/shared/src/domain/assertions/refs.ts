@@ -1,6 +1,6 @@
 import {
-  allocationAttributionAllowed,
-  effectiveProjectId,
+  isAllocationAttributionAllowed,
+  resolveEffectiveProjectId,
   validateAllocationAssignment,
 } from '../../lib/integrity.js';
 import { RESOURCE_KINDS, isExternalResource } from '../../types/entities.js';
@@ -13,7 +13,7 @@ import type {
   ScopedEntity,
   ScopedEntityKey,
 } from '../../types/entities.js';
-import { belongsToCompany } from '../tenancy.js';
+import { isInCompany } from '../tenancy.js';
 import { throwDomainError } from '../errors.js';
 import { parseResourceAvatarUrl } from '../resourceAvatarUrl.js';
 import {
@@ -34,7 +34,7 @@ export function getOwned<K extends ScopedEntityKey>(
 ): AppData[K][number] | null {
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
   if (!row) return null;
-  if (!belongsToCompany(row, companyId)) {
+  if (!isInCompany(row, companyId)) {
     throwDomainError('record_wrong_account', 'That record does not belong to the active company.');
   }
   return row as AppData[K][number];
@@ -87,12 +87,12 @@ function createScopedRefsContext(
         ? (resolveValidationRow({ data, table, id: record[field], ...lookupOptions }) as
             ScopedEntity | undefined)
         : undefined;
-    if (isUnchanged(field) && (resolved === undefined || belongsToCompany(resolved, companyId))) {
+    if (isUnchanged(field) && (resolved === undefined || isInCompany(resolved, companyId))) {
       return;
     }
     if (
       resolved === undefined ||
-      !belongsToCompany(resolved, companyId) ||
+      !isInCompany(resolved, companyId) ||
       !isEffectivelyActive({ data, table, row: resolved, ...lookupOptions })
     ) {
       throwDomainError('reference_wrong_account', message);
@@ -162,7 +162,7 @@ function assertActivityPhase(context: ScopedRefsContext): void {
       ? (resolveValidationRow({ data, table: 'phases', id: record.phaseId, ...lookupOptions }) as
           AppData['phases'][number] | undefined)
       : undefined;
-  const ownedPhase = phase && belongsToCompany(phase, companyId) ? phase : undefined;
+  const ownedPhase = phase && isInCompany(phase, companyId) ? phase : undefined;
   if (isUnchanged('phaseId') && isUnchanged('projectId')) {
     if (phase && !ownedPhase) {
       throwDomainError(
@@ -328,13 +328,13 @@ function assertAllocationProject(
   activity: Activity,
 ): ID | undefined {
   const { data, companyId, projectId, existing, lookupOptions } = context;
-  if (projectId != null && !allocationAttributionAllowed(activity.kind)) {
+  if (projectId != null && !isAllocationAttributionAllowed(activity.kind)) {
     throwDomainError(
       'allocation_project_forbidden',
       'Only an all-projects activity allocation can be attributed to a project.',
     );
   }
-  const resolvedProjectId = effectiveProjectId(
+  const resolvedProjectId = resolveEffectiveProjectId(
     projectId === undefined ? {} : { projectId },
     activity,
   );

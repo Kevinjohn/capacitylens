@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { calendarDate, uuid } from '#validators/planning/fields';
 
@@ -16,7 +16,7 @@ const readRange = vine.createRule((value, _options, field) => {
   if (!isValidISODate(from) || !isValidISODate(to)) return;
   if (from > to) {
     field.report('The to date must be on or after the from date.', 'readRange', field);
-  } else if (daysInclusive(from, to) > MAX_PLANNING_READ_DAYS) {
+  } else if (countDaysInclusive(from, to) > MAX_PLANNING_READ_DAYS) {
     field.report(`The range may cover at most ${MAX_PLANNING_READ_DAYS} days.`, 'readRange', field);
   }
 });

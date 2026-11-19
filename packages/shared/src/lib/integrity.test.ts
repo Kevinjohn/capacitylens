@@ -2,28 +2,28 @@ import { describe, it, expect } from 'vitest';
 import { addDaysISO } from './dateMath.js';
 import { MAX_SPAN_DAYS } from './schedulingDays.js';
 import {
-  allocationAttributionAllowed,
-  effectiveProjectId,
+  isAllocationAttributionAllowed,
+  resolveEffectiveProjectId,
   validateAllocationAssignment,
   validateDateRange,
   validateProjectClient,
-  withoutAllocationAttribution,
+  removeAllocationAttribution,
 } from './integrity.js';
 import { makePlaceholder, makeUnboundPlaceholder, makePerson } from './integrity.test.support.js';
 
-describe('allocationAttributionAllowed', () => {
+describe('isAllocationAttributionAllowed', () => {
   it('allows allocation-level project attribution only for repeatable activities', () => {
-    expect(allocationAttributionAllowed('repeatable')).toBe(true);
-    expect(allocationAttributionAllowed('project')).toBe(false);
-    expect(allocationAttributionAllowed('internal')).toBe(false);
-    expect(allocationAttributionAllowed('unknown')).toBe(false);
+    expect(isAllocationAttributionAllowed('repeatable')).toBe(true);
+    expect(isAllocationAttributionAllowed('project')).toBe(false);
+    expect(isAllocationAttributionAllowed('internal')).toBe(false);
+    expect(isAllocationAttributionAllowed('unknown')).toBe(false);
   });
 });
 
-describe('withoutAllocationAttribution', () => {
+describe('removeAllocationAttribution', () => {
   it('returns a restamped copy without projectId', () => {
     const original = { id: 'al1', projectId: 'p1', updatedAt: 'before' };
-    expect(withoutAllocationAttribution(original, 'after')).toEqual({
+    expect(removeAllocationAttribution(original, 'after')).toEqual({
       id: 'al1',
       projectId: null,
       updatedAt: 'after',
@@ -34,19 +34,21 @@ describe('withoutAllocationAttribution', () => {
 
   it('preserves extra fields and the existing timestamp when no restamp is supplied', () => {
     const original = { id: 'al1', projectId: 'p1', updatedAt: 'before', note: 'Keep me' };
-    const cleared = withoutAllocationAttribution(original);
+    const cleared = removeAllocationAttribution(original);
     expect(cleared).toEqual({ id: 'al1', projectId: null, updatedAt: 'before', note: 'Keep me' });
     expect(cleared).not.toBe(original);
   });
 });
 
-describe('effectiveProjectId', () => {
+describe('resolveEffectiveProjectId', () => {
   it('uses allocation attribution when present, otherwise activity attribution', () => {
-    expect(effectiveProjectId({ projectId: 'allocation' }, { projectId: 'activity' })).toBe(
+    expect(resolveEffectiveProjectId({ projectId: 'allocation' }, { projectId: 'activity' })).toBe(
       'allocation',
     );
-    expect(effectiveProjectId({ projectId: null }, { projectId: 'activity' })).toBe('activity');
-    expect(effectiveProjectId({ projectId: null }, { projectId: null })).toBeUndefined();
+    expect(resolveEffectiveProjectId({ projectId: null }, { projectId: 'activity' })).toBe(
+      'activity',
+    );
+    expect(resolveEffectiveProjectId({ projectId: null }, { projectId: null })).toBeUndefined();
   });
 });
 

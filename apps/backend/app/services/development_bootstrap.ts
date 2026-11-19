@@ -8,7 +8,7 @@ import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import User from '#models/user';
-import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
+import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password';
 
 /** Keeps interrupted-bootstrap recovery explicit rather than adopting an identity by address. */
 export function buildBootstrapRecoveryMessage() {
@@ -40,7 +40,7 @@ export async function recordBootstrapAdmission(
 export async function bootstrapDevelopmentCredential(app: ApplicationService) {
   if (!env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN')) return;
   const password = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
-  if (!password || passwordLengthFailure(password)) {
+  if (!password || getPasswordLengthFailure(password)) {
     throw new Error(
       'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must satisfy the password length policy'
     );

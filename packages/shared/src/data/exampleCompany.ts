@@ -1,6 +1,6 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import type { AppData, Discipline, ID, ISODate, ISOTimestamp, Weekday } from '../types/entities.js';
-import { newId } from '../lib/id.js';
+import { createId } from '../lib/id.js';
 import { addDaysISO, startOfWeekISO } from '../lib/dateMath.js';
 
 // One small company's worth of rows a new owner can add to an empty company: just enough to see a
@@ -48,7 +48,7 @@ function buildDisciplines(stamp: Stamp) {
   return {
     design: {
       ...NULLABLE_FIELDS.disciplines,
-      id: newId(),
+      id: createId(),
       name: 'Design',
       color: '#2d75da',
       sortOrder: 0,
@@ -56,7 +56,7 @@ function buildDisciplines(stamp: Stamp) {
     },
     development: {
       ...NULLABLE_FIELDS.disciplines,
-      id: newId(),
+      id: createId(),
       name: 'Development',
       color: '#3ace6b',
       sortOrder: 1,
@@ -69,7 +69,7 @@ function buildDisciplines(stamp: Stamp) {
 function buildPerson(stamp: Stamp, discipline: Discipline, who: { name: string; role: string }) {
   return {
     ...NULLABLE_FIELDS.resources,
-    id: newId(),
+    id: createId(),
     kind: 'person' as const,
     ...who,
     disciplineId: discipline.id,
@@ -86,20 +86,20 @@ function buildPerson(stamp: Stamp, discipline: Discipline, who: { name: string; 
 function buildWork(stamp: Stamp) {
   const client = {
     ...NULLABLE_FIELDS.clients,
-    id: newId(),
+    id: createId(),
     name: 'Queen Consolidated',
     color: '#e02727',
     ...stamp,
   };
   const project = {
     ...NULLABLE_FIELDS.projects,
-    id: newId(),
+    id: createId(),
     name: 'Star City Website',
     clientId: client.id,
     color: '#da2d92',
     ...stamp,
   };
-  const phase = { id: newId(), name: 'Discovery', projectId: project.id, ...stamp };
+  const phase = { id: createId(), name: 'Discovery', projectId: project.id, ...stamp };
   const projectActivity = { projectId: project.id, kind: 'project' as const, ...stamp };
   return {
     client,
@@ -107,15 +107,15 @@ function buildWork(stamp: Stamp) {
     phase,
     wireframes: {
       ...NULLABLE_FIELDS.activities,
-      id: newId(),
+      id: createId(),
       name: 'Wireframes',
       phaseId: phase.id,
       ...projectActivity,
     },
-    build: { ...NULLABLE_FIELDS.activities, id: newId(), name: 'Build', ...projectActivity },
+    build: { ...NULLABLE_FIELDS.activities, id: createId(), name: 'Build', ...projectActivity },
     admin: {
       ...NULLABLE_FIELDS.activities,
-      id: newId(),
+      id: createId(),
       name: 'Admin',
       kind: 'internal' as const,
       ...stamp,
@@ -143,7 +143,7 @@ interface BuildBookingsInput {
 function buildBookings({ stamp, buildWorkday, dickId, barbaraId, work }: BuildBookingsInput) {
   const createBooking = ({ days, ...rest }: BookingSpec) => ({
     ...NULLABLE_FIELDS.allocations,
-    id: newId(),
+    id: createId(),
     startDate: buildWorkday(days[0]),
     endDate: buildWorkday(days[1]),
     ...rest,
@@ -214,7 +214,7 @@ export function buildExampleCompany({
     timeOff: [
       {
         ...NULLABLE_FIELDS.timeOff,
-        id: newId(),
+        id: createId(),
         resourceId: barbara.id,
         startDate: buildWorkday(8),
         endDate: buildWorkday(9),

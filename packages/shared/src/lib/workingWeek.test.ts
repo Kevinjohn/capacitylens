@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Weekday } from '../types/entities.js';
 import { countWorkingDays, endDateForWorkingDays, isWeekendAware } from './workingWeek.js';
-import { addDaysISO, daysInclusive, weekdayOf } from './dateMath.js';
+import { addDaysISO, countDaysInclusive, getWeekday } from './dateMath.js';
 
 describe('isWeekendAware', () => {
   it('is false when workingDays is empty (no boundary at length > 0 to cross)', () => {
@@ -30,10 +30,10 @@ describe('countWorkingDays', () => {
 
   it('matches a date-string scan across starts, spans and working-week patterns', () => {
     const reference = (start: string, end: string, workingDays: Weekday[]): number => {
-      const span = daysInclusive(start, end);
+      const span = countDaysInclusive(start, end);
       let count = 0;
       for (let i = 0; i < span; i++) {
-        if (workingDays.includes(weekdayOf(addDaysISO(start, i)))) count++;
+        if (workingDays.includes(getWeekday(addDaysISO(start, i)))) count++;
       }
       return count;
     };
@@ -128,7 +128,7 @@ describe('endDateForWorkingDays edge cases', () => {
       let found = 0;
       for (let i = 0; i < maxScan; i++) {
         const day = addDaysISO(start, i);
-        if (distinctWorkingDays.has(weekdayOf(day))) {
+        if (distinctWorkingDays.has(getWeekday(day))) {
           found++;
           if (found === count) return day;
         }

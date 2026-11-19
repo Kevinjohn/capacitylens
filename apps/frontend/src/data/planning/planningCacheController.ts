@@ -1,4 +1,4 @@
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
 import type {
@@ -61,7 +61,7 @@ const initialMetadata = (
 });
 
 /** Creates the single non-persisted Zustand value used by the planning controller. */
-export function createPlanningCacheState(data: AppData = emptyAppData()): PlanningCacheState {
+export function createPlanningCacheState(data: AppData = createEmptyAppData()): PlanningCacheState {
   return { data, planning: initialMetadata() };
 }
 
@@ -151,7 +151,10 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     attempt = null;
     historyId = createHistoryId();
     abortAll();
-    store.setState(() => ({ data: emptyAppData(), planning: initialMetadata(frozenContext) }));
+    store.setState(() => ({
+      data: createEmptyAppData(),
+      planning: initialMetadata(frozenContext),
+    }));
   }
 
   function loseScope(): void {
@@ -189,7 +192,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       historyId = createHistoryId();
       abortAll();
       store.setState(() => ({
-        data: older || snapshot.slice === 'unchanged' ? emptyAppData() : snapshot.data,
+        data: older || snapshot.slice === 'unchanged' ? createEmptyAppData() : snapshot.data,
         planning: {
           ...initialMetadata(context),
           authority: older ? null : snapshot.authority,

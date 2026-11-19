@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
-import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { getWeekday } from '@capacitylens/shared/lib/dateMath';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
 import type { Draft } from '@/lib/entityDrafts';
 import { buildRepeatedAllocationDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
@@ -45,7 +45,7 @@ const repeatContext = ({
   schedulingMode,
   daysOver,
   resource,
-  effectiveWeek: effectiveWorkingWeek(resource, companyWorkingDays),
+  effectiveWeek: resolveEffectiveWorkingWeek(resource, companyWorkingDays),
 });
 
 describe('#257 characterization: repeat start-day policy', () => {
@@ -64,7 +64,7 @@ describe('#257 characterization: repeat start-day policy', () => {
       }),
     );
 
-    expect(startDates.map(weekdayOf)).toEqual([1, 3, 6]);
+    expect(startDates.map(getWeekday)).toEqual([1, 3, 6]);
     expect(projected.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
       ['2026-06-01', '2026-06-01'],
       ['2026-07-01', '2026-07-06'],
@@ -80,7 +80,7 @@ describe('#257 characterization: repeat start-day policy', () => {
     ).startDates;
 
     expect(startDates).toHaveLength(9);
-    expect(new Set(startDates.map(weekdayOf))).toEqual(new Set([1]));
+    expect(new Set(startDates.map(getWeekday))).toEqual(new Set([1]));
   });
 });
 

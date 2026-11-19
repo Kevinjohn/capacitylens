@@ -1,5 +1,5 @@
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
-import { addDaysISO, eachDayISO, rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO, listDaysISO, hasRangeOverlap } from '@capacitylens/shared/lib/dateMath';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
   buildExternalBand,
@@ -77,7 +77,7 @@ function projectVisibleLanes({
   // Pack that partial column too so its bars cannot fall through to lane 0 over visible work.
   const packingEnd = partiallyExposesNextColumn ? addDaysISO(end, 1) : end;
   const visibleBars = row.bars.filter(({ allocation }) =>
-    rangesOverlap(allocation.startDate, allocation.endDate, start, packingEnd),
+    hasRangeOverlap(allocation.startDate, allocation.endDate, start, packingEnd),
   );
   const { lanes, laneCount } = packLanes(visibleBars.map(({ allocation }) => allocation));
   const laneById = new Map(lanes.map(({ id, lane }) => [id, lane]));
@@ -104,7 +104,7 @@ export function applyVisibleUtilisation({
   laneLayout = compactLaneLayout,
   partiallyExposesNextColumn = false,
 }: ApplyVisibleUtilisationInput): GroupModel[] {
-  const days = eachDayISO(start, end);
+  const days = listDaysISO(start, end);
   return model.map((group) => {
     const rows = group.rows.map((row) => {
       const visibleLanes = projectVisibleLanes({

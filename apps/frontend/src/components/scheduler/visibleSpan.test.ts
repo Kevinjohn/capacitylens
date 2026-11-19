@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import {
   buildRealizedVisibleSpan,
   buildVisibleSpanLabels,
@@ -44,7 +44,7 @@ describe('visibleSpanLabels', () => {
 });
 
 describe('visibleWindowFor', () => {
-  const days = eachDayISO('2026-06-01', '2026-06-30');
+  const days = listDaysISO('2026-06-01', '2026-06-30');
 
   it('spans zoom*7 INCLUSIVE days from the left-edge day', () => {
     expect(

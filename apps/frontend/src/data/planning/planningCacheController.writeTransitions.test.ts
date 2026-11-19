@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningSnapshot } from './planningCacheTypes';
 import { isPlanningHistoryReady } from './planningReadiness';
 import { isShownByPlanningState, readPlanningProblem } from './planningNotices';
@@ -200,7 +200,7 @@ describe('planning write transitions', () => {
     expect(onAuthLoss).toHaveBeenCalledOnce();
     expect(h.state().planning).toMatchObject({ phase: { kind: 'idle' }, context: null });
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
-    expect(h.state().data).toEqual(emptyAppData());
+    expect(h.state().data).toEqual(createEmptyAppData());
   });
 
   it('refuses and refetches a restoration confirmation when no dialog is available', async () => {

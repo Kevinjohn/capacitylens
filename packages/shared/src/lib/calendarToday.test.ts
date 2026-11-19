@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { toISODate } from './dateMath.js';
+import { formatISODate } from './dateMath.js';
 import { resolveCalendarToday } from './calendarToday.js';
 
 describe('resolveCalendarToday', () => {
@@ -50,12 +50,12 @@ describe('resolveCalendarToday with a fixed clock', () => {
       );
       expect(resolveCalendarToday('UTC', tomorrowUTC).date).toBe('2026-06-15');
       expect(resolveCalendarToday(undefined, tomorrowUTC).date).toBe(
-        toISODate(new Date(tomorrowUTC)),
+        formatISODate(new Date(tomorrowUTC)),
       );
     });
 
     it('always resolves the SAME zone, ignoring which timeZone happens to be passed', () => {
-      // Guards the early-return short-circuit `if (!timeZone) return toISODate(new
+      // Guards the early-return short-circuit `if (!timeZone) return formatISODate(new
       // Date())`: forcing it to always fire (dropping the timeZone argument on the
       // floor) would make a valid, given zone come back as the local date instead.
       vi.useFakeTimers();
@@ -188,7 +188,7 @@ describe('resolveCalendarToday invalid zones', () => {
     expect(result).toMatchObject({
       kind: 'invalid-time-zone',
       timeZone: 'Not/AZone',
-      date: toISODate(new Date()),
+      date: formatISODate(new Date()),
     });
     expect(result.kind === 'invalid-time-zone' && result.cause).toBeInstanceOf(RangeError);
     expect(resolveCalendarToday('Not/AZone')).toMatchObject({ kind: 'invalid-time-zone' });

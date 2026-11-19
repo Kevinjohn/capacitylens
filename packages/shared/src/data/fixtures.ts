@@ -1,6 +1,9 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 // Fixtures use present, non-default optional values so server round-trip tests prove those values survive persistence.
-import { externalCapacityDefaults, placeholderCapacityDefaults } from '../types/entities.js';
+import {
+  buildExternalCapacityDefaults,
+  buildPlaceholderCapacityDefaults,
+} from '../types/entities.js';
 import { NEUTRAL_COLOR } from '../lib/color.js';
 import type {
   Company,
@@ -110,7 +113,7 @@ export const FIXTURE_RESOURCE: Resource = {
   employmentType: 'contractor',
   engagement: 'studio',
   workingHoursPerDay: 6,
-  ...placeholderCapacityDefaults(),
+  ...buildPlaceholderCapacityDefaults(),
   projectId: 'fix-p1',
   color: '#3ace6b',
   isFavourite: true,
@@ -158,7 +161,7 @@ export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
   kind: 'external',
   name: 'Fixture External Co',
   role: 'Fixture Partner',
-  ...externalCapacityDefaults(),
+  ...buildExternalCapacityDefaults(),
   color: NEUTRAL_COLOR,
   createdAt: TS1,
   updatedAt: TS2,

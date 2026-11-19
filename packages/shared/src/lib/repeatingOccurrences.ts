@@ -1,5 +1,5 @@
-import { addDaysISO, daysInclusive } from './dateMath.js';
-import { lacksEffectiveWorkingDays } from './effectiveWorkingWeek.js';
+import { addDaysISO, countDaysInclusive } from './dateMath.js';
+import { hasNoEffectiveWorkingDays } from './effectiveWorkingWeek.js';
 import type { EffectiveWorkingWeek } from './effectiveWorkingWeek.js';
 import { isValidISODate } from './isoDates.js';
 import {
@@ -8,7 +8,7 @@ import {
   TIME_OFF_REPEAT_POLICY,
 } from './repeatingDates.js';
 import type { RepeatPattern } from './repeatingDates.js';
-import { endDateForSpan, maxSpanDaysForStart, MAX_SPAN_DAYS } from './schedulingDays.js';
+import { endDateForSpan, calculateMaxSpanDays, MAX_SPAN_DAYS } from './schedulingDays.js';
 import { isExternalResource } from '../types/entities.js';
 import type { ISODate, Resource, SchedulingMode } from '../types/entities.js';
 
@@ -46,7 +46,7 @@ export function buildRepeatedAllocationDrafts<T extends RepeatableAllocation>(
   context: RepeatProjectionContext,
 ): T[] {
   assertRepeatProjection(baseDraft, startDates, context);
-  const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
+  const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
   const usesCalendarSpan =
     isExternalResource(context.resource) || context.schedulingMode === 'hourly';
   const spanOptions = {
@@ -85,13 +85,13 @@ function assertRepeatProjection(
     );
   }
 
-  const calendarSpan = daysInclusive(baseDraft.startDate, baseDraft.endDate);
+  const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (calendarSpan < 1) {
     throw new RangeError('Repeat projection requires a valid inclusive date range.');
   }
   if (
     !usesCalendarSpan &&
-    lacksEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWorkingDays ?? undefined)
+    hasNoEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWorkingDays ?? undefined)
   ) {
     throw new RangeError('Repeat projection requires at least one effective working day.');
   }
@@ -104,7 +104,7 @@ function isValidWorkingSpan(daysOver: number): boolean {
 interface ValidateProjectedSpansInput {
   startDates: readonly ISODate[];
   daysOver: number;
-  spanOptions: Parameters<typeof maxSpanDaysForStart>[1];
+  spanOptions: Parameters<typeof calculateMaxSpanDays>[1];
   usesCalendarSpan: boolean;
 }
 
@@ -116,7 +116,7 @@ function assertProjectedSpans({
 }: ValidateProjectedSpansInput): void {
   if (usesCalendarSpan) return;
   for (const generatedStart of startDates) {
-    if (daysOver > maxSpanDaysForStart(generatedStart, spanOptions)) {
+    if (daysOver > calculateMaxSpanDays(generatedStart, spanOptions)) {
       throw new RangeError('A repeated working span extends beyond the supported date range.');
     }
   }
@@ -131,7 +131,7 @@ export function buildRepeatedTimeOffDrafts<T extends { startDate: ISODate; endDa
   if (!isValidISODate(baseDraft.startDate) || !isValidISODate(baseDraft.endDate)) {
     throw new RepeatingDateError('invalid-date', 'Time off requires valid ISO dates.');
   }
-  const duration = daysInclusive(baseDraft.startDate, baseDraft.endDate);
+  const duration = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (!Number.isSafeInteger(duration) || duration < 1) {
     throw new RepeatingDateError(
       'invalid-date',

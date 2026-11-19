@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import { emptyAppData } from '../../types/entities.js';
+import { createEmptyAppData } from '../../types/entities.js';
 import type {
   Company,
   Activity,
@@ -94,7 +94,7 @@ const timeOff = (id: ID, resourceId: ID): TimeOff => ({
 
 function data(overrides: Partial<AppData> = {}): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: [company],
     clients: [client],
     projects: [project('p1'), project('p2'), project('p3')],

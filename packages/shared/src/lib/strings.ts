@@ -16,7 +16,7 @@ export const MAX_EMAIL_LENGTH = 254;
 export const MAX_NOTE_LENGTH = 1000;
 
 /** Count Unicode code points for name and note limits; email length uses UTF-8 bytes. */
-export function unicodeCharacterCount(value: string): number {
+export function countUnicodeCharacters(value: string): number {
   return Array.from(value).length;
 }
 
@@ -86,7 +86,7 @@ export function parseUserName(value: unknown): string | null {
   if (
     !normalized ||
     hasDisallowedChars(canonical) ||
-    unicodeCharacterCount(normalized) > MAX_NAME_LENGTH
+    countUnicodeCharacters(normalized) > MAX_NAME_LENGTH
   ) {
     return null;
   }
@@ -104,13 +104,13 @@ export function cleanText(
   let out = stripDisallowedCharacters(value);
   out = normalizeUserText(out, { multiline });
   const max = options.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH);
-  if (unicodeCharacterCount(out) <= max) return out;
+  if (countUnicodeCharacters(out) <= max) return out;
   // Keep the existing code-point budget, but never spend only part of a grapheme cluster. This
   // avoids changing a visible character by dropping its combining tail at the boundary.
   let truncated = '';
   let count = 0;
   for (const { segment } of GRAPHEME_SEGMENTER.segment(out)) {
-    const segmentLength = unicodeCharacterCount(segment);
+    const segmentLength = countUnicodeCharacters(segment);
     if (count + segmentLength > max) break;
     truncated += segment;
     count += segmentLength;

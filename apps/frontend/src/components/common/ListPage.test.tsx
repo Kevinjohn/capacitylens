@@ -6,14 +6,14 @@ import { OwnerPermissions } from '@/test/ownerPermissions';
 import userEvent from '@testing-library/user-event';
 import { ListPage } from './ui';
 import { useStore } from '@/store/useStore';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 
 function render(ui: ReactNode) {
   return rtlRender(ui, { wrapper: OwnerPermissions });
 }
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
 });

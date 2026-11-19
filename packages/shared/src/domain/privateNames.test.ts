@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { Client } from '../types/entities.js';
 import {
   normalizeCodeName,
-  nameForQuotedContext,
-  privateCodeNameFallback,
+  buildQuotedContextName,
+  buildPrivateCodeNameFallback,
   buildQuotedCodeName,
   redactPrivateName,
 } from './privateNames.js';
@@ -25,7 +25,7 @@ describe('private-name projection', () => {
     expect(normalizeCodeName('““  Nightwing  ””')).toBe('Nightwing');
     expect(normalizeCodeName('North"star')).toBe('North"star');
     expect(buildQuotedCodeName('"Nightwing"')).toBe('"Nightwing"');
-    expect(nameForQuotedContext('"Nightwing"')).toBe('Nightwing');
+    expect(buildQuotedContextName('"Nightwing"')).toBe('Nightwing');
   });
 
   it('normalizes a long interior quote run in linear time', () => {
@@ -93,8 +93,8 @@ describe('private-name projection across data', () => {
   );
 
   it('derives distinct stable fallbacks from record ids without using private names', () => {
-    expect(privateCodeNameFallback('client-1234')).toBe('Confidential #client1234');
-    expect(privateCodeNameFallback('client-5678')).toBe('Confidential #client5678');
-    expect(privateCodeNameFallback('----')).toBe('Confidential #0000');
+    expect(buildPrivateCodeNameFallback('client-1234')).toBe('Confidential #client1234');
+    expect(buildPrivateCodeNameFallback('client-5678')).toBe('Confidential #client5678');
+    expect(buildPrivateCodeNameFallback('----')).toBe('Confidential #0000');
   });
 });

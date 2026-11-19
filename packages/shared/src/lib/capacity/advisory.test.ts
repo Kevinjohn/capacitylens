@@ -4,7 +4,7 @@ import { addDaysISO } from '../dateMath.js';
 import { MAX_SPAN_DAYS } from '../schedulingDays.js';
 
 import {
-  valueAt,
+  requireValueAt,
   capacityAdvisory,
   makeResource,
   makeAlloc,
@@ -168,7 +168,7 @@ describe('capacityAdvisory', () => {
         proposal: proposal({
           startDate: '2026-06-01',
           endDate: '2026-06-01',
-          hoursPerDay: valueAt(fractional, 2),
+          hoursPerDay: requireValueAt(fractional, 2),
           ignoreWorkingDays: false,
         }),
         otherAllocations: others,
@@ -181,7 +181,7 @@ describe('capacityAdvisory', () => {
         proposal: proposal({
           startDate: '2026-06-01',
           endDate: '2026-06-01',
-          hoursPerDay: valueAt(fractional, 2) + 0.05,
+          hoursPerDay: requireValueAt(fractional, 2) + 0.05,
           ignoreWorkingDays: false,
         }),
         otherAllocations: others,

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningTransport } from './planningCacheTypes';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
@@ -108,7 +108,7 @@ describe('planning cache controller', () => {
         authority: makePlanningAuthority({ role: 'viewer' }),
       }),
     ).resolves.toBe(false);
-    expect(h.state().data).toEqual(emptyAppData());
+    expect(h.state().data).toEqual(createEmptyAppData());
     expect(h.state().planning.revision).toBeNull();
     expect(h.state().planning.phase.kind).toBe('failed');
   });

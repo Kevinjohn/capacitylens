@@ -1,9 +1,9 @@
 import { useStore } from './useStore';
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 
-const emptyScopedData = emptyAppData();
+const emptyScopedData = createEmptyAppData();
 const activeCache = new WeakMap<AppData, AppData>();
 
 /** The published dataset when it is `companyId`'s, otherwise one stable empty dataset. The planning
@@ -21,7 +21,7 @@ export function resolveSharedScopedData(data: AppData, companyId: string | null)
 export function resolveSharedActiveData(data: AppData): AppData {
   let active = activeCache.get(data);
   if (!active) {
-    active = activeOnly(data);
+    active = buildActiveData(data);
     activeCache.set(data, active);
   }
   return active;
@@ -42,7 +42,7 @@ export function useScopedData(): AppData {
 /**
  * The active-only view projection: the same scoped AppData as {@link useScopedData}, but with
  * every non-active (archived or soft-deleted) resource/client/project/activity removed via the shared
- * `activeOnly` helper, so the rule is single-sourced with the server's per-account read.
+ * `buildActiveData` helper, so the rule is single-sourced with the server's per-account read.
  *
  * Use this in the normal app views (scheduler, lists, forms' option-pickers, command palette, toolbar
  * filters); use the raw {@link useScopedData} only for consumers such as export that must retain

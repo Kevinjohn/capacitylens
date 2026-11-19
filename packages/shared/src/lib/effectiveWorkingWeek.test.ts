@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Resource, Weekday } from '../types/entities.js';
-import { effectiveWorkingWeek } from './effectiveWorkingWeek.js';
+import { resolveEffectiveWorkingWeek } from './effectiveWorkingWeek.js';
 
 type WorkingWeekResource = Pick<Resource, 'kind' | 'workingDays'>;
 
@@ -8,32 +8,34 @@ const person = (workingDays: Weekday[]): WorkingWeekResource => ({ kind: 'person
 
 describe('effective working week', () => {
   it('intersects company and personal working days', () => {
-    expect(effectiveWorkingWeek(person([1, 2, 4, 5]), [1, 2, 3, 4])).toEqual({
+    expect(resolveEffectiveWorkingWeek(person([1, 2, 4, 5]), [1, 2, 3, 4])).toEqual({
       kind: 'days',
       days: [1, 2, 4],
     });
   });
 
   it('deduplicates and sorts unsorted inputs', () => {
-    expect(effectiveWorkingWeek(person([5, 2, 2, 1, 4]), [4, 1, 5, 4, 2])).toEqual({
+    expect(resolveEffectiveWorkingWeek(person([5, 2, 2, 1, 4]), [4, 1, 5, 4, 2])).toEqual({
       kind: 'days',
       days: [1, 2, 4, 5],
     });
   });
 
   it('returns none when two non-empty calendars do not overlap', () => {
-    expect(effectiveWorkingWeek(person([1, 3, 5]), [0, 2, 4, 6])).toEqual({ kind: 'none' });
+    expect(resolveEffectiveWorkingWeek(person([1, 3, 5]), [0, 2, 4, 6])).toEqual({ kind: 'none' });
   });
 
   it('returns none for an empty company calendar', () => {
-    expect(effectiveWorkingWeek(person([1, 2, 3, 4, 5]), [])).toEqual({ kind: 'none' });
-    expect(effectiveWorkingWeek({ kind: 'external', workingDays: [1, 2, 3] }, [])).toEqual({
+    expect(resolveEffectiveWorkingWeek(person([1, 2, 3, 4, 5]), [])).toEqual({ kind: 'none' });
+    expect(resolveEffectiveWorkingWeek({ kind: 'external', workingDays: [1, 2, 3] }, [])).toEqual({
       kind: 'none',
     });
   });
 
   it('uses the complete company calendar for externals regardless of their stored working days', () => {
-    expect(effectiveWorkingWeek({ kind: 'external', workingDays: [1, 2] }, [5, 3, 4])).toEqual({
+    expect(
+      resolveEffectiveWorkingWeek({ kind: 'external', workingDays: [1, 2] }, [5, 3, 4]),
+    ).toEqual({
       kind: 'days',
       days: [3, 4, 5],
     });
@@ -41,7 +43,7 @@ describe('effective working week', () => {
 
   it('uses the complete company calendar for placeholders regardless of their stored working days', () => {
     expect(
-      effectiveWorkingWeek({ kind: 'placeholder', workingDays: [1, 3, 5] }, [2, 3, 4, 5]),
+      resolveEffectiveWorkingWeek({ kind: 'placeholder', workingDays: [1, 3, 5] }, [2, 3, 4, 5]),
     ).toEqual({
       kind: 'days',
       days: [2, 3, 4, 5],
@@ -53,7 +55,7 @@ describe('effective working week', () => {
     const companyWorkingDays: Weekday[] = [4, 2, 5, 4, 1];
     const resource = person(resourceWorkingDays);
 
-    effectiveWorkingWeek(resource, companyWorkingDays);
+    resolveEffectiveWorkingWeek(resource, companyWorkingDays);
 
     expect(resourceWorkingDays).toEqual([5, 2, 2, 1]);
     expect(companyWorkingDays).toEqual([4, 2, 5, 4, 1]);

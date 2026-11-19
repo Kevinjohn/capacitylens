@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 import { buildEmptyFilters, useStore } from '@/store/useStore';
 import { makeActivity, makeAllocation, makeResource, requireValue } from '@/test/fixtures';
@@ -14,7 +14,7 @@ describe('visible-window lane projection', () => {
   it.each([false, true])(
     'derives partial next-column exposure for aligned and offset scroll positions (minimise weekends: %s)',
     (minimiseWeekends) => {
-      const days = eachDayISO('2026-06-01', '2026-06-30');
+      const days = listDaysISO('2026-06-01', '2026-06-30');
       const geometry = buildColumnGeometry(days, 48, {
         minimiseWeekends,
         weekendWidth: 22,
@@ -33,7 +33,7 @@ describe('visible-window lane projection', () => {
 
   function projectWindow({ partiallyExposesNextColumn: exposesNextColumn }: ProjectWindowOptions) {
     const data = {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       resources: [makeResource({ id: 'r1', companyId: 'acct-test', name: 'Diana Prince' })],
       activities: [makeActivity({ id: 'activity-1', companyId: 'acct-test', kind: 'internal' })],
       allocations: [
@@ -55,7 +55,7 @@ describe('visible-window lane projection', () => {
         }),
       ],
     };
-    const timelineDays = eachDayISO('2026-05-01', '2026-06-30');
+    const timelineDays = listDaysISO('2026-05-01', '2026-06-30');
     const base = buildSchedulerModel({
       data,
       geom: buildColumnGeometry(timelineDays, 48, { minimiseWeekends: false, weekendWidth: 22 }),
@@ -100,7 +100,7 @@ describe('visible-window lane projection', () => {
 
   it('does not retain row height from an off-screen overlap', () => {
     const data = {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       resources: [makeResource({ id: 'r1', companyId: 'acct-test', name: 'Diana Prince' })],
       activities: [makeActivity({ id: 'activity-1', companyId: 'acct-test', kind: 'internal' })],
       allocations: [
@@ -138,7 +138,7 @@ describe('visible-window lane projection', () => {
         }),
       ],
     };
-    const timelineDays = eachDayISO('2026-08-17', '2026-10-31');
+    const timelineDays = listDaysISO('2026-08-17', '2026-10-31');
     const base = buildSchedulerModel({
       data,
       geom: buildColumnGeometry(timelineDays, 48, { minimiseWeekends: false, weekendWidth: 22 }),
@@ -173,7 +173,7 @@ describe('visible-window lane projection', () => {
 
 describe('partial exposure during an allocation drag', () => {
   function renderExposure() {
-    const days = eachDayISO('2026-06-01', '2026-06-30');
+    const days = listDaysISO('2026-06-01', '2026-06-30');
     const geometry = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
     const element = document.createElement('div');
     const scrollRef = { current: element };

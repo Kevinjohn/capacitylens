@@ -13,7 +13,7 @@ import type {
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
 import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
-import { APP_DATA_KEYS, emptyAppData } from '@capacitylens/shared/types/entities';
+import { APP_DATA_KEYS, createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData, AppDataKey, ISODate } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
@@ -73,7 +73,7 @@ export class StubPlanningTransport implements PlanningTransport {
   readonly calls: PlanningIntent[] = [];
   /** Every undo and redo request, in order, including refused ones. */
   readonly historySteps: Array<'undo' | 'redo'> = [];
-  private data = emptyAppData();
+  private data = createEmptyAppData();
   private authority = makePlanningAuthority();
   private today: ISODate | null = null;
   private capacity: CapacitySection | null = null;
@@ -324,7 +324,7 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   private companyRows(companyId: string): AppData {
-    const data = emptyAppData();
+    const data = createEmptyAppData();
     for (const entity of APP_DATA_KEYS) {
       const rows = this.rows(entity).filter((row) =>
         entity === 'accounts' ? row.id === companyId : row.companyId === companyId,

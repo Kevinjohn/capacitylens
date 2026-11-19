@@ -1,4 +1,4 @@
-import { newId } from '@capacitylens/shared/lib/id';
+import { createId } from '@capacitylens/shared/lib/id';
 import { clampWorkingHoursPerDay } from '@capacitylens/shared/types/entities';
 import {
   isWeekdaySet,
@@ -114,7 +114,7 @@ export function createTypedPlanningActions(
   ): Promise<CreateResult<T>> => {
     const companyId = requireCreateAccount();
     if (blocked()) return { kind: 'blocked' };
-    const id = newId();
+    const id = createId();
     const command = buildCatalogueCreate({
       data: get().data,
       companyId,
@@ -157,7 +157,7 @@ export function createTypedPlanningActions(
     const companyId = requireCreateAccount();
     if (blocked()) return { kind: 'blocked' };
     assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
-    const id = newId();
+    const id = createId();
     const command = buildTimeOffCreate({
       data: get().data,
       companyId,
@@ -196,7 +196,7 @@ export function createTypedPlanningActions(
     addResource: async (input: Draft<Resource>): Promise<CreateResult<Resource>> => {
       const companyId = requireCreateAccount();
       if (blocked()) return { kind: 'blocked' };
-      const id = newId();
+      const id = createId();
       const fields = {
         ...input,
         workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
@@ -246,14 +246,14 @@ export function createTypedPlanningActions(
       const command = buildTimeOffCreate({
         data: get().data,
         companyId,
-        args: { id: newId(), fields: input },
+        args: { id: createId(), fields: input },
       });
       if (!command || command.intent.operation !== 'timeOff.create') {
         throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.');
       }
       const timeOff = command.intent.timeOff;
       // Later entry ids are minted here too, so every created row can be returned by id.
-      const occurrenceIds = Array.from({ length: count - 1 }, () => newId());
+      const occurrenceIds = Array.from({ length: count - 1 }, () => createId());
       const ids = [requireCreatedId(timeOff.id), ...occurrenceIds];
       await send({ intent: { operation: 'timeOff.repeat', timeOff, repeat, occurrenceIds } });
       return { kind: 'created', value: ids.map((id) => created('timeOff', id)) };
@@ -284,7 +284,7 @@ export function createTypedPlanningActions(
     addClosure: async (input: Draft<Closure>): Promise<CreateResult<Closure>> => {
       const companyId = requireCreateAccount();
       if (blocked()) return { kind: 'blocked' };
-      const id = newId();
+      const id = createId();
       const command = buildClosureCreate({
         data: get().data,
         companyId,

@@ -1,5 +1,5 @@
 import type { ISODate } from '../types/entities.js';
-import { assertFourDigitISODate, toISODate } from './dateMath.js';
+import { assertFourDigitISODate, formatISODate } from './dateMath.js';
 
 /**
  * The calendar date at an instant. `invalid-time-zone` means the zone is not a valid IANA
@@ -54,18 +54,18 @@ function createCalendarFormatter(timeZone: string): CalendarFormatter {
  * reactive "today" probe future instants through this same resolver.
  *
  * @throws `RangeError` when the resolved date falls outside the four-digit ISO year domain, as
- *   `toISODate` does; that is an upstream bug, not a fallback case.
+ *   `formatISODate` does; that is an upstream bug, not a fallback case.
  */
 export function resolveCalendarToday(
   timeZone?: string,
   now: number = Date.now(),
 ): CalendarTodayResult {
-  if (!timeZone) return { kind: 'resolved', date: toISODate(new Date(now)) };
+  if (!timeZone) return { kind: 'resolved', date: formatISODate(new Date(now)) };
   const entry = createCalendarFormatter(timeZone);
   if (entry.kind === 'invalid') {
     return {
       kind: 'invalid-time-zone',
-      date: toISODate(new Date(now)),
+      date: formatISODate(new Date(now)),
       timeZone,
       cause: entry.cause,
     };
