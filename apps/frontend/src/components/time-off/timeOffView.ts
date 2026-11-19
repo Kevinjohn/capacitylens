@@ -60,7 +60,7 @@ export function buildTimeOffGroups({
     }
 
     if (!resource) {
-      unknown ??= { kind: 'unknown', name: m.list_timeoff_unknown_resource(), entries: [] };
+      unknown ??= { kind: 'unknown', name: m.list_time_off_unknown_resource(), entries: [] };
       unknown.entries.push(entry);
       continue;
     }
