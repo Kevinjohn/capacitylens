@@ -10,7 +10,7 @@ As a company member, I want current and future time off grouped by resource so t
 
 **Documentation:** [time-off.md](../../docs-src/using/time-off.md)
 
-**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx)
+**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx)
 
 ## Acceptance criteria
 
@@ -39,5 +39,5 @@ flowchart TD
 
 **Code references:**
 
-- [TimeOffList.tsx](../../apps/frontend/src/components/timeoff/TimeOffList.tsx)
-- [timeOffView.ts](../../apps/frontend/src/components/timeoff/timeOffView.ts)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx)
+- [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts)

@@ -8,7 +8,7 @@ import {
   intent,
   canonicalData,
   companyToday,
-  success,
+  makeReceipt,
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -51,7 +51,7 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
   const read = vi.fn<PlanningTransport['read']>();
   const execute = vi
     .fn<PlanningTransport['execute']>()
-    .mockImplementationOnce(async (_context, execution) => success(execution.mutationId, 2));
+    .mockImplementationOnce(async (_context, execution) => makeReceipt(execution.mutationId, 2));
   const h = harness({ execute, read });
   h.controller.setContext(context);
   await h.readSnapshot({
@@ -93,7 +93,7 @@ describe('planning write whose reply was lost', () => {
       expect(readPlanningProblem(h.state().planning)).toBe('unconfirmed');
 
       execute.mockImplementationOnce(async (_context, execution) =>
-        success(execution.mutationId, 4),
+        makeReceipt(execution.mutationId, 4),
       );
       await h.controller.execute(h.controller.begin(), intent);
       expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 4 });

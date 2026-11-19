@@ -47,7 +47,7 @@ export function useAppShellController() {
   useDocumentTitle({ activeLanguage, activeLanguagePending, pathname });
   useBeforeUnloadWarning(dirtyForm);
   useNoticeBridge(notice, setNotice);
-  useGlobalShortcuts({ paletteOpen, redo, setPaletteOpen, undo });
+  useGlobalShortcuts({ redo, setPaletteOpen, undo });
   useAuditWarning(setNotice);
 
   return {

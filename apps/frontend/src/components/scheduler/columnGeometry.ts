@@ -156,7 +156,7 @@ function createGeometryAccessors(
     if (index > input.dayCount) return input.dayCount;
     return index;
   };
-  const getDayIndexX = (index: number): number => {
+  const calculateDayIndexX = (index: number): number => {
     if (index < 0) return index * input.dayWidth;
     if (index > input.dayCount) return input.totalWidth + (index - input.dayCount) * input.dayWidth;
     return requireDenseValue(
@@ -184,14 +184,14 @@ function createGeometryAccessors(
   const xForDateInGeom = (date: ISODate): number => {
     if (!input.origin) return 0;
     const index = dayIndex(date, input.origin);
-    return Number.isFinite(index) ? getDayIndexX(index) : 0;
+    return Number.isFinite(index) ? calculateDayIndexX(index) : 0;
   };
   const widthForDates = (start: ISODate, end: ISODate): number => {
     if (!input.origin) return 0;
     const startIndex = dayIndex(start, input.origin);
     const endIndex = dayIndex(end, input.origin);
     if (!Number.isFinite(startIndex) || !Number.isFinite(endIndex)) return 0;
-    return Math.max(0, getDayIndexX(endIndex + 1) - getDayIndexX(startIndex));
+    return Math.max(0, calculateDayIndexX(endIndex + 1) - calculateDayIndexX(startIndex));
   };
 
   return {
