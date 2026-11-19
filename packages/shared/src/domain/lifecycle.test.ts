@@ -286,9 +286,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     const b = obfuscateResource(makeResource({ id: 'ffff0000-0000-4000-8000-000000000000' }));
     expect(a.name).not.toBe(b.name);
   });
-});
 
-describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, immutable)", () => {
   it('distinguishes UUIDs that share the first four hexadecimal characters', () => {
     const a = obfuscateResource(makeResource({ id: 'abcd1111-0000-4000-8000-000000000000' }));
     const b = obfuscateResource(makeResource({ id: 'abcd2222-0000-4000-8000-000000000000' }));
