@@ -13,11 +13,13 @@ import { assertAllocationStartsOnWorkingDay } from '#services/planning/entity_va
 import { PlanningOperationError } from '#services/planning/errors';
 import { isRetainedTable } from './retained_rows.js';
 import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
-import { listRows, writeRow } from './writer.js';
+import { listRows, writeRow, type WrittenRow } from './writer.js';
 
 interface WriteEntityOptions {
   trx: TransactionClientContract;
   data: AppData;
+  /** Receives one entry per row this write persists. */
+  written: WrittenRow[];
   companyId: string;
   table: ScopedEntityKey;
   id: string;
@@ -66,6 +68,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
 export async function writeEntity({
   trx,
   data,
+  written,
   companyId,
   table,
   id,
@@ -123,5 +126,5 @@ export async function writeEntity({
   if (mode === 'create' && isRetainedTable(table)) {
     await reclaimRetainedId(trx, companyId, table, id, identity);
   }
-  return writeRow({ trx, data, companyId, table, row: clean, existing });
+  return writeRow({ trx, data, companyId, table, row: clean, existing, written });
 }

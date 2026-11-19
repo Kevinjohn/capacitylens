@@ -15,7 +15,7 @@ import { affectedRows } from '#services/affected_rows';
 import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
 import { tables } from '#services/product_tables';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { existingRow } from './writer.js';
+import { existingRow, listRows, type WrittenRow } from './writer.js';
 import { PlanningOperationError } from './errors.js';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
@@ -51,10 +51,12 @@ export async function deleteRows(
   table: DeletableTable,
   ids: string[],
   identity: RestorationIdentity,
+  written: WrittenRow[] = [],
   now = new Date().toISOString()
 ) {
   const rows = ids.map((id) => existingRow(data, table, id));
   const groupId = randomUUID();
+  // Restoration bookkeeping, not a product row.
   await trx.table('deleted_groups').insert({
     group_id: groupId,
     company_id: companyId,
@@ -94,6 +96,7 @@ export async function deleteRows(
     })),
   ];
   // SQLite bounds compound inserts and variables; all slices remain in the caller's transaction.
+  // Restoration bookkeeping, not a product row.
   for (let start = 0; start < saved.length; start += 500) {
     await trx.table('deleted_rows').multiInsert(saved.slice(start, start + 500));
   }
@@ -104,11 +107,18 @@ export async function deleteRows(
       .where({ id: link.rowId, company_id: companyId, [column]: link.parentId })
       .update({ [column]: null });
     if (affectedRows(detached) !== 1) refuseRestorationConflict();
+    const field = link.entity === 'activities' ? 'phaseId' : 'disciplineId';
+    const child = listRows(data, link.entity).find((row) => row.id === link.rowId);
+    if (!child) refuseRestorationConflict();
+    const before = { ...child };
+    child[field] = null;
+    written.push({ entity: link.entity, id: link.rowId, before, after: { ...child } });
   }
   for (let start = 0; start < ids.length; start += 500) {
     const selected = ids.slice(start, start + 500);
     const deleted = await retainedQuery(trx, companyId, table).whereIn('id', selected).softDelete();
     if (deleted !== selected.length) refuseRestorationConflict();
+    // Marks the rows deleted above; their entries are recorded below.
     const attached = await trx
       .from(tables[table])
       .where('company_id', companyId)
@@ -118,6 +128,14 @@ export async function deleteRows(
       .update({ deletion_group_id: groupId });
     if (affectedRows(attached) !== selected.length) refuseRestorationConflict();
   }
+  // A deleted retained row is not part of the snapshot, so it leaves `data`.
+  const deleted = new Set(ids);
+  const stored = listRows(data, table);
+  for (const row of stored.filter((item) => deleted.has(item.id))) {
+    written.push({ entity: table, id: row.id, before: { ...row }, after: null });
+  }
+  const remaining = stored.filter((row) => !deleted.has(row.id));
+  stored.splice(0, stored.length, ...remaining);
   return groupId;
 }
 
@@ -127,15 +145,18 @@ export const deleteAllocations = (
   data: AppData,
   companyId: string,
   ids: string[],
-  identity: RestorationIdentity
-) => deleteRows(trx, data, companyId, 'allocations', ids, identity);
+  identity: RestorationIdentity,
+  written: WrittenRow[] = []
+) => deleteRows(trx, data, companyId, 'allocations', ids, identity, written);
 
 /** Consumes the caller's group once, restoring parents before selectively relinking survivors. */
 export async function restoreGroup(
   trx: TransactionClientContract,
+  data: AppData,
   companyId: string,
   groupId: string,
   identity: RestorationIdentity,
+  written: WrittenRow[],
   now = new Date().toISOString()
 ) {
   const owner = {
@@ -144,7 +165,8 @@ export async function restoreGroup(
     actor_id: identity.actorId,
     session_id: identity.sessionId,
   };
-  // Lucid types the update result as rows; SQLite reports the affected count.
+  // Lucid types the update result as rows; SQLite reports the affected count. Restoration
+  // bookkeeping, not a product row.
   const consumed = Number(
     await trx
       .from('deleted_groups')
@@ -234,6 +256,7 @@ export async function restoreGroup(
   }
   for (const { entity, id, row } of rows) {
     if (row.companyId !== companyId || row.id !== id) refuseRestorationConflict();
+    // Clears the deletion mark of the row restored below; its entry is recorded there.
     const cleared = await trx
       .from(tables[entity])
       .where({ id, company_id: companyId, deletion_group_id: groupId })
@@ -246,6 +269,8 @@ export async function restoreGroup(
       .whereNull('deletion_group_id')
       .restore();
     if (restored !== 1) refuseRestorationConflict();
+    listRows(data, entity).push({ ...row, id });
+    written.push({ entity, id, before: null, after: { ...row, id } });
   }
   const current = await readStateWithClient(trx, companyId, true);
   for (const { entity, rowId, parentId } of links) {
@@ -263,11 +288,17 @@ export async function restoreGroup(
     assertRestorationCandidate(() => {
       assertScopedRefs(current, companyId, entity, candidate, child);
     });
+    const updatedAt = createServerRevision(child.updatedAt);
     await trx
       .from(tables[entity])
       .where({ id: rowId, company_id: companyId })
       .whereNull(column)
-      .update({ [column]: parentId, updated_at: createServerRevision(child.updatedAt) });
+      .update({ [column]: parentId, updated_at: updatedAt });
+    const kept = listRows(data, entity).find((row) => row.id === rowId);
+    if (!kept) refuseRestorationConflict();
+    const before = { ...kept };
+    Object.assign(kept, { [field]: parentId, updatedAt });
+    written.push({ entity, id: rowId, before, after: { ...kept } });
     Object.assign(child, candidate);
   }
 }
@@ -295,6 +326,7 @@ export async function reclaimRetainedId(
   if (!(await hasOwnUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
+  // Purges a row already deleted, which is not in the snapshot; the create that follows records it.
   const purged = await retainedQuery(trx, companyId, table)
     .onlyTrashed()
     .where('id', id)
@@ -328,6 +360,7 @@ export async function hasOwnUnconsumedGroup(
 
 /** Ends every restoration group the company holds; their saved rows are deleted with them. */
 export async function discardRestorationGroups(trx: TransactionClientContract, companyId: string) {
+  // Restoration bookkeeping, not a product row.
   await trx.from('deleted_groups').where('company_id', companyId).delete();
 }
 
@@ -357,6 +390,7 @@ export async function recordCommittedMutation(
     originSessionId: number | null;
   }
 ) {
+  // The commitment marker, not a product row.
   await trx.table('planning_mutations').insert({
     company_id: marker.companyId,
     mutation_id: marker.mutationId,

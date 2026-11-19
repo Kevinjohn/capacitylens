@@ -1,6 +1,12 @@
 import { activeOnly, archiveImpact, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
+import app from '@adonisjs/core/services/app';
+import {
+  APP_DATA_KEYS,
+  emptyAppData,
+  type AppData,
+  type ISODate,
+} from '@capacitylens/shared/types/entities';
 import { readCompanyToday } from '#services/company_today';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { buildCapacitySection } from '#services/planning/capacity_section';
@@ -21,6 +27,7 @@ import {
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
+import type { WrittenRow } from '#services/planning/writer';
 import {
   countRestorableItems,
   discardRestorationGroups,
@@ -220,7 +227,7 @@ async function commit({
     );
   }
   const before = await readStateWithClient(trx, companyId, true);
-  const restoration = await executePlanningIntent({
+  const { restoration, written } = await executePlanningIntent({
     trx,
     companyId,
     intent,
@@ -240,6 +247,7 @@ async function commit({
       ? archiveImpact(before, intent.entity.entity, intent.entity.id)
       : undefined;
   const after = await readStateWithClient(trx, companyId, true);
+  if (app.inTest) assertWrittenMatches(before, written, after);
   if (buildSemanticState(before) === buildSemanticState(after)) {
     throw new PlanningOperationError(
       400,
@@ -316,6 +324,28 @@ async function commit({
     ...(archived ? { archived } : {}),
     ...buildSaveAdvisory(intent, activeOnly(after), companyId),
   };
+}
+
+/**
+ * Test-only safety net while the write set is new: applying the executor's written rows to the
+ * before-image must give the state read back after the write.
+ */
+function assertWrittenMatches(before: AppData, written: WrittenRow[], after: AppData) {
+  const applied = structuredClone(before);
+  for (const entry of written) {
+    // Every table's rows carry an id; the check only replaces whole rows by it.
+    const rows: Array<{ id: string }> = applied[entry.entity];
+    const index = rows.findIndex((row) => row.id === entry.id);
+    if (index >= 0) rows.splice(index, 1);
+    if (entry.after) rows.splice(index >= 0 ? index : rows.length, 0, { ...entry.after });
+  }
+  for (const entity of APP_DATA_KEYS) {
+    const expected = buildSemanticState({ ...emptyAppData(), [entity]: after[entity] });
+    const actual = buildSemanticState({ ...emptyAppData(), [entity]: applied[entity] });
+    if (expected !== actual) {
+      throw new Error(`The written rows do not match the stored ${entity} after the write.`);
+    }
+  }
 }
 
 /** Moves the committed change onto the stack its step fills, and off the one it came from. */
