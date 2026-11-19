@@ -233,8 +233,8 @@ describe('store scheduler UI', () => {
   });
 
   it('setDrawMode toggles between work and time off', () => {
-    s().setDrawMode('timeoff');
-    expect(s().ui.drawMode).toBe('timeoff');
+    s().setDrawMode('timeOff');
+    expect(s().ui.drawMode).toBe('timeOff');
     s().setDrawMode('work');
     expect(s().ui.drawMode).toBe('work');
   });

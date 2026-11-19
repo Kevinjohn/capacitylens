@@ -7,7 +7,7 @@ import { PermissionContext } from './permissionContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PrivateNameFields } from '@/components/common/PrivateNameFields';
 import { usePrivateNameFields } from '@/components/common/usePrivateNameFields';
-import { TimeOffForm } from '@/components/timeoff/TimeOffForm';
+import { TimeOffForm } from '@/components/time-off/TimeOffForm';
 import { m } from '@/i18n';
 
 // Isolated AllocationBar renders need a tooltip provider.
