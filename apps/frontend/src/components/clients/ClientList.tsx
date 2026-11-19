@@ -13,7 +13,7 @@ import { ClientForm } from './ClientForm';
 import type { Client } from '@capacitylens/shared/types/entities';
 import { useLifecycleActions } from '@/hooks/useLifecycleActions';
 import { m } from '@/i18n';
-import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames';
+import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames';
 import { Fragment, useMemo } from 'react';
 import { Briefcase, Plus } from 'lucide-react';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
@@ -21,7 +21,7 @@ import { byName } from '@/lib/displayOrder';
 import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection';
 
 function buildClientArchiveMessage(client: Client): string {
-  const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name;
+  const name = client.isPrivate === true ? buildQuotedContextName(client.name) : client.name;
   return m.list_clients_archive_message({ name });
 }
 

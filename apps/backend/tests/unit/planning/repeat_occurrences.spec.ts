@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { FIXTURE_COMPANY, FIXTURE_RESOURCE_PERSON } from '@capacitylens/shared/data/fixtures';
 import {
-  emptyAppData,
+  createEmptyAppData,
   type AppData,
   type SchedulingMode,
 } from '@capacitylens/shared/types/entities';
@@ -21,7 +21,7 @@ const first = {
 
 function companyData(schedulingMode: SchedulingMode): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: [
       { ...FIXTURE_COMPANY, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
     ],

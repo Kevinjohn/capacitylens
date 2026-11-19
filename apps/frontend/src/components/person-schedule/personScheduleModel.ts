@@ -1,8 +1,8 @@
-import { internalClientFor } from '@capacitylens/shared/data/internalClient';
+import { getInternalClient } from '@capacitylens/shared/data/internalClient';
 import { resolveBarColor } from '@capacitylens/shared/lib/color';
-import { rangesOverlap } from '@capacitylens/shared/lib/dateMath';
+import { hasRangeOverlap } from '@capacitylens/shared/lib/dateMath';
 import {
-  carriesHourlyLoad,
+  hasHourlyLoad,
   isCapacityTracked,
   isExternalResource,
 } from '@capacitylens/shared/types/entities';
@@ -70,7 +70,7 @@ function createProjectionContext(input: BuildPersonScheduleInput): ProjectionCon
     activitiesById,
     projectsById,
     clientsById,
-    internalClient: internalClientFor(input.data.clients, input.companyId),
+    internalClient: getInternalClient(input.data.clients, input.companyId),
     colorMaps: {
       activities: activitiesById,
       projects: projectsById,
@@ -107,7 +107,7 @@ function isOverlappingWindow(
   row: { startDate: ISODate; endDate: ISODate },
   window: PersonScheduleWindow,
 ): boolean {
-  return rangesOverlap(row.startDate, row.endDate, window.startDate, window.endDate);
+  return hasRangeOverlap(row.startDate, row.endDate, window.startDate, window.endDate);
 }
 
 function buildAllocationEntry(
@@ -137,7 +137,7 @@ function buildAllocationEntry(
     status: allocation.status,
     ...(project ? { project: project.name } : {}),
     ...(client ? { client: client.name } : {}),
-    ...(carriesHourlyLoad(input.schedulingMode) && !isExternalResource(input.resource)
+    ...(hasHourlyLoad(input.schedulingMode) && !isExternalResource(input.resource)
       ? { hoursPerDay: allocation.hoursPerDay }
       : {}),
     ...(seriesEnd ? { seriesEnd } : {}),

@@ -1,4 +1,4 @@
-import { eachDayISO, weekdayOf } from './dateMath.js';
+import { listDaysISO, getWeekday } from './dateMath.js';
 import type { EffectiveWorkingWeek } from './effectiveWorkingWeek.js';
 import type { Allocation, Closure, ISODate, Resource, TimeOff } from '../types/entities.js';
 import {
@@ -64,7 +64,7 @@ export function buildDayCapacity({
   // One parseISO for the whole resource-day: the availability and load halves each need the
   // weekday (twice over, for the working-week and half-day tests), and this runs per resource ×
   // per visible day on every model rebuild.
-  const weekday = weekdayOf(date);
+  const weekday = getWeekday(date);
   const available = resolveAvailableHoursForWeekday({
     resource,
     date,
@@ -102,7 +102,7 @@ export function buildCapacityWindow({
   effectiveWeek,
   closures,
 }: BuildCapacityWindowInput): DayCapacity[] {
-  return eachDayISO(start, end).map((day) =>
+  return listDaysISO(start, end).map((day) =>
     buildDayCapacity({
       resource,
       date: day,

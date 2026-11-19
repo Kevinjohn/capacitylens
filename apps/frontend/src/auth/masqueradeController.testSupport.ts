@@ -19,16 +19,6 @@ export const state: MasqueradeState & { contextToken: string } = {
 };
 export const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
-export function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((settle, fail) => {
-    resolve = settle;
-    reject = fail;
-  });
-  return { promise, resolve, reject };
-}
-
 export function createHarness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   const resume = vi.fn();
   const dependencies: MasqueradeControllerDependencies = {

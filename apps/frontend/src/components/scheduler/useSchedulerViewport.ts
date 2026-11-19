@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
-import { eachDayISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 import {
   FALLBACK_TIMELINE_WIDTH,
@@ -128,7 +128,7 @@ function useViewportGeometry({
       ? resolveColumnFit(availableWidth, ui.zoom, weekendWidth)
       : uniformFit;
   const { start, end } = buildVisibleRange(ui);
-  const days = useMemo(() => eachDayISO(start, end), [start, end]);
+  const days = useMemo(() => listDaysISO(start, end), [start, end]);
   const geometry = useMemo(
     () =>
       buildColumnGeometry(days, fit.dayWidth, {

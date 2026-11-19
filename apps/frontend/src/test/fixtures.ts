@@ -17,7 +17,7 @@ import type { LifecycleEntity } from '@/lib/entityDrafts';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { FullPlanningSnapshot, PlanningSnapshot } from '@/data/planning/planningCacheTypes';
 import { useStore } from '@/store/useStore';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import {
   getStubPlanningTransport,
   resetPlanningTransport,
@@ -53,7 +53,7 @@ export function makeCompany(overrides: Partial<Company> = {}): Company {
 
 /** Empty AppData that already contains the default test company. */
 export function makeAppData(overrides: Partial<AppData> = {}): AppData {
-  return { ...emptyAppData(), accounts: [makeCompany()], ...overrides };
+  return { ...createEmptyAppData(), accounts: [makeCompany()], ...overrides };
 }
 
 /** A valid person Draft<Resource>; override any field per test. */

@@ -16,22 +16,7 @@ import { masqueradeController } from '@/auth/masqueradeControllerInstance';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from './accountCommands';
 import { invitationRequests } from './invitationRequests';
-
-interface Deferred<T> {
-  promise: Promise<T>;
-  resolve(value: T): void;
-  reject(error: unknown): void;
-}
-
-function deferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
-  });
-  return { promise, resolve, reject };
-}
+import { createDeferred } from '@/test/createDeferred';
 
 function commandHeadersAt(
   index: number,
@@ -76,7 +61,7 @@ describe('implicit account command cohorts', () => {
     async (changed) => {
       setMasqueradeContextToken('idle-before');
       const original = crypto.subtle.digest.bind(crypto.subtle);
-      const held = deferred<ArrayBuffer>();
+      const held = createDeferred<ArrayBuffer>();
       const digest = vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(() => held.promise);
       const body = { companyId: 'a-studio', role: 'viewer' as const, email: 'selina@wayne.test' };
       mocks.fetchApi.mockResolvedValueOnce(ok());
@@ -117,7 +102,7 @@ describe('implicit account command cohorts', () => {
   ] as const)(
     'retains a shared command when concurrent siblings settle $0',
     async (_name, first, second) => {
-      const requests = [deferred<Response>(), deferred<Response>()] as const;
+      const requests = [createDeferred<Response>(), createDeferred<Response>()] as const;
       mocks.fetchApi
         .mockImplementationOnce(() => requests[0].promise)
         .mockImplementationOnce(() => requests[1].promise);
@@ -141,7 +126,11 @@ describe('implicit account command cohorts', () => {
   );
 
   it('retains a three-request cohort when its middle sibling is unknown', async () => {
-    const requests = [deferred<Response>(), deferred<Response>(), deferred<Response>()] as const;
+    const requests = [
+      createDeferred<Response>(),
+      createDeferred<Response>(),
+      createDeferred<Response>(),
+    ] as const;
     for (const request of requests) mocks.fetchApi.mockImplementationOnce(() => request.promise);
 
     const siblings = [createInvitation(), createInvitation(), createInvitation()];
@@ -161,8 +150,8 @@ describe('implicit account command cohorts', () => {
   });
 
   it('keeps overlapping operation keys independent', async () => {
-    const uncertain = deferred<Response>();
-    const definitive = deferred<Response>();
+    const uncertain = createDeferred<Response>();
+    const definitive = createDeferred<Response>();
     mocks.fetchApi
       .mockImplementationOnce(() => uncertain.promise)
       .mockImplementationOnce(() => definitive.promise);
@@ -203,8 +192,8 @@ describe('implicit account command cohorts', () => {
   });
 
   it('clears an all-definitive cohort only after its last sibling settles', async () => {
-    const first = deferred<Response>();
-    const second = deferred<Response>();
+    const first = createDeferred<Response>();
+    const second = createDeferred<Response>();
     mocks.fetchApi
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise);
@@ -217,7 +206,7 @@ describe('implicit account command cohorts', () => {
     first.resolve(ok());
     await firstCall;
 
-    const third = deferred<Response>();
+    const third = createDeferred<Response>();
     mocks.fetchApi.mockImplementationOnce(() => third.promise);
     const thirdCall = createInvitation();
     await waitForRequests(3);
@@ -232,8 +221,8 @@ describe('implicit account command cohorts', () => {
   });
 
   it('retains the cohort when a transport throws while a sibling succeeds', async () => {
-    const success = deferred<Response>();
-    const failure = deferred<Response>();
+    const success = createDeferred<Response>();
+    const failure = createDeferred<Response>();
     mocks.fetchApi
       .mockImplementationOnce(() => success.promise)
       .mockImplementationOnce(() => failure.promise);
@@ -254,8 +243,8 @@ describe('implicit account command cohorts', () => {
   });
 
   it("does not let an earlier identity's completion clear the current identity's cohort", async () => {
-    const identityA = deferred<Response>();
-    const identityB = deferred<Response>();
+    const identityA = createDeferred<Response>();
+    const identityB = createDeferred<Response>();
     mocks.fetchApi
       .mockImplementationOnce(() => identityA.promise)
       .mockImplementationOnce(() => identityB.promise);
@@ -281,7 +270,7 @@ describe('implicit account command cohorts', () => {
   });
 
   it('does not let an in-flight completion recreate state cleared during sign-out', async () => {
-    const request = deferred<Response>();
+    const request = createDeferred<Response>();
     mocks.fetchApi.mockImplementationOnce(() => request.promise);
     bindStoredAccountCommandsToIdentity('bruce-wayne');
     const call = createInvitation();
@@ -297,7 +286,7 @@ describe('implicit account command cohorts', () => {
   });
 
   it('does not let a pre-sign-out completion clear a same-identity cohort created afterward', async () => {
-    const stale = deferred<Response>();
+    const stale = createDeferred<Response>();
     mocks.fetchApi.mockImplementationOnce(() => stale.promise);
     bindStoredAccountCommandsToIdentity('bruce-wayne');
     const staleCall = createInvitation();
@@ -306,7 +295,7 @@ describe('implicit account command cohorts', () => {
     clearStoredAccountCommands();
     bindStoredAccountCommandsToIdentity('bruce-wayne');
 
-    const fresh = deferred<Response>();
+    const fresh = createDeferred<Response>();
     mocks.fetchApi.mockImplementationOnce(() => fresh.promise);
     const freshCall = createInvitation();
     await waitForRequests(2);
@@ -334,8 +323,8 @@ describe('implicit account command cohorts', () => {
     vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
       throw new DOMException('Storage unavailable', 'SecurityError');
     });
-    const definitive = deferred<Response>();
-    const ambiguous = deferred<Response>();
+    const definitive = createDeferred<Response>();
+    const ambiguous = createDeferred<Response>();
     mocks.fetchApi
       .mockImplementationOnce(() => definitive.promise)
       .mockImplementationOnce(() => ambiguous.promise);

@@ -1,6 +1,6 @@
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import type { AppData } from '../../types/entities.js';
-import { externalCapacityDefaults } from '../../types/entities.js';
+import { buildExternalCapacityDefaults } from '../../types/entities.js';
 import { NEUTRAL_COLOR } from '../../lib/color.js';
 import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
 
@@ -102,7 +102,7 @@ const RESOURCES: AppData['resources'] = [
     kind: 'external',
     name: 'Kord Industries',
     role: 'Partner studio',
-    ...externalCapacityDefaults(),
+    ...buildExternalCapacityDefaults(),
     color: NEUTRAL_COLOR,
   },
   {

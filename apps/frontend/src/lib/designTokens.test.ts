@@ -1,10 +1,10 @@
-// App-side design-token guard. The colour math (resolveBarColor / readableTextColor /
-// contrastRatio / resolveAccessibleBarColors) is canonical in shared and unit-tested there
+// App-side design-token guard. The colour math (resolveBarColor / resolveReadableTextColor /
+// calculateContrastRatio / resolveAccessibleBarColors) is canonical in shared and unit-tested there
 // (shared/src/lib/color.test.ts): this file does not re-test it. What lives here is the app's own
 // presentation layer: the `--c-*` tokens in src/index.css and the DEFAULT_COLORS palette, measured
-// through the shared `contrastRatio` so a token edit that drops below WCAG AA fails the gate.
+// through the shared `calculateContrastRatio` so a token edit that drops below WCAG AA fails the gate.
 import { describe, it, expect } from 'vitest';
-import { contrastRatio, resolveAccessibleBarColors } from '@capacitylens/shared/lib/color';
+import { calculateContrastRatio, resolveAccessibleBarColors } from '@capacitylens/shared/lib/color';
 import { DEFAULT_COLORS, SWATCHES } from './palette';
 import indexCss from '@/index.css?raw';
 
@@ -82,18 +82,28 @@ describe('chrome depth tokens', () => {
 
   it('orders every light chrome tier from the most distinct sidebar to the clean canvas', () => {
     const { sidebar, toolbar, filterbar, canvas } = chromeTokens('light');
-    expect(contrastRatio(sidebar, canvas)).toBeGreaterThan(contrastRatio(toolbar, canvas));
-    expect(contrastRatio(toolbar, canvas)).toBeGreaterThan(contrastRatio(filterbar, canvas));
-    expect(contrastRatio(filterbar, canvas)).toBeGreaterThan(1);
+    expect(calculateContrastRatio(sidebar, canvas)).toBeGreaterThan(
+      calculateContrastRatio(toolbar, canvas),
+    );
+    expect(calculateContrastRatio(toolbar, canvas)).toBeGreaterThan(
+      calculateContrastRatio(filterbar, canvas),
+    );
+    expect(calculateContrastRatio(filterbar, canvas)).toBeGreaterThan(1);
   });
 
   it('orders every dark chrome tier below the scheduler canvas and preserves faint-text AA', () => {
     const { sidebar, toolbar, filterbar, canvas, canvasInk } = chromeTokens('dark');
     const black = '#000000';
-    expect(contrastRatio(sidebar, black)).toBeLessThan(contrastRatio(toolbar, black));
-    expect(contrastRatio(toolbar, black)).toBeLessThan(contrastRatio(filterbar, black));
-    expect(contrastRatio(filterbar, black)).toBeLessThan(contrastRatio(canvas, black));
-    expect(contrastRatio(canvasInk, canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio(sidebar, black)).toBeLessThan(
+      calculateContrastRatio(toolbar, black),
+    );
+    expect(calculateContrastRatio(toolbar, black)).toBeLessThan(
+      calculateContrastRatio(filterbar, black),
+    );
+    expect(calculateContrastRatio(filterbar, black)).toBeLessThan(
+      calculateContrastRatio(canvas, black),
+    );
+    expect(calculateContrastRatio(canvasInk, canvas)).toBeGreaterThanOrEqual(4.5);
   });
   it.each(['light', 'dark'] as const)(
     'keeps every %s chrome and scheduler ground paired with AA ink',
@@ -110,7 +120,7 @@ describe('chrome depth tokens', () => {
       ] as const;
 
       for (const [, ink, ground] of pairs) {
-        expect(contrastRatio(ink, ground)).toBeGreaterThanOrEqual(4.5);
+        expect(calculateContrastRatio(ink, ground)).toBeGreaterThanOrEqual(4.5);
       }
     },
   );
@@ -134,7 +144,7 @@ describe('DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)', () => {
     // must not produce a bar whose label the nudge loop cannot rescue to AA.
     for (const hex of Object.values(DEFAULT_COLORS)) {
       const { bg, ink } = resolveAccessibleBarColors(hex);
-      expect(contrastRatio(bg, ink)).toBeGreaterThanOrEqual(4.5);
+      expect(calculateContrastRatio(bg, ink)).toBeGreaterThanOrEqual(4.5);
     }
   });
 });
@@ -145,18 +155,18 @@ describe('DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)', () => {
 describe('design-token contrast (--c-faint, WCAG 1.4.3 AA)', () => {
   it('clears 4.5:1 on the light canvas AND surface', () => {
     expect(
-      contrastRatio(token('light', 'c-faint'), token('light', 'c-base')),
+      calculateContrastRatio(token('light', 'c-faint'), token('light', 'c-base')),
     ).toBeGreaterThanOrEqual(4.5);
     expect(
-      contrastRatio(token('light', 'c-faint'), token('light', 'c-surface')),
+      calculateContrastRatio(token('light', 'c-faint'), token('light', 'c-surface')),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
   it('the dark-theme faint stays AA on every dark ground', () => {
     for (const ground of ['c-base', 'c-surface', 'c-elevated']) {
-      expect(contrastRatio(token('dark', 'c-faint'), token('dark', ground))).toBeGreaterThanOrEqual(
-        4.5,
-      );
+      expect(
+        calculateContrastRatio(token('dark', 'c-faint'), token('dark', ground)),
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 });
@@ -180,7 +190,7 @@ describe('muted ink token contrast (WCAG 1.4.3 AA)', () => {
     ['light tour popover', '#5b6472', '#ffffff'],
     ['dark tour popover', '#a3acbd', '#1d212c'],
   ])('keeps muted copy AA on the %s', (_theme, ink, elevated) => {
-    expect(contrastRatio(ink, elevated)).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio(ink, elevated)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -250,15 +260,15 @@ describe('company closure label stacking (#788)', () => {
 
 describe('action and identity token contrast', () => {
   it('keeps the light-theme blue readable on white and the green action fill readable with white ink', () => {
-    expect(contrastRatio('#2563eb', '#ffffff')).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio('#065f46', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio('#2563eb', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio('#065f46', '#ffffff')).toBeGreaterThanOrEqual(4.5);
   });
 
   it('keeps the dark-theme blue identity visible on charcoal and the green action fill readable', () => {
-    expect(contrastRatio('#60a5fa', '#161922')).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5);
-    expect(contrastRatio('#065f46', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio('#60a5fa', '#161922')).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio('#065f46', '#ffffff')).toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -278,7 +288,7 @@ describe('global focus outline contrast (WCAG 1.4.11 non-text >=3:1)', () => {
     ['dark surface/sidebar', '#60a5fa', '#161922'],
     ['dark elevated/popover', '#60a5fa', '#1d212c'],
   ])('keeps the outline visible against the %s', (_name, outline, adjacent) => {
-    expect(contrastRatio(outline, adjacent)).toBeGreaterThanOrEqual(3);
+    expect(calculateContrastRatio(outline, adjacent)).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -310,11 +320,11 @@ describe('Switch state contrast (WCAG 1.4.11 non-text >=3:1)', () => {
     ['dark unchecked', '#2a2f3c', '#e7eaf0'],
     ['dark checked', '#2563eb', '#e7eaf0'],
   ])('keeps the thumb distinguishable from the %s track', (_state, track, thumb) => {
-    expect(contrastRatio(track, thumb)).toBeGreaterThanOrEqual(3);
+    expect(calculateContrastRatio(track, thumb)).toBeGreaterThanOrEqual(3);
   });
 
   it('keeps the light unchecked track distinguishable on a white settings surface', () => {
-    expect(contrastRatio('#858d9b', '#ffffff')).toBeGreaterThanOrEqual(3);
+    expect(calculateContrastRatio('#858d9b', '#ffffff')).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -323,7 +333,7 @@ describe('destructive Alert body contrast', () => {
     ['light', '#e11d48', '#ffffff'],
     ['dark', '#fb7185', '#161922'],
   ])('keeps the opaque danger token AA on the %s card surface', (_theme, ink, surface) => {
-    expect(contrastRatio(ink, surface)).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio(ink, surface)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -336,7 +346,7 @@ describe('danger-soft button hover contrast', () => {
     ['light', '#be123c', '#f8d5de'],
     ['dark', '#fda4af', '#49252e'],
   ])('keeps danger-soft text AA on the %s hover fill', (_theme, ink, hover) => {
-    expect(contrastRatio(ink, hover)).toBeGreaterThanOrEqual(4.5);
+    expect(calculateContrastRatio(ink, hover)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -389,10 +399,10 @@ describe('AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)', ()
   // this stale): the extreme grounds an opaque bar fill can be. Palest = highest contrast vs black ink;
   // darkest = highest contrast vs white halo.
   const palest = [...SWATCHES].sort(
-    (a, b) => contrastRatio(b, '#000000') - contrastRatio(a, '#000000'),
+    (a, b) => calculateContrastRatio(b, '#000000') - calculateContrastRatio(a, '#000000'),
   )[0];
   const darkest = [...SWATCHES].sort(
-    (a, b) => contrastRatio(b, '#ffffff') - contrastRatio(a, '#ffffff'),
+    (a, b) => calculateContrastRatio(b, '#ffffff') - calculateContrastRatio(a, '#ffffff'),
   )[0];
   if (!palest || !darkest) throw new Error('Expected discipline swatches');
   ADJACENCIES['palest swatch'] = palest;
@@ -400,18 +410,21 @@ describe('AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)', ()
 
   for (const [name, bg] of Object.entries(ADJACENCIES)) {
     it(`at least one ring edge clears 3:1 against ${name} (${bg})`, () => {
-      const best = Math.max(contrastRatio(RING_INK, bg), contrastRatio(RING_HALO, bg));
+      const best = Math.max(
+        calculateContrastRatio(RING_INK, bg),
+        calculateContrastRatio(RING_HALO, bg),
+      );
       expect(best).toBeGreaterThanOrEqual(3.0);
     });
   }
 
   it('the dark edge (not white) is what carries the light over-cell — the old single light halo failed here', () => {
-    expect(contrastRatio(RING_HALO, '#fb9ea1')).toBeLessThan(3.0);
-    expect(contrastRatio(RING_INK, '#fb9ea1')).toBeGreaterThanOrEqual(3.0);
+    expect(calculateContrastRatio(RING_HALO, '#fb9ea1')).toBeLessThan(3.0);
+    expect(calculateContrastRatio(RING_INK, '#fb9ea1')).toBeGreaterThanOrEqual(3.0);
   });
 
   it('the light edge (not black) is what carries the dark over-cell', () => {
-    expect(contrastRatio(RING_INK, '#934956')).toBeLessThan(3.0);
-    expect(contrastRatio(RING_HALO, '#934956')).toBeGreaterThanOrEqual(3.0);
+    expect(calculateContrastRatio(RING_INK, '#934956')).toBeLessThan(3.0);
+    expect(calculateContrastRatio(RING_HALO, '#934956')).toBeGreaterThanOrEqual(3.0);
   });
 });

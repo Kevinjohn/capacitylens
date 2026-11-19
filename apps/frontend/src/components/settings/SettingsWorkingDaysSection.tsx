@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import type { orderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
+import type { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { resolveWeekdayLabel, resolveWeekdayShortLabel } from '@/lib/weekdays';
 import type { listCompanyWorkingDays } from '@/store/selectors';
 import type { StoreState } from '@/store/useStore';
@@ -70,7 +70,7 @@ export function SettingsWorkingDaysSection({
   updateSetting,
 }: {
   canEdit: boolean;
-  workingDayOrder: ReturnType<typeof orderedWeekdays>;
+  workingDayOrder: ReturnType<typeof listOrderedWeekdays>;
   workingDays: WorkingDays;
   workingDaysMinimumId: string;
   updateSetting: UpdateSetting;

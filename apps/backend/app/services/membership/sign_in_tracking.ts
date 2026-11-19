@@ -1,4 +1,4 @@
-import { newId } from '@capacitylens/shared/lib/id';
+import { createId } from '@capacitylens/shared/lib/id';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { listActiveCompanyIds, getActiveMembership } from '#services/auth/authorization';
 import { writeAudit } from '#services/audit';
@@ -48,7 +48,7 @@ export async function setMemberSignInTracking(
     return;
   }
   await trx.table('company_settings').insert({
-    id: newId(),
+    id: createId(),
     company_id: companyId,
     key: TRACKING_KEY,
     value: JSON.stringify(true),
@@ -113,7 +113,7 @@ export async function confirmMemberSignIn(
   await trx
     .table('company_settings')
     .insert({
-      id: newId(),
+      id: createId(),
       company_id: companyId,
       key: buildObservedKey(userId),
       value: JSON.stringify(true),

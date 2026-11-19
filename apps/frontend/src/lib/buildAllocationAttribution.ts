@@ -1,4 +1,4 @@
-import { effectiveProjectId } from '@capacitylens/shared/lib/integrity';
+import { resolveEffectiveProjectId } from '@capacitylens/shared/lib/integrity';
 import type {
   Activity,
   Allocation,
@@ -29,7 +29,7 @@ export function buildAllocationAttribution({
   internalClient: Client | undefined;
 }): AllocationAttribution {
   const activity = activitiesById.get(allocation.activityId);
-  const projectId = effectiveProjectId(allocation, activity ?? {});
+  const projectId = resolveEffectiveProjectId(allocation, activity ?? {});
   const project = projectId ? projectsById.get(projectId) : undefined;
   let client: Client | undefined;
   if (project) client = clientsById.get(project.clientId);

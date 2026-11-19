@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import app from '@adonisjs/core/services/app';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { currentAccount, withActor } from '#services/auth/current_actor';
+import { readCurrentAccount, withActor } from '#services/auth/current_actor';
 import { completeMembership } from '#services/membership/admission_membership';
 
 import { admissionQueryValidator } from '#validators/admission_query';
@@ -42,7 +42,7 @@ export default class AdmissionController {
       return ctx.response.badRequest({ error: 'Invalid admission list request.' });
     }
     const { status, cursor } = query;
-    const actor = await currentAccount(ctx);
+    const actor = await readCurrentAccount(ctx);
     const service = await resolveAdmission();
     const page = await service.list({ actorId: actor.id, status, cursor, limit: 100 });
     return ctx.response.ok(page);
@@ -69,7 +69,7 @@ export default class AdmissionController {
   private async decide(ctx: HttpContext, decision: 'approve' | 'reject' | 'revoke') {
     const userId = parseUserIdParam(ctx.params.userId);
     if (!userId) return ctx.response.badRequest({ error: 'Invalid admission request.' });
-    const actor = await currentAccount(ctx);
+    const actor = await readCurrentAccount(ctx);
     const service = await resolveAdmission();
     const record = await service[decision]({ actorId: actor.id, userId });
     return ctx.response.ok({ userId: String(record.userId), approval: record.approval });

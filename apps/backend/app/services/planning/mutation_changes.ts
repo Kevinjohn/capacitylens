@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationInput, ProjectedPlanningRow } from '#validators/planning/contracts';
 import { asRecord, type WrittenRow } from '#services/planning/writer';
@@ -17,7 +17,7 @@ export function changesNothing(written: WrittenRow[]): boolean {
 }
 
 /** Rows a mutation inserted, changed or removed between two projections. */
-export function projectionChanges(before: AppData, after: AppData) {
+export function buildProjectionChanges(before: AppData, after: AppData) {
   const upserts: ProjectedPlanningRow[] = [];
   const removed: Array<{ entity: AppDataKey; id: string }> = [];
   for (const entity of APP_DATA_KEYS) {
@@ -40,8 +40,8 @@ export function projectionChanges(before: AppData, after: AppData) {
  * before and after the write is left out, so a write to already-hidden rows names no table.
  */
 export function listAuditedEntities(written: WrittenRow[], before: AppData, after: AppData) {
-  const visibleBefore = activeOnly(before);
-  const visibleAfter = activeOnly(after);
+  const visibleBefore = buildActiveData(before);
+  const visibleAfter = buildActiveData(after);
   const isVisible = (state: AppData, entity: AppDataKey, id: string) =>
     state[entity].some((row: { id: string }) => row.id === id);
   return [
@@ -71,7 +71,7 @@ function triggerFields(entity: AppDataKey) {
 }
 
 /** A catalogue update that actually changes a privacy trigger field ends pending restoration. */
-export function invalidatesRestoration(
+export function isRestorationInvalidated(
   intent: PlanningMutationInput['intent'],
   written: WrittenRow[]
 ) {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createTuyau } from '@tuyau/core/client';
 import { registry } from '@capacitylens/backend/registry';
 import type { PlanningIntent } from '@/api/planningContracts';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { createPlanningTransport } from './planningTransport';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 
@@ -217,7 +217,11 @@ describe('generated planning transport', () => {
   });
 
   it('sends an empty proof when the caller captured none, never a newer shared one', async () => {
-    const { transport, requests } = harness({ revision: 1, canWrite: true, data: emptyAppData() });
+    const { transport, requests } = harness({
+      revision: 1,
+      canWrite: true,
+      data: createEmptyAppData(),
+    });
     setMasqueradeContextToken('newer-context');
 
     await transport.read({ identity: 'bruce-login', companyId: 'wayne' }, signal).catch(() => null);
@@ -255,10 +259,10 @@ describe('generated planning transport', () => {
       companyId: 'wayne',
       revision: 5,
       authority,
-      data: emptyAppData(),
+      data: createEmptyAppData(),
     });
     const result = await transport.read(context, signal);
-    expect(result).toEqual({ revision: 5, slice: 'full', data: emptyAppData(), authority });
+    expect(result).toEqual({ revision: 5, slice: 'full', data: createEmptyAppData(), authority });
     expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning');
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
@@ -275,7 +279,7 @@ describe('generated planning transport', () => {
         canSeePrivateNames: true,
         canSeeTimeOffNote: true,
       },
-      data: emptyAppData(),
+      data: createEmptyAppData(),
     });
 
     await expect(transport.read(context, signal)).rejects.toThrow(
@@ -297,7 +301,13 @@ describe('generated planning transport', () => {
       canSeePrivateNames: true,
       canSeeTimeOffNote: true,
     };
-    const reply = { companyId: 'wayne', revision: 5, authority, data: emptyAppData(), capacity };
+    const reply = {
+      companyId: 'wayne',
+      revision: 5,
+      authority,
+      data: createEmptyAppData(),
+      capacity,
+    };
     const { transport, requests } = harness(reply);
 
     const result = await transport.read(context, signal, { window: capacity.window });
@@ -322,7 +332,7 @@ describe('generated planning transport', () => {
         canSeePrivateNames: true,
         canSeeTimeOffNote: true,
       },
-      data: emptyAppData(),
+      data: createEmptyAppData(),
       history,
     });
 
@@ -404,7 +414,7 @@ describe('generated planning transport', () => {
         canSeePrivateNames: true,
         canSeeTimeOffNote: true,
       },
-      data: emptyAppData(),
+      data: createEmptyAppData(),
     });
     await expect(transport.read(context, signal)).rejects.toThrow();
   });
@@ -414,7 +424,7 @@ describe('generated planning transport', () => {
       companyId: 'stark',
       revision: 5,
       authority: {},
-      data: emptyAppData(),
+      data: createEmptyAppData(),
     });
     await expect(transport.read(context, signal)).rejects.toThrow(/another company/);
   });

@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import type { orderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
+import type { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
 import type {
   CapacityOverviewAccess,
   DateStyle,
@@ -21,7 +21,7 @@ type SettingsSchedulingSectionProps = {
   canManageCapacityOverviewAccess: boolean;
   capacityOverviewAccess: CapacityOverviewAccess;
   schedulingMode: SchedulingMode;
-  workingDayOrder: ReturnType<typeof orderedWeekdays>;
+  workingDayOrder: ReturnType<typeof listOrderedWeekdays>;
   workingDays: ReturnType<typeof listCompanyWorkingDays>;
   workingDaysMinimumId: string;
   dateStyle: DateStyle;

@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { daysInclusive, parseDate } from '@capacitylens/shared/lib/dateMath';
+import { countDaysInclusive, parseDate } from '@capacitylens/shared/lib/dateMath';
 import { readActiveDateLocale, m } from '@/i18n';
 import { DATE_STYLES, DEFAULT_DATE_STYLE } from '@capacitylens/shared/types/entities';
 import type { DateStyle, ISODate } from '@capacitylens/shared/types/entities';
@@ -252,7 +252,7 @@ export function formatWeekdayScheduleDate(date: ISODate): string {
 
 /** Formats the inclusive date count, clamped at zero for an empty or reversed range. */
 export function formatDayCount(start: ISODate, end: ISODate): string {
-  const inclusiveDays = daysInclusive(start, end);
+  const inclusiveDays = countDaysInclusive(start, end);
   if (!Number.isFinite(inclusiveDays)) throw new RangeError('Invalid time-off date range');
   const dayCount = Math.max(0, inclusiveDays);
   return dayCount === 1

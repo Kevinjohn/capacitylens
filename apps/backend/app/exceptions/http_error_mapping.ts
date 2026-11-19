@@ -84,7 +84,7 @@ function buildAdmissionRequiredResponse(
  * to drop its planning projection; the admission routes keep the code but not the message; every
  * other route sends the error's own message and code.
  */
-function identityAuthorityResponse(
+function buildIdentityAuthorityResponse(
   error: IdentityAuthorityError,
   surface: RefusalSurface
 ): SharedRefusal {
@@ -364,7 +364,9 @@ export function mapHttpError(
   if (error instanceof RefusalError) return { status: error.status, body: error.body() };
   const confirmation = buildConfirmationResponse(error);
   if (confirmation) return confirmation;
-  if (error instanceof IdentityAuthorityError) return identityAuthorityResponse(error, surface);
+  if (error instanceof IdentityAuthorityError) {
+    return buildIdentityAuthorityResponse(error, surface);
+  }
   if (error instanceof vineErrors.E_VALIDATION_ERROR) {
     return {
       status: 400,

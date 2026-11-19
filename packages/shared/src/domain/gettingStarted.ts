@@ -1,6 +1,6 @@
 import type { AppData } from '../types/entities.js';
 import { isBuiltinClient } from '../data/internalClient.js';
-import { lifecycleStatus } from './lifecycle.js';
+import { resolveLifecycleStatus } from './lifecycle.js';
 
 // Getting-started milestones from a company's active projection; the server sends the result.
 
@@ -23,20 +23,24 @@ export interface GettingStartedSteps {
 export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   const people = new Set(
     data.resources
-      .filter((resource) => lifecycleStatus(resource) === 'active' && resource.kind === 'person')
+      .filter(
+        (resource) => resolveLifecycleStatus(resource) === 'active' && resource.kind === 'person',
+      )
       .map(({ id }) => id),
   );
   const clients = new Set(
-    data.clients.filter((client) => lifecycleStatus(client) === 'active').map(({ id }) => id),
+    data.clients
+      .filter((client) => resolveLifecycleStatus(client) === 'active')
+      .map(({ id }) => id),
   );
   const onboardingClientIds = new Set(
     data.clients
-      .filter((client) => lifecycleStatus(client) === 'active' && !isBuiltinClient(client))
+      .filter((client) => resolveLifecycleStatus(client) === 'active' && !isBuiltinClient(client))
       .map(({ id }) => id),
   );
   const projects = new Map(
     data.projects
-      .filter((project) => lifecycleStatus(project) === 'active')
+      .filter((project) => resolveLifecycleStatus(project) === 'active')
       .map((project) => [project.id, project]),
   );
   const isCoherentProject = (projectId: string | null | undefined): boolean => {
@@ -46,7 +50,7 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   };
   const activities = new Map(
     data.activities
-      .filter((activity) => lifecycleStatus(activity) === 'active')
+      .filter((activity) => resolveLifecycleStatus(activity) === 'active')
       .map((activity) => [activity.id, activity]),
   );
   const coherentActivities = new Map(

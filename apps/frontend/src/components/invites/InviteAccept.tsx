@@ -6,7 +6,7 @@ import { isRole } from '@capacitylens/shared/account/types';
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
-  passwordLengthFailure,
+  getPasswordLengthFailure,
 } from '@capacitylens/shared/domain/password';
 import { m } from '@/i18n';
 import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignupClient';
@@ -35,7 +35,7 @@ function getRoleText(role: string | null) {
 
 function describeSignupError(name: string, password: string): string | null {
   if (!name.trim()) return m.invite_err_name_required();
-  const lengthFailure = passwordLengthFailure(password);
+  const lengthFailure = getPasswordLengthFailure(password);
   if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
   if (lengthFailure === 'too-long') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
   return null;

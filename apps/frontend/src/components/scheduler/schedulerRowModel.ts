@@ -1,7 +1,7 @@
 import { resolveLaneTop, packLanes, resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { isHalfDay } from '@capacitylens/shared/lib/capacity';
-import { rangesOverlap, weekdayOf } from '@capacitylens/shared/lib/dateMath';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { hasRangeOverlap, getWeekday } from '@capacitylens/shared/lib/dateMath';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { resolveBarColor } from '@capacitylens/shared/lib/color';
 import { resolveTimeOffTypeLabel } from '@/lib/metadata';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
@@ -61,7 +61,7 @@ function createTimelineIntersection(days: ISODate[]) {
   return (row: { startDate: ISODate; endDate: ISODate }) =>
     timelineStart !== undefined &&
     timelineEnd !== undefined &&
-    rangesOverlap(row.startDate, row.endDate, timelineStart, timelineEnd);
+    hasRangeOverlap(row.startDate, row.endDate, timelineStart, timelineEnd);
 }
 
 function listVisibleAllocations(input: {
@@ -113,7 +113,7 @@ function buildDayStates(input: {
   days: ISODate[];
   blocksMode: boolean;
   closures: CreateRowBuilderInput['closures'];
-  effectiveWeek: ReturnType<typeof effectiveWorkingWeek>;
+  effectiveWeek: ReturnType<typeof resolveEffectiveWorkingWeek>;
   capacity: CapacitySource;
 }): Pick<RowModel, 'dayStates' | 'conflictDayCount' | 'partialCapacityDayCount'> {
   const dayStates: DayState[] = [];
@@ -132,7 +132,7 @@ function buildDayStates(input: {
     });
     const unavailable = (input.capacity.tracked && dayCapacity?.available === 0) || creationBlocked;
     const partialCapacity =
-      input.capacity.tracked && !unavailable && isHalfDay(input.resource, weekdayOf(date));
+      input.capacity.tracked && !unavailable && isHalfDay(input.resource, getWeekday(date));
     const hasTimeOff = input.capacity.countTimeOffOn(date) > 0;
     const timeOffConflict =
       hasTimeOff && (input.blocksMode ? input.capacity.countAllocationsOn(date) > 0 : over);
@@ -172,7 +172,7 @@ export function createRowBuilder({
     const resourceTimeOff = timeOffByResource.get(resource.id) ?? [];
     const isExternal = isExternalResource(resource);
 
-    const effectiveWeek = effectiveWorkingWeek(resource, companyWorkingDays);
+    const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
     // Determine dimming from matching bars inside the displayed timeline so hidden or off-timeline work cannot create an empty full-opacity row. Unmatched staffing rows retain their real load.
     const matchingVisibleAllocations = allAllocations
       .filter(allocationFilters.allocVisible)

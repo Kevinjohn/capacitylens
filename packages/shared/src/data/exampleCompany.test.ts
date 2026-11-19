@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isPresetColor } from '../lib/color.js';
-import { dayIndex, weekdayOf } from '../lib/dateMath.js';
-import { emptyAppData } from '../types/entities.js';
+import { calculateDayIndex, getWeekday } from '../lib/dateMath.js';
+import { createEmptyAppData } from '../types/entities.js';
 import type { AppData } from '../types/entities.js';
 import { buildExampleCompany, countExampleRows } from './exampleCompany.js';
 
@@ -45,23 +45,23 @@ describe('buildExampleCompany', () => {
   it('mints fresh unique ids on every call', () => {
     const ids = (data: AppData) =>
       (Object.values(data) as { id: string }[][]).flatMap((rows) => rows.map((row) => row.id));
-    const first = ids({ ...emptyAppData(), ...build() });
-    const second = ids({ ...emptyAppData(), ...build() });
+    const first = ids({ ...createEmptyAppData(), ...build() });
+    const second = ids({ ...createEmptyAppData(), ...build() });
     expect(new Set([...first, ...second]).size).toBe(first.length + second.length);
   });
 
   it('opens on the reference week and spans this week and the next on working days', () => {
     const { allocations, timeOff } = build();
-    const starts = allocations.map((row) => dayIndex(row.startDate, '2031-09-15'));
+    const starts = allocations.map((row) => calculateDayIndex(row.startDate, '2031-09-15'));
     expect(Math.min(...starts)).toBe(0);
     expect(
-      Math.max(...allocations.map((row) => dayIndex(row.endDate, '2031-09-15'))),
+      Math.max(...allocations.map((row) => calculateDayIndex(row.endDate, '2031-09-15'))),
     ).toBeGreaterThan(6);
     for (const row of [...allocations, ...timeOff]) {
-      expect(weekdayOf(row.startDate)).not.toBe(0);
-      expect(weekdayOf(row.startDate)).not.toBe(6);
-      expect(weekdayOf(row.endDate)).not.toBe(0);
-      expect(weekdayOf(row.endDate)).not.toBe(6);
+      expect(getWeekday(row.startDate)).not.toBe(0);
+      expect(getWeekday(row.startDate)).not.toBe(6);
+      expect(getWeekday(row.endDate)).not.toBe(0);
+      expect(getWeekday(row.endDate)).not.toBe(6);
     }
   });
 

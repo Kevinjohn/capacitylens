@@ -1,6 +1,6 @@
 import { createStore } from 'zustand/vanilla';
 import { vi } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { Company, AppData, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
@@ -24,7 +24,7 @@ const makeState = (): PlanningCacheState => createPlanningCacheState();
 /** The company date every canonical read in these tests carries. */
 export const companyToday: ISODate = '2026-06-03';
 export const makeCanonicalData = (companyOverrides: Partial<Company> = {}): AppData => ({
-  ...emptyAppData(),
+  ...createEmptyAppData(),
   accounts: [makeCompany({ id: context.companyId, ...companyOverrides })],
 });
 
@@ -105,14 +105,4 @@ export function createHarness(
       return controller.refresh();
     },
   };
-}
-
-export function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((yes, no) => {
-    resolve = yes;
-    reject = no;
-  });
-  return { promise, resolve, reject };
 }

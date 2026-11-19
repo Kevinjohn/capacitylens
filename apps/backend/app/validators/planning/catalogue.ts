@@ -63,16 +63,8 @@ const catalogueCreate = vine.union([
     vine.object({
       entity: vine.literal('disciplines'),
       id: uuid(),
-      fields: vine.object({
-        name: nameText(),
-        color: presetColor().nullable(),
-        sortOrder: number().use(
-          vine.createRule((value, _options, field) => {
-            if (Number.isSafeInteger(value)) return;
-            field.report('Sort order must be a safe integer.', 'safeInteger', field);
-          })()
-        ),
-      }),
+      // The server appends a new discipline after the company's highest sort order.
+      fields: vine.object({ name: nameText(), color: presetColor().nullable() }),
     })
   ),
 ]);

@@ -3,7 +3,8 @@ import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/dom
 import { loadPlanningData, makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { FlushPendingWritesResult } from './masqueradeController';
-import { state, inactiveStatus, deferred, createHarness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
+import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -98,7 +99,7 @@ describe('MasqueradeController', () => {
 
 describe('MasqueradeController transitions', () => {
   it('cancels a pending member-view start when switching companies before flush completes', async () => {
-    const flush = deferred<FlushPendingWritesResult>();
+    const flush = createDeferred<FlushPendingWritesResult>();
     const { controller, dependencies, resume } = createHarness({
       flush: vi.fn(() => flush.promise),
     });
@@ -116,7 +117,7 @@ describe('MasqueradeController transitions', () => {
   });
 
   it('allows only one start to cross a pending flush', async () => {
-    const flush = deferred<FlushPendingWritesResult>();
+    const flush = createDeferred<FlushPendingWritesResult>();
     const { controller, dependencies } = createHarness({ flush: vi.fn(() => flush.promise) });
 
     const first = controller.start(state.companyId, state.targetUserId);

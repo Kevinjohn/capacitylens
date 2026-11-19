@@ -1,5 +1,5 @@
 import type { AppDataKey } from '../../types/entities.js';
-import { isLifecycleEntityKey, lifecycleStatus } from './types.js';
+import { isLifecycleEntityKey, resolveLifecycleStatus } from './types.js';
 import type { LifecycleFields, LifecycleEntityKey, LifecycleState } from './types.js';
 
 interface InspectAncestryOptions {
@@ -87,7 +87,7 @@ export const PARENT_TABLES: readonly AppDataKey[] = [
 export type LifecycleAncestryMemo = Map<string, LifecycleAncestryResult>;
 
 /**
- * Inspect only an entity's lifecycle ancestry, not the entity's own lifecycle state. `activeOnly`
+ * Inspect only an entity's lifecycle ancestry, not the entity's own lifecycle state. `buildActiveData`
  * combines this with its own-state filter; generic writes reject a `hidden` result so ordinary
  * missing/cross-account references retain their existing validation messages.
  */
@@ -121,7 +121,7 @@ export function inspectAncestry({
       continue;
     }
     if (isLifecycleEntityKey(relation.parent)) {
-      const state = lifecycleStatus(parent);
+      const state = resolveLifecycleStatus(parent);
       if (state !== 'active') {
         return {
           kind: 'hidden',

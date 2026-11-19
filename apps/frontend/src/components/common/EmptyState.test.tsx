@@ -5,10 +5,10 @@ import { createRef } from 'react';
 import { EmptyState } from './ui';
 import { EmptyDescription } from '@/components/ui/empty';
 import { useStore } from '@/store/useStore';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
 });

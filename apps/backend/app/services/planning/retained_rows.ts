@@ -26,7 +26,7 @@ export function isRetainedTable(table: AppDataKey): table is RetainedTable {
 }
 
 /** Provides a company-scoped lifecycle builder on the caller's transaction. */
-export function retainedQuery(
+export function buildRetainedQuery(
   trx: TransactionClientContract,
   companyId: string,
   table: RetainedTable

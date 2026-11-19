@@ -1,5 +1,5 @@
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import Company from '#models/company';
 import Activity from '#models/activity';
 import Allocation from '#models/allocation';
@@ -110,5 +110,5 @@ export async function readStateWithClient(
     timeOff: serializeRows(timeOff),
     closures: serializeRows(closures),
   } as unknown as AppData;
-  return includeInactive ? data : activeOnly(data);
+  return includeInactive ? data : buildActiveData(data);
 }

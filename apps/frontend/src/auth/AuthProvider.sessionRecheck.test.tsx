@@ -2,8 +2,9 @@ import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { deferred, renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
 import { SessionProbe } from '@/test/SessionProbe';
+import { createDeferred } from '@/test/createDeferred';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -141,7 +142,7 @@ describe('AuthProvider — server mode', () => {
   });
   it('a STALE refreshAuth resolving after a newer 401 does not overwrite the login status', async () => {
     // A newer confirmed sign-out must win over an earlier authenticated response, or stale credentials would reopen the protected app.
-    const slow = deferred<Response>();
+    const slow = createDeferred<Response>();
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(

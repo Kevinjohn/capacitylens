@@ -9,10 +9,10 @@ import {
   MAX_NOTE_LENGTH,
   hasDisallowedChars,
   normalizeUserText,
-  unicodeCharacterCount,
+  countUnicodeCharacters,
 } from '../lib/strings.js';
 import { parseResourceAvatarUrl } from '../domain/resourceAvatarUrl.js';
-import { halfDaysWithinWorkingDays, sameWeekdays } from '../domain/resourceWorkingPattern.js';
+import { areHalfDaysWithinWorkingDays, isSameWeekdays } from '../domain/resourceWorkingPattern.js';
 import {
   ACTIVITY_KINDS,
   ALLOCATION_STATUSES,
@@ -23,11 +23,11 @@ import {
   RESOURCE_KINDS,
   SCHEDULING_MODES,
   TIME_OFF_TYPES,
-  externalCapacityDefaults,
-  placeholderCapacityDefaults,
+  buildExternalCapacityDefaults,
+  buildPlaceholderCapacityDefaults,
 } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
-import { assert, isId, isOneOf, own } from './companyDocument.errors.js';
+import { assert, isId, isOneOf, hasOwn } from './companyDocument.errors.js';
 import { FIELDS } from './companyDocument.fields.js';
 import type { Row } from './companyDocument.fields.js';
 
@@ -57,7 +57,7 @@ function assertText(
     'must be a non-empty string',
   );
   assert(
-    unicodeCharacterCount(text) <=
+    countUnicodeCharacters(text) <=
       (options.maxLength ?? (options.multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH)),
     `${path}.${field}`,
     'is too long',
@@ -194,7 +194,7 @@ function assertResourceRow(row: Row, path: string): void {
     'workingDays and halfDays must be unique weekday lists',
   );
   assert(
-    halfDaysWithinWorkingDays(row.workingDays, row.halfDays),
+    areHalfDaysWithinWorkingDays(row.workingDays, row.halfDays),
     `${path}.halfDays`,
     'must be a subset of workingDays',
   );
@@ -240,24 +240,24 @@ function assertResourceRow(row: Row, path: string): void {
   }
   if (row.kind === 'placeholder') {
     assert(row.engagement === 'studio', `${path}.engagement`, 'must be studio for a placeholder');
-    const defaults = placeholderCapacityDefaults();
+    const defaults = buildPlaceholderCapacityDefaults();
     assert(
-      sameWeekdays(row.workingDays, defaults.workingDays) &&
-        sameWeekdays(row.halfDays, defaults.halfDays),
+      isSameWeekdays(row.workingDays, defaults.workingDays) &&
+        isSameWeekdays(row.halfDays, defaults.halfDays),
       path,
       'placeholder working pattern must use its canonical default',
     );
   }
   if (row.kind === 'external') {
     assert(row.disciplineId === null, `${path}.disciplineId`, 'is not used by external resources');
-    const defaults = externalCapacityDefaults();
+    const defaults = buildExternalCapacityDefaults();
     assert(
       row.color === NEUTRAL_COLOR &&
         row.employmentType === defaults.employmentType &&
         row.engagement === defaults.engagement &&
         row.workingHoursPerDay === defaults.workingHoursPerDay &&
-        sameWeekdays(row.workingDays, defaults.workingDays) &&
-        sameWeekdays(row.halfDays, defaults.halfDays),
+        isSameWeekdays(row.workingDays, defaults.workingDays) &&
+        isSameWeekdays(row.halfDays, defaults.halfDays),
       path,
       'external resource must use its canonical capacity defaults',
     );
@@ -268,7 +268,7 @@ function assertClientRow(row: Row, path: string, { nameMaximum }: RowLimits): vo
   assertText(row, 'name', path, { maxLength: nameMaximum });
   assertColor(row, 'color', path, row.builtin === true ? INTERNAL_CLIENT_COLOR : undefined);
   assert(isNullOr(row.isPrivate, isBoolean), `${path}.isPrivate`, 'must be boolean or null');
-  if (own(row, 'codeName')) assertNullableText(row, 'codeName', path);
+  if (hasOwn(row, 'codeName')) assertNullableText(row, 'codeName', path);
   assert(isNullOr(row.builtin, isBoolean), `${path}.builtin`, 'must be boolean or null');
   assertNullableTimestamp(row, 'archivedAt', path);
   assertNullableTimestamp(row, 'deletedAt', path);
@@ -286,7 +286,7 @@ function assertProjectRow(row: Row, path: string, { nameMaximum }: RowLimits): v
   assert(isId(row.clientId), `${path}.clientId`, 'must be a bounded id');
   assertColor(row, 'color', path);
   assert(isNullOr(row.isPrivate, isBoolean), `${path}.isPrivate`, 'must be boolean or null');
-  if (own(row, 'codeName')) assertNullableText(row, 'codeName', path);
+  if (hasOwn(row, 'codeName')) assertNullableText(row, 'codeName', path);
   assertNullableTimestamp(row, 'archivedAt', path);
   assertNullableTimestamp(row, 'deletedAt', path);
 }
@@ -388,7 +388,7 @@ export function assertRow(
   assert(isRecord(input), path, 'must be an object');
   const row = input;
   for (const field of FIELDS[key] as readonly string[]) {
-    assert(own(row, field), `${path}.${field}`, 'is required');
+    assert(hasOwn(row, field), `${path}.${field}`, 'is required');
   }
   assert(isId(row.id), `${path}.id`, 'must be a bounded non-empty id without whitespace');
   assert(isTimestamp(row.createdAt), `${path}.createdAt`, 'must be an ISO timestamp');

@@ -2,7 +2,7 @@ import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { m } from '@/i18n';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
-import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
+import { hasHourlyLoad } from '@capacitylens/shared/types/entities';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCanEdit } from '@/auth/permissionContext';
 import { isSoleAcknowledgedAdvance } from '@/data/planning/planningReadiness';
@@ -97,7 +97,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
   );
   const today = useCompanyToday();
   const isDays = mode === 'days';
-  const isBlocks = !carriesHourlyLoad(mode);
+  const isBlocks = !hasHourlyLoad(mode);
 
   const editId = props.kind === 'edit' ? props.allocationId : undefined;
   const create = props.kind === 'create' ? props.create : undefined;

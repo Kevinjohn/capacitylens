@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
@@ -15,7 +15,7 @@ const COMPANY = 'a-studio';
 const FULL = { start: '2026-06-01', end: '2026-06-14' } as const;
 // Only the long allocation reaches the second week, so it alone sets that window's lanes.
 const SECOND_WEEK = { start: '2026-06-08', end: '2026-06-14' } as const;
-const days = eachDayISO(FULL.start, FULL.end);
+const days = listDaysISO(FULL.start, FULL.end);
 const geom = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
 
 function discipline(
@@ -44,7 +44,7 @@ function allocation(id: string, resourceId: string, startDate: ISODate, endDate:
 // same overlapping shape.
 function dataset(): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     disciplines: [discipline('d-design', 'Design', null)],
     activities: [makeActivity({ id: 't1', companyId: COMPANY, kind: 'internal' })],
     resources: [
@@ -73,7 +73,7 @@ const CAPACITY = capacityOver(
   {
     r1: {
       byDate: Object.fromEntries(
-        eachDayISO('2026-06-01', '2026-06-07').map((date) => [date, { allocated: 4 }]),
+        listDaysISO('2026-06-01', '2026-06-07').map((date) => [date, { allocated: 4 }]),
       ),
     },
     r2: {},

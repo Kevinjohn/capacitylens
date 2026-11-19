@@ -14,7 +14,7 @@ import { isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { isMembershipRequired } from '#services/membership/admission_membership';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import { buildUserProjection } from '#services/auth/user_projection';
-import { admissionDecision, withActor } from '#services/auth/current_actor';
+import { requireAdmissionDecision, withActor } from '#services/auth/current_actor';
 import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
 import { isCommittedFailure } from '#services/account_kit/committed';
@@ -44,7 +44,7 @@ export default class AuthController {
       return await withActor(
         ctx,
         async (actor, trx) => {
-          const admission = await admissionDecision(actor.userId, trx);
+          const admission = await requireAdmissionDecision(actor.userId, trx);
           const admitted = actor.emailVerified && admission.admitted;
           return {
             user: buildUserProjection(actor),

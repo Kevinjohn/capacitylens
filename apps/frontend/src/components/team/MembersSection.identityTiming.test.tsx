@@ -10,13 +10,7 @@ import { resetStoreWithCompany, jsonResponse, requireValue } from '@/test/fixtur
 import { MembersSection } from './MembersSection';
 import { mockApi, makeRawMember } from './MembersSection.testSupport';
 import { OwnerPermissions } from '@/test/ownerPermissions';
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
+import { createDeferred } from '@/test/createDeferred';
 function Principal() {
   return <span data-testid="principal">{useAuth().user?.id}</span>;
 }
@@ -119,7 +113,7 @@ it.each(['create', 'resend'] as const)(
   async (action) => {
     renderMembers();
     await screen.findByTestId('invite-open');
-    const held = deferred<Response>();
+    const held = createDeferred<Response>();
     heldMutation = held.promise;
     try {
       if (action === 'create') {
@@ -171,7 +165,7 @@ it.each(
   }
   const dialogRole = intent === 'role' ? 'dialog' : 'alertdialog';
   expect(await screen.findByRole(dialogRole)).toHaveTextContent('Clark Kent');
-  const held = deferred<Response>();
+  const held = createDeferred<Response>();
   holdDirectory = held.promise;
   try {
     const companyId = useStore.getState().activeCompanyId;

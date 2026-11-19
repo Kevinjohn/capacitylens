@@ -1,9 +1,9 @@
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { describe, it, expect } from 'vitest';
 import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import type { GroupModel } from './schedulerModel';
 import { buildColumnGeometry } from './columnGeometry';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { buildEmptyFilters } from '@/store/useStore';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { capacityOver } from '@/test/capacityFixtures';
@@ -132,7 +132,7 @@ describe('buildSchedulerModel', () => {
 
 function buildVisibleWindowDensityData(): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     clients: [makeClient({ companyId: 'acct-test', name: 'Ferris', color: '#1' })],
     projects: [makeProject({ companyId: 'acct-test', name: 'P1', color: '#2' })],
     activities: [makeActivity({ companyId: 'acct-test', name: 'T1' })],
@@ -151,7 +151,7 @@ function buildVisibleWindowDensityData(): AppData {
 
 describe('displayed utilisation % over the visible window (1/2/4/8 weeks)', () => {
   const winStart = '2026-06-01';
-  const winDays = eachDayISO('2026-06-01', '2026-07-26');
+  const winDays = listDaysISO('2026-06-01', '2026-07-26');
   const winRange = { from: winStart, to: '2026-07-26' };
   const winGeom = buildColumnGeometry(winDays, 48, { minimiseWeekends: false, weekendWidth: 22 });
   // The server's figures: eight hours on weekdays, none at weekends; 8, 4, then 2 hours booked per

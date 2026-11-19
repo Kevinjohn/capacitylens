@@ -1,6 +1,6 @@
 import { readPlanningError } from './planningNotices';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
@@ -11,10 +11,10 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-  deferred,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { createDeferred } from '@/test/createDeferred';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -82,12 +82,12 @@ describe('planning cache controller', () => {
     resolveRead({
       revision: 9,
       authority: makePlanningAuthority(),
-      data: { ...emptyAppData(), accounts: [{ id: 'leak' } as never] },
+      data: { ...createEmptyAppData(), accounts: [{ id: 'leak' } as never] },
       today: companyToday,
       capacity: emptyCapacity(),
     });
     await readPromise;
-    expect(h.state().data).toEqual(emptyAppData());
+    expect(h.state().data).toEqual(createEmptyAppData());
     expect(h.state().planning.revision).toBeNull();
     expect(h.state().planning.history.canUndo).toBe(false);
   });
@@ -166,7 +166,7 @@ describe('planning receipt completion context', () => {
         const baseRevision = h.state().planning.revision;
         if (baseRevision === null) throw new Error('Expected an initialized planning revision.');
         const revision = baseRevision + 1;
-        const delayed = deferred<PlanningSnapshot>();
+        const delayed = createDeferred<PlanningSnapshot>();
         read.mockImplementationOnce(() => delayed.promise);
         const completion =
           action === 'execute'

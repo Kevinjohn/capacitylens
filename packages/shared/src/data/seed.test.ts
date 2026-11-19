@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { seed, seedForCurrentWeek } from './seed.js';
-import { dayIndex } from '../lib/dateMath.js';
+import { calculateDayIndex } from '../lib/dateMath.js';
 
 describe('fixed demo seed', () => {
   it('returns fresh tables, rows and nested working-day arrays on every call', () => {
@@ -45,11 +45,11 @@ describe('runtime demo seed', () => {
     if (currentStart === undefined || fixedStart === undefined) {
       throw new Error('Seed must include an allocation.');
     }
-    expect(current.allocations.map((row) => dayIndex(row.startDate, currentStart))).toEqual(
-      fixed.allocations.map((row) => dayIndex(row.startDate, fixedStart)),
-    );
-    expect(current.allocations.map((row) => dayIndex(row.endDate, row.startDate))).toEqual(
-      fixed.allocations.map((row) => dayIndex(row.endDate, row.startDate)),
+    expect(
+      current.allocations.map((row) => calculateDayIndex(row.startDate, currentStart)),
+    ).toEqual(fixed.allocations.map((row) => calculateDayIndex(row.startDate, fixedStart)));
+    expect(current.allocations.map((row) => calculateDayIndex(row.endDate, row.startDate))).toEqual(
+      fixed.allocations.map((row) => calculateDayIndex(row.endDate, row.startDate)),
     );
     expect(current.timeOff[0]).toMatchObject({
       startDate: '2031-09-24',

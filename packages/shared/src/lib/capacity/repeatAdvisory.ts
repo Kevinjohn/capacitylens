@@ -1,4 +1,4 @@
-import { daysInclusive, weekdayOf } from '../dateMath.js';
+import { countDaysInclusive, getWeekday } from '../dateMath.js';
 import { isStartOnNonEffectiveWeekday } from '../effectiveWorkingWeek.js';
 import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import { MAX_SPAN_DAYS } from '../schedulingDays.js';
@@ -86,7 +86,7 @@ export function buildRepeatingAllocationAdvisory({
       isStartOnNonEffectiveWeekday(
         effectiveWeek,
         draft.ignoreWorkingDays ?? undefined,
-        weekdayOf(draft.startDate),
+        getWeekday(draft.startDate),
       )
     ) {
       nonEffectiveStartAllocations += 1;
@@ -137,6 +137,6 @@ function resolveSharedLoadWindow(
     if (draft.startDate < start) start = draft.startDate;
     if (draft.endDate > end) end = draft.endDate;
   }
-  const span = daysInclusive(start, end);
+  const span = countDaysInclusive(start, end);
   return span >= 1 && span <= MAX_SPAN_DAYS ? { start, end } : null;
 }

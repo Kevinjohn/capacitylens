@@ -5,8 +5,8 @@ import {
   listTimeOffApplyingTo,
 } from '@capacitylens/shared/lib/capacity';
 import { buildRepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { carriesHourlyLoad, isCapacityTracked } from '@capacitylens/shared/types/entities';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { hasHourlyLoad, isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 
@@ -41,7 +41,7 @@ export function buildSaveAdvisory(
   const company = after.accounts.find((row) => row.id === companyId);
   const resource = after.resources.find((row) => row.id === first.resourceId);
   if (!company || !resource) return {};
-  const blocksMode = !carriesHourlyLoad(company.schedulingMode ?? 'hourly');
+  const blocksMode = !hasHourlyLoad(company.schedulingMode ?? 'hourly');
   const writtenIds = new Set(ids);
   const others = applyCapacityMode({
     allocations: after.allocations.filter(
@@ -51,7 +51,7 @@ export function buildSaveAdvisory(
   });
   const proposals = applyCapacityMode({ allocations: written, blocksMode });
   const [proposal] = proposals;
-  const effectiveWeek = effectiveWorkingWeek(
+  const effectiveWeek = resolveEffectiveWorkingWeek(
     resource,
     normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1)
   );

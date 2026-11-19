@@ -1,4 +1,4 @@
-import { daysInclusive } from './dateMath.js';
+import { countDaysInclusive } from './dateMath.js';
 import { MAX_SPAN_DAYS } from './schedulingDays.js';
 import type { DomainErrorCode } from '../domain/errors.js';
 import type { Activity, Allocation, ID, ISODate, Resource } from '../types/entities.js';
@@ -72,7 +72,7 @@ export function validateDateRange(
     ]);
   }
   // Enforce the span bound before callers can allocate one entry per day.
-  if (daysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
+  if (countDaysInclusive(startDate, endDate) > MAX_SPAN_DAYS) {
     return buildValidationResult([
       {
         code: 'date_span_too_long',
@@ -85,7 +85,7 @@ export function validateDateRange(
 
 /** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
  * activity's project because repeatable activities are project-less and attribute each booking. */
-export function effectiveProjectId(
+export function resolveEffectiveProjectId(
   allocation: Partial<Pick<Allocation, 'projectId'>>,
   activity: Partial<Pick<Activity, 'projectId'>>,
 ): ID | undefined {
@@ -93,7 +93,7 @@ export function effectiveProjectId(
 }
 
 /** Allocation-level project attribution belongs only to all-projects activities. */
-export function allocationAttributionAllowed(kind: unknown): boolean {
+export function isAllocationAttributionAllowed(kind: unknown): boolean {
   return kind === 'repeatable';
 }
 
@@ -109,7 +109,7 @@ type WithoutAllocationAttribution<T> = {
  * Returns a fresh row with allocation-level attribution removed and, when supplied, restamped.
  * Requires an existing valid allocation attribution and timestamp shape; preserves other fields.
  */
-export function withoutAllocationAttribution<T extends Pick<Allocation, 'projectId' | 'updatedAt'>>(
+export function removeAllocationAttribution<T extends Pick<Allocation, 'projectId' | 'updatedAt'>>(
   row: T,
   updatedAt?: Allocation['updatedAt'],
 ): WithoutAllocationAttribution<T> {

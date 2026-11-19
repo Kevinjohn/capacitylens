@@ -21,12 +21,13 @@ import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement
 import type { AppData, Resource, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { asRecord } from '#services/planning/writer';
-import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { getWeekday } from '@capacitylens/shared/lib/dateMath';
 import {
-  effectiveWorkingWeek,
-  effectiveWeekIncludes,
+  resolveEffectiveWorkingWeek,
+  hasEffectiveWeekDay,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
+import { isUnavailable } from '@capacitylens/shared/lib/capacity';
 
 /** One prepared row of a table and the stored row it replaces, if any. */
 export type EntityWrite = {
@@ -206,12 +207,42 @@ export function assertAllocationStartsOnWorkingDay(
   }
   const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
   if (!resource || typeof row.startDate !== 'string') return;
-  const effectiveWeek = effectiveWorkingWeek(resource, lookup.companyWorkingDays(companyId));
-  if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(row.startDate))) {
+  const effectiveWeek = resolveEffectiveWorkingWeek(resource, lookup.companyWorkingDays(companyId));
+  if (!hasEffectiveWeekDay(effectiveWeek, getWeekday(row.startDate))) {
     throw new PlanningOperationError(
       400,
       'VALIDATION_ERROR',
       'The allocation must start on a working day.'
+    );
+  }
+}
+
+/**
+ * A new allocation, or one moved to another resource, must not start on that resource's time off or
+ * a company closure. Ignore working days never bypasses this; edits that keep the resource and later
+ * repeat occurrences skip it, as they skip the working-day check.
+ */
+export function assertAllocationStartIsAvailable(
+  row: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+  lookup: ValidationDataLookup,
+  data: Pick<AppData, 'timeOff' | 'closures'>,
+  companyId: string
+) {
+  if (existing && existing.resourceId === row.resourceId) return;
+  const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
+  if (!resource || typeof row.startDate !== 'string') return;
+  const unavailable = isUnavailable({
+    resource,
+    date: row.startDate,
+    timeOff: data.timeOff.filter((entry) => entry.companyId === companyId),
+    closures: data.closures.filter((closure) => closure.companyId === companyId),
+  });
+  if (unavailable) {
+    throw new PlanningOperationError(
+      400,
+      'VALIDATION_ERROR',
+      "The allocation cannot start during this person's time off or a company closure."
     );
   }
 }

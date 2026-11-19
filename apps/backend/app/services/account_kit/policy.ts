@@ -11,7 +11,7 @@ import type { Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
 import { getActiveCompanyRole } from '#services/auth/authorization';
 import { writeAudit } from '#services/audit';
-import { installationCompanyId } from '#models/installation_company';
+import { getInstallationCompanyId } from '#models/installation_company';
 
 /** Roles an invitation may carry; ownership moves only through company setup or transfer. */
 export const INVITABLE_ROLES = ['viewer', 'editor', 'admin'] as const;
@@ -29,7 +29,7 @@ export async function isAdmitted(userId: string, trx?: Trx) {
 
 // Reuses the Kit callback's transaction when it supplies one, so the read sees its uncommitted state.
 async function getCompanyRole(userId: string, trx: Trx | undefined): Promise<Role | null> {
-  const companyId = await installationCompanyId(trx ?? db);
+  const companyId = await getInstallationCompanyId(trx ?? db);
   return companyId ? getActiveCompanyRole(userId, companyId, trx) : null;
 }
 

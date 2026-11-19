@@ -1,16 +1,16 @@
 import { errors } from '@vinejs/vine';
 import {
   RESOURCE_KINDS,
-  externalCapacityDefaults,
+  buildExternalCapacityDefaults,
   type Company,
   type AppData,
   type ScopedEntityKey,
 } from '@capacitylens/shared/types/entities';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import {
-  fixedWorkingPattern,
-  halfDaysWithinWorkingDays,
-  sameWeekdays,
+  parseFixedWorkingPattern,
+  areHalfDaysWithinWorkingDays,
+  isSameWeekdays,
 } from '@capacitylens/shared/domain/resourceWorkingPattern';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { cleanText } from '@capacitylens/shared/lib/strings';
@@ -27,7 +27,7 @@ import { assertEntityDomain, type EntityWrite } from '#services/planning/entity_
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
 import {
   listHiddenFields,
-  restrictionFor,
+  getRestriction,
   isPrivateRowRestricted,
 } from '#services/planning/restricted_fields';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
@@ -67,7 +67,7 @@ export function assertMayWriteRestrictedFields(
   capabilities: PlanningCapabilities,
   mode: 'create' | 'update'
 ) {
-  const rule = restrictionFor(table, capabilities);
+  const rule = getRestriction(table, capabilities);
   if (!rule) return;
   const named = rule.fields.some(
     (field) =>
@@ -90,7 +90,7 @@ function pinHiddenFields(
   existing: Record<string, unknown> | undefined,
   context: PlanningCapabilities
 ) {
-  const rule = restrictionFor(table, context);
+  const rule = getRestriction(table, context);
   if (!rule) return;
   const privateRow = existing?.isPrivate === true;
   const keepsStored = rule.privateRowFields.length === 0 || privateRow;
@@ -126,18 +126,22 @@ function assertResourceFields(
     }
     const days = candidate.workingDays;
     const halves = candidate.halfDays;
-    if (Array.isArray(days) && Array.isArray(halves) && !halfDaysWithinWorkingDays(days, halves)) {
+    if (
+      Array.isArray(days) &&
+      Array.isArray(halves) &&
+      !areHalfDaysWithinWorkingDays(days, halves)
+    ) {
       reject('halfDays', 'must be included in workingDays');
     }
     return;
   }
   if (kind !== 'placeholder' && kind !== 'external') return;
-  const pattern = fixedWorkingPattern(kind);
+  const pattern = parseFixedWorkingPattern(kind);
   for (const field of ['workingDays', 'halfDays'] as const) {
     if (
       pattern &&
       Object.hasOwn(requested, field) &&
-      !sameWeekdays(candidate[field], pattern[field])
+      !isSameWeekdays(candidate[field], pattern[field])
     ) {
       reject(field, "must match this resource kind's defaults");
     }
@@ -147,7 +151,7 @@ function assertResourceFields(
       reject('engagement', 'must be studio for a placeholder');
     }
   } else {
-    const externalDefaults = externalCapacityDefaults();
+    const externalDefaults = buildExternalCapacityDefaults();
     for (const field of ['employmentType', 'engagement', 'workingHoursPerDay'] as const) {
       if (Object.hasOwn(requested, field) && candidate[field] !== externalDefaults[field]) {
         reject(field, "must match an external resource's defaults");

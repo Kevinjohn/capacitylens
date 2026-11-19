@@ -1,6 +1,6 @@
 import { readPlanningError } from './planningNotices';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
@@ -66,13 +66,13 @@ describe('planning cache controller', () => {
     {
       revision: 2,
       authority: makePlanningAuthority(),
-      data: { ...emptyAppData(), accounts: [{ id: 'other-company' }] },
+      data: { ...createEmptyAppData(), accounts: [{ id: 'other-company' }] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 3,
-      data: { ...emptyAppData(), accounts: [{ id: 'company-1', name: 'Unverified' }] },
+      data: { ...createEmptyAppData(), accounts: [{ id: 'company-1', name: 'Unverified' }] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
@@ -107,7 +107,7 @@ describe('planning cache controller', () => {
     await expect(h.controller.refresh()).resolves.toBe(false);
     expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningError(h.state().planning.phase)).toBeInstanceOf(Error);
-    expect(h.state().data).toEqual(emptyAppData());
+    expect(h.state().data).toEqual(createEmptyAppData());
     expect(h.state().planning.authority).toBeNull();
     expect(h.state().planning.history.canUndo).toBe(false);
     expect(() => h.controller.begin()).toThrow(/read-only/);

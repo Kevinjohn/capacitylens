@@ -1,7 +1,7 @@
-import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { getWeekday } from '@capacitylens/shared/lib/dateMath';
 import {
-  effectiveWeekIncludes,
-  effectiveWorkingWeek,
+  hasEffectiveWeekDay,
+  resolveEffectiveWorkingWeek,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
@@ -67,7 +67,7 @@ export function resolveEffectiveWorkingDays(
   resource: Resource,
   companyWorkingDays: Weekday[],
 ): Weekday[] {
-  const effectiveWeek = effectiveWorkingWeek(resource, companyWorkingDays);
+  const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
   return effectiveWeek.kind === 'days' ? effectiveWeek.days : [];
 }
 
@@ -91,7 +91,7 @@ export function resolveCreationBlockReason({
     date,
     timeOff,
     calendarAllowsStart: resolveEffectiveWorkingDays(resource, companyWorkingDays).includes(
-      weekdayOf(date),
+      getWeekday(date),
     ),
     ignoreWorkingDays,
     closures,
@@ -124,7 +124,7 @@ export function resolveEffectiveWeekPlacementBlockReason({
   ignoreWorkingDays,
   closures,
 }: ResolveEffectiveWeekPlacementBlockReasonInput): CreationBlockReason | null {
-  const calendarAllowsStart = effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
+  const calendarAllowsStart = hasEffectiveWeekDay(effectiveWeek, getWeekday(date));
   return resolveCalendarCreationBlockReason({
     resource,
     date,

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, deferred, createHarness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
+import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -22,7 +23,7 @@ describe('MasqueradeController', () => {
 
   it('loads a cold validated member view from canonical account data before selecting it', async () => {
     useStore.getState().clearPlanning();
-    const read = deferred<string | null>();
+    const read = createDeferred<string | null>();
     const { controller, dependencies } = createHarness({
       readBootstrapCompany: vi.fn(() => read.promise),
       reproject: vi.fn(async () => {
@@ -63,7 +64,7 @@ describe('MasqueradeController', () => {
 
   it('invalidates a deferred cold read on auth loss without republishing private state', async () => {
     useStore.getState().clearPlanning();
-    const read = deferred<string | null>();
+    const read = createDeferred<string | null>();
     const { controller } = createHarness({ readBootstrapCompany: vi.fn(() => read.promise) });
     const adoption = controller.adoptStatus({ active: true, ...state });
     controller.invalidate();

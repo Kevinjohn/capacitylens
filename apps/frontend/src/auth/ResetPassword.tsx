@@ -9,7 +9,7 @@ import { APP_NAME } from '@capacitylens/shared/brand';
 import {
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_LENGTH,
-  passwordLengthFailure,
+  getPasswordLengthFailure,
 } from '@capacitylens/shared/domain/password';
 import { resolveResetPasswordFailureMessage } from './resetPasswordFailure';
 import { m } from '@/i18n';
@@ -44,10 +44,10 @@ function resolvePasswordValidationError(
   confirm: string,
 ) {
   if (!token) return m.reset_err_missing_token();
-  const lengthFailure = passwordLengthFailure(password);
+  const lengthFailure = getPasswordLengthFailure(password);
   if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
   if (lengthFailure === 'too-long') return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
-  if (passwordLengthFailure(confirm) === 'too-long') {
+  if (getPasswordLengthFailure(confirm) === 'too-long') {
     return m.reset_err_long({ max: MAX_PASSWORD_LENGTH });
   }
   if (password !== confirm) return m.reset_err_mismatch();

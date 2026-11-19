@@ -43,7 +43,7 @@ export function countPasswordCharacters(password: string): number {
 }
 
 /** Return the precise password-length policy failure, if any. */
-export function passwordLengthFailure(password: string): PasswordLengthFailure | null {
+export function getPasswordLengthFailure(password: string): PasswordLengthFailure | null {
   const length = countPasswordCharacters(password);
   if (length < MIN_PASSWORD_LENGTH) return 'too-short';
   if (length > MAX_PASSWORD_LENGTH) return 'too-long';

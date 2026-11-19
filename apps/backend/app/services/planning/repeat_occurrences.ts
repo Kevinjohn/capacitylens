@@ -1,5 +1,5 @@
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import {
   generateRepeatingStartDates,
   type RepeatPattern,
@@ -8,9 +8,9 @@ import {
   buildRepeatedAllocationDrafts,
   buildRepeatedTimeOffDrafts,
 } from '@capacitylens/shared/lib/repeatingOccurrences';
-import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
+import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
-import { existingRow, PlanningOperationError } from './writer.js';
+import { requireExistingRow, PlanningOperationError } from './writer.js';
 
 // The server's expansion of a repeat pattern into dated occurrences, using the shared rules.
 
@@ -41,9 +41,9 @@ export function buildAllocationOccurrences(
   first: FirstAllocation,
   repeat: RepeatRange
 ): Array<{ startDate: ISODate; endDate: ISODate }> {
-  const company = existingRow(data, 'accounts', companyId);
-  const resource = existingRow(data, 'resources', first.resourceId);
-  const effectiveWeek = effectiveWorkingWeek(
+  const company = requireExistingRow(data, 'accounts', companyId);
+  const resource = requireExistingRow(data, 'resources', first.resourceId);
+  const effectiveWeek = resolveEffectiveWorkingWeek(
     resource,
     normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1)
   );
@@ -59,7 +59,7 @@ export function buildAllocationOccurrences(
     );
     return buildRepeatedAllocationDrafts(first, startDates, {
       schedulingMode: company.schedulingMode ?? 'hourly',
-      daysOver: spanDays(first.startDate, first.endDate, spanOptions),
+      daysOver: countSpanDays(first.startDate, first.endDate, spanOptions),
       resource,
       effectiveWeek,
     }).map(({ startDate, endDate }) => ({ startDate, endDate }));

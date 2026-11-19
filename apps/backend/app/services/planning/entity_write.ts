@@ -9,7 +9,10 @@ import {
   assertMayWriteRestrictedFields,
   prepareEntityWrite,
 } from '#services/planning/entity_policy';
-import { assertAllocationStartsOnWorkingDay } from '#services/planning/entity_validation/domain';
+import {
+  assertAllocationStartIsAvailable,
+  assertAllocationStartsOnWorkingDay,
+} from '#services/planning/entity_validation/domain';
 import { PlanningOperationError } from '#services/planning/errors';
 import { isRetainedTable } from './retained_rows.js';
 import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
@@ -30,6 +33,13 @@ interface WriteEntityOptions<K extends ScopedEntityKey> {
   permissiveRepeatStart?: boolean;
   /** An update refuses the write when the stored row's `updatedAt` differs from this value. */
   expectedUpdatedAt?: string;
+}
+
+/** One past the company's highest discipline sort order, counting archived and deleted rows. */
+function resolveNextDisciplineSortOrder(data: AppData, companyId: string): number {
+  return data.disciplines
+    .filter((row) => row.companyId === companyId)
+    .reduce((next, row) => Math.max(next, row.sortOrder + 1), 0);
 }
 
 function lookupFor(data: AppData): ValidationDataLookup {
@@ -116,6 +126,9 @@ export async function writeEntity<K extends ScopedEntityKey>({
     companyId,
   };
   if (!existing) applyCreateDefaults(table, candidate);
+  if (!existing && table === 'disciplines') {
+    candidate.sortOrder = resolveNextDisciplineSortOrder(data, companyId);
+  }
   const lookup = lookupFor(data);
   const clean = await prepareEntityWrite(table, candidate, existing, data, capabilities, {
     lookup,
@@ -129,6 +142,13 @@ export async function writeEntity<K extends ScopedEntityKey>({
       asRecord(clean),
       existing && asRecord(existing),
       lookup,
+      companyId
+    );
+    assertAllocationStartIsAvailable(
+      asRecord(clean),
+      existing && asRecord(existing),
+      lookup,
+      data,
       companyId
     );
   }

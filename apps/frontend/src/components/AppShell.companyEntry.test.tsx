@@ -2,7 +2,7 @@ import { it, expect, vi } from 'vitest';
 import { screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, makeAppData, makeCompany, DEFAULT_COMPANY_ID } from '@/test/fixtures';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { setUpAppShellTests, companyDirectory, renderAppShell } from './AppShell.testSupport';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
@@ -125,7 +125,7 @@ it('shows an installation error when the account directory contains multiple mem
 
 it('loads until the directory is complete, then opens its sole company', async () => {
   companyDirectory.pending = true;
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.setState({
     activeCompanyId: null,
     companySummaries: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
@@ -155,7 +155,7 @@ it('waits when the sole membership role is unavailable', async () => {
       roleStatus: 'unavailable',
     },
   ];
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.setState({
     activeCompanyId: null,
     companySummaries: [
@@ -193,7 +193,7 @@ it('keeps the server-selected company when its active slice is empty', async () 
   await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
 
   act(() => {
-    loadPlanningData(emptyAppData());
+    loadPlanningData(createEmptyAppData());
     useStore.getState().setCompanySummaries({ list: [summary] });
   });
 

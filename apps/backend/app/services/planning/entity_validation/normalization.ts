@@ -1,4 +1,4 @@
-import { canonicalWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays';
+import { normalizeWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { normalizeCodeName } from '@capacitylens/shared/domain/privateNames';
 import type { ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 
@@ -16,8 +16,8 @@ export function normalizeValidWrite({
   restrictedPrivateRow,
 }: NormalizeValidWriteInput): void {
   if (table === 'resources') {
-    candidate.workingDays = canonicalWeekdaySet(candidate.workingDays as Weekday[]);
-    candidate.halfDays = canonicalWeekdaySet(candidate.halfDays as Weekday[]);
+    candidate.workingDays = normalizeWeekdays(candidate.workingDays as Weekday[]);
+    candidate.halfDays = normalizeWeekdays(candidate.halfDays as Weekday[]);
     return;
   }
   if (table !== 'clients' && table !== 'projects') return;

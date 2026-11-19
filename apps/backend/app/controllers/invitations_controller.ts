@@ -6,10 +6,10 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
-import { proofHeaders } from '#services/request_helpers';
+import { setProofHeaders } from '#services/request_helpers';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
-import { getInstallationCompany, installationCompanyId } from '#models/installation_company';
+import { getInstallationCompany, getInstallationCompanyId } from '#models/installation_company';
 import {
   refuseInvalidAdmission,
   refuseInvalidAdmissionBody,
@@ -55,7 +55,7 @@ export default class InvitationsController {
     if (typeof companyId !== 'string' || !companyId) refuseInvalidAdmission();
     return withActor(ctx, async (_actor, trx) => {
       const { actorId } = await assertCompanyAction(companyId, 'invitations:manage', trx);
-      if ((await installationCompanyId(trx)) !== companyId) {
+      if ((await getInstallationCompanyId(trx)) !== companyId) {
         refuseMissingAdmission('Company not found.');
       }
       return actorId;
@@ -129,7 +129,7 @@ export default class InvitationsController {
 
   /** What the link offers, without spending it. */
   async preview(ctx: HttpContext) {
-    proofHeaders(ctx);
+    setProofHeaders(ctx);
     const invitation = await accountKit.invitations.inspect({ token: ctx.params.token });
     if (!invitation) return ctx.response.notFound(invalidLink);
     const { companyId, accountName } = await getInstallationCompany(db);
@@ -148,7 +148,7 @@ export default class InvitationsController {
    * and the person signs in instead.
    */
   async signUp(ctx: HttpContext) {
-    proofHeaders(ctx);
+    setProofHeaders(ctx);
     const body = await ctx.request
       .validateUsing(signUpValidator, { data: ctx.request.body() })
       .catch(refuseInvalidAdmissionBody);

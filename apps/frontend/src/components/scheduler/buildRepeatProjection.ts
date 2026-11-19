@@ -1,4 +1,4 @@
-import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
@@ -64,7 +64,7 @@ function hasValidProjectionDates(input: ProjectionInput) {
   if (!isValidISODate(startDate) || !isValidISODate(endDate) || endDate < startDate) return false;
   if (!isValidISODate(repeatUntil) || repeatUntil < repeatUntilMinimum) return false;
   if (!repeatUntilMaximum || repeatUntil > repeatUntilMaximum) return false;
-  if (daysInclusive(startDate, endDate) > MAX_SPAN_DAYS) return false;
+  if (countDaysInclusive(startDate, endDate) > MAX_SPAN_DAYS) return false;
   return !(isDays || isBlocks) || (validDaysOver && spanFitsDateDomain);
 }
 

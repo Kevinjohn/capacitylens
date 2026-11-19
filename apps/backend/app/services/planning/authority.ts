@@ -2,7 +2,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { getActiveMembership, requireStoredRole } from '#services/auth/authorization';
-import { effectiveReadPrincipal } from '#services/auth/masquerade';
+import { resolveEffectiveReadPrincipal } from '#services/auth/masquerade';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import { PlanningOperationError } from '#services/planning/errors';
 
@@ -14,7 +14,7 @@ export interface PlanningAuthority extends PlanningCapabilities {
 
 /** Resolves the caller's planning authority and write capabilities inside the transaction. */
 export async function resolvePlanningAuthority(trx: TransactionClientContract, companyId: string) {
-  const principal = await effectiveReadPrincipal(trx, companyId);
+  const principal = await resolveEffectiveReadPrincipal(trx, companyId);
   const membership = await getActiveMembership(principal.effectiveId, companyId, trx);
   if (!membership || (principal.companyId !== null && principal.companyId !== companyId)) {
     throw new PlanningOperationError(

@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import router from '@adonisjs/core/services/router';
 import db from '@adonisjs/lucid/services/db';
-import { getClassifiedRouteAccess, routeAccess } from '#services/auth/route_access';
+import { getClassifiedRouteAccess, resolveRouteAccess } from '#services/auth/route_access';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
@@ -38,8 +38,8 @@ test.group('account gate', (group) => {
 
   test('a route name in no set is unclassified and gets the strictest check', ({ assert }) => {
     assert.isUndefined(getClassifiedRouteAccess('api.lexcorp.secrets'));
-    assert.equal(routeAccess('api.lexcorp.secrets'), 'admitted');
-    assert.equal(routeAccess(undefined), 'public');
+    assert.equal(resolveRouteAccess('api.lexcorp.secrets'), 'admitted');
+    assert.equal(resolveRouteAccess(undefined), 'public');
   });
 
   test('a request with no session is refused on admitted and limited routes', async ({

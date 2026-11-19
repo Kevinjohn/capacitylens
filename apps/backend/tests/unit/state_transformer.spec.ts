@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import { transformState } from '#transformers/state_transformer';
-import { displayNameOf } from '#services/planning/restricted_fields';
+import { resolveDisplayName } from '#services/planning/restricted_fields';
 import {
   FIXTURE_COMPANY,
   FIXTURE_ACTIVITY,
@@ -87,9 +87,12 @@ test('sends one display name per client and project for the reader role', ({ ass
 
 test('orders by a trimmed code name and ignores a blank one', ({ assert }) => {
   assert.equal(
-    displayNameOf({ name: 'Wayne Enterprises', codeName: '  Nightwing  ' }),
+    resolveDisplayName({ name: 'Wayne Enterprises', codeName: '  Nightwing  ' }),
     'Nightwing'
   );
-  assert.equal(displayNameOf({ name: 'Wayne Enterprises', codeName: '   ' }), 'Wayne Enterprises');
-  assert.equal(displayNameOf({ name: '"Nightwing"' }), '"Nightwing"');
+  assert.equal(
+    resolveDisplayName({ name: 'Wayne Enterprises', codeName: '   ' }),
+    'Wayne Enterprises'
+  );
+  assert.equal(resolveDisplayName({ name: '"Nightwing"' }), '"Nightwing"');
 });

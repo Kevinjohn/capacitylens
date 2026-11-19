@@ -1,4 +1,4 @@
-import { addDaysISO, daysInclusive, MAX_ISO_DATE, weekdayOf } from './dateMath.js';
+import { addDaysISO, countDaysInclusive, MAX_ISO_DATE, getWeekday } from './dateMath.js';
 import { countDaysInMonth as countDaysInGregorianMonth, isValidISODate } from './isoDates.js';
 import type { ISODate } from '../types/entities.js';
 
@@ -100,7 +100,7 @@ function parseDateParts(date: ISODate): { year: number; month: number; day: numb
 /** Latest valid user cutoff for the selected caller policy, capped by the ISO date domain.
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
-export function maximumRepeatUntilDate(
+export function resolveMaximumRepeatUntilDate(
   startDate: ISODate,
   policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,
 ): ISODate {
@@ -114,11 +114,11 @@ export function maximumRepeatUntilDate(
 /** Suggest the selected policy’s default cutoff, bounded by its maximum and the four-digit ISO date domain.
  * Pure; the policy supplies valid month offsets and cutoff modes.
  * @throws RepeatingDateError when startDate is not a validated ISO date; no cutoff is returned. */
-export function defaultRepeatUntilDate(
+export function resolveDefaultRepeatUntilDate(
   startDate: ISODate,
   policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,
 ): ISODate {
-  const maximum = maximumRepeatUntilDate(startDate, policy);
+  const maximum = resolveMaximumRepeatUntilDate(startDate, policy);
   // Resolve the target month before applying the selected anchor-day or month-end cutoff policy.
   const target = addCalendarMonthsClamped(startDate, policy.defaultCalendarMonths);
   // Clamp an out-of-domain suggestion to the last supported date so enabling repeat never creates an invalid date.
@@ -132,15 +132,15 @@ export function defaultRepeatUntilDate(
 /** Latest valid personal time-off cutoff, including the initial month in its twelve-month horizon.
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
-export function maximumTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
-  return maximumRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
+export function resolveMaximumTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
+  return resolveMaximumRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
 }
 
 /** Suggested personal time-off cutoff at the end of its twelve-calendar-month horizon.
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
 export function calculateDefaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
-  return defaultRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
+  return resolveDefaultRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
 }
 
 // Undefined when the offset is not a safe integer or the target month falls outside the
@@ -193,7 +193,7 @@ function buildWeeklyStartDates(
   }
   const startDates: ISODate[] = [];
   const intervalDays = interval * 7;
-  const cutoffOffset = daysInclusive(startDate, repeatUntil) - 1;
+  const cutoffOffset = countDaysInclusive(startDate, repeatUntil) - 1;
   for (let index = 1; index * intervalDays <= cutoffOffset; index += 1) {
     startDates.push(addDaysISO(startDate, index * intervalDays));
   }
@@ -221,7 +221,7 @@ function calculateLastMatchingWeekdayOfMonth(
 ): ISODate {
   const lastDay = countDaysInGregorianMonth(year, month);
   const lastDate = buildIsoDate(year, month, lastDay);
-  const daysBack = (weekdayOf(lastDate) - weekday + 7) % 7;
+  const daysBack = (getWeekday(lastDate) - weekday + 7) % 7;
   return buildIsoDate(year, month, lastDay - daysBack);
 }
 
@@ -231,7 +231,7 @@ function buildMonthlyLastWeekdayStartDates(
   policy: RepeatingDatePolicy,
 ): ISODate[] {
   const { year, month } = parseDateParts(startDate);
-  const weekday = weekdayOf(startDate);
+  const weekday = getWeekday(startDate);
   if (calculateLastMatchingWeekdayOfMonth(year, month, weekday) !== startDate) {
     throw new RepeatingDateError(
       'invalid-last-weekday-start',
@@ -275,7 +275,7 @@ export function generateRepeatingStartDates(
       'Repeat until cannot be before the first start.',
     );
   }
-  if (repeatUntil > maximumRepeatUntilDate(startDate, policy)) {
+  if (repeatUntil > resolveMaximumRepeatUntilDate(startDate, policy)) {
     throw new RepeatingDateError(
       'cutoff-after-limit',
       `Repeat until cannot be more than ${policy.maximumCalendarMonths} calendar months after the first start.`,

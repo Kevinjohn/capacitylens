@@ -3,7 +3,7 @@ import type {
   CapacityRange,
   CapacitySection,
 } from '@capacitylens/shared/lib/capacity';
-import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath';
 
 /** One date's server figures. Unset fields default to nothing allocated against eight hours. */
 export interface ServerDayFigures {
@@ -22,7 +22,7 @@ export function capacityDays(
   byDate: Record<string, ServerDayFigures> = {},
 ): CapacityDays {
   const days: CapacityDays = { allocated: [], confirmedAllocated: [], available: [], over: [] };
-  const length = daysInclusive(range.from, range.to);
+  const length = countDaysInclusive(range.from, range.to);
   for (let index = 0; index < length; index++) {
     days.allocated.push(fill.allocated ?? 0);
     days.confirmedAllocated.push(fill.confirmedAllocated ?? fill.allocated ?? 0);
@@ -30,7 +30,7 @@ export function capacityDays(
     days.over.push(fill.over ?? false);
   }
   for (const [date, figures] of Object.entries(byDate)) {
-    const index = daysInclusive(range.from, date) - 1;
+    const index = countDaysInclusive(range.from, date) - 1;
     if (index < 0 || index >= length) throw new Error(`${date} is outside the fixture range.`);
     days.allocated[index] = figures.allocated ?? 0;
     days.confirmedAllocated[index] = figures.confirmedAllocated ?? figures.allocated ?? 0;

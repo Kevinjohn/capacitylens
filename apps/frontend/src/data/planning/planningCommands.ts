@@ -1,8 +1,8 @@
 import type { PlanningIntent } from '@/api/planningContracts';
-import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
+import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
 import {
-  externalCapacityDefaults,
-  placeholderCapacityDefaults,
+  buildExternalCapacityDefaults,
+  buildPlaceholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
 import type {
   Company,
@@ -103,7 +103,9 @@ export function buildAllocationCreate(
     id: args.id,
     resourceId: args.fields.resourceId,
     activityId: args.fields.activityId,
-    projectId: allocationAttributionAllowed(activity.kind) ? (args.fields.projectId ?? null) : null,
+    projectId: isAllocationAttributionAllowed(activity.kind)
+      ? (args.fields.projectId ?? null)
+      : null,
     startDate: args.fields.startDate,
     endDate: args.fields.endDate,
     hoursPerDay: args.fields.hoursPerDay,
@@ -193,7 +195,7 @@ export function buildAllocationUpdate(
     );
     if (!activity) return null;
     if (
-      !allocationAttributionAllowed(activity.kind) &&
+      !isAllocationAttributionAllowed(activity.kind) &&
       (changes.projectId ?? current.projectId) !== null
     ) {
       changes.projectId = null;
@@ -311,8 +313,10 @@ export function buildResourceCreate(
   if (!hasCompany(data, companyId)) return null;
   const input = args.fields;
   const kindDefaults =
-    input.kind === 'external' ? externalCapacityDefaults() : placeholderCapacityDefaults();
-  const externalDefaults = externalCapacityDefaults();
+    input.kind === 'external'
+      ? buildExternalCapacityDefaults()
+      : buildPlaceholderCapacityDefaults();
+  const externalDefaults = buildExternalCapacityDefaults();
   const fields = {
     kind: input.kind,
     name: input.name ?? null,
@@ -364,12 +368,12 @@ export function buildResourceUpdate(
   if (!current || original.id !== args.id || original.companyId !== companyId) return null;
   const normalized: Patch<Resource> = { ...args.changes };
   if (args.changes.kind === 'external') {
-    Object.assign(normalized, externalCapacityDefaults(), {
+    Object.assign(normalized, buildExternalCapacityDefaults(), {
       color: NEUTRAL_COLOR,
       projectId: null,
     });
   } else if (args.changes.kind === 'placeholder') {
-    Object.assign(normalized, placeholderCapacityDefaults(), { engagement: 'studio' });
+    Object.assign(normalized, buildPlaceholderCapacityDefaults(), { engagement: 'studio' });
   } else if (args.changes.kind === 'person') {
     normalized.projectId = null;
   }
@@ -414,7 +418,7 @@ type CatalogueCreateFields =
     }
   | {
       entity: 'disciplines';
-      fields: Pick<Discipline, 'name' | 'sortOrder'> & Partial<Pick<Discipline, 'color'>>;
+      fields: Pick<Discipline, 'name'> & Partial<Pick<Discipline, 'color'>>;
     };
 
 /** Build an explicit catalogue creation intent, preserving supplied links for validation. */
@@ -468,7 +472,7 @@ export function buildCatalogueCreate(
       entity = {
         entity: 'disciplines',
         id: args.id,
-        fields: { ...args.fields, color: args.fields.color ?? null },
+        fields: { name: args.fields.name, color: args.fields.color ?? null },
       };
       break;
   }

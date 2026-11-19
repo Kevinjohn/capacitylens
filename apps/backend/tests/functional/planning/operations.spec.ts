@@ -99,7 +99,7 @@ test.group('authenticated planning operations', (group) => {
       {
         entity: 'disciplines',
         id: disciplineId,
-        fields: { name: 'Strategy', color, sortOrder: 8 },
+        fields: { name: 'Strategy', color },
       },
     ];
     for (const [index, operation] of operations.entries()) {
@@ -137,7 +137,11 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(state.projects.find((row) => row.id === projectId)?.clientId, clientId);
     assert.equal(state.activities.find((row) => row.id === activityId)?.phaseId, phaseId);
     assert.equal(state.phases.find((row) => row.id === phaseId)?.name, 'Planning');
-    assert.equal(state.disciplines.find((row) => row.id === disciplineId)?.sortOrder, 8);
+    // The server appends the new discipline after the company's highest sort order.
+    const highest = Math.max(
+      ...data.disciplines.filter((row) => row.companyId === companyId).map((row) => row.sortOrder)
+    );
+    assert.equal(state.disciplines.find((row) => row.id === disciplineId)?.sortOrder, highest + 1);
   });
 
   test('Editor creates a resource and patches its role without changing its capacity', async ({

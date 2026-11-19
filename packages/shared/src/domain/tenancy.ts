@@ -10,7 +10,7 @@ import type { ID, ScopedEntity } from '../types/entities.js';
 /** The anchor: does a single, already-located row belong to `companyId`? Every other helper here
  * is defined in terms of this, and the write-boundary guard (getOwned) and the FK-coherence
  * checks (assertScopedRefs) use it directly on one row. */
-export const belongsToCompany = (scopedEntity: ScopedEntity, companyId: ID): boolean =>
+export const isInCompany = (scopedEntity: ScopedEntity, companyId: ID): boolean =>
   scopedEntity.companyId === companyId;
 
 /** Curried positive predicate for `.filter(...)`: keep only the rows in `companyId`. The read-side
@@ -18,4 +18,4 @@ export const belongsToCompany = (scopedEntity: ScopedEntity, companyId: ID): boo
 export const byCompany =
   (companyId: ID) =>
   (scopedEntity: ScopedEntity): boolean =>
-    belongsToCompany(scopedEntity, companyId);
+    isInCompany(scopedEntity, companyId);

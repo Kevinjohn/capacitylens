@@ -1,12 +1,12 @@
-import { daysInclusive, MAX_ISO_DATE } from '@capacitylens/shared/lib/dateMath';
-import { lacksEffectiveWorkingDays } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { allocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
+import { countDaysInclusive, MAX_ISO_DATE } from '@capacitylens/shared/lib/dateMath';
+import { hasNoEffectiveWorkingDays } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integrity';
 import {
-  blockHoursPerDay,
+  resolveBlockHoursPerDay,
   endDateForSpan,
-  hoursPerDayFor,
+  calculateHoursPerDay,
   MAX_SPAN_DAYS,
-  maxSpanDaysForStart,
+  calculateMaxSpanDays,
 } from '@capacitylens/shared/lib/schedulingDays';
 import type { Activity, Resource, SchedulingMode } from '@capacitylens/shared/types/entities';
 import { FULL_DAY_HOURS, isExternalResource } from '@capacitylens/shared/types/entities';
@@ -20,7 +20,7 @@ export const INTERNAL_PROJECT_SELECTION = '__allocation_internal__';
 export const ANY_PROJECT_SELECTION = '__allocation_any_project__';
 /** Maps an activity to the project selector choice shown in the modal. */
 export function resolveProjectSelection(activity: Activity | undefined): string {
-  if (allocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
+  if (isAllocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
   if (activity?.kind === 'project' && activity.projectId) return activity.projectId;
   return INTERNAL_PROJECT_SELECTION;
 }
@@ -31,7 +31,7 @@ export function resolveAttributedProject(
   selection: string,
 ): string | undefined {
   if (
-    !allocationAttributionAllowed(activity?.kind) ||
+    !isAllocationAttributionAllowed(activity?.kind) ||
     selection === INTERNAL_PROJECT_SELECTION ||
     selection === ANY_PROJECT_SELECTION
   ) {
@@ -84,7 +84,7 @@ function buildLiteralAllocationValues({
     spanFitsDateDomain: true,
     maximumDaysOver: MAX_SPAN_DAYS,
     spanLimitedByDateDomain:
-      !!input.startDate && daysInclusive(input.startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS,
+      !!input.startDate && countDaysInclusive(input.startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS,
     endDate: input.endDate,
     hoursPerDay: external ? 0 : input.hoursPerDay,
   };
@@ -109,8 +109,8 @@ function buildUnavailableWeekValues({
     endDate: input.endDate,
     hoursPerDay:
       input.mode === 'blocks'
-        ? blockHoursPerDay(FULL_DAY_HOURS)
-        : hoursPerDayFor(input.daysOfWork, input.daysOver, FULL_DAY_HOURS),
+        ? resolveBlockHoursPerDay(FULL_DAY_HOURS)
+        : calculateHoursPerDay(input.daysOfWork, input.daysOver, FULL_DAY_HOURS),
   };
 }
 
@@ -126,21 +126,25 @@ function buildWorkingWeekValues({ input, external, validDaysOver }: BuildWorking
     ...(effectiveWeek?.kind === 'days' ? { workingDays: effectiveWeek.days } : {}),
     ignoreWorkingDays,
   };
-  const maximumDaysOver = startDate ? maxSpanDaysForStart(startDate, spanOptions) : MAX_SPAN_DAYS;
+  const maximumDaysOver = startDate ? calculateMaxSpanDays(startDate, spanOptions) : MAX_SPAN_DAYS;
   const spanFitsDateDomain = !!startDate && validDaysOver && daysOver <= maximumDaysOver;
   const spanEnd = startDate
     ? endDateForSpan(startDate, validDaysOver && spanFitsDateDomain ? daysOver : 1, spanOptions)
     : endDate;
   const effective =
     mode === 'blocks'
-      ? { endDate: spanEnd, hoursPerDay: blockHoursPerDay(FULL_DAY_HOURS) }
-      : { endDate: spanEnd, hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, FULL_DAY_HOURS) };
+      ? { endDate: spanEnd, hoursPerDay: resolveBlockHoursPerDay(FULL_DAY_HOURS) }
+      : {
+          endDate: spanEnd,
+          hoursPerDay: calculateHoursPerDay(daysOfWork, daysOver, FULL_DAY_HOURS),
+        };
   return {
     external,
     validDaysOver,
     spanFitsDateDomain,
     maximumDaysOver,
-    spanLimitedByDateDomain: !!startDate && daysInclusive(startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS,
+    spanLimitedByDateDomain:
+      !!startDate && countDaysInclusive(startDate, MAX_ISO_DATE) < MAX_SPAN_DAYS,
     ...effective,
   };
 }
@@ -179,7 +183,7 @@ export function buildEffectiveAllocationValues({
     });
   }
 
-  if (lacksEffectiveWorkingDays(effectiveWeek, ignoreWorkingDays)) {
+  if (hasNoEffectiveWorkingDays(effectiveWeek, ignoreWorkingDays)) {
     // With no effective workdays, keep the seeded span quantity unchanged so unrelated edits cannot dilute stored work volume.
     return buildUnavailableWeekValues({
       input: {

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { buildColumnGeometry } from '@/components/scheduler/columnGeometry';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import {
@@ -37,7 +37,7 @@ export function renderWithOwnerAndTooltip(ui: ReactNode, options?: Omit<RenderOp
 }
 
 /** Uniform June geometry with 48-pixel day columns and weekend minimisation disabled. */
-export const GEOM = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 48, {
+export const GEOM = buildColumnGeometry(listDaysISO('2026-06-01', '2026-06-30'), 48, {
   minimiseWeekends: false,
   weekendWidth: 22,
 });

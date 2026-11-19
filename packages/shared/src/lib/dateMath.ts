@@ -21,7 +21,7 @@ export const MAX_ISO_DATE = '9999-12-31' as ISODate;
 // it at every write boundary (store add/update, import remap, server validate), and
 // import normalises dates on the way in. Pass an invalid/unpadded string and `parseISO`
 // returns an Invalid Date whose downstream `format()` throws a RangeError. Extended-year input
-// can parse, but `toISODate` rejects any output outside the four-digit product domain. Do not
+// can parse, but `formatISODate` rejects any output outside the four-digit product domain. Do not
 // "harden" that by wrapping these in try/catch: it would swallow a real upstream bug in
 // the hottest path. The guarantee lives at the boundary, by design.
 
@@ -29,7 +29,7 @@ export const MAX_ISO_DATE = '9999-12-31' as ISODate;
  * Parse a validated date-only ISO string ("YYYY-MM-DD") to a local Date at midnight.
  *
  * @param date a validated `ISODate` (see the module precondition above). An invalid or
- * unpadded string parses to an **Invalid Date**, which makes a later `format()`/`toISODate`
+ * unpadded string parses to an **Invalid Date**, which makes a later `format()`/`formatISODate`
  * throw a RangeError, surface that as the upstream-validation bug it is, don't catch it here.
  */
 export function parseDate(date: ISODate): Date {
@@ -49,7 +49,7 @@ export function assertFourDigitISODate(candidate: string): ISODate {
 }
 
 /** Format a Date back to a date-only ISO string within the four-digit product year domain. */
-export function toISODate(date: Date): ISODate {
+export function formatISODate(date: Date): ISODate {
   return assertFourDigitISODate(format(date, 'yyyy-MM-dd'));
 }
 
@@ -57,27 +57,27 @@ export function toISODate(date: Date): ISODate {
  * Both args must be validated `ISODate`s (see the module precondition); an invalid one
  * yields `NaN` here, which the geometry callers (columnGeometry's `xForDateInGeom` /
  * `widthForDates`) `Number.isFinite`-guard to 0. */
-export function dayIndex(date: ISODate, origin: ISODate): number {
+export function calculateDayIndex(date: ISODate, origin: ISODate): number {
   return differenceInCalendarDays(parseISO(date), parseISO(origin));
 }
 
 /** Add (or subtract, with a negative `days`) whole days to a date-only ISO string.
  * `date` must be a validated `ISODate` (see the module precondition), an invalid one
- * produces an Invalid Date and the inner `toISODate`/`format()` throws RangeError. */
+ * produces an Invalid Date and the inner `formatISODate`/`format()` throws RangeError. */
 export function addDaysISO(date: ISODate, days: number): ISODate {
-  return toISODate(addDays(parseISO(date), days));
+  return formatISODate(addDays(parseISO(date), days));
 }
 
 /** Inclusive day count of [start, end]: end - start + 1. Can be <= 0 if reversed. */
-export function daysInclusive(start: ISODate, end: ISODate): number {
+export function countDaysInclusive(start: ISODate, end: ISODate): number {
   return differenceInCalendarDays(parseISO(end), parseISO(start)) + 1;
 }
 
 /** Return a new array of validated ISO dates in the inclusive range; reversed ranges return an empty array.
  * Pure; inputs must be validated ISO dates.
  * @throws RangeError when the range exceeds MAX_MATERIALISED_DAYS or formatting leaves the supported date domain; no date array is returned. */
-export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
-  const count = daysInclusive(start, end);
+export function listDaysISO(start: ISODate, end: ISODate): ISODate[] {
+  const count = countDaysInclusive(start, end);
   if (count <= 0) return [];
   if (count > MAX_MATERIALISED_DAYS) {
     throw new RangeError(
@@ -88,21 +88,21 @@ export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
   // Parse once because capacity-window calculations materialize many dates on the render path.
   let cursor = parseISO(start);
   for (let i = 0; i < count; i++) {
-    out.push(toISODate(cursor));
+    out.push(formatISODate(cursor));
     cursor = addDays(cursor, 1);
   }
   return out;
 }
 
 /** Weekday (0=Sun … 6=Sat) of a date-only ISO string. */
-export function weekdayOf(date: ISODate): Weekday {
+export function getWeekday(date: ISODate): Weekday {
   return parseISO(date).getDay() as Weekday;
 }
 
 /** The start of the week containing `date`.
  * `weekStartsOn`: 0 = Sunday, 1 = Monday (default, ISO-style). */
 export function startOfWeekISO(date: ISODate, weekStartsOn: 0 | 1 = 1): ISODate {
-  return toISODate(startOfWeek(parseISO(date), { weekStartsOn }));
+  return formatISODate(startOfWeek(parseISO(date), { weekStartsOn }));
 }
 
 /** Is `date` within the inclusive range [start, end]? Zero-padded YYYY-MM-DD strings
@@ -121,7 +121,7 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
  * overlaps, which is what every caller (timeline intersection, keyboard-nudge visibility)
  * means by "still on screen". Same zero-padded lexicographic compare as `isWithin`, for the
  * same reason: exact, and no parseISO on a hot path. */
-export function rangesOverlap(
+export function hasRangeOverlap(
   aStart: ISODate,
   aEnd: ISODate,
   bStart: ISODate,

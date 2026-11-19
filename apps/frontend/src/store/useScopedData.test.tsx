@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
   loadPlanningData,
@@ -36,7 +36,7 @@ function clientRows() {
 
 function twoCompanyData(): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: companyRows(),
     disciplines: [
       {
@@ -135,15 +135,15 @@ async function activateFixtureCompany(data: AppData, companyId: string): Promise
 }
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().setActiveCompany(null);
 });
 
 describe('scoped data', () => {
   it("selects another company's dataset as empty", () => {
-    const data = { ...emptyAppData(), accounts: [makeCompany({ id: COMPANY_B })] };
+    const data = { ...createEmptyAppData(), accounts: [makeCompany({ id: COMPANY_B })] };
 
-    expect(resolveSharedScopedData(data, COMPANY_A)).toEqual(emptyAppData());
+    expect(resolveSharedScopedData(data, COMPANY_A)).toEqual(createEmptyAppData());
     expect(resolveSharedScopedData(data, COMPANY_B)).toBe(data);
   });
 
@@ -154,7 +154,7 @@ describe('scoped data', () => {
     const second = resolveSharedScopedData({ ...data }, null);
 
     expect(second).toBe(first);
-    expect(first).toEqual(emptyAppData());
+    expect(first).toEqual(createEmptyAppData());
   });
 });
 

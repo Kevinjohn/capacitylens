@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, deferred, createHarness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
+import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -31,8 +32,8 @@ describe('MasqueradeController', () => {
 
   it('holds a newly adopted status behind a blocked old-actor read until a fresh retry finishes', async () => {
     await resetStoreWithCompany('a-studio');
-    const oldRead = deferred<void>();
-    const freshRead = deferred<boolean>();
+    const oldRead = createDeferred<void>();
+    const freshRead = createDeferred<boolean>();
     const otherRelease = useStore.getState().suspendPlanningCommands();
     expect(otherRelease).toBeTypeOf('function');
     useStore.setState((current) => ({
@@ -64,7 +65,7 @@ describe('MasqueradeController', () => {
 
   it('lets a newer server status supersede a pending local start without publishing its late response', async () => {
     await resetStoreWithCompany('a-studio');
-    const oldStart = deferred<MasqueradeState>();
+    const oldStart = createDeferred<MasqueradeState>();
     const newer = {
       ...state,
       token: 'token-2',

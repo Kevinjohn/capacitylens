@@ -5,7 +5,10 @@ import { DEFAULT_COLORS } from '@/lib/palette';
 import { parseText, validateWorkingDays } from '@/lib/validation';
 import type { StoreState } from '@/store/types';
 import { m } from '@/i18n';
-import { FULL_DAY_HOURS, placeholderCapacityDefaults } from '@capacitylens/shared/types/entities';
+import {
+  FULL_DAY_HOURS,
+  buildPlaceholderCapacityDefaults,
+} from '@capacitylens/shared/types/entities';
 import type {
   Resource,
   ResourceEngagement,
@@ -131,7 +134,7 @@ function buildResourcePatch(input: {
     color: resource?.color ?? DEFAULT_COLORS.resource,
   };
   return isPlaceholder
-    ? { ...basePatch, kind: 'placeholder' as const, ...placeholderCapacityDefaults() }
+    ? { ...basePatch, kind: 'placeholder' as const, ...buildPlaceholderCapacityDefaults() }
     : {
         ...basePatch,
         kind,

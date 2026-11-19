@@ -1,17 +1,17 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import { describe, it, expect } from 'vitest';
 import {
-  activeOnly,
+  buildActiveData,
   archiveImpact,
   inspectLifecycleAncestry,
-  lifecycleStatus,
+  resolveLifecycleStatus,
 } from '@capacitylens/shared/domain/lifecycle';
 import type {
   LifecycleAncestryLookup,
   LifecycleAncestryRow,
   LifecycleFields,
 } from '@capacitylens/shared/domain/lifecycle';
-import { emptyAppData } from '../types/entities.js';
+import { createEmptyAppData } from '../types/entities.js';
 import type { AppData, Weekday } from '../types/entities.js';
 
 const T_ARCH = '2026-01-01T00:00:00.000Z';
@@ -73,7 +73,7 @@ const makeActiveOnlyProject = ({
   ...tombstones,
 });
 const ACTIVE_ONLY_DATA: AppData = {
-  ...emptyAppData(),
+  ...createEmptyAppData(),
   accounts: [
     {
       ...NULLABLE_FIELDS.accounts,
@@ -254,9 +254,9 @@ const ACTIVE_ONLY_DATA: AppData = {
 };
 const makeActiveOnlyData = (): AppData => structuredClone(ACTIVE_ONLY_DATA);
 
-describe('activeOnly — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)', () => {
+describe('buildActiveData — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)', () => {
   it('DROPS archived AND soft-deleted resources/clients/projects; KEEPS the active ones', () => {
-    const out = activeOnly(makeActiveOnlyData());
+    const out = buildActiveData(makeActiveOnlyData());
     expect(out.resources.map((r) => r.id)).toEqual(['r-active']);
     expect(out.clients.map((c) => c.id)).toEqual(['c-active']);
     expect(out.projects.map((p) => p.id)).toEqual(['p-active']);
@@ -293,7 +293,7 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
       makeActiveOnlyPlaceholder('r-unbound', 'Unbound placeholder', null),
     ];
 
-    const out = activeOnly(input);
+    const out = buildActiveData(input);
 
     expect(out.resources.map(({ id }) => id)).toEqual([
       'r-active',
@@ -306,20 +306,20 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
   });
   it('closure-prunes descendants of hidden parents/resources while preserving top-level metadata', () => {
     const input = makeActiveOnlyData();
-    const out = activeOnly(input);
+    const out = buildActiveData(input);
     expect(out.phases.map((row) => row.id)).toEqual(['ph1']);
     expect(out.activities.map((row) => row.id)).toEqual(['act1']);
     expect(out.allocations.map((row) => row.id)).toEqual(['al1']);
     expect(out.timeOff.map((row) => row.id)).toEqual(['to1']);
     expect(out.disciplines).toBe(input.disciplines);
     expect(out.accounts).toBe(input.accounts);
-    expect(lifecycleStatus(input.activities.find((row) => row.id === 'act-hidden') ?? {})).toBe(
-      'active',
-    );
+    expect(
+      resolveLifecycleStatus(input.activities.find((row) => row.id === 'act-hidden') ?? {}),
+    ).toBe('active');
   });
   it('retains active rows with unresolved parents instead of inventing hidden lifecycle state', () => {
     const input = {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       projects: [
         {
           ...NULLABLE_FIELDS.projects,
@@ -342,13 +342,15 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
       ],
     };
 
-    const out = activeOnly(input);
+    const out = buildActiveData(input);
     expect(out.projects.map(({ id }) => id)).toEqual(['p-dangling', 'p-missing-field']);
-    expect(out.projects.every((project) => lifecycleStatus(project) === 'active')).toBe(true);
+    expect(out.projects.every((project) => resolveLifecycleStatus(project) === 'active')).toBe(
+      true,
+    );
   });
   it('treats null optional activity parents as absent and retains their allocations', () => {
     const input = {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       activities: [
         {
           id: 'activity-with-null-parents',
@@ -378,13 +380,13 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
       ],
     };
 
-    const out = activeOnly(input);
+    const out = buildActiveData(input);
     expect(out.activities.map(({ id }) => id)).toEqual(['activity-with-null-parents']);
     expect(out.allocations.map(({ id }) => id)).toEqual(['allocation-1']);
   });
   it('hides a repeatable allocation attributed to an inactive project', () => {
     const input: AppData = {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       projects: [
         {
           ...NULLABLE_FIELDS.projects,
@@ -416,7 +418,7 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
       ],
     };
 
-    expect(activeOnly(input).allocations).toEqual([]);
+    expect(buildActiveData(input).allocations).toEqual([]);
   });
   it('identifies the exact inactive ancestor inherited through every projection edge', () => {
     const input = makeActiveOnlyData();
@@ -445,7 +447,7 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
   it('does NOT mutate the input (deep-equal the original) and returns a NEW object', () => {
     const input = makeActiveOnlyData();
     const snapshot = structuredClone(input);
-    const out = activeOnly(input);
+    const out = buildActiveData(input);
     expect(input).toEqual(snapshot);
     expect(input.resources).toHaveLength(3);
     expect(input.clients).toHaveLength(3);
@@ -457,14 +459,14 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
     input.resources = input.resources.filter((r) => r.id === 'r-active');
     input.clients = input.clients.filter((c) => c.id === 'c-active');
     input.projects = input.projects.filter((p) => p.id === 'p-active');
-    const out = activeOnly(input);
+    const out = buildActiveData(input);
     expect(out.resources).toHaveLength(1);
     expect(out.clients).toHaveLength(1);
     expect(out.projects).toHaveLength(1);
-    expect(Object.keys(out).sort()).toEqual(Object.keys(emptyAppData()).sort());
+    expect(Object.keys(out).sort()).toEqual(Object.keys(createEmptyAppData()).sort());
   });
   it('an empty dataset projects to an empty dataset (no throw)', () => {
-    const out = activeOnly(emptyAppData());
+    const out = buildActiveData(createEmptyAppData());
     expect(out.resources).toEqual([]);
     expect(out.clients).toEqual([]);
     expect(out.projects).toEqual([]);
@@ -474,7 +476,7 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
 const ARCHIVE_IMPACT_COMPANY = 'acct-1';
 
 const ARCHIVE_IMPACT_DATA: AppData = {
-  ...emptyAppData(),
+  ...createEmptyAppData(),
   accounts: [
     {
       ...NULLABLE_FIELDS.accounts,

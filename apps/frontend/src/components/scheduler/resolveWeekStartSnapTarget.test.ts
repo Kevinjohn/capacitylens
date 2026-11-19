@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { buildColumnGeometry } from './columnGeometry';
 import { resolveWeekStartSnapTarget } from './resolveWeekStartSnapTarget';
-import { eachDayISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath';
 
 // Use a multi-week window to prove snapping floors to the current week even when the next week boundary is nearer.
-const DAYS = eachDayISO('2026-06-01', '2026-06-21');
+const DAYS = listDaysISO('2026-06-01', '2026-06-21');
 const DAY_W = 48;
 const OFF = { minimiseWeekends: false, weekendWidth: 20 };
 const ON = { minimiseWeekends: true, weekendWidth: 20 };
@@ -163,7 +163,7 @@ describe('resolveWeekStartSnapTarget — degenerate inputs stay finite', () => {
         weekStartsOn: 1,
       }),
     ).toBe(0);
-    const partial = eachDayISO('2026-06-03', '2026-06-09');
+    const partial = listDaysISO('2026-06-03', '2026-06-09');
     const partialGeom = buildColumnGeometry(partial, DAY_W, OFF);
     expect(
       resolveWeekStartSnapTarget({

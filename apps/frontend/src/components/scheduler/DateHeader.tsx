@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { m } from '@/i18n';
 import { formatDayMonth, formatMonthYear } from '@/lib/dateDisplay';
 import { useDateStyle } from '@/store/useDateStyle';
-import { parseDate, weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { parseDate, getWeekday } from '@capacitylens/shared/lib/dateMath';
 import type { WeeksZoom } from '@/lib/schedulerConfig';
 import { LAYOUT } from './layout';
 import type { ColumnGeometry } from './columnGeometry';
@@ -34,7 +34,7 @@ function buildMonthSpans(days: string[]): Span[] {
 function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   const blocks: Span[] = [];
   days.forEach((day, i) => {
-    if (i === 0 || weekdayOf(day) === weekStartsOn) {
+    if (i === 0 || getWeekday(day) === weekStartsOn) {
       blocks.push({ key: day, label: formatDayMonth(day), days: 1, start: i });
     } else {
       const currentBlock = blocks[blocks.length - 1];
@@ -67,7 +67,7 @@ function DateDayTier({
   return (
     <div data-testid="scheduler-day-tier" className="flex flex-auto">
       {days.map((day, index) => {
-        const weekday = weekdayOf(day);
+        const weekday = getWeekday(day);
         const weekend = weekday === 0 || weekday === 6;
         const date = parseDate(day);
         return (

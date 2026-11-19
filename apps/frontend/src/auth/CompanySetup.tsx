@@ -10,7 +10,7 @@ import {
   MAX_NAME_LENGTH,
   parseUserName,
   normalizeUserText,
-  unicodeCharacterCount,
+  countUnicodeCharacters,
 } from '@capacitylens/shared/lib/strings';
 import {
   DEFAULT_TIME_ZONE,
@@ -42,7 +42,7 @@ export function CompanySetup({
       setError(
         !name.trim()
           ? m.validation_name_required()
-          : unicodeCharacterCount(normalizeUserText(name)) > MAX_NAME_LENGTH
+          : countUnicodeCharacters(normalizeUserText(name)) > MAX_NAME_LENGTH
             ? m.validation_text_too_long()
             : m.validation_text_invalid(),
       );

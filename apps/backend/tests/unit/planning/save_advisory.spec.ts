@@ -6,7 +6,7 @@ import {
   FIXTURE_RESOURCE_PERSON,
 } from '@capacitylens/shared/data/fixtures';
 import {
-  emptyAppData,
+  createEmptyAppData,
   type Allocation,
   type AppData,
   type Resource,
@@ -42,7 +42,7 @@ const booking = (id: string, resourceId: string = person.id): Allocation => ({
 
 function companyData(schedulingMode: SchedulingMode, resourceId: string = person.id): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: [
       { ...FIXTURE_COMPANY, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
     ],

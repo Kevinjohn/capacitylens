@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db';
 import {
   hasMultipleCompanies,
   hasNoCompany,
-  installationCompanyId,
+  getInstallationCompanyId,
 } from '#models/installation_company';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import { resetState } from '../helpers/state_fixture.js';
@@ -15,7 +15,7 @@ test.group('installation company', (group) => {
     await resetState(false);
     assert.isTrue(await hasNoCompany(db));
     assert.isFalse(await hasMultipleCompanies(db));
-    assert.isNull(await installationCompanyId(db));
+    assert.isNull(await getInstallationCompanyId(db));
   });
 
   test('a single company is the installation company', async ({ assert }) => {
@@ -23,7 +23,7 @@ test.group('installation company', (group) => {
     const [company] = await db.from('accounts').select('id');
     assert.isFalse(await hasNoCompany(db));
     assert.isFalse(await hasMultipleCompanies(db));
-    assert.equal(await installationCompanyId(db), String(company.id));
+    assert.equal(await getInstallationCompanyId(db), String(company.id));
   });
 
   test('a second company is refused with one code', async ({ assert }) => {
@@ -31,7 +31,7 @@ test.group('installation company', (group) => {
     assert.isFalse(await hasNoCompany(db));
     assert.isTrue(await hasMultipleCompanies(db));
     try {
-      await installationCompanyId(db);
+      await getInstallationCompanyId(db);
       assert.fail('Expected the second company to be refused');
     } catch (error) {
       assert.include(error, {

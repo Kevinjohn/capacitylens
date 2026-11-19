@@ -4,7 +4,7 @@ import { makeClosure } from '@/test/fixtures';
 import { GEOM } from '@/test/schedulerTestKit';
 import { ClosureBand } from './ClosureBand';
 import { buildColumnGeometry } from './columnGeometry';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
 
 describe('ClosureBand', () => {
@@ -88,7 +88,7 @@ describe('ClosureBand', () => {
   });
 
   it('keeps the vertical label on a band too narrow to read across', () => {
-    const narrow = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 20, {
+    const narrow = buildColumnGeometry(listDaysISO('2026-06-01', '2026-06-30'), 20, {
       minimiseWeekends: false,
       weekendWidth: 12,
     });

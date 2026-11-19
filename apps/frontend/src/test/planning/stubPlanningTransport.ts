@@ -13,7 +13,7 @@ import type {
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
 import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
-import { APP_DATA_KEYS, emptyAppData } from '@capacitylens/shared/types/entities';
+import { APP_DATA_KEYS, createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData, AppDataKey, ISODate } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
@@ -73,7 +73,7 @@ export class StubPlanningTransport implements PlanningTransport {
   readonly calls: PlanningIntent[] = [];
   /** Every undo and redo request, in order, including refused ones. */
   readonly historySteps: Array<'undo' | 'redo'> = [];
-  private data = emptyAppData();
+  private data = createEmptyAppData();
   private authority = makePlanningAuthority();
   private today: ISODate | null = null;
   private capacity: CapacitySection | null = null;
@@ -324,7 +324,7 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   private companyRows(companyId: string): AppData {
-    const data = emptyAppData();
+    const data = createEmptyAppData();
     for (const entity of APP_DATA_KEYS) {
       const rows = this.rows(entity).filter((row) =>
         entity === 'accounts' ? row.id === companyId : row.companyId === companyId,
@@ -374,6 +374,10 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   private applySingleRow(companyId: string, intent: PlanningIntent): boolean {
+    const nextDisciplineSortOrder = () =>
+      this.rows('disciplines')
+        .filter((row) => row.companyId === companyId)
+        .reduce((next, row) => Math.max(next, Number(row.sortOrder) + 1), 0);
     const create = (entity: AppDataKey, id: string, fields: object) => {
       const now = new Date().toISOString();
       const row = {
@@ -412,7 +416,14 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'allocation.delete':
         return remove('allocations', intent.id);
       case 'catalogue.create':
-        create(intent.entity.entity, intent.entity.id, intent.entity.fields);
+        create(
+          intent.entity.entity,
+          intent.entity.id,
+          // Like the server, append a new discipline after the company's highest sort order.
+          intent.entity.entity === 'disciplines'
+            ? { ...intent.entity.fields, sortOrder: nextDisciplineSortOrder() }
+            : intent.entity.fields,
+        );
         break;
       case 'catalogue.update':
         update(intent.entity.entity, intent.entity.id, intent.entity.changes);

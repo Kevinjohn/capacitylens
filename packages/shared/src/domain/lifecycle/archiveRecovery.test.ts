@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyAppData } from '../../types/entities.js';
+import { createEmptyAppData } from '../../types/entities.js';
 import {
   FIXTURE_CLIENT,
   FIXTURE_PROJECT,
@@ -16,7 +16,7 @@ function requireFixture<T>(value: T | undefined): T {
 const companyId = 'a-studio';
 const archivedAt = '2026-10-01T00:00:00.000Z';
 function fixture() {
-  const data = emptyAppData();
+  const data = createEmptyAppData();
   data.clients = [
     {
       ...FIXTURE_CLIENT,

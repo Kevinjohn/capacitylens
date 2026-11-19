@@ -1,5 +1,5 @@
 import { isExternalResource } from '../types/entities.js';
-import { effectiveProjectId } from './integrity.js';
+import { resolveEffectiveProjectId } from './integrity.js';
 import type { Allocation, Client, ID, Project, Resource, Activity } from '../types/entities.js';
 
 /** The single neutral grey, the bar/colour fallback and the colour of external / 3rd-party
@@ -98,7 +98,7 @@ interface BarAttribution {
 
 function resolveBarAttribution(allocation: Allocation, maps: BarColorMaps): BarAttribution {
   const activity = maps.activities.get(allocation.activityId);
-  const projectId = effectiveProjectId(allocation, activity ?? {});
+  const projectId = resolveEffectiveProjectId(allocation, activity ?? {});
   const project = projectId ? maps.projects.get(projectId) : undefined;
   return {
     activity,
@@ -168,7 +168,7 @@ function calculateRelativeLuminance(hex: string): number | null {
 }
 
 /** WCAG contrast ratio of two hex colours; 1 when either cannot be parsed. Pure. */
-export function contrastRatio(hexA: string, hexB: string): number {
+export function calculateContrastRatio(hexA: string, hexB: string): number {
   const leftLuminance = calculateRelativeLuminance(hexA);
   const rightLuminance = calculateRelativeLuminance(hexB);
   if (leftLuminance === null || rightLuminance === null) return 1;
@@ -178,12 +178,14 @@ export function contrastRatio(hexA: string, hexB: string): number {
 }
 
 /** Pick whichever of white / dark ink has the higher WCAG contrast on `hex`. */
-export function readableTextColor(hex: string): string {
-  // Load-bearing guard, not redundant with contrastRatio: an unparseable `hex` makes both ratios
+export function resolveReadableTextColor(hex: string): string {
+  // Load-bearing guard, not redundant with calculateContrastRatio: an unparseable `hex` makes both ratios
   // below the documented "no contrast info" value of 1, which would tie and hand the answer to
   // white ink. An unreadable colour must fall back to dark ink.
   if (calculateRelativeLuminance(hex) === null) return DARK_INK;
-  return contrastRatio(hex, LIGHT_INK) >= contrastRatio(hex, DARK_INK) ? LIGHT_INK : DARK_INK;
+  return calculateContrastRatio(hex, LIGHT_INK) >= calculateContrastRatio(hex, DARK_INK)
+    ? LIGHT_INK
+    : DARK_INK;
 }
 
 const AA_NORMAL = 4.5;
@@ -225,8 +227,8 @@ function nudgeChannels(channels: RgbChannels, darken: boolean): void {
  */
 export function resolveAccessibleBarColors(hex: string): { bg: string; ink: string } {
   const channels = parseRgb(hex);
-  const ink = readableTextColor(hex);
-  if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
+  const ink = resolveReadableTextColor(hex);
+  if (!channels) return { bg: NEUTRAL_COLOR, ink: resolveReadableTextColor(NEUTRAL_COLOR) };
   const nudgedChannels = { ...channels };
   const darken = ink === LIGHT_INK;
   // The ink is fixed through the loop, so linearize it once.

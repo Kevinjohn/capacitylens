@@ -1,4 +1,4 @@
-import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath';
 import { m } from '@/i18n';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 
@@ -18,7 +18,7 @@ export interface RealizedVisibleSpan {
 
 /** Describe the range actually measured after timeline clamping, not the requested zoom preset. */
 export function buildRealizedVisibleSpan(start: ISODate, end: ISODate): RealizedVisibleSpan {
-  const dayCount = Math.max(1, daysInclusive(start, end));
+  const dayCount = Math.max(1, countDaysInclusive(start, end));
   return dayCount % 7 === 0 ? { dayCount, weekCount: dayCount / 7 } : { dayCount };
 }
 
