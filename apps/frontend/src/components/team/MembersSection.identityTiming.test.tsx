@@ -128,7 +128,7 @@ it.each(['create', 'resend'] as const)(
           target: { value: 'selina@wayne.test' },
         });
         fireEvent.click(screen.getByTestId('invite-submit'));
-      } else fireEvent.click(screen.getByTestId('invite-resend'));
+      } else fireEvent.click(await screen.findByTestId('invite-resend'));
       await waitFor(() => expect(writes).toBe(1));
       await refreshed('diana');
       await screen.findByTestId('invite-open');
