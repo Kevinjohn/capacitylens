@@ -1,4 +1,4 @@
-import { canonicalWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
+import { canonicalWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays';
 import { normalizeCodeName } from '@capacitylens/shared/domain/privateNames';
 import type { ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 

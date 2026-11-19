@@ -6,7 +6,7 @@ import type { useTeamDirectory } from './useTeamDirectory';
 
 type MemberAccessDependencies = Pick<
   MemberActionDependencies,
-  'requestAccountId' | 'isActiveCompany' | 'fail' | 'setNotice'
+  'requestCompanyId' | 'isActiveCompany' | 'fail' | 'setNotice'
 > & {
   replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>['replaceAuthorizedDirectory'];
 };
@@ -44,14 +44,14 @@ async function reloadAuthorizedDirectory({
 
 /** Reconciles the member directory after a member change whose outcome is unknown. */
 export function createMemberAccessReconciliation({
-  requestAccountId,
+  requestCompanyId,
   isActiveCompany,
   fail,
   setNotice,
   replaceAuthorizedDirectory,
 }: MemberAccessDependencies) {
   const reconcileUnknownMutation = async (message: string): Promise<void> => {
-    const companyId = requestAccountId();
+    const companyId = requestCompanyId();
     if (!isActiveCompany(companyId)) return;
     const reloadResult = await reloadAuthorizedDirectory({
       companyId,

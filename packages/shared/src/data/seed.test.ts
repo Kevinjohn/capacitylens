@@ -9,7 +9,7 @@ describe('fixed demo seed', () => {
     const expected = structuredClone(second);
 
     expect(first).toEqual(second);
-    for (const account of first.accounts) account.workingDays?.push(0);
+    for (const company of first.accounts) company.workingDays?.push(0);
     for (const resource of first.resources) {
       resource.workingDays.push(0);
       resource.halfDays.push(1);

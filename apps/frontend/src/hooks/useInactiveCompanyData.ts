@@ -13,7 +13,7 @@ import { m } from '@/i18n';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
 
 /** Keeps inactive data outside the active planning store. */
-export function useInactiveAccountData(): {
+export function useInactiveCompanyData(): {
   data: AppData | null;
   mayViewInactive: boolean;
   reload: () => void;

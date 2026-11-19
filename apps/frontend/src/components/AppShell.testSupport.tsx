@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
 import type { CompanySummary } from '@/store/useStore';
-import { loadPlanningData, makeAppData, makeAccount, DEFAULT_COMPANY_ID } from '@/test/fixtures';
+import { loadPlanningData, makeAppData, makeCompany, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { renderWithQueryClient as render } from '@/test/renderWithQueryClient';
 import { LocationProbe } from '@/test/LocationProbe';
 import { grantFor } from '@/test/permissionGrants';
@@ -18,8 +18,8 @@ export const authenticatedUser = {
   signOut: async () => {},
 };
 
-/** Account directory the stubbed `fetch` answers with; each test may change it. */
-export const accountDirectory: { response: CompanySummary[]; pending: boolean; refused: boolean } =
+/** Company directory the stubbed `fetch` answers with; each test may change it. */
+export const companyDirectory: { response: CompanySummary[]; pending: boolean; refused: boolean } =
   {
     response: [],
     pending: false,
@@ -28,10 +28,10 @@ export const accountDirectory: { response: CompanySummary[]; pending: boolean; r
 
 /**
  * Registers the shell hooks every AppShell suite shares. The caller passes its own mocked
- * `syncLocaleFromAccount`, because each test file declares the `@/i18n` mock itself.
+ * `syncLocaleFromCompany`, because each test file declares the `@/i18n` mock itself.
  */
-export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
-  // Account switches load their controller lazily. Loading it once here lets each test's switches
+export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
+  // Company switches load their controller lazily. Loading it once here lets each test's switches
   // finish inside that test instead of landing in a later one.
   beforeAll(async () => {
     await import('@/auth/masqueradeControllerInstance');
@@ -43,12 +43,12 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
   });
 
   beforeEach(() => {
-    syncLocaleFromAccount.mockReset();
-    accountDirectory.response = [
+    syncLocaleFromCompany.mockReset();
+    companyDirectory.response = [
       { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' },
     ];
-    accountDirectory.pending = false;
-    accountDirectory.refused = false;
+    companyDirectory.pending = false;
+    companyDirectory.refused = false;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
@@ -57,13 +57,13 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
           'http://localhost',
         );
         if (url.pathname.replace(/\/$/, '') === '/api/companies') {
-          if (accountDirectory.pending) return new Promise<Response>(() => {});
+          if (companyDirectory.pending) return new Promise<Response>(() => {});
           // The server refuses the directory when the installation holds more than one company.
-          if (accountDirectory.refused) {
+          if (companyDirectory.refused) {
             return Response.json({ code: 'MULTIPLE_COMPANIES' }, { status: 409 });
           }
           return Response.json(
-            accountDirectory.response.map(({ id, name, role, roleStatus }) =>
+            companyDirectory.response.map(({ id, name, role, roleStatus }) =>
               roleStatus === 'unavailable'
                 ? { id, name, role: 'unknown-role' }
                 : { id, name, role, ...grantFor(role) },
@@ -85,12 +85,12 @@ export function setUpAppShellTests(syncLocaleFromAccount: Mock) {
         return Response.json({ active: false, contextToken: 'idle' });
       }),
     );
-    // Seed an active account so these tests exercise the shell.
+    // Seed an active company so these tests exercise the shell.
     localStorage.setItem(
       buildProductOrientationKey(authenticatedUser.user.id, DEFAULT_COMPANY_ID),
       'dismissed',
     );
-    loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
+    loadPlanningData(makeAppData({ accounts: [makeCompany()] }));
     useStore.getState().setCompanySummaries({
       list: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' }],
     });

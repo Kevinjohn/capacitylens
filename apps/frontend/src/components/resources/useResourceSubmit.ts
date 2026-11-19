@@ -192,7 +192,7 @@ function prepareResourceSave(input: SubmitInputBase) {
 /** Save a resource and keep its draft available until persistence acknowledges the write. */
 export function useResourceSubmit(input: SubmitInputBase) {
   const mountedRef = useRef(true);
-  const submittedAccountId = useRef<string | null>(null);
+  const submittedCompanyId = useRef<string | null>(null);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -202,7 +202,7 @@ export function useResourceSubmit(input: SubmitInputBase) {
   // A save that settles after the form closed or the company changed must not close or mark the
   // form now showing.
   const isCurrent = () =>
-    mountedRef.current && input.readActiveCompanyId() === submittedAccountId.current;
+    mountedRef.current && input.readActiveCompanyId() === submittedCompanyId.current;
   const { pending, submit } = useEditSubmit({
     editing: input.resource,
     rows: input.resources,
@@ -218,7 +218,7 @@ export function useResourceSubmit(input: SubmitInputBase) {
   return {
     submit: () =>
       submit(() => {
-        submittedAccountId.current = input.readActiveCompanyId();
+        submittedCompanyId.current = input.readActiveCompanyId();
         return prepareResourceSave(input);
       }),
     submitting: pending,

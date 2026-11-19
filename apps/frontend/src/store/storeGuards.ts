@@ -7,10 +7,10 @@ import { m } from '@/i18n';
 import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { StoreState } from './types';
 
-/** Create guards that enforce account scoping and entity invariants. */
+/** Create guards that enforce company scoping and entity invariants. */
 export function createGuards(get: StoreApi<StoreState>['getState']) {
-  // Every scoped add* stamps the active account. A non-null selection alone is insufficient. The
-  // account must either exist in the published data or in the server-authorised summaries while a
+  // Every scoped add* stamps the active company. A non-null selection alone is insufficient. The
+  // company must either exist in the published data or in the server-authorised summaries while a
   // switch is loading its slice. Typed command context and revision checks still gate writes; this
   // guard only prevents stamping an orphan companyId into the slice.
   const requireCompany = (): ID => {
@@ -21,8 +21,8 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
       throw new Error('The active account is not loaded — cannot mutate scoped data.');
     }
     if (
-      !state.data.accounts.some((account) => account.id === id) &&
-      !state.companySummaries.some((account) => account.id === id)
+      !state.data.accounts.some((company) => company.id === id) &&
+      !state.companySummaries.some((company) => company.id === id)
     ) {
       throw new Error('The active account is not loaded — cannot mutate scoped data.');
     }

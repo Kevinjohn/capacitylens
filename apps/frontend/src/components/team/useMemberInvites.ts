@@ -30,7 +30,7 @@ function resolveInviteMutationError(message: string, error: unknown) {
 
 function createSubmitInvite({
   clear,
-  requestAccountId,
+  requestCompanyId,
   isActiveCompany,
   withMemberAction,
   fail,
@@ -43,7 +43,7 @@ function createSubmitInvite({
 }: InviteMutationDependencies) {
   return async () => {
     clear();
-    requestAccountId();
+    requestCompanyId();
     const email = invitationPreauthorizedEmail.trim();
     if (!email) return fail('invite', m.settings_invite_email_required());
     if (!isAccountEmail(email)) return fail('invite', m.identity_err_email());

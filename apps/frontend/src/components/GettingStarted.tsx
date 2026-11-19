@@ -49,7 +49,7 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
   );
 }
 
-/** Shows account setup guidance based on the active account state. */
+/** Shows company setup guidance based on the active company state. */
 export function GettingStarted() {
   const companyId = useStore((state) => state.activeCompanyId);
   const masqueradeKind = useStore((state) => state.masquerade.kind);
@@ -58,14 +58,14 @@ export function GettingStarted() {
   if (!companyId || masqueradeKind !== 'inactive') return null;
   // Readers never see the panel, so they must not read its state or receive its load notice.
   if (!canWrite) return null;
-  return <GettingStartedForAccount key={companyId} companyId={companyId} />;
+  return <GettingStartedForCompany key={companyId} companyId={companyId} />;
 }
 
 function isChecklistOpenByDefault(pathname: string): boolean {
   return pathname === '/';
 }
 
-function GettingStartedForAccount({ companyId }: { companyId: string }) {
+function GettingStartedForCompany({ companyId }: { companyId: string }) {
   const setNotice = useStore((state) => state.setNotice);
   const activeRole = useRole();
   const { pathname } = useLocation();

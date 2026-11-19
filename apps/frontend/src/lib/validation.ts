@@ -1,4 +1,4 @@
-import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
+import { isWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays';
 import { isPresetColor } from '@capacitylens/shared/lib/color';
 import {
   hasDisallowedChars,

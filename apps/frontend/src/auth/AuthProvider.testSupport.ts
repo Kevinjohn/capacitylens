@@ -36,7 +36,7 @@ export async function freshProvider(planningTransport: 'fixture' | 'server' = 'f
   }
   const { AuthProvider } = await import('./AuthProvider');
   const { useStore } = await import('@/store/useStore');
-  const { resetStoreWithAccount } = await import('@/test/fixtures');
+  const { resetStoreWithCompany } = await import('@/test/fixtures');
   // authContext must come from the same fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's default value, not whatever this AuthProvider instance provides.
@@ -45,7 +45,7 @@ export async function freshProvider(planningTransport: 'fixture' | 'server' = 'f
     AuthProvider,
     useStore,
     useAuth,
-    resetStoreWithAccount,
+    resetStoreWithCompany,
   };
 }
 

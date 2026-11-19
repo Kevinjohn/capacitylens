@@ -29,7 +29,7 @@ const TS = '2026-01-01T00:00:00.000Z';
 const A1 = 'a-studio';
 
 const meta = (id: ID) => ({ id, companyId: A1, createdAt: TS, updatedAt: TS });
-const account: Company = {
+const company: Company = {
   ...NULLABLE_FIELDS.accounts,
   id: A1,
   name: 'Wayne Enterprises',
@@ -95,7 +95,7 @@ const timeOff = (id: ID, resourceId: ID): TimeOff => ({
 function data(overrides: Partial<AppData> = {}): AppData {
   return {
     ...emptyAppData(),
-    accounts: [account],
+    accounts: [company],
     clients: [client],
     projects: [project('p1'), project('p2'), project('p3')],
     activities: [projectActivity('t1', 'p1')],

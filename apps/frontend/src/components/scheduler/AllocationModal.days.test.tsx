@@ -125,7 +125,7 @@ describe('AllocationModal days mode', () => {
   });
 
   it('rejects even an ignored creation for a zero-overlap person (no escape hatch, decision 6)', async () => {
-    await useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    await useStore.getState().updateCompany(ACC, { workingDays: [2] });
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [1] }),
     );

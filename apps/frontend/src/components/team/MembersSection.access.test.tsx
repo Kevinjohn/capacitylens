@@ -4,24 +4,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { AuthContext } from '@/auth/authContext';
 
-import { resetStoreWithAccount, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { MembersSection } from './MembersSection';
 import { useTeamDirectory } from './useTeamDirectory';
 import { authValue, mockApi, rawMember, renderSection } from './MembersSection.testSupport';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
-const accountTransitionMocks = vi.hoisted(() => ({
+const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock('@/auth/accountTransition', () => ({
-  startMasquerade: accountTransitionMocks.startMasquerade,
+vi.mock('@/auth/companyTransition', () => ({
+  startMasquerade: companyTransitionMocks.startMasquerade,
 }));
 
 beforeEach(async () => {
-  accountTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithAccount();
+  companyTransitionMocks.startMasquerade.mockClear();
+  await resetStoreWithCompany();
 });
 afterEach(() => {
   useStore.setState({ masquerade: { kind: 'inactive' } });
@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe('MembersSection — self-gate', () => {
   it('hides the previous account directory while the next account is authorizing', async () => {
-    const nextAccountId = 'acc_second';
+    const nextCompanyId = 'acc_second';
     let resolveNextMembers: ((response: Response) => void) | undefined;
     const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
       const target = String(url);
@@ -49,7 +49,7 @@ describe('MembersSection — self-gate', () => {
           ],
         });
       }
-      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+      if (target.endsWith(`/${nextCompanyId}/members`) && isRead) {
         return await new Promise<Response>((resolve) => {
           resolveNextMembers = resolve;
         });
@@ -63,7 +63,7 @@ describe('MembersSection — self-gate', () => {
     renderSection();
     expect(await screen.findByText('first@example.test')).toBeInTheDocument();
 
-    act(() => useStore.setState({ activeCompanyId: nextAccountId }));
+    act(() => useStore.setState({ activeCompanyId: nextCompanyId }));
     expect(screen.queryByText('first@example.test')).not.toBeInTheDocument();
 
     await act(async () => {

@@ -21,16 +21,16 @@ export function MembersSection() {
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const scope = JSON.stringify([user?.id ?? null, activeCompanyId, generation]);
-  return <AccountMembersSection key={scope} activeCompanyId={activeCompanyId} />;
+  return <CompanyMembersSection key={scope} activeCompanyId={activeCompanyId} />;
 }
 
 // Member intent belongs to one principal, company and projection lifetime.
-function AccountMembersSection({ activeCompanyId }: { activeCompanyId: string | null }) {
+function CompanyMembersSection({ activeCompanyId }: { activeCompanyId: string | null }) {
   const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeCompanyId);
 
   if (!orchestration.enabled) return null;
-  // Privileged controls stay fail-closed until the current account's members read authorizes this
-  // section. A 403 remains hidden, and a switch cannot briefly expose the next account's form while
+  // Privileged controls stay fail-closed until the current company's members read authorizes this
+  // section. A 403 remains hidden, and a switch cannot briefly expose the next company's form while
   // its authorization request is still pending.
   if (orchestration.directory.kind === 'loading' || orchestration.directory.kind === 'hidden') {
     return null;

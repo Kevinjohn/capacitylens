@@ -3,18 +3,18 @@ import { resolveTimeZoneOptionLabel } from '@/lib/timezones';
 import { SettingsSection } from './SettingsSection';
 import type { Company } from '@capacitylens/shared/types/entities';
 
-type SettingsAccountOptionsProps = {
+type SettingsCompanyOptionsProps = {
   companyName: Company['name'];
   weekStartsOn: NonNullable<Company['weekStartsOn']>;
   timezone: NonNullable<Company['timezone']>;
 };
 
 /** Displays the company name and fixed calendar week/timezone convention. */
-export function SettingsAccountOptions({
+export function SettingsCompanyOptions({
   companyName,
   weekStartsOn,
   timezone,
-}: SettingsAccountOptionsProps) {
+}: SettingsCompanyOptionsProps) {
   const weekStartLabel =
     weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
   const rows = [

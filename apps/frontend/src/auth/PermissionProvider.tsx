@@ -4,9 +4,9 @@ import { useStore } from '@/store/useStore';
 import { useAuth } from './authContext';
 import { NO_ACCESS, PermissionContext } from './permissionContext';
 import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
-import { refreshCompanySummaries } from './useAccountSummaries';
+import { refreshCompanySummaries } from './useCompanySummaries';
 import { masqueradeApi } from './masqueradeApi';
-import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
+import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './companyTransition';
 import type { AccessPermissionStatus } from '@/lib/accessCopy';
 
 interface FetchedPermission {
@@ -79,7 +79,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     }
     // A malformed role or grant remains selectable only as an unavailable Viewer summary and never
     // grants access.
-    const entry = summaries.find((account) => account.id === refresh.companyId);
+    const entry = summaries.find((company) => company.id === refresh.companyId);
     if (!entry || entry.roleStatus === 'unavailable' || !entry.grant) {
       publishUnavailable(refresh);
       return;

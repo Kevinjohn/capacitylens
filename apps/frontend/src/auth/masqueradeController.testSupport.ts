@@ -35,8 +35,8 @@ export function harness(overrides: Partial<MasqueradeControllerDependencies> = {
     flush: vi.fn(async () => ({ kind: 'clean' as const })),
     suspend: vi.fn(() => resume),
     reproject: vi.fn(async () => true),
-    switchAccount: vi.fn(async () => ({ kind: 'reloaded' as const })),
-    readBootstrapAccount: vi.fn(async () => 'Wayne Enterprises'),
+    switchCompany: vi.fn(async () => ({ kind: 'reloaded' as const })),
+    readBootstrapCompany: vi.fn(async () => 'Wayne Enterprises'),
     api: {
       status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
       start: vi.fn(async () => state),

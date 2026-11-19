@@ -6,7 +6,7 @@ import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
-import { makeAccount } from '@/test/fixtures';
+import { makeCompany } from '@/test/fixtures';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
 
@@ -19,9 +19,9 @@ export const intent = {
 const makeState = (): PlanningCacheState => createPlanningCacheState();
 /** The company date every canonical read in these tests carries. */
 export const companyToday: ISODate = '2026-06-03';
-export const canonicalData = (accountOverrides: Partial<Company> = {}): AppData => ({
+export const canonicalData = (companyOverrides: Partial<Company> = {}): AppData => ({
   ...emptyAppData(),
-  accounts: [makeAccount({ id: context.companyId, ...accountOverrides })],
+  accounts: [makeCompany({ id: context.companyId, ...companyOverrides })],
 });
 export const success = (mutationId: string, revision: number): PlanningMutationSuccess => ({
   status: 'committed',

@@ -1,27 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { state, inactiveStatus, deferred, harness } from './masqueradeController.testSupport';
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().setMasquerade({ kind: 'inactive' });
   useStore.getState().setNotice(null);
 });
 
 describe('MasqueradeController', () => {
   it('invalidates a captured reconciliation when its company or identity changes', async () => {
-    await resetStoreWithAccount('a-studio');
+    await resetStoreWithCompany('a-studio');
     const { controller } = harness({
-      switchAccount: vi.fn(async (companyId: string | null) => {
+      switchCompany: vi.fn(async (companyId: string | null) => {
         useStore.getState().setActiveCompany(companyId);
         return { kind: 'reloaded' as const };
       }),
     });
     const beforeCompanySwitch = controller.captureStatusReconciliation();
 
-    await expect(controller.transitionAccount('a-loft')).resolves.toBe(true);
+    await expect(controller.transitionCompany('a-loft')).resolves.toBe(true);
     expect(beforeCompanySwitch()).toBe(false);
 
     const beforeIdentityChange = controller.captureStatusReconciliation();
@@ -30,7 +30,7 @@ describe('MasqueradeController', () => {
   });
 
   it('holds a newly adopted status behind a blocked old-actor read until a fresh retry finishes', async () => {
-    await resetStoreWithAccount('a-studio');
+    await resetStoreWithCompany('a-studio');
     const oldRead = deferred<void>();
     const freshRead = deferred<boolean>();
     const otherRelease = useStore.getState().suspendPlanningCommands();
@@ -59,7 +59,7 @@ describe('MasqueradeController', () => {
   });
 
   it('lets a newer server status supersede a pending local start without publishing its late response', async () => {
-    await resetStoreWithAccount('a-studio');
+    await resetStoreWithCompany('a-studio');
     const oldStart = deferred<MasqueradeState>();
     const newer = {
       ...state,
@@ -86,7 +86,7 @@ describe('MasqueradeController', () => {
   });
 
   it('reconciles an idle-context failure when another tab starts masquerade', async () => {
-    await resetStoreWithAccount('a-studio');
+    await resetStoreWithCompany('a-studio');
     const remote = {
       ...state,
       token: 'remote-mode-token',

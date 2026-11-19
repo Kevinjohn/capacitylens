@@ -1,6 +1,6 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { defaultCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { defaultCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';

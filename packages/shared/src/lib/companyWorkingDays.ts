@@ -9,7 +9,7 @@ export const isWeekday = (value: unknown): value is Weekday =>
   Number.isInteger(value) && (value as number) >= 0 && (value as number) < WEEKDAY_COUNT;
 
 /** True for an array of distinct weekdays. Emptiness is deliberately not judged here because this
- * shape guard is shared: account/resource weeks require a day, while half-day sets may be empty. */
+ * shape guard is shared: company/resource weeks require a day, while half-day sets may be empty. */
 export const isWeekdaySet = (days: unknown): days is Weekday[] =>
   Array.isArray(days) && new Set(days).size === days.length && Array.from(days).every(isWeekday);
 

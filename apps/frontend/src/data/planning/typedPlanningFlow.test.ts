@@ -2,7 +2,7 @@ import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it } from 'vitest';
 import {
-  makeAccount,
+  makeCompany,
   makeActivity,
   makeAppData,
   makeClient,
@@ -37,7 +37,7 @@ function flow(initial: PlanningCacheState['data']) {
 describe('typed planning flow', () => {
   it('publishes settings and takes them back and forward through Undo and Redo', async () => {
     const initial = makeAppData({
-      accounts: [makeAccount({ id: companyId, dateStyle: null, timezone: null })],
+      accounts: [makeCompany({ id: companyId, dateStyle: null, timezone: null })],
     });
     const { controller, state } = flow(initial);
     await controller.refresh();
@@ -72,7 +72,7 @@ describe('typed planning flow', () => {
 
   it('asks the server to undo a deletion and shows the rows it restores', async () => {
     const initial = makeAppData({
-      accounts: [makeAccount({ id: companyId })],
+      accounts: [makeCompany({ id: companyId })],
       projects: [
         makeProject({
           id: 'p1',
@@ -140,7 +140,7 @@ describe('typed planning flow', () => {
   });
 
   it('undoes and redoes a resource creation without changing its id', async () => {
-    const initial = makeAppData({ accounts: [makeAccount({ id: companyId })] });
+    const initial = makeAppData({ accounts: [makeCompany({ id: companyId })] });
     const { controller, state, transport } = flow(initial);
     await controller.refresh();
     const id = 'resource-1';
@@ -178,7 +178,7 @@ describe('typed planning flow', () => {
   it('keeps a failed draft out of canonical rows while recording its sent intent', async () => {
     const client = makeClient({ id: 'client-1', companyId });
     const initial = makeAppData({
-      accounts: [makeAccount({ id: companyId })],
+      accounts: [makeCompany({ id: companyId })],
       clients: [client],
     });
     const { controller, state, transport } = flow(initial);

@@ -3,7 +3,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 import type { Resource } from '@capacitylens/shared/types/entities';
 import { Link } from 'react-router-dom';
-import { useInactiveAccountData } from '@/hooks/useInactiveAccountData';
+import { useInactiveCompanyData } from '@/hooks/useInactiveCompanyData';
 import { useLifecycleActions } from '@/hooks/useLifecycleActions';
 import { Button } from '@/components/ui/button';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
@@ -180,7 +180,7 @@ function ArchivedContent({
 
 /** Shows archived records only when the current role can view inactive data. */
 function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
-  const { data, mayViewInactive } = useInactiveAccountData();
+  const { data, mayViewInactive } = useInactiveCompanyData();
   const actions = useLifecycleActions();
   const [anonymising, setAnonymising] = useState<{
     companyId: string | null;

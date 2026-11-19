@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadPlanningData,
-  makeAccount,
+  makeCompany,
   makeResourceDraft,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
 } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { useStore } from './useStore';
 import { grantFor } from '@/test/permissionGrants';
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 
 describe('planning command suspension', () => {
@@ -51,7 +51,7 @@ describe('planning command suspension', () => {
   it('does not let an old company release unlock a later context incarnation', async () => {
     loadPlanningData({
       ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
+      accounts: [...useStore.getState().data.accounts, makeCompany({ id: 'a2' })],
     });
     const releaseA = useStore.getState().suspendPlanningCommands();
     if (!releaseA) throw new Error('Company A did not acquire its replacement lock.');
@@ -84,7 +84,7 @@ describe('planning command suspension', () => {
   it('retires a lock after context clear and requires a fresh directory and canonical read', async () => {
     loadPlanningData({
       ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
+      accounts: [...useStore.getState().data.accounts, makeCompany({ id: 'a2' })],
     });
     const releaseOldA = useStore.getState().suspendPlanningCommands();
     if (!releaseOldA) throw new Error('The first company A context was not ready.');
@@ -156,7 +156,7 @@ describe('planning command suspension', () => {
   it('clears private planning rows even when the controller context is already null', () => {
     useStore.getState().clearPlanning();
     useStore.setState((state) => ({
-      data: { ...state.data, accounts: [makeAccount()] },
+      data: { ...state.data, accounts: [makeCompany()] },
       companySummaries: [{ id: 'acct-test', name: 'Test Co', role: 'owner' }],
     }));
     expect(useStore.getState().planning.context).toBeNull();

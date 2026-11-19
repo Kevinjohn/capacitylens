@@ -8,7 +8,7 @@ import type { CapacityDisplayMode } from './capacityOverviewBar';
 import { buildCapacityOverviewModel } from './capacityOverviewModel';
 import type { CapacityOverviewModel, CapacityOverviewPeriodResult } from './capacityOverviewModel';
 import { CapacityOverviewTable } from './CapacityOverviewTable';
-import { loadPlanningData, resetStoreWithAccount, makeAccount } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithCompany, makeCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 
 const resource = (id: string, kind: Resource['kind'] = 'person'): Resource => ({
@@ -142,21 +142,21 @@ describe('CapacityOverviewTable date style', () => {
   // Unmount first: outside `CompanyDateRoute`, a mounted table cannot outlive its company's date.
   afterEach(() => {
     cleanup();
-    return resetStoreWithAccount();
+    return resetStoreWithCompany();
   });
 
   it('re-reads column headers when the date style changes with a stable model', async () => {
-    await resetStoreWithAccount('account');
+    await resetStoreWithCompany('account');
     loadPlanningData({
       ...data,
-      accounts: [makeAccount({ id: 'account', dateStyle: 'day-month' })],
+      accounts: [makeCompany({ id: 'account', dateStyle: 'day-month' })],
     });
     await useStore.getState().refreshPlanning();
     renderTable();
     expect(screen.getByRole('columnheader', { name: /10 – 13 Sep/ })).toBeInTheDocument();
 
     await act(async () => {
-      await useStore.getState().updateAccount('account', { dateStyle: 'month-day' });
+      await useStore.getState().updateCompany('account', { dateStyle: 'month-day' });
     });
 
     expect(screen.getByRole('columnheader', { name: /Sep 10 – 13/ })).toBeInTheDocument();

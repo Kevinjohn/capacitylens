@@ -1,4 +1,4 @@
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import {
   applyCapacityMode,
   buildCapacityAdvisory,
@@ -38,10 +38,10 @@ export function buildSaveAdvisory(
     .filter((row): row is Allocation => row !== undefined);
   if (written.length === 0) return {};
   const [first] = written;
-  const account = after.accounts.find((row) => row.id === companyId);
+  const company = after.accounts.find((row) => row.id === companyId);
   const resource = after.resources.find((row) => row.id === first.resourceId);
-  if (!account || !resource) return {};
-  const blocksMode = !carriesHourlyLoad(account.schedulingMode ?? 'hourly');
+  if (!company || !resource) return {};
+  const blocksMode = !carriesHourlyLoad(company.schedulingMode ?? 'hourly');
   const writtenIds = new Set(ids);
   const others = applyCapacityMode({
     allocations: after.allocations.filter(
@@ -53,7 +53,7 @@ export function buildSaveAdvisory(
   const [proposal] = proposals;
   const effectiveWeek = effectiveWorkingWeek(
     resource,
-    normalizeCompanyWorkingDays(account.workingDays, account.weekStartsOn === 0 ? 0 : 1)
+    normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1)
   );
   const timeOff = listTimeOffApplyingTo(resource.id, after.timeOff);
   if (intent.operation === 'allocation.createGroup') {

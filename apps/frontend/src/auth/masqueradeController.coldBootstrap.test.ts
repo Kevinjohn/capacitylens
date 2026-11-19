@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
+import { makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { state, inactiveStatus, deferred, harness } from './masqueradeController.testSupport';
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().setMasquerade({ kind: 'inactive' });
   useStore.getState().setNotice(null);
 });
@@ -12,7 +12,7 @@ beforeEach(async () => {
 describe('MasqueradeController', () => {
   it('discards a cold failed projection when validated server status says the masquerade ended', async () => {
     useStore.getState().clearPlanning();
-    const { controller } = harness({ readBootstrapAccount: vi.fn(async () => null) });
+    const { controller } = harness({ readBootstrapCompany: vi.fn(async () => null) });
     await controller.adoptStatus({ active: true, ...state });
     expect(useStore.getState().masquerade.kind).toBe('starting');
     await controller.adoptStatus(inactiveStatus);
@@ -24,11 +24,11 @@ describe('MasqueradeController', () => {
     useStore.getState().clearPlanning();
     const read = deferred<string | null>();
     const { controller, dependencies } = harness({
-      readBootstrapAccount: vi.fn(() => read.promise),
+      readBootstrapCompany: vi.fn(() => read.promise),
       reproject: vi.fn(async () => {
         useStore.setState({
           data: makeAppData({
-            accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })],
+            accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
           }),
         });
         return true;
@@ -39,7 +39,7 @@ describe('MasqueradeController', () => {
     expect(useStore.getState().masquerade.kind).toBe('starting');
     read.resolve('Wayne Enterprises');
     await adoption;
-    expect(dependencies.readBootstrapAccount).toHaveBeenCalledExactlyOnceWith('a-studio');
+    expect(dependencies.readBootstrapCompany).toHaveBeenCalledExactlyOnceWith('a-studio');
     expect(dependencies.reproject).toHaveBeenCalledExactlyOnceWith('a-studio', false);
     expect(useStore.getState().activeCompanyId).toBe('a-studio');
     expect(useStore.getState().masquerade.kind).toBe('active');
@@ -48,7 +48,7 @@ describe('MasqueradeController', () => {
   it('keeps a failed cold read gated and lets retry load the canonical company', async () => {
     useStore.getState().clearPlanning();
     const { controller, dependencies } = harness({
-      readBootstrapAccount: vi
+      readBootstrapCompany: vi
         .fn()
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce('Wayne Enterprises'),
@@ -57,14 +57,14 @@ describe('MasqueradeController', () => {
     expect(useStore.getState().masquerade.kind).toBe('starting');
     expect(useStore.getState().activeCompanyId).toBeNull();
     await expect(controller.retryProjection()).resolves.toBe(true);
-    expect(dependencies.readBootstrapAccount).toHaveBeenCalledTimes(2);
+    expect(dependencies.readBootstrapCompany).toHaveBeenCalledTimes(2);
     expect(useStore.getState().masquerade.kind).toBe('active');
   });
 
   it('invalidates a deferred cold read on auth loss without republishing private state', async () => {
     useStore.getState().clearPlanning();
     const read = deferred<string | null>();
-    const { controller } = harness({ readBootstrapAccount: vi.fn(() => read.promise) });
+    const { controller } = harness({ readBootstrapCompany: vi.fn(() => read.promise) });
     const adoption = controller.adoptStatus({ active: true, ...state });
     controller.invalidate();
     read.resolve('Wayne Enterprises');

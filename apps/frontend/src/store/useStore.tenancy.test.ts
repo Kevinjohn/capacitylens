@@ -3,14 +3,14 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useStore } from './useStore';
 import { m } from '@/i18n';
-import { makeAccount, makeAppData, resetStoreWithData, WORKDAYS } from '@/test/fixtures';
+import { makeCompany, makeAppData, resetStoreWithData, WORKDAYS } from '@/test/fixtures';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { grantFor } from '@/test/permissionGrants';
 
-// The store is the strict per-account write boundary: an update/delete must own
+// The store is the strict per-company write boundary: an update/delete must own
 // the target row, and every foreign key on an add/update must point inside the
-// active account. Reads are scoped elsewhere (useScopedData); these tests pin the
+// active company. Reads are scoped elsewhere (useScopedData); these tests pin the
 // write side, which forms can't reach but a direct call could.
 
 const s = () => useStore.getState();
@@ -23,11 +23,11 @@ function assertDefined<T>(value: T | undefined, label: string): T {
   return value;
 }
 
-function twoAccountData(): AppData {
+function twoCompanyData(): AppData {
   return makeAppData({
     accounts: [
-      makeAccount({ id: A, name: 'Company A' }),
-      makeAccount({ id: B, name: 'Company B' }),
+      makeCompany({ id: A, name: 'Company A' }),
+      makeCompany({ id: B, name: 'Company B' }),
     ],
     clients: [
       {
@@ -85,7 +85,7 @@ function twoAccountData(): AppData {
 }
 
 beforeEach(async () => {
-  await resetStoreWithData(twoAccountData(), A);
+  await resetStoreWithData(twoCompanyData(), A);
   s().setCompanySummaries({
     list: [
       { id: A, name: 'Company A', role: 'owner' },
@@ -191,12 +191,12 @@ describe('active-account permission publication', () => {
 
 describe('ownership guard on update/delete', () => {
   it('rejects a stale account update id and leaves data, undo and redo unchanged', async () => {
-    await s().updateAccount(A, { name: 'Changed once' });
+    await s().updateCompany(A, { name: 'Changed once' });
     await s().undoPlanning();
     const dataBefore = s().data;
     const historyBefore = s().planning.history;
 
-    await expect(s().updateAccount('missing-account', { name: 'Gone' })).rejects.toThrow(
+    await expect(s().updateCompany('missing-account', { name: 'Gone' })).rejects.toThrow(
       /active company/i,
     );
     expect(s().data).toBe(dataBefore);

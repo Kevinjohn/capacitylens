@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { resetStoreWithAccount, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import {
@@ -27,17 +27,17 @@ interface InviteReconciliationCaseInput {
   reconciles: boolean;
 }
 
-const accountTransitionMocks = vi.hoisted(() => ({
+const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock('@/auth/accountTransition', () => ({
-  startMasquerade: accountTransitionMocks.startMasquerade,
+vi.mock('@/auth/companyTransition', () => ({
+  startMasquerade: companyTransitionMocks.startMasquerade,
 }));
 
 beforeEach(async () => {
-  accountTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithAccount();
+  companyTransitionMocks.startMasquerade.mockClear();
+  await resetStoreWithCompany();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -182,13 +182,13 @@ describe('MembersSection — invite mint', () => {
     expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
   });
   it('ignores a late unknown mutation outcome after the user has switched accounts', async () => {
-    const nextAccountId = 'acc_second';
+    const nextCompanyId = 'acc_second';
     let resolveCreate: ((response: Response) => void) | undefined;
     const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
       const target = String(url);
       const isRead = !init || init.method === undefined || init.method === 'GET';
       if (target.endsWith('/members') && isRead) {
-        const second = target.includes(`/${nextAccountId}/`);
+        const second = target.includes(`/${nextCompanyId}/`);
         return jsonResponse({
           members: [
             second
@@ -219,7 +219,7 @@ describe('MembersSection — invite mint', () => {
     fillAddressedInvite();
     fireEvent.click(screen.getByTestId('invite-submit'));
     await waitFor(() => expect(resolveCreate).toBeTypeOf('function'));
-    act(() => useStore.setState({ activeCompanyId: nextAccountId }));
+    act(() => useStore.setState({ activeCompanyId: nextCompanyId }));
     expect(await screen.findByText('second@example.test')).toBeInTheDocument();
 
     await act(async () => {

@@ -5,7 +5,7 @@ import {
   bindStoredAccountCommandsToIdentity,
   clearStoredAccountCommands,
 } from '@/account/accountCommands';
-import { readSoleCompanyOwnership } from './useAccountSummaries';
+import { readSoleCompanyOwnership } from './useCompanySummaries';
 import { resolvePublicAuthEntry } from './authEntryRoute';
 import { useStore } from '@/store/useStore';
 import { queryClient } from '@/api/queryClient';

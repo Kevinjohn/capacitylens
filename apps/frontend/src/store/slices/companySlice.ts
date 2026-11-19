@@ -6,7 +6,7 @@ import { buildClearedSession, resetSchedulerView } from '@/store/storeConstants'
 import { readCurrentWeekAnchor } from './schedulerSlice';
 import type { StoreState } from '@/store/types';
 
-type AccountSlice = Pick<
+type CompanySlice = Pick<
   StoreState,
   | 'data'
   | 'activeCompanyId'
@@ -19,18 +19,18 @@ type AccountSlice = Pick<
   | 'setCompanySummaries'
 >;
 
-type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
-type AccountSliceSet = Parameters<AccountSliceCreator>[0];
-type AccountSliceGet = Parameters<AccountSliceCreator>[1];
+type CompanySliceCreator = StateCreator<StoreState, [], [], CompanySlice>;
+type CompanySliceSet = Parameters<CompanySliceCreator>[0];
+type CompanySliceGet = Parameters<CompanySliceCreator>[1];
 
-function resolveAccountSelection(
+function resolveCompanySelection(
   rawId: ID | null,
-  get: AccountSliceGet,
+  get: CompanySliceGet,
 ): { id: ID | null; unknown: boolean } {
   if (
     rawId === null ||
-    get().data.accounts.some((account) => account.id === rawId) ||
-    get().companySummaries.some((account) => account.id === rawId)
+    get().data.accounts.some((company) => company.id === rawId) ||
+    get().companySummaries.some((company) => company.id === rawId)
   ) {
     return { id: rawId, unknown: false };
   }
@@ -40,11 +40,11 @@ function resolveAccountSelection(
   return { id: null, unknown: true };
 }
 
-type BuildAccountNoticeTransitionOptions = { switching: boolean; unknown: boolean };
-function buildAccountNoticeTransition({
+type BuildCompanyNoticeTransitionOptions = { switching: boolean; unknown: boolean };
+function buildCompanyNoticeTransition({
   switching,
   unknown,
-}: BuildAccountNoticeTransitionOptions): Partial<StoreState> {
+}: BuildCompanyNoticeTransitionOptions): Partial<StoreState> {
   if (unknown) {
     return {
       ...buildClearedSession(),
@@ -55,11 +55,11 @@ function buildAccountNoticeTransition({
 }
 
 function createSetActiveCompanyAction(
-  set: AccountSliceSet,
-  get: AccountSliceGet,
+  set: CompanySliceSet,
+  get: CompanySliceGet,
 ): StoreState['setActiveCompany'] {
   return (rawId) => {
-    const { id, unknown } = resolveAccountSelection(rawId, get);
+    const { id, unknown } = resolveCompanySelection(rawId, get);
     set((state) => {
       const switching = id !== state.activeCompanyId;
       return {
@@ -73,7 +73,7 @@ function createSetActiveCompanyAction(
         activeRoleStatus:
           switching && state.activeRole !== null ? 'pending' : state.activeRoleStatus,
         activePermissions: switching ? [] : state.activePermissions,
-        ...buildAccountNoticeTransition({ switching, unknown }),
+        ...buildCompanyNoticeTransition({ switching, unknown }),
         ui: resetSchedulerView(
           state.ui,
           readCurrentWeekAnchor(state.data, id, state.planning.today),
@@ -84,8 +84,8 @@ function createSetActiveCompanyAction(
 }
 
 function createSetCompanySummariesAction(
-  set: AccountSliceSet,
-  get: AccountSliceGet,
+  set: CompanySliceSet,
+  get: CompanySliceGet,
 ): StoreState['setCompanySummaries'] {
   return ({ list, requestId, complete = true, ambiguous = false }) => {
     if (requestId !== undefined) {
@@ -107,8 +107,8 @@ function createSetCompanySummariesAction(
   };
 }
 
-/** Create account selection and directory actions for the store. */
-export function createAccountSlice(): StateCreator<StoreState, [], [], AccountSlice> {
+/** Create company selection and directory actions for the store. */
+export function createCompanySlice(): StateCreator<StoreState, [], [], CompanySlice> {
   return (set, get) => {
     return {
       data: emptyAppData(),

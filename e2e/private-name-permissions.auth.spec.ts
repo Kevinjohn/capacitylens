@@ -14,7 +14,7 @@ const STAMP = Date.now();
 const OWNER = `lucius-fox-${STAMP}@capacitylens.dev`;
 const EDITOR = `dick-grayson-${STAMP}@capacitylens.dev`;
 const VIEWER = `tim-drake-${STAMP}@capacitylens.dev`;
-const ACCOUNT = `Wayne Privacy Studio ${STAMP}`;
+const COMPANY = `Wayne Privacy Studio ${STAMP}`;
 const REAL_CLIENT = 'Kane Industries Acquisition';
 const REAL_PROJECT = 'Gotham Renewal';
 
@@ -133,7 +133,7 @@ test('non-owners see protected code names without owner controls', async ({
     { role: 'viewer', user: viewerUser },
   ] as const;
 
-  const companyId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
+  const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
   seedMembers(companyId, members);
   await seedPrivateNames(request, companyId, owner.cookie);
 

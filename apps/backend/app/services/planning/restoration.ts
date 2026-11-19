@@ -8,7 +8,7 @@ import {
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
 import { DomainError } from '@capacitylens/shared/domain/errors';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
 import { affectedRows } from '#services/affected_rows';
@@ -199,10 +199,10 @@ export async function restoreGroup(
   }
   if (rows.length === 0) refuseRestorationConflict();
   const dependencies = await readStateWithClient(trx, companyId, true);
-  const account = dependencies.accounts.find((row) => row.id === companyId);
+  const company = dependencies.accounts.find((row) => row.id === companyId);
   const companyWorkingDays = normalizeCompanyWorkingDays(
-    account?.workingDays,
-    account?.weekStartsOn === 0 ? 0 : 1
+    company?.workingDays,
+    company?.weekStartsOn === 0 ? 0 : 1
   );
   for (const { entity, row } of rows) {
     assertRestorationCandidate(() => {

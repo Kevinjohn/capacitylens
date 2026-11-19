@@ -2,7 +2,7 @@ import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { expect, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
-import { makeAccount, makeAppData, makeClient } from '@/test/fixtures';
+import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
 import {
   createPlanningCacheController,
   createPlanningCacheState,
@@ -35,7 +35,7 @@ export function snapshot(
     canWrite: true,
     accessKey: 'owner',
     data: makeAppData({
-      accounts: [makeAccount({ id: 'wayne', name: 'Wayne Enterprises' })],
+      accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],
     }),
     today: '2026-06-03',

@@ -1,5 +1,5 @@
 // Keep generated message paths behind one seam so missing keys fail during compilation
-// and account locale changes have one owner.
+// and company locale changes have one owner.
 
 import { m } from '@/paraglide/messages.js';
 import { baseLocale, getLocale, isLocale, setLocale } from '@/paraglide/runtime.js';
@@ -23,19 +23,19 @@ export function readActiveDateLocale(): DateFnsLocale {
 /**
  * Apply the active company's UI language to the i18n runtime.
  *
- * Reads {@link import('@capacitylens/shared/types/entities').Account.language} (the per-account language seam)
- * and switches the Paraglide runtime to it. `language` is optional/free-form on the Account, so we
+ * Reads {@link import('@capacitylens/shared/types/entities').Company.language} (the per-company language seam)
+ * and switches the Paraglide runtime to it. `language` is optional/free-form on the Company, so we
  * validate it through the generated {@link isLocale} guard and fall back to {@link baseLocale} ('en')
  * for an absent or unrecognised value. A bad stored value can never throw or blank the UI here.
  *
- * `reload: false` is deliberate: the locale is account-scoped and client-only (the Vite plugin uses
+ * `reload: false` is deliberate: the locale is company-scoped and client-only (the Vite plugin uses
  * the `globalVariable` strategy, not a cookie), so switching must not trigger a page reload, React
  * re-renders pick up the new messages on the next render. The resolve/validate path accepts any
  * compiled locale, not only English.
  *
- * @param language - The active Account's `language` field (e.g. `'en'`); `undefined` ⇒ baseLocale.
+ * @param language - The active Company's `language` field (e.g. `'en'`); `undefined` ⇒ baseLocale.
  */
-export function syncLocaleFromAccount(language: string | undefined): void {
+export function syncLocaleFromCompany(language: string | undefined): void {
   const resolved: Locale = language !== undefined && isLocale(language) ? language : baseLocale;
   // Configured locale strategies are synchronous, so switching needs no awaited promise.
   void setLocale(resolved, { reload: false });

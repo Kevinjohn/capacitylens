@@ -89,8 +89,8 @@ export async function readPlanning(
   const { authority } = await resolvePlanningAuthority(trx, companyId);
   const revision = await getPlanningRevision(trx, companyId);
   const data = await readStateWithClient(trx, companyId, true);
-  const account = data.accounts.find((row) => row.id === companyId);
-  const today = readCompanyToday(account?.timezone ?? null);
+  const company = data.accounts.find((row) => row.id === companyId);
+  const today = readCompanyToday(company?.timezone ?? null);
   const visible = transformState(activeOnly(data), companyId, authority.role);
   return {
     companyId,
@@ -99,7 +99,7 @@ export async function readPlanning(
     data: visible,
     today,
     // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
-    capacity: buildCapacitySection({ data: visible, account, today, window }),
+    capacity: buildCapacitySection({ data: visible, company, today, window }),
     history:
       page?.historyId === undefined || !authority.canWrite
         ? NO_HISTORY

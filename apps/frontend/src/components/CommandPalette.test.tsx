@@ -11,7 +11,7 @@ import {
   resetStoreWithData,
   makeResourceDraft,
   DEFAULT_COMPANY_ID,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   setExternalEnabled,
   setPlaceholdersEnabled,
 } from '@/test/fixtures';
@@ -96,7 +96,7 @@ async function addOptionalResources() {
 }
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   await useStore.getState().addClient({ name: 'Queen Consolidated', color: '#6366f1' });
   await useStore
     .getState()
@@ -201,7 +201,7 @@ describe('CommandPalette', () => {
     expect(screen.getAllByText('Account', { exact: true })).toHaveLength(1);
 
     await act(async () => {
-      await useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { disciplinesEnabled: false });
+      await useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { disciplinesEnabled: false });
     });
     expect(pageLabels()).toEqual(expectedWithoutDisciplines);
     expect(screen.getAllByText('Account', { exact: true })).toHaveLength(1);

@@ -135,8 +135,8 @@ export class StubPlanningTransport implements PlanningTransport {
   /** The company date a read returns: the set value, or the clock's date in the company's zone. */
   todayFor(companyId: string): ISODate {
     if (this.today !== null) return this.today;
-    const account = this.data.accounts.find((row) => row.id === companyId);
-    return resolveCalendarToday(account?.timezone ?? 'Etc/GMT').date;
+    const company = this.data.accounts.find((row) => row.id === companyId);
+    return resolveCalendarToday(company?.timezone ?? 'Etc/GMT').date;
   }
 
   async read(

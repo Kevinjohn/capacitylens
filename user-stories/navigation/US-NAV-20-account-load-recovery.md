@@ -10,7 +10,7 @@ As a company member, I want to retry loading the active company so that I can co
 
 **Documentation:** [When something goes wrong](../../docs-src/self-hosting/incidents.md)
 
-**Source:** [AccountLoadRecovery.tsx](../../apps/frontend/src/components/company/AccountLoadRecovery.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
+**Source:** [CompanyLoadRecovery.tsx](../../apps/frontend/src/components/company/CompanyLoadRecovery.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
 
 ## Acceptance criteria
 
@@ -37,4 +37,4 @@ flowchart TD
   gate --> retry["Retry calls refreshPlanning"]
 ```
 
-**Code references:** [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [accountSlice.ts](../../apps/frontend/src/store/slices/accountSlice.ts); [useStore.ts](../../apps/frontend/src/store/useStore.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [AccountLoadRecovery.tsx](../../apps/frontend/src/components/company/AccountLoadRecovery.tsx)
+**Code references:** [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [companySlice.ts](../../apps/frontend/src/store/slices/companySlice.ts); [useStore.ts](../../apps/frontend/src/store/useStore.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [CompanyLoadRecovery.tsx](../../apps/frontend/src/components/company/CompanyLoadRecovery.tsx)

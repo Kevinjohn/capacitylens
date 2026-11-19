@@ -8,7 +8,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import type { PlanningSnapshot } from '@/data/planning/planningCacheTypes';
 import { useAppShellController } from '@/components/useAppShellController';
 import { useStore } from '@/store/useStore';
-import { makeResource, resetStoreWithAccount, requireValue } from '@/test/fixtures';
+import { makeResource, resetStoreWithCompany, requireValue } from '@/test/fixtures';
 import {
   getPlanningTransportHandle,
   getStubPlanningTransport,
@@ -37,7 +37,7 @@ beforeEach(async () => {
   hold.promise = null;
   hold.entered = false;
   hold.fail = false;
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 afterEach(() => {
   useStore.getState().clearPlanning();

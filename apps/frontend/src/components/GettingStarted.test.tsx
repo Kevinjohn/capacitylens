@@ -3,7 +3,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { GettingStarted } from './GettingStarted';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
@@ -26,7 +26,7 @@ const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }))
 vi.mock('@/lib/tour', () => ({ startTour: tourMock.startTour }));
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().setMasquerade({ kind: 'inactive' });
   vi.stubGlobal(
     'fetch',

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { AccountAccessRecovery } from './AccountAccessRecovery';
+import { CompanyAccessRecovery } from './CompanyAccessRecovery';
 
 describe('Account access recovery boundary', () => {
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe('Account access recovery boundary', () => {
       complete: false,
     });
 
-    render(<AccountAccessRecovery />);
+    render(<CompanyAccessRecovery />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
@@ -35,7 +35,7 @@ describe('Account access recovery boundary', () => {
         complete,
       });
 
-      render(<AccountAccessRecovery />);
+      render(<CompanyAccessRecovery />);
 
       expect(screen.getByRole('alert')).toHaveTextContent(
         'This installation has more than one company. Contact your administrator to resolve it.',
@@ -47,7 +47,7 @@ describe('Account access recovery boundary', () => {
 
   it('shows a server 409 ambiguity response even when its directory is incomplete', () => {
     useStore.getState().setCompanySummaries({ list: [], complete: false, ambiguous: true });
-    render(<AccountAccessRecovery />);
+    render(<CompanyAccessRecovery />);
     expect(screen.getByRole('alert')).toHaveTextContent(
       'This installation has more than one company. Contact your administrator to resolve it.',
     );
@@ -56,7 +56,7 @@ describe('Account access recovery boundary', () => {
   });
 
   it('shows the server membership guidance if no company is available', () => {
-    render(<AccountAccessRecovery />);
+    render(<CompanyAccessRecovery />);
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Ask an admin for an invite to join an existing company.',

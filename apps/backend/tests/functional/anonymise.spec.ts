@@ -127,7 +127,7 @@ test.group('company anonymisation', (group) => {
     assert,
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client, true);
-    const otherAccountId = await createFixtureCompanyForOwner(
+    const otherCompanyId = await createFixtureCompanyForOwner(
       userId,
       'Stark Industries',
       'a-anonymise-other'
@@ -137,11 +137,11 @@ test.group('company anonymisation', (group) => {
       encodeRow('resources', {
         ...person,
         id: 'r-anonymise-other',
-        companyId: otherAccountId,
+        companyId: otherCompanyId,
         disciplineId: null,
       })
     );
-    const otherBefore = await readState(otherAccountId, true);
+    const otherBefore = await readState(otherCompanyId, true);
     const resources = await db.from('resources').where('company_id', companyId).limit(2);
     const target = resources[0]!;
     const other = resources[1]!;
@@ -172,7 +172,7 @@ test.group('company anonymisation', (group) => {
       .json({})
       .send();
     changed.assertStatus(204);
-    assert.deepEqual(await readState(otherAccountId, true), otherBefore);
+    assert.deepEqual(await readState(otherCompanyId, true), otherBefore);
     const scrubbed = await db.from('resources').where('id', target.id).first();
     assert.equal(
       scrubbed.name,

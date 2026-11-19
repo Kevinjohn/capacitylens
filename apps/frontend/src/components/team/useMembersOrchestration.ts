@@ -15,7 +15,7 @@ import { useMemberInvites } from './useMemberInvites';
 import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
 import { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
 import { createMemberMutations } from './createMemberMutations';
-import { startMasquerade } from '@/auth/accountTransition';
+import { startMasquerade } from '@/auth/companyTransition';
 import { STATUS_FOR_ACTION } from './memberConfirmationCopy';
 import type { MemberConfirmation, MemberConfirmationAction } from './memberConfirmationCopy';
 import { buildMemberDirectoryPresentation } from './buildMemberDirectoryPresentation';
@@ -123,7 +123,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   const members = authorizedDirectory?.members ?? null;
   const invites = authorizedDirectory?.invites ?? NO_INVITES;
   const resourceCandidates = authorizedDirectory?.resourceCandidates ?? [];
-  const requestAccountId = (): string => {
+  const requestCompanyId = (): string => {
     if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_account());
     return input.activeCompanyId;
   };
@@ -135,7 +135,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     key: string,
     body: (companyId: string) => Promise<void>,
   ): Promise<void> => {
-    const companyId = requestAccountId();
+    const companyId = requestCompanyId();
     if (!actionLock.beginAction(key)) return;
     try {
       await body(companyId);
@@ -154,7 +154,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     resourceCandidates,
     renderedAt,
     actionDependencies: {
-      requestAccountId,
+      requestCompanyId,
       isActiveCompany,
       withMemberAction,
       fail: input.fail,
@@ -215,7 +215,7 @@ function useMemberStoreActions() {
   };
 }
 
-/** Coordinates member reads, invitations, and access mutations for the active account. */
+/** Coordinates member reads, invitations, and access mutations for the active company. */
 export function useMembersOrchestration(activeCompanyId: string | null) {
   const { user } = useAuth();
   const { setNotice } = useMemberStoreActions();

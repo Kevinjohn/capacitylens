@@ -27,7 +27,7 @@ async function addInlineActivityTestPerson() {
 describe('AllocationModal inline activity creation pref', () => {
   it('keeps a newer project and activity selection when inline creation resolves late', async () => {
     const resourceId = await addInlineActivityTestPerson();
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     let finishCreation!: () => void;
     const creationPending = new Promise<void>((resolve) => {
@@ -88,7 +88,7 @@ describe('AllocationModal inline activity creation pref', () => {
 
   it('keeps a new activity name typed while an earlier inline creation is pending', async () => {
     const resourceId = await addInlineActivityTestPerson();
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     let finishCreation!: () => void;
     const creationPending = new Promise<void>((resolve) => {
@@ -134,7 +134,7 @@ describe('AllocationModal inline activity creation pref', () => {
 
   it('renders the inline "Add activity" input + button when explicitly enabled', async () => {
     const resourceId = await addInlineActivityTestPerson();
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     renderAsOwner(
       <AllocationModal
         kind="create"
@@ -149,7 +149,7 @@ describe('AllocationModal inline activity creation pref', () => {
   it('places an inline-created project activity in the project-specific group', async () => {
     await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
     const resourceId = await addInlineActivityTestPerson();
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     renderAsOwner(
       <AllocationModal
@@ -192,7 +192,7 @@ describe('AllocationModal inline activity creation pref', () => {
 
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', async () => {
     const resourceId = await addInlineActivityTestPerson();
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: false });
     renderAsOwner(
       <AllocationModal
         kind="create"
@@ -209,7 +209,7 @@ describe('AllocationModal inline activity creation pref', () => {
 
   it('removes inline activity creation when an open editor modal is downgraded to viewer', async () => {
     const resourceId = await addInlineActivityTestPerson();
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     const view = renderAsOwner(
       <PermissionContext.Provider value={permissionValue('editor')}>
@@ -241,7 +241,7 @@ describe('AllocationModal inline activity creation pref', () => {
 describe('AllocationModal task field', () => {
   it('shows and saves an optional single-line task when the company setting is enabled', async () => {
     const resourceId = await addInlineActivityTestPerson();
-    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
     renderAsOwner(
       <AllocationModal
@@ -269,7 +269,7 @@ describe('AllocationModal task field', () => {
         task: 'Original task',
       }),
     );
-    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
     renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     await user.clear(screen.getByLabelText('Task'));
@@ -299,7 +299,7 @@ describe('AllocationModal task field', () => {
         status: 'confirmed',
       }),
     );
-    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: false });
+    await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: false });
     const user = userEvent.setup();
     const view = renderAsOwner(
       <AllocationModal kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />,
@@ -309,7 +309,7 @@ describe('AllocationModal task field', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     view.unmount();
 
-    await useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: true });
     renderAsOwner(
       <AllocationModal kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />,
     );

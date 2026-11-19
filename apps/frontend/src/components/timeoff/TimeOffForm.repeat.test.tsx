@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
-import { resetStoreWithAccount, WORKDAYS } from '@/test/fixtures';
+import { resetStoreWithCompany, WORKDAYS } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { TimeOffForm } from './TimeOffForm';
 import type { ReactElement } from 'react';
@@ -34,7 +34,7 @@ const resourceDraft = {
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-01-15T12:00:00.000Z'));
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 
 afterEach(() => {

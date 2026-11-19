@@ -13,7 +13,7 @@ import {
   makeAllocation,
   makeClient,
   makeResource,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
 } from '@/test/fixtures';
 import { SettingsDataSection } from './SettingsDataSection';
 import { permissionValue } from '@/test/permissionGrants';
@@ -49,7 +49,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   sessionStorage.clear();
   window.history.replaceState(null, '', '/');
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   planningProbe.reads = 0;
   planningProbe.freshReads = 0;
   planningProbe.suspends = 0;

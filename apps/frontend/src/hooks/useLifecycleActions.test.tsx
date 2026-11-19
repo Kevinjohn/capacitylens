@@ -4,8 +4,8 @@ import { useStore } from '@/store/useStore';
 import {
   loadPlanningData,
   DEFAULT_COMPANY_ID,
-  makeAccount,
-  resetStoreWithAccount,
+  makeCompany,
+  resetStoreWithCompany,
 } from '@/test/fixtures';
 import { useLifecycleActions } from './useLifecycleActions';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
@@ -13,7 +13,7 @@ import type { PlanningCommand } from '@/data/planning/planningCommands';
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   vi.clearAllMocks();
 });
 afterEach(() => {
@@ -118,7 +118,7 @@ describe('named lifecycle actions', () => {
   it('blocks another anonymisation after a failed canonical refresh, including after remount', async () => {
     loadPlanningData({
       ...useStore.getState().data,
-      accounts: [makeAccount({ id: 'a-recovery-failed' })],
+      accounts: [makeCompany({ id: 'a-recovery-failed' })],
     });
     useStore.getState().setActiveCompany('a-recovery-failed');
     await useStore.getState().refreshPlanning();

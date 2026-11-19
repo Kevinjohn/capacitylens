@@ -18,7 +18,7 @@ import {
 import {
   defaultCompanyWorkingDays,
   normalizeCompanyWorkingDays,
-} from '@capacitylens/shared/lib/accountWorkingDays';
+} from '@capacitylens/shared/lib/companyWorkingDays';
 
 type GridPreferences = ReturnType<typeof useSchedulerGridPreferences>;
 type GridViewport = Pick<
@@ -89,20 +89,20 @@ export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: numb
 }
 
 function buildModelPreferences(
-  accountPrefs: GridPreferences['accountPrefs'],
+  companyPrefs: GridPreferences['companyPrefs'],
   companyWorkingDays: GridPreferences['companyWorkingDays'],
 ) {
   return {
-    disciplinesEnabled: accountPrefs.disciplinesEnabled,
-    placeholdersEnabled: accountPrefs.placeholdersEnabled,
-    externalEnabled: accountPrefs.externalEnabled,
+    disciplinesEnabled: companyPrefs.disciplinesEnabled,
+    placeholdersEnabled: companyPrefs.placeholdersEnabled,
+    externalEnabled: companyPrefs.externalEnabled,
     companyWorkingDays,
-    blocksMode: accountPrefs.blocksMode,
+    blocksMode: companyPrefs.blocksMode,
   };
 }
 
 function useSchedulerModelProjection({
-  preferences: { data, accountPrefs, companyWorkingDays, ui },
+  preferences: { data, companyPrefs, companyWorkingDays, ui },
   viewport: { days, geom },
   visibleStart,
   visibleEnd,
@@ -110,8 +110,8 @@ function useSchedulerModelProjection({
   partiallyExposesNextColumn: exposesNextColumn,
 }: SchedulerModelProjectionInput) {
   const modelPreferences = useMemo(
-    () => buildModelPreferences(accountPrefs, companyWorkingDays),
-    [accountPrefs, companyWorkingDays],
+    () => buildModelPreferences(companyPrefs, companyWorkingDays),
+    [companyPrefs, companyWorkingDays],
   );
   const capacity = useStore((state) => state.planning.capacity);
   // The static model spans the timeline so scrolling does not rebuild it. It sums no utilisation,
@@ -146,13 +146,13 @@ function useSchedulerModelProjection({
 /** Resolve preferences before the single viewport owner computes its geometry. */
 export function useSchedulerGridPreferences() {
   const data = useActiveScopedData();
-  const activeAccount = useStore((state) =>
-    state.data.accounts.find((account) => account.id === state.activeCompanyId),
+  const activeCompany = useStore((state) =>
+    state.data.accounts.find((company) => company.id === state.activeCompanyId),
   );
-  // Resolve account preferences from one account row to avoid repeated lookups, while retaining each shared selector's absent-field default.
-  const accountPreferences = useMemo(() => {
-    const view = { ...emptyAppData(), accounts: activeAccount ? [activeAccount] : [] };
-    const id = activeAccount?.id ?? null;
+  // Resolve company preferences from one company row to avoid repeated lookups, while retaining each shared selector's absent-field default.
+  const companyPreferences = useMemo(() => {
+    const view = { ...emptyAppData(), accounts: activeCompany ? [activeCompany] : [] };
+    const id = activeCompany?.id ?? null;
     return {
       placeholdersEnabled: hasPlaceholdersEnabled(view, id),
 
@@ -162,13 +162,13 @@ export function useSchedulerGridPreferences() {
       blocksMode: !carriesHourlyLoad(resolveSchedulingMode(view, id)),
       calendarWeekStartsOn: resolveWeekStart(view, id),
     };
-  }, [activeAccount]);
+  }, [activeCompany]);
   const companyWorkingDays = useMemo(() => {
-    const weekStartsOn = activeAccount?.weekStartsOn ?? 1;
-    return activeAccount?.workingDays == null
+    const weekStartsOn = activeCompany?.weekStartsOn ?? 1;
+    return activeCompany?.workingDays == null
       ? defaultCompanyWorkingDays(weekStartsOn)
-      : normalizeCompanyWorkingDays(activeAccount.workingDays, weekStartsOn);
-  }, [activeAccount]);
+      : normalizeCompanyWorkingDays(activeCompany.workingDays, weekStartsOn);
+  }, [activeCompany]);
   const ui = useStore((state) => state.ui);
 
   const utilisationPreferences = useStore((state) => state.utilisationPrefs);
@@ -178,7 +178,7 @@ export function useSchedulerGridPreferences() {
   const weekSnapEnabled = useStore((state) => state.weekSnapEnabled);
   return {
     data,
-    accountPrefs: accountPreferences,
+    companyPrefs: companyPreferences,
     companyWorkingDays,
     ui,
     utilisationPrefs: utilisationPreferences,

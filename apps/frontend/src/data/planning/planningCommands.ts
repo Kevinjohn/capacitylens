@@ -67,8 +67,8 @@ function getOwnedRow<K extends AppDataKey>(
   ) as OwnedRow<K> | undefined;
 }
 
-function hasAccount(data: AppData, companyId: string): boolean {
-  return data.accounts.some((account) => account.id === companyId);
+function hasCompany(data: AppData, companyId: string): boolean {
+  return data.accounts.some((company) => company.id === companyId);
 }
 
 function diffFields(
@@ -94,7 +94,7 @@ export function buildAllocationCreate(
   context: CreateCommandContext & { args: { id: string; fields: Draft<Allocation> } },
 ): PlanningCommand | null {
   const { data, companyId, args } = context;
-  if (!hasAccount(data, companyId)) return null;
+  if (!hasCompany(data, companyId)) return null;
   const activity = data.activities.find(
     (row) => row.companyId === companyId && row.id === args.fields.activityId,
   );
@@ -214,7 +214,7 @@ export function buildTimeOffCreate(
 ): PlanningCommand | null {
   const { data, companyId, args } = context;
   if (
-    !hasAccount(data, companyId) ||
+    !hasCompany(data, companyId) ||
     !data.resources.some(
       (resource) => resource.companyId === companyId && resource.id === args.fields.resourceId,
     )
@@ -265,7 +265,7 @@ export function buildClosureCreate(
   context: CreateCommandContext & { args: { fields: Draft<Closure> } },
 ): PlanningCommand | null {
   const { data, companyId, args } = context;
-  if (!hasAccount(data, companyId)) return null;
+  if (!hasCompany(data, companyId)) return null;
   return {
     intent: {
       operation: 'closure.create',
@@ -308,7 +308,7 @@ export function buildResourceCreate(
   context: CreateCommandContext & { args: { id: string; fields: Draft<Resource> } },
 ): PlanningCommand | null {
   const { data, companyId, args } = context;
-  if (!hasAccount(data, companyId)) return null;
+  if (!hasCompany(data, companyId)) return null;
   const input = args.fields;
   const kindDefaults =
     input.kind === 'external' ? externalCapacityDefaults() : placeholderCapacityDefaults();
@@ -422,7 +422,7 @@ export function buildCatalogueCreate(
   context: CreateCommandContext & { args: { id: string } & CatalogueCreateFields },
 ): PlanningCommand | null {
   const { data, companyId, args } = context;
-  if (!hasAccount(data, companyId)) return null;
+  if (!hasCompany(data, companyId)) return null;
   let entity: Extract<PlanningIntent, { operation: 'catalogue.create' }>['entity'];
   switch (args.entity) {
     case 'clients':
@@ -559,12 +559,12 @@ type SettingsFields = Pick<
   | 'dateStyle'
 >;
 
-/** Build a field-limited account settings patch. */
+/** Build a field-limited company settings patch. */
 export function buildSettingsUpdate(
   context: CommandContext & { original: Company; args: Pick<Patch<Company>, keyof SettingsFields> },
 ): PlanningCommand | null {
   const { data, companyId, original, args } = context;
-  const current = data.accounts.find((account) => account.id === companyId);
+  const current = data.accounts.find((company) => company.id === companyId);
   if (!current || original.id !== companyId) return null;
   const allowedFields = [
     'name',

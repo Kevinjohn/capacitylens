@@ -30,7 +30,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
 export function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: string): boolean {
   return (
     snapshot.data.accounts.length === 1 &&
-    snapshot.data.accounts.every((account) => isRecord(account) && account.id === companyId) &&
+    snapshot.data.accounts.every((company) => isRecord(company) && company.id === companyId) &&
     SCOPED_KEYS.every((key) =>
       snapshot.data[key].every((row) => isRecord(row) && row.companyId === companyId),
     )

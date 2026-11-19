@@ -11,7 +11,7 @@ import { buildColumnGeometry } from './columnGeometry';
 import { applyVisibleUtilisation, buildSchedulerModel } from './schedulerModel';
 import type { GroupModel, RowModel } from './schedulerModel';
 
-const ACCOUNT = 'a-studio';
+const COMPANY = 'a-studio';
 const FULL = { start: '2026-06-01', end: '2026-06-14' } as const;
 // Only the long allocation reaches the second week, so it alone sets that window's lanes.
 const SECOND_WEEK = { start: '2026-06-08', end: '2026-06-14' } as const;
@@ -26,7 +26,7 @@ function discipline(
   return {
     ...NULLABLE_FIELDS.disciplines,
     id,
-    companyId: ACCOUNT,
+    companyId: COMPANY,
     createdAt: 't',
     updatedAt: 't',
     name,
@@ -36,7 +36,7 @@ function discipline(
 }
 
 function allocation(id: string, resourceId: string, startDate: ISODate, endDate: ISODate) {
-  return makeAllocation({ id, companyId: ACCOUNT, resourceId, startDate, endDate, hoursPerDay: 4 });
+  return makeAllocation({ id, companyId: COMPANY, resourceId, startDate, endDate, hoursPerDay: 4 });
 }
 
 // Bruce Wayne carries two overlapping allocations (two lanes over the fortnight, one in the second
@@ -46,16 +46,16 @@ function dataset(): AppData {
   return {
     ...emptyAppData(),
     disciplines: [discipline('d-design', 'Design', null)],
-    activities: [makeActivity({ id: 't1', companyId: ACCOUNT, kind: 'internal' })],
+    activities: [makeActivity({ id: 't1', companyId: COMPANY, kind: 'internal' })],
     resources: [
-      makeResource({ id: 'r1', companyId: ACCOUNT, name: 'Bruce Wayne', disciplineId: 'd-design' }),
+      makeResource({ id: 'r1', companyId: COMPANY, name: 'Bruce Wayne', disciplineId: 'd-design' }),
       makeResource({
         id: 'r2',
-        companyId: ACCOUNT,
+        companyId: COMPANY,
         name: 'Alfred Pennyworth',
         disciplineId: 'd-design',
       }),
-      makeResource({ id: 'ext1', companyId: ACCOUNT, kind: 'external', name: 'Kord Industries' }),
+      makeResource({ id: 'ext1', companyId: COMPANY, kind: 'external', name: 'Kord Industries' }),
     ],
     allocations: [
       allocation('a1', 'r1', '2026-06-01', '2026-06-03'),
@@ -224,8 +224,8 @@ describe('buildSchedulerModel grouping and order', () => {
     const data = dataset();
     data.disciplines.push(discipline('d-dev', 'Development', '#2d75da'));
     data.resources.push(
-      makeResource({ id: 'r3', companyId: ACCOUNT, name: 'Lucius Fox', disciplineId: 'd-dev' }),
-      makeResource({ id: 'r4', companyId: ACCOUNT, name: 'Barbara Gordon' }),
+      makeResource({ id: 'r3', companyId: COMPANY, name: 'Lucius Fox', disciplineId: 'd-dev' }),
+      makeResource({ id: 'r4', companyId: COMPANY, name: 'Barbara Gordon' }),
     );
     const groups = buildModel(data);
     expect(groups.map((group) => group.key)).toEqual([
@@ -242,18 +242,18 @@ describe('buildSchedulerModel grouping and order', () => {
   it('orders people by display name and placeholders by id after them', () => {
     const data = dataset();
     data.resources = [
-      makeResource({ id: 'r1', companyId: ACCOUNT, name: 'Selina Kyle', disciplineId: 'd-design' }),
-      makeResource({ id: 'r2', companyId: ACCOUNT, name: 'Bruce Wayne', disciplineId: 'd-design' }),
+      makeResource({ id: 'r1', companyId: COMPANY, name: 'Selina Kyle', disciplineId: 'd-design' }),
+      makeResource({ id: 'r2', companyId: COMPANY, name: 'Bruce Wayne', disciplineId: 'd-design' }),
       makeResource({
         id: 'ph-a',
-        companyId: ACCOUNT,
+        companyId: COMPANY,
         kind: 'placeholder',
         name: 'Zatanna slot',
         disciplineId: 'd-design',
       }),
       makeResource({
         id: 'ph-b',
-        companyId: ACCOUNT,
+        companyId: COMPANY,
         kind: 'placeholder',
         name: 'Alfred slot',
         isFavourite: true,

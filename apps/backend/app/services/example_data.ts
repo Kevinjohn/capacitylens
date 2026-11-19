@@ -29,8 +29,8 @@ export async function addExampleData(
   actorId: string
 ) {
   const state = await readStateWithClient(trx, companyId, true);
-  const account = state.accounts.at(0);
-  if (!account) throw new EntityWriteError('Company not found.', 404);
+  const company = state.accounts.at(0);
+  if (!company) throw new EntityWriteError('Company not found.', 404);
   if (
     state.resources.length > 0 ||
     state.clients.some((client) => client.builtin !== true) ||
@@ -44,7 +44,7 @@ export async function addExampleData(
       'EXAMPLE_DATA_COMPANY_NOT_EMPTY'
     );
   }
-  const today = resolveCalendarToday(account.timezone ?? undefined);
+  const today = resolveCalendarToday(company.timezone ?? undefined);
   if (today.kind === 'invalid-time-zone') {
     // The example still lands around the server's local date; the operator log names the zone.
     logger.warn(
@@ -55,7 +55,7 @@ export async function addExampleData(
   const sample = buildExampleCompany({
     companyId,
     referenceDate: today.date,
-    weekStartsOn: account.weekStartsOn ?? 1,
+    weekStartsOn: company.weekStartsOn ?? 1,
   });
   for (const key of INSERT_ORDER) {
     const rows = sample[key];

@@ -16,7 +16,7 @@ beforeEach(() => {
 const baseProps = {
   hydrated: true,
   hasActiveCompany: true,
-  ambiguousAccountDirectory: false,
+  ambiguousCompanyDirectory: false,
   allowWithoutActiveCompany: false,
   activeCompanyId: 'a-studio',
   activeCompanyLoadFailed: null,
@@ -84,7 +84,7 @@ describe('AppEntryGate', () => {
         {...baseProps}
         hasActiveCompany={false}
         allowWithoutActiveCompany
-        ambiguousAccountDirectory
+        ambiguousCompanyDirectory
       />,
     );
 

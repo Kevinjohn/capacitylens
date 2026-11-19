@@ -74,7 +74,7 @@ export interface SchedulerUI {
   scrollToResource: { id: ID; token: number; consumed: boolean } | null;
 }
 
-type SetAccountSummariesOptions = {
+type SetCompanySummariesOptions = {
   list: CompanySummary[];
   requestId?: number | undefined;
   complete?: boolean | undefined;
@@ -94,7 +94,7 @@ export interface StoreState extends StoreEntityActions {
   hydrated: boolean;
   /** The company currently in view, or null when no company is active. Never persisted. */
   activeCompanyId: ID | null;
-  /** Account whose selected slice failed to hydrate. Transient and never persisted. */
+  /** Company whose selected slice failed to hydrate. Transient and never persisted. */
   activeCompanyLoadFailed: ID | null;
   /** The server-sourced directory of companies this login may access. Set by useCompanySummaries
    * from the login’s memberships. Separate from `data` because `data` holds only the active slice.
@@ -132,11 +132,11 @@ export interface StoreState extends StoreEntityActions {
    * dragged row so a mid-gesture vertical scroll can't virtualise it out and orphan the
    * drag (the document pointer listeners would be torn down on unmount). */
   draggingAllocationId: ID | null;
-  /** Colour-scheme preference. Device-global, not part of account data: kept in the
+  /** Colour-scheme preference. Device-global, not part of company data: kept in the
    * store only for reactivity, persisted to its own localStorage key by setTheme. */
   theme: ThemePreference;
   /** Utilisation display toggles. Device-global like `theme`, persisted to their
-   * own localStorage key, not part of account data. */
+   * own localStorage key, not part of company data. */
   utilisationPrefs: UtilisationPreferences;
   /** Allocation-bar label toggles (client/project context before the activity name).
    * Device-global like `utilisationPrefs`, own localStorage key. */
@@ -166,21 +166,21 @@ export interface StoreState extends StoreEntityActions {
   activePermissions: PermissionKey[];
   /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
    * the current directory-request owner re-reads the caller's effective role/list without an
-   * account switch or page reload. Transient: never persisted or included in undo history. */
+   * company switch or page reload. Transient: never persisted or included in undo history. */
   membershipRevision: number;
   /** Session-backed read projection. Every non-inactive phase blocks local writes while the
    * controller establishes or removes the authoritative server projection. */
   masquerade: MasqueradeRuntimeState;
 
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */
-  updateAccount: (id: ID, patch: Patch<Company>) => Promise<void>;
+  updateCompany: (id: ID, patch: Patch<Company>) => Promise<void>;
   /** Enter a company, or clear the active company. An unknown id clears selection with a notice. */
   setActiveCompany: (id: ID | null) => void;
   /** Start one server-directory read and return its monotonic identity. */
   beginCompanySummariesRequest: () => number;
   /** Replace the company directory. A request-bound result applies only while it is still the latest;
    * an unbound direct mutation invalidates every in-flight request. Returns whether it applied. */
-  setCompanySummaries: (options: SetAccountSummariesOptions) => boolean;
+  setCompanySummaries: (options: SetCompanySummariesOptions) => boolean;
 
   /** Record whether the initial load has finished. */
   setHydrated: (value: boolean) => void;
@@ -215,7 +215,7 @@ export interface StoreState extends StoreEntityActions {
     status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable',
     permissions?: PermissionKey[],
   ) => void;
-  /** Invalidate all client projections derived from account membership. */
+  /** Invalidate all client projections derived from company membership. */
   invalidateMemberships: () => void;
   /** Replace the view-as-member runtime state. */
   setMasquerade: (state: MasqueradeRuntimeState) => void;

@@ -7,8 +7,8 @@ const TS = '2026-01-01T00:00:00.000Z';
 describe('built-in Internal client', () => {
   it('seed gives every account exactly one builtin Internal client', () => {
     const data = seed();
-    for (const account of data.accounts) {
-      const internal = data.clients.filter((c) => c.builtin === true && c.companyId === account.id);
+    for (const company of data.accounts) {
+      const internal = data.clients.filter((c) => c.builtin === true && c.companyId === company.id);
       expect(internal).toHaveLength(1);
       expect(internal[0]?.name).toBe(INTERNAL_CLIENT_NAME);
     }

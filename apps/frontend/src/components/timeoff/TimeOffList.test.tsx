@@ -17,7 +17,7 @@ import {
   DEFAULT_COMPANY_ID,
   WORKDAYS,
   requireValue,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   setPlaceholdersEnabled,
 } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
@@ -55,7 +55,7 @@ const placeholderDraft = {
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().clearFilters();
   // Enable the company placeholder setting for fixtures that need its rows; visibility tests override it explicitly.
   await setPlaceholdersEnabled({ on: true });
@@ -172,19 +172,19 @@ it("uses the active company's timezone and week-start setting for the visible bo
 
   await useStore
     .getState()
-    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+    .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
   const { rerender } = render(<TimeOffList />);
   expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
 
   await useStore
     .getState()
-    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
+    .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 
   await useStore
     .getState()
-    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
+    .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 });
@@ -192,7 +192,7 @@ it("uses the active company's timezone and week-start setting for the visible bo
 it('removes expired time off when a read brings the next company week while mounted', async () => {
   await useStore
     .getState()
-    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+    .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
   getStubPlanningTransport().setToday('2026-06-07');
   await useStore.getState().refreshPlanning({ fresh: true });
   const resource = await requireCreated(

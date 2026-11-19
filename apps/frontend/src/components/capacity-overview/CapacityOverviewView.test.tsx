@@ -5,10 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_COMPANY_ID,
-  makeAccount,
+  makeCompany,
   makeAppData,
   makeResource,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
 } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { capacityOver } from '@/test/capacityFixtures';
@@ -23,13 +23,13 @@ vi.mock('@/hooks/useCompanyToday', () => ({
 }));
 
 describe('CapacityOverviewView', () => {
-  beforeEach(() => resetStoreWithAccount());
+  beforeEach(() => resetStoreWithCompany());
 
   function renderOverview() {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
-        accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
+        accounts: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
           makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
@@ -42,7 +42,7 @@ describe('CapacityOverviewView', () => {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
-        accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
+        accounts: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
           makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
@@ -154,7 +154,7 @@ describe('CapacityOverviewView', () => {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
-        accounts: [makeAccount({ schedulingMode: 'days', disciplinesEnabled: false })],
+        accounts: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
           makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
@@ -174,7 +174,7 @@ describe('CapacityOverviewView', () => {
   it('uses the Blocks-mode explanation for an unmeasured company', () => {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
-      data: makeAppData({ accounts: [makeAccount({ schedulingMode: 'blocks' })] }),
+      data: makeAppData({ accounts: [makeCompany({ schedulingMode: 'blocks' })] }),
     });
 
     render(<CapacityOverviewView />);

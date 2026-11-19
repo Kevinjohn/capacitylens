@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
-import { makeAccount, makeAppData, makeClient } from './fixtures';
+import { makeCompany, makeAppData, makeClient } from './fixtures';
 import { createTestPlanningTransport } from './createTestPlanningTransport';
 import { getStubPlanningTransport } from './planningTransportHandle';
 
@@ -23,7 +23,7 @@ it('reads a reset snapshot scoped to its company at that company revision', asyn
   getStubPlanningTransport().reset(
     context.companyId,
     makeAppData({
-      accounts: [makeAccount({ id: context.companyId }), makeAccount({ id: 'acct-two' })],
+      accounts: [makeCompany({ id: context.companyId }), makeCompany({ id: 'acct-two' })],
       clients: [client, other],
     }),
   );
@@ -32,7 +32,7 @@ it('reads a reset snapshot scoped to its company at that company revision', asyn
 
   expect(snapshot).toMatchObject({ revision: 0, canWrite: true });
   expect(snapshot.data.clients).toEqual([client]);
-  expect(snapshot.data.accounts).toEqual([makeAccount({ id: context.companyId })]);
+  expect(snapshot.data.accounts).toEqual([makeCompany({ id: context.companyId })]);
 });
 
 it('records the sent intent and applies an unvalidated single-row change', async () => {
@@ -140,7 +140,7 @@ it('reset discards queued responses, failures and calls', async () => {
 
   stub.reset(
     context.companyId,
-    makeAppData({ accounts: [makeAccount({ id: context.companyId, name: 'Reset' })] }),
+    makeAppData({ accounts: [makeCompany({ id: context.companyId, name: 'Reset' })] }),
   );
 
   expect(stub.calls).toEqual([]);

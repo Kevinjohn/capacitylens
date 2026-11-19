@@ -13,7 +13,7 @@ import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from './b
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 const STAMP = Date.now();
-const ACCOUNT = `Wayne Privacy Studio ${STAMP}`;
+const COMPANY = `Wayne Privacy Studio ${STAMP}`;
 const OWNER = `clark-kent-${STAMP}@capacitylens.dev`;
 const VIEWER = `kara-zor-el-${STAMP}@capacitylens.dev`;
 const RESOURCE_ID = crypto.randomUUID();
@@ -29,7 +29,7 @@ const REAL_PROJECT = 'Gotham Renewal';
 async function seedPrivacyScenario(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
-  const companyId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
+  const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
   await createFixturePerson(request, owner.cookie, companyId, {
     id: RESOURCE_ID,
     name: 'Victor Stone',

@@ -1,6 +1,6 @@
 import { requireCreated } from '@/test/requireCreated';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import { makeResourceDraft, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from './useStore';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
@@ -14,7 +14,7 @@ function refuseNextPlanningMutation(): void {
   );
 }
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(() => resetStoreWithCompany());
 
 describe('updateResource rejects a kind-flip-to-external that would orphan dependents', () => {
   it('preserves a server refusal when an external conversion would hide a loaded allocation', async () => {

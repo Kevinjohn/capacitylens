@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadPlanningData, makeAccount, makeAppData, DEFAULT_COMPANY_ID } from '@/test/fixtures';
+import { loadPlanningData, makeCompany, makeAppData, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { AppShell } from './AppShell';
 import { HelpView } from './HelpView';
@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
+  loadPlanningData(makeAppData({ accounts: [makeCompany()] }));
   useStore.getState().setCompanySummaries({
     list: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' }],
   });
@@ -33,7 +33,7 @@ beforeEach(() => {
         const state = useStore.getState();
         const summaries = state.companySummaries.length
           ? state.companySummaries
-          : state.data.accounts.map((account) => ({ ...account, role: 'owner' as const }));
+          : state.data.accounts.map((company) => ({ ...company, role: 'owner' as const }));
         return Promise.resolve(
           Response.json(
             summaries.map((summary) => ({

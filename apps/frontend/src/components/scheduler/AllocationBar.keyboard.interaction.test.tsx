@@ -7,7 +7,7 @@ import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { buildVisibleRange } from '@/store/selectors';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -33,7 +33,7 @@ function render(ui: ReactNode) {
   return renderTestingLibrary(ui, { wrapper: OwnerPermissionsAndTooltip });
 }
 
-beforeEach(async () => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithCompany());
 afterEach(() => vi.restoreAllMocks());
 
 describe('AllocationBar keyboard focus and popover interactions', () => {

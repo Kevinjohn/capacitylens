@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { matchPath } from 'react-router-dom';
 import { APP_NAME } from '@capacitylens/shared/brand';
-import { syncLocaleFromAccount } from '@/i18n';
+import { syncLocaleFromCompany } from '@/i18n';
 import { APP_ROUTES } from '@/lib/navLinks';
 import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/types';
@@ -9,18 +9,18 @@ import type { StoreState } from '@/store/types';
 // The browser page around the shell: the active company's locale, the document title and the
 // unload warning while work is unsaved.
 
-/** Applies the active company's language once its account row has loaded. */
-export function useAccountLocale(
-  accounts: StoreState['data']['accounts'],
+/** Applies the active company's language once its company row has loaded. */
+export function useCompanyLocale(
+  companies: StoreState['data']['accounts'],
   activeCompanyId: StoreState['activeCompanyId'],
 ) {
-  const hydratedActiveAccount = accounts.find((account) => account.id === activeCompanyId);
-  const activeLanguage = hydratedActiveAccount?.language;
-  const activeLanguagePending = activeCompanyId !== null && hydratedActiveAccount === undefined;
+  const hydratedActiveCompany = companies.find((company) => company.id === activeCompanyId);
+  const activeLanguage = hydratedActiveCompany?.language;
+  const activeLanguagePending = activeCompanyId !== null && hydratedActiveCompany === undefined;
 
   useEffect(() => {
     if (activeLanguagePending) return;
-    syncLocaleFromAccount(activeLanguage ?? undefined);
+    syncLocaleFromCompany(activeLanguage ?? undefined);
   }, [activeLanguage, activeLanguagePending]);
 
   return { activeLanguage, activeLanguagePending };

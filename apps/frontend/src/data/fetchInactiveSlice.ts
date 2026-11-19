@@ -57,9 +57,9 @@ export async function fetchInactiveSlice(companyId: ID, signal?: AbortSignal): P
   if (!isRecord(body) || !APP_DATA_KEYS.every((key) => Array.isArray(body[key]))) {
     throw new InactiveSliceShapeError();
   }
-  const accounts = body.accounts as unknown[];
-  const account = accounts[0];
-  if (accounts.length !== 1 || !isRecord(account) || account.id !== companyId) {
+  const companies = body.accounts as unknown[];
+  const company = companies[0];
+  if (companies.length !== 1 || !isRecord(company) || company.id !== companyId) {
     throw new InactiveSliceShapeError();
   }
   return body as unknown as AppData;

@@ -7,7 +7,7 @@ import type { ReactElement } from 'react';
 import userEvent from '@testing-library/user-event';
 import { ProjectForm } from './ProjectForm';
 import { useStore } from '@/store/useStore';
-import { loadPlanningData, DEFAULT_COMPANY_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -17,7 +17,7 @@ import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 
 function renderOwner(ui: ReactElement, options?: Parameters<typeof render>[1]) {

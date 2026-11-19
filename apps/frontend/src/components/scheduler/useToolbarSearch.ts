@@ -22,9 +22,9 @@ export function useToolbarSearch({
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
   // Reconcile pending text on filter-object or tenant changes, because an external replacement may keep the committed search string unchanged.
-  const [seen, setSeen] = useState({ filters, account: activeCompanyId });
-  if (filters !== seen.filters || activeCompanyId !== seen.account) {
-    setSeen({ filters, account: activeCompanyId });
+  const [seen, setSeen] = useState({ filters, companyId: activeCompanyId });
+  if (filters !== seen.filters || activeCompanyId !== seen.companyId) {
+    setSeen({ filters, companyId: activeCompanyId });
     setSearchInput(filters.search);
   }
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -11,7 +11,7 @@ import {
   loadPlanningData,
   DEFAULT_COMPANY_ID,
   makeAppData,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   requireValue,
 } from '@/test/fixtures';
 import { MemoryRouter } from 'react-router-dom';
@@ -53,7 +53,7 @@ function mockInactiveRead() {
 afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().clearFilters();
   mockInactiveRead();
 });

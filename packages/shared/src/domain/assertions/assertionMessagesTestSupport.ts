@@ -44,7 +44,7 @@ export const makeMeta = (id: ID, companyId: ID) => ({
   updatedAt: TS,
 });
 
-export const makeAccount = (id: ID, name = 'Co'): Company => ({
+export const makeCompany = (id: ID, name = 'Co'): Company => ({
   ...NULLABLE_FIELDS.accounts,
   id,
   name,
@@ -141,5 +141,5 @@ export const A1 = 'acct-1';
 export const A2 = 'acct-2';
 export const base = (): AppData => ({
   ...emptyAppData(),
-  accounts: [makeAccount(A1), makeAccount(A2)],
+  accounts: [makeCompany(A1), makeCompany(A2)],
 });

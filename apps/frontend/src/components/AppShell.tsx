@@ -67,13 +67,13 @@ function AppShellToaster({ theme }: { theme: ReturnType<typeof useStore.getState
 type GatedAppProps = {
   hydrated: boolean;
   hasActiveCompany: boolean;
-  ambiguousAccountDirectory: boolean;
+  ambiguousCompanyDirectory: boolean;
   allowWithoutActiveCompany: boolean;
   activeCompanyId: ReturnType<typeof useStore.getState>['activeCompanyId'];
   activeCompanyLoadFailed: ReturnType<typeof useStore.getState>['activeCompanyLoadFailed'];
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  activeAccount:
+  activeCompany:
     | ReturnType<typeof useStore.getState>['data']['accounts'][number]
     | ReturnType<typeof useStore.getState>['companySummaries'][number]
     | undefined;
@@ -87,13 +87,13 @@ type GatedAppProps = {
 function GatedApp({
   hydrated,
   hasActiveCompany,
-  ambiguousAccountDirectory,
+  ambiguousCompanyDirectory,
   allowWithoutActiveCompany,
   activeCompanyId,
   activeCompanyLoadFailed,
   sidebarOpen,
   setSidebarOpen,
-  activeAccount,
+  activeCompany,
   dirtyForm,
   paletteOpen,
   closePalette,
@@ -110,11 +110,11 @@ function GatedApp({
     <AppEntryGate
       hydrated={hydrated}
       hasActiveCompany={hasActiveCompany}
-      ambiguousAccountDirectory={ambiguousAccountDirectory}
+      ambiguousCompanyDirectory={ambiguousCompanyDirectory}
       allowWithoutActiveCompany={allowWithoutActiveCompany}
       activeCompanyId={activeCompanyId}
       activeCompanyLoadFailed={activeCompanyLoadFailed}
-      activeCompanyName={activeAccount?.name ?? m.account_load_fallback_name()}
+      activeCompanyName={activeCompany?.name ?? m.account_load_fallback_name()}
       onRetryActiveCompanyLoad={() =>
         activeCompanyId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
       }
@@ -210,7 +210,7 @@ function GatedMain({
   );
 }
 
-/** Coordinates application routes, navigation, account notices, and global dialogs. */
+/** Coordinates application routes, navigation, company notices, and global dialogs. */
 export function AppShell() {
   const navigate = useNavigate();
   const { paletteOpen, closePalette } = useAppShellController();
@@ -220,14 +220,14 @@ export function AppShell() {
   // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
   // explicit light and dark preferences pass through as concrete schemes.
   const themePreference = useStore((state) => state.theme);
-  const accounts = useStore((state) => state.data.accounts);
+  const companies = useStore((state) => state.data.accounts);
   const companySummaries = useStore((state) => state.companySummaries);
   const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const activeCompanyLoadFailed = useStore((state) => state.activeCompanyLoadFailed);
-  // Account summaries keep the tenant gate valid while the selected company's authoritative slice is still loading. Child content remains behind its hydration boundary.
-  const activeAccount =
-    accounts.find((account) => account.id === activeCompanyId) ??
+  // Company summaries keep the tenant gate valid while the selected company's authoritative slice is still loading. Child content remains behind its hydration boundary.
+  const activeCompany =
+    companies.find((company) => company.id === activeCompanyId) ??
     companySummaries.find((a) => a.id === activeCompanyId);
   const accountRoute =
     matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
@@ -241,8 +241,8 @@ export function AppShell() {
       <AppShellToaster theme={themePreference} />
       <GatedApp
         hydrated={hydrated}
-        hasActiveCompany={activeAccount !== undefined}
-        ambiguousAccountDirectory={companySummariesAmbiguous}
+        hasActiveCompany={activeCompany !== undefined}
+        ambiguousCompanyDirectory={companySummariesAmbiguous}
         allowWithoutActiveCompany={
           accountRoute || (masquerade.kind !== 'inactive' && masquerade.state !== undefined)
         }
@@ -250,7 +250,7 @@ export function AppShell() {
         activeCompanyLoadFailed={activeCompanyLoadFailed}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        activeAccount={activeAccount}
+        activeCompany={activeCompany}
         dirtyForm={dirtyForm}
         paletteOpen={paletteOpen}
         closePalette={closePalette}

@@ -6,7 +6,7 @@ import {
   fetchCompanySummaries,
   refreshCompanySummaries,
   useCompanySummaries,
-} from './useAccountSummaries';
+} from './useCompanySummaries';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';

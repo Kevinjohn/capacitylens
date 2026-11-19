@@ -1,7 +1,7 @@
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
-import { makeAccount, makeAppData, makeClient } from '@/test/fixtures';
+import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import { PlanningControllerError } from './planningErrors';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
@@ -23,7 +23,7 @@ function snapshot(name: string, revision = 1): PlanningSnapshot {
     canWrite: true,
     accessKey: 'owner',
     data: makeAppData({
-      accounts: [makeAccount({ id: 'wayne', name: 'Wayne Enterprises' })],
+      accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ companyId: 'wayne', name })],
     }),
     today: '2026-06-03',
@@ -72,7 +72,7 @@ function rejectStage(fixture: Fixture, stage: RequestStage, error: Error) {
 describe('planning request access boundaries', () => {
   it('rejects a canonical snapshot with duplicate active-company rows', async () => {
     const fixture = await setup();
-    const duplicateCompany = makeAccount({ id: 'wayne', name: 'Wayne Enterprises' });
+    const duplicateCompany = makeCompany({ id: 'wayne', name: 'Wayne Enterprises' });
     fixture.read.mockResolvedValueOnce({
       ...snapshot('Wayne Enterprises', 2),
       data: makeAppData({ accounts: [duplicateCompany, duplicateCompany] }),

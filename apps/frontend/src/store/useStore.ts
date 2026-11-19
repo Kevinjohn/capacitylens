@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { setActiveDateStyle } from '@/lib/dateDisplay';
 import { resolveDateStyle } from './selectors';
-import { createAccountSlice } from './slices/accountSlice';
+import { createCompanySlice } from './slices/companySlice';
 import { createAllocationSlice } from './slices/allocationSlice';
 import { createPlanningSessionSlice } from './slices/planningSessionSlice';
 import { createRuntimeSlice } from './slices/runtimeSlice';
@@ -40,7 +40,7 @@ export {
 export const useStore = create<StoreState>()((set, get, store) => {
   const internals = createStoreInternals(get);
   return {
-    ...createAccountSlice()(set, get, store),
+    ...createCompanySlice()(set, get, store),
     ...createRuntimeSlice(set, get, store),
     ...createSchedulerSlice(buildEmptyFilters)(set, get, store),
     ...createPlanningSessionSlice(internals.blockedByViewer, createStorePlanningTransport())(

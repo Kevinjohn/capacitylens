@@ -4,7 +4,7 @@ import { DateHeader } from './DateHeader';
 import { buildColumnGeometry } from './columnGeometry';
 import type { WeeksZoom } from '@/lib/schedulerConfig';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, DEFAULT_COMPANY_ID } from '@/test/fixtures';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 
 const DAYS = ['2026-06-01', '2026-06-02', '2026-06-06'];
 const DEFAULT_PROPS = { weekStartsOn: 1 as 0 | 1, today: '2026-06-01' };
@@ -55,16 +55,16 @@ describe('DateHeader', () => {
   });
   describe('company date format', () => {
     // The store is module-global, so hand the rest of the file back its default reading.
-    afterEach(() => resetStoreWithAccount());
+    afterEach(() => resetStoreWithCompany());
 
     // Date format changes must invalidate week-label memoisation even when the visible days are unchanged.
     it('re-reads its labels when the format changes', async () => {
-      await resetStoreWithAccount();
+      await resetStoreWithCompany();
       renderHeader(17);
       expect(screen.getByText('1 Jun')).toBeInTheDocument();
 
       await act(async () => {
-        await useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { dateStyle: 'month-day' });
+        await useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { dateStyle: 'month-day' });
       });
 
       expect(screen.getByText('Jun 1')).toBeInTheDocument();

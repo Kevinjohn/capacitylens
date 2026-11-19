@@ -4,13 +4,13 @@ import { useStore } from '@/store/useStore';
 import { stubMatchMedia } from '@/test/stubMatchMedia';
 import { setUpAppShellTests, renderAppShell } from './AppShell.testSupport';
 
-const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
+const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
-  syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
+  syncLocaleFromCompany: i18nMocks.syncLocaleFromCompany,
 }));
 
-setUpAppShellTests(i18nMocks.syncLocaleFromAccount);
+setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
 describe('AppShell sidebar collapse', () => {
   beforeEach(() => {

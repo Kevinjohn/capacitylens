@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { m } from '@/i18n';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
 import {
   mockApi,
@@ -122,7 +122,7 @@ async function startBarbaraWriteDuringClarkRead(user: User) {
 }
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   vi.stubGlobal('fetch', mockApi());
 });
 afterEach(() => {

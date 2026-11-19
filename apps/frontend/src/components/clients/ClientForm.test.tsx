@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { ClientForm } from './ClientForm';
 import { useStore } from '@/store/useStore';
 import { resolveColorName } from '@/lib/palette';
-import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithCompany } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { permissionValue } from '@/test/permissionGrants';
@@ -15,7 +15,7 @@ const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().clearFilters();
 });
 

@@ -3,12 +3,12 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsView } from './SettingsView';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, DEFAULT_COMPANY_ID } from '@/test/fixtures';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().setTheme('light');
   vi.stubGlobal(
     'fetch',

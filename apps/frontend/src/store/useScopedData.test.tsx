@@ -4,7 +4,7 @@ import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
   loadPlanningData,
-  makeAccount,
+  makeCompany,
   makeActivity,
   makeAllocation,
   makeClient,
@@ -17,31 +17,31 @@ import {
 import { resolveSharedScopedData, useActiveScopedData, useScopedData } from './useScopedData';
 import { useStore } from './useStore';
 
-const ACCOUNT_A = 'a-studio';
-const ACCOUNT_B = 'a-loft';
+const COMPANY_A = 'a-studio';
+const COMPANY_B = 'a-loft';
 
-function accountRows() {
+function companyRows() {
   return [
-    makeAccount({ id: ACCOUNT_A, name: 'Wayne Enterprises' }),
-    makeAccount({ id: ACCOUNT_B, name: 'Stark Industries' }),
+    makeCompany({ id: COMPANY_A, name: 'Wayne Enterprises' }),
+    makeCompany({ id: COMPANY_B, name: 'Stark Industries' }),
   ];
 }
 
 function clientRows() {
   return [
-    makeClient({ id: 'c-a', companyId: ACCOUNT_A, name: 'Wayne Foundation' }),
-    makeClient({ id: 'c-b', companyId: ACCOUNT_B, name: 'Stark Industries' }),
+    makeClient({ id: 'c-a', companyId: COMPANY_A, name: 'Wayne Foundation' }),
+    makeClient({ id: 'c-b', companyId: COMPANY_B, name: 'Stark Industries' }),
   ];
 }
 
-function twoAccountData(): AppData {
+function twoCompanyData(): AppData {
   return {
     ...emptyAppData(),
-    accounts: accountRows(),
+    accounts: companyRows(),
     disciplines: [
       {
         id: 'd-a',
-        companyId: ACCOUNT_A,
+        companyId: COMPANY_A,
         createdAt: 't',
         updatedAt: 't',
         name: 'Design',
@@ -50,7 +50,7 @@ function twoAccountData(): AppData {
       },
       {
         id: 'd-b',
-        companyId: ACCOUNT_B,
+        companyId: COMPANY_B,
         createdAt: 't',
         updatedAt: 't',
         name: 'Engineering',
@@ -59,18 +59,18 @@ function twoAccountData(): AppData {
       },
     ],
     resources: [
-      makeResource({ id: 'r-a', companyId: ACCOUNT_A, name: 'Bruce Wayne' }),
-      makeResource({ id: 'r-b', companyId: ACCOUNT_B, name: 'Tony Stark' }),
+      makeResource({ id: 'r-a', companyId: COMPANY_A, name: 'Bruce Wayne' }),
+      makeResource({ id: 'r-b', companyId: COMPANY_B, name: 'Tony Stark' }),
     ],
     clients: clientRows(),
     projects: [
-      makeProject({ id: 'p-a', companyId: ACCOUNT_A, clientId: 'c-a', name: 'Batcave Upgrade' }),
-      makeProject({ id: 'p-b', companyId: ACCOUNT_B, clientId: 'c-b', name: 'Arc Reactor' }),
+      makeProject({ id: 'p-a', companyId: COMPANY_A, clientId: 'c-a', name: 'Batcave Upgrade' }),
+      makeProject({ id: 'p-b', companyId: COMPANY_B, clientId: 'c-b', name: 'Arc Reactor' }),
     ],
     phases: [
       {
         id: 'phase-a',
-        companyId: ACCOUNT_A,
+        companyId: COMPANY_A,
         createdAt: 't',
         updatedAt: 't',
         name: 'Discovery',
@@ -78,7 +78,7 @@ function twoAccountData(): AppData {
       },
       {
         id: 'phase-b',
-        companyId: ACCOUNT_B,
+        companyId: COMPANY_B,
         createdAt: 't',
         updatedAt: 't',
         name: 'Delivery',
@@ -88,13 +88,13 @@ function twoAccountData(): AppData {
     activities: [
       makeActivity({
         id: 'activity-a',
-        companyId: ACCOUNT_A,
+        companyId: COMPANY_A,
         projectId: 'p-a',
         phaseId: 'phase-a',
       }),
       makeActivity({
         id: 'activity-b',
-        companyId: ACCOUNT_B,
+        companyId: COMPANY_B,
         projectId: 'p-b',
         phaseId: 'phase-b',
       }),
@@ -102,29 +102,29 @@ function twoAccountData(): AppData {
     allocations: [
       makeAllocation({
         id: 'allocation-a',
-        companyId: ACCOUNT_A,
+        companyId: COMPANY_A,
         resourceId: 'r-a',
         activityId: 'activity-a',
       }),
       makeAllocation({
         id: 'allocation-b',
-        companyId: ACCOUNT_B,
+        companyId: COMPANY_B,
         resourceId: 'r-b',
         activityId: 'activity-b',
       }),
     ],
     timeOff: [
-      makeTimeOff({ id: 'time-off-a', companyId: ACCOUNT_A, resourceId: 'r-a' }),
-      makeTimeOff({ id: 'time-off-b', companyId: ACCOUNT_B, resourceId: 'r-b' }),
+      makeTimeOff({ id: 'time-off-a', companyId: COMPANY_A, resourceId: 'r-a' }),
+      makeTimeOff({ id: 'time-off-b', companyId: COMPANY_B, resourceId: 'r-b' }),
     ],
     closures: [
-      makeClosure({ id: 'closure-a', companyId: ACCOUNT_A }),
-      makeClosure({ id: 'closure-b', companyId: ACCOUNT_B }),
+      makeClosure({ id: 'closure-a', companyId: COMPANY_A }),
+      makeClosure({ id: 'closure-b', companyId: COMPANY_B }),
     ],
   };
 }
 
-async function activateFixtureAccount(data: AppData, companyId: string): Promise<void> {
+async function activateFixtureCompany(data: AppData, companyId: string): Promise<void> {
   loadPlanningData(data);
   useStore.getState().clearPlanning();
   useStore.getState().setCompanySummaries({
@@ -141,17 +141,17 @@ beforeEach(() => {
 
 describe('scoped data', () => {
   it('returns only every selected-account collection through the imperative resolver', () => {
-    const scoped = resolveSharedScopedData(twoAccountData(), ACCOUNT_A);
+    const scoped = resolveSharedScopedData(twoCompanyData(), COMPANY_A);
 
     expect(scoped.accounts).toEqual([]);
     for (const table of SCOPED_KEYS) {
       expect(scoped[table]).toHaveLength(1);
-      expect(scoped[table].every((row) => row.companyId === ACCOUNT_A)).toBe(true);
+      expect(scoped[table].every((row) => row.companyId === COMPANY_A)).toBe(true);
     }
   });
 
   it('returns one stable empty projection without an active account', () => {
-    const data = twoAccountData();
+    const data = twoCompanyData();
 
     const first = resolveSharedScopedData(data, null);
     const second = resolveSharedScopedData({ ...data }, null);
@@ -161,47 +161,47 @@ describe('scoped data', () => {
   });
 
   it('memoises projections by source-data identity and account', () => {
-    const data = twoAccountData();
-    const a = resolveSharedScopedData(data, ACCOUNT_A);
-    const b = resolveSharedScopedData(data, ACCOUNT_B);
+    const data = twoCompanyData();
+    const a = resolveSharedScopedData(data, COMPANY_A);
+    const b = resolveSharedScopedData(data, COMPANY_B);
 
-    expect(resolveSharedScopedData(data, ACCOUNT_A)).toBe(a);
+    expect(resolveSharedScopedData(data, COMPANY_A)).toBe(a);
     expect(b).not.toBe(a);
-    expect(resolveSharedScopedData({ ...data, clients: [...data.clients] }, ACCOUNT_A)).not.toBe(a);
+    expect(resolveSharedScopedData({ ...data, clients: [...data.clients] }, COMPANY_A)).not.toBe(a);
   });
 });
 
 describe('scoped data hooks', () => {
   it('updates useScopedData on account changes without retaining the previous account rows', async () => {
-    const data = twoAccountData();
-    await act(async () => activateFixtureAccount(data, ACCOUNT_A));
+    const data = twoCompanyData();
+    await act(async () => activateFixtureCompany(data, COMPANY_A));
     const { result } = renderHook(() => useScopedData());
 
     expect(result.current.clients.map((client) => client.id)).toEqual(['c-a']);
 
     await act(async () => {
-      useStore.getState().setActiveCompany(ACCOUNT_B);
+      useStore.getState().setActiveCompany(COMPANY_B);
       expect(await useStore.getState().refreshPlanning({ fresh: true })).toBe(true);
     });
 
     expect(result.current.clients.map((client) => client.id)).toEqual(['c-b']);
     expect(result.current.clients).not.toContainEqual(
-      expect.objectContaining({ companyId: ACCOUNT_A }),
+      expect.objectContaining({ companyId: COMPANY_A }),
     );
   });
 
   it('projects archived and soft-deleted rows out of active data', async () => {
-    const data = twoAccountData();
+    const data = twoCompanyData();
     data.resources.push(
-      makeResource({ id: 'r-a-active', companyId: ACCOUNT_A, name: 'Diana Prince' }),
+      makeResource({ id: 'r-a-active', companyId: COMPANY_A, name: 'Diana Prince' }),
     );
     data.clients.push(
-      makeClient({ id: 'c-a-active', companyId: ACCOUNT_A, name: 'Queen Industries' }),
+      makeClient({ id: 'c-a-active', companyId: COMPANY_A, name: 'Queen Industries' }),
     );
     data.projects.push(
       makeProject({
         id: 'p-a-active',
-        companyId: ACCOUNT_A,
+        companyId: COMPANY_A,
         clientId: 'c-a-active',
         name: 'Themyscira Archive',
       }),
@@ -211,7 +211,7 @@ describe('scoped data hooks', () => {
       archivedAt: '2026-01-01T00:00:00.000Z',
     };
     data.clients[0] = { ...requireValue(data.clients[0]), deletedAt: '2026-01-02T00:00:00.000Z' };
-    await act(async () => activateFixtureAccount(data, ACCOUNT_A));
+    await act(async () => activateFixtureCompany(data, COMPANY_A));
     const { result } = renderHook(() => useActiveScopedData());
 
     expect(result.current.resources.map((resource) => resource.id)).toEqual(['r-a-active']);
@@ -220,7 +220,7 @@ describe('scoped data hooks', () => {
   });
 
   it('preserves the hook projection reference across unrelated store changes', async () => {
-    await act(async () => activateFixtureAccount(twoAccountData(), ACCOUNT_A));
+    await act(async () => activateFixtureCompany(twoCompanyData(), COMPANY_A));
     const { result } = renderHook(() => useScopedData());
     const before = result.current;
 

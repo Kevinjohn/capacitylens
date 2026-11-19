@@ -1,10 +1,10 @@
 import { beforeEach, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { resetStoreWithAccount, makeResource, DEFAULT_COMPANY_ID } from '@/test/fixtures';
+import { resetStoreWithCompany, makeResource, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { useResourceListModel } from './useResourceListModel';
-beforeEach(() => resetStoreWithAccount());
+beforeEach(() => resetStoreWithCompany());
 it('presents an unassigned person neutrally while preserving stored blue and discipline colours', () => {
   const person = makeResource({ id: 'bruce', color: '#2d75da', disciplineId: null });
   const assigned = { ...person, id: 'barbara', disciplineId: 'design' };

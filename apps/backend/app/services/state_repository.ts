@@ -68,7 +68,7 @@ export async function readStateWithClient(
     throw new Error('A company scope is required');
   }
   const [
-    accounts,
+    companies,
     clients,
     disciplines,
     projects,
@@ -99,7 +99,7 @@ export async function readStateWithClient(
     Closure.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
   ]);
   const data = {
-    accounts: serializeRows(accounts),
+    accounts: serializeRows(companies),
     clients: serializeRows(clients),
     disciplines: serializeRows(disciplines),
     projects: serializeRows(projects),

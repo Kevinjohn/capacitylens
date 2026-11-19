@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { AccountAccessRecovery } from './company/AccountAccessRecovery';
-import { AccountLoadRecovery } from './company/AccountLoadRecovery';
+import { CompanyAccessRecovery } from './company/CompanyAccessRecovery';
+import { CompanyLoadRecovery } from './company/CompanyLoadRecovery';
 import { RotateHint } from './RotateHint';
 import { m } from '@/i18n';
 
@@ -28,7 +28,7 @@ function FocusableStage({ children }: { children: ReactNode }) {
 interface AppEntryGateProps {
   hydrated: boolean;
   hasActiveCompany: boolean;
-  ambiguousAccountDirectory: boolean;
+  ambiguousCompanyDirectory: boolean;
   allowWithoutActiveCompany: boolean;
   activeCompanyId: string | null;
   activeCompanyLoadFailed: string | null;
@@ -41,7 +41,7 @@ interface AppEntryGateProps {
 export function AppEntryGate({
   hydrated,
   hasActiveCompany,
-  ambiguousAccountDirectory,
+  ambiguousCompanyDirectory,
   allowWithoutActiveCompany,
   activeCompanyId,
   activeCompanyLoadFailed,
@@ -54,15 +54,15 @@ export function AppEntryGate({
   if (activeCompanyLoadFailed !== null && activeCompanyLoadFailed === activeCompanyId) {
     return (
       <FocusableStage>
-        <AccountLoadRecovery accountName={activeCompanyName} onRetry={onRetryActiveCompanyLoad} />
+        <CompanyLoadRecovery companyName={activeCompanyName} onRetry={onRetryActiveCompanyLoad} />
       </FocusableStage>
     );
   }
 
-  if (ambiguousAccountDirectory || (!hasActiveCompany && !allowWithoutActiveCompany)) {
+  if (ambiguousCompanyDirectory || (!hasActiveCompany && !allowWithoutActiveCompany)) {
     return (
       <FocusableStage>
-        <AccountAccessRecovery />
+        <CompanyAccessRecovery />
         <RotateHint />
       </FocusableStage>
     );

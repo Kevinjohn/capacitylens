@@ -1,7 +1,7 @@
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it, vi } from 'vitest';
-import { makeAccount } from '@/test/fixtures';
+import { makeCompany } from '@/test/fixtures';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import { PlanningControllerError } from './planningErrors';
 import type { PlanningCacheState, PlanningTransport } from './planningCacheTypes';
@@ -44,7 +44,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
         canWrite: true,
         data: {
           ...createPlanningCacheState().data,
-          accounts: [makeAccount({ id: context.companyId })],
+          accounts: [makeCompany({ id: context.companyId })],
         },
         today: '2026-06-03',
         capacity: emptyCapacity(),

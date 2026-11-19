@@ -21,7 +21,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
       throw new Error('Refusing demo seed: memberships already exist');
     }
     const data = seedForCurrentWeek();
-    const company = data.accounts.find((account) => account.id === 'a-studio');
+    const company = data.accounts.find((row) => row.id === 'a-studio');
     if (!company) throw new Error('Disposable company fixture is missing');
     for (const [key, table] of Object.entries(tables)) {
       const rows =

@@ -3,10 +3,10 @@ import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { readPlanningProblem } from '@/data/planning/planningNotices';
 import { useStore } from '@/store/useStore';
 import {
-  makeAccount,
+  makeCompany,
   makeResourceDraft,
   replaceFixtureData,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   updatePlanningFixtureSource,
 } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
@@ -67,7 +67,7 @@ beforeEach(async () => {
   failure.execute = null;
   failure.holdNextRead = null;
   failure.onHeldRead = null;
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 
 afterEach(() => {
@@ -151,11 +151,11 @@ describe('planning ownership of allocations', () => {
   it('opens the planning context for a company as soon as it becomes active', async () => {
     const data = {
       ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
+      accounts: [...useStore.getState().data.accounts, makeCompany({ id: 'a2' })],
     };
     replaceFixtureData(data);
     useStore.getState().setCompanySummaries({
-      list: data.accounts.map((account) => ({ id: account.id, name: account.name, role: 'owner' })),
+      list: data.accounts.map((company) => ({ id: company.id, name: company.name, role: 'owner' })),
     });
 
     useStore.getState().setActiveCompany('a2');

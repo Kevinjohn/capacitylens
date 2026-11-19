@@ -301,7 +301,7 @@ describe('assertScopedRefs', () => {
   });
 
   it('rejects a project whose client id is ABSENT even though ANOTHER client belongs to the account', () => {
-    // The in-account check must match the referenced id, not merely "does any row belong here": with a
+    // The in-company check must match the referenced id, not merely "does any row belong here": with a
     // valid A1 client present but a dangling reference, the FK is still unsatisfied and must throw.
     const data = { ...base(), clients: [client('c1', A1)] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'ghost' })).toThrow(
@@ -333,8 +333,8 @@ describe('assertScopedRefs', () => {
   });
 
   it('rejects an activity whose phase id is ABSENT even though ANOTHER phase belongs to the account', () => {
-    // The phase lookup must match the referenced id, not "any account phase": a dangling phaseId must
-    // fail with the belong-to-company message even when a real phase exists in the account.
+    // The phase lookup must match the referenced id, not "any company phase": a dangling phaseId must
+    // fail with the belong-to-company message even when a real phase exists in the company.
     const data = {
       ...base(),
       clients: [client('c1', A1)],
@@ -541,11 +541,11 @@ describe('assertAllocationRefs', () => {
       'Allocation must reference an activity under an active project in this company.',
     );
 
-    const crossAccountProject = {
+    const crossCompanyProject = {
       ...world(),
       projects: [project('p1', A2, 'c1')],
     };
-    expect(() => assertAllocationRefs(crossAccountProject, A1, 'r1', 't1', 8)).toThrow(
+    expect(() => assertAllocationRefs(crossCompanyProject, A1, 'r1', 't1', 8)).toThrow(
       'Allocation must reference an activity under an active project in this company.',
     );
   });

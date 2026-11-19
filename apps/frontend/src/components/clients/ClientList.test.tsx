@@ -10,7 +10,7 @@ import {
   DEFAULT_COMPANY_ID,
   loadPlanningData,
   makeClient,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   requireValue,
 } from '@/test/fixtures';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -82,7 +82,7 @@ function markClientArchived(clientId: string) {
 afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   archiveRequest.mockReset();
   mockInactiveRead();
 });

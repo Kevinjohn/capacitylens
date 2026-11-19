@@ -4,7 +4,7 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
-import { loadPlanningData, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithCompany } from '@/test/fixtures';
 import { companyDocument } from '@/test/companyDocument';
 import { ImportExport } from './ImportExport';
 import { useServerImport } from './import-export/useServerImport';
@@ -95,7 +95,7 @@ beforeEach(async () => {
   refreshOverride.result = { kind: 'reloaded' };
   planningProbe.suspends = 0;
   planningProbe.releases = 0;
-  await resetStoreWithAccount(companyId);
+  await resetStoreWithCompany(companyId);
   loadPlanningData(seed());
   sessionStorage.clear();
   window.history.replaceState(null, '', '/settings');
@@ -333,9 +333,9 @@ describe('beta import and export', () => {
   it("ignores a cancelled file's late preview before confirming a newer selection", async () => {
     const first = document();
     const second = document();
-    const secondAccount = second.data.accounts[0];
-    if (!secondAccount) throw new Error('The second import fixture has no company.');
-    secondAccount.name = 'Wayne Enterprises replacement';
+    const secondCompany = second.data.accounts[0];
+    if (!secondCompany) throw new Error('The second import fixture has no company.');
+    secondCompany.name = 'Wayne Enterprises replacement';
     const previews: Array<(response: Response) => void> = [];
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     vi.stubGlobal(

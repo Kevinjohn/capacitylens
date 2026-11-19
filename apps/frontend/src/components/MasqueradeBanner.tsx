@@ -8,7 +8,7 @@ import {
   endMasquerade,
   reconcileMasqueradeStatus,
   retryMasqueradeProjection,
-} from '@/auth/accountTransition';
+} from '@/auth/companyTransition';
 
 const masqueradeButtonClassName =
   'border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white';

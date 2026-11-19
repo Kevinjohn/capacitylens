@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { resetStoreWithAccount, jsonResponse } from '@/test/fixtures';
+import { resetStoreWithCompany, jsonResponse } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import {
@@ -23,17 +23,17 @@ interface RoleFailureCaseInput {
   reconciles: boolean;
 }
 
-const accountTransitionMocks = vi.hoisted(() => ({
+const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock('@/auth/accountTransition', () => ({
-  startMasquerade: accountTransitionMocks.startMasquerade,
+vi.mock('@/auth/companyTransition', () => ({
+  startMasquerade: companyTransitionMocks.startMasquerade,
 }));
 
 beforeEach(async () => {
-  accountTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithAccount();
+  companyTransitionMocks.startMasquerade.mockClear();
+  await resetStoreWithCompany();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -67,12 +67,12 @@ describe('MembersSection — mutation failure reconciliation', () => {
   });
 
   it('does not publish a role result after the active account switches mid-request', async () => {
-    const nextAccountId = 'acc_second';
+    const nextCompanyId = 'acc_second';
     vi.stubGlobal(
       'fetch',
       mockApi(ownerAndEditor, {
         'PATCH /members/ed': () => {
-          useStore.setState({ activeCompanyId: nextAccountId });
+          useStore.setState({ activeCompanyId: nextCompanyId });
           return new Response(null, { status: 204 });
         },
       }),
@@ -81,11 +81,11 @@ describe('MembersSection — mutation failure reconciliation', () => {
 
     await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
 
-    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextAccountId));
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextCompanyId));
     expect(useStore.getState().notice).toBeNull();
   });
   it('does not publish an unknown reconcile whose member reread switches accounts', async () => {
-    const nextAccountId = 'acc_second';
+    const nextCompanyId = 'acc_second';
     let mutationSent = false;
     vi.stubGlobal(
       'fetch',
@@ -95,7 +95,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
           return jsonResponse({}, 503);
         },
         'GET /members': () => {
-          if (mutationSent) useStore.setState({ activeCompanyId: nextAccountId });
+          if (mutationSent) useStore.setState({ activeCompanyId: nextCompanyId });
           return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
         },
       }),
@@ -104,7 +104,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
 
     await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
 
-    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextAccountId));
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextCompanyId));
     expect(useStore.getState().notice).toBeNull();
   });
   it.each([

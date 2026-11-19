@@ -4,7 +4,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import {
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   DEFAULT_COMPANY_ID,
   jsonResponse,
   makeResourceDraft,
@@ -26,17 +26,17 @@ import {
 } from './MembersSection.testSupport';
 import type { RawMember } from './MembersSection.testSupport';
 
-const accountTransitionMocks = vi.hoisted(() => ({
+const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock('@/auth/accountTransition', () => ({
-  startMasquerade: accountTransitionMocks.startMasquerade,
+vi.mock('@/auth/companyTransition', () => ({
+  startMasquerade: companyTransitionMocks.startMasquerade,
 }));
 
 beforeEach(async () => {
-  accountTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithAccount();
+  companyTransitionMocks.startMasquerade.mockClear();
+  await resetStoreWithCompany();
 });
 afterEach(() => {
   vi.useRealTimers();

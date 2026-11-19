@@ -1,17 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen, act, waitFor, within } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
-import { loadPlanningData, makeAppData, makeAccount } from '@/test/fixtures';
+import { loadPlanningData, makeAppData, makeCompany } from '@/test/fixtures';
 import { m } from '@/i18n';
 import { setUpAppShellTests, renderAppShell } from './AppShell.testSupport';
 
-const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
+const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
-  syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
+  syncLocaleFromCompany: i18nMocks.syncLocaleFromCompany,
 }));
 
-setUpAppShellTests(i18nMocks.syncLocaleFromAccount);
+setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
 describe('AppShell navigation links', () => {
   it('places the focused skip link on its dedicated accessibility layer', () => {
@@ -46,7 +46,7 @@ describe('AppShell navigation links', () => {
 
     secondLocale = true;
     act(() => {
-      useStore.setState({ data: makeAppData({ accounts: [makeAccount({ language: 'fr' })] }) });
+      useStore.setState({ data: makeAppData({ accounts: [makeCompany({ language: 'fr' })] }) });
     });
 
     await waitFor(() =>
@@ -55,27 +55,27 @@ describe('AppShell navigation links', () => {
     expect(document.title).toBe('Ressources · CapacityLens');
   });
   it("preserves the last locale while a selected company's slice is still loading", async () => {
-    const currentAccount = makeAccount({ language: 'en' });
-    const destinationAccount = makeAccount({ id: 'acct-other', name: 'Other Co' });
+    const currentAccount = makeCompany({ language: 'en' });
+    const destinationCompany = makeCompany({ id: 'acct-other', name: 'Other Co' });
     loadPlanningData(makeAppData({ accounts: [currentAccount] }));
     renderAppShell({});
-    await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith('en'));
-    i18nMocks.syncLocaleFromAccount.mockClear();
+    await waitFor(() => expect(i18nMocks.syncLocaleFromCompany).toHaveBeenCalledWith('en'));
+    i18nMocks.syncLocaleFromCompany.mockClear();
 
     // Model the ordinary server switch gap directly: the directory authorizes the destination,
     // activeCompanyId changes, and the old slice remains until the destination load resolves.
     act(() => {
       useStore.setState({
-        activeCompanyId: destinationAccount.id,
+        activeCompanyId: destinationCompany.id,
         companySummaries: [
-          { id: destinationAccount.id, name: destinationAccount.name, role: 'owner' },
+          { id: destinationCompany.id, name: destinationCompany.name, role: 'owner' },
         ],
       });
     });
-    expect(i18nMocks.syncLocaleFromAccount).not.toHaveBeenCalled();
+    expect(i18nMocks.syncLocaleFromCompany).not.toHaveBeenCalled();
 
-    act(() => useStore.setState({ data: makeAppData({ accounts: [destinationAccount] }) }));
-    await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith(undefined));
+    act(() => useStore.setState({ data: makeAppData({ accounts: [destinationCompany] }) }));
+    await waitFor(() => expect(i18nMocks.syncLocaleFromCompany).toHaveBeenCalledWith(undefined));
   });
   it('renders all expected nav links', () => {
     renderAppShell({});

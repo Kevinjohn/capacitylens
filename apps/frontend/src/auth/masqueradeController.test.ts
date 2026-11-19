@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { loadPlanningData, makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { FlushPendingWritesResult } from './masqueradeController';
 import { state, inactiveStatus, deferred, harness } from './masqueradeController.testSupport';
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().setMasquerade({ kind: 'inactive' });
   useStore.getState().setNotice(null);
 });
@@ -39,7 +39,7 @@ describe('MasqueradeController', () => {
 
   it('publishes the company name from the loaded account projection, not the member name', async () => {
     loadPlanningData(
-      makeAppData({ accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
+      makeAppData({ accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
     );
     useStore.getState().setActiveCompany('a-studio');
     await useStore.getState().refreshPlanning();
@@ -102,7 +102,7 @@ describe('MasqueradeController transitions', () => {
     const { controller, dependencies, resume } = harness({ flush: vi.fn(() => flush.promise) });
 
     const starting = controller.start(state.companyId, state.targetUserId);
-    await expect(controller.transitionAccount('a-loft')).resolves.toBe(true);
+    await expect(controller.transitionCompany('a-loft')).resolves.toBe(true);
     flush.resolve({ kind: 'clean' });
 
     await expect(starting).resolves.toBe(false);
@@ -151,13 +151,13 @@ describe('MasqueradeController transitions', () => {
     const starting = controller.start(state.companyId, state.targetUserId);
     await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe('starting'));
 
-    await expect(controller.transitionAccount('a-loft')).resolves.toBe(false);
+    await expect(controller.transitionCompany('a-loft')).resolves.toBe(false);
     expect(useStore.getState().notice).toMatchObject({
       message: 'Wait for the current masquerade transition to finish.',
       tone: 'error',
     });
     expect(dependencies.api.end).not.toHaveBeenCalled();
-    expect(dependencies.switchAccount).not.toHaveBeenCalled();
+    expect(dependencies.switchCompany).not.toHaveBeenCalled();
 
     resolveStart(state);
     await expect(starting).resolves.toBe(true);

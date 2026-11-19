@@ -215,7 +215,7 @@ describe('SchedulerGrid', () => {
   });
 
   it('marks a zero-load block on time off and includes it in the non-colour row summary', async () => {
-    await useStore.getState().updateAccount(ACC, { schedulingMode: 'blocks' });
+    await useStore.getState().updateCompany(ACC, { schedulingMode: 'blocks' });
     await useStore.getState().addTimeOff({
       resourceId: 'r1',
       startDate: '2026-06-01',
@@ -236,7 +236,7 @@ describe('SchedulerGrid', () => {
 
 describe('SchedulerGrid', () => {
   it('renders each closure once across tracked rows, alongside personal time off, and stops before External', async () => {
-    await useStore.getState().updateAccount(ACC, { externalEnabled: true });
+    await useStore.getState().updateCompany(ACC, { externalEnabled: true });
     await resetStoreWithData(
       {
         ...useStore.getState().data,
@@ -352,7 +352,7 @@ describe('SchedulerGrid', () => {
   });
 
   it('expands the collapsed External band before scrolling to its resource', async () => {
-    await useStore.getState().updateAccount(ACC, { externalEnabled: true });
+    await useStore.getState().updateCompany(ACC, { externalEnabled: true });
     useStore.getState().toggleGroup('external');
     renderGrid();
     const grid = screen.getByTestId('scheduler-grid');

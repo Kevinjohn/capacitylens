@@ -14,7 +14,7 @@ import { useStore } from '@/store/useStore';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import {
   makeAppData,
-  makeAccount,
+  makeCompany,
   makeClient,
   makeProject,
   makeActivity,
@@ -90,7 +90,7 @@ beforeEach(async () => {
     vi.fn(async () => Response.json({ avatars: [] })),
   );
   const data = makeAppData({
-    accounts: [makeAccount({ externalEnabled: true })],
+    accounts: [makeCompany({ externalEnabled: true })],
     clients: [makeClient({ companyId, name: 'Wayne Enterprises', color: '#2d75da' })],
     projects: [makeProject({ companyId, name: 'Gotham', color: '#da2d92' })],
     activities: [makeActivity({ companyId, name: 'Design' })],
