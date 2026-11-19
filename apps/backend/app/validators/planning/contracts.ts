@@ -30,6 +30,8 @@ export interface PlanningMutationSuccess {
     | { consumedGroupId: null; replacementGroupId: string }
     | { consumedGroupId: string; replacementGroupId: null }
     | { consumedGroupId: null; replacementGroupId: null };
+  /** Rows this commit changed, as the writer may see them. Apply only on top of `revision - 1`. */
+  changes: { upserts: ProjectedPlanningRow[]; removed: Array<{ entity: AppDataKey; id: string }> };
   /** The sending page's history after this commit; both false when it named no history. */
   history?: PlanningHistoryState;
   /** Active descendants this archive hid, measured from the committed before-state. */

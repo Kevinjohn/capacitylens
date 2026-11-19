@@ -57,6 +57,7 @@ describe('named lifecycle actions', () => {
         mutationId: 'm-archive',
         revision: 1,
         restoration: { consumedGroupId: null, replacementGroupId: null },
+        changes: { upserts: [], removed: [] },
         archived: { projects: 1, phases: 1, activities: 1, allocations: 2, timeOff: 0 },
       };
     });

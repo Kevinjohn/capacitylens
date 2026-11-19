@@ -311,6 +311,7 @@ async function commit({
     mutationId: input.mutationId,
     revision,
     restoration,
+    changes: changed,
     history,
     ...(archived ? { archived } : {}),
     ...buildSaveAdvisory(intent, activeOnly(working), companyId),

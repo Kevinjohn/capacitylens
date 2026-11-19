@@ -26,6 +26,8 @@ export function queuePlanningPatch(
           : replacementGroupId !== null
             ? { consumedGroupId: null, replacementGroupId }
             : { consumedGroupId: null, replacementGroupId: null },
+      // The stub replaces these with the rows the write changed.
+      changes: { upserts: [], removed: [] },
       ...advisory,
     }),
     undefined,

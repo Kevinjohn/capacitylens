@@ -96,6 +96,7 @@ describe('store CRUD covers every entity', () => {
       mutationId: execution.mutationId,
       revision: execution.baseRevision + 1,
       restoration: { consumedGroupId: null, replacementGroupId: null },
+      changes: { upserts: [], removed: [] },
       archived,
     }));
 

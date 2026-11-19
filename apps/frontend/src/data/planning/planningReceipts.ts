@@ -73,6 +73,9 @@ export function isValidReceipt(
     Number.isSafeInteger(receipt.revision) &&
     typeof receipt.revision === 'number' &&
     receipt.revision === execution.baseRevision + 1 &&
-    validRestoration
+    validRestoration &&
+    isRecord(receipt.changes) &&
+    Array.isArray(receipt.changes.upserts) &&
+    Array.isArray(receipt.changes.removed)
   );
 }

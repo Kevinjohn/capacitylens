@@ -5,7 +5,6 @@ import {
   DEFAULT_COMPANY_ID,
   makeAppData,
   makeResource,
-  requireFullSnapshot,
   requireValue,
   resetStoreWithCompany,
   resetStoreWithData,
@@ -22,7 +21,7 @@ afterEach(() => {
 });
 
 describe('typed undo restores cascade bindings', () => {
-  it('uses the row timestamp read after undo for the next edit', async () => {
+  it('uses the row timestamp the server returns for an undo in the next edit', async () => {
     const original = {
       ...NULLABLE_FIELDS.clients,
       ...meta,
@@ -38,12 +37,15 @@ describe('typed undo restores cascade bindings', () => {
     expect(useStore.getState().data.clients[0]?.updatedAt).toBe(saved.updatedAt);
 
     const transport = getPlanningTransportHandle();
-    const read = transport.read;
-    vi.spyOn(transport, 'read').mockImplementationOnce(async (...args) => {
-      const snapshot = requireFullSnapshot(await read(...args));
+    const undo = transport.undo;
+    vi.spyOn(transport, 'undo').mockImplementationOnce(async (...args) => {
+      const receipt = await undo(...args);
       return {
-        ...snapshot,
-        data: { ...snapshot.data, clients: [{ ...original, updatedAt: restoredAt }] },
+        ...receipt,
+        changes: {
+          upserts: [{ entity: 'clients', row: { ...original, updatedAt: restoredAt } }],
+          removed: [],
+        },
       };
     });
     await expect(useStore.getState().undoPlanning()).resolves.toBe(true);

@@ -54,6 +54,7 @@ export function receipt(
     mutationId,
     revision,
     restoration: { consumedGroupId: null, replacementGroupId: null },
+    changes: { upserts: [], removed: [] },
     ...overrides,
   };
 }

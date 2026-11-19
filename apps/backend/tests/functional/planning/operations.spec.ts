@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
-import type { AppData } from '@capacitylens/shared/types/entities';
+import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
 import { readState } from '#tests/helpers/state_fixture';
 import {
   companyId,
@@ -370,6 +370,107 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(state.clients.find((row) => row.id === clientId)?.name, 'Bruce Wayne');
     assert.equal(state.clients.find((row) => row.id === clientId)?.codeName, 'Boardroom');
     assert.equal(state.timeOff.find((row) => row.id === timeOffId)?.note, 'Private note');
+  });
+
+  test("a receipt's changes turn the read before the write into the read after it", async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(companyId, true);
+    const { cookie } = await signIn(client);
+    type Read = { revision: number; data: AppData };
+    type Changes = {
+      upserts: Array<{ entity: AppDataKey; row: { id: string } }>;
+      removed: Array<{ entity: AppDataKey; id: string }>;
+    };
+    const read = async () => {
+      const response = await session(client.get(planningUrl), cookie).send();
+      return response.body() as Read;
+    };
+    // Row order is not part of the read, so both sides are compared by id.
+    const byId = (rows: AppData) =>
+      Object.fromEntries(
+        APP_DATA_KEYS.map((entity) => [
+          entity,
+          [...(rows[entity] as Array<{ id: string }>)].sort((a, b) => a.id.localeCompare(b.id)),
+        ])
+      );
+    const apply = (rows: AppData, changes: Changes) => {
+      const next = structuredClone(rows) as unknown as Record<AppDataKey, Array<{ id: string }>>;
+      for (const { entity, id } of changes.removed) {
+        next[entity] = next[entity].filter((row) => row.id !== id);
+      }
+      for (const { entity, row } of changes.upserts) {
+        next[entity] = [...next[entity].filter((existing) => existing.id !== row.id), row];
+      }
+      return next as unknown as AppData;
+    };
+    const allocation = newAllocation(data);
+    const groupIds = [randomUUID(), randomUUID()];
+    const writes: Array<
+      [string, (revision: number) => Promise<{ body(): unknown; status(): number }>]
+    > = [
+      [
+        'create',
+        (revision) =>
+          session(client.post(route('planning/mutations')), cookie)
+            .json(input(revision, { operation: 'allocation.create', allocation }))
+            .send(),
+      ],
+      [
+        'update',
+        (revision) =>
+          session(client.post(route('planning/mutations')), cookie)
+            .json(
+              input(revision, {
+                operation: 'allocation.update',
+                id: allocation.id,
+                changes: { hoursPerDay: 3 },
+              })
+            )
+            .send(),
+      ],
+      [
+        'delete',
+        (revision) =>
+          session(client.post(route('planning/mutations')), cookie)
+            .json(input(revision, { operation: 'allocation.delete', id: allocation.id }))
+            .send(),
+      ],
+      [
+        'group create',
+        (revision) =>
+          session(client.post(route('planning/mutations')), cookie)
+            .json(
+              input(revision, {
+                operation: 'allocation.createGroup',
+                allocation: { ...allocation, id: groupIds[0] },
+                repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-09' },
+                occurrenceIds: groupIds.slice(1),
+              })
+            )
+            .send(),
+      ],
+      [
+        'group delete',
+        (revision) =>
+          session(client.post(route('planning/mutations')), cookie)
+            .json(input(revision, { operation: 'allocation.deleteGroup', ids: groupIds }))
+            .send(),
+      ],
+    ];
+    for (const [name, write] of writes) {
+      const before = await read();
+      const reply = await write(before.revision);
+      assert.equal(reply.status(), 200, name);
+      const { changes, revision } = reply.body() as { changes: Changes; revision: number };
+      assert.isNotEmpty([...changes.upserts, ...changes.removed], name);
+      const after = await read();
+      assert.equal(after.revision, revision, name);
+      assert.deepEqual(byId(apply(before.data, changes)), byId(after.data), name);
+    }
   });
 
   test('a repeated allocation commits its pattern as one series that deletes and restores as a group', async ({

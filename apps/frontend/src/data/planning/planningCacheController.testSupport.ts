@@ -29,6 +29,7 @@ export const success = (mutationId: string, revision: number): PlanningMutationS
   mutationId,
   revision,
   restoration: { consumedGroupId: null, replacementGroupId: null },
+  changes: { upserts: [], removed: [] },
 });
 
 /**

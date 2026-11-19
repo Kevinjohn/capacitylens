@@ -157,9 +157,6 @@ type Exposure =
     }
   | { none: string };
 
-/** A committed write replies with its revision and restoration handles only, never rows. */
-const WRITE_REPLY: string[] = [];
-
 const replies: Record<string, Exposure> = {
   'api.planning.show': {
     write: false,
@@ -204,7 +201,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.mutate#catalogue.update clients': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_CLIENT],
     call: async (fixture) =>
       send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
         operation: 'catalogue.update',
@@ -217,7 +214,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.mutate#catalogue.unarchive clients': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_CLIENT],
     call: async (fixture) => {
       const entity = { entity: 'clients', id: fixture.clientId };
       await archiveAsOwner(fixture, {
@@ -232,7 +229,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.mutate#catalogue.update projects': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_PROJECT],
     call: async (fixture) =>
       send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
         operation: 'catalogue.update',
@@ -245,7 +242,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.mutate#catalogue.unarchive projects': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_PROJECT],
     call: async (fixture) => {
       const entity = { entity: 'projects', id: fixture.projectId };
       await archiveAsOwner(fixture, {
@@ -260,7 +257,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.mutate#timeOff.update': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_NOTE],
     call: async (fixture) => {
       const row = await db.from('time_off').where('id', fixture.timeOffId).first();
       const type = row?.type === 'holiday' ? 'sick' : 'holiday';
@@ -273,7 +270,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.mutate#resource.unarchive': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [],
     call: async (fixture) => {
       await archiveAsOwner(fixture, {
         operation: 'resource.archive',
@@ -287,7 +284,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.mutate#planning.restoreGroup': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_NOTE],
     call: async (fixture) => {
       const deleted = await send(
         fixture.client.post(buildCompanyRoute('planning/mutations')),
@@ -311,7 +308,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.undo': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_CLIENT],
     call: async (fixture) => {
       const historyId = randomUUID();
       await recolourClient(fixture, historyId);
@@ -320,7 +317,7 @@ const replies: Record<string, Exposure> = {
   },
   'api.planning.redo': {
     write: true,
-    carries: WRITE_REPLY,
+    carries: [MARKER_CLIENT],
     call: async (fixture) => {
       const historyId = randomUUID();
       await recolourClient(fixture, historyId);
@@ -517,17 +514,6 @@ test.group('restricted values in replies', (group) => {
         if (name === 'api.export' && reply.status() === 200) {
           const { completeness } = JSON.parse(text) as { completeness: string };
           assert.equal(completeness, principal.effective === 'owner' ? 'full' : 'redacted', where);
-        }
-        // A committed write carries no rows, so no marker appears even for a reader who may see it.
-        if (exposure.write && reply.status() === 200) {
-          for (const marker of [
-            MARKER_CLIENT,
-            MARKER_ARCHIVED_CLIENT,
-            MARKER_PROJECT,
-            MARKER_NOTE,
-          ]) {
-            assert.notInclude(text, marker, where);
-          }
         }
       }
       if (viewToken) {
