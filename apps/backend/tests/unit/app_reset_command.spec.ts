@@ -64,22 +64,6 @@ test('app reset archives all account and credential state and initializes a sepa
       assert.equal(tableCount(fresh, table), 0, table);
     assert.deepEqual(fresh.prepare('SELECT name FROM adonis_schema ORDER BY id').all(), [
       { name: 'database/migrations/202610120001_create_capacitylens_baseline' },
-      { name: 'database/migrations/202610270001_planning_soft_delete_ownership' },
-      { name: 'database/migrations/202610270001_replace_legacy_masquerades_with_package' },
-      {
-        name: 'database/migrations/202611090001_replace_command_results_with_request_receipts',
-      },
-      {
-        name: 'database/migrations/202611090002_replace_action_proofs_with_password_confirmations',
-      },
-      {
-        name: 'database/migrations/202611110001_unbind_password_confirmation_scope_from_companies',
-      },
-      {
-        name: 'database/migrations/202611120001_rename_ignore_weekends_to_ignore_working_days',
-      },
-      { name: 'database/migrations/202611120002_drop_ownership_transfers' },
-      { name: 'database/migrations/202611180001_create_planning_histories' },
     ]);
     fresh.close();
   } finally {

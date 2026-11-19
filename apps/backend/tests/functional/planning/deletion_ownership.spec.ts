@@ -1,29 +1,13 @@
 import { randomUUID } from 'node:crypto';
-import { createRequire } from 'node:module';
 import { test } from '@japa/runner';
-import app from '@adonisjs/core/services/app';
 import db from '@adonisjs/lucid/services/db';
-import env from '#start/env';
-import { seed } from '@capacitylens/shared/data/seed';
-import { encodeRow } from '#services/state_repository';
 import Allocation from '#models/allocation';
-import Client from '#models/client';
 import Closure from '#models/closure';
 import Discipline from '#models/discipline';
 import Phase from '#models/phase';
 import TimeOff from '#models/time_off';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { fixtureSession } from '../../helpers/identities.js';
-
-type NativeConnection = {
-  pragma(sql: string): unknown;
-  prepare(sql: string): { run(...values: string[]): unknown };
-  close(): void;
-};
-const NativeDatabase = createRequire(import.meta.url)('better-sqlite3') as new (
-  path: string
-) => NativeConnection;
-import CreateBaseline from '../../../database/migrations/202610120001_create_capacitylens_baseline.js';
 import { resetPlanningFixture } from './helpers.js';
 
 const models = {
@@ -179,157 +163,5 @@ test.group('planning deletion ownership', (suite) => {
     assert.isNull(
       (await db.from('allocations').where('id', rows[1]!.id).first())!.deletion_group_id
     );
-  });
-
-  test('populated baseline schema migration preserves rows and links and rolls back a failed apply', async ({
-    assert,
-  }) => {
-    const ace = await app.container.make('ace');
-    const wipe = await ace.exec('db:wipe', ['--force']);
-    if (wipe.exitCode) throw wipe.error ?? new Error('Database wipe failed');
-    try {
-      await new CreateBaseline(db.connection(), 'populated-upgrade-proof').execUp();
-      await db.connection().schema.createTable('adonis_schema', (table) => {
-        table.increments('id');
-        table.string('name').notNullable();
-        table.integer('batch').notNullable();
-        table.timestamp('migration_time');
-      });
-      await db.connection().schema.createTable('adonis_schema_versions', (table) => {
-        table.integer('version').primary();
-      });
-      await db.table('adonis_schema').insert({
-        name: 'database/migrations/202610120001_create_capacitylens_baseline',
-        batch: 1,
-      });
-      await db.table('adonis_schema_versions').insert({ version: 2 });
-      const data = seed();
-      const mappings = {
-        accounts: 'accounts',
-        clients: 'clients',
-        disciplines: 'disciplines',
-        projects: 'projects',
-        phases: 'phases',
-        resources: 'resources',
-        activities: 'activities',
-        allocations: 'allocations',
-        timeOff: 'time_off',
-        closures: 'closures',
-      } as const;
-      for (const [key, table] of Object.entries(mappings)) {
-        const columns = new Set(
-          ((await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>).map(
-            (column) => column.name
-          )
-        );
-        const rows = data[key as keyof typeof mappings];
-        if (rows.length)
-          await db.table(table).multiInsert(
-            rows.map((row) =>
-              Object.fromEntries(
-                Object.entries(encodeRow(table, row as unknown as Record<string, unknown>))
-                  // The baseline predates the rename, so the value starts under the old name.
-                  .map(([name, value]) => [
-                    name === 'ignore_working_days' ? 'ignore_weekends' : name,
-                    value,
-                  ])
-                  .filter(([name]) => columns.has(name as string))
-              )
-            )
-          );
-      }
-      const before = Object.fromEntries(
-        await Promise.all(
-          Object.values(mappings).map(async (table) => [table, await db.from(table).orderBy('id')])
-        )
-      );
-      await db.rawQuery('CREATE INDEX time_off_deletion_group_id_index ON time_off(id)');
-      const schemaBefore = await db
-        .from('sqlite_master')
-        .whereNot('name', 'like', 'sqlite_%')
-        .select('type', 'name', 'sql')
-        .orderBy('name');
-      const groupsBefore = await db.from('deleted_groups').orderBy('group_id');
-      const rowsBefore = await db.from('deleted_rows').orderBy('id');
-      const migrationLedgerBefore = await db.from('adonis_schema').orderBy('id');
-      const dryRun = await ace.exec('migration:run', [
-        '--dry-run',
-        '--force',
-        '--no-schema-generate',
-      ]);
-      if (dryRun.exitCode) throw dryRun.error ?? new Error('Migration dry run failed');
-      assert.deepEqual(
-        await db
-          .from('sqlite_master')
-          .whereNot('name', 'like', 'sqlite_%')
-          .select('type', 'name', 'sql')
-          .orderBy('name'),
-        schemaBefore
-      );
-      for (const table of Object.values(mappings))
-        assert.deepEqual(await db.from(table).orderBy('id'), before[table]);
-      assert.deepEqual(await db.from('deleted_groups').orderBy('group_id'), groupsBefore);
-      assert.deepEqual(await db.from('deleted_rows').orderBy('id'), rowsBefore);
-      const failedApply = await ace.exec('migration:run', ['--force', '--no-schema-generate']);
-      assert.isAbove(failedApply.exitCode ?? 0, 0);
-      assert.deepEqual(
-        await db
-          .from('sqlite_master')
-          .whereNot('name', 'like', 'sqlite_%')
-          .select('type', 'name', 'sql')
-          .orderBy('name'),
-        schemaBefore
-      );
-      for (const table of Object.values(mappings))
-        assert.deepEqual(await db.from(table).orderBy('id'), before[table]);
-      assert.deepEqual(await db.from('deleted_groups').orderBy('group_id'), groupsBefore);
-      assert.deepEqual(await db.from('deleted_rows').orderBy('id'), rowsBefore);
-      assert.deepEqual(await db.from('adonis_schema').orderBy('id'), migrationLedgerBefore);
-      await db.rawQuery('DROP INDEX time_off_deletion_group_id_index');
-      const applied = await ace.exec('migration:run', ['--force', '--no-schema-generate']);
-      if (applied.exitCode) throw applied.error ?? new Error('Migration apply failed');
-      for (const table of Object.values(mappings)) {
-        const actualRows = await db.from(table).orderBy('id');
-        const after = actualRows.map((row) => {
-          if (!['allocations', 'time_off', 'closures', 'phases', 'disciplines'].includes(table))
-            return row;
-          const original = { ...row };
-          if (table === 'allocations') {
-            // The upgrade renames the column; the value must survive under the new name.
-            original.ignore_weekends = original.ignore_working_days;
-            delete original.ignore_working_days;
-          }
-          delete original.deleted_at;
-          delete original.deletion_group_id;
-          return original;
-        });
-        assert.deepEqual(after, before[table], `${table} changed during schema migration`);
-      }
-      const native = new NativeDatabase(env.get('CAPACITYLENS_DB')!);
-      try {
-        native.pragma('foreign_keys = ON');
-        const project = data.projects.find((row) => row.companyId === 'a-loft')!;
-        native.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
-      } finally {
-        native.close();
-      }
-      const client = data.clients.find(
-        (row) =>
-          row.companyId === 'a-studio' &&
-          data.projects.some((project) => project.clientId === row.id)
-      )!;
-      await db
-        .from('clients')
-        .where('id', client.id)
-        .update({ deleted_at: new Date().toISOString() });
-      const purged = await Client.query()
-        .onlyTrashed()
-        .withScopes((scopes) => scopes.forCompany('a-studio'))
-        .where('id', client.id)
-        .forceDelete();
-      assert.equal(purged, 1);
-    } finally {
-      await freshDatabase();
-    }
   });
 });

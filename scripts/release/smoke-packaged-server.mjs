@@ -21,10 +21,8 @@ import {
 import { RESOURCE_NAME, writeSmokeSchedule } from '../../tooling/smokeSchedule.mjs';
 
 const MEMBER_VIEW_DURATION_MS = 15 * 60_000;
-// The baseline is followed by planning deletion ownership, the member-view control migration,
-// transactional receipts, the password confirmation cutover and the company-scope removal from
-// password confirmations.
-const MIGRATION_COUNT = 9;
+// The number of migration files.
+const MIGRATION_COUNT = 1;
 
 function inspectDatabase(path, expectedResourceName) {
   const database = new DatabaseSync(path, { readOnly: true });
