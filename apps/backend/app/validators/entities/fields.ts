@@ -12,9 +12,13 @@ import {
   unicodeCharacterCount,
 } from '@capacitylens/shared/lib/strings';
 import {
+  ALLOCATION_STATUSES,
   CAPACITY_OVERVIEW_ACCESS_VALUES,
   DATE_STYLES,
+  EMPLOYMENT_TYPES,
+  RESOURCE_ENGAGEMENTS,
   SCHEDULING_MODES,
+  TIME_OFF_TYPES,
 } from '@capacitylens/shared/types/entities';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
@@ -39,10 +43,10 @@ const choices: Record<string, readonly unknown[]> = {
   capacityOverviewAccess: CAPACITY_OVERVIEW_ACCESS_VALUES,
   dateStyle: DATE_STYLES,
   language: ['en'],
-  employmentType: ['permanent', 'freelancer', 'contractor'],
-  engagement: ['studio', 'supplementary'],
-  status: ['confirmed', 'tentative', 'completed'],
-  type: ['holiday', 'sick', 'unpaid', 'other'],
+  employmentType: EMPLOYMENT_TYPES,
+  engagement: RESOURCE_ENGAGEMENTS,
+  status: ALLOCATION_STATUSES,
+  type: TIME_OFF_TYPES,
 };
 
 const strictField = vine.createRule<{

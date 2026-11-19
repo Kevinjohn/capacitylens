@@ -1,3 +1,5 @@
+import type { ResourceEngagement } from '@capacitylens/shared/types/entities';
+
 interface CompareDisplayNamesInput {
   leftName: string;
   leftId: string;
@@ -102,7 +104,7 @@ export function createFavouriteDisplayNameComparator<
 /** Studio before Supplementary, then favourites first and deterministic display-name order within
  * each engagement partition. Used by both Resources and the scheduler so the two views cannot drift. */
 export function createEngagementFavouriteDisplayNameComparator<
-  T extends Identified & { engagement: 'studio' | 'supplementary'; isFavourite?: boolean | null },
+  T extends Identified & { engagement: ResourceEngagement; isFavourite?: boolean | null },
 >(displayName: (item: T) => string) {
   const byFavouriteDisplayName = createFavouriteDisplayNameComparator(displayName);
   return (left: T, right: T): number =>

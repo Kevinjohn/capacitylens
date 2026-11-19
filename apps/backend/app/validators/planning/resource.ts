@@ -1,5 +1,9 @@
 import vine from '@vinejs/vine';
-import { RESOURCE_KINDS } from '@capacitylens/shared/types/entities';
+import {
+  EMPLOYMENT_TYPES,
+  RESOURCE_ENGAGEMENTS,
+  RESOURCE_KINDS,
+} from '@capacitylens/shared/types/entities';
 import {
   externalCapacityDefaults,
   placeholderCapacityDefaults,
@@ -34,8 +38,8 @@ const resourceFields = {
   role: userText(),
   avatarUrl: resourceAvatar(),
   disciplineId: nullableId(),
-  employmentType: vine.enum(['permanent', 'freelancer', 'contractor'] as const),
-  engagement: vine.enum(['studio', 'supplementary'] as const),
+  employmentType: vine.enum(EMPLOYMENT_TYPES),
+  engagement: vine.enum(RESOURCE_ENGAGEMENTS),
   workingHoursPerDay: number()
     .max(24)
     .use(
