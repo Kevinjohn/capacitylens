@@ -18,15 +18,9 @@ import {
   validateResourceAvailabilityPair,
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
-import type {
-  Activity,
-  Allocation,
-  AppData,
-  Resource,
-  ScopedEntityKey,
-  TimeOff,
-} from '@capacitylens/shared/types/entities';
+import type { AppData, Resource, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
+import { asRecord } from '#services/planning/writer';
 import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
 import {
   effectiveWorkingWeek,
@@ -34,15 +28,26 @@ import {
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 
+/** One prepared row of a table and the stored row it replaces, if any. */
+export type EntityWrite = {
+  [K in ScopedEntityKey]: {
+    table: K;
+    row: AppData[K][number];
+    existing: AppData[K][number] | undefined;
+  };
+}[ScopedEntityKey];
+
 /** Enforce relational and lifecycle rules against the transaction's evolving projection. */
 export function assertEntityDomain(
-  table: ScopedEntityKey,
-  row: Record<string, unknown>,
-  existing: Record<string, unknown> | undefined,
+  write: EntityWrite,
   state: AppData,
   lookup: ValidationDataLookup,
   hasOtherBuiltinClient: (companyId: string, clientId: string) => boolean
 ) {
+  const { table } = write;
+  // The checks shared by several tables read fields by name.
+  const row = asRecord(write.row);
+  const existing = write.existing && asRecord(write.existing);
   const id = row.id as string;
   const companyId = row.companyId as string;
   if (isLifecycleEntityKey(table)) {
@@ -112,11 +117,8 @@ export function assertEntityDomain(
       'activity_phase_project_mismatch'
     );
   }
-  if (table === 'resources') {
-    // The row is validated client input typed as a plain record, so it does not overlap the entity type.
-    const resource = row as unknown as Resource;
-    // The stored row comes from the same table, so it is a Resource.
-    const previous = existing as Resource | undefined;
+  if (write.table === 'resources') {
+    const { row: resource, existing: previous } = write;
     assertResourceProjectAllowsDependents({
       data: state,
       companyId,
@@ -143,20 +145,17 @@ export function assertEntityDomain(
           : 'Availability dates must be valid calendar dates (YYYY-MM-DD).'
       );
     }
-  } else if (table === 'activities') {
+  } else if (write.table === 'activities') {
     assertActivityProjectAllowsDependents({
       data: state,
       companyId,
       activityId: id,
-      // The row is validated client input typed as a plain record, so it does not overlap the entity type.
-      merged: row as unknown as Activity,
-      // The stored row comes from the same table, so it is an Activity.
-      existing: existing as Activity | undefined,
+      merged: write.row,
+      existing: write.existing,
       lookup,
     });
-  } else if (table === 'allocations') {
-    // The row is validated client input typed as a plain record, so it does not overlap the entity type.
-    const allocation = row as unknown as Allocation;
+  } else if (write.table === 'allocations') {
+    const allocation = write.row;
     assertAllocationRefs(
       state,
       companyId,
@@ -164,7 +163,7 @@ export function assertEntityDomain(
       allocation.activityId,
       allocation.hoursPerDay,
       allocation.projectId ?? undefined,
-      existing as Pick<Allocation, 'resourceId' | 'activityId' | 'projectId'> | undefined,
+      write.existing,
       lookup
     );
     assertDateRange(allocation.startDate, allocation.endDate);
@@ -172,25 +171,23 @@ export function assertEntityDomain(
     if (resource) {
       assertAllocationPlacement({
         allocation,
-        // The stored row comes from the same table, so it is an Allocation.
-        existing: existing as Allocation | undefined,
+        existing: write.existing,
         resource,
         companyWorkingDays: lookup.companyWorkingDays(companyId),
       });
     }
-  } else if (table === 'timeOff') {
-    // The row is validated client input typed as a plain record, so it does not overlap the entity type.
-    const timeOff = row as unknown as TimeOff;
+  } else if (write.table === 'timeOff') {
+    const timeOff = write.row;
     assertResourceExists({
       data: state,
       companyId,
       resourceId: timeOff.resourceId,
-      existing: existing as Pick<TimeOff, 'resourceId'> | undefined,
+      existing: write.existing,
       lookup,
     });
     assertDateRange(timeOff.startDate, timeOff.endDate);
-  } else if (table === 'closures') {
-    assertDateRange(row.startDate as string, row.endDate as string);
+  } else if (write.table === 'closures') {
+    assertDateRange(write.row.startDate, write.row.endDate);
   }
 }
 

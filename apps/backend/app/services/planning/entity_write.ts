@@ -13,17 +13,17 @@ import { assertAllocationStartsOnWorkingDay } from '#services/planning/entity_va
 import { PlanningOperationError } from '#services/planning/errors';
 import { isRetainedTable } from './retained_rows.js';
 import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
-import { listRows, writeRow, type WrittenRow } from './writer.js';
+import { asRecord, writeRow, type WrittenRow } from './writer.js';
 
-interface WriteEntityOptions {
+interface WriteEntityOptions<K extends ScopedEntityKey> {
   trx: TransactionClientContract;
   data: AppData;
   /** Receives one entry per row this write persists. */
   written: WrittenRow[];
   companyId: string;
-  table: ScopedEntityKey;
+  table: K;
   id: string;
-  fields: Record<string, unknown>;
+  fields: Partial<AppData[K][number]>;
   capabilities: PlanningCapabilities;
   mode: 'create' | 'update';
   identity: RestorationIdentity;
@@ -34,7 +34,10 @@ interface WriteEntityOptions {
 
 function lookupFor(data: AppData): ValidationDataLookup {
   return {
-    row: (table, id) => listRows(data, table).find((row) => row.id === id),
+    row: (table, id) => {
+      const rows: readonly { id: string }[] = data[table];
+      return rows.find((row) => row.id === id);
+    },
     allocationsForResource: (companyId, resourceId) =>
       data.allocations.filter(
         (row) => row.companyId === companyId && row.resourceId === resourceId
@@ -65,7 +68,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
  * Reusing a retained id requires the deleting actor's original native session; otherwise the
  * existing id-conflict refusal leaves the pending deletion intact. Identity is server-verified.
  */
-export async function writeEntity({
+export async function writeEntity<K extends ScopedEntityKey>({
   trx,
   data,
   written,
@@ -78,9 +81,10 @@ export async function writeEntity({
   identity,
   permissiveRepeatStart,
   expectedUpdatedAt,
-}: WriteEntityOptions) {
-  const existing = listRows(data, table).find((row) => row.id === id);
-  assertMayWriteRestrictedFields(table, fields, capabilities, mode);
+}: WriteEntityOptions<K>) {
+  const rows: readonly AppData[K][number][] = data[table];
+  const existing = rows.find((row) => row.id === id);
+  assertMayWriteRestrictedFields(table, asRecord(fields), capabilities, mode);
   if (mode === 'create' && existing) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
@@ -121,7 +125,12 @@ export async function writeEntity({
       ),
   });
   if (table === 'allocations' && !permissiveRepeatStart) {
-    assertAllocationStartsOnWorkingDay(clean, existing, lookup, companyId);
+    assertAllocationStartsOnWorkingDay(
+      asRecord(clean),
+      existing && asRecord(existing),
+      lookup,
+      companyId
+    );
   }
   if (mode === 'create' && isRetainedTable(table)) {
     await reclaimRetainedId(trx, companyId, table, id, identity);

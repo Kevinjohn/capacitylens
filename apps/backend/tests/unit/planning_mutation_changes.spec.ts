@@ -14,14 +14,15 @@ const write = (
   entity: AppDataKey,
   before: Record<string, unknown> | null,
   after: Record<string, unknown> | null
-): WrittenRow[] => [
-  {
-    entity,
-    id: 'row-1',
-    before: before && { id: 'row-1', ...before },
-    after: after && { id: 'row-1', ...after },
-  },
-];
+): WrittenRow[] =>
+  [
+    {
+      entity,
+      id: 'row-1',
+      before: before && { id: 'row-1', ...before },
+      after: after && { id: 'row-1', ...after },
+    },
+  ] as unknown as WrittenRow[];
 
 test.group('planning privacy trigger fields', () => {
   test('restoration ends only when a trigger field actually changes', ({ assert }) => {

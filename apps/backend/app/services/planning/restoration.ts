@@ -15,7 +15,7 @@ import { affectedRows } from '#services/affected_rows';
 import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
 import { tables } from '#services/product_tables';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { existingRow, listRows, type WrittenRow } from './writer.js';
+import { asRecord, existingRow, type WrittenRow } from './writer.js';
 import { PlanningOperationError } from './errors.js';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
@@ -107,11 +107,10 @@ export async function deleteRows(
       .where({ id: link.rowId, company_id: companyId, [column]: link.parentId })
       .update({ [column]: null });
     if (affectedRows(detached) !== 1) refuseRestorationConflict();
-    const field = link.entity === 'activities' ? 'phaseId' : 'disciplineId';
-    const child = listRows(data, link.entity).find((row) => row.id === link.rowId);
-    if (!child) refuseRestorationConflict();
+    const child = existingRow(data, link.entity, link.rowId);
     const before = { ...child };
-    child[field] = null;
+    if ('phaseId' in child) child.phaseId = null;
+    else child.disciplineId = null;
     written.push({ entity: link.entity, id: link.rowId, before, after: { ...child } });
   }
   for (let start = 0; start < ids.length; start += 500) {
@@ -130,7 +129,7 @@ export async function deleteRows(
   }
   // A deleted retained row is not part of the snapshot, so it leaves `data`.
   const deleted = new Set(ids);
-  const stored = listRows(data, table);
+  const stored: AppData[DeletableTable][number][] = data[table];
   for (const row of stored.filter((item) => deleted.has(item.id))) {
     written.push({ entity: table, id: row.id, before: { ...row }, after: null });
   }
@@ -197,7 +196,8 @@ export async function restoreGroup(
     .from('deleted_rows')
     .where({ group_id: groupId })
     .select('entity', 'row_id', 'payload_json');
-  const rows: Array<{ entity: DeletableTable; id: string; row: Record<string, unknown> }> = [];
+  const rows: Array<{ entity: DeletableTable; id: string; row: AppData[DeletableTable][number] }> =
+    [];
   const links: Array<{ entity: 'activities' | 'resources'; rowId: string; parentId: string }> = [];
   for (const item of saved) {
     const payload = JSON.parse(String(item.payload_json)) as SavedRow | SavedLink;
@@ -210,7 +210,12 @@ export async function restoreGroup(
         .where('deletion_group_id', groupId)
         .first();
       if (!stored) refuseRestorationConflict();
-      rows.push({ entity, id: String(item.row_id), row: stored.serialize() });
+      // A retained row serializes to the same fields the snapshot reads for its table.
+      rows.push({
+        entity,
+        id: String(item.row_id),
+        row: stored.serialize() as AppData[typeof entity][number],
+      });
     } else {
       links.push({
         entity: item.entity as 'activities' | 'resources',
@@ -229,8 +234,8 @@ export async function restoreGroup(
   for (const { entity, row } of rows) {
     assertRestorationCandidate(() => {
       if (entity === 'allocations') {
-        // Retained rows are read as plain records, so they do not overlap the entity type.
-        const allocation = row as unknown as Allocation;
+        // The entry's table is allocations, so its row is an allocation.
+        const allocation = row as Allocation;
         const activity = dependencies.activities.find((item) => item.id === allocation.activityId);
         if (activity) assertScopedRefs(dependencies, companyId, 'activities', { ...activity });
         assertAllocationRefs(
@@ -248,9 +253,15 @@ export async function restoreGroup(
         }
         assertAllocationPlacement({ allocation, resource, companyWorkingDays });
       }
-      if (entity === 'phases') assertScopedRefs(dependencies, companyId, 'phases', row);
+      if (entity === 'phases') {
+        assertScopedRefs(dependencies, companyId, 'phases', asRecord(row));
+      }
       if (entity === 'timeOff') {
-        assertResourceExists({ data: dependencies, companyId, resourceId: String(row.resourceId) });
+        assertResourceExists({
+          data: dependencies,
+          companyId,
+          resourceId: String(asRecord(row).resourceId),
+        });
       }
     });
   }
@@ -269,8 +280,9 @@ export async function restoreGroup(
       .whereNull('deletion_group_id')
       .restore();
     if (restored !== 1) refuseRestorationConflict();
-    listRows(data, entity).push({ ...row, id });
-    written.push({ entity, id, before: null, after: { ...row, id } });
+    const restoredRows: AppData[DeletableTable][number][] = data[entity];
+    restoredRows.push({ ...row });
+    written.push({ entity, id, before: null, after: { ...row } });
   }
   const current = await readStateWithClient(trx, companyId, true);
   for (const { entity, rowId, parentId } of links) {
@@ -280,8 +292,8 @@ export async function restoreGroup(
     const parent = current[entity === 'activities' ? 'phases' : 'disciplines'].find(
       (row) => row.id === parentId
     );
-    // The link field differs by table, and an entity interface has no index signature.
-    if (!child || !parent || (child as unknown as Record<string, unknown>)[field] !== null) {
+    const linked = child && ('phaseId' in child ? child.phaseId : child.disciplineId);
+    if (!child || !parent || linked !== null) {
       refuseRestorationConflict();
     }
     const candidate = { ...child, [field]: parentId };
@@ -294,8 +306,7 @@ export async function restoreGroup(
       .where({ id: rowId, company_id: companyId })
       .whereNull(column)
       .update({ [column]: parentId, updated_at: updatedAt });
-    const kept = listRows(data, entity).find((row) => row.id === rowId);
-    if (!kept) refuseRestorationConflict();
+    const kept = existingRow(data, entity, rowId);
     const before = { ...kept };
     Object.assign(kept, { [field]: parentId, updatedAt });
     written.push({ entity, id: rowId, before, after: { ...kept } });

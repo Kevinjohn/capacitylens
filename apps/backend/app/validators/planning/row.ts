@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import type { AppDataKey } from '@capacitylens/shared/types/entities';
+import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import { ENTITY_FIELDS, type FieldSpec } from '@capacitylens/shared/types/entityFields';
 import { findFieldProblem, type RowRuleContext } from '#validators/planning/fields';
 
@@ -19,7 +19,10 @@ const validators = new Map<string, ReturnType<typeof vine.compile>>();
  *
  * @throws Vine's validation error when a field is refused.
  */
-export async function validateRow(table: AppDataKey, row: Record<string, unknown>) {
+export async function validateRow<K extends AppDataKey>(
+  table: K,
+  row: Record<string, unknown>
+): Promise<AppData[K][number]> {
   // Only these row facts change a field rule, so one compiled schema serves each combination.
   const context: RowRuleContext = {
     externalResource: table === 'resources' && row.kind === 'external',
@@ -38,5 +41,7 @@ export async function validateRow(table: AppDataKey, row: Record<string, unknown
     validator = vine.compile(vine.object(properties));
     validators.set(cacheKey, validator);
   }
-  return validator.validate(row) as Promise<Record<string, unknown>>;
+  // The row was just validated against this table's field specs, which the compiler holds equal
+  // to the entity interface, so it is a row of this table.
+  return (await validator.validate(row)) as AppData[K][number];
 }
