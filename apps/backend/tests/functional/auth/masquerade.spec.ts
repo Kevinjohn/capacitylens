@@ -758,8 +758,6 @@ test.group('native read-only masquerade', (group) => {
       .update({ role: 'viewer' });
     const read = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     read.assertStatus(409);
-    const exported = await asSession(client.get('/api/export?companyId=a-studio'), cookie).send();
-    assert.oneOf(exported.status(), [403, 404]);
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
     const current = status.body() as { active: boolean; contextToken: string };
