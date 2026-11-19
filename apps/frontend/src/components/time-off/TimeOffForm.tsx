@@ -171,8 +171,8 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
   const { pending, submit } = useEditSubmit({
     editing: timeOff,
     rows: timeOffRows,
-    staleMessage: m.form_timeoff_err_changed,
-    failedMessage: m.form_timeoff_err_save_failed,
+    staleMessage: m.form_time_off_err_changed,
+    failedMessage: m.form_time_off_err_save_failed,
     cancelledMessage: resolveErrorMessage,
     fail,
     onSaved: onClose,
@@ -209,7 +209,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
 
   return (
     <Modal
-      title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
+      title={timeOff ? m.form_time_off_edit_title() : m.form_time_off_add_title()}
       onClose={onClose}
       onSubmit={() => {
         submit(prepareSave).catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
@@ -257,11 +257,11 @@ function TimeOffFields({
   return (
     <>
       <SelectField
-        label={m.form_timeoff_resource_label()}
+        label={m.form_time_off_resource_label()}
         value={resourceId}
         onChange={setResourceId}
         options={resourceOptions}
-        placeholder={m.form_timeoff_select_resource_placeholder()}
+        placeholder={m.form_time_off_select_resource_placeholder()}
         required
         invalid={errorField === 'resource'}
         describedById={errorId}
@@ -278,7 +278,7 @@ function TimeOffFields({
         disabled={pending}
       />
       <SelectField
-        label={m.form_timeoff_type_label()}
+        label={m.form_time_off_type_label()}
         value={type}
         onChange={(value) => setType(value as TimeOffType)}
         options={buildTimeOffTypeOptions()}
@@ -288,7 +288,7 @@ function TimeOffFields({
       {repeatFields}
       {canEditNote && (
         <TextField
-          label={m.form_timeoff_note_label()}
+          label={m.form_time_off_note_label()}
           value={note}
           onChange={setNote}
           invalid={errorField === 'note'}
@@ -319,9 +319,9 @@ function TimeOffDateFields({
   disabled: boolean;
 }) {
   return (
-    <div data-timeoff-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+    <div data-time-off-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
       <DateField
-        label={m.form_timeoff_start_label()}
+        label={m.form_time_off_start_label()}
         value={startDate}
         onChange={setStartDate}
         required
@@ -330,7 +330,7 @@ function TimeOffDateFields({
         disabled={disabled}
       />
       <DateField
-        label={m.form_timeoff_end_label()}
+        label={m.form_time_off_end_label()}
         value={endDate}
         onChange={setEndDate}
         required

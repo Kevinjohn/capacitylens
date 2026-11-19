@@ -33,16 +33,16 @@ interface PersonalTimeOffSectionProps {
 
 function PersonalTimeOffSection({ groups, onAdd, onEdit, onDelete }: PersonalTimeOffSectionProps) {
   return (
-    <section aria-labelledby="personal-timeoff-heading">
+    <section aria-labelledby="personal-time-off-heading">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 id="personal-timeoff-heading" className="text-base font-semibold">
-          {m.list_timeoff_personal_title()}
+        <h2 id="personal-time-off-heading" className="text-base font-semibold">
+          {m.list_time_off_personal_title()}
         </h2>
-        <AddButton label={m.list_timeoff_add()} onClick={onAdd} />
+        <AddButton label={m.list_time_off_add()} onClick={onAdd} />
       </div>
       {groups.length === 0 ? (
-        <EmptyState icon={Calendar} description={m.list_timeoff_empty_desc()}>
-          {m.list_timeoff_empty()}
+        <EmptyState icon={Calendar} description={m.list_time_off_empty_desc()}>
+          {m.list_time_off_empty()}
         </EmptyState>
       ) : (
         <TimeOffGroups groups={groups} onEdit={onEdit} onDelete={onDelete} />
@@ -56,7 +56,7 @@ function TimeOffGroups({ groups, onEdit, onDelete }: Omit<PersonalTimeOffSection
     <div className="flex flex-col gap-6" data-testid="timeoff-groups">
       {groups.map((group) => {
         const groupKey = group.kind === 'resource' ? `resource-${group.resourceId}` : group.kind;
-        const headingId = `timeoff-group-${encodeURIComponent(groupKey)}`;
+        const headingId = `time-off-group-${encodeURIComponent(groupKey)}`;
         return (
           <section
             key={groupKey}
@@ -113,11 +113,11 @@ function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: Tim
         </ItemContent>
         <ItemActions>
           <EditButton
-            label={m.list_timeoff_edit_aria(labelContext)}
+            label={m.list_time_off_edit_aria(labelContext)}
             onClick={() => onEdit(timeOff)}
           />
           <DeleteButton
-            label={m.list_timeoff_delete_aria(labelContext)}
+            label={m.list_time_off_delete_aria(labelContext)}
             onClick={() => onDelete(timeOff)}
           />
         </ItemActions>
@@ -155,7 +155,7 @@ export function TimeOffList() {
   );
 
   return (
-    <ListPage title={m.list_timeoff_title()}>
+    <ListPage title={m.list_time_off_title()}>
       <div className="flex flex-col gap-8">
         <CompanyClosureSection />
         <PersonalTimeOffSection
@@ -170,8 +170,8 @@ export function TimeOffList() {
       {editing && <TimeOffForm timeOff={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title={m.list_timeoff_delete_title()}
-          message={m.list_timeoff_delete_message()}
+          title={m.list_time_off_delete_title()}
+          message={m.list_time_off_delete_message()}
           onConfirm={() => {
             void confirmDelete(confirming.id);
           }}

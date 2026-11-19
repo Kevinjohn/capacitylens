@@ -8,7 +8,7 @@ import {
   intent,
   canonicalData,
   companyToday,
-  success,
+  makeReceipt,
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -46,7 +46,7 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
     });
     expect(h.state().planning.history.canUndo).toBe(false);
-    release(success('mutation-1', 2));
+    release(makeReceipt('mutation-1', 2));
     await write;
     expect(h.state().planning.history.canUndo).toBe(true);
     await h.readSnapshot({

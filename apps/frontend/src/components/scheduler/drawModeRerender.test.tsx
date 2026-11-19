@@ -47,7 +47,7 @@ describe('draw-mode toggle does not re-render allocation bars', () => {
     expect(beforeToggle).toBeGreaterThan(0);
 
     act(() => {
-      useStore.getState().setDrawMode('timeoff');
+      useStore.getState().setDrawMode('timeOff');
     });
 
     expect(barRenderCount.mock.calls.length).toBe(beforeToggle);

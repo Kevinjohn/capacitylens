@@ -46,7 +46,7 @@ function listCapabilities(grant: AccessGrant): Capability[] {
     { label: m.access_cap_view_schedule(), allowed: hasPermission('planning:read') },
     { label: m.access_cap_edit_schedule(), allowed: hasPermission('planning:write') },
     { label: m.access_cap_manage_team(), allowed: hasPermission('members:manage') },
-    { label: m.access_cap_timeoff_notes(), allowed: grant.canSeeTimeOffNote },
+    { label: m.access_cap_time_off_notes(), allowed: grant.canSeeTimeOffNote },
     { label: m.access_cap_private_names(), allowed: grant.canSeePrivateNames },
     { label: m.access_cap_transfer_owner(), allowed: hasPermission('ownership:transfer') },
   ];

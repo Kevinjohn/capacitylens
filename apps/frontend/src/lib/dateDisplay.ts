@@ -256,8 +256,8 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
   if (!Number.isFinite(inclusiveDays)) throw new RangeError('Invalid time-off date range');
   const dayCount = Math.max(0, inclusiveDays);
   return dayCount === 1
-    ? m.list_timeoff_days_one({ count: dayCount })
-    : m.list_timeoff_days_other({ count: dayCount });
+    ? m.list_time_off_days_one({ count: dayCount })
+    : m.list_time_off_days_other({ count: dayCount });
 }
 
 // Render server instants on the viewer’s wall clock with the browser’s locale.
