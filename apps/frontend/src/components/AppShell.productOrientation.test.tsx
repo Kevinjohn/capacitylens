@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadPlanningData, makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { loadPlanningData, makeAccount, makeAppData, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { AppShell } from './AppShell';
 import { HelpView } from './HelpView';
@@ -19,20 +19,20 @@ afterEach(() => {
 
 beforeEach(() => {
   loadPlanningData(makeAppData({ accounts: [makeAccount()] }));
-  useStore.getState().setAccountSummaries({
-    list: [{ id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' }],
+  useStore.getState().setCompanySummaries({
+    list: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' }],
   });
-  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
+  useStore.getState().setActiveCompany(DEFAULT_COMPANY_ID);
   useStore.getState().setHydrated(true);
-  localStorage.setItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID), 'dismissed');
+  localStorage.setItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID), 'dismissed');
   vi.stubGlobal(
     'fetch',
     vi.fn((input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : String(input);
       if (url.endsWith('/api/companies')) {
         const state = useStore.getState();
-        const summaries = state.accountSummaries.length
-          ? state.accountSummaries
+        const summaries = state.companySummaries.length
+          ? state.companySummaries
           : state.data.accounts.map((account) => ({ ...account, role: 'owner' as const }));
         return Promise.resolve(
           Response.json(
@@ -99,7 +99,7 @@ function renderShell(path = '/', auth?: AuthContextValue) {
 
 describe('AppShell product orientation', () => {
   it('shows guidance without blocking the schedule and persists dismissal for the active company', async () => {
-    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID));
     const user = userEvent.setup();
     renderShell();
 
@@ -110,13 +110,13 @@ describe('AppShell product orientation', () => {
     expect(
       screen.queryByRole('region', { name: 'How CapacityLens works' }),
     ).not.toBeInTheDocument();
-    expect(localStorage.getItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID))).toBe(
+    expect(localStorage.getItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID))).toBe(
       'dismissed',
     );
   });
 
   it('reopens guidance from Help, focuses it, and returns focus to the Help button on close', async () => {
-    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID));
     renderShell('/help');
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Got it' }));
@@ -137,14 +137,14 @@ describe('AppShell product orientation', () => {
   });
 
   it('focuses the visible orientation heading on entry', async () => {
-    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID));
     renderShell();
     const heading = screen.getByRole('heading', { name: 'How CapacityLens works' });
     await waitFor(() => expect(heading).toHaveFocus());
   });
 
   it('keeps a failed storage dismissal suppressed for the current mount', async () => {
-    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID));
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation((key) => {
       if (String(key).includes('productOrientation')) throw new Error('blocked');
     });
@@ -158,7 +158,7 @@ describe('AppShell product orientation', () => {
   });
 
   it('scopes the no-company Account view to a stable account-state segment', async () => {
-    useStore.getState().setActiveAccount(null);
+    useStore.getState().setActiveCompany(null);
     localStorage.removeItem(buildProductOrientationKey('user-a', 'no-company'));
     const user = userEvent.setup();
     renderShell('/account');
@@ -180,7 +180,7 @@ describe('AppShell product orientation', () => {
   });
 
   it('reopens guidance from Help on mobile and returns focus to the Help button', async () => {
-    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID));
     vi.stubGlobal(
       'matchMedia',
       vi.fn(
@@ -213,8 +213,8 @@ describe('AppShell product orientation', () => {
   it('scopes guidance to the authenticated subject when the signed-in user changes', async () => {
     const firstSubject = authenticatedAuth('user-a');
     const secondSubject = authenticatedAuth('user-b');
-    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
-    localStorage.removeItem(buildProductOrientationKey('user-b', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-b', DEFAULT_COMPANY_ID));
     const user = userEvent.setup();
     const view = renderShell('/', firstSubject);
 
@@ -242,7 +242,7 @@ describe('AppShell product orientation', () => {
           return Promise.resolve(
             new Response(
               JSON.stringify([
-                { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'viewer' },
+                { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'viewer' },
               ]),
               {
                 status: 200,
@@ -251,7 +251,7 @@ describe('AppShell product orientation', () => {
             ),
           );
         }
-        if (url.endsWith(`/api/companies/${DEFAULT_ACCOUNT_ID}/getting-started`)) {
+        if (url.endsWith(`/api/companies/${DEFAULT_COMPANY_ID}/getting-started`)) {
           return Promise.resolve(
             new Response(
               JSON.stringify({
@@ -279,7 +279,7 @@ describe('AppShell product orientation', () => {
         );
       }),
     );
-    localStorage.removeItem(buildProductOrientationKey('viewer-user', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('viewer-user', DEFAULT_COMPANY_ID));
 
     renderShell('/', authenticatedAuth('viewer-user'));
 
@@ -291,7 +291,7 @@ describe('AppShell product orientation', () => {
 
   it('preserves focus on an unrelated control across an ordinary shell rerender', async () => {
     const auth = authenticatedAuth('user-a');
-    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey('user-a', DEFAULT_COMPANY_ID));
     const view = renderShell('/', auth);
     const heading = screen.getByRole('heading', { name: 'How CapacityLens works' });
     await waitFor(() => expect(heading).toHaveFocus());

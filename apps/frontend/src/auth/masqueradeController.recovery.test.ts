@@ -57,7 +57,7 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     end: vi.fn(async () => {}),
   };
   const switchAccount = vi.fn(async (companyId: string | null) => {
-    useStore.getState().setActiveAccount(companyId);
+    useStore.getState().setActiveCompany(companyId);
     return { kind: 'reloaded' as const };
   });
   const controller = new MasqueradeController({
@@ -83,7 +83,7 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
 it('keeps a failed bootstrap read gated while allowing a confirmed cold End', async () => {
   const { controller, api, switchAccount } = controllerWithNativeSlice(true);
   await controller.adoptStatus({ active: true, ...state });
-  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(useStore.getState().activeCompanyId).toBeNull();
   expect(useStore.getState().masquerade.kind).toBe('starting');
   expect(await controller.end()).toBe(true);
   expect(api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
@@ -95,7 +95,7 @@ beforeEach(() => {
   reads.fail = false;
   reads.count = 0;
   useStore.getState().clearPlanning();
-  useStore.getState().setActiveAccount(null);
+  useStore.getState().setActiveCompany(null);
   useStore.getState().setMasquerade({ kind: 'inactive' });
 });
 
@@ -106,7 +106,7 @@ afterEach(() => {
 async function failSelectedCanonicalRead(controller: MasqueradeController) {
   reads.fail = true;
   await controller.adoptStatus({ active: true, ...state });
-  expect(useStore.getState().activeAccountId).toBe('a-studio');
+  expect(useStore.getState().activeCompanyId).toBe('a-studio');
   expect(useStore.getState().planning).toMatchObject({
     status: 'error',
     revision: null,
@@ -142,7 +142,7 @@ it('ends a selected cold member view even while canonical reads keep failing', a
   expect(api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
   expect(switchAccount).toHaveBeenCalledExactlyOnceWith(null);
   expect(useStore.getState().masquerade.kind).toBe('inactive');
-  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(useStore.getState().activeCompanyId).toBeNull();
 });
 
 it('refuses recovery while a typed mutation remains unresolved', async () => {

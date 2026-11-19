@@ -131,10 +131,10 @@ export function TimeOffList() {
   const data = useActiveScopedData();
   const resources = data.resources;
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
   );
   const calendarWeekStartsOn = useStore((state) =>
-    resolveWeekStart(state.data, state.activeAccountId),
+    resolveWeekStart(state.data, state.activeCompanyId),
   );
   const deleteEntity = useStore((state) => state.deleteTimeOff);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Role } from '@capacitylens/shared/domain/access';
+import { ROLES } from '@capacitylens/shared/account/types';
 import type { CapacityOverviewAccess } from '@capacitylens/shared/types/entities';
 import { listVisibleRoutes } from '@/lib/navLinks';
 import { buildRouteVisibilityContext } from './useVisibleRoutes';
@@ -32,8 +33,6 @@ function listExpected(extra: { overview: boolean; disciplines: boolean; diagnost
     ...COMMON.slice(8),
   ];
 }
-
-const ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer'];
 
 // An independent oracle: which roles see the capacity overview under each company setting.
 const OVERVIEW_ROLES: Record<CapacityOverviewAccess, readonly Role[]> = {

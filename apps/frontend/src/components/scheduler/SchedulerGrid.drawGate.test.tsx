@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeAccount,
   makeClosure,
   makeTimeOff,
@@ -37,7 +37,7 @@ vi.mock('./ResourceLane', () => ({
   ),
 }));
 
-const ACTIVE_ACCOUNT_ID = DEFAULT_ACCOUNT_ID;
+const ACTIVE_ACCOUNT_ID = DEFAULT_COMPANY_ID;
 const INACTIVE_ACCOUNT_ID = 'a-loft';
 
 beforeEach(async () => {

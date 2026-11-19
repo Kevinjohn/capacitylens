@@ -14,7 +14,7 @@ import { TimeOffList } from './TimeOffList';
 import { TimeOffForm } from './TimeOffForm';
 import { useStore } from '@/store/useStore';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   WORKDAYS,
   requireValue,
   resetStoreWithAccount,
@@ -172,19 +172,19 @@ it("uses the active company's timezone and week-start setting for the visible bo
 
   await useStore
     .getState()
-    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
   const { rerender } = render(<TimeOffList />);
   expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument();
 
   await useStore
     .getState()
-    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
+    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 
   await useStore
     .getState()
-    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
+    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId('timeoff-row')).toBeInTheDocument();
 });
@@ -192,7 +192,7 @@ it("uses the active company's timezone and week-start setting for the visible bo
 it('removes expired time off when a read brings the next company week while mounted', async () => {
   await useStore
     .getState()
-    .updateAccount(DEFAULT_ACCOUNT_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+    .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
   getStubPlanningTransport().setToday('2026-06-07');
   await useStore.getState().refreshPlanning({ fresh: true });
   const resource = await requireCreated(

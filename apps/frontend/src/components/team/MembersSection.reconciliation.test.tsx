@@ -72,7 +72,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
       'fetch',
       mockApi(ownerAndEditor, {
         'PATCH /members/ed': () => {
-          useStore.setState({ activeAccountId: nextAccountId });
+          useStore.setState({ activeCompanyId: nextAccountId });
           return new Response(null, { status: 204 });
         },
       }),
@@ -81,7 +81,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
 
     await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
 
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
   });
   it('does not publish an unknown reconcile whose member reread switches accounts', async () => {
@@ -95,7 +95,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
           return jsonResponse({}, 503);
         },
         'GET /members': () => {
-          if (mutationSent) useStore.setState({ activeAccountId: nextAccountId });
+          if (mutationSent) useStore.setState({ activeCompanyId: nextAccountId });
           return jsonResponse({ members: ownerAndEditor.map((member) => rawMember(member)) });
         },
       }),
@@ -104,7 +104,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
 
     await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), 'Viewer');
 
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
   });
   it.each([

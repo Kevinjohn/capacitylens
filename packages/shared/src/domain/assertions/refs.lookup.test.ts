@@ -81,7 +81,7 @@ function lookupOver(view: AppData) {
     allocationsForActivity: vi.fn(() => []),
     resourceHasLoadedAllocation: vi.fn(() => false),
     resourceHasTimeOff: vi.fn(() => false),
-    accountWorkingDays: vi.fn((): Weekday[] => [1, 2, 3, 4, 5]),
+    companyWorkingDays: vi.fn((): Weekday[] => [1, 2, 3, 4, 5]),
   } satisfies ValidationDataLookup;
 }
 

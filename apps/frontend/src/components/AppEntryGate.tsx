@@ -27,39 +27,39 @@ function FocusableStage({ children }: { children: ReactNode }) {
 
 interface AppEntryGateProps {
   hydrated: boolean;
-  hasActiveAccount: boolean;
+  hasActiveCompany: boolean;
   ambiguousAccountDirectory: boolean;
-  allowWithoutActiveAccount: boolean;
-  activeAccountId: string | null;
-  activeAccountLoadFailed: string | null;
-  activeAccountName: string;
-  onRetryActiveAccountLoad: () => Promise<boolean>;
+  allowWithoutActiveCompany: boolean;
+  activeCompanyId: string | null;
+  activeCompanyLoadFailed: string | null;
+  activeCompanyName: string;
+  onRetryActiveCompanyLoad: () => Promise<boolean>;
   children: ReactNode;
 }
 
 /** Expresses the mutually-exclusive app entry sequence in one ordered boundary. */
 export function AppEntryGate({
   hydrated,
-  hasActiveAccount,
+  hasActiveCompany,
   ambiguousAccountDirectory,
-  allowWithoutActiveAccount,
-  activeAccountId,
-  activeAccountLoadFailed,
-  activeAccountName,
-  onRetryActiveAccountLoad,
+  allowWithoutActiveCompany,
+  activeCompanyId,
+  activeCompanyLoadFailed,
+  activeCompanyName,
+  onRetryActiveCompanyLoad,
   children,
 }: AppEntryGateProps) {
   if (!hydrated) return <LoadingBoundary />;
 
-  if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {
+  if (activeCompanyLoadFailed !== null && activeCompanyLoadFailed === activeCompanyId) {
     return (
       <FocusableStage>
-        <AccountLoadRecovery accountName={activeAccountName} onRetry={onRetryActiveAccountLoad} />
+        <AccountLoadRecovery accountName={activeCompanyName} onRetry={onRetryActiveCompanyLoad} />
       </FocusableStage>
     );
   }
 
-  if (ambiguousAccountDirectory || (!hasActiveAccount && !allowWithoutActiveAccount)) {
+  if (ambiguousAccountDirectory || (!hasActiveCompany && !allowWithoutActiveCompany)) {
     return (
       <FocusableStage>
         <AccountAccessRecovery />

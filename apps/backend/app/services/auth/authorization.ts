@@ -1,7 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import type { Membership } from '@kevinjohn/adonisjs-access-control/types';
-import { isAccountRole, type Role } from '@capacitylens/shared/account/types';
+import { isRole, type Role } from '@capacitylens/shared/account/types';
 import type { PermissionKey } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { actorIn } from '#services/auth/current_actor';
@@ -16,7 +16,7 @@ export class IdentityAuthorityError extends Error {
 
 /** Returns the membership's role, or throws when storage holds a role outside the product vocabulary. */
 export function requireStoredRole(membership: Membership): Role {
-  if (!isAccountRole(membership.role)) {
+  if (!isRole(membership.role)) {
     throw new IdentityAuthorityError('Invalid membership role.');
   }
   return membership.role;

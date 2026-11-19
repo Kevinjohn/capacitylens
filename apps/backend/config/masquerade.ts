@@ -21,7 +21,7 @@ export const nativeAdapter = accountKitAuthority<MasqueradeUser>({
   managedGuard,
 });
 
-function requestedAccountId(request?: HttpContext): string | null {
+function requestedCompanyId(request?: HttpContext): string | null {
   if (!request) return null;
   const value = request.params.companyId;
   return typeof value === 'string' && value ? value : null;
@@ -33,7 +33,7 @@ function requestedAccountId(request?: HttpContext): string | null {
  * active member who does not rank above the actor.
  */
 async function sharesViewAsCompany(actorId: string, targetId: string, request?: HttpContext) {
-  const requested = requestedAccountId(request);
+  const requested = requestedCompanyId(request);
   const companies = requested ? [requested] : await listActiveCompanyIds(actorId, undefined);
   for (const companyId of companies) {
     const actorRole = await getActiveCompanyRole(actorId, companyId, undefined);

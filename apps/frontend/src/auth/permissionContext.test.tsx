@@ -9,7 +9,8 @@ import {
   useCanEdit,
 } from './permissionContext';
 import type { PermissionContextValue } from './permissionContext';
-import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
+import { ROLES } from '@capacitylens/shared/account/types';
+import type { PermissionKey } from '@capacitylens/shared/domain/access';
 import { grantFor, permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 
 // Decisions follow the grant the server sent; the role is never evaluated.
@@ -28,8 +29,6 @@ const ACTIONS = [
   'company:anonymise',
   'ownership:transfer',
 ] as const satisfies readonly PermissionKey[];
-
-const ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer'];
 
 const withValue =
   (value: PermissionContextValue) =>

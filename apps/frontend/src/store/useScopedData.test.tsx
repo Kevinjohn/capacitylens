@@ -127,16 +127,16 @@ function twoAccountData(): AppData {
 async function activateFixtureAccount(data: AppData, companyId: string): Promise<void> {
   loadPlanningData(data);
   useStore.getState().clearPlanning();
-  useStore.getState().setAccountSummaries({
+  useStore.getState().setCompanySummaries({
     list: data.accounts.map(({ id, name }) => ({ id, name, role: 'owner' })),
   });
-  useStore.getState().setActiveAccount(companyId);
+  useStore.getState().setActiveCompany(companyId);
   expect(await useStore.getState().refreshPlanning({ fresh: true })).toBe(true);
 }
 
 beforeEach(() => {
   loadPlanningData(emptyAppData());
-  useStore.getState().setActiveAccount(null);
+  useStore.getState().setActiveCompany(null);
 });
 
 describe('scoped data', () => {
@@ -180,7 +180,7 @@ describe('scoped data hooks', () => {
     expect(result.current.clients.map((client) => client.id)).toEqual(['c-a']);
 
     await act(async () => {
-      useStore.getState().setActiveAccount(ACCOUNT_B);
+      useStore.getState().setActiveCompany(ACCOUNT_B);
       expect(await useStore.getState().refreshPlanning({ fresh: true })).toBe(true);
     });
 

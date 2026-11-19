@@ -13,7 +13,7 @@ function renderInvites(email: string) {
       .createActions({
         clear: vi.fn(),
         requestAccountId: () => 'account-1',
-        isActiveAccount: () => true,
+        isActiveCompany: () => true,
         withMemberAction: async (_key, body) => body('account-1'),
         fail,
         setNotice,

@@ -77,7 +77,7 @@ describe('AuthProvider — server mode', () => {
     );
     expect(await screen.findByText('tenant-content')).toBeInTheDocument();
     queryClient.setQueryData(['private-account'], 'sensitive data');
-    useStore.setState({ activeAccountId: 'a-studio' });
+    useStore.setState({ activeCompanyId: 'a-studio' });
 
     act(() => {
       window.dispatchEvent(
@@ -88,7 +88,7 @@ describe('AuthProvider — server mode', () => {
       );
     });
 
-    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(useStore.getState().activeCompanyId).toBeNull();
     expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
     expect(screen.getByRole('status')).toHaveTextContent('Checking your session…');
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe('AuthProvider — server mode', () => {
     );
     expect(await screen.findByText('app-content')).toBeInTheDocument();
     expect(setInterval).toHaveBeenCalledWith(expect.any(Function), 60_000);
-    useStore.setState({ activeAccountId: 'a-studio', refreshPlanning });
+    useStore.setState({ activeCompanyId: 'a-studio', refreshPlanning });
     refreshPlanning.mockClear();
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
     try {
@@ -149,7 +149,7 @@ describe('AuthProvider — server mode', () => {
       });
       expect(refreshPlanning).toHaveBeenCalledOnce();
       visibility.mockReturnValue('visible');
-      useStore.setState({ activeAccountId: null });
+      useStore.setState({ activeCompanyId: null });
       refreshPlanning.mockClear();
       await act(async () => {
         tick();

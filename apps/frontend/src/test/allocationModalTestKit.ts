@@ -10,7 +10,7 @@ import { useStore } from '@/store/useStore';
 import type { AppData, Weekday } from '@capacitylens/shared/types/entities';
 import {
   resetStoreWithData,
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeActivity,
   makeAppData,
   makeClient,
@@ -42,7 +42,7 @@ export function renderAsOwner(ui: ReactElement, options: Omit<RenderOptions, 'wr
 }
 
 /** Account fixture ID used by allocation modal tests. */
-export const ACC = DEFAULT_ACCOUNT_ID;
+export const ACC = DEFAULT_COMPANY_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
 const originalAddRepeatedAllocation = useStore.getState().addRepeatedAllocation;
 const originalAddActivity = useStore.getState().addActivity;

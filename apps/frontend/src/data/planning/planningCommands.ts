@@ -5,7 +5,7 @@ import {
   placeholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
 import type {
-  Account,
+  Company,
   Activity,
   Allocation,
   AppData,
@@ -51,7 +51,7 @@ const equal = (left: unknown, right: unknown): boolean => {
   return false;
 };
 
-type OwnedRow<K extends AppDataKey> = K extends 'accounts' ? Account : AppData[K][number];
+type OwnedRow<K extends AppDataKey> = K extends 'accounts' ? Company : AppData[K][number];
 
 function getOwnedRow<K extends AppDataKey>(
   data: AppData,
@@ -543,7 +543,7 @@ function isPublic(value: unknown): boolean {
 }
 
 type SettingsFields = Pick<
-  Account,
+  Company,
   | 'name'
   | 'color'
   | 'weekStartsOn'
@@ -561,7 +561,7 @@ type SettingsFields = Pick<
 
 /** Build a field-limited account settings patch. */
 export function buildSettingsUpdate(
-  context: CommandContext & { original: Account; args: Pick<Patch<Account>, keyof SettingsFields> },
+  context: CommandContext & { original: Company; args: Pick<Patch<Company>, keyof SettingsFields> },
 ): PlanningCommand | null {
   const { data, companyId, original, args } = context;
   const current = data.accounts.find((account) => account.id === companyId);

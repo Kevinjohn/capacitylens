@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import { emptyAppData } from '../../types/entities.js';
 import type {
-  Account,
+  Company,
   Activity,
   AppData,
   Client,
@@ -25,7 +25,7 @@ const A1 = 'a-studio';
 const A2 = 'a-loft';
 
 const meta = (id: ID, companyId: ID = A1) => ({ id, companyId, createdAt: TS, updatedAt: TS });
-const account = (id: ID, name: string): Account => ({
+const account = (id: ID, name: string): Company => ({
   ...NULLABLE_FIELDS.accounts,
   id,
   name,

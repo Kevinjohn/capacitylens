@@ -1,6 +1,6 @@
 import { beforeEach, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { resetStoreWithAccount, makeResource, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { resetStoreWithAccount, makeResource, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { useResourceListModel } from './useResourceListModel';
@@ -16,7 +16,7 @@ it('presents an unassigned person neutrally while preserving stored blue and dis
       disciplines: [
         {
           id: 'design',
-          companyId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_COMPANY_ID,
           name: 'Design',
           sortOrder: 0,
           color: '#da2d92',

@@ -1,4 +1,4 @@
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import {
   generateRepeatingStartDates,
@@ -45,7 +45,7 @@ export function buildAllocationOccurrences(
   const resource = existingRow(data, 'resources', first.resourceId);
   const effectiveWeek = effectiveWorkingWeek(
     resource,
-    normalizeAccountWorkingDays(account.workingDays, account.weekStartsOn === 0 ? 0 : 1)
+    normalizeCompanyWorkingDays(account.workingDays, account.weekStartsOn === 0 ? 0 : 1)
   );
   const spanOptions = {
     ...(effectiveWeek.kind === 'days' ? { workingDays: effectiveWeek.days } : {}),

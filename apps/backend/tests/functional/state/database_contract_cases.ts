@@ -1,6 +1,6 @@
 import db from '@adonisjs/lucid/services/db';
 import {
-  FIXTURE_ACCOUNT,
+  FIXTURE_COMPANY,
   FIXTURE_ACTIVITY,
   FIXTURE_ACTIVITY_INTERNAL,
   FIXTURE_ACTIVITY_REPEATABLE,
@@ -17,7 +17,7 @@ import {
   FIXTURE_TIME_OFF,
 } from '@capacitylens/shared/data/fixtures';
 
-const accountIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
+const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';
 
 export const accountIndexes = [
@@ -116,7 +116,7 @@ export function stripLifecycle<T extends { archivedAt?: string | null; deletedAt
 }
 
 export const fullFixtureRows = [
-  ['accounts', [FIXTURE_ACCOUNT]],
+  ['accounts', [FIXTURE_COMPANY]],
   ['clients', [stripLifecycle(FIXTURE_CLIENT)]],
   ['disciplines', [FIXTURE_DISCIPLINE]],
   ['projects', [stripLifecycle(FIXTURE_PROJECT)]],
@@ -137,7 +137,7 @@ export const fullFixtureRows = [
 
 export async function insertInvalidReference(table: string, column: string, targetId: string) {
   const common = {
-    company_id: accountIds.dc,
+    company_id: companyIds.dc,
     id: `invalid-${table}-${column}`,
     created_at: stamp,
     updated_at: stamp,

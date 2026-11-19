@@ -45,11 +45,11 @@ export function SchedulerToolbar() {
     () => buildFilterOptions(data, filters.clientId, filters.projectId),
     [data, filters.clientId, filters.projectId],
   );
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeAccountId),
+    hasDisciplinesEnabled(state.data, state.activeCompanyId),
   );
-  const search = useToolbarSearch({ filters, activeAccountId, setFilters, clearFilters });
+  const search = useToolbarSearch({ filters, activeCompanyId, setFilters, clearFilters });
   const chromeProps = {
     density: SCHEDULER_DENSITY,
     zoom,

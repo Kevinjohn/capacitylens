@@ -3,7 +3,7 @@ import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import { externalCapacityDefaults, placeholderCapacityDefaults } from '../types/entities.js';
 import { NEUTRAL_COLOR } from '../lib/color.js';
 import type {
-  Account,
+  Company,
   Allocation,
   Client,
   Closure,
@@ -19,7 +19,7 @@ const TS1 = '2026-01-01T00:00:00.000Z';
 const TS2 = '2026-06-01T12:00:00.000Z';
 
 /** Complete account fixture with every optional field set. */
-export const FIXTURE_ACCOUNT: Account = {
+export const FIXTURE_COMPANY: Company = {
   ...NULLABLE_FIELDS.accounts,
   id: 'fix-a1',
   name: 'Fixture Studio',
@@ -43,7 +43,7 @@ export const FIXTURE_ACCOUNT: Account = {
   updatedAt: TS2,
 };
 
-/** Complete client fixture owned by {@link FIXTURE_ACCOUNT}. */
+/** Complete client fixture owned by {@link FIXTURE_COMPANY}. */
 export const FIXTURE_CLIENT: Client = {
   ...NULLABLE_FIELDS.clients,
   id: 'fix-c1',
@@ -61,7 +61,7 @@ export const FIXTURE_CLIENT: Client = {
   updatedAt: TS2,
 };
 
-/** Complete discipline fixture owned by {@link FIXTURE_ACCOUNT}. */
+/** Complete discipline fixture owned by {@link FIXTURE_COMPANY}. */
 export const FIXTURE_DISCIPLINE: Discipline = {
   id: 'fix-d1',
   companyId: 'fix-a1',

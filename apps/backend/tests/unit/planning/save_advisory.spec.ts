@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import {
-  FIXTURE_ACCOUNT,
+  FIXTURE_COMPANY,
   FIXTURE_ALLOCATION,
   FIXTURE_RESOURCE_EXTERNAL,
   FIXTURE_RESOURCE_PERSON,
@@ -15,7 +15,7 @@ import {
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
 import type { PlanningIntent } from '#validators/planning/contracts';
 
-const companyId = FIXTURE_ACCOUNT.id;
+const companyId = FIXTURE_COMPANY.id;
 const person: Resource = {
   ...FIXTURE_RESOURCE_PERSON,
   workingHoursPerDay: 8,
@@ -44,7 +44,7 @@ function companyData(schedulingMode: SchedulingMode, resourceId: string = person
   return {
     ...emptyAppData(),
     accounts: [
-      { ...FIXTURE_ACCOUNT, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
+      { ...FIXTURE_COMPANY, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
     ],
     resources: [person, FIXTURE_RESOURCE_EXTERNAL],
     allocations: [booking('existing', resourceId), booking('saved', resourceId)],

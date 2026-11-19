@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Resource } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
-import { DEFAULT_ACCOUNT_ID, makeResource } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures';
 import { capacityOver } from '@/test/capacityFixtures';
 import type { ResourceFigures } from '@/test/capacityFixtures';
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
@@ -10,7 +10,7 @@ import { buildCapacityAnnouncement } from './gestureAnnouncements';
 // The builder is pure: each case passes server-shaped figures and compares the resulting string
 // with the compiled messages.
 
-const A = DEFAULT_ACCOUNT_ID;
+const A = DEFAULT_COMPANY_ID;
 const NAME = 'Diana Prince';
 const clear = m.scheduler_sr_announce_clear({ name: NAME });
 const overOne = m.scheduler_sr_announce_over_one({ name: NAME, count: 1 });

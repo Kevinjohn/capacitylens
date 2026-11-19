@@ -133,7 +133,7 @@ function DataToolControls({
 /** Offers scoped data export and guarded import for the active account. */
 export function ImportExport() {
   const setNotice = useStore((state) => state.setNotice);
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const canImport = useCan('company:import');
   // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
@@ -141,7 +141,7 @@ export function ImportExport() {
     readFile,
     selectionRef,
     setPending: setPendingImport,
-  } = usePendingImport(activeAccountId, setNotice);
+  } = usePendingImport(activeCompanyId, setNotice);
   const {
     confirm: confirmServerImport,
     busy: importBusy,
@@ -163,7 +163,7 @@ export function ImportExport() {
     if (!companyId) return;
     const selection = selectionRef.current;
     const isCurrent = () =>
-      selectionRef.current === selection && useStore.getState().activeAccountId === companyId;
+      selectionRef.current === selection && useStore.getState().activeCompanyId === companyId;
     try {
       const reply = await companyDataRequests.readTransferPreview(companyId, pending.document);
       if (isCurrent()) setPreview(reply);
@@ -174,7 +174,7 @@ export function ImportExport() {
 
   const confirmImport = () => {
     if (!pendingImport) return;
-    if (pendingImport.companyId !== useStore.getState().activeAccountId) {
+    if (pendingImport.companyId !== useStore.getState().activeCompanyId) {
       selectionRef.current += 1;
       clearPendingImport();
       return;
@@ -230,10 +230,10 @@ export function ImportExport() {
           }}
         />
       )}
-      {pendingImport && activeAccountId && preview && continued && confirmingAction && (
+      {pendingImport && activeCompanyId && preview && continued && confirmingAction && (
         <PasswordConfirmationDialog
           action="import"
-          companyId={activeAccountId}
+          companyId={activeCompanyId}
           intent={{ baseRevision: preview.baseRevision, document: pendingImport.document }}
           onConfirmed={(confirmationId) => {
             setConfirmingAction(false);

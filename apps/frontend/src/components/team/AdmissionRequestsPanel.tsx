@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isAccountRole } from '@capacitylens/shared/account/types';
+import { isRole } from '@capacitylens/shared/account/types';
 import { m } from '@/i18n';
 import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
 import type { AdmissionRequest } from '@/account/teamAccessClient';
@@ -118,7 +118,7 @@ export function AdmissionRequestsPanel() {
               >
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate text-sm text-ink">{request.email}</span>
-                  {request.invitedRole && isAccountRole(request.invitedRole) && (
+                  {request.invitedRole && isRole(request.invitedRole) && (
                     <span className="text-xs text-muted-foreground">
                       {m.settings_admission_role({ role: resolveRoleLabel(request.invitedRole) })}
                     </span>

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from '@/test/fixtures';
+import { resetStoreWithAccount, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import {
@@ -219,7 +219,7 @@ describe('MembersSection — invite mint', () => {
     fillAddressedInvite();
     fireEvent.click(screen.getByTestId('invite-submit'));
     await waitFor(() => expect(resolveCreate).toBeTypeOf('function'));
-    act(() => useStore.setState({ activeAccountId: nextAccountId }));
+    act(() => useStore.setState({ activeCompanyId: nextAccountId }));
     expect(await screen.findByText('second@example.test')).toBeInTheDocument();
 
     await act(async () => {
@@ -252,7 +252,7 @@ describe('MembersSection — invite mint', () => {
     await expectNotice(notice);
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
     expect(JSON.parse(String(post?.[1]?.body))).toEqual({
-      companyId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_COMPANY_ID,
       role: 'editor',
       email: 'diana@example.test',
     });

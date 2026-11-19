@@ -72,7 +72,7 @@ function useActionStatusFocus(busyAction: string | null) {
 }
 
 function createConfirmationActions(
-  activeAccountId: string | null,
+  activeCompanyId: string | null,
   state: ReturnType<typeof useMemberViewState>,
   actions: ReturnType<typeof createMemberMutations>,
 ) {
@@ -86,7 +86,7 @@ function createConfirmationActions(
     state.setMemberConfirmation(null);
     switch (pending.kind) {
       case 'masquerade':
-        if (activeAccountId) void startMasquerade(activeAccountId, pending.member.userId);
+        if (activeCompanyId) void startMasquerade(activeCompanyId, pending.member.userId);
         return;
       case 'suspend':
       case 'restore':
@@ -98,7 +98,7 @@ function createConfirmationActions(
 }
 
 interface MemberDirectoryStateInput {
-  activeAccountId: string | null;
+  activeCompanyId: string | null;
   enabled: boolean;
   fail: ReturnType<typeof useFieldError>['fail'];
   setNotice: StoreState['setNotice'];
@@ -115,7 +115,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   const actionContext = getMasqueradeContextToken();
   const directoryState = useTeamDirectory({
     enabled: input.enabled,
-    activeAccountId: input.activeAccountId,
+    activeCompanyId: input.activeCompanyId,
     fail: input.fail,
   });
   const actionLock = useTeamActionLock();
@@ -124,12 +124,12 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   const invites = authorizedDirectory?.invites ?? NO_INVITES;
   const resourceCandidates = authorizedDirectory?.resourceCandidates ?? [];
   const requestAccountId = (): string => {
-    if (!input.activeAccountId) throw new Error(m.settings_members_err_no_active_account());
-    return input.activeAccountId;
+    if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_account());
+    return input.activeCompanyId;
   };
-  const isActiveAccount = (companyId: string): boolean =>
+  const isActiveCompany = (companyId: string): boolean =>
     mounted.current &&
-    useStore.getState().activeAccountId === companyId &&
+    useStore.getState().activeCompanyId === companyId &&
     getMasqueradeContextToken() === actionContext;
   const withMemberAction = async (
     key: string,
@@ -155,7 +155,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     renderedAt,
     actionDependencies: {
       requestAccountId,
-      isActiveAccount,
+      isActiveCompany,
       withMemberAction,
       fail: input.fail,
       setNotice: input.setNotice,
@@ -164,7 +164,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
 }
 
 interface MemberMutationStateInput {
-  activeAccountId: string | null;
+  activeCompanyId: string | null;
   clear: ReturnType<typeof useFieldError>['clear'];
   viewState: ReturnType<typeof useMemberViewState>;
   createInviteActions: ReturnType<typeof useMemberInvites>['createActions'];
@@ -192,7 +192,7 @@ function useMemberMutationState(input: MemberMutationStateInput) {
   return {
     actions,
     inviteActions,
-    confirmationActions: createConfirmationActions(input.activeAccountId, input.viewState, actions),
+    confirmationActions: createConfirmationActions(input.activeCompanyId, input.viewState, actions),
   };
 }
 
@@ -216,7 +216,7 @@ function useMemberStoreActions() {
 }
 
 /** Coordinates member reads, invitations, and access mutations for the active account. */
-export function useMembersOrchestration(activeAccountId: string | null) {
+export function useMembersOrchestration(activeCompanyId: string | null) {
   const { user } = useAuth();
   const { setNotice } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
@@ -225,7 +225,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const { resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
   const enabled = user !== null;
   const directoryState = useMemberDirectoryState({
-    activeAccountId,
+    activeCompanyId,
     enabled,
     fail,
     setNotice,
@@ -248,21 +248,21 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       (resourceOrder.get(right.resourceId) ?? Number.POSITIVE_INFINITY),
   );
   const mutationState = useMemberMutationState({
-    activeAccountId,
+    activeCompanyId,
     clear,
     viewState,
     createInviteActions,
     directoryState,
   });
   const getResourceLinkRequest = useMemberResourceLinkRequests({
-    companyId: activeAccountId,
+    companyId: activeCompanyId,
     reload: directoryState.reload,
     acceptedReadGeneration: directoryState.acceptedReadGeneration,
   });
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
   const { permissions } = useAccessGrant();
   return {
-    activeAccountId,
+    activeCompanyId,
     enabled,
     directory: directoryState.directory,
     error,

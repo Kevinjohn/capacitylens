@@ -50,7 +50,7 @@ function view(cache: QueryClient, role: Role = 'editor', principal: string | nul
 }
 function company(companyId: string) {
   useStore.setState((state) => ({
-    activeAccountId: companyId,
+    activeCompanyId: companyId,
     planning: {
       ...state.planning,
       context: { identity: 'principal', companyId },

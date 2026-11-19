@@ -242,7 +242,7 @@ describe('TeamAccessView member management', () => {
         .mockReturnValueOnce(oldDecision)
         .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
 
-      useStore.setState({ activeAccountId: 'a-studio' });
+      useStore.setState({ activeCompanyId: 'a-studio' });
       const view = renderView({ role: 'admin' });
       await screen.findByText(oldRequest.email);
       fireEvent.click(screen.getByTestId('admission-approve'));
@@ -259,7 +259,7 @@ describe('TeamAccessView member management', () => {
           </MemoryRouter>,
         );
       } else {
-        act(() => useStore.setState({ activeAccountId: 'a-loft' }));
+        act(() => useStore.setState({ activeCompanyId: 'a-loft' }));
       }
 
       await waitFor(() => expect(list).toHaveBeenCalledTimes(listingCountBeforeContextChange + 1));

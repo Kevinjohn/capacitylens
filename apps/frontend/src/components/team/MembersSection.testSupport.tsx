@@ -7,7 +7,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { permissionValue } from '@/test/permissionGrants';
 import type { AuthContextValue } from '@/auth/authContext';
-import { DEFAULT_ACCOUNT_ID, jsonResponse } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, jsonResponse } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { MembersSection } from './MembersSection';
@@ -77,7 +77,7 @@ export function mockApi(
     'GET /api/companies': () => {
       const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined;
       return jsonResponse([
-        { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: self?.role ?? 'owner' },
+        { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: self?.role ?? 'owner' },
       ]);
     },
   };

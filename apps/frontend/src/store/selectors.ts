@@ -1,5 +1,5 @@
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { byAccount } from '@capacitylens/shared/domain/tenancy';
 import {
   emptyAppData,
@@ -11,7 +11,7 @@ import {
 import { DATE_STYLES, DEFAULT_DATE_STYLE } from '@capacitylens/shared/types/entities';
 import type { DateStyle } from '@capacitylens/shared/types/entities';
 import type {
-  Account,
+  Company,
   AppData,
   Discipline,
   ID,
@@ -27,16 +27,16 @@ export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 
 // Missing accounts and missing setting fields must resolve to the same per-setting default.
 const createAccountFieldSelector =
-  <K extends keyof Account>(key: K, fallback: NonNullable<Account[K]>) =>
-  (data: AppData, activeAccountId: ID | null): NonNullable<Account[K]> =>
-    data.accounts.find((account) => account.id === activeAccountId)?.[key] ?? fallback;
+  <K extends keyof Company>(key: K, fallback: NonNullable<Company[K]>) =>
+  (data: AppData, activeCompanyId: ID | null): NonNullable<Company[K]> =>
+    data.accounts.find((account) => account.id === activeCompanyId)?.[key] ?? fallback;
 
 // Mirror one company date convention into synchronous formatters. Unknown stored
 // styles fall back so a hand-edited row cannot break date rendering.
 const rawDateStyle = createAccountFieldSelector('dateStyle', DEFAULT_DATE_STYLE);
 /** Resolve the date display style for the active account. */
-export function resolveDateStyle(data: AppData, activeAccountId: ID | null): DateStyle {
-  const stored = rawDateStyle(data, activeAccountId);
+export function resolveDateStyle(data: AppData, activeCompanyId: ID | null): DateStyle {
+  const stored = rawDateStyle(data, activeCompanyId);
   return DATE_STYLES.includes(stored) ? stored : DEFAULT_DATE_STYLE;
 }
 
@@ -61,9 +61,9 @@ export function hasSupplementaryResources(resources: readonly Resource[]): boole
 }
 
 /** {@link hasSupplementaryResources} for the active company, read from the full store data. */
-export function hasResourceEngagementGrouping(data: AppData, activeAccountId: ID | null): boolean {
+export function hasResourceEngagementGrouping(data: AppData, activeCompanyId: ID | null): boolean {
   return data.resources.some(
-    (resource) => resource.companyId === activeAccountId && isActiveSupplementary(resource),
+    (resource) => resource.companyId === activeCompanyId && isActiveSupplementary(resource),
   );
 }
 
@@ -99,9 +99,9 @@ export const resolveTimeZone = createAccountFieldSelector('timezone', DEFAULT_CA
 export const resolveWeekStart = createAccountFieldSelector('weekStartsOn', DEFAULT_WEEK_STARTS_ON);
 
 /** Account-wide dates on which a schedule creation gesture may start. */
-export const listAccountWorkingDays = (data: AppData, activeAccountId: ID | null): Weekday[] => {
-  const account = data.accounts.find((candidate) => candidate.id === activeAccountId);
-  return normalizeAccountWorkingDays(
+export const listCompanyWorkingDays = (data: AppData, activeCompanyId: ID | null): Weekday[] => {
+  const account = data.accounts.find((candidate) => candidate.id === activeCompanyId);
+  return normalizeCompanyWorkingDays(
     account?.workingDays,
     account?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON,
   );

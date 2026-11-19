@@ -266,11 +266,11 @@ const routes = {
     tokens: [[0,"api"],[0,"installation"],[0,"company"]],
     types: placeholder as Registry['api.installation.company']['types'],
   },
-  'api.accounts.index': {
+  'api.companies.index': {
     methods: ["GET","HEAD"],
     pattern: '/api/companies',
     tokens: [[0,"api"],[0,"companies"]],
-    types: placeholder as Registry['api.accounts.index']['types'],
+    types: placeholder as Registry['api.companies.index']['types'],
   },
   'api.transfer.preview': {
     methods: ["POST"],
@@ -296,11 +296,11 @@ const routes = {
     tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"export"]],
     types: placeholder as Registry['api.export']['types'],
   },
-  'api.accounts.anonymise': {
+  'api.companies.anonymise': {
     methods: ["POST"],
     pattern: '/api/companies/:companyId/anonymise',
     tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"anonymise"]],
-    types: placeholder as Registry['api.accounts.anonymise']['types'],
+    types: placeholder as Registry['api.companies.anonymise']['types'],
   },
   'api.resources.anonymise': {
     methods: ["POST"],

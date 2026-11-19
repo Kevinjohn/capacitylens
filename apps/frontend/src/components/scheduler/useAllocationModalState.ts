@@ -1,6 +1,6 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { m } from '@/i18n';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
 import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -40,15 +40,15 @@ function useAllocationStoreActions() {
 }
 
 function useSchedulingContext() {
-  const mode = useStore((state) => resolveSchedulingMode(state.data, state.activeAccountId));
+  const mode = useStore((state) => resolveSchedulingMode(state.data, state.activeCompanyId));
   const activeAccount = useStore((state) =>
-    state.data.accounts.find((account) => account.id === state.activeAccountId),
+    state.data.accounts.find((account) => account.id === state.activeCompanyId),
   );
-  const accountWorkingDays = useMemo(
-    () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
+  const companyWorkingDays = useMemo(
+    () => normalizeCompanyWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
     [activeAccount],
   );
-  return { mode, accountWorkingDays };
+  return { mode, companyWorkingDays };
 }
 
 function useAllocationModalContext(props: AllocationModalProps) {
@@ -81,19 +81,19 @@ function useAllocationModalContext(props: AllocationModalProps) {
     }
     return result;
   };
-  const { mode, accountWorkingDays } = useSchedulingContext();
+  const { mode, companyWorkingDays } = useSchedulingContext();
   // Read the active account row directly because the scoped entity projection omits accounts.
   const placeholdersEnabled = useStore((state) =>
-    hasPlaceholdersEnabled(state.data, state.activeAccountId),
+    hasPlaceholdersEnabled(state.data, state.activeCompanyId),
   );
   const externalEnabled = useStore((state) =>
-    hasExternalResourcesEnabled(state.data, state.activeAccountId),
+    hasExternalResourcesEnabled(state.data, state.activeCompanyId),
   );
   const inlineActivityCreateEnabled = useStore((state) =>
-    canCreateInlineActivity(state.data, state.activeAccountId),
+    canCreateInlineActivity(state.data, state.activeCompanyId),
   );
   const showTaskFieldInSchedule = useStore((state) =>
-    hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId),
+    hasVisibleTaskFieldInSchedule(state.data, state.activeCompanyId),
   );
   const today = useCompanyToday();
   const isDays = mode === 'days';
@@ -115,7 +115,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     data,
     mode,
     resourceById: resourcesById,
-    accountWorkingDays,
+    companyWorkingDays,
     today,
   });
   const fieldError = useFieldError();
@@ -139,7 +139,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     ...actions,
     addActivity,
     mode,
-    accountWorkingDays,
+    companyWorkingDays,
     placeholdersEnabled,
     externalEnabled,
     inlineActivityCreateEnabled,
@@ -171,7 +171,7 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
   const schedule = useAllocationScheduleState({
     selectedResource: target.selectedResource,
     mode: context.mode,
-    accountWorkingDays: context.accountWorkingDays,
+    companyWorkingDays: context.companyWorkingDays,
     today: context.today,
     seed: context.seed,
   });

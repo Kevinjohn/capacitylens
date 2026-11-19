@@ -38,10 +38,10 @@ export function useVisibleRoutes(): AppRouteDefinition[] {
   const role = useRole();
   const status = usePermissionStatus();
   const capacityOverviewAccess = useStore((state) =>
-    resolveCapacityOverviewAccess(state.data, state.activeAccountId),
+    resolveCapacityOverviewAccess(state.data, state.activeCompanyId),
   );
   const disciplinesEnabled = useStore((state) =>
-    hasDisciplinesEnabled(state.data, state.activeAccountId),
+    hasDisciplinesEnabled(state.data, state.activeCompanyId),
   );
   const { capacityOverviewAllowed, diagnosticsAllowed } = buildRouteVisibilityContext({
     role,

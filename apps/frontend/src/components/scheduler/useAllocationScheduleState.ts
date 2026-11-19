@@ -1,4 +1,4 @@
-import type { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import type { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
 import {
   effectiveWorkingWeek,
@@ -30,23 +30,23 @@ import {
 interface ScheduleInput {
   selectedResource: Resource | undefined;
   mode: SchedulingMode;
-  accountWorkingDays: ReturnType<typeof normalizeAccountWorkingDays>;
+  companyWorkingDays: ReturnType<typeof normalizeCompanyWorkingDays>;
   today: ISODate;
   seed: AllocationModalSeed;
 }
 
 function useEffectiveSchedule(input: {
   selectedResource: Resource | undefined;
-  accountWorkingDays: ReturnType<typeof normalizeAccountWorkingDays>;
+  companyWorkingDays: ReturnType<typeof normalizeCompanyWorkingDays>;
   mode: SchedulingMode;
   fields: ReturnType<typeof useScheduleFields>;
 }) {
-  const { selectedResource, accountWorkingDays, mode, fields } = input;
+  const { selectedResource, companyWorkingDays, mode, fields } = input;
   const { startDate, endDate, hoursPerDay, ignoreWorkingDays, daysOver, daysOfWork } = fields;
   const selectedEffectiveWeek = useMemo(
     () =>
-      selectedResource ? effectiveWorkingWeek(selectedResource, accountWorkingDays) : undefined,
-    [accountWorkingDays, selectedResource],
+      selectedResource ? effectiveWorkingWeek(selectedResource, companyWorkingDays) : undefined,
+    [companyWorkingDays, selectedResource],
   );
   const values = useMemo(
     () =>
@@ -153,7 +153,7 @@ function useScheduleFields(seed: AllocationModalSeed, today: ISODate) {
 export function useAllocationScheduleState({
   selectedResource,
   mode,
-  accountWorkingDays,
+  companyWorkingDays,
   today,
   seed,
 }: ScheduleInput) {
@@ -168,7 +168,7 @@ export function useAllocationScheduleState({
   );
   const { selectedEffectiveWeek, values: effectiveValues } = useEffectiveSchedule({
     selectedResource,
-    accountWorkingDays,
+    companyWorkingDays,
     mode,
     fields,
   });

@@ -103,7 +103,7 @@ describe('planning authority publication', () => {
     expect(state.planning.history.canUndo).toBe(false);
     expect(state.planning.history.canRedo).toBe(false);
     expect(state.planning.context).toBeNull();
-    expect(state.activeAccountId).toBeNull();
+    expect(state.activeCompanyId).toBeNull();
     expect(state.planningAuthLossVersion).toBe(beforeAuthLoss + 1);
   });
 
@@ -126,7 +126,7 @@ describe('planning authority publication', () => {
     expect(state.data).toBe(data);
     expect(state.planning.history).toBe(history);
     expect(state.planning.context).not.toBeNull();
-    expect(state.activeAccountId).not.toBeNull();
+    expect(state.activeCompanyId).not.toBeNull();
     expect(state.planningAuthLossVersion).toBe(authLossVersion);
     expect(readPlanningProblem(state.planning)).toBe('refused');
   });
@@ -154,11 +154,11 @@ describe('planning ownership of allocations', () => {
       accounts: [...useStore.getState().data.accounts, makeAccount({ id: 'a2' })],
     };
     replaceFixtureData(data);
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: data.accounts.map((account) => ({ id: account.id, name: account.name, role: 'owner' })),
     });
 
-    useStore.getState().setActiveAccount('a2');
+    useStore.getState().setActiveCompany('a2');
 
     expect(useStore.getState().planning.context?.companyId).toBe('a2');
     await vi.waitFor(() => expect(useStore.getState().planning.status).toBe('ready'));

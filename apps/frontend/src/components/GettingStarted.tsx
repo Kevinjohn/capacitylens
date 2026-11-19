@@ -51,7 +51,7 @@ function StepRow({ done, label, to }: { done: boolean; label: string; to: string
 
 /** Shows account setup guidance based on the active account state. */
 export function GettingStarted() {
-  const companyId = useStore((state) => state.activeAccountId);
+  const companyId = useStore((state) => state.activeCompanyId);
   const masqueradeKind = useStore((state) => state.masquerade.kind);
   const canWrite = useCan('planning:write');
   // Company onboarding is outside the read-only member projection, including its transitions.

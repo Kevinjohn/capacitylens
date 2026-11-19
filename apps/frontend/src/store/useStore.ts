@@ -13,7 +13,7 @@ import { buildEmptyFilters } from './types';
 import type { StoreState } from './types';
 
 export type {
-  AccountSummary,
+  CompanySummary,
   Draft,
   DrawMode,
   Filters,
@@ -55,9 +55,9 @@ export const useStore = create<StoreState>()((set, get, store) => {
 
 // Mirror company date style synchronously before React is notified so rendering and
 // imperative notices read the same convention. Seed the mirror for the initial paint.
-setActiveDateStyle(resolveDateStyle(useStore.getState().data, useStore.getState().activeAccountId));
+setActiveDateStyle(resolveDateStyle(useStore.getState().data, useStore.getState().activeCompanyId));
 useStore.subscribe((state) => {
-  setActiveDateStyle(resolveDateStyle(state.data, state.activeAccountId));
+  setActiveDateStyle(resolveDateStyle(state.data, state.activeCompanyId));
 });
 
 /** How long the grid's window must rest before its capacity figures are read. */
@@ -69,7 +69,7 @@ let windowRead: ReturnType<typeof setTimeout> | undefined;
 // so writes stay allowed meanwhile; the first read's own anchoring needs no second read, because
 // that read already covered the anchored window.
 useStore.subscribe((state, previous) => {
-  if (state.activeAccountId !== previous.activeAccountId) {
+  if (state.activeCompanyId !== previous.activeCompanyId) {
     clearTimeout(windowRead);
     void state.refreshPlanning();
   } else if (state.ui.originDate !== previous.ui.originDate && previous.planning.today !== null) {

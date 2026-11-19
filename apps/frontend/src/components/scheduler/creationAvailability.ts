@@ -19,7 +19,7 @@ interface ResolveCreationBlockReasonInput {
   resource: Resource;
   date: ISODate;
   timeOff: TimeOff[];
-  accountWorkingDays: Weekday[];
+  companyWorkingDays: Weekday[];
   ignoreWorkingDays: boolean | undefined;
   closures: Closure[];
 }
@@ -48,7 +48,7 @@ interface IsCreationStartBlockedForEffectiveWeekInput {
 interface IsAllocationMoveStartBlockedInput {
   resource: Resource;
   date: ISODate;
-  accountWorkingDays: Weekday[];
+  companyWorkingDays: Weekday[];
   ignoreWorkingDays: boolean | undefined;
 }
 
@@ -56,7 +56,7 @@ interface IsCreationStartBlockedInput {
   resource: Resource;
   date: ISODate;
   timeOff: TimeOff[];
-  accountWorkingDays: Weekday[];
+  companyWorkingDays: Weekday[];
   closures: Closure[];
 }
 
@@ -65,9 +65,9 @@ interface IsCreationStartBlockedInput {
  * A week with no effective days returns an empty array, so every start date is blocked. */
 export function resolveEffectiveWorkingDays(
   resource: Resource,
-  accountWorkingDays: Weekday[],
+  companyWorkingDays: Weekday[],
 ): Weekday[] {
-  const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
+  const effectiveWeek = effectiveWorkingWeek(resource, companyWorkingDays);
   return effectiveWeek.kind === 'days' ? effectiveWeek.days : [];
 }
 
@@ -82,7 +82,7 @@ export function resolveCreationBlockReason({
   resource,
   date,
   timeOff,
-  accountWorkingDays,
+  companyWorkingDays,
   ignoreWorkingDays,
   closures,
 }: ResolveCreationBlockReasonInput): CreationBlockReason | null {
@@ -90,7 +90,7 @@ export function resolveCreationBlockReason({
     resource,
     date,
     timeOff,
-    calendarAllowsStart: resolveEffectiveWorkingDays(resource, accountWorkingDays).includes(
+    calendarAllowsStart: resolveEffectiveWorkingDays(resource, companyWorkingDays).includes(
       weekdayOf(date),
     ),
     ignoreWorkingDays,
@@ -161,7 +161,7 @@ export function isCreationStartBlockedForEffectiveWeek({
 export function isAllocationMoveStartBlocked({
   resource,
   date,
-  accountWorkingDays,
+  companyWorkingDays,
   ignoreWorkingDays,
 }: IsAllocationMoveStartBlockedInput): boolean {
   return (
@@ -169,7 +169,7 @@ export function isAllocationMoveStartBlocked({
       resource,
       date,
       timeOff: NO_TIME_OFF,
-      accountWorkingDays,
+      companyWorkingDays,
       ignoreWorkingDays,
       closures: NO_CLOSURES,
     }) !== null
@@ -181,7 +181,7 @@ export function isCreationStartBlocked({
   resource,
   date,
   timeOff,
-  accountWorkingDays,
+  companyWorkingDays,
   closures,
 }: IsCreationStartBlockedInput): boolean {
   return (
@@ -189,7 +189,7 @@ export function isCreationStartBlocked({
       resource,
       date,
       timeOff,
-      accountWorkingDays,
+      companyWorkingDays,
       ignoreWorkingDays: false,
       closures,
     }) !== null

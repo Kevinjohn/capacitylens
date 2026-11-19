@@ -63,11 +63,11 @@ describe('AppShell navigation links', () => {
     i18nMocks.syncLocaleFromAccount.mockClear();
 
     // Model the ordinary server switch gap directly: the directory authorizes the destination,
-    // activeAccountId changes, and the old slice remains until the destination load resolves.
+    // activeCompanyId changes, and the old slice remains until the destination load resolves.
     act(() => {
       useStore.setState({
-        activeAccountId: destinationAccount.id,
-        accountSummaries: [
+        activeCompanyId: destinationAccount.id,
+        companySummaries: [
           { id: destinationAccount.id, name: destinationAccount.name, role: 'owner' },
         ],
       });
@@ -111,7 +111,7 @@ describe('AppShell navigation links', () => {
   });
 
   it('keeps the personal Account route available before a company is selected', () => {
-    useStore.setState({ activeAccountId: null, accountSummaries: [] });
+    useStore.setState({ activeCompanyId: null, companySummaries: [] });
     renderAppShell({ initialEntries: ['/account'] });
 
     expect(screen.getByRole('main')).toBeInTheDocument();

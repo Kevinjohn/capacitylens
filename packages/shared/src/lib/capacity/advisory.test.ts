@@ -81,7 +81,7 @@ describe('capacityAdvisory', () => {
         }),
         otherAllocations: [],
         timeOff: [],
-        accountWorkingDays: undefined,
+        companyWorkingDays: undefined,
         closures,
       }),
     ).toEqual({

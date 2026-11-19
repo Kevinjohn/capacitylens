@@ -40,14 +40,14 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     const user = await db.from('users').where('email', email).select('id', 'password').first();
     if (!user?.password) throw new Error(ineligible);
     const userId = String(user.id);
-    const accountIds = await requireSoleOwnerAccounts(userId, db);
+    const companyIds = await requireSoleOwnerAccounts(userId, db);
     const issued = await accountKit.operator.resetLink({ email, deliver: 'print' });
     if (!issued.url || String(issued.user.id) !== userId) {
       throw new Error('Owner recovery failed; no recovery link was delivered');
     }
     await withTransaction(async (trx) => {
       const now = new Date().toISOString();
-      for (const companyId of accountIds) {
+      for (const companyId of companyIds) {
         await trx.table('audit_entries').insert({
           id: crypto.randomUUID(),
           company_id: companyId,
@@ -61,6 +61,6 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
         });
       }
     });
-    return { email, userId, accountIds, link: issued.url };
+    return { email, userId, companyIds, link: issued.url };
   });
 }

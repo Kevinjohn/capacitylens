@@ -1,11 +1,11 @@
-import { ACCOUNT_ROLES } from '@capacitylens/shared/account/types';
+import { ROLES } from '@capacitylens/shared/account/types';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember as Member } from '@/account/teamAccessClient';
 import type { TeamInvitation } from '@/account/teamAccessClient';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 
 // Exclude Owner from ordinary role choices because ownership changes only through transfer. Resolve role labels at render so they follow the active locale.
-const ASSIGNABLE_ROLES: readonly Role[] = ACCOUNT_ROLES.filter((role) => role !== 'owner');
+const ASSIGNABLE_ROLES: readonly Role[] = ROLES.filter((role) => role !== 'owner');
 const ROLE_PRIORITY: Readonly<Record<Role, number>> = { owner: 0, admin: 1, editor: 2, viewer: 3 };
 const compareText = (left: string | null | undefined, right: string | null | undefined) =>
   (left ?? '').localeCompare(right ?? '', undefined, { sensitivity: 'base' });

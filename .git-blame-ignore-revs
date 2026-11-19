@@ -14,3 +14,6 @@
 
 # style: keep semicolons in the backend and reformat
 8b605ef868b16d712b2c63b18df83625fe004445
+
+# refactor: rename exported tenant Account identifiers to Company (#2224)
+8fe2d22d8d74b78d9d3027dc5f31179b85f8b8dd

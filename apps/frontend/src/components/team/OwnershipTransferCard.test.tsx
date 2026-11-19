@@ -6,7 +6,7 @@ import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { TeamMember } from '@/account/teamAccessClient';
-import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, resetStoreWithAccount } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
 import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
@@ -113,7 +113,7 @@ beforeEach(async () => {
     value: { fromUserId: OWNER.userId, toUserId: ADMIN.userId },
   });
   reproject.mockResolvedValue(true);
-  await resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
+  await resetStoreWithAccount(DEFAULT_COMPANY_ID);
 });
 
 describe('OwnershipTransferCard', () => {
@@ -133,12 +133,12 @@ describe('OwnershipTransferCard', () => {
 
     await waitFor(() => {
       expect(client.transferOwnership).toHaveBeenCalledWith({
-        companyId: DEFAULT_ACCOUNT_ID,
+        companyId: DEFAULT_COMPANY_ID,
         targetPrincipalId: ADMIN.userId,
         confirmationId: 'proof-1',
       });
     });
-    await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID));
+    await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_COMPANY_ID));
     expect(refreshAuth).toHaveBeenCalledOnce();
   });
 
@@ -189,14 +189,14 @@ describe('OwnershipTransferCard', () => {
     expect(client.transferOwnership.mock.calls).toEqual([
       [
         {
-          companyId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_COMPANY_ID,
           targetPrincipalId: ADMIN.userId,
           confirmationId: 'proof-1',
         },
       ],
       [
         {
-          companyId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_COMPANY_ID,
           targetPrincipalId: ADMIN.userId,
           confirmationId: 'proof-1',
         },
@@ -212,7 +212,7 @@ describe('OwnershipTransferCard', () => {
     fireEvent.click(screen.getByTestId('ownership-transfer-complete'));
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm action' }));
 
-    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+    await waitFor(() => expect(useStore.getState().activeCompanyId).toBeNull());
     expect(useStore.getState().notice?.message).toBe(m.settings_members_access_refresh_failed());
   });
 
@@ -226,7 +226,7 @@ describe('OwnershipTransferCard', () => {
       masquerade: {
         kind: 'active',
         state: {
-          companyId: DEFAULT_ACCOUNT_ID,
+          companyId: DEFAULT_COMPANY_ID,
           targetUserId: 'selina',
           targetName: 'Selina Kyle',
           effectiveRole: 'owner',

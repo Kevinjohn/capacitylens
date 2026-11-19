@@ -22,7 +22,7 @@ import {
   makeAllocation,
   makeTimeOff,
   makeClosure,
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   resetStoreWithData,
 } from '@/test/fixtures';
 import { ClientList } from '@/components/clients/ClientList';
@@ -69,7 +69,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
     },
   };
 });
-const companyId = DEFAULT_ACCOUNT_ID;
+const companyId = DEFAULT_COMPANY_ID;
 
 function render(ui: ReactNode) {
   return renderTestingLibrary(ui, { wrapper: OwnerPermissions });

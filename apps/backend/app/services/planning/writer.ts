@@ -3,7 +3,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, AppDataKey, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { cleanText } from '@capacitylens/shared/lib/strings';
 import { encodeRow } from '#services/state_repository';
-import { assertFrozenAccountFields } from '#services/planning/entity_policy';
+import { assertFrozenCompanyFields } from '#services/planning/entity_policy';
 import { tables } from '#services/product_tables';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
@@ -88,7 +88,7 @@ export async function updateSettings(
   const existing = existingRow(data, 'accounts', companyId);
   const candidate = { ...existing, ...changes };
   try {
-    assertFrozenAccountFields(changes, candidate, existing);
+    assertFrozenCompanyFields(changes, candidate, existing);
   } catch (error) {
     if (!(error instanceof EntityWriteError) || error.status !== 409) throw error;
     throw new PlanningOperationError(409, null, error.message);

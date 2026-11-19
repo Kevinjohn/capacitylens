@@ -10,7 +10,7 @@ import { m } from '@/i18n';
 /** Saves the export document the server builds for the active company, reporting a refusal as an error. */
 export function useExportAction() {
   const setNotice = useStore((state) => state.setNotice);
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
 
@@ -19,9 +19,9 @@ export function useExportAction() {
     inFlight.current = true;
     setBusy(true);
     try {
-      if (!activeAccountId) throw new Error('An active company is required before exporting.');
+      if (!activeCompanyId) throw new Error('An active company is required before exporting.');
       const response = await apiFetch(
-        apiRouteUrl('api.export', { params: { companyId: activeAccountId } }),
+        apiRouteUrl('api.export', { params: { companyId: activeCompanyId } }),
         { credentials: 'include' },
         API_BULK_TIMEOUT_MS,
       );

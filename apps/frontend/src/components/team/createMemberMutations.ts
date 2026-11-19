@@ -10,7 +10,7 @@ import type { createMemberAccessReconciliation } from './createMemberAccessRecon
 /** Authorized request and refresh callbacks needed for member changes. */
 export interface MemberMutationDependencies extends Pick<
   MemberActionDependencies,
-  'withMemberAction' | 'isActiveAccount' | 'fail' | 'setNotice'
+  'withMemberAction' | 'isActiveCompany' | 'fail' | 'setNotice'
 > {
   reconcileUnknownMutation: ReturnType<
     typeof createMemberAccessReconciliation
@@ -27,7 +27,7 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
           companyId,
           enabled: next,
         });
-        if (!dependencies.isActiveAccount(companyId)) return;
+        if (!dependencies.isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
           dependencies.fail(
             null,
@@ -59,7 +59,7 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
     await dependencies.withMemberAction(`role:${member.userId}`, async (companyId) => {
       try {
         const result = await teamAccessClient.changeMemberRole(companyId, member.userId, nextRole);
-        if (!dependencies.isActiveAccount(companyId)) return;
+        if (!dependencies.isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
             await dependencies.reconcileUnknownMutation(m.settings_members_unknown_role_change());
@@ -99,7 +99,7 @@ function createStatusMutation(dependencies: MemberMutationDependencies) {
           member.userId,
           nextStatus,
         );
-        if (!dependencies.isActiveAccount(companyId)) return;
+        if (!dependencies.isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
             await dependencies.reconcileUnknownMutation(m.settings_members_unknown_status_change());

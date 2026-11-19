@@ -167,10 +167,10 @@ describe('beta import and export', () => {
       await second.result.current.confirm(document(), 1, 'proof-second');
       expect(fetchMock).toHaveBeenCalledOnce();
 
-      useStore.getState().setActiveAccount('a-loft');
+      useStore.getState().setActiveCompany('a-loft');
       await useStore.getState().refreshPlanning();
       if (returnToA) {
-        useStore.getState().setActiveAccount(companyId);
+        useStore.getState().setActiveCompany(companyId);
         await useStore.getState().refreshPlanning();
       }
       const successorRelease = useStore.getState().suspendPlanningCommands();

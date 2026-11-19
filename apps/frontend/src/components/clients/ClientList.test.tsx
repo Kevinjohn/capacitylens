@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { ClientList } from './ClientList';
 import { useStore } from '@/store/useStore';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   loadPlanningData,
   makeClient,
   resetStoreWithAccount,
@@ -48,7 +48,7 @@ function mockInactiveRead() {
     'fetch',
     vi.fn(async () => {
       const data = structuredClone(useStore.getState().data);
-      const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-01-01T00:00:00.000Z');
+      const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
         ...data,
         clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
@@ -63,7 +63,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
       ...state.planning,
       status: 'ready',
       canWrite: true,
-      context: { identity: 'test-principal', companyId: DEFAULT_ACCOUNT_ID },
+      context: { identity: 'test-principal', companyId: DEFAULT_COMPANY_ID },
       accessKey: JSON.stringify(['test-principal', 'test-principal', role, true]),
     },
   }));
@@ -222,7 +222,7 @@ describe('ClientList archive flow', () => {
     markClientArchived(client.id);
     setPlanningRole('editor');
     archiveRequest.mockResolvedValueOnce({
-      companyId: DEFAULT_ACCOUNT_ID,
+      companyId: DEFAULT_COMPANY_ID,
       rows: [{ entity: 'clients', id: client.id, label: 'Ferris', archived: true, parent: null }],
     });
     render(
@@ -240,7 +240,7 @@ describe('ClientList archive flow', () => {
       upserts: [{ entity: 'clients', row: { ...client, archivedAt: null } }],
       removed: [],
     }));
-    archiveRequest.mockResolvedValueOnce({ companyId: DEFAULT_ACCOUNT_ID, rows: [] });
+    archiveRequest.mockResolvedValueOnce({ companyId: DEFAULT_COMPANY_ID, rows: [] });
     await user.click(archive.getByRole('button', { name: 'Restore Ferris' }));
     expect(screen.getByTestId('client-row')).toHaveTextContent('Ferris');
     await waitFor(() =>
@@ -290,12 +290,12 @@ describe('ClientList archive flow', () => {
 // The built-in Internal client is a persisted project bucket, so ordinary client management must neither list nor archive it.
 describe('ClientList withholds the Archive affordance for the built-in Internal client', () => {
   it('renders no row and no Archive control for the Internal client (only normal clients show)', async () => {
-    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z');
+    const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-05-01T00:00:00.000Z');
     loadPlanningData({
       ...useStore.getState().data,
       clients: [
         internal,
-        makeClient({ id: 'normal-client', companyId: DEFAULT_ACCOUNT_ID, name: 'Globex' }),
+        makeClient({ id: 'normal-client', companyId: DEFAULT_COMPANY_ID, name: 'Globex' }),
       ],
     });
     await useStore.getState().refreshPlanning();

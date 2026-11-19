@@ -4,7 +4,7 @@ import type { ArchiveImpact } from '@capacitylens/shared/domain/lifecycle';
 import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity';
 import type { RepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory';
 import type {
-  Account,
+  Company,
   Activity,
   Allocation,
   AppDataKey,
@@ -34,7 +34,7 @@ export interface PlanningHistoryState {
 }
 
 type PlanningRowByEntity = {
-  accounts: Account;
+  accounts: Company;
   disciplines: Discipline;
   resources: Resource;
   clients: Client;

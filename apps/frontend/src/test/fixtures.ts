@@ -1,6 +1,6 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type {
-  Account,
+  Company,
   Activity,
   Allocation,
   AppData,
@@ -31,15 +31,15 @@ import { grantFor } from './permissionGrants';
 export const WORKDAYS: Weekday[] = [1, 2, 3, 4, 5];
 
 /** The account every fixture/entity is filed under unless overridden. */
-export const DEFAULT_ACCOUNT_ID = 'acct-test';
+export const DEFAULT_COMPANY_ID = 'acct-test';
 
 const TS = '2026-05-01T00:00:00.000Z';
 
 /** A complete Account; override any field per test. */
-export function makeAccount(overrides: Partial<Account> = {}): Account {
+export function makeAccount(overrides: Partial<Company> = {}): Company {
   return {
     ...NULLABLE_FIELDS.accounts,
-    id: DEFAULT_ACCOUNT_ID,
+    id: DEFAULT_COMPANY_ID,
     createdAt: TS,
     updatedAt: TS,
     name: 'Test Co',
@@ -203,7 +203,7 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
 
 /** Load test rows explicitly into both the response stub and the frontend cache. */
 export function loadPlanningData(data: AppData): void {
-  const companyId = useStore.getState().activeAccountId ?? data.accounts[0]?.id ?? 'unit-fixture';
+  const companyId = useStore.getState().activeCompanyId ?? data.accounts[0]?.id ?? 'unit-fixture';
   resetPlanningTransport(companyId, data, useStore);
   const today = getStubPlanningTransport().todayFor(companyId);
   useStore.setState((state) => ({
@@ -215,18 +215,18 @@ export function loadPlanningData(data: AppData): void {
 /** Reset test data and authority, then wait for the selected canonical company snapshot. */
 export function resetStoreWithData(
   data: AppData,
-  companyId: ID = data.accounts[0]?.id ?? DEFAULT_ACCOUNT_ID,
+  companyId: ID = data.accounts[0]?.id ?? DEFAULT_COMPANY_ID,
 ): Promise<boolean> {
   const account = data.accounts.find(({ id }) => id === companyId);
   if (!account) throw new Error(`The fixture data must contain account ${companyId}.`);
   useStore.getState().clearPlanning();
   resetPlanningTransport(companyId, data, useStore);
-  useStore.getState().setAccountSummaries({
+  useStore.getState().setCompanySummaries({
     list: [{ id: companyId, name: account.name, role: 'owner' }],
   });
   useStore.getState().setNotice(null);
   useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
-  useStore.getState().setActiveAccount(companyId);
+  useStore.getState().setActiveCompany(companyId);
   useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
   return useStore.getState().refreshPlanning({ fresh: true });
 }
@@ -258,7 +258,7 @@ export function unarchiveForTest(
 /** Reset the store to a clean single-account state with that account active.
  * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
  * settles once the planning cache has read the account, so allocation writes can begin. */
-export function resetStoreWithAccount(companyId: ID = DEFAULT_ACCOUNT_ID): Promise<boolean> {
+export function resetStoreWithAccount(companyId: ID = DEFAULT_COMPANY_ID): Promise<boolean> {
   const account = makeAccount({ id: companyId });
   return resetStoreWithData(makeAppData({ accounts: [account] }), companyId);
 }
@@ -273,8 +273,8 @@ export function replaceFixtureData(data: AppData): void {
   const state = useStore.getState();
   useStore.setState({ data: structuredClone(data) });
   updatePlanningFixtureSource(data);
-  if (state.activeAccountId && !data.accounts.some(({ id }) => id === state.activeAccountId)) {
-    useStore.getState().setActiveAccount(null);
+  if (state.activeCompanyId && !data.accounts.some(({ id }) => id === state.activeCompanyId)) {
+    useStore.getState().setActiveCompany(null);
   }
 }
 
@@ -282,7 +282,7 @@ type SetPlaceholdersEnabledOptions = { on: boolean; companyId?: ID };
 /** Set the test account placeholder setting. */
 export async function setPlaceholdersEnabled({
   on,
-  companyId = DEFAULT_ACCOUNT_ID,
+  companyId = DEFAULT_COMPANY_ID,
 }: SetPlaceholdersEnabledOptions): Promise<void> {
   await useStore.getState().updateAccount(companyId, { placeholdersEnabled: on });
 }
@@ -291,7 +291,7 @@ type SetExternalEnabledOptions = { on: boolean; companyId?: ID };
 /** Set the test account external resource setting. */
 export async function setExternalEnabled({
   on,
-  companyId = DEFAULT_ACCOUNT_ID,
+  companyId = DEFAULT_COMPANY_ID,
 }: SetExternalEnabledOptions): Promise<void> {
   await useStore.getState().updateAccount(companyId, { externalEnabled: on });
 }

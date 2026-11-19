@@ -1,7 +1,7 @@
 import { it, expect, vi } from 'vitest';
 import { screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
-import { loadPlanningData, makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { loadPlanningData, makeAppData, makeAccount, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { setUpAppShellTests, accountDirectory, renderAppShell } from './AppShell.testSupport';
 
@@ -15,7 +15,7 @@ setUpAppShellTests(i18nMocks.syncLocaleFromAccount);
 
 it('consumes a joined-account query only once and preserves later route queries', async () => {
   renderAppShell({
-    initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`],
+    initialEntries: [`/?joinedAccount=${DEFAULT_COMPANY_ID}`],
     includeLocationProbe: true,
   });
 
@@ -28,7 +28,7 @@ it('consumes a joined-account query only once and preserves later route queries'
 
 it('removes only the joined-account handoff from the entry query', async () => {
   renderAppShell({
-    initialEntries: [`/?tab=security&joinedAccount=${DEFAULT_ACCOUNT_ID}&view=archived#members`],
+    initialEntries: [`/?tab=security&joinedAccount=${DEFAULT_COMPANY_ID}&view=archived#members`],
     includeLocationProbe: true,
   });
 
@@ -40,21 +40,21 @@ it('removes only the joined-account handoff from the entry query', async () => {
 });
 
 it('waits for initial hydration before consuming a joined-account handoff', async () => {
-  useStore.getState().setActiveAccount(null);
+  useStore.getState().setActiveCompany(null);
   useStore.getState().setHydrated(false);
 
-  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_COMPANY_ID}`] });
 
   await waitFor(() =>
     expect(
-      useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID),
+      useStore.getState().companySummaries.some((account) => account.id === DEFAULT_COMPANY_ID),
     ).toBe(true),
   );
-  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(useStore.getState().activeCompanyId).toBeNull();
   expect(screen.getByRole('status')).toHaveTextContent('Loading');
 
   act(() => useStore.getState().setHydrated(true));
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
 });
 
 it('does not reactivate a consumed joined-account handoff after a later account-list refresh', async () => {
@@ -64,45 +64,45 @@ it('does not reactivate a consumed joined-account handoff after a later account-
   loadPlanningData(makeAppData({ accounts }));
   useStore
     .getState()
-    .setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
-  useStore.getState().setActiveAccount(otherAccountId);
+    .setCompanySummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
+  useStore.getState().setActiveCompany(otherAccountId);
 
-  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`] });
+  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_COMPANY_ID}`] });
   act(() => useStore.getState().setHydrated(true));
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
 
   act(() => {
-    useStore.getState().setActiveAccount(otherAccountId);
+    useStore.getState().setActiveCompany(otherAccountId);
     useStore
       .getState()
-      .setAccountSummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
+      .setCompanySummaries({ list: accounts.map(({ id, name }) => ({ id, name, role: 'owner' })) });
   });
 
-  expect(useStore.getState().activeAccountId).toBe(otherAccountId);
+  expect(useStore.getState().activeCompanyId).toBe(otherAccountId);
 });
 
 it('does not apply a late joined-account handoff after an explicit company choice', async () => {
   const lateAccountId = 'acct-late';
-  useStore.getState().setActiveAccount(null);
+  useStore.getState().setActiveCompany(null);
 
   renderAppShell({ initialEntries: [`/?joinedAccount=${lateAccountId}`] });
   await waitFor(() =>
     expect(
-      useStore.getState().accountSummaries.some((account) => account.id === DEFAULT_ACCOUNT_ID),
+      useStore.getState().companySummaries.some((account) => account.id === DEFAULT_COMPANY_ID),
     ).toBe(true),
   );
 
-  act(() => useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID));
+  act(() => useStore.getState().setActiveCompany(DEFAULT_COMPANY_ID));
   act(() => {
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: [
-        ...useStore.getState().accountSummaries,
+        ...useStore.getState().companySummaries,
         { id: lateAccountId, name: 'Late Co', role: 'owner' },
       ],
     });
   });
 
-  expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID);
+  expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID);
 });
 
 it('shows an installation error when the account directory contains multiple memberships', async () => {
@@ -110,8 +110,8 @@ it('shows an installation error when the account directory contains multiple mem
   accountDirectory.refused = true;
   loadPlanningData(makeAppData({ accounts }));
   useStore.setState({
-    activeAccountId: null,
-    accountSummaries: accounts.map(({ id, name }) => ({ id, name, role: 'owner' as const })),
+    activeCompanyId: null,
+    companySummaries: accounts.map(({ id, name }) => ({ id, name, role: 'owner' as const })),
   });
 
   renderAppShell({ initialEntries: ['/account'] });
@@ -120,30 +120,30 @@ it('shows an installation error when the account directory contains multiple mem
     'This installation has more than one company. Contact your administrator to resolve it.',
   );
   expect(screen.queryByRole('button', { name: 'Other Co' })).not.toBeInTheDocument();
-  expect(useStore.getState().activeAccountId).toBeNull();
+  expect(useStore.getState().activeCompanyId).toBeNull();
 });
 
 it('loads until the directory is complete, then opens its sole company', async () => {
   accountDirectory.pending = true;
   loadPlanningData(emptyAppData());
   useStore.setState({
-    activeAccountId: null,
-    accountSummaries: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
-    accountSummariesComplete: false,
+    activeCompanyId: null,
+    companySummaries: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
+    companySummariesComplete: false,
   });
 
   renderAppShell({});
 
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBeNull());
   expect(screen.getByRole('status')).toHaveTextContent('Loading');
 
   act(() => {
-    void useStore.getState().setAccountSummaries({
+    void useStore.getState().setCompanySummaries({
       list: [{ id: 'only-valid-row', name: 'Only Visible Co', role: 'owner' }],
       complete: true,
     });
   });
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe('only-valid-row'));
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBe('only-valid-row'));
 });
 
 it('waits when the sole membership role is unavailable', async () => {
@@ -157,8 +157,8 @@ it('waits when the sole membership role is unavailable', async () => {
   ];
   loadPlanningData(emptyAppData());
   useStore.setState({
-    activeAccountId: null,
-    accountSummaries: [
+    activeCompanyId: null,
+    companySummaries: [
       {
         id: 'unavailable-account',
         name: 'Unavailable Co',
@@ -170,34 +170,34 @@ it('waits when the sole membership role is unavailable', async () => {
 
   renderAppShell({});
 
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBeNull());
   expect(screen.getByRole('status')).toHaveTextContent('Loading');
 });
 
 it('opens the sole server-selected company after a reload even when an invite handoff is present', async () => {
-  useStore.setState({ activeAccountId: null });
+  useStore.setState({ activeCompanyId: null });
 
   renderAppShell({ initialEntries: ['/clients?joinedAccount=not-yet-authorized'] });
 
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
   expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
 });
 
 it('keeps the server-selected company when its active slice is empty', async () => {
-  const summary = { id: DEFAULT_ACCOUNT_ID, name: 'Wayne Enterprises', role: 'owner' as const };
+  const summary = { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' as const };
   useStore.setState({
-    activeAccountId: null,
-    accountSummaries: [summary],
+    activeCompanyId: null,
+    companySummaries: [summary],
   });
   renderAppShell({});
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
 
   act(() => {
     loadPlanningData(emptyAppData());
-    useStore.getState().setAccountSummaries({ list: [summary] });
+    useStore.getState().setCompanySummaries({ list: [summary] });
   });
 
-  await waitFor(() => expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID));
+  await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
   expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
   expect(useStore.getState().notice).toBeNull();
 });

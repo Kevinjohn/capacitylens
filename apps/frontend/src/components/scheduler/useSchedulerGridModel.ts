@@ -16,8 +16,8 @@ import {
   resolveWeekStart,
 } from '@/store/selectors';
 import {
-  defaultAccountWorkingDays,
-  normalizeAccountWorkingDays,
+  defaultCompanyWorkingDays,
+  normalizeCompanyWorkingDays,
 } from '@capacitylens/shared/lib/accountWorkingDays';
 
 type GridPreferences = ReturnType<typeof useSchedulerGridPreferences>;
@@ -90,19 +90,19 @@ export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: numb
 
 function buildModelPreferences(
   accountPrefs: GridPreferences['accountPrefs'],
-  accountWorkingDays: GridPreferences['accountWorkingDays'],
+  companyWorkingDays: GridPreferences['companyWorkingDays'],
 ) {
   return {
     disciplinesEnabled: accountPrefs.disciplinesEnabled,
     placeholdersEnabled: accountPrefs.placeholdersEnabled,
     externalEnabled: accountPrefs.externalEnabled,
-    accountWorkingDays,
+    companyWorkingDays,
     blocksMode: accountPrefs.blocksMode,
   };
 }
 
 function useSchedulerModelProjection({
-  preferences: { data, accountPrefs, accountWorkingDays, ui },
+  preferences: { data, accountPrefs, companyWorkingDays, ui },
   viewport: { days, geom },
   visibleStart,
   visibleEnd,
@@ -110,8 +110,8 @@ function useSchedulerModelProjection({
   partiallyExposesNextColumn: exposesNextColumn,
 }: SchedulerModelProjectionInput) {
   const modelPreferences = useMemo(
-    () => buildModelPreferences(accountPrefs, accountWorkingDays),
-    [accountPrefs, accountWorkingDays],
+    () => buildModelPreferences(accountPrefs, companyWorkingDays),
+    [accountPrefs, companyWorkingDays],
   );
   const capacity = useStore((state) => state.planning.capacity);
   // The static model spans the timeline so scrolling does not rebuild it. It sums no utilisation,
@@ -147,7 +147,7 @@ function useSchedulerModelProjection({
 export function useSchedulerGridPreferences() {
   const data = useActiveScopedData();
   const activeAccount = useStore((state) =>
-    state.data.accounts.find((account) => account.id === state.activeAccountId),
+    state.data.accounts.find((account) => account.id === state.activeCompanyId),
   );
   // Resolve account preferences from one account row to avoid repeated lookups, while retaining each shared selector's absent-field default.
   const accountPreferences = useMemo(() => {
@@ -163,11 +163,11 @@ export function useSchedulerGridPreferences() {
       calendarWeekStartsOn: resolveWeekStart(view, id),
     };
   }, [activeAccount]);
-  const accountWorkingDays = useMemo(() => {
+  const companyWorkingDays = useMemo(() => {
     const weekStartsOn = activeAccount?.weekStartsOn ?? 1;
     return activeAccount?.workingDays == null
-      ? defaultAccountWorkingDays(weekStartsOn)
-      : normalizeAccountWorkingDays(activeAccount.workingDays, weekStartsOn);
+      ? defaultCompanyWorkingDays(weekStartsOn)
+      : normalizeCompanyWorkingDays(activeAccount.workingDays, weekStartsOn);
   }, [activeAccount]);
   const ui = useStore((state) => state.ui);
 
@@ -179,7 +179,7 @@ export function useSchedulerGridPreferences() {
   return {
     data,
     accountPrefs: accountPreferences,
-    accountWorkingDays,
+    companyWorkingDays,
     ui,
     utilisationPrefs: utilisationPreferences,
     minimiseWeekends,

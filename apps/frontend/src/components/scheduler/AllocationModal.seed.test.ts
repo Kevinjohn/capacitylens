@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { makeAllocation } from '@/test/fixtures';
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import { buildAllocationModalSeed } from './buildAllocationModalSeed';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
@@ -32,7 +32,7 @@ describe('buildAllocationModalSeed', () => {
       data,
       mode: 'hourly',
       resourceById: new Map(),
-      accountWorkingDays: normalizeAccountWorkingDays(undefined, 1),
+      companyWorkingDays: normalizeCompanyWorkingDays(undefined, 1),
       today: '2040-01-02',
     });
 
@@ -60,7 +60,7 @@ describe('buildAllocationModalSeed', () => {
       data,
       mode: 'hourly',
       resourceById: new Map(),
-      accountWorkingDays: normalizeAccountWorkingDays(undefined, 1),
+      companyWorkingDays: normalizeCompanyWorkingDays(undefined, 1),
       today: '2040-01-02',
     });
 

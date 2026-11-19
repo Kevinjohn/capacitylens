@@ -46,9 +46,9 @@ describe('store slice composition', () => {
     expect(actionNames).toEqual(
       expect.arrayContaining([
         'updateAccount',
-        'setActiveAccount',
-        'beginAccountSummariesRequest',
-        'setAccountSummaries',
+        'setActiveCompany',
+        'beginCompanySummariesRequest',
+        'setCompanySummaries',
         'setHydrated',
         'setNotice',
         'announceCapacity',

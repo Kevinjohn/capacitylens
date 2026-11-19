@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { makeResource, DEFAULT_ACCOUNT_ID, WORKDAYS } from '@/test/fixtures';
+import { makeResource, DEFAULT_COMPANY_ID, WORKDAYS } from '@/test/fixtures';
 import type { Resource } from '@capacitylens/shared/types/entities';
 import { hasEffectiveDaysFor } from './gestureWorkingWeeks';
 
-const calendar = (resources: Resource[]) => ({ resources, accountWorkingDays: WORKDAYS });
+const calendar = (resources: Resource[]) => ({ resources, companyWorkingDays: WORKDAYS });
 
 describe('hasEffectiveDaysFor', () => {
   it('allows a resource with effective working days', () => {
     const resources = [
-      makeResource({ id: 'person', companyId: DEFAULT_ACCOUNT_ID, workingDays: WORKDAYS }),
+      makeResource({ id: 'person', companyId: DEFAULT_COMPANY_ID, workingDays: WORKDAYS }),
     ];
 
     expect(
@@ -22,7 +22,7 @@ describe('hasEffectiveDaysFor', () => {
 
   it('rejects a resource whose effective working week is collapsed', () => {
     const resources = [
-      makeResource({ id: 'person', companyId: DEFAULT_ACCOUNT_ID, workingDays: [] }),
+      makeResource({ id: 'person', companyId: DEFAULT_COMPANY_ID, workingDays: [] }),
     ];
 
     expect(
@@ -36,7 +36,7 @@ describe('hasEffectiveDaysFor', () => {
 
   it('allows a collapsed resource when the allocation ignores working days', () => {
     const resources = [
-      makeResource({ id: 'person', companyId: DEFAULT_ACCOUNT_ID, workingDays: [] }),
+      makeResource({ id: 'person', companyId: DEFAULT_COMPANY_ID, workingDays: [] }),
     ];
 
     expect(

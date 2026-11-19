@@ -20,7 +20,7 @@ interface RepeatContextTestInput {
   schedulingMode: RepeatProjectionContext['schedulingMode'];
   daysOver: number;
   resource?: ReturnType<typeof resourceContext> | undefined;
-  accountWorkingDays?: Weekday[] | undefined;
+  companyWorkingDays?: Weekday[] | undefined;
 }
 
 const baseDraft = (overrides: Partial<AllocationDraft> = {}): AllocationDraft => ({
@@ -48,12 +48,12 @@ const repeatContext = ({
   schedulingMode,
   daysOver,
   resource = resourceContext(),
-  accountWorkingDays = [1, 2, 3, 4, 5],
+  companyWorkingDays = [1, 2, 3, 4, 5],
 }: RepeatContextTestInput): RepeatProjectionContext => ({
   schedulingMode,
   daysOver,
   resource,
-  effectiveWeek: effectiveWorkingWeek(resource, accountWorkingDays),
+  effectiveWeek: effectiveWorkingWeek(resource, companyWorkingDays),
 });
 
 const draft = (startDate: string, endDate: string = startDate): TimeOffDraft => ({
@@ -204,7 +204,7 @@ describe('projectAllocationDates validation', () => {
           schedulingMode: 'days',
           daysOver: 5,
           resource,
-          accountWorkingDays: [1, 2, 3, 4],
+          companyWorkingDays: [1, 2, 3, 4],
         }),
       );
 
@@ -222,7 +222,7 @@ describe('projectAllocationDates validation', () => {
           schedulingMode: 'days',
           daysOver: 1,
           resource,
-          accountWorkingDays: [2],
+          companyWorkingDays: [2],
         }),
       ),
     ).toThrow(/effective working day/i);
@@ -239,7 +239,7 @@ describe('projectAllocationDates validation', () => {
           schedulingMode: 'days',
           daysOver: 2,
           resource,
-          accountWorkingDays: [2],
+          companyWorkingDays: [2],
         }),
       )[1],
     ).toMatchObject({ startDate: '2026-06-08', endDate: '2026-06-09', ignoreWorkingDays: true });

@@ -6,7 +6,7 @@ import type { useTeamDirectory } from './useTeamDirectory';
 
 type MemberAccessDependencies = Pick<
   MemberActionDependencies,
-  'requestAccountId' | 'isActiveAccount' | 'fail' | 'setNotice'
+  'requestAccountId' | 'isActiveCompany' | 'fail' | 'setNotice'
 > & {
   replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>['replaceAuthorizedDirectory'];
 };
@@ -14,12 +14,12 @@ type MemberAccessDependencies = Pick<
 async function reloadAuthorizedDirectory({
   companyId,
   message,
-  isActiveAccount,
+  isActiveCompany,
   setNotice,
   replaceAuthorizedDirectory,
 }: Pick<
   MemberAccessDependencies,
-  'isActiveAccount' | 'setNotice' | 'replaceAuthorizedDirectory'
+  'isActiveCompany' | 'setNotice' | 'replaceAuthorizedDirectory'
 > & {
   companyId: string;
   message: string;
@@ -29,7 +29,7 @@ async function reloadAuthorizedDirectory({
       teamAccessClient.listMembers(companyId),
       teamAccessClient.listInvitations(companyId),
     ]);
-    if (!isActiveAccount(companyId)) return { kind: 'stale' };
+    if (!isActiveCompany(companyId)) return { kind: 'stale' };
     if (memberResult.kind !== 'ok' || inviteResult.kind !== 'ok') {
       return { kind: 'failed', error: new Error(m.settings_members_err_authoritative_reload()) };
     }
@@ -45,22 +45,22 @@ async function reloadAuthorizedDirectory({
 /** Reconciles the member directory after a member change whose outcome is unknown. */
 export function createMemberAccessReconciliation({
   requestAccountId,
-  isActiveAccount,
+  isActiveCompany,
   fail,
   setNotice,
   replaceAuthorizedDirectory,
 }: MemberAccessDependencies) {
   const reconcileUnknownMutation = async (message: string): Promise<void> => {
     const companyId = requestAccountId();
-    if (!isActiveAccount(companyId)) return;
+    if (!isActiveCompany(companyId)) return;
     const reloadResult = await reloadAuthorizedDirectory({
       companyId,
       message,
-      isActiveAccount,
+      isActiveCompany,
       setNotice,
       replaceAuthorizedDirectory,
     });
-    if (reloadResult.kind !== 'failed' || !isActiveAccount(companyId)) return;
+    if (reloadResult.kind !== 'failed' || !isActiveCompany(companyId)) return;
     fail(
       null,
       m.settings_members_reconcile_reload_failed({

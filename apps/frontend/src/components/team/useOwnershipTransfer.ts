@@ -90,14 +90,14 @@ async function reconcileCallerAccess(
   } catch (cause) {
     console.error('OwnershipTransferCard: authentication refresh failed', cause);
   }
-  if (useStore.getState().activeAccountId !== companyId) return true;
+  if (useStore.getState().activeCompanyId !== companyId) return true;
   try {
     if (await reprojectAccess(companyId)) return true;
   } catch (cause) {
     console.error('OwnershipTransferCard: access refresh failed', cause);
   }
-  if (useStore.getState().activeAccountId === companyId) {
-    useStore.getState().setActiveAccount(null);
+  if (useStore.getState().activeCompanyId === companyId) {
+    useStore.getState().setActiveCompany(null);
     useStore.getState().setNotice(m.settings_members_access_refresh_failed(), 'error');
   }
   return false;

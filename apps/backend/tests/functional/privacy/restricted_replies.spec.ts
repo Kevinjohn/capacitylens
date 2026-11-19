@@ -358,8 +358,8 @@ const replies: Record<string, Exposure> = {
       return stepHistory(fixture, 'redo', historyId);
     },
   },
-  'api.accounts.anonymise': { none: COUNTS },
-  'api.accounts.index': { none: IDENTITY },
+  'api.companies.anonymise': { none: COUNTS },
+  'api.companies.index': { none: IDENTITY },
   'api.admission.approve': { none: IDENTITY },
   'api.admission.complete': { none: IDENTITY },
   'api.admission.index': { none: IDENTITY },

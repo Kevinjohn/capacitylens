@@ -9,16 +9,16 @@ import {
   hasPlaceholdersEnabled,
   buildDisciplineGroups,
   resolveSchedulingMode,
-  listAccountWorkingDays,
+  listCompanyWorkingDays,
   resolveTimeZone,
   buildVisibleRange,
   resolveWeekStart,
   hasVisibleTaskFieldInSchedule,
 } from './selectors';
 import { buildEmptyFilters } from './useStore';
-import { DEFAULT_ACCOUNT_ID, makeAccount, makeResource } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, makeAccount, makeResource } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import type { Account, AppData, ID } from '@capacitylens/shared/types/entities';
+import type { Company, AppData, ID } from '@capacitylens/shared/types/entities';
 
 function data(): AppData {
   return {
@@ -46,7 +46,7 @@ function data(): AppData {
     resources: [
       makeResource({
         id: 'r1',
-        companyId: DEFAULT_ACCOUNT_ID,
+        companyId: DEFAULT_COMPANY_ID,
         name: 'A',
         role: 'x',
         disciplineId: 'd1',
@@ -54,13 +54,13 @@ function data(): AppData {
       }),
       makeResource({
         id: 'r2',
-        companyId: DEFAULT_ACCOUNT_ID,
+        companyId: DEFAULT_COMPANY_ID,
         name: 'B',
         role: 'x',
         disciplineId: 'd2',
         color: '#2',
       }),
-      makeResource({ id: 'r3', companyId: DEFAULT_ACCOUNT_ID, name: 'C', role: 'x', color: '#3' }),
+      makeResource({ id: 'r3', companyId: DEFAULT_COMPANY_ID, name: 'C', role: 'x', color: '#3' }),
     ],
     projects: [
       {
@@ -141,7 +141,7 @@ describe('disciplinesEnabledFor', () => {
   });
 });
 
-const accountData = (values: Partial<Account> = {}): AppData => ({
+const accountData = (values: Partial<Company> = {}): AppData => ({
   ...emptyAppData(),
   accounts: [
     makeAccount({
@@ -160,7 +160,7 @@ const accountFeatureCases: Array<{
   selector: (data: AppData, companyId: ID | null) => unknown;
   fallback: unknown;
   explicit: unknown[];
-  values: (value: unknown) => Partial<Account>;
+  values: (value: unknown) => Partial<Company>;
 }> = [
   {
     name: 'scheduling mode',
@@ -170,7 +170,7 @@ const accountFeatureCases: Array<{
     values: (schedulingMode) =>
       schedulingMode === undefined
         ? {}
-        : { schedulingMode: schedulingMode as NonNullable<Account['schedulingMode']> },
+        : { schedulingMode: schedulingMode as NonNullable<Company['schedulingMode']> },
   },
   {
     name: 'placeholders',
@@ -210,7 +210,7 @@ describe('account feature selector defaults', () => {
 
 describe('calendar primitive selectors', () => {
   const accounts = (
-    calendar?: Pick<Partial<Account>, 'timezone' | 'weekStartsOn' | 'workingDays'>,
+    calendar?: Pick<Partial<Company>, 'timezone' | 'weekStartsOn' | 'workingDays'>,
   ) => ({
     ...emptyAppData(),
     accounts: [
@@ -239,12 +239,12 @@ describe('calendar primitive selectors', () => {
   });
 
   it('derives legacy account working days from week start and preserves an explicit selection', () => {
-    expect(listAccountWorkingDays(accounts({ weekStartsOn: 1 }), 'a1')).toEqual([1, 2, 3, 4, 5]);
-    expect(listAccountWorkingDays(accounts({ weekStartsOn: 0 }), 'a1')).toEqual([0, 1, 2, 3, 4]);
+    expect(listCompanyWorkingDays(accounts({ weekStartsOn: 1 }), 'a1')).toEqual([1, 2, 3, 4, 5]);
+    expect(listCompanyWorkingDays(accounts({ weekStartsOn: 0 }), 'a1')).toEqual([0, 1, 2, 3, 4]);
     const sundayAccount = accounts({ weekStartsOn: 0 }).accounts[0];
     if (!sundayAccount) throw new Error('Expected Sunday-start account fixture');
     expect(
-      listAccountWorkingDays(
+      listCompanyWorkingDays(
         {
           ...NULLABLE_FIELDS.accounts,
           ...accounts({ weekStartsOn: 0 }),
@@ -256,10 +256,10 @@ describe('calendar primitive selectors', () => {
   });
 
   it('repairs an empty persisted account week from its configured week start', () => {
-    expect(listAccountWorkingDays(accounts({ weekStartsOn: 1, workingDays: [] }), 'a1')).toEqual([
+    expect(listCompanyWorkingDays(accounts({ weekStartsOn: 1, workingDays: [] }), 'a1')).toEqual([
       1, 2, 3, 4, 5,
     ]);
-    expect(listAccountWorkingDays(accounts({ weekStartsOn: 0, workingDays: [] }), 'a1')).toEqual([
+    expect(listCompanyWorkingDays(accounts({ weekStartsOn: 0, workingDays: [] }), 'a1')).toEqual([
       0, 1, 2, 3, 4,
     ]);
   });
@@ -338,7 +338,7 @@ describe('resolveDateStyle', () => {
     // Built by assignment rather than a conditional spread: under exactOptionalPropertyTypes a
     // spread of `{ dateStyle } | {}` widens to `dateStyle?: DateStyle | undefined`, which the
     // optional-but-never-undefined property on Account rejects.
-    const account: Account = {
+    const account: Company = {
       ...NULLABLE_FIELDS.accounts,
       id: 'a1',
       createdAt: 't',
@@ -346,7 +346,7 @@ describe('resolveDateStyle', () => {
       name: 'Studio',
       color: '#1',
     };
-    if (dateStyle) account.dateStyle = dateStyle as NonNullable<Account['dateStyle']>;
+    if (dateStyle) account.dateStyle = dateStyle as NonNullable<Company['dateStyle']>;
     return { ...emptyAppData(), accounts: [account] };
   };
 

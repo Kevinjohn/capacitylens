@@ -23,7 +23,7 @@ export function useInactiveAccountData(): {
   const { user } = useAuth();
   const planning = useStore((state) => state.planning);
   const masquerade = useStore((state) => state.masquerade);
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
   const [serverData, setServerData] = useState<{
     companyId: string;
@@ -36,7 +36,7 @@ export function useInactiveAccountData(): {
   // A fresh object on any request-key transition prevents an A → B → A render from resurfacing A's prior response.
   const requestIdentity = useMemo(
     () => ({
-      activeAccountId,
+      activeCompanyId,
       mayViewInactive,
       reloadKey,
       role,
@@ -47,7 +47,7 @@ export function useInactiveAccountData(): {
       masquerade,
     }),
     [
-      activeAccountId,
+      activeCompanyId,
       mayViewInactive,
       reloadKey,
       role,
@@ -63,25 +63,25 @@ export function useInactiveAccountData(): {
   useEffect(
     () =>
       subscribeToInactiveDataChanges((companyId) => {
-        if (companyId === useStore.getState().activeAccountId) reload();
+        if (companyId === useStore.getState().activeCompanyId) reload();
       }),
     [reload],
   );
 
   useEffect(() => {
-    if (!mayViewInactive || !activeAccountId) {
+    if (!mayViewInactive || !activeCompanyId) {
       generation.current += 1;
       return;
     }
     const requestGeneration = ++generation.current;
     const controller = new AbortController();
-    void fetchInactiveSlice(activeAccountId, controller.signal)
+    void fetchInactiveSlice(activeCompanyId, controller.signal)
       .then((data) => {
         if (
           generation.current === requestGeneration &&
-          useStore.getState().activeAccountId === activeAccountId
+          useStore.getState().activeCompanyId === activeCompanyId
         ) {
-          setServerData({ companyId: activeAccountId, reloadKey, requestIdentity, data });
+          setServerData({ companyId: activeCompanyId, reloadKey, requestIdentity, data });
         }
       })
       .catch((error: unknown) => {
@@ -98,10 +98,10 @@ export function useInactiveAccountData(): {
         } else setNotice(m.settings_err_server({ error: resolveErrorMessage(error) }), 'error');
       });
     return () => controller.abort();
-  }, [activeAccountId, mayViewInactive, reloadKey, requestIdentity, setNotice]);
+  }, [activeCompanyId, mayViewInactive, reloadKey, requestIdentity, setNotice]);
 
   if (!mayViewInactive) return { data: null, mayViewInactive, reload };
-  if (serverData?.companyId !== activeAccountId || serverData.requestIdentity !== requestIdentity) {
+  if (serverData?.companyId !== activeCompanyId || serverData.requestIdentity !== requestIdentity) {
     return { data: null, mayViewInactive, reload };
   }
   return { data: serverData.data, mayViewInactive, reload };

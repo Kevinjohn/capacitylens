@@ -472,7 +472,7 @@ it('does not let a late typed write response close a form after its company chan
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    useStore.getState().setActiveAccount(null);
+    useStore.getState().setActiveCompany(null);
 
     releaseWrite();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -498,7 +498,7 @@ it('does not surface a late typed write rejection after its company changed', as
     render(<ResourceForm kind="person" onClose={onClose} />);
     await user.type(screen.getByLabelText('Name'), 'Bruce Wayne');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    useStore.getState().setActiveAccount(null);
+    useStore.getState().setActiveCompany(null);
 
     releaseWrite();
     await new Promise((resolve) => setTimeout(resolve, 0));

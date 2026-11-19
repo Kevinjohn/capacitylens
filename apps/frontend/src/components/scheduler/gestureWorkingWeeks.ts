@@ -9,14 +9,14 @@ import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from './cre
 /** The calendars a gesture reads: the resources and the company's working week at that moment. */
 export interface GestureCalendar {
   resources: Resource[];
-  accountWorkingDays: Weekday[];
+  companyWorkingDays: Weekday[];
 }
 
 /** The working weekdays that actually govern `resourceId`: their own pattern narrowed by the
  * company's. `undefined` when the resource is gone (deleted mid-drag). */
 export function resolveGestureWorkingDays(calendar: GestureCalendar, resourceId: ID) {
   const resource = calendar.resources.find((candidate) => candidate.id === resourceId);
-  return resource ? resolveEffectiveWorkingDays(resource, calendar.accountWorkingDays) : undefined;
+  return resource ? resolveEffectiveWorkingDays(resource, calendar.companyWorkingDays) : undefined;
 }
 
 interface EffectiveDaysQuery {
@@ -36,7 +36,7 @@ export function hasEffectiveDaysFor({
   const resource = calendar.resources.find((candidate) => candidate.id === resourceId);
   if (!resource) return true;
   return !lacksEffectiveWorkingDays(
-    effectiveWorkingWeek(resource, calendar.accountWorkingDays),
+    effectiveWorkingWeek(resource, calendar.companyWorkingDays),
     ignoreWorkingDays ?? undefined,
   );
 }
@@ -76,7 +76,7 @@ export function isDropStartBlocked({
   return isAllocationMoveStartBlocked({
     resource,
     date,
-    accountWorkingDays: calendar.accountWorkingDays,
+    companyWorkingDays: calendar.companyWorkingDays,
     ignoreWorkingDays: ignoreWorkingDays ?? undefined,
   });
 }

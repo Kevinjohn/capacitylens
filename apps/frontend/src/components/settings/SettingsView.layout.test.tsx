@@ -3,7 +3,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsView } from './SettingsView';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '@/test/fixtures';
+import { resetStoreWithAccount, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
 import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 
@@ -105,7 +105,7 @@ describe('SettingsView — grouped information architecture', () => {
   it('retains the existing permission exceptions during a masquerade transition', () => {
     useStore.getState().setMasquerade({
       kind: 'starting',
-      pending: { companyId: DEFAULT_ACCOUNT_ID, targetUserId: 'u-viewer' },
+      pending: { companyId: DEFAULT_COMPANY_ID, targetUserId: 'u-viewer' },
       generation: 1,
     });
     try {

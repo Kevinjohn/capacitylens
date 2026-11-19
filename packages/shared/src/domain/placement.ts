@@ -10,7 +10,7 @@ export interface AssertAllocationPlacementInput {
   existing?: AllocationPlacement;
   resource: Pick<Resource, 'kind' | 'workingDays'> &
     Partial<Pick<Resource, 'firstAvailableDate' | 'lastAvailableDate'>>;
-  accountWorkingDays: Weekday[];
+  companyWorkingDays: Weekday[];
 }
 
 /** Check availability only when a new or changed allocation placement is proposed. */
@@ -18,7 +18,7 @@ export function assertAllocationPlacement({
   allocation,
   existing,
   resource,
-  accountWorkingDays,
+  companyWorkingDays,
 }: AssertAllocationPlacementInput): void {
   if (
     existing &&
@@ -30,5 +30,5 @@ export function assertAllocationPlacement({
     return;
   }
 
-  assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
+  assertAllocationWithinResourceAvailability({ allocation, resource, companyWorkingDays });
 }

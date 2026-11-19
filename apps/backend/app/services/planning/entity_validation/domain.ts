@@ -175,7 +175,7 @@ export function assertEntityDomain(
         // The stored row comes from the same table, so it is an Allocation.
         existing: existing as Allocation | undefined,
         resource,
-        accountWorkingDays: lookup.accountWorkingDays(companyId),
+        companyWorkingDays: lookup.companyWorkingDays(companyId),
       });
     }
   } else if (table === 'timeOff') {
@@ -209,7 +209,7 @@ export function assertAllocationStartsOnWorkingDay(
   }
   const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
   if (!resource || typeof row.startDate !== 'string') return;
-  const effectiveWeek = effectiveWorkingWeek(resource, lookup.accountWorkingDays(companyId));
+  const effectiveWeek = effectiveWorkingWeek(resource, lookup.companyWorkingDays(companyId));
   if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(row.startDate))) {
     throw new PlanningOperationError(
       400,

@@ -53,7 +53,7 @@ function buildBlockTimeOffRows() {
       placeholdersEnabled: true,
       externalEnabled: true,
 
-      accountWorkingDays: [1, 2, 3, 4],
+      companyWorkingDays: [1, 2, 3, 4],
       blocksMode: true,
     },
   });
@@ -200,7 +200,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     );
     expect(greyBar.color).toBe('#9ca3af');
   });
-  it('does not throw when there are no clients at all (scopedAccountId derivation is optional-chained)', () => {
+  it('does not throw when there are no clients at all (scopedCompanyId derivation is optional-chained)', () => {
     const d = { ...dataset(), clients: [] };
     expect(() =>
       buildSchedulerModel({
@@ -324,7 +324,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
           disciplinesEnabled: true,
           placeholdersEnabled: true,
           externalEnabled: true,
-          accountWorkingDays: [1, 2, 3, 4],
+          companyWorkingDays: [1, 2, 3, 4],
         },
       })
         .flatMap((group) => group.rows)

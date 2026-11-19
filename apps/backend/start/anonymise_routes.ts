@@ -7,7 +7,7 @@ const AnonymiseController = () => import('#controllers/anonymise_controller');
 export function registerAnonymiseRoutes() {
   router
     .post('/api/companies/:companyId/anonymise', [AnonymiseController, 'company'])
-    .as('api.accounts.anonymise')
+    .as('api.companies.anonymise')
     .use(asCompanyMember());
   router
     .post('/api/companies/:companyId/resources/:id/anonymise', [AnonymiseController, 'resource'])

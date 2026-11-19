@@ -22,12 +22,12 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
 }
 
 /** Every membership role, most to least privileged. */
-export const ACCOUNT_ROLES = Object.freeze(['owner', 'admin', 'editor', 'viewer'] as const);
-/** A membership role; see {@link ACCOUNT_ROLES}. */
-export type Role = (typeof ACCOUNT_ROLES)[number];
+export const ROLES = Object.freeze(['owner', 'admin', 'editor', 'viewer'] as const);
+/** A membership role; see {@link ROLES}. */
+export type Role = (typeof ROLES)[number];
 /** Narrow an untrusted value to a known {@link Role}. Pure. */
-export function isAccountRole(value: unknown): value is Role {
-  return typeof value === 'string' && (ACCOUNT_ROLES as readonly string[]).includes(value);
+export function isRole(value: unknown): value is Role {
+  return typeof value === 'string' && (ROLES as readonly string[]).includes(value);
 }
 /**
  * The lifecycle state of one membership, as the Access Control package stores it. Only `'active'`

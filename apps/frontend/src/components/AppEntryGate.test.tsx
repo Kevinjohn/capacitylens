@@ -7,21 +7,21 @@ import { useStore } from '@/store/useStore';
 
 beforeEach(() => {
   useStore.setState({
-    accountSummaries: [],
-    accountSummariesComplete: false,
-    accountSummariesAmbiguous: false,
+    companySummaries: [],
+    companySummariesComplete: false,
+    companySummariesAmbiguous: false,
   });
 });
 
 const baseProps = {
   hydrated: true,
-  hasActiveAccount: true,
+  hasActiveCompany: true,
   ambiguousAccountDirectory: false,
-  allowWithoutActiveAccount: false,
-  activeAccountId: 'a-studio',
-  activeAccountLoadFailed: null,
-  activeAccountName: 'Wayne Enterprises',
-  onRetryActiveAccountLoad: () => Promise.resolve(true),
+  allowWithoutActiveCompany: false,
+  activeCompanyId: 'a-studio',
+  activeCompanyLoadFailed: null,
+  activeCompanyName: 'Wayne Enterprises',
+  onRetryActiveCompanyLoad: () => Promise.resolve(true),
   children: <div>application shell</div>,
 };
 
@@ -41,7 +41,7 @@ describe('AppEntryGate', () => {
     });
     const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     try {
-      render(<AppEntryGate {...baseProps} activeAccountLoadFailed="a-studio" />);
+      render(<AppEntryGate {...baseProps} activeCompanyLoadFailed="a-studio" />);
       act(() => callback?.(0));
 
       expect(screen.getByRole('button', { name: 'Retry' })).toHaveFocus();
@@ -55,7 +55,7 @@ describe('AppEntryGate', () => {
     const request = vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(23);
     const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     try {
-      const view = render(<AppEntryGate {...baseProps} activeAccountLoadFailed="a-studio" />);
+      const view = render(<AppEntryGate {...baseProps} activeCompanyLoadFailed="a-studio" />);
       view.rerender(<AppEntryGate {...baseProps} />);
 
       expect(cancel).toHaveBeenCalledWith(23);
@@ -66,14 +66,14 @@ describe('AppEntryGate', () => {
   });
 
   it('allows the personal Account route without an active company', () => {
-    render(<AppEntryGate {...baseProps} hasActiveAccount={false} allowWithoutActiveAccount />);
+    render(<AppEntryGate {...baseProps} hasActiveCompany={false} allowWithoutActiveCompany />);
 
     expect(screen.getByText('application shell')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
   });
 
   it('shows account-directory ambiguity even on the personal Account route', async () => {
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: [
         { id: 'a-studio', name: 'Wayne Enterprises', role: 'owner' },
         { id: 'a-loft', name: 'Stark Industries', role: 'viewer' },
@@ -82,8 +82,8 @@ describe('AppEntryGate', () => {
     render(
       <AppEntryGate
         {...baseProps}
-        hasActiveAccount={false}
-        allowWithoutActiveAccount
+        hasActiveCompany={false}
+        allowWithoutActiveCompany
         ambiguousAccountDirectory
       />,
     );
@@ -98,9 +98,9 @@ describe('AppEntryGate', () => {
     render(
       <AppEntryGate
         {...baseProps}
-        allowWithoutActiveAccount
-        activeAccountLoadFailed="a-studio"
-        onRetryActiveAccountLoad={retry}
+        allowWithoutActiveCompany
+        activeCompanyLoadFailed="a-studio"
+        onRetryActiveCompanyLoad={retry}
       />,
     );
 
@@ -121,9 +121,9 @@ describe('AppEntryGate', () => {
     render(
       <AppEntryGate
         {...baseProps}
-        allowWithoutActiveAccount
-        activeAccountLoadFailed="a-studio"
-        onRetryActiveAccountLoad={retry}
+        allowWithoutActiveCompany
+        activeCompanyLoadFailed="a-studio"
+        onRetryActiveCompanyLoad={retry}
       />,
     );
 
@@ -133,10 +133,10 @@ describe('AppEntryGate', () => {
   });
 
   it('does not show account recovery for a null or non-matching failure', () => {
-    const view = render(<AppEntryGate {...baseProps} activeAccountLoadFailed={null} />);
+    const view = render(<AppEntryGate {...baseProps} activeCompanyLoadFailed={null} />);
     expect(screen.getByText('application shell')).toBeInTheDocument();
 
-    view.rerender(<AppEntryGate {...baseProps} activeAccountLoadFailed="a-loft" />);
+    view.rerender(<AppEntryGate {...baseProps} activeCompanyLoadFailed="a-loft" />);
     expect(screen.getByText('application shell')).toBeInTheDocument();
   });
 });

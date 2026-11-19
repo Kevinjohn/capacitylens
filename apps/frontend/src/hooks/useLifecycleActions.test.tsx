@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '@/store/useStore';
 import {
   loadPlanningData,
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeAccount,
   resetStoreWithAccount,
 } from '@/test/fixtures';
@@ -83,7 +83,7 @@ describe('named lifecycle actions', () => {
     const call = fetch.mock.calls[0];
     if (!call) throw new Error('Anonymisation request was not sent.');
     const [url, options] = call;
-    expect(url).toBe(`/api/companies/${DEFAULT_ACCOUNT_ID}/resources/r-1/anonymise`);
+    expect(url).toBe(`/api/companies/${DEFAULT_COMPANY_ID}/resources/r-1/anonymise`);
     expect(options).toMatchObject({ method: 'POST', body: '{}' });
   });
 
@@ -110,7 +110,7 @@ describe('named lifecycle actions', () => {
     useStore.setState({ sendPlanningCommand: send });
     const { result } = renderHook(() => useLifecycleActions());
     const queued = result.current.archive('clients', 'c-1');
-    useStore.getState().setActiveAccount(null);
+    useStore.getState().setActiveCompany(null);
     await act(async () => queued);
     expect(send).not.toHaveBeenCalled();
   });
@@ -120,7 +120,7 @@ describe('named lifecycle actions', () => {
       ...useStore.getState().data,
       accounts: [makeAccount({ id: 'a-recovery-failed' })],
     });
-    useStore.getState().setActiveAccount('a-recovery-failed');
+    useStore.getState().setActiveCompany('a-recovery-failed');
     await useStore.getState().refreshPlanning();
     useStore.setState({ refreshPlanning: async () => false });
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
@@ -154,10 +154,10 @@ describe('named lifecycle actions', () => {
     const { result } = renderHook(() => useLifecycleActions(onReloaded));
     const operation = result.current.anonymise('r-one');
     await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
-    act(() => useStore.setState({ activeAccountId: 'a-loft' }));
+    act(() => useStore.setState({ activeCompanyId: 'a-loft' }));
     finishRefresh(true);
     await act(async () => operation);
     expect(onReloaded).not.toHaveBeenCalled();
-    expect(useStore.getState().activeAccountId).toBe('a-loft');
+    expect(useStore.getState().activeCompanyId).toBe('a-loft');
   });
 });

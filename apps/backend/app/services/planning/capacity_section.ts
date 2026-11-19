@@ -1,4 +1,4 @@
-import { normalizeAccountWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
 import {
   applyCapacityMode,
   buildDayCapacity,
@@ -26,12 +26,12 @@ import {
   UTILISATION_WINDOW_DAYS,
 } from '@capacitylens/shared/lib/planningWindows';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
-import type { Account, AppData, ISODate } from '@capacitylens/shared/types/entities';
+import type { Company, AppData, ISODate } from '@capacitylens/shared/types/entities';
 
 interface BuildCapacitySectionInput {
   /** The active rows the reader receives. */
   data: AppData;
-  account: Account | undefined;
+  account: Company | undefined;
   today: ISODate;
   /** The requested window; the scheduler's default window when absent. */
   window?: CapacityRange | undefined;
@@ -61,7 +61,7 @@ export function buildCapacitySection({
   window,
 }: BuildCapacitySectionInput): CapacitySection {
   const weekStartsOn = account?.weekStartsOn ?? 1;
-  const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, weekStartsOn);
+  const companyWorkingDays = normalizeCompanyWorkingDays(account?.workingDays, weekStartsOn);
   const blocksMode = account?.schedulingMode === 'blocks';
   const range = window ?? buildDefaultCapacityWindow(today, weekStartsOn);
   const horizon = {
@@ -104,7 +104,7 @@ export function buildCapacitySection({
       dates
     );
     const timeOffByDate = bucketByCoveredDate(timeOffByResource.get(resource.id) ?? [], dates);
-    const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
+    const effectiveWeek = effectiveWorkingWeek(resource, companyWorkingDays);
     const all: CapacityDays = { allocated: [], confirmedAllocated: [], available: [], over: [] };
     for (const date of dates) {
       const allocations = allocationsByDate.get(date) ?? [];

@@ -2,7 +2,7 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from './useStore';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeAppData,
   makeResource,
   requireValue,
@@ -13,7 +13,7 @@ import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 
 const T = '2026-01-01T00:00:00.000Z';
-const meta = { companyId: DEFAULT_ACCOUNT_ID, createdAt: T, updatedAt: T };
+const meta = { companyId: DEFAULT_COMPANY_ID, createdAt: T, updatedAt: T };
 
 beforeEach(() => resetStoreWithAccount());
 afterEach(() => {
@@ -31,7 +31,7 @@ describe('typed undo restores cascade bindings', () => {
     };
     const saved = { ...original, name: 'Changed', updatedAt: '2026-02-01T09:00:00.000Z' };
     const restoredAt = '2026-02-01T09:00:00.001Z';
-    await resetStoreWithData(makeAppData({ clients: [original] }), DEFAULT_ACCOUNT_ID);
+    await resetStoreWithData(makeAppData({ clients: [original] }), DEFAULT_COMPANY_ID);
     queuePlanningPatch(() => ({ upserts: [{ entity: 'clients', row: saved }], removed: [] }));
     await useStore.getState().updateClient(original.id, { name: saved.name });
     expect(useStore.getState().data.clients[0]?.updatedAt).toBe(saved.updatedAt);
@@ -62,7 +62,7 @@ describe('typed undo restores cascade bindings', () => {
       name: `Client ${index}`,
       color: '#111111',
     }));
-    await resetStoreWithData(makeAppData({ clients }), DEFAULT_ACCOUNT_ID);
+    await resetStoreWithData(makeAppData({ clients }), DEFAULT_COMPANY_ID);
     await useStore.getState().addClient({ name: 'Last client', color: '#222222' });
     const addedClient = requireValue(useStore.getState().data.clients.at(-1), 'last client');
 
@@ -102,7 +102,7 @@ describe('typed undo restores cascade bindings', () => {
           },
         ],
       }),
-      DEFAULT_ACCOUNT_ID,
+      DEFAULT_COMPANY_ID,
     );
     const deletedActivity = requireValue(useStore.getState().data.activities[0], 'activity');
     const phaseHandle = 'restore-phase-delete';
@@ -141,7 +141,7 @@ describe('typed undo restores cascade bindings', () => {
           makeResource({ ...meta, id: 'r1', name: 'Person', disciplineId: 'd1', color: '#333333' }),
         ],
       }),
-      DEFAULT_ACCOUNT_ID,
+      DEFAULT_COMPANY_ID,
     );
     const deletedResource = requireValue(useStore.getState().data.resources[0], 'resource');
     const disciplineHandle = 'restore-discipline-delete';

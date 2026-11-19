@@ -8,13 +8,13 @@ import { AccountAccessRecovery } from './AccountAccessRecovery';
 describe('Account access recovery boundary', () => {
   beforeEach(() => {
     loadPlanningData(emptyAppData());
-    useStore.getState().setAccountSummaries({ list: [] });
+    useStore.getState().setCompanySummaries({ list: [] });
   });
 
   it('keeps loading while the company directory is unresolved', () => {
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: [],
-      requestId: useStore.getState().accountSummariesRequestId,
+      requestId: useStore.getState().companySummariesRequestId,
       complete: false,
     });
 
@@ -27,7 +27,7 @@ describe('Account access recovery boundary', () => {
   it.each([false, true])(
     'shows multiple-membership ambiguity before loading (complete=%s)',
     (complete) => {
-      useStore.getState().setAccountSummaries({
+      useStore.getState().setCompanySummaries({
         list: [
           { id: 'company-a', name: 'Wayne Enterprises', role: 'owner' },
           { id: 'company-b', name: 'Stark Industries', role: 'viewer' },
@@ -46,7 +46,7 @@ describe('Account access recovery boundary', () => {
   );
 
   it('shows a server 409 ambiguity response even when its directory is incomplete', () => {
-    useStore.getState().setAccountSummaries({ list: [], complete: false, ambiguous: true });
+    useStore.getState().setCompanySummaries({ list: [], complete: false, ambiguous: true });
     render(<AccountAccessRecovery />);
     expect(screen.getByRole('alert')).toHaveTextContent(
       'This installation has more than one company. Contact your administrator to resolve it.',

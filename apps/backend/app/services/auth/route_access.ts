@@ -41,8 +41,8 @@ const limitedRoutes = new Set([
 
 /** Product routes: the schedule, the company and its people. */
 const admittedRoutes = new Set([
-  'api.accounts.anonymise',
-  'api.accounts.index',
+  'api.companies.anonymise',
+  'api.companies.index',
   'api.admission.complete',
   'api.diagnostics',
   'api.example-data',

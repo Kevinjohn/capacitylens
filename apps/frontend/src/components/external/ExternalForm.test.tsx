@@ -134,7 +134,7 @@ describe('ExternalForm', () => {
   it('surfaces a store rejection without closing the form', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    useStore.getState().setActiveAccount(null);
+    useStore.getState().setActiveCompany(null);
     render(<ExternalForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText('Company'), 'Unscoped partner');

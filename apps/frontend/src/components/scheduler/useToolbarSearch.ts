@@ -4,7 +4,7 @@ import type { StoreState } from '@/store/useStore';
 
 interface UseToolbarSearchInput {
   filters: StoreState['ui']['filters'];
-  activeAccountId: StoreState['activeAccountId'];
+  activeCompanyId: StoreState['activeCompanyId'];
   setFilters: StoreState['setFilters'];
   clearFilters: StoreState['clearFilters'];
 }
@@ -12,7 +12,7 @@ interface UseToolbarSearchInput {
 /** Debounces schedule search and cancels stale text after external filter changes. */
 export function useToolbarSearch({
   filters,
-  activeAccountId,
+  activeCompanyId,
   setFilters,
   clearFilters,
 }: UseToolbarSearchInput) {
@@ -22,9 +22,9 @@ export function useToolbarSearch({
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
   // Reconcile pending text on filter-object or tenant changes, because an external replacement may keep the committed search string unchanged.
-  const [seen, setSeen] = useState({ filters, account: activeAccountId });
-  if (filters !== seen.filters || activeAccountId !== seen.account) {
-    setSeen({ filters, account: activeAccountId });
+  const [seen, setSeen] = useState({ filters, account: activeCompanyId });
+  if (filters !== seen.filters || activeCompanyId !== seen.account) {
+    setSeen({ filters, account: activeCompanyId });
     setSearchInput(filters.search);
   }
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,7 +33,7 @@ export function useToolbarSearch({
     searchTimer.current = null;
   };
   // Cancel pending search when its owning filter object is replaced so an old timer cannot overwrite a newer filter choice.
-  useEffect(() => cancelSearchTimer, [filters, activeAccountId]);
+  useEffect(() => cancelSearchTimer, [filters, activeCompanyId]);
   const changeSearch = (value: string) => {
     setSearchInput(value);
     cancelSearchTimer();

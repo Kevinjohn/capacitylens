@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Draft } from './useStore';
 import type { Resource, TimeOff } from '@capacitylens/shared/types/entities';
 import {
-  DEFAULT_ACCOUNT_ID,
+  DEFAULT_COMPANY_ID,
   makeResource,
   makeResourceDraft,
   resetStoreWithAccount,
@@ -67,7 +67,7 @@ describe('atomic time-off creation: happy path', () => {
     expect(publishedBatchSizes.every((size) => size === 2)).toBe(true);
     expect(created).toHaveLength(2);
     expect(new Set(created.map((timeOff) => timeOff.id)).size).toBe(2);
-    expect(created.every((timeOff) => timeOff.companyId === DEFAULT_ACCOUNT_ID)).toBe(true);
+    expect(created.every((timeOff) => timeOff.companyId === DEFAULT_COMPANY_ID)).toBe(true);
     expect(created.map((timeOff) => [timeOff.startDate, timeOff.endDate])).toEqual([
       ['2026-06-01', '2026-06-02'],
       ['2026-06-08', '2026-06-09'],

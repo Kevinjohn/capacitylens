@@ -21,14 +21,14 @@ export function CapacityOverviewView() {
   const [capacityDisplayMode, setCapacityDisplayMode] = useState<CapacityDisplayMode>('ledger');
   const [horizon, setHorizon] = useState<CapacityOverviewHorizon>('4-weeks');
   const data = useStore((state) => state.data);
-  const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeCompanyId = useStore((state) => state.activeCompanyId);
   const scopedData = useActiveScopedData();
   const today = useCompanyToday();
-  const schedulingMode = resolveSchedulingMode(data, activeAccountId);
-  const weekStartsOn = resolveWeekStart(data, activeAccountId);
+  const schedulingMode = resolveSchedulingMode(data, activeCompanyId);
+  const weekStartsOn = resolveWeekStart(data, activeCompanyId);
   const capacity = useStore((state) => state.planning.capacity);
-  const placeholdersEnabled = hasPlaceholdersEnabled(data, activeAccountId);
-  const disciplinesEnabled = hasDisciplinesEnabled(data, activeAccountId);
+  const placeholdersEnabled = hasPlaceholdersEnabled(data, activeCompanyId);
+  const disciplinesEnabled = hasDisciplinesEnabled(data, activeCompanyId);
   const model = useMemo(
     () =>
       buildCapacityOverviewModel({

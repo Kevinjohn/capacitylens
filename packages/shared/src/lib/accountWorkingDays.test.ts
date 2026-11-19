@@ -1,36 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import {
-  defaultAccountWorkingDays,
+  defaultCompanyWorkingDays,
   isWeekday,
   isWeekdaySet,
-  normalizeAccountWorkingDays,
+  normalizeCompanyWorkingDays,
   orderedWeekdays,
 } from './accountWorkingDays.js';
 
 describe('account working days', () => {
   it('defaults to the first five days of the configured week', () => {
-    expect(defaultAccountWorkingDays(1)).toEqual([1, 2, 3, 4, 5]);
-    expect(defaultAccountWorkingDays(0)).toEqual([0, 1, 2, 3, 4]);
+    expect(defaultCompanyWorkingDays(1)).toEqual([1, 2, 3, 4, 5]);
+    expect(defaultCompanyWorkingDays(0)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it("repairs empty and malformed selections to the configured week's default", () => {
-    expect(normalizeAccountWorkingDays([5, 1, 5], 1)).toEqual([1, 5]);
-    expect(normalizeAccountWorkingDays([], 1)).toEqual([1, 2, 3, 4, 5]);
-    expect(normalizeAccountWorkingDays([], 0)).toEqual([0, 1, 2, 3, 4]);
-    expect(normalizeAccountWorkingDays([1, 7], 1)).toEqual([1, 2, 3, 4, 5]);
-    expect(normalizeAccountWorkingDays('weekdays', 0)).toEqual([0, 1, 2, 3, 4]);
+    expect(normalizeCompanyWorkingDays([5, 1, 5], 1)).toEqual([1, 5]);
+    expect(normalizeCompanyWorkingDays([], 1)).toEqual([1, 2, 3, 4, 5]);
+    expect(normalizeCompanyWorkingDays([], 0)).toEqual([0, 1, 2, 3, 4]);
+    expect(normalizeCompanyWorkingDays([1, 7], 1)).toEqual([1, 2, 3, 4, 5]);
+    expect(normalizeCompanyWorkingDays('weekdays', 0)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it.each([-1, 7, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
     'repairs a selection containing the invalid day %s',
     (invalidDay) => {
-      expect(normalizeAccountWorkingDays([0, invalidDay, 6], 1)).toEqual([1, 2, 3, 4, 5]);
-      expect(normalizeAccountWorkingDays([0, invalidDay, 6], 0)).toEqual([0, 1, 2, 3, 4]);
+      expect(normalizeCompanyWorkingDays([0, invalidDay, 6], 1)).toEqual([1, 2, 3, 4, 5]);
+      expect(normalizeCompanyWorkingDays([0, invalidDay, 6], 0)).toEqual([0, 1, 2, 3, 4]);
     },
   );
 
   it('accepts both weekday boundaries and returns a deduplicated canonical set', () => {
-    expect(normalizeAccountWorkingDays([6, 0, 3, 6, 0], 1)).toEqual([0, 3, 6]);
+    expect(normalizeCompanyWorkingDays([6, 0, 3, 6, 0], 1)).toEqual([0, 3, 6]);
   });
 
   it('recognises only whole-number days inside the week', () => {
@@ -71,6 +71,6 @@ it('rejects sparse weekday input at both unknown-input boundaries', () => {
   middle[2] = 5;
   for (const days of [new Array<number>(1), leading, middle]) {
     expect(isWeekdaySet(days)).toBe(false);
-    expect(normalizeAccountWorkingDays(days, 0)).toEqual([0, 1, 2, 3, 4]);
+    expect(normalizeCompanyWorkingDays(days, 0)).toEqual([0, 1, 2, 3, 4]);
   }
 });

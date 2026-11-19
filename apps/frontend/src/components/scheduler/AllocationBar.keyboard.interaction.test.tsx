@@ -525,7 +525,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
 
     fireEvent.keyDown(bar, { key: 'ArrowRight' });
     await settlePlanning();
-    useStore.setState({ activeAccountId: 'other-account' });
+    useStore.setState({ activeCompanyId: 'other-account' });
     callback?.(0);
 
     expect(focus).not.toHaveBeenCalled();

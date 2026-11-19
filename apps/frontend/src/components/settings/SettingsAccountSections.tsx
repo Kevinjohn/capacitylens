@@ -1,12 +1,12 @@
 import { m } from '@/i18n';
 import { resolveTimeZoneOptionLabel } from '@/lib/timezones';
 import { SettingsSection } from './SettingsSection';
-import type { Account } from '@capacitylens/shared/types/entities';
+import type { Company } from '@capacitylens/shared/types/entities';
 
 type SettingsAccountOptionsProps = {
-  companyName: Account['name'];
-  weekStartsOn: NonNullable<Account['weekStartsOn']>;
-  timezone: NonNullable<Account['timezone']>;
+  companyName: Company['name'];
+  weekStartsOn: NonNullable<Company['weekStartsOn']>;
+  timezone: NonNullable<Company['timezone']>;
 };
 
 /** Displays the company name and fixed calendar week/timezone convention. */

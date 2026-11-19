@@ -8,8 +8,8 @@ import type { StoreState } from '@/store/types';
 // company once the directory proves there is exactly one.
 
 interface JoinedAccountHandoffInput {
-  accountSummaries: StoreState['accountSummaries'];
-  activeAccountId: StoreState['activeAccountId'];
+  companySummaries: StoreState['companySummaries'];
+  activeCompanyId: StoreState['activeCompanyId'];
   hash: string;
   hydrated: boolean;
   navigate: ReturnType<typeof useNavigate>;
@@ -19,11 +19,11 @@ interface JoinedAccountHandoffInput {
 
 /** Enters the company named by a joined-account handoff once, then removes it from the URL. */
 export function useJoinedAccountHandoff(input: JoinedAccountHandoffInput) {
-  const { accountSummaries, activeAccountId, hash, hydrated, navigate, pathname, search } = input;
+  const { companySummaries, activeCompanyId, hash, hydrated, navigate, pathname, search } = input;
   const [joinedAccountHandoff] = useState(() => readJoinedAccountHandoff(search));
   const joinedAccountUrlCleaned = useRef(false);
   const joinedAccountHandoffConsumed = useRef(false);
-  const initialActiveAccountId = useRef(activeAccountId);
+  const initialActiveCompanyId = useRef(activeCompanyId);
 
   useEffect(() => {
     if (!joinedAccountHandoff || joinedAccountUrlCleaned.current) return;
@@ -35,41 +35,41 @@ export function useJoinedAccountHandoff(input: JoinedAccountHandoffInput) {
     // Wait for persistence hydration so the switch cannot race an older bootstrap replacement.
     if (!hydrated || !joinedAccountHandoff || joinedAccountHandoffConsumed.current) return;
     const userSelectedAnotherAccount =
-      activeAccountId !== null &&
-      activeAccountId !== joinedAccountHandoff &&
-      activeAccountId !== initialActiveAccountId.current;
+      activeCompanyId !== null &&
+      activeCompanyId !== joinedAccountHandoff &&
+      activeCompanyId !== initialActiveCompanyId.current;
     if (userSelectedAnotherAccount) {
       joinedAccountHandoffConsumed.current = true;
       return;
     }
-    if (!accountSummaries.some((account) => account.id === joinedAccountHandoff)) return;
+    if (!companySummaries.some((account) => account.id === joinedAccountHandoff)) return;
 
     joinedAccountHandoffConsumed.current = true;
     void transitionAccount(joinedAccountHandoff);
-  }, [accountSummaries, activeAccountId, hydrated, joinedAccountHandoff]);
+  }, [companySummaries, activeCompanyId, hydrated, joinedAccountHandoff]);
 
   return joinedAccountHandoff;
 }
 
 interface SingleAccountReloadInput {
-  accountSummaries: StoreState['accountSummaries'];
-  accountSummariesComplete: boolean;
-  activeAccountId: StoreState['activeAccountId'];
+  companySummaries: StoreState['companySummaries'];
+  companySummariesComplete: boolean;
+  activeCompanyId: StoreState['activeCompanyId'];
   hydrated: boolean;
 }
 
 interface ResolveSingleAccountForReloadInput {
-  accountSummaries: StoreState['accountSummaries'];
-  accountSummariesComplete: boolean;
-  activeAccountId: StoreState['activeAccountId'];
+  companySummaries: StoreState['companySummaries'];
+  companySummariesComplete: boolean;
+  activeCompanyId: StoreState['activeCompanyId'];
 }
 
 function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput) {
-  const account = input.accountSummaries[0];
+  const account = input.companySummaries[0];
   if (
-    input.activeAccountId !== null ||
-    !input.accountSummariesComplete ||
-    input.accountSummaries.length !== 1 ||
+    input.activeCompanyId !== null ||
+    !input.companySummariesComplete ||
+    input.companySummaries.length !== 1 ||
     account?.roleStatus === 'unavailable'
   ) {
     return undefined;
@@ -79,22 +79,22 @@ function resolveSingleAccountForReload(input: ResolveSingleAccountForReloadInput
 
 /** Enters the only company after a reload when the complete directory lists exactly one. */
 export function useSingleAccountReload(input: SingleAccountReloadInput) {
-  const { accountSummaries, accountSummariesComplete, activeAccountId, hydrated } = input;
+  const { companySummaries, companySummariesComplete, activeCompanyId, hydrated } = input;
   const singleAccountReloadHandled = useRef(false);
 
   useEffect(() => {
-    if (activeAccountId !== null) singleAccountReloadHandled.current = false;
+    if (activeCompanyId !== null) singleAccountReloadHandled.current = false;
     if (!hydrated || singleAccountReloadHandled.current) return;
-    if (accountSummaries.length === 0) return;
+    if (companySummaries.length === 0) return;
 
     const account = resolveSingleAccountForReload({
-      accountSummaries,
-      accountSummariesComplete,
-      activeAccountId,
+      companySummaries,
+      companySummariesComplete,
+      activeCompanyId,
     });
     if (!account) return;
 
     singleAccountReloadHandled.current = true;
     void transitionAccount(account.id);
-  }, [accountSummaries, accountSummariesComplete, activeAccountId, hydrated]);
+  }, [companySummaries, companySummariesComplete, activeCompanyId, hydrated]);
 }

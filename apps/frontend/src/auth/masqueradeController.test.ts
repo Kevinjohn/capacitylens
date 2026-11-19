@@ -41,27 +41,27 @@ describe('MasqueradeController', () => {
     loadPlanningData(
       makeAppData({ accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
     );
-    useStore.getState().setActiveAccount('a-studio');
+    useStore.getState().setActiveCompany('a-studio');
     await useStore.getState().refreshPlanning();
     const { controller } = harness();
 
     await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(true);
 
-    expect(useStore.getState().accountSummaries).toEqual([
+    expect(useStore.getState().companySummaries).toEqual([
       { id: 'a-studio', name: 'Wayne Enterprises', role: 'viewer' },
     ]);
   });
 
   it('does not publish a cached company or target name before the projection is loaded', async () => {
-    useStore.getState().setAccountSummaries({
+    useStore.getState().setCompanySummaries({
       list: [{ id: 'old-company', name: 'Stark Industries', role: 'owner' }],
     });
     const { controller } = harness();
 
     await controller.adoptStatus({ active: true, ...state });
 
-    expect(useStore.getState().accountSummaries).toEqual([]);
-    expect(useStore.getState().accountSummariesComplete).toBe(false);
+    expect(useStore.getState().companySummaries).toEqual([]);
+    expect(useStore.getState().companySummariesComplete).toBe(false);
   });
 
   it('aborts before suspension when pending writes cannot be flushed', async () => {

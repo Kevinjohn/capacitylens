@@ -123,7 +123,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       .spyOn(masqueradeController, 'restoreServerEndedProjection')
       .mockImplementation(() => {});
     useStore.setState({
-      activeAccountId: 'a-studio',
+      activeCompanyId: 'a-studio',
       masquerade: {
         kind: 'active',
         generation: 8,

@@ -12,11 +12,11 @@ import type { StoreState } from '@/store/types';
 /** Applies the active company's language once its account row has loaded. */
 export function useAccountLocale(
   accounts: StoreState['data']['accounts'],
-  activeAccountId: StoreState['activeAccountId'],
+  activeCompanyId: StoreState['activeCompanyId'],
 ) {
-  const hydratedActiveAccount = accounts.find((account) => account.id === activeAccountId);
+  const hydratedActiveAccount = accounts.find((account) => account.id === activeCompanyId);
   const activeLanguage = hydratedActiveAccount?.language;
-  const activeLanguagePending = activeAccountId !== null && hydratedActiveAccount === undefined;
+  const activeLanguagePending = activeCompanyId !== null && hydratedActiveAccount === undefined;
 
   useEffect(() => {
     if (activeLanguagePending) return;

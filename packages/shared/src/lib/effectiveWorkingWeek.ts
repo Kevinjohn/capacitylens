@@ -41,13 +41,13 @@ export function lacksEffectiveWorkingDays(
  * no personal capacity pattern, so their effective calendar is the complete company set. */
 export function effectiveWorkingWeek(
   resource: Pick<Resource, 'kind' | 'workingDays'>,
-  accountWorkingDays: Weekday[],
+  companyWorkingDays: Weekday[],
 ): EffectiveWorkingWeek {
-  const companyWorkingDays = canonicalWeekdaySet(accountWorkingDays);
-  let days = companyWorkingDays;
+  const canonicalCompanyDays = canonicalWeekdaySet(companyWorkingDays);
+  let days = canonicalCompanyDays;
   if (hasPersonalWorkingPattern(resource)) {
     const personalWorkingDays = new Set(resource.workingDays);
-    days = companyWorkingDays.filter((weekday) => personalWorkingDays.has(weekday));
+    days = canonicalCompanyDays.filter((weekday) => personalWorkingDays.has(weekday));
   }
 
   return days.length === 0 ? { kind: 'none' } : { kind: 'days', days };

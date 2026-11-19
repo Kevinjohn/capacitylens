@@ -15,19 +15,19 @@ export type PendingImport = {
  * browser checks only that the file is JSON; the server's preview validates the document.
  */
 export function usePendingImport(
-  activeAccountId: string | null,
+  activeCompanyId: string | null,
   setNotice: ReturnType<typeof useStore.getState>['setNotice'],
 ) {
   const [pending, setPending] = useState<PendingImport | null>(null);
   const selectionRef = useRef(0);
-  const accountRef = useRef(activeAccountId);
+  const accountRef = useRef(activeCompanyId);
 
   useEffect(() => {
-    if (accountRef.current === activeAccountId) return;
-    accountRef.current = activeAccountId;
+    if (accountRef.current === activeCompanyId) return;
+    accountRef.current = activeCompanyId;
     selectionRef.current += 1;
     setPending(null);
-  }, [activeAccountId]);
+  }, [activeCompanyId]);
 
   /** Stores the file as the pending import, or returns null when it is not JSON or was superseded. */
   const readFile = async (file: File): Promise<PendingImport | null> => {
@@ -45,11 +45,11 @@ export function usePendingImport(
     }
     if (
       selection !== selectionRef.current ||
-      useStore.getState().activeAccountId !== activeAccountId
+      useStore.getState().activeCompanyId !== activeCompanyId
     ) {
       return null;
     }
-    const selected = { companyId: activeAccountId, document, name: file.name };
+    const selected = { companyId: activeCompanyId, document, name: file.name };
     setPending(selected);
     return selected;
   };

@@ -59,7 +59,7 @@ function view(role: 'owner' | 'admin' | 'editor', principalId = 'bruce') {
 }
 
 beforeEach(() => {
-  useStore.setState({ activeAccountId: 'a1' });
+  useStore.setState({ activeCompanyId: 'a1' });
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -120,9 +120,9 @@ describe('useInactiveAccountData', () => {
     );
     render(view('admin'));
     expect(await screen.findByText(/Old A/)).toBeInTheDocument();
-    useStore.setState({ activeAccountId: 'a2' });
+    useStore.setState({ activeCompanyId: 'a2' });
     expect(await screen.findByText('Internal,B')).toBeInTheDocument();
-    useStore.setState({ activeAccountId: 'a1' });
+    useStore.setState({ activeCompanyId: 'a1' });
     await waitFor(() => expect(screen.getByText('hidden')).toBeInTheDocument());
     expect(screen.queryByText('Old A')).not.toBeInTheDocument();
   });

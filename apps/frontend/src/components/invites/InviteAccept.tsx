@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { APP_NAME } from '@capacitylens/shared/brand';
-import { isAccountRole } from '@capacitylens/shared/account/types';
+import { isRole } from '@capacitylens/shared/account/types';
 import {
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
@@ -30,7 +30,7 @@ type State =
 
 /** Before the company exists an invitation is the setup link, and setup grants Owner. */
 function getRoleText(role: string | null) {
-  return role && isAccountRole(role) ? resolveRoleLabel(role) : m.invite_setup_role();
+  return role && isRole(role) ? resolveRoleLabel(role) : m.invite_setup_role();
 }
 
 function describeSignupError(name: string, password: string): string | null {

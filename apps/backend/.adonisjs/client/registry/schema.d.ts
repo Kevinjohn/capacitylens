@@ -567,7 +567,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
     }
   }
-  'api.accounts.index': {
+  'api.companies.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies'
     types: {
@@ -632,7 +632,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['download']>>>
     }
   }
-  'api.accounts.anonymise': {
+  'api.companies.anonymise': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/anonymise'
     types: {

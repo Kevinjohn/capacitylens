@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';
+import { resetStoreWithAccount, DEFAULT_COMPANY_ID, makeResourceDraft } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import {
@@ -127,7 +127,7 @@ describe('MembersSection — admin affordances', () => {
     expect(dialog).toHaveTextContent('Confirm you would like to masquerade as theeditor@x.io');
     await user.click(within(dialog).getByRole('button', { name: 'Start masquerade' }));
     expect(accountTransitionMocks.startMasquerade).toHaveBeenCalledWith(
-      DEFAULT_ACCOUNT_ID,
+      DEFAULT_COMPANY_ID,
       'theeditor',
     );
   });
@@ -151,7 +151,7 @@ describe('MembersSection — admin affordances', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Suspend' }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `/api/companies/${DEFAULT_ACCOUNT_ID}/members/theeditor/status`,
+        `/api/companies/${DEFAULT_COMPANY_ID}/members/theeditor/status`,
         expect.objectContaining({ method: 'PATCH' }),
       ),
     );
@@ -185,7 +185,7 @@ describe('MembersSection — admin affordances', () => {
 
     await user.click(within(dialog).getByTestId('member-role-save'));
     expect(fetchMock).toHaveBeenCalledWith(
-      `/api/companies/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
+      `/api/companies/${DEFAULT_COMPANY_ID}/members/theeditor`,
       expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify({ role: 'viewer' }),

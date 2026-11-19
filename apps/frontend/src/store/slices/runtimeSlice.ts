@@ -17,7 +17,7 @@ import type { StoreState } from '@/store/types';
 type RuntimeSliceKeys =
   | 'hydrated'
   | 'planningAuthLossVersion'
-  | 'activeAccountLoadFailed'
+  | 'activeCompanyLoadFailed'
   | 'notice'
   | 'srAnnouncement'
   | 'dirtyForm'
@@ -69,7 +69,7 @@ function readRuntimeInitialState() {
   return {
     hydrated: false,
     planningAuthLossVersion: 0,
-    activeAccountLoadFailed: null,
+    activeCompanyLoadFailed: null,
     notice: null,
     srAnnouncement: null,
     dirtyForm: false,

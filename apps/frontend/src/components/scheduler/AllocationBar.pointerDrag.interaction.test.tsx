@@ -5,7 +5,7 @@ import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from '@/test/fixtures';
+import { resetStoreWithAccount, DEFAULT_COMPANY_ID, makeResourceDraft } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
@@ -24,17 +24,17 @@ beforeEach(async () => resetStoreWithAccount());
 const workingDayRejectionCases = [
   {
     boundary: 'personal',
-    accountWorkingDays: [1, 2, 3, 4, 5] as Weekday[],
+    companyWorkingDays: [1, 2, 3, 4, 5] as Weekday[],
     targetWorkingDays: [1, 2, 3] as Weekday[],
   },
   {
     boundary: 'company',
-    accountWorkingDays: [1, 2, 3, 4] as Weekday[],
+    companyWorkingDays: [1, 2, 3, 4] as Weekday[],
     targetWorkingDays: [1, 2, 3, 4, 5] as Weekday[],
   },
   {
     boundary: 'zero-overlap',
-    accountWorkingDays: [1, 2, 3, 4] as Weekday[],
+    companyWorkingDays: [1, 2, 3, 4] as Weekday[],
     targetWorkingDays: [5] as Weekday[],
   },
 ];
@@ -57,11 +57,11 @@ function renderReassignmentLanes(sourceId: string, destinationId: string, alloca
 }
 
 async function verifyWorkingDayRejection({
-  accountWorkingDays,
+  companyWorkingDays,
   targetWorkingDays,
 }: (typeof workingDayRejectionCases)[number]) {
   const st = useStore.getState();
-  await st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
+  await st.updateAccount(DEFAULT_COMPANY_ID, { workingDays: companyWorkingDays });
   const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
   const project = await requireCreated(
     st.addProject({ name: 'P', clientId: client.id, color: '#2' }),
@@ -272,7 +272,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   );
   it('allows that literal vertical drop when the allocation ignores working days', async () => {
     const st = useStore.getState();
-    await st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
+    await st.updateAccount(DEFAULT_COMPANY_ID, { workingDays: [1, 2, 3, 4] });
     const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
     const project = await requireCreated(
       st.addProject({ name: 'P', clientId: client.id, color: '#2' }),
@@ -447,7 +447,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   });
   it('keeps an External block at zero hours when it is reassigned to a person', async () => {
     const st = useStore.getState();
-    await st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: 'blocks' });
+    await st.updateAccount(DEFAULT_COMPANY_ID, { schedulingMode: 'blocks' });
     const client = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
     const project = await requireCreated(
       st.addProject({ name: 'P', clientId: client.id, color: '#2' }),
