@@ -94,8 +94,6 @@ export interface StoreState extends StoreEntityActions {
   hydrated: boolean;
   /** The company currently in view, or null when no company is active. Never persisted. */
   activeCompanyId: ID | null;
-  /** Company whose selected slice failed to hydrate. Transient and never persisted. */
-  activeCompanyLoadFailed: ID | null;
   /** The server-sourced directory of companies this login may access. Set by useCompanySummaries
    * from the login’s memberships. Separate from `data` because `data` holds only the active slice.
    * Never persisted. */

@@ -70,13 +70,8 @@ type GatedAppProps = {
   ambiguousCompanyDirectory: boolean;
   allowWithoutActiveCompany: boolean;
   activeCompanyId: ReturnType<typeof useStore.getState>['activeCompanyId'];
-  activeCompanyLoadFailed: ReturnType<typeof useStore.getState>['activeCompanyLoadFailed'];
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  activeCompany:
-    | ReturnType<typeof useStore.getState>['data']['accounts'][number]
-    | ReturnType<typeof useStore.getState>['companySummaries'][number]
-    | undefined;
   dirtyForm: boolean;
   paletteOpen: boolean;
   closePalette: () => void;
@@ -90,10 +85,8 @@ function GatedApp({
   ambiguousCompanyDirectory,
   allowWithoutActiveCompany,
   activeCompanyId,
-  activeCompanyLoadFailed,
   sidebarOpen,
   setSidebarOpen,
-  activeCompany,
   dirtyForm,
   paletteOpen,
   closePalette,
@@ -112,12 +105,6 @@ function GatedApp({
       hasActiveCompany={hasActiveCompany}
       ambiguousCompanyDirectory={ambiguousCompanyDirectory}
       allowWithoutActiveCompany={allowWithoutActiveCompany}
-      activeCompanyId={activeCompanyId}
-      activeCompanyLoadFailed={activeCompanyLoadFailed}
-      activeCompanyName={activeCompany?.name ?? m.account_load_fallback_name()}
-      onRetryActiveCompanyLoad={() =>
-        activeCompanyId ? useStore.getState().refreshPlanning() : Promise.resolve(false)
-      }
     >
       <PermissionProvider>
         <SidebarProvider
@@ -224,7 +211,6 @@ export function AppShell() {
   const companySummaries = useStore((state) => state.companySummaries);
   const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const activeCompanyLoadFailed = useStore((state) => state.activeCompanyLoadFailed);
   // Company summaries keep the tenant gate valid while the selected company's authoritative slice is still loading. Child content remains behind its hydration boundary.
   const activeCompany =
     companies.find((company) => company.id === activeCompanyId) ??
@@ -247,10 +233,8 @@ export function AppShell() {
           accountRoute || (masquerade.kind !== 'inactive' && masquerade.state !== undefined)
         }
         activeCompanyId={activeCompanyId}
-        activeCompanyLoadFailed={activeCompanyLoadFailed}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        activeCompany={activeCompany}
         dirtyForm={dirtyForm}
         paletteOpen={paletteOpen}
         closePalette={closePalette}

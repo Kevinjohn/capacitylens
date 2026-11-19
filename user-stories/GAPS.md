@@ -20,15 +20,6 @@ The matrix keeps every historical story discoverable by status.
 | --------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Project phases and assigning an activity to a phase | Hidden       | The current [project form](../apps/frontend/src/components/projects/ProjectForm.tsx) has no phase-management entry; the [activity form](../apps/frontend/src/components/activities/ActivityForm.tsx) preserves phase attribution but renders no phase picker. Keep the existing project and activity stories. The decision permits phase references; it does not promise a current phase editor. |
 
-## Retained recovery screen without a current trigger
-
-The diagram trace found no current producer for the `activeAccountLoadFailed` marker. It is
-initialized null in [runtimeSlice](../apps/frontend/src/store/slices/runtimeSlice.ts), cleared but
-never assigned a failed company, and [AppEntryGate](../apps/frontend/src/components/AppEntryGate.tsx)
-only consumes it. The company-load recovery story remains, with status **Hidden** and an explicitly
-intended flow. Its retained component is not evidence of a reachable user journey. Current
-planning-error notices and session-verification recovery remain separately documented as available.
-
 ## Source capabilities without an ordinary UI
 
 - **Member sign-in tracking:** the server route and mutation support recording sign-ins, but

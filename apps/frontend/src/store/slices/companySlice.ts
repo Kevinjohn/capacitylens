@@ -64,11 +64,6 @@ function createSetActiveCompanyAction(
       const switching = id !== state.activeCompanyId;
       return {
         activeCompanyId: id,
-        activeCompanyLoadFailed:
-          id === null ||
-          (state.activeCompanyLoadFailed !== null && state.activeCompanyLoadFailed !== id)
-            ? null
-            : state.activeCompanyLoadFailed,
         ...buildCompanyNoticeTransition({ switching, unknown }),
         ui: resetSchedulerView(
           state.ui,

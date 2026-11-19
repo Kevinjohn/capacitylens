@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { CompanyAccessRecovery } from './company/CompanyAccessRecovery';
-import { CompanyLoadRecovery } from './company/CompanyLoadRecovery';
 import { RotateHint } from './RotateHint';
 import { m } from '@/i18n';
 
@@ -30,10 +29,6 @@ interface AppEntryGateProps {
   hasActiveCompany: boolean;
   ambiguousCompanyDirectory: boolean;
   allowWithoutActiveCompany: boolean;
-  activeCompanyId: string | null;
-  activeCompanyLoadFailed: string | null;
-  activeCompanyName: string;
-  onRetryActiveCompanyLoad: () => Promise<boolean>;
   children: ReactNode;
 }
 
@@ -43,21 +38,9 @@ export function AppEntryGate({
   hasActiveCompany,
   ambiguousCompanyDirectory,
   allowWithoutActiveCompany,
-  activeCompanyId,
-  activeCompanyLoadFailed,
-  activeCompanyName,
-  onRetryActiveCompanyLoad,
   children,
 }: AppEntryGateProps) {
   if (!hydrated) return <LoadingBoundary />;
-
-  if (activeCompanyLoadFailed !== null && activeCompanyLoadFailed === activeCompanyId) {
-    return (
-      <FocusableStage>
-        <CompanyLoadRecovery companyName={activeCompanyName} onRetry={onRetryActiveCompanyLoad} />
-      </FocusableStage>
-    );
-  }
 
   if (ambiguousCompanyDirectory || (!hasActiveCompany && !allowWithoutActiveCompany)) {
     return (

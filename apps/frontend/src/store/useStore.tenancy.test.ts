@@ -105,18 +105,6 @@ beforeEach(async () => {
 });
 
 describe('active-account replacement invariant', () => {
-  it("rejects scoped writes only while the active account's hydration is marked failed", async () => {
-    useStore.setState({ activeCompanyLoadFailed: A });
-    await expect(
-      requireCreated(s().addClient({ name: 'Wayne Enterprises', color: '#111111' })),
-    ).rejects.toThrow(/not loaded/i);
-
-    useStore.setState({ activeCompanyLoadFailed: B });
-    await expect(
-      requireCreated(s().addClient({ name: 'Wayne Foundation', color: '#111111' })),
-    ).resolves.toBeDefined();
-  });
-
   it('rejects scoped writes when a non-null active id has no loaded account row', async () => {
     s().setCompanySummaries({ list: [] });
     useStore.setState({ activeCompanyId: 'missing-account' });
