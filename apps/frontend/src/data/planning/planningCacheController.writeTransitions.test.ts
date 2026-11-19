@@ -23,17 +23,16 @@ describe('planning write transitions', () => {
     h.execute.mockImplementationOnce(() => response.promise);
     const write = h.controller.execute(h.controller.begin(), update);
     const planning = h.state().planning;
-    expect(planning.status).toBe('pending');
-    expect(planning.pending?.execution).toMatchObject({
-      mutationId: 'mutation-1',
-      baseRevision: 1,
+    expect(planning.phase.kind).toBe('writing');
+    expect(planning.phase).toMatchObject({
+      write: { execution: { mutationId: 'mutation-1', baseRevision: 1 } },
+      readError: null,
     });
-    expect(planning.outcome).toEqual({ kind: 'pending', execution: planning.pending?.execution });
     expect(isPlanningHistoryReady(planning, 'undo')).toBe(false);
     h.server.revision = 2;
     response.resolve(makeReceipt('mutation-1', 2));
     await expect(write).resolves.toMatchObject({ revision: 2 });
-    expect(h.state().planning).toMatchObject({ status: 'ready', pending: null });
+    expect(h.state().planning.phase).toMatchObject({ kind: 'ready' });
   });
 
   it("sends an edit's opening row timestamp, and Undo sends only its history step", async () => {
@@ -62,13 +61,15 @@ describe('planning write transitions', () => {
     const canonicalRead = deferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => canonicalRead.promise);
     const write = h.controller.execute(h.controller.begin(), update);
-    await vi.waitFor(() => expect(h.state().planning.outcome?.kind).toBe('acknowledged'));
+    await vi.waitFor(() =>
+      expect(h.state().planning.phase).toMatchObject({ write: { commitment: { revision: 2 } } }),
+    );
     expect(h.state().data).toBe(before);
-    expect(h.state().planning).toMatchObject({ status: 'pending', revision: 1 });
+    expect(h.state().planning).toMatchObject({ phase: { kind: 'writing' }, revision: 1 });
     canonicalRead.resolve(canonical);
     await expect(write).resolves.toMatchObject({ revision: 2 });
     expect(h.state().data).toEqual(canonical.data);
-    expect(h.state().planning).toMatchObject({ status: 'ready', revision: 2, pending: null });
+    expect(h.state().planning).toMatchObject({ phase: { kind: 'ready' }, revision: 2 });
   });
 
   it.each([
@@ -84,10 +85,8 @@ describe('planning write transitions', () => {
     });
     expect(h.read).toHaveBeenCalledTimes(reads + 1);
     expect(h.state().planning).toMatchObject({
-      status: 'ready',
-      pending: null,
+      phase: { kind: 'ready', lastWrite: { kind: 'unconfirmed', mutationId: 'mutation-1' } },
       revision: 2,
-      outcome: { kind: 'unconfirmed', mutationId: 'mutation-1' },
     });
     expect(h.state().data.clients[0]).toMatchObject({
       companyId: 'wayne',
@@ -106,16 +105,14 @@ describe('planning write transitions', () => {
     // Another change moved the revision on, so the server reports this page's history as ended,
     // even while the write is unresolved.
     expect(h.state().planning.history.canUndo).toBe(false);
-    expect(h.state().planning.status).toBe('pending');
+    expect(h.state().planning.phase.kind).toBe('writing');
     const stale = new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409);
     response.reject(stale);
     await expect(write).rejects.toMatchObject({ code: 'STALE_REVISION' });
+    // The refetch that resolves the refusal ends it.
     expect(h.state().planning).toMatchObject({
-      status: 'ready',
+      phase: { kind: 'ready', lastWrite: null },
       revision: 3,
-      pending: null,
-      error: null,
-      outcome: { kind: 'refused', mutationId: 'mutation-2', code: 'STALE_REVISION' },
       history: { canUndo: false, canRedo: false },
     });
     expect(isShownByPlanningState(stale)).toBe(true);
@@ -131,7 +128,7 @@ describe('planning write transitions', () => {
     ).rejects.toMatchObject({ code: 'STALE_REVISION' });
     expect(h.state().planning).toMatchObject({
       revision: 2,
-      outcome: { kind: 'refused', mutationId: 'mutation-2', code: 'STALE_REVISION' },
+      phase: { kind: 'ready', lastWrite: null },
     });
     expect(h.state().planning.history.canUndo).toBe(true);
     expect(isPlanningHistoryReady(h.state().planning, 'undo')).toBe(true);
@@ -146,11 +143,14 @@ describe('planning write transitions', () => {
       code: 'VALIDATION_ERROR',
       uncertain: false,
     });
-    expect(h.state().planning).toMatchObject({
-      status: 'refused',
-      pending: null,
-      error: refusal,
-      outcome: { kind: 'refused', mutationId: 'mutation-2', code: 'VALIDATION_ERROR' },
+    expect(h.state().planning.phase).toEqual({
+      kind: 'ready',
+      lastWrite: {
+        kind: 'refused',
+        mutationId: 'mutation-2',
+        code: 'VALIDATION_ERROR',
+        error: refusal,
+      },
     });
     expect(h.state().planning.history.canUndo).toBe(true);
     expect(h.state().data.clients).toHaveLength(1);
@@ -170,10 +170,9 @@ describe('planning write transitions', () => {
       uncertain: true,
     });
     expect(h.read).toHaveBeenCalledTimes(reads + 1);
-    expect(h.state().planning).toMatchObject({
-      status: 'ready',
-      pending: null,
-      outcome: { kind: 'unconfirmed', mutationId: 'mutation-1' },
+    expect(h.state().planning.phase).toEqual({
+      kind: 'ready',
+      lastWrite: { kind: 'unconfirmed', mutationId: 'mutation-1' },
     });
     expect(h.execute).toHaveBeenCalledOnce();
     expect(() => h.controller.begin()).not.toThrow();
@@ -188,7 +187,7 @@ describe('planning write transitions', () => {
       uncertain: false,
     });
     expect(onAuthLoss).toHaveBeenCalledOnce();
-    expect(h.state().planning).toMatchObject({ status: 'idle', context: null, pending: null });
+    expect(h.state().planning).toMatchObject({ phase: { kind: 'idle' }, context: null });
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
     expect(h.state().data).toEqual(emptyAppData());
   });
@@ -203,11 +202,7 @@ describe('planning write transitions', () => {
       code: 'RESTORATION_CONFIRMATION_REQUIRED',
     });
     expect(h.read).toHaveBeenCalledTimes(reads + 1);
-    expect(h.state().planning).toMatchObject({
-      status: 'ready',
-      pending: null,
-      outcome: { kind: 'refused', code: 'RESTORATION_CONFIRMATION_REQUIRED' },
-    });
+    expect(h.state().planning.phase).toEqual({ kind: 'ready', lastWrite: null });
     expect(h.execute).toHaveBeenCalledOnce();
   });
 
@@ -221,10 +216,8 @@ describe('planning write transitions', () => {
       revision: 3,
     });
     expect(h.state().planning).toMatchObject({
-      status: 'ready',
+      phase: { kind: 'ready', lastWrite: { kind: 'acknowledged', revision: 3 } },
       revision: 4,
-      pending: null,
-      outcome: { kind: 'acknowledged', revision: 3 },
       history: { canUndo: false, canRedo: false },
     });
   });

@@ -48,7 +48,7 @@ export function useDocumentTitle(input: DocumentTitleInput) {
 export function useBeforeUnloadWarning(dirtyForm: boolean) {
   useEffect(() => {
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirtyForm && useStore.getState().planning.pending === null) return;
+      if (!dirtyForm && useStore.getState().planning.phase.kind !== 'writing') return;
       event.preventDefault();
       event.returnValue = '';
     };

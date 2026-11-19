@@ -156,8 +156,7 @@ describe('restoration cleanup confirmation', () => {
     expect(await pending).toBeNull();
     expect(h.store.getState().planning).toMatchObject({
       revision: 7,
-      status: 'ready',
-      pending: null,
+      phase: { kind: 'ready', lastWrite: null },
     });
   });
   it('cannot replay after context changes while the dialog is open', async () => {

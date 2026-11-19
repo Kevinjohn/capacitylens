@@ -51,7 +51,7 @@ export function createTypedPlanningActions(
     if (
       masquerade.kind === 'inactive' &&
       planning.authority === null &&
-      (planning.status === 'error' || planning.status === 'refused') &&
+      planning.phase.kind === 'failed' &&
       !data.accounts.some((row) => row.id === companyId)
     ) {
       throw new Error('No active company is selected.');

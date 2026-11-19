@@ -1,3 +1,4 @@
+import { readPlanningError } from './planningNotices';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
@@ -126,7 +127,7 @@ describe('planning cache controller', () => {
     release(makeReceipt('mutation-1', 2));
     await write;
     expect(h.state().planning.revision).toBe(7);
-    expect(h.state().planning.outcome).toBeNull();
+    expect(h.state().planning.phase).toEqual({ kind: 'ready', lastWrite: null });
     expect(h.state().planning.history.canUndo).toBe(false);
   });
 
@@ -172,7 +173,10 @@ describe('planning receipt completion context', () => {
             ? h.controller.execute(h.controller.begin(), intent)
             : h.controller[action]();
         await vi.waitFor(() =>
-          expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision }),
+          expect(h.state().planning.phase).toMatchObject({
+            kind: 'writing',
+            write: { commitment: { revision } },
+          }),
         );
         if (change === 'sign-out') h.controller.setContext(null);
         if (change === 'company switch') {
@@ -188,10 +192,11 @@ describe('planning receipt completion context', () => {
           capacity: emptyCapacity(),
         });
         await expect(completion).resolves.toBe(action === 'execute' ? null : false);
-        expect(h.state().planning.pending).toBeNull();
+        expect(h.state().planning.phase).toEqual(
+          change === 'sign-out' ? { kind: 'idle' } : expect.objectContaining({ lastWrite: null }),
+        );
         expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
-        expect(h.state().planning.outcome).toBeNull();
-        expect(h.state().planning.error).toBeNull();
+        expect(readPlanningError(h.state().planning.phase)).toBeNull();
         expect(execute).toHaveBeenCalledTimes(action === 'execute' ? 2 : 1);
       },
     );

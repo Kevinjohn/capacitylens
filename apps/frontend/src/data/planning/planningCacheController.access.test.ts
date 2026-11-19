@@ -1,3 +1,4 @@
+import { readPlanningError } from './planningNotices';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
@@ -79,7 +80,7 @@ describe('planning request access boundaries', () => {
     });
 
     await expect(fixture.controller.refresh()).resolves.toBe(false);
-    expect(fixture.store.getState().planning.status).toBe('error');
+    expect(fixture.store.getState().planning.phase.kind).toBe('failed');
     expect(fixture.store.getState().planning.revision).toBe(1);
   });
 
@@ -93,7 +94,7 @@ describe('planning request access boundaries', () => {
             state.data.clients.length === 0 &&
               !state.planning.history.canUndo &&
               !state.planning.history.canRedo &&
-              state.planning.pending === null,
+              state.planning.phase.kind !== 'writing',
           );
         }
       });
@@ -115,7 +116,7 @@ describe('planning request access boundaries', () => {
         expect(state.planning.context).toEqual(context);
         expect(state.data.clients[0]?.name).toBe('Wayne Enterprises');
         expect(state.planning.history).toEqual(history);
-        expect(state.planning.error).toMatchObject({ code, status: 403 });
+        expect(readPlanningError(state.planning.phase)).toMatchObject({ code, status: 403 });
       });
     }
 
@@ -135,7 +136,7 @@ describe('planning request access boundaries', () => {
       await oldRequest;
       expect(fixture.store.getState().planning.context?.identity).toBe('diana-session-2');
       expect(fixture.store.getState().data.clients[0]?.name).toBe('Gotham');
-      expect(fixture.store.getState().planning.error).toBeNull();
+      expect(readPlanningError(fixture.store.getState().planning.phase)).toBeNull();
     });
   }
 
@@ -145,7 +146,8 @@ describe('planning request access boundaries', () => {
     fixture.execute.mockImplementationOnce(() => pending.promise);
     const draft = fixture.controller.begin();
     const oldRequest = fixture.controller.execute(draft, update).catch((error: unknown) => error);
-    const execution = fixture.store.getState().planning.pending?.execution;
+    const { phase } = fixture.store.getState().planning;
+    const execution = phase.kind === 'writing' ? phase.write.execution : undefined;
     expect(execution).toBeDefined();
     fixture.read.mockResolvedValueOnce({
       ...snapshot('Gotham', 2),
@@ -161,7 +163,7 @@ describe('planning request access boundaries', () => {
     await oldRequest;
     expect(fixture.store.getState().data.clients[0]?.name).toBe('Gotham');
     expect(fixture.store.getState().planning.history).toEqual({ canUndo: false, canRedo: false });
-    expect(fixture.store.getState().planning.pending).toBeNull();
+    expect(fixture.store.getState().planning.phase.kind).not.toBe('writing');
     await expect(fixture.controller.execute(draft, update)).rejects.toThrow(/context/i);
   });
 });

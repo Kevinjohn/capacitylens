@@ -43,7 +43,10 @@ describe('planning cache controller', () => {
       code: 'ACCOUNT_MEMBERSHIP_LOST',
     });
     expect(h.state().planning.context).toEqual(context);
-    expect(h.state().planning).toMatchObject({ status: 'refused', revision: 1 });
+    expect(h.state().planning).toMatchObject({
+      phase: { kind: 'ready', lastWrite: { kind: 'refused' } },
+      revision: 1,
+    });
   });
 
   it('invalidates drafts and history when the canonical access projection changes', async () => {
@@ -107,7 +110,7 @@ describe('planning cache controller', () => {
     ).resolves.toBe(false);
     expect(h.state().data).toEqual(emptyAppData());
     expect(h.state().planning.revision).toBeNull();
-    expect(h.state().planning.status).toBe('error');
+    expect(h.state().planning.phase.kind).toBe('failed');
   });
 
   it('keeps a refresh scoped for every 403, including membership loss', async () => {
@@ -132,7 +135,7 @@ describe('planning cache controller', () => {
     expect(h.state().planning.context).toEqual(context);
     await h.controller.refresh();
     expect(h.state().planning.context).toEqual(context);
-    expect(h.state().planning).toMatchObject({ status: 'error', revision: 1 });
+    expect(h.state().planning).toMatchObject({ phase: { kind: 'failed' }, revision: 1 });
   });
 });
 

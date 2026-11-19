@@ -87,12 +87,10 @@ export interface PlanningHistory {
   canRedo: boolean;
 }
 
-export type PlanningStatus = 'idle' | 'loading' | 'ready' | 'pending' | 'refused' | 'error';
-
-export type PlanningMutationOutcome =
-  | { kind: 'pending'; execution: PlanningExecution | PlanningHistoryStep }
+/** What became of the page's last write, while later states still report it. */
+export type PlanningWriteResult =
   | { kind: 'acknowledged'; mutationId: string; revision: number }
-  | { kind: 'refused'; mutationId: string; code?: string }
+  | { kind: 'refused'; mutationId: string; code?: string; error: unknown }
   | { kind: 'unconfirmed'; mutationId: string };
 
 export type PlanningPendingMutation = (
@@ -103,6 +101,20 @@ export type PlanningPendingMutation = (
   commitment?: { revision: number };
 };
 
+/**
+ * The one planning state machine. `idle` has no context; `loading` has a read in flight and no
+ * write; `ready` can take a change; `failed` is a read failure with no write; `writing` has a write
+ * in flight or awaiting its canonical read. A refusal is `ready` with a `refused` last write until
+ * the next read starts or is accepted; an acknowledged or unconfirmed last write lasts until the
+ * next write.
+ */
+export type PlanningPhase =
+  | { kind: 'idle' }
+  | { kind: 'loading'; lastWrite: PlanningWriteResult | null }
+  | { kind: 'ready'; lastWrite: PlanningWriteResult | null }
+  | { kind: 'failed'; error: unknown; lastWrite: PlanningWriteResult | null }
+  | { kind: 'writing'; write: PlanningPendingMutation; readError: unknown | null };
+
 export interface PlanningControllerMetadata {
   context: PlanningClientContext | null;
   /** The authority of the last accepted read; null until a read is accepted. */
@@ -112,11 +124,8 @@ export interface PlanningControllerMetadata {
   today: ISODate | null;
   /** The capacity figures from the last accepted read; null until a read is accepted. */
   capacity: CapacitySection | null;
-  status: PlanningStatus;
+  phase: PlanningPhase;
   history: PlanningHistory;
-  pending: PlanningPendingMutation | null;
-  outcome: PlanningMutationOutcome | null;
-  error: unknown | null;
 }
 
 /** The controller owns metadata; planning rows remain in the one Zustand `data` value. */

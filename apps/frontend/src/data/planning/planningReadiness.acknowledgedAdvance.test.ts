@@ -6,13 +6,16 @@ import type { PlanningControllerMetadata } from './planningCacheTypes';
 const context = { identity: 'actor-1', companyId: 'company-1' };
 const basis = { context, revision: 4 };
 
+function acknowledgedAt(revision: number): PlanningControllerMetadata['phase'] {
+  return { kind: 'ready', lastWrite: { kind: 'acknowledged', mutationId: 'mutation-1', revision } };
+}
+
 function planningAt(overrides: Partial<PlanningControllerMetadata>): PlanningControllerMetadata {
   return {
     ...createPlanningCacheState().planning,
     context,
     revision: 5,
-    status: 'ready',
-    outcome: { kind: 'acknowledged', mutationId: 'mutation-1', revision: 5 },
+    phase: acknowledgedAt(5),
     ...overrides,
   };
 }
@@ -28,20 +31,17 @@ describe('isSoleAcknowledgedAdvance', () => {
         basis,
         planningAt({
           revision: 6,
-          outcome: { kind: 'acknowledged', mutationId: 'mutation-1', revision: 6 },
+          phase: acknowledgedAt(6),
         }),
       ),
     ).toBe(false);
-    expect(
-      isSoleAcknowledgedAdvance(
-        basis,
-        planningAt({ outcome: { kind: 'acknowledged', mutationId: 'mutation-1', revision: 4 } }),
-      ),
-    ).toBe(false);
+    expect(isSoleAcknowledgedAdvance(basis, planningAt({ phase: acknowledgedAt(4) }))).toBe(false);
   });
 
   it('refuses without an acknowledgement, a known basis or the same context', () => {
-    expect(isSoleAcknowledgedAdvance(basis, planningAt({ outcome: null }))).toBe(false);
+    expect(
+      isSoleAcknowledgedAdvance(basis, planningAt({ phase: { kind: 'ready', lastWrite: null } })),
+    ).toBe(false);
     expect(isSoleAcknowledgedAdvance({ context, revision: null }, planningAt({}))).toBe(false);
     expect(isSoleAcknowledgedAdvance(basis, planningAt({ context: { ...context } }))).toBe(false);
   });

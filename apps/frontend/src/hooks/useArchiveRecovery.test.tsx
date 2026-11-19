@@ -55,7 +55,7 @@ function company(companyId: string) {
     planning: {
       ...state.planning,
       context: { identity: 'principal', companyId },
-      status: 'ready',
+      phase: { kind: 'ready', lastWrite: null },
       revision: 0,
       authority: makePlanningAuthority({
         actorId: 'bruce',
@@ -160,7 +160,9 @@ describe('archive recovery request boundaries', () => {
     expect(args.signal.aborted).toBe(true);
     expect(screen.queryByText('Late identity')).not.toBeInTheDocument();
     act(() =>
-      useStore.setState((state) => ({ planning: { ...state.planning, status: 'loading' } })),
+      useStore.setState((state) => ({
+        planning: { ...state.planning, phase: { kind: 'loading', lastWrite: null } },
+      })),
     );
     rendered.rerender(view(cache));
     expect(screen.getByText('hidden')).toBeInTheDocument();

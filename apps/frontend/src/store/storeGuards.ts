@@ -42,7 +42,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     let message = m.notice_viewer_read_only();
     if (state.planning.authority === null) {
       message =
-        state.planning.status === 'error' || state.planning.status === 'refused'
+        state.planning.phase.kind === 'failed'
           ? m.access_unavailable_summary()
           : m.access_checking_summary();
     }

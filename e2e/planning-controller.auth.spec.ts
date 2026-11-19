@@ -11,10 +11,11 @@ let scenarioNumber = 0;
 type Intent = Record<string, unknown> & { operation: string };
 interface HarnessState {
   revision: number | null;
-  status: string;
+  phase: string;
+  error: string | null;
   history: { canUndo: boolean; canRedo: boolean };
-  pending: { mutationId: string; baseRevision: number; operation: string } | null;
-  outcome: string | null;
+  write: { mutationId: string; baseRevision: number; operation: string } | null;
+  lastWrite: string | null;
   context: { companyId: string; identity: string } | null;
   allocations: Array<{
     id: string;
@@ -94,7 +95,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   expect(Number.isSafeInteger(initialSnapshot.revision)).toBe(true);
   expect(initialSnapshot.revision).toBeGreaterThanOrEqual(0);
   expect(initial).toMatchObject({
-    status: 'ready',
+    phase: 'ready',
     revision: initialSnapshot.revision,
     context: { companyId },
   });
@@ -227,15 +228,15 @@ test('unactivated planning controller uses authenticated typed routes and reconc
         revision: pendingStart.baseRevision + 1,
       });
       expect(pendingStart.state).toMatchObject({
-        status: 'pending',
-        pending: { mutationId: pendingStart.mutationId },
+        phase: 'writing',
+        write: { mutationId: pendingStart.mutationId },
       });
       const whileUnacknowledged = await callHarness<HarnessState>(
         page,
         'planningHarnessState',
         primaryKey,
       );
-      expect(whileUnacknowledged).toMatchObject({ status: 'pending', outcome: 'pending' });
+      expect(whileUnacknowledged).toMatchObject({ phase: 'writing', lastWrite: null });
       const committedSnapshot = await planningSnapshot(request, owner.cookie, companyId);
       expect(committedSnapshot.data.allocations).toContainEqual(
         expect.objectContaining({ id: allocationId, endDate: '2026-10-29' }),
@@ -256,7 +257,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   // the person is asked to check it. Nothing is resent.
   expect(lostResponse).toMatchObject({
     result: { kind: 'rejected' },
-    state: { status: 'ready', outcome: 'unconfirmed', history: { canUndo: false } },
+    state: { phase: 'ready', lastWrite: 'unconfirmed', history: { canUndo: false } },
   });
   expect(lostResponse.state.allocations).toContainEqual(
     expect.objectContaining({ id: allocationId, endDate: '2026-10-29' }),
@@ -305,7 +306,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     changes: { startDate: '2026-10-28' },
   } satisfies Intent);
   expect(stale.result).toMatchObject({ kind: 'rejected', code: 'STALE_REVISION', status: 409 });
-  expect(stale.state.status).toBe('ready');
+  expect(stale.state.phase).toBe('ready');
   expect(
     await callHarness<Array<{ mutationId: string }>>(page, 'planningHarnessExecutions', primaryKey),
   ).toHaveLength(beforeStaleCount + 1);
@@ -460,9 +461,9 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     primaryKey,
   );
   expect(lostRequest.state).toMatchObject({
-    status: 'ready',
-    outcome: 'unconfirmed',
-    pending: null,
+    phase: 'ready',
+    lastWrite: 'unconfirmed',
+    write: null,
   });
   await page.unroute(unknownRoute);
   const retried = await callHarness<{ receipt: { mutationId: string }; state: HarnessState }>(
@@ -472,7 +473,7 @@ test('unactivated planning controller uses authenticated typed routes and reconc
     confirm,
   );
   expect(retried.receipt.mutationId).not.toBe(unknownStart.mutationId);
-  expect(retried.state).toMatchObject({ status: 'ready', outcome: 'acknowledged' });
+  expect(retried.state).toMatchObject({ phase: 'ready', lastWrite: 'acknowledged' });
   expect(
     (
       await callHarness<Array<{ mutationId: string }>>(
@@ -491,6 +492,6 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   expect(cleared).toMatchObject({
     signOutStatus: 200,
     refreshed: false,
-    state: { context: null, status: 'idle', allocations: [] },
+    state: { context: null, phase: 'idle', allocations: [] },
   });
 });

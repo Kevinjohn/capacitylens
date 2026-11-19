@@ -9,33 +9,44 @@ const ready: PlanningControllerMetadata = {
   revision: 4,
   today: '2026-06-03',
   capacity: null,
-  status: 'ready',
+  phase: { kind: 'ready', lastWrite: null },
   history: { canUndo: true, canRedo: false },
-  pending: null,
-  outcome: null,
-  error: null,
 };
 
 describe('planning readiness', () => {
   it('admits a new change only for a writable, loaded context with no unresolved write', () => {
     expect(isPlanningReadyForChange(ready)).toBe(true);
-    expect(isPlanningReadyForChange({ ...ready, status: 'refused' })).toBe(true);
+    expect(
+      isPlanningReadyForChange({
+        ...ready,
+        phase: {
+          kind: 'ready',
+          lastWrite: { kind: 'refused', mutationId: 'm0', error: new Error('Refused') },
+        },
+      }),
+    ).toBe(true);
     expect(isPlanningReadyForChange({ ...ready, context: null })).toBe(false);
     expect(
       isPlanningReadyForChange({ ...ready, authority: makePlanningAuthority({ canWrite: false }) }),
     ).toBe(false);
     expect(isPlanningReadyForChange({ ...ready, revision: null })).toBe(false);
-    expect(isPlanningReadyForChange({ ...ready, status: 'loading' })).toBe(false);
+    expect(
+      isPlanningReadyForChange({ ...ready, phase: { kind: 'loading', lastWrite: null } }),
+    ).toBe(false);
     expect(
       isPlanningReadyForChange({
         ...ready,
-        pending: {
-          execution: {
-            mutationId: 'm1',
-            baseRevision: 4,
-            intent: { operation: 'allocation.delete', id: 'a1' },
+        phase: {
+          kind: 'writing',
+          write: {
+            execution: {
+              mutationId: 'm1',
+              baseRevision: 4,
+              intent: { operation: 'allocation.delete', id: 'a1' },
+            },
+            kind: 'new',
           },
-          kind: 'new',
+          readError: null,
         },
       }),
     ).toBe(false);
@@ -53,6 +64,8 @@ describe('planning readiness', () => {
         'undo',
       ),
     ).toBe(false);
-    expect(isPlanningHistoryReady({ ...ready, status: 'loading' }, 'undo')).toBe(false);
+    expect(
+      isPlanningHistoryReady({ ...ready, phase: { kind: 'loading', lastWrite: null } }, 'undo'),
+    ).toBe(false);
   });
 });

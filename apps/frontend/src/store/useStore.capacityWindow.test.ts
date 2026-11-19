@@ -1,3 +1,4 @@
+import { readPlanningError } from '@/data/planning/planningNotices';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { useStore, WINDOW_READ_DELAY_MS } from './useStore';
@@ -82,7 +83,7 @@ describe('planning read capacity window', () => {
     useStore.getState().panDays(7);
     await vi.advanceTimersByTimeAsync(WINDOW_READ_DELAY_MS);
     expect(transport.readWindows).toHaveLength(reads + 1);
-    expect(useStore.getState().planning.status).toBe('ready');
+    expect(useStore.getState().planning.phase.kind).toBe('ready');
 
     release();
     await vi.waitFor(() =>
@@ -105,7 +106,7 @@ describe('planning read capacity window', () => {
 
     release();
     await expect(first).resolves.toBe(true);
-    expect(useStore.getState().planning.status).toBe('ready');
-    expect(useStore.getState().planning.error).toBeNull();
+    expect(useStore.getState().planning.phase.kind).toBe('ready');
+    expect(readPlanningError(useStore.getState().planning.phase)).toBeNull();
   });
 });

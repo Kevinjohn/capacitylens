@@ -37,7 +37,7 @@ function parseLoginResult(body: unknown): AuthStatusResult {
   return {
     kind: 'login',
     degraded: fields === null,
-    hadUnsavedChanges: useStore.getState().planning.pending !== null,
+    hadUnsavedChanges: useStore.getState().planning.phase.kind === 'writing',
     needsSetup: fields?.needsSetup === true,
     passwordResetEmail: fields?.passwordResetEmail === true,
   };

@@ -10,7 +10,9 @@ import type {
   PlanningDraft,
   PlanningHistory,
   PlanningPendingMutation,
+  PlanningPhase,
   PlanningSnapshot,
+  PlanningWriteResult,
 } from './planningCacheTypes';
 import { buildAuthorityKey, canWritePlanning } from './planningAuthority';
 import { errorDetails, PlanningControllerError } from './planningErrors';
@@ -39,6 +41,12 @@ type AttemptRequest =
   | { kind: 'new'; intent: PlanningIntent; expectedUpdatedAt?: string; endsHistory: boolean }
   | { kind: 'undo' | 'redo' };
 
+/** The last write a new or accepted read still reports: a refusal ends when the next read starts. */
+function keptLastWrite(phase: PlanningPhase): PlanningWriteResult | null {
+  if (phase.kind === 'idle' || phase.kind === 'writing') return null;
+  return phase.lastWrite?.kind === 'refused' ? null : phase.lastWrite;
+}
+
 const initialMetadata = (
   context: PlanningClientContext | null = null,
 ): PlanningControllerMetadata => ({
@@ -47,11 +55,8 @@ const initialMetadata = (
   revision: null,
   today: null,
   capacity: null,
-  status: context ? 'loading' : 'idle',
+  phase: context ? { kind: 'loading', lastWrite: null } : { kind: 'idle' },
   history: buildEmptyHistory(),
-  pending: null,
-  outcome: null,
-  error: null,
 });
 
 /** Creates the single non-persisted Zustand value used by the planning controller. */
@@ -105,10 +110,15 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     draft: PlanningDraft;
   } | null = null;
 
-  const isAttemptOwner = (owner: NonNullable<typeof attempt>) =>
-    attempt === owner &&
-    isCurrent(owner.draft.generation, owner.draft.context) &&
-    store.getState().planning.pending?.execution.mutationId === owner.pending.execution.mutationId;
+  const isAttemptOwner = (owner: NonNullable<typeof attempt>) => {
+    const { phase } = store.getState().planning;
+    return (
+      attempt === owner &&
+      isCurrent(owner.draft.generation, owner.draft.context) &&
+      phase.kind === 'writing' &&
+      phase.write.execution.mutationId === owner.pending.execution.mutationId
+    );
+  };
   const controllers = new Set<AbortController>();
 
   const abortAll = () => {
@@ -177,10 +187,15 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           revision: older ? null : snapshot.revision,
           today: older ? null : snapshot.today,
           capacity: older ? null : snapshot.capacity,
-          status: older ? 'error' : 'ready',
-          error: older
-            ? new PlanningControllerError('The access projection changed but its read was stale.')
-            : null,
+          phase: older
+            ? {
+                kind: 'failed',
+                error: new PlanningControllerError(
+                  'The access projection changed but its read was stale.',
+                ),
+                lastWrite: null,
+              }
+            : { kind: 'ready', lastWrite: null },
         },
       }));
       return !older;
@@ -188,14 +203,26 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     if (older) throw new PlanningControllerError('The canonical planning read was stale.');
 
     const commitment = attempt?.pending.commitment;
-    const finalized = !!commitment && snapshot.revision >= commitment.revision;
+    // The read that reaches an acknowledged write's revision finalizes it.
+    const acknowledged: PlanningWriteResult | null =
+      attempt && commitment && snapshot.revision >= commitment.revision
+        ? {
+            kind: 'acknowledged',
+            mutationId: attempt.pending.execution.mutationId,
+            revision: commitment.revision,
+          }
+        : null;
     // The read is the only source of the page's undo and redo availability; none reported is none.
     const history = snapshot.history
       ? { canUndo: snapshot.history.canUndo, canRedo: snapshot.history.canRedo }
       : buildEmptyHistory();
-    if (finalized) {
-      attempt = null;
-    }
+    if (acknowledged) attempt = null;
+    const phaseAfterRead = (phase: PlanningPhase): PlanningPhase => {
+      if (acknowledged) return { kind: 'ready', lastWrite: acknowledged };
+      // A write keeps waiting for its own read; this read's start already cleared any read error.
+      if (phase.kind === 'writing') return phase;
+      return { kind: 'ready', lastWrite: keptLastWrite(phase) };
+    };
     store.setState((state) => ({
       data: snapshot.data,
       planning: {
@@ -204,14 +231,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         revision: snapshot.revision,
         today: snapshot.today,
         capacity: snapshot.capacity,
-        status:
-          finalized || !state.planning.pending
-            ? 'ready'
-            : commitment
-              ? 'pending'
-              : state.planning.status,
-        pending: finalized ? null : state.planning.pending,
-        error: null,
+        phase: phaseAfterRead(state.planning.phase),
         history,
       },
     }));
@@ -220,8 +240,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
 
   /**
    * Reads the canonical snapshot. A quiet read from a settled state, such as the one that follows
-   * a move of the capacity window, leaves the status alone so writes stay allowed meanwhile. Any
-   * other read shows as loading, except while a write is pending, when the status stays pending.
+   * a move of the capacity window, leaves a ready phase alone so writes stay allowed meanwhile. Any
+   * other read shows as loading, except while a write is pending, when the phase stays writing.
    * A newer read aborts this one, and this one then resolves with the newer read's outcome.
    */
   function refresh(readOptions: { quiet?: boolean } = {}): Promise<boolean> {
@@ -238,15 +258,19 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     readController?.abort();
     const controller = requestController();
     readController = controller;
-    const { status } = store.getState().planning;
-    if (!quiet || (status !== 'ready' && status !== 'refused')) {
-      store.setState((state) => ({
-        planning: {
-          ...state.planning,
-          status: state.planning.pending ? state.planning.status : 'loading',
-          error: null,
-        },
-      }));
+    if (!quiet || store.getState().planning.phase.kind !== 'ready') {
+      store.setState((state) => {
+        const { phase } = state.planning;
+        return {
+          planning: {
+            ...state.planning,
+            phase:
+              phase.kind === 'writing'
+                ? { ...phase, readError: null }
+                : { kind: 'loading', lastWrite: keptLastWrite(phase) },
+          },
+        };
+      });
     }
     try {
       const window = options.readCapacityWindow?.();
@@ -265,9 +289,18 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         loseScope();
         return false;
       }
-      store.setState((state) => ({
-        planning: { ...state.planning, status: 'error', error },
-      }));
+      store.setState((state) => {
+        const { phase } = state.planning;
+        return {
+          planning: {
+            ...state.planning,
+            phase:
+              phase.kind === 'writing'
+                ? { ...phase, readError: error }
+                : { kind: 'failed', error, lastWrite: keptLastWrite(phase) },
+          },
+        };
+      });
       return false;
     } finally {
       finishRequest(controller);
@@ -308,10 +341,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     store.setState((state) => ({
       planning: {
         ...state.planning,
-        status: 'pending',
-        pending: owner.pending,
-        outcome: { kind: 'acknowledged', mutationId: owner.pending.execution.mutationId, revision },
-        error: null,
+        phase: { kind: 'writing', write: owner.pending, readError: null },
       },
     }));
   }
@@ -330,7 +360,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         403,
       );
     }
-    if (state.planning.pending) {
+    if (state.planning.phase.kind === 'writing') {
       throw new PlanningControllerError('A planning change is already pending.');
     }
     if (!isPlanningReadyForChange(state.planning)) {
@@ -368,10 +398,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     store.setState((current) => ({
       planning: {
         ...current.planning,
-        status: 'pending',
-        pending,
-        outcome: { kind: 'pending', execution: pending.execution },
-        error: null,
+        phase: { kind: 'writing', write: pending, readError: null },
       },
     }));
     return owner;
@@ -417,13 +444,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           planning:
             current.planning.revision === before.revision
               ? before
-              : {
-                  ...current.planning,
-                  status: 'ready',
-                  pending: null,
-                  outcome: null,
-                  error: null,
-                },
+              : { ...current.planning, phase: { kind: 'ready', lastWrite: null } },
         }));
         return DECLINED;
       }
@@ -467,21 +488,22 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     store.setState((current) => ({
       planning: {
         ...current.planning,
-        status: 'refused',
-        pending: null,
-        outcome: {
-          kind: 'refused',
-          mutationId: owner.pending.execution.mutationId,
-          ...(code ? { code } : {}),
+        phase: {
+          kind: 'ready',
+          lastWrite: {
+            kind: 'refused',
+            mutationId: owner.pending.execution.mutationId,
+            ...(code ? { code } : {}),
+            error,
+          },
         },
-        error,
       },
     }));
   }
 
   /**
    * A write whose reply was lost may or may not have committed. Show the server's state, clear undo
-   * history and keep an `unconfirmed` outcome so the person checks their change; never resend it.
+   * history and keep an `unconfirmed` last write so the person checks their change; never resend it.
    * A new history id is how the history clears: the server reports nothing for it yet.
    */
   async function settleUnconfirmed(owner: NonNullable<typeof attempt>): Promise<void> {
@@ -490,10 +512,10 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     store.setState((current) => ({
       planning: {
         ...current.planning,
-        status: 'loading',
-        pending: null,
-        outcome: { kind: 'unconfirmed', mutationId: owner.pending.execution.mutationId },
-        error: null,
+        phase: {
+          kind: 'loading',
+          lastWrite: { kind: 'unconfirmed', mutationId: owner.pending.execution.mutationId },
+        },
         history: buildEmptyHistory(),
       },
     }));

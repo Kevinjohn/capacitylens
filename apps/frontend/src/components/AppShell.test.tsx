@@ -1,3 +1,4 @@
+import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, act, waitFor } from '@testing-library/react';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
@@ -17,7 +18,10 @@ it('guards navigation while a typed planning write is unacknowledged', () => {
   const { unmount } = renderAppShell({});
   act(() => {
     useStore.setState((state) => ({
-      planning: { ...state.planning, pending: {} as NonNullable<typeof state.planning.pending> },
+      planning: {
+        ...state.planning,
+        phase: { kind: 'writing', write: {} as PlanningPendingMutation, readError: null },
+      },
     }));
   });
 
@@ -70,15 +74,26 @@ describe('AppShell planning problems', () => {
   it.each([
     [
       'refused',
-      new PlanningControllerError('Refused.', 'ACCOUNT_MEMBERSHIP_LOST', 403),
+      {
+        kind: 'ready',
+        lastWrite: {
+          kind: 'refused',
+          mutationId: 'mutation-1',
+          error: new PlanningControllerError('Refused.', 'ACCOUNT_MEMBERSHIP_LOST', 403),
+        },
+      },
       m.app_planning_refused(),
     ],
-    ['error', new Error('Network down'), m.app_planning_unavailable()],
-  ] as const)('shows a visible alert for a %s planning state', (status, error, text) => {
+    [
+      'failed',
+      { kind: 'failed', error: new Error('Network down'), lastWrite: null },
+      m.app_planning_unavailable(),
+    ],
+  ] as const)('shows a visible alert for a %s planning state', (_name, phase, text) => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
-    act(() => useStore.setState((state) => ({ planning: { ...state.planning, status, error } })));
+    act(() => useStore.setState((state) => ({ planning: { ...state.planning, phase } })));
 
     expect(screen.getByRole('alert')).toHaveTextContent(text);
   });
@@ -91,9 +106,10 @@ describe('AppShell planning problems', () => {
       useStore.setState((state) => ({
         planning: {
           ...state.planning,
-          status: 'ready',
-          error: null,
-          outcome: { kind: 'unconfirmed', mutationId: 'mutation-1' },
+          phase: {
+            kind: 'ready',
+            lastWrite: { kind: 'unconfirmed', mutationId: 'mutation-1' },
+          },
         },
       })),
     );

@@ -133,7 +133,10 @@ describe('planning cache controller history', () => {
     await expect(h.controller.execute(h.controller.begin(), intent)).rejects.toMatchObject({
       code: 'NO_CHANGE',
     });
-    expect(h.state().planning.outcome).toMatchObject({ kind: 'refused', code: 'NO_CHANGE' });
+    expect(h.state().planning.phase).toMatchObject({
+      kind: 'ready',
+      lastWrite: { kind: 'refused', code: 'NO_CHANGE' },
+    });
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
   });
 
@@ -158,8 +161,7 @@ describe('planning cache controller history', () => {
     await expect(h.controller.undo()).rejects.toMatchObject({ status: refusal.status });
     expect(h.read.mock.calls.length).toBe(reads + 1);
     expect(h.state().planning).toMatchObject({
-      status: 'ready',
-      pending: null,
+      phase: { kind: 'ready' },
       history: { canUndo: false, canRedo: false },
     });
   });

@@ -84,11 +84,8 @@ describe('planning write whose reply was lost', () => {
       expect(reads).toBe(1);
       expect(h.state().data).toEqual(serverData);
       expect(h.state().planning).toMatchObject({
-        status: 'ready',
+        phase: { kind: 'ready', lastWrite: { kind: 'unconfirmed', mutationId: 'mutation-2' } },
         revision: 3,
-        pending: null,
-        error: null,
-        outcome: { kind: 'unconfirmed', mutationId: 'mutation-2' },
         history: { canUndo: false, canRedo: false },
       });
       expect(readPlanningProblem(h.state().planning)).toBe('unconfirmed');
@@ -97,7 +94,10 @@ describe('planning write whose reply was lost', () => {
         makeReceipt(execution.mutationId, 4),
       );
       await h.controller.execute(h.controller.begin(), intent);
-      expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 4 });
+      expect(h.state().planning.phase).toMatchObject({
+        kind: 'ready',
+        lastWrite: { kind: 'acknowledged', revision: 4 },
+      });
       expect(readPlanningProblem(h.state().planning)).toBeNull();
       expect(execute).toHaveBeenCalledTimes(3);
     },
@@ -116,9 +116,8 @@ describe('planning write whose reply was lost', () => {
         }),
     );
     expect(h.state().planning).toMatchObject({
-      status: 'ready',
+      phase: { kind: 'ready', lastWrite: { kind: 'unconfirmed', mutationId: 'mutation-2' } },
       revision: 2,
-      outcome: { kind: 'unconfirmed', mutationId: 'mutation-2' },
       history: { canUndo: false, canRedo: false },
     });
     // The lost write named the page's history; the read after it names a new, empty one.
@@ -135,11 +134,11 @@ describe('planning write whose reply was lost', () => {
           .mockRejectedValueOnce(new TypeError('read failed'))
           .mockResolvedValueOnce(serverSnapshot),
     );
-    expect(h.state().planning.status).toBe('error');
+    expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
 
     await expect(h.controller.refresh()).resolves.toBe(true);
-    expect(h.state().planning.status).toBe('ready');
+    expect(h.state().planning.phase.kind).toBe('ready');
     expect(h.state().data).toEqual(serverData);
     expect(readPlanningProblem(h.state().planning)).toBe('unconfirmed');
     expect(execute).toHaveBeenCalledTimes(2);
