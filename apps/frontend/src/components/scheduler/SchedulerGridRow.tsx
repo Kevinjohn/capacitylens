@@ -128,7 +128,7 @@ function ResourceActions({
   | 'visibleWeeksLabel'
 >) {
   const { resource, utilisation, overSoon } = row;
-  const canCreate = canEdit && (ui.drawMode !== 'timeoff' || !isExternalResource(resource));
+  const canCreate = canEdit && (ui.drawMode !== 'timeOff' || !isExternalResource(resource));
   const showUtilisation = utilisationPrefs.showPersonal && isCapacityTracked(resource);
   return (
     <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
@@ -139,19 +139,19 @@ function ResourceActions({
           onClick={() => {
             const day = visibleStartDate();
             setModal({
-              kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create',
+              kind: ui.drawMode === 'timeOff' ? 'timeOff' : 'create',
               resourceId: resource.id,
               startDate: day,
               endDate: day,
             });
           }}
           aria-label={
-            ui.drawMode === 'timeoff'
-              ? m.scheduler_add_timeoff_for({ name: resolveResourceDisplayName(resource) })
+            ui.drawMode === 'timeOff'
+              ? m.scheduler_add_time_off_for({ name: resolveResourceDisplayName(resource) })
               : m.scheduler_add_allocation_for({ name: resolveResourceDisplayName(resource) })
           }
           title={
-            ui.drawMode === 'timeoff' ? m.scheduler_add_timeoff() : m.scheduler_add_allocation()
+            ui.drawMode === 'timeOff' ? m.scheduler_add_time_off() : m.scheduler_add_allocation()
           }
           className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
         >

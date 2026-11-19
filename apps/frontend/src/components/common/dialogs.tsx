@@ -67,16 +67,42 @@ export function Modal({
     onClose,
   });
 
+  const descriptionId = useId();
+
   return (
-    <ModalSurface
-      title={title}
-      description={description}
-      requestClose={requestClose}
-      onSubmit={onSubmit}
-      markDirty={markDirty}
-      children={children}
-      footer={footer}
-    />
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) requestClose();
+      }}
+    >
+      <DialogContent
+        showCloseButton={false}
+        aria-modal="true"
+        aria-describedby={description ? descriptionId : undefined}
+        className="max-h-[90dvh] max-w-md grid-cols-[minmax(0,1fr)] gap-0 overflow-y-auto p-0"
+        onEscapeKeyDown={(event) => {
+          event.preventDefault();
+          requestClose();
+        }}
+        onPointerDownOutside={(event) => {
+          event.preventDefault();
+          if (hasOpenNestedOverlay()) return;
+          const pointer = event.detail.originalEvent;
+          if (pointer.button === 2 || (pointer.button === 0 && pointer.ctrlKey)) return;
+          requestClose();
+        }}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
+        <DialogHeader className="border-b px-4 py-3 text-left">
+          <DialogTitle className="text-base">{title}</DialogTitle>
+          {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
+        </DialogHeader>
+        <ModalForm onSubmit={onSubmit} markDirty={markDirty} footer={footer}>
+          {children}
+        </ModalForm>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -135,61 +161,6 @@ function useModalController({
     onClose();
   };
   return { markDirty, requestClose };
-}
-
-function ModalSurface({
-  title,
-  description,
-  requestClose,
-  onSubmit,
-  children,
-  footer,
-  markDirty,
-}: {
-  title: ReactNode;
-  description: ReactNode | undefined;
-  requestClose: () => void;
-  onSubmit: (() => void) | undefined;
-  children: ReactNode;
-  footer: ReactNode | undefined;
-  markDirty: () => void;
-}) {
-  const descriptionId = useId();
-  return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) requestClose();
-      }}
-    >
-      <DialogContent
-        showCloseButton={false}
-        aria-modal="true"
-        aria-describedby={description ? descriptionId : undefined}
-        className="max-h-[90dvh] max-w-md grid-cols-[minmax(0,1fr)] gap-0 overflow-y-auto p-0"
-        onEscapeKeyDown={(event) => {
-          event.preventDefault();
-          requestClose();
-        }}
-        onPointerDownOutside={(event) => {
-          event.preventDefault();
-          if (hasOpenNestedOverlay()) return;
-          const pointer = event.detail.originalEvent;
-          if (pointer.button === 2 || (pointer.button === 0 && pointer.ctrlKey)) return;
-          requestClose();
-        }}
-        onCloseAutoFocus={(event) => event.preventDefault()}
-      >
-        <DialogHeader className="border-b px-4 py-3 text-left">
-          <DialogTitle className="text-base">{title}</DialogTitle>
-          {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
-        </DialogHeader>
-        <ModalForm onSubmit={onSubmit} markDirty={markDirty} footer={footer}>
-          {children}
-        </ModalForm>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 function ModalForm({
