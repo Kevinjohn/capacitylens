@@ -10,7 +10,7 @@ As a company member, I want the time-off list to show who is away and for how lo
 
 **Documentation:** [time-off.md](../../docs-src/using/time-off.md)
 
-**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx)
+**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx)
 
 ## Acceptance criteria
 
@@ -39,7 +39,7 @@ flowchart TD
 
 **Code references:**
 
-- [TimeOffList.tsx](../../apps/frontend/src/components/timeoff/TimeOffList.tsx)
-- [timeOffView.ts](../../apps/frontend/src/components/timeoff/timeOffView.ts)
+- [TimeOffList.tsx](../../apps/frontend/src/components/time-off/TimeOffList.tsx)
+- [timeOffView.ts](../../apps/frontend/src/components/time-off/timeOffView.ts)
 - [schedulerRowModel.ts](../../apps/frontend/src/components/scheduler/schedulerRowModel.ts)
 - [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx)

@@ -31,22 +31,22 @@ function buildRepeatOptions(startDate: ISODate | ''): Option[] {
     ? format(parseDate(startDate), 'EEEE', { locale: readActiveDateLocale() })
     : undefined;
   return [
-    { value: 'none', label: m.form_timeoff_repeat_none() },
-    { value: 'weekly', label: m.form_timeoff_repeat_weekly() },
-    { value: 'every-two-weeks', label: m.form_timeoff_repeat_every_two_weeks() },
-    { value: 'every-three-weeks', label: m.form_timeoff_repeat_every_three_weeks() },
-    { value: 'every-four-weeks', label: m.form_timeoff_repeat_every_four_weeks() },
+    { value: 'none', label: m.form_time_off_repeat_none() },
+    { value: 'weekly', label: m.form_time_off_repeat_weekly() },
+    { value: 'every-two-weeks', label: m.form_time_off_repeat_every_two_weeks() },
+    { value: 'every-three-weeks', label: m.form_time_off_repeat_every_three_weeks() },
+    { value: 'every-four-weeks', label: m.form_time_off_repeat_every_four_weeks() },
     {
       value: 'monthly-date',
       label: day
-        ? m.form_timeoff_repeat_monthly_date({ day })
-        : m.form_timeoff_repeat_monthly_date_fallback(),
+        ? m.form_time_off_repeat_monthly_date({ day })
+        : m.form_time_off_repeat_monthly_date_fallback(),
     },
     {
       value: 'monthly-last-weekday',
       label: weekday
-        ? m.form_timeoff_repeat_monthly_last_weekday({ weekday })
-        : m.form_timeoff_repeat_monthly_last_weekday_fallback(),
+        ? m.form_time_off_repeat_monthly_last_weekday({ weekday })
+        : m.form_time_off_repeat_monthly_last_weekday_fallback(),
     },
   ];
 }
@@ -59,20 +59,20 @@ function TimeOffRepeatPreview({ projection }: { projection: RepeatProjection }) 
       data-testid="timeoff-repeat-preview"
     >
       <p>
-        {m.form_timeoff_repeat_preview({
+        {m.form_time_off_repeat_preview({
           count: projection.drafts.length,
           range: formatScheduleDateRange(finalDraft.startDate, finalDraft.endDate),
         })}
       </p>
       <details data-testid="timeoff-repeat-ranges">
-        <summary className="cursor-pointer">{m.form_timeoff_repeat_show_dates()}</summary>
+        <summary className="cursor-pointer">{m.form_time_off_repeat_show_dates()}</summary>
         <ol className="mt-1 list-decimal pl-5">
           {projection.drafts.map((draft) => (
             <li key={draft.startDate}>{formatScheduleDateRange(draft.startDate, draft.endDate)}</li>
           ))}
         </ol>
       </details>
-      <p>{m.form_timeoff_repeat_independent_hint()}</p>
+      <p>{m.form_time_off_repeat_independent_hint()}</p>
     </div>
   );
 }
@@ -82,7 +82,7 @@ export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
   return (
     <>
       <SelectField
-        label={m.form_timeoff_repeat_label()}
+        label={m.form_time_off_repeat_label()}
         value={props.repeat}
         onChange={props.onRepeatChange}
         options={buildRepeatOptions(props.startDate)}
@@ -95,7 +95,7 @@ export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
       {props.repeat !== 'none' && (
         <>
           <DateField
-            label={m.form_timeoff_repeat_until_label()}
+            label={m.form_time_off_repeat_until_label()}
             value={props.repeatUntil}
             onChange={props.onRepeatUntilChange}
             required
@@ -107,7 +107,7 @@ export function TimeOffRepeatFields(props: TimeOffRepeatFieldsProps) {
             layout="label-control"
             disabled={props.disabled}
           />
-          <p className="text-xs text-muted-foreground">{m.form_timeoff_repeat_cutoff_hint()}</p>
+          <p className="text-xs text-muted-foreground">{m.form_time_off_repeat_cutoff_hint()}</p>
         </>
       )}
       {props.projection && <TimeOffRepeatPreview projection={props.projection} />}

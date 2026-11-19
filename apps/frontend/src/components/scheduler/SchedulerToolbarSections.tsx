@@ -170,9 +170,9 @@ function ViewFilters(props: FiltersProps) {
           options={[
             { value: 'work', label: m.scheduler_draw_work(), title: m.scheduler_draw_work_title() },
             {
-              value: 'timeoff',
-              label: m.scheduler_draw_timeoff(),
-              title: m.scheduler_draw_timeoff_title(),
+              value: 'timeOff',
+              label: m.scheduler_draw_time_off(),
+              title: m.scheduler_draw_time_off_title(),
             },
           ]}
         />
