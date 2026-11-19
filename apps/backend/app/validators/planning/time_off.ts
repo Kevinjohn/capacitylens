@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { TIME_OFF_TYPES } from '@capacitylens/shared/types/entities';
 import { TIME_OFF_REPEAT_POLICY } from '@capacitylens/shared/lib/repeatingDates';
 import {
   calendarDate,
@@ -20,7 +21,7 @@ const timeOffCreate = vine
     resourceId: entityId(),
     startDate: calendarDate(),
     endDate: calendarDate(),
-    type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const),
+    type: vine.enum(TIME_OFF_TYPES),
     note: nullableUserText(true).optional(),
   })
   .use(dateRange());
@@ -64,7 +65,7 @@ export const timeOffIntent = vine.union([
           resourceId: entityId().optional(),
           startDate: calendarDate().optional(),
           endDate: calendarDate().optional(),
-          type: vine.enum(['holiday', 'sick', 'unpaid', 'other'] as const).optional(),
+          type: vine.enum(TIME_OFF_TYPES).optional(),
           note: nullableUserText(true).optional(),
         })
         .use(requireChanges(['resourceId', 'startDate', 'endDate', 'type', 'note']))

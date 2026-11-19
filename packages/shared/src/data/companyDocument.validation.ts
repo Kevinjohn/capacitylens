@@ -15,7 +15,14 @@ import { parseResourceAvatarUrl } from '../domain/resourceAvatarUrl.js';
 import { halfDaysWithinWorkingDays, sameWeekdays } from '../domain/resourceWorkingPattern.js';
 import {
   ACTIVITY_KINDS,
+  ALLOCATION_STATUSES,
+  CAPACITY_OVERVIEW_ACCESS_VALUES,
+  DATE_STYLES,
+  EMPLOYMENT_TYPES,
+  RESOURCE_ENGAGEMENTS,
   RESOURCE_KINDS,
+  SCHEDULING_MODES,
+  TIME_OFF_TYPES,
   externalCapacityDefaults,
   placeholderCapacityDefaults,
 } from '../types/entities.js';
@@ -106,7 +113,7 @@ function assertAccountRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assertColor(row, 'color', path);
   assert(
-    isNullOr(row.schedulingMode, (v) => isOneOf(v, ['hourly', 'days', 'blocks'])),
+    isNullOr(row.schedulingMode, (v) => isOneOf(v, SCHEDULING_MODES)),
     `${path}.schedulingMode`,
     'is invalid',
   );
@@ -149,16 +156,12 @@ function assertAccountRow(row: Row, path: string): void {
     assert(isNullOr(row[field], isBoolean), `${path}.${field}`, 'must be boolean or null');
   }
   assert(
-    isNullOr(row.capacityOverviewAccess, (v) =>
-      isOneOf(v, ['owner_admin', 'owner_admin_editor', 'everyone']),
-    ),
+    isNullOr(row.capacityOverviewAccess, (v) => isOneOf(v, CAPACITY_OVERVIEW_ACCESS_VALUES)),
     `${path}.capacityOverviewAccess`,
     'is invalid',
   );
   assert(
-    isNullOr(row.dateStyle, (v) =>
-      isOneOf(v, ['day-month', 'day-ordinal-month', 'month-day', 'month-day-ordinal']),
-    ),
+    isNullOr(row.dateStyle, (v) => isOneOf(v, DATE_STYLES)),
     `${path}.dateStyle`,
     'is invalid',
   );
@@ -176,12 +179,8 @@ function assertResourceRow(row: Row, path: string): void {
   assertText(row, 'role', path, { allowEmpty: true });
   assert(isNullOr(row.avatarUrl, isString), `${path}.avatarUrl`, 'must be a string or null');
   assertNullableId(row, 'disciplineId', path);
-  assert(
-    isOneOf(row.employmentType, ['permanent', 'freelancer', 'contractor']),
-    `${path}.employmentType`,
-    'is invalid',
-  );
-  assert(isOneOf(row.engagement, ['studio', 'supplementary']), `${path}.engagement`, 'is invalid');
+  assert(isOneOf(row.employmentType, EMPLOYMENT_TYPES), `${path}.employmentType`, 'is invalid');
+  assert(isOneOf(row.engagement, RESOURCE_ENGAGEMENTS), `${path}.engagement`, 'is invalid');
   assert(
     isFiniteNumber(row.workingHoursPerDay) &&
       (row.workingHoursPerDay as number) > 0 &&
@@ -331,11 +330,7 @@ function assertAllocationRow(row: Row, path: string): void {
     `${path}.hoursPerDay`,
     'is outside the supported range',
   );
-  assert(
-    isOneOf(row.status, ['confirmed', 'tentative', 'completed']),
-    `${path}.status`,
-    'is invalid',
-  );
+  assert(isOneOf(row.status, ALLOCATION_STATUSES), `${path}.status`, 'is invalid');
   assertNullableText(row, 'note', path, { multiline: true });
   assertNullableText(row, 'task', path);
   assert(
@@ -352,7 +347,7 @@ function assertTimeOffRow(row: Row, path: string): void {
     path,
     'time-off date range is invalid',
   );
-  assert(isOneOf(row.type, ['holiday', 'sick', 'unpaid', 'other']), `${path}.type`, 'is invalid');
+  assert(isOneOf(row.type, TIME_OFF_TYPES), `${path}.type`, 'is invalid');
   assertNullableText(row, 'note', path, { multiline: true });
 }
 

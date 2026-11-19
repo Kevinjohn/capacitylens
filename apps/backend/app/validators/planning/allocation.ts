@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { ALLOCATION_STATUSES } from '@capacitylens/shared/types/entities';
 import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDates';
 import {
   boolean,
@@ -26,7 +27,7 @@ const allocationCreate = vine
     startDate: calendarDate(),
     endDate: calendarDate(),
     hoursPerDay: hours(),
-    status: vine.enum(['confirmed', 'tentative', 'completed'] as const),
+    status: vine.enum(ALLOCATION_STATUSES),
     note: nullableUserText(true).optional(),
     task: nullableUserText().optional(),
     ignoreWorkingDays: boolean().nullable().optional(),
@@ -41,7 +42,7 @@ const allocationChanges = vine
     startDate: calendarDate().optional(),
     endDate: calendarDate().optional(),
     hoursPerDay: hours().optional(),
-    status: vine.enum(['confirmed', 'tentative', 'completed'] as const).optional(),
+    status: vine.enum(ALLOCATION_STATUSES).optional(),
     note: nullableUserText(true).optional(),
     task: nullableUserText().optional(),
     ignoreWorkingDays: boolean().nullable().optional(),

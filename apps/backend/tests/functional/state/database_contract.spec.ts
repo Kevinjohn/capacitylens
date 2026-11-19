@@ -8,6 +8,16 @@ import { assertSchemaIntegrity } from '#services/schema_integrity';
 import Company from '#models/company';
 import { insertTenantFixture } from './database_contract_fixtures.js';
 import {
+  ACTIVITY_KINDS,
+  ALLOCATION_STATUSES,
+  DATE_STYLES,
+  EMPLOYMENT_TYPES,
+  RESOURCE_ENGAGEMENTS,
+  RESOURCE_KINDS,
+  SCHEDULING_MODES,
+  TIME_OFF_TYPES,
+} from '@capacitylens/shared/types/entities';
+import {
   accountIndexes,
   baselineTables,
   crossAccountReferences,
@@ -113,6 +123,31 @@ test.group('M1 database contract', (group) => {
       // The same row without the bad value is accepted, so only that value failed the check.
       await db.table(table).insert(copy);
       await db.from(table).where('id', copy.id).delete();
+    });
+
+  test('each enum CHECK lists exactly the shared runtime list')
+    .with([
+      { table: 'accounts', column: 'scheduling_mode', values: SCHEDULING_MODES },
+      { table: 'accounts', column: 'date_style', values: DATE_STYLES },
+      { table: 'resources', column: 'kind', values: RESOURCE_KINDS },
+      { table: 'resources', column: 'employment_type', values: EMPLOYMENT_TYPES },
+      { table: 'resources', column: 'engagement', values: RESOURCE_ENGAGEMENTS },
+      { table: 'activities', column: 'kind', values: ACTIVITY_KINDS },
+      { table: 'allocations', column: 'status', values: ALLOCATION_STATUSES },
+      { table: 'time_off', column: 'type', values: TIME_OFF_TYPES },
+    ])
+    .run(async ({ assert }, { table, column, values }) => {
+      const row = await db
+        .from('sqlite_master')
+        .select('sql')
+        .where({ type: 'table', name: table })
+        .first();
+      const list = new RegExp(`\\b${column} IN \\(([^)]*)\\)`).exec(String(row?.sql))?.[1];
+      assert.isDefined(list, `${table}.${column} has an IN check`);
+      assert.deepEqual(
+        (list ?? '').split(',').map((value) => value.trim().replace(/^'|'$/g, '')),
+        [...values]
+      );
     });
 
   test('physical account deletion cascades only its idempotency receipts', async ({ assert }) => {

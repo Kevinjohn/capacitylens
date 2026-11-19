@@ -12,33 +12,34 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 /** Fixed capacity of a resource weekday marked as a half day. */
 export const HALF_DAY_HOURS = 4;
 
+/** Every allocation status. */
+export const ALLOCATION_STATUSES = ['confirmed', 'tentative', 'completed'] as const;
 /** Whether an allocation is confirmed, tentative or completed. */
-export type AllocationStatus = 'confirmed' | 'tentative' | 'completed';
+export type AllocationStatus = (typeof ALLOCATION_STATUSES)[number];
 /** How allocations are entered: by daily load against a fixed end date ('hourly',
  * the default), by volume of work spread over a span ('days'), or as a pure
  * booking block where only the span matters and load is ignored ('blocks'). */
-export type SchedulingMode = 'hourly' | 'days' | 'blocks';
+export type SchedulingMode = (typeof SCHEDULING_MODES)[number];
 /** The valid scheduling modes; the settings validator refuses anything else. */
-export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks'];
+export const SCHEDULING_MODES = ['hourly', 'days', 'blocks'] as const;
 /** Who may open the Capacity Overview for a company. Null means owner/admin only. */
-export type CapacityOverviewAccess = 'owner_admin' | 'owner_admin_editor' | 'everyone';
+export type CapacityOverviewAccess = (typeof CAPACITY_OVERVIEW_ACCESS_VALUES)[number];
 /** The valid access policies; the settings validator refuses anything else. */
-export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
+export const CAPACITY_OVERVIEW_ACCESS_VALUES = [
   'owner_admin',
   'owner_admin_editor',
   'everyone',
-];
+] as const;
 /** How human-readable dates read across a company: day/month order, and whether the day number
  * carries an ordinal suffix. Null means "day-month" ("9 Sep"). This is company data, not a device preference. A company reads one convention. */
-export type DateStyle = 'day-month' | 'day-ordinal-month' | 'month-day' | 'month-day-ordinal';
-/** Supported date styles in Settings order; the settings validator refuses any other value.
- * Keep this list aligned with DateStyle; the array type alone does not enforce union completeness. */
-export const DATE_STYLES: DateStyle[] = [
+export type DateStyle = (typeof DATE_STYLES)[number];
+/** Supported date styles in Settings order; the settings validator refuses any other value. */
+export const DATE_STYLES = [
   'day-month',
   'day-ordinal-month',
   'month-day',
   'month-day-ordinal',
-];
+] as const;
 /** The format a null `dateStyle` reads back as. */
 export const DEFAULT_DATE_STYLE: DateStyle = 'day-month';
 /** Every resource kind, in the order forms and validation list them. */
@@ -54,12 +55,18 @@ export const RESOURCE_KINDS = ['person', 'placeholder', 'external'] as const;
  *   defaults. See the external-resource rule in DECISIONS.md.
  */
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
+/** Every employment type. */
+export const EMPLOYMENT_TYPES = ['permanent', 'freelancer', 'contractor'] as const;
 /** A person's contract status. */
-export type EmploymentType = 'permanent' | 'freelancer' | 'contractor';
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+/** Every resource engagement. */
+export const RESOURCE_ENGAGEMENTS = ['studio', 'supplementary'] as const;
 /** How the agency regards a person, independently of contract status or discipline. */
-export type ResourceEngagement = 'studio' | 'supplementary';
+export type ResourceEngagement = (typeof RESOURCE_ENGAGEMENTS)[number];
+/** Every time-off type. */
+export const TIME_OFF_TYPES = ['holiday', 'sick', 'unpaid', 'other'] as const;
 /** The reason for a time-off entry. */
-export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other';
+export type TimeOffType = (typeof TIME_OFF_TYPES)[number];
 /** Every activity kind, in the order validation lists them. */
 export const ACTIVITY_KINDS = ['project', 'internal', 'repeatable'] as const;
 /**
