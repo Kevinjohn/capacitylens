@@ -197,6 +197,30 @@ test.group('product error adapters', () => {
       }
     }
   });
+  test('the export download keeps the planning wording for identity and admission refusals', async ({
+    assert,
+  }) => {
+    const decision = { admitted: false, requirements: { invitation: { met: false } } };
+    const cases = [
+      {
+        thrown: new IdentityAuthorityError('Masquerade company authority changed.'),
+        expected: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
+      },
+      {
+        thrown: new AdmissionRequiredError(decision),
+        expected: {
+          error: 'Company access needs admission.',
+          code: 'ADMISSION_REQUIRED',
+          decision,
+        },
+      },
+    ];
+    for (const { thrown, expected } of cases) {
+      const { ctx, result } = context(thrown, 'api.export');
+      await new HttpExceptionHandler().handle(thrown, ctx);
+      assert.deepEqual(result.body, expected, thrown.constructor.name);
+    }
+  });
   test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {
     for (const error of [
       new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED'),
