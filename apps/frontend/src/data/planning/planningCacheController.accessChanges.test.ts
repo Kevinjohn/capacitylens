@@ -7,7 +7,7 @@ import {
   intent,
   canonicalData,
   companyToday,
-  success,
+  makeReceipt,
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -51,7 +51,7 @@ describe('planning cache controller', () => {
 
   it('invalidates drafts and history when the canonical access projection changes', async () => {
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
-      Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
+      Promise.resolve(makeReceipt(execution.mutationId, execution.baseRevision + 1)),
     );
     const h = harness({
       execute,
@@ -144,7 +144,7 @@ describe('canonical planning write capability', () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
       .mockImplementation(async (_context, execution) =>
-        success(execution.mutationId, execution.baseRevision + 1),
+        makeReceipt(execution.mutationId, execution.baseRevision + 1),
       );
     const h = harness({
       execute,

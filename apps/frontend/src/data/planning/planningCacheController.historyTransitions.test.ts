@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { isPlanningHistoryReady } from './planningReadiness';
-import { update, receipt, deferred, readyWithHistory } from '@/test/planningTransitionHarness';
+import { update, makeReceipt, deferred, readyWithHistory } from '@/test/planningTransitionHarness';
 
 // Pins the coordinator transitions that no other controller test asserts directly.
 
@@ -22,7 +22,7 @@ describe('planning history transitions', () => {
     // The server commits this change without adding it to the page's history, as it does for a
     // change it cannot reverse, so its next read reports nothing to undo.
     h.server.revision = 5;
-    response.resolve(receipt('mutation-4', 5));
+    response.resolve(makeReceipt('mutation-4', 5));
     await write;
     expect(h.state().planning.revision).toBe(5);
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });

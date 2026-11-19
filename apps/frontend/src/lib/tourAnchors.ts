@@ -18,7 +18,7 @@ export const ROUTE_PROJECTS = '/projects';
 /** Route path for the activity list. */
 export const ROUTE_ACTIVITIES = '/activities';
 /** Route path for time off. */
-export const ROUTE_TIMEOFF = '/timeoff';
+export const ROUTE_TIME_OFF = '/timeoff';
 /** Route path for team access. */
 export const ROUTE_TEAM = '/team';
 /** Route path for settings. */

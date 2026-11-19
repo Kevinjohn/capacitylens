@@ -30,8 +30,8 @@ import { ProjectList } from '@/components/projects/ProjectList';
 import { ActivityList } from '@/components/activities/ActivityList';
 import { DisciplineList } from '@/components/disciplines/DisciplineList';
 import { ResourceList } from '@/components/resources/ResourceList';
-import { TimeOffList } from '@/components/timeoff/TimeOffList';
-import { CompanyClosureSection } from '@/components/timeoff/CompanyClosureSection';
+import { TimeOffList } from '@/components/time-off/TimeOffList';
+import { CompanyClosureSection } from '@/components/time-off/CompanyClosureSection';
 import { SchedulerGrid } from '@/components/scheduler/SchedulerGrid';
 
 const hold = vi.hoisted(() => ({
@@ -185,7 +185,7 @@ const families = [
     family: 'scheduler time off',
     Component: SchedulerGrid,
     edit: () => {
-      act(() => useStore.getState().setDrawMode('timeoff'));
+      act(() => useStore.getState().setDrawMode('timeOff'));
       return screen.getByRole('button', { name: 'Add time off for Bruce Wayne' });
     },
     field: 'End',
