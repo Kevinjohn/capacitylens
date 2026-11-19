@@ -2,6 +2,7 @@ import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, AppDataKey, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { cleanText } from '@capacitylens/shared/lib/strings';
+import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
 import { assertFrozenCompanyFields } from '#services/planning/entity_policy';
 import { tables } from '#services/product_tables';
@@ -111,6 +112,8 @@ export async function updateSettings(
   candidate.updatedAt = now;
   const validated = await assertEntityRow('accounts', candidate);
   if (typeof validated.name === 'string') validated.name = cleanText(validated.name);
+  // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
+  fillNullableFields('accounts', validated);
   await trx.from('accounts').where('id', companyId).update(encodeRow('accounts', validated));
   const before = { ...existing };
   Object.assign(existing, validated);
