@@ -44,15 +44,16 @@ interface SharedRefusal {
 }
 
 /**
- * The routes that word a shared refusal differently. `planning` is every `api.planning.*` route;
- * `admission` is the member-resource routes; `product` is every other route.
+ * The routes that word a shared refusal differently. `planning` is every `api.planning.*` route and
+ * the export download, which reads through planning authority; `admission` is the member-resource
+ * routes; `product` is every other route.
  */
 export type RefusalSurface = 'product' | 'planning' | 'admission';
 
 /** Reads the refusal surface from the matched route's name. Pure. */
 export function readRefusalSurface(ctx: HttpContext): RefusalSurface {
   const name = ctx.route?.name ?? '';
-  if (name.startsWith('api.planning.')) return 'planning';
+  if (name.startsWith('api.planning.') || name === 'api.export') return 'planning';
   if (name.startsWith('api.member-resources.')) return 'admission';
   return 'product';
 }
