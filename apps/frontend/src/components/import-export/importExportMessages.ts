@@ -10,7 +10,7 @@ const SUMMARY: [ScopedEntityKey, () => string][] = [
   ['phases', () => m.data_summary_phases()],
   ['activities', () => m.data_summary_activities()],
   ['allocations', () => m.data_summary_allocations()],
-  ['timeOff', () => m.data_summary_timeoff()],
+  ['timeOff', () => m.data_summary_time_off()],
   ['closures', () => m.data_summary_closures()],
 ];
 

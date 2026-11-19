@@ -6,7 +6,7 @@ As an Editor, I want to record personal time off so that the affected dates redu
 **Access:** Editor, Admin or Owner
 **Entry:** Time off page
 **Documentation:** [time-off.md](../../docs-src/using/time-off.md)
-**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx), [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/timeoff/TimeOffRepeatFields.tsx)
+**Source:** [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx), [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/time-off/TimeOffRepeatFields.tsx)
 
 ## Acceptance criteria
 
@@ -56,7 +56,7 @@ flowchart TD
 
 **Code references:**
 
-- [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx)
-- [timeOffFormSubmission.ts](../../apps/frontend/src/components/timeoff/timeOffFormSubmission.ts)
+- [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx)
+- [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
 - [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
