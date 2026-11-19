@@ -139,7 +139,7 @@ export function maximumTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
 /** Suggested personal time-off cutoff at the end of its twelve-calendar-month horizon.
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
-export function resolveDefaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
+export function calculateDefaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
   return defaultRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
 }
 
@@ -214,7 +214,11 @@ function buildMonthlyStartDates(
   return startDates;
 }
 
-function resolveLastMatchingWeekdayOfMonth(year: number, month: number, weekday: number): ISODate {
+function calculateLastMatchingWeekdayOfMonth(
+  year: number,
+  month: number,
+  weekday: number,
+): ISODate {
   const lastDay = countDaysInGregorianMonth(year, month);
   const lastDate = buildIsoDate(year, month, lastDay);
   const daysBack = (weekdayOf(lastDate) - weekday + 7) % 7;
@@ -228,7 +232,7 @@ function buildMonthlyLastWeekdayStartDates(
 ): ISODate[] {
   const { year, month } = parseDateParts(startDate);
   const weekday = weekdayOf(startDate);
-  if (resolveLastMatchingWeekdayOfMonth(year, month, weekday) !== startDate) {
+  if (calculateLastMatchingWeekdayOfMonth(year, month, weekday) !== startDate) {
     throw new RepeatingDateError(
       'invalid-last-weekday-start',
       'Monthly last-weekday repeats must start on the last matching weekday of the month.',
@@ -240,7 +244,7 @@ function buildMonthlyLastWeekdayStartDates(
     const monthAnchor = addCalendarMonthsClamped(startDate, monthOffset);
     if (monthAnchor === undefined) break;
     const target = parseDateParts(monthAnchor);
-    const candidate = resolveLastMatchingWeekdayOfMonth(target.year, target.month, weekday);
+    const candidate = calculateLastMatchingWeekdayOfMonth(target.year, target.month, weekday);
     if (candidate > repeatUntil) break;
     startDates.push(candidate);
   }

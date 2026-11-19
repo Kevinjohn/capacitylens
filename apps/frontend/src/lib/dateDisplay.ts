@@ -118,7 +118,12 @@ function formatRange({ startDate, endDate, partsFor, options = {} }: RangeInput)
   return rendered;
 }
 
-const getShortParts = (): DateParts => ({ weekday: true, ordinal: true, month: true, year: false });
+const buildShortParts = (): DateParts => ({
+  weekday: true,
+  ordinal: true,
+  month: true,
+  year: false,
+});
 
 /**
  * A terse, scannable date: "Wed 10th Jun" (or "Wed Jun 10th" under a month-first style).
@@ -129,7 +134,7 @@ const getShortParts = (): DateParts => ({ weekday: true, ordinal: true, month: t
  * regardless of style; only day/month order follows the style.
  */
 export function formatShortDate(date: ISODate): string {
-  return formatSingle(date, getShortParts);
+  return formatSingle(date, buildShortParts);
 }
 
 /**
@@ -139,10 +144,10 @@ export function formatShortDate(date: ISODate): string {
  * {@link formatShortDate}.
  */
 export function formatShortDateRange(startDate: ISODate, endDate: ISODate): string {
-  return formatRange({ startDate, endDate, partsFor: getShortParts });
+  return formatRange({ startDate, endDate, partsFor: buildShortParts });
 }
 
-const getDayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
+const buildDayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
   weekday: false,
   ordinal: descriptor.ordinal,
   month: true,
@@ -154,7 +159,7 @@ const getDayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
  * use formatDayMonthEndpoint to retain cross-year context.
  */
 export function formatDayMonth(date: ISODate): string {
-  return formatSingle(date, getDayMonthParts);
+  return formatSingle(date, buildDayMonthParts);
 }
 
 /**
@@ -163,7 +168,7 @@ export function formatDayMonth(date: ISODate): string {
  * same-day range degrades to {@link formatDayMonth}.
  */
 export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): string {
-  return formatRange({ startDate, endDate, partsFor: getDayMonthParts });
+  return formatRange({ startDate, endDate, partsFor: buildDayMonthParts });
 }
 
 /**
@@ -176,7 +181,7 @@ export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): str
   return formatRange({
     startDate,
     endDate,
-    partsFor: getDayMonthParts,
+    partsFor: buildDayMonthParts,
     options: { collapseYearBoundary: true },
   });
 }
@@ -193,14 +198,14 @@ export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): str
  */
 export function formatDayMonthEndpoint(date: ISODate, counterpart: ISODate): string {
   return formatSingle(date, (descriptor) => ({
-    ...getDayMonthParts(descriptor),
+    ...buildDayMonthParts(descriptor),
     year: isCrossYear(date, counterpart),
   }));
 }
 
 /** The {@link formatShortDate} counterpart to {@link formatDayMonthEndpoint}: weekday, and the year only across one. */
 export function formatShortDateEndpoint(date: ISODate, counterpart: ISODate): string {
-  return formatSingle(date, () => ({ ...getShortParts(), year: isCrossYear(date, counterpart) }));
+  return formatSingle(date, () => ({ ...buildShortParts(), year: isCrossYear(date, counterpart) }));
 }
 
 function isCrossYear(date: ISODate, counterpart: ISODate): boolean {
@@ -251,8 +256,8 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
   if (!Number.isFinite(inclusiveDays)) throw new RangeError('Invalid time-off date range');
   const dayCount = Math.max(0, inclusiveDays);
   return dayCount === 1
-    ? m.list_timeoff_days_one({ count: dayCount })
-    : m.list_timeoff_days_other({ count: dayCount });
+    ? m.list_time_off_days_one({ count: dayCount })
+    : m.list_time_off_days_other({ count: dayCount });
 }
 
 // Render server instants on the viewer’s wall clock with the browser’s locale.

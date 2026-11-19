@@ -10,7 +10,7 @@ As an Editor, I want to remove a company closure so that its dates no longer red
 
 **Documentation:** [time-off.md](../../docs-src/using/time-off.md)
 
-**Source:** [CompanyClosureSection.tsx](../../apps/frontend/src/components/timeoff/CompanyClosureSection.tsx)
+**Source:** [CompanyClosureSection.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.tsx)
 
 ## Acceptance criteria
 
@@ -43,7 +43,7 @@ flowchart TD
 
 **Code references:**
 
-- [CompanyClosureSection.tsx](../../apps/frontend/src/components/timeoff/CompanyClosureSection.tsx)
+- [CompanyClosureSection.tsx](../../apps/frontend/src/components/time-off/CompanyClosureSection.tsx)
 - [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
 - [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
