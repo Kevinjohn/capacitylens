@@ -8,13 +8,12 @@ import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/types';
 
 interface GlobalShortcutsInput {
-  paletteOpen: boolean;
   redo: StoreState['redoPlanning'];
   setPaletteOpen: Dispatch<SetStateAction<boolean>>;
   undo: StoreState['undoPlanning'];
 }
 
-type PaletteShortcutInput = Pick<GlobalShortcutsInput, 'paletteOpen' | 'setPaletteOpen'>;
+type PaletteShortcutInput = Pick<GlobalShortcutsInput, 'setPaletteOpen'>;
 type HistoryShortcutInput = Pick<GlobalShortcutsInput, 'redo' | 'undo'>;
 
 function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcutInput): boolean {
@@ -25,10 +24,7 @@ function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcut
     if (!event.repeat) useStore.getState().setNotice(m.dialog_unsaved_changes());
     return true;
   }
-  const paletteModal = input.paletteOpen
-    ? document.querySelector('[data-testid="command-palette"]')
-    : null;
-  if (hasOpenModal(paletteModal)) return true;
+  if (hasOpenModal()) return true;
   event.preventDefault();
   if (!event.repeat) input.setPaletteOpen((open) => !open);
   return true;
@@ -48,14 +44,14 @@ function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcut
 
 /** Binds the command-palette and undo/redo keyboard shortcuts. */
 export function useGlobalShortcuts(input: GlobalShortcutsInput) {
-  const { paletteOpen, redo, setPaletteOpen, undo } = input;
+  const { redo, setPaletteOpen, undo } = input;
   useEffect(() => {
     const dispatchShortcut = (event: KeyboardEvent) => {
-      if (!applyPaletteShortcutEffect(event, { paletteOpen, setPaletteOpen })) {
+      if (!applyPaletteShortcutEffect(event, { setPaletteOpen })) {
         applyHistoryShortcutEffect(event, { redo, undo });
       }
     };
     window.addEventListener('keydown', dispatchShortcut);
     return () => window.removeEventListener('keydown', dispatchShortcut);
-  }, [paletteOpen, redo, setPaletteOpen, undo]);
+  }, [redo, setPaletteOpen, undo]);
 }

@@ -132,9 +132,7 @@ describe('MasqueradeController transitions', () => {
       tone: 'info',
     });
   });
-});
 
-describe('MasqueradeController transitions', () => {
   it('reports an account switch requested while the start request is still in flight', async () => {
     let resolveStart!: (value: MasqueradeState) => void;
     const startResponse = new Promise<MasqueradeState>((resolve) => {

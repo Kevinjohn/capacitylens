@@ -43,15 +43,15 @@ function parseTimeOffDraft(options: SaveTimeOffOptions) {
   const { resources, resourceId, startDate, endDate, type, note, canEditNote, fail } = options;
   const chosen = resources.find((resource) => resource.id === resourceId);
   if (!chosen || isExternalResource(chosen)) {
-    fail('resource', m.form_timeoff_err_choose_resource());
+    fail('resource', m.form_time_off_err_choose_resource());
     return null;
   }
   if (!startDate || !endDate) {
-    fail('dates', m.form_timeoff_err_dates_required());
+    fail('dates', m.form_time_off_err_dates_required());
     return null;
   }
   if (endDate < startDate) {
-    fail('dates', m.form_timeoff_err_end_before_start());
+    fail('dates', m.form_time_off_err_end_before_start());
     return null;
   }
   let cleanNote: string | undefined;
@@ -103,12 +103,12 @@ function acceptRepeat(
   options: Pick<SaveTimeOffOptions, 'repeatUntil' | 'fail'> & { repeat: TimeOffRepeatSelection },
 ): AcceptedRepeat | null {
   if (!isValidISODate(options.repeatUntil)) {
-    options.fail('repeatUntil', m.form_timeoff_err_repeat_until_required());
+    options.fail('repeatUntil', m.form_time_off_err_repeat_until_required());
     return null;
   }
   const maximum = maximumTimeOffRepeatUntilDate(baseDraft.startDate);
   if (options.repeatUntil > maximum) {
-    options.fail('repeatUntil', m.form_timeoff_err_repeat_until_after_max({ max: maximum }));
+    options.fail('repeatUntil', m.form_time_off_err_repeat_until_after_max({ max: maximum }));
     return null;
   }
   const range = {
@@ -129,20 +129,20 @@ function resolveRepeatFailure(startDate: ISODate, error: unknown, fail: Fail): n
     const messages: Partial<Record<RepeatingDateError['code'], () => void>> = {
       'invalid-last-weekday-start': () => {
         const weekday = format(parseDate(startDate), 'EEEE', { locale: readActiveDateLocale() });
-        fail('dates', m.form_timeoff_err_repeat_last_weekday({ weekday }));
+        fail('dates', m.form_time_off_err_repeat_last_weekday({ weekday }));
       },
-      'no-repeat': () => fail('repeatUntil', m.form_timeoff_err_repeat_until_no_occurrence()),
+      'no-repeat': () => fail('repeatUntil', m.form_time_off_err_repeat_until_no_occurrence()),
       'cutoff-before-start': () =>
-        fail('repeatUntil', m.form_timeoff_err_repeat_until_before_start()),
-      'occurrence-limit': () => fail('repeatUntil', m.form_timeoff_err_repeat_occurrence_limit()),
+        fail('repeatUntil', m.form_time_off_err_repeat_until_before_start()),
+      'occurrence-limit': () => fail('repeatUntil', m.form_time_off_err_repeat_occurrence_limit()),
     };
     const report = messages[error.code];
     if (report) report();
-    else fail('repeatUntil', m.form_timeoff_err_repeat_date_domain());
+    else fail('repeatUntil', m.form_time_off_err_repeat_date_domain());
     return null;
   }
   if (error instanceof RangeError) {
-    fail('repeatUntil', m.form_timeoff_err_repeat_date_domain());
+    fail('repeatUntil', m.form_time_off_err_repeat_date_domain());
     return null;
   }
   throw error;
