@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlanningIntent } from '@/api/planningContracts';
 import type { PlanningTransport } from './planningCacheTypes';
+import { readPlanningProblem } from './planningNotices';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
@@ -114,9 +115,10 @@ describe('planning cache controller', () => {
     await expect(h.controller.execute(draft, intent)).resolves.toMatchObject({
       revision: 2,
     });
-    expect(h.state().planning.outcome).toMatchObject({ kind: 'acknowledged', revision: 2 });
-    expect(h.state().planning.status).toBe('error');
-    expect(h.state().planning.pending).not.toBeNull();
+    const { phase } = h.state().planning;
+    expect(phase).toMatchObject({ kind: 'writing', write: { commitment: { revision: 2 } } });
+    expect(phase.kind === 'writing' && phase.readError).toBeInstanceOf(TypeError);
+    expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
     expect(() => h.controller.begin()).toThrow();
     await expect(h.controller.execute(draft, intent)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);

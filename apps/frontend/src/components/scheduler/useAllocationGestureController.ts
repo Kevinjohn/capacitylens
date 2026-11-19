@@ -356,7 +356,7 @@ async function saveKeyboardGesture(
     // A cleared pending write means a read at or after its revision was accepted. Otherwise the
     // follow-up read, or the read that replaced it, failed; the figures may predate the write, and
     // nothing is said.
-    if (useStore.getState().planning.pending === null) {
+    if (useStore.getState().planning.phase.kind !== 'writing') {
       announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
     }
     scheduleFocus(bar.allocation.id, activeCompanyId);

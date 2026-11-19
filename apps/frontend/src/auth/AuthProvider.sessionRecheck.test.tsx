@@ -1,3 +1,4 @@
+import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
@@ -88,7 +89,10 @@ describe('AuthProvider — server mode', () => {
 
     await resetStoreWithCompany();
     useStore.setState((state) => ({
-      planning: { ...state.planning, pending: {} as NonNullable<typeof state.planning.pending> },
+      planning: {
+        ...state.planning,
+        phase: { kind: 'writing', write: {} as PlanningPendingMutation, readError: null },
+      },
     }));
 
     act(() =>

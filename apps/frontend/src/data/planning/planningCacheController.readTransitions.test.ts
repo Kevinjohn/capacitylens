@@ -1,3 +1,4 @@
+import { readPlanningError } from './planningNotices';
 import { describe, expect, it } from 'vitest';
 import { isPlanningHistoryReady } from './planningReadiness';
 import { PlanningControllerError } from './planningErrors';
@@ -16,13 +17,13 @@ describe('planning read transitions', () => {
     const read = deferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh();
-    expect(h.state().planning.status).toBe('loading');
+    expect(h.state().planning.phase.kind).toBe('loading');
     expect(isPlanningHistoryReady(h.state().planning, 'undo')).toBe(false);
     expect(() => h.controller.begin()).toThrow(/not ready/);
     await expect(h.controller.undo()).resolves.toBe(false);
     read.resolve(snapshot(2, undefined, undoable));
     await refreshing;
-    expect(h.state().planning.status).toBe('ready');
+    expect(h.state().planning.phase.kind).toBe('ready');
     expect(isPlanningHistoryReady(h.state().planning, 'undo')).toBe(true);
     expect(h.execute).toHaveBeenCalledOnce();
   });
@@ -32,36 +33,36 @@ describe('planning read transitions', () => {
     const read = deferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh({ quiet: true });
-    expect(h.state().planning.status).toBe('ready');
+    expect(h.state().planning.phase.kind).toBe('ready');
     expect(isPlanningHistoryReady(h.state().planning, 'undo')).toBe(true);
     expect(() => h.controller.begin()).not.toThrow();
     read.resolve(snapshot(2, undefined, undoable));
     await expect(refreshing).resolves.toBe(true);
-    expect(h.state().planning.status).toBe('ready');
+    expect(h.state().planning.phase.kind).toBe('ready');
   });
 
   it('surfaces a failed quiet read, and shows the next quiet read from that error as loading', async () => {
     const h = await readyWithHistory();
     h.read.mockRejectedValueOnce(new TypeError('read unavailable'));
     await expect(h.controller.refresh({ quiet: true })).resolves.toBe(false);
-    expect(h.state().planning.status).toBe('error');
+    expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
 
     const read = deferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
     const refreshing = h.controller.refresh({ quiet: true });
-    expect(h.state().planning.status).toBe('loading');
-    expect(h.state().planning.error).toBeNull();
+    expect(h.state().planning.phase.kind).toBe('loading');
+    expect(readPlanningError(h.state().planning.phase)).toBeNull();
     read.resolve(snapshot(2, undefined, undoable));
     await expect(refreshing).resolves.toBe(true);
-    expect(h.state().planning.status).toBe('ready');
+    expect(h.state().planning.phase.kind).toBe('ready');
   });
 
   it('surfaces a failed read as unavailable, keeps rows and history, and blocks writes until a read succeeds', async () => {
     const h = await readyWithHistory();
     h.read.mockRejectedValueOnce(new TypeError('read unavailable'));
     await expect(h.controller.refresh()).resolves.toBe(false);
-    expect(h.state().planning.status).toBe('error');
+    expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
     expect(h.state().data.clients[0]?.name).toBe('Wayne Enterprises');
     expect(h.state().planning.history.canUndo).toBe(true);
@@ -69,7 +70,7 @@ describe('planning read transitions', () => {
     await expect(h.controller.undo()).resolves.toBe(false);
 
     await expect(h.controller.refresh()).resolves.toBe(true);
-    expect(h.state().planning.status).toBe('ready');
+    expect(h.state().planning.phase.kind).toBe('ready');
     expect(readPlanningProblem(h.state().planning)).toBeNull();
     await expect(h.controller.undo()).resolves.toBe(true);
   });
@@ -92,9 +93,9 @@ describe('planning read transitions', () => {
     await h.controller.refresh();
     h.read.mockResolvedValueOnce(snapshot(4, 'Older Wayne name'));
     await expect(h.controller.refresh()).resolves.toBe(false);
-    expect(h.state().planning.status).toBe('error');
+    expect(h.state().planning.phase.kind).toBe('failed');
     expect(h.state().planning.revision).toBe(5);
-    expect(h.state().planning.error).toBeInstanceOf(PlanningControllerError);
+    expect(readPlanningError(h.state().planning.phase)).toBeInstanceOf(PlanningControllerError);
     expect(h.state().data.clients[0]?.name).toBe('Wayne Enterprises');
   });
 
@@ -129,11 +130,11 @@ describe('planning read transitions', () => {
     const pan = h.controller.refresh({ quiet: true });
     expect(firstSignal?.aborted).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(h.state().planning.status).toBe('loading');
-    expect(h.state().planning.error).toBeNull();
+    expect(h.state().planning.phase.kind).toBe('loading');
+    expect(readPlanningError(h.state().planning.phase)).toBeNull();
     second.resolve(snapshot(2));
     await expect(fresh).resolves.toBe(true);
     await expect(pan).resolves.toBe(true);
-    expect(h.state().planning.status).toBe('ready');
+    expect(h.state().planning.phase.kind).toBe('ready');
   });
 });

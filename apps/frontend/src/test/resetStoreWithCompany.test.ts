@@ -20,7 +20,7 @@ describe('resetStoreWithCompany', () => {
     await expect(resetStoreWithCompany('acct-cold-reset')).resolves.toBe(true);
     expect(read).toHaveBeenCalled();
     expect(useStore.getState().planning.context?.companyId).toBe('acct-cold-reset');
-    expect(useStore.getState().planning.status).toBe('ready');
+    expect(useStore.getState().planning.phase.kind).toBe('ready');
     expect(useStore.getState().data.accounts.map(({ id }) => id)).toEqual(['acct-cold-reset']);
   });
 
@@ -35,7 +35,7 @@ describe('resetStoreWithCompany', () => {
     expect(useStore.getState().planning.revision).toBe(0);
     expect(useStore.getState().data.accounts.map(({ name }) => name)).toEqual(['Test Co']);
     expect(useStore.getState().planning.context?.companyId).toBe(companyId);
-    expect(useStore.getState().planning.status).toBe('ready');
+    expect(useStore.getState().planning.phase.kind).toBe('ready');
   });
   it('resets a selected company after its context is cleared, removes prior rows and permits a new write', async () => {
     const companyId = 'acct-cleared-context';

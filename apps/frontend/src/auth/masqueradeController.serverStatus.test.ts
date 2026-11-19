@@ -35,7 +35,9 @@ describe('MasqueradeController', () => {
     const freshRead = deferred<boolean>();
     const otherRelease = useStore.getState().suspendPlanningCommands();
     expect(otherRelease).toBeTypeOf('function');
-    useStore.setState((current) => ({ planning: { ...current.planning, status: 'loading' } }));
+    useStore.setState((current) => ({
+      planning: { ...current.planning, phase: { kind: 'loading', lastWrite: null } },
+    }));
     const { controller, dependencies } = harness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       reproject: vi.fn(() => freshRead.promise),
@@ -49,7 +51,9 @@ describe('MasqueradeController', () => {
     oldRead.resolve();
     await oldRead.promise;
     otherRelease?.();
-    useStore.setState((current) => ({ planning: { ...current.planning, status: 'ready' } }));
+    useStore.setState((current) => ({
+      planning: { ...current.planning, phase: { kind: 'ready', lastWrite: null } },
+    }));
     const retry = controller.retryProjection();
     expect(dependencies.reproject).toHaveBeenCalledExactlyOnceWith('a-studio', false);
     expect(useStore.getState().masquerade.kind).toBe('starting');

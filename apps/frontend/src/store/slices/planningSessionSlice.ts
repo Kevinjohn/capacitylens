@@ -185,7 +185,7 @@ export function createPlanningSessionSlice(
         if (
           companyId === null ||
           planning.context?.companyId !== companyId ||
-          planning.pending !== null ||
+          planning.phase.kind === 'writing' ||
           commandLocks.size > 0
         ) {
           return null;

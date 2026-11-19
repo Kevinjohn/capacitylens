@@ -87,7 +87,11 @@ describe('company date routes', () => {
   it('keeps date-independent routes open after a failed read and leaves the alert to the shell', async () => {
     await resetStoreWithCompany();
     useStore.setState((state) => ({
-      planning: { ...state.planning, today: null, status: 'error' },
+      planning: {
+        ...state.planning,
+        today: null,
+        phase: { kind: 'failed', error: new Error('Read failed'), lastWrite: null },
+      },
     }));
     await act(async () => {
       await router.navigate('/clients');

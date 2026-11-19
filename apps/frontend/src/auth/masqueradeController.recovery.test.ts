@@ -108,9 +108,8 @@ async function failSelectedCanonicalRead(controller: MasqueradeController) {
   await controller.adoptStatus({ active: true, ...state });
   expect(useStore.getState().activeCompanyId).toBe('a-studio');
   expect(useStore.getState().planning).toMatchObject({
-    status: 'error',
+    phase: { kind: 'failed' },
     revision: null,
-    pending: null,
   });
   expect(useStore.getState().masquerade.kind).toBe('starting');
   expect(reads.count).toBeGreaterThan(0);
@@ -132,7 +131,7 @@ it("recovers a selected company after its canonical read fails, but refuses anot
   reads.fail = false;
   expect(await controller.retryProjection()).toBe(true);
   expect(useStore.getState().masquerade.kind).toBe('active');
-  expect(useStore.getState().planning.status).toBe('ready');
+  expect(useStore.getState().planning.phase.kind).toBe('ready');
 });
 
 it('ends a selected cold member view even while canonical reads keep failing', async () => {
@@ -148,8 +147,10 @@ it('ends a selected cold member view even while canonical reads keep failing', a
 it('refuses recovery while a typed mutation remains unresolved', async () => {
   const { controller, api } = controllerWithNativeSlice();
   await failSelectedCanonicalRead(controller);
-  const pending = { execution: { mutationId: 'pending' } } as PlanningPendingMutation;
-  useStore.setState((current) => ({ planning: { ...current.planning, pending } }));
+  const write = { execution: { mutationId: 'pending' } } as PlanningPendingMutation;
+  useStore.setState((current) => ({
+    planning: { ...current.planning, phase: { kind: 'writing', write, readError: null } },
+  }));
   const before = reads.count;
   expect(await controller.retryProjection()).toBe(false);
   expect(await controller.end()).toBe(false);

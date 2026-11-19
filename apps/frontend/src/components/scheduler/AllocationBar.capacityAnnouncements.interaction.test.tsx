@@ -132,8 +132,8 @@ describe('AllocationBar capacity announcement interactions', () => {
       await settlePlanning();
 
       // The write committed but its read failed, so the store keeps the rows and figures from before.
-      expect(useStore.getState().planning).toMatchObject({ status: 'error' });
-      expect(useStore.getState().planning.pending).not.toBeNull();
+      const { phase } = useStore.getState().planning;
+      expect(phase.kind === 'writing' && phase.readError).toBeTruthy();
       expect(useStore.getState().srAnnouncement).toBeNull();
     });
 

@@ -39,7 +39,11 @@ describe('planning context transitions', () => {
     expect(signal?.aborted).toBe(true);
     read.resolve(snapshot(5));
     await expect(refreshing).resolves.toBe(false);
-    expect(h.state().planning).toMatchObject({ status: 'idle', revision: null, context: null });
+    expect(h.state().planning).toMatchObject({
+      phase: { kind: 'idle' },
+      revision: null,
+      context: null,
+    });
     expect(h.state().data).toEqual(emptyAppData());
   });
 
@@ -48,7 +52,7 @@ describe('planning context transitions', () => {
     await expect(h.controller.refresh()).resolves.toBe(false);
     await expect(h.controller.undo()).resolves.toBe(false);
     expect(h.read).not.toHaveBeenCalled();
-    expect(h.state().planning.status).toBe('idle');
+    expect(h.state().planning.phase.kind).toBe('idle');
     expect(() => h.controller.begin()).toThrow(/read-only/);
   });
 });

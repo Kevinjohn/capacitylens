@@ -9,10 +9,12 @@ import {
 } from '@/data/planning/planningCacheController';
 import type {
   PlanningCacheState,
+  PlanningPhase,
   PlanningClientContext,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { createPlanningTransport } from '@/data/planning/planningTransport';
+import { readPlanningError } from '@/data/planning/planningNotices';
 
 interface Harness {
   store: StoreApi<PlanningCacheState>;
@@ -32,23 +34,30 @@ function requireHarness(key: string): Harness {
   return harness;
 }
 
+function readErrorMessage(phase: PlanningPhase): string | null {
+  const error = readPlanningError(phase);
+  return error instanceof Error ? error.message : null;
+}
+
 function view(state: PlanningCacheState) {
   return {
     revision: state.planning.revision,
-    status: state.planning.status,
-    error: state.planning.error instanceof Error ? state.planning.error.message : null,
+    phase: state.planning.phase.kind,
+    error: readErrorMessage(state.planning.phase),
     history: { ...state.planning.history },
-    pending: state.planning.pending
-      ? {
-          mutationId: state.planning.pending.execution.mutationId,
-          baseRevision: state.planning.pending.execution.baseRevision,
-          operation:
-            state.planning.pending.kind === 'new'
-              ? state.planning.pending.execution.intent.operation
-              : state.planning.pending.kind,
-        }
-      : null,
-    outcome: state.planning.outcome?.kind ?? null,
+    write:
+      state.planning.phase.kind === 'writing'
+        ? {
+            mutationId: state.planning.phase.write.execution.mutationId,
+            baseRevision: state.planning.phase.write.execution.baseRevision,
+            operation:
+              state.planning.phase.write.kind === 'new'
+                ? state.planning.phase.write.execution.intent.operation
+                : state.planning.phase.write.kind,
+          }
+        : null,
+    lastWrite:
+      'lastWrite' in state.planning.phase ? (state.planning.phase.lastWrite?.kind ?? null) : null,
     context: state.planning.context
       ? {
           companyId: state.planning.context.companyId,
@@ -140,7 +149,8 @@ export function planningHarnessStart(key: string, intent: PlanningIntent) {
   if (harness.active) throw new Error('A planning test request is already running.');
   const draft = harness.controller.begin();
   const pending = harness.controller.execute(draft, intent);
-  const execution = harness.store.getState().planning.pending?.execution;
+  const { phase } = harness.store.getState().planning;
+  const execution = phase.kind === 'writing' ? phase.write.execution : undefined;
   if (!execution) throw new Error('The planning request did not publish its pending state.');
   harness.active = pending.then(
     (receipt) => ({ kind: 'resolved' as const, receipt }),

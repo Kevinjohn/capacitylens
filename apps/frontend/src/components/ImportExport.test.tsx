@@ -132,7 +132,11 @@ describe('beta import and export', () => {
 
   it('does not dispatch an ordinary import from an unsettled recovery-readable context', async () => {
     useStore.setState((state) => ({
-      planning: { ...state.planning, status: 'error', revision: null },
+      planning: {
+        ...state.planning,
+        phase: { kind: 'failed', error: new Error('Read failed'), lastWrite: null },
+        revision: null,
+      },
     }));
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

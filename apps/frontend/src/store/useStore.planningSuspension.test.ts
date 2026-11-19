@@ -108,17 +108,23 @@ describe('planning command suspension', () => {
 
   it('refuses replacement until the canonical view is ready and resolved', () => {
     expect(useStore.getState().planningReadyForReplacement()).toBe(true);
-    useStore.setState((state) => ({ planning: { ...state.planning, status: 'loading' } }));
+    useStore.setState((state) => ({
+      planning: { ...state.planning, phase: { kind: 'loading', lastWrite: null } },
+    }));
     expect(useStore.getState().planningReadyForReplacement()).toBe(false);
     useStore.setState((state) => ({
-      planning: { ...state.planning, status: 'ready', pending: null, revision: null },
+      planning: { ...state.planning, phase: { kind: 'ready', lastWrite: null }, revision: null },
     }));
     expect(useStore.getState().planningReadyForReplacement()).toBe(false);
   });
 
   it('can claim an unsettled selected context for authority recovery without permitting an ordinary replacement', () => {
     useStore.setState((state) => ({
-      planning: { ...state.planning, status: 'error', revision: null },
+      planning: {
+        ...state.planning,
+        phase: { kind: 'failed', error: new Error('Read failed'), lastWrite: null },
+        revision: null,
+      },
     }));
     expect(useStore.getState().planningReadyForReplacement()).toBe(false);
     const releaseRecovery = useStore.getState().suspendPlanningCommands();
@@ -134,14 +140,17 @@ describe('planning command suspension', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
-        status: 'pending',
-        pending: {
-          execution: {
-            mutationId: 'pending-mutation',
-            baseRevision: state.planning.revision ?? 0,
-            intent: { operation: 'allocation.deleteGroup', ids: [] },
+        phase: {
+          kind: 'writing',
+          write: {
+            execution: {
+              mutationId: 'pending-mutation',
+              baseRevision: state.planning.revision ?? 0,
+              intent: { operation: 'allocation.deleteGroup', ids: [] },
+            },
+            kind: 'new',
           },
-          kind: 'new',
+          readError: null,
         },
       },
     }));

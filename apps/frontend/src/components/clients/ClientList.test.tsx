@@ -62,7 +62,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
   useStore.setState((state) => ({
     planning: {
       ...state.planning,
-      status: 'ready',
+      phase: { kind: 'ready', lastWrite: null },
       context: { identity: 'test-principal', companyId: DEFAULT_COMPANY_ID },
       authority: makePlanningAuthority({ role }),
     },

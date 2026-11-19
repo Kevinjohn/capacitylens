@@ -7,8 +7,7 @@ export function isPlanningReadyForChange(planning: PlanningControllerMetadata): 
     planning.context !== null &&
     canWritePlanning(planning.authority) &&
     planning.revision !== null &&
-    planning.pending === null &&
-    (planning.status === 'ready' || planning.status === 'refused')
+    planning.phase.kind === 'ready'
   );
 }
 
@@ -37,7 +36,8 @@ export function isSoleAcknowledgedAdvance(
     basis.revision !== null &&
     planning.context === basis.context &&
     planning.revision === basis.revision + 1 &&
-    planning.outcome?.kind === 'acknowledged' &&
-    planning.outcome.revision === planning.revision
+    'lastWrite' in planning.phase &&
+    planning.phase.lastWrite?.kind === 'acknowledged' &&
+    planning.phase.lastWrite.revision === planning.revision
   );
 }

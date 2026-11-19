@@ -1,3 +1,4 @@
+import { readPlanningError } from './planningNotices';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
@@ -99,8 +100,8 @@ describe('planning cache controller', () => {
     const h = harness({ execute: vi.fn(), read });
     h.controller.setContext(context);
     await expect(h.controller.refresh()).resolves.toBe(false);
-    expect(h.state().planning.status).toBe('error');
-    expect(h.state().planning.error).toBeInstanceOf(Error);
+    expect(h.state().planning.phase.kind).toBe('failed');
+    expect(readPlanningError(h.state().planning.phase)).toBeInstanceOf(Error);
     expect(h.state().data).toEqual(emptyAppData());
     expect(h.state().planning.authority).toBeNull();
     expect(h.state().planning.history.canUndo).toBe(false);

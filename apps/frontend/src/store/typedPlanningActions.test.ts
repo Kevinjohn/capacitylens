@@ -65,7 +65,9 @@ describe('typed planning domain rejections', () => {
       .getState()
       .updateClient(row.id, { name: 'Queen Industries' }, row.updatedAt);
     // The transport is bound when the store is built, so the pending execution is what it is sent.
-    expect(useStore.getState().planning.pending?.execution).toMatchObject({
+    expect(useStore.getState().planning.phase).toMatchObject({ kind: 'writing' });
+    const { phase } = useStore.getState().planning;
+    expect(phase.kind === 'writing' && phase.write.execution).toMatchObject({
       intent: { operation: 'catalogue.update', entity: { entity: 'clients', id: row.id } },
       expectedUpdatedAt: row.updatedAt,
     });

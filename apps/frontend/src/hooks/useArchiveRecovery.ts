@@ -41,7 +41,7 @@ export function useArchiveRecovery() {
     planning.authority.role === role &&
     planning.authority.canWrite &&
     planning.context?.companyId === companyId &&
-    planning.status === 'ready';
+    planning.phase.kind === 'ready';
   const scope = {
     principalId: user?.id ?? null,
     companyId,

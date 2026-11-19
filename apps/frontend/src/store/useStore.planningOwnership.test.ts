@@ -139,7 +139,7 @@ describe('planning authority publication', () => {
     ).rejects.toThrow('response lost');
     failure.execute = null;
 
-    expect(useStore.getState().planning.status).toBe('ready');
+    expect(useStore.getState().planning.phase.kind).toBe('ready');
     expect(readPlanningProblem(useStore.getState().planning)).toBe('unconfirmed');
     expect(
       useStore.getState().data.allocations.find((row) => row.id === allocation.id)?.endDate,
@@ -161,7 +161,7 @@ describe('planning ownership of allocations', () => {
     useStore.getState().setActiveCompany('a2');
 
     expect(useStore.getState().planning.context?.companyId).toBe('a2');
-    await vi.waitFor(() => expect(useStore.getState().planning.status).toBe('ready'));
+    await vi.waitFor(() => expect(useStore.getState().planning.phase.kind).toBe('ready'));
   });
 
   it('requires a post-change canonical read instead of reusing a held older projection', async () => {
