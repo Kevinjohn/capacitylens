@@ -6,7 +6,7 @@ As an Editor, I want to create a finite batch of repeating time-off entries so t
 **Access:** Editor, Admin or Owner
 **Entry:** Add time off form on the Time off page
 **Documentation:** [time-off.md](../../docs-src/using/time-off.md)
-**Source:** [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/timeoff/TimeOffRepeatFields.tsx), [timeOffFormSubmission.ts](../../apps/frontend/src/components/timeoff/timeOffFormSubmission.ts)
+**Source:** [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/time-off/TimeOffRepeatFields.tsx), [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts)
 
 ## Acceptance criteria
 
@@ -53,9 +53,9 @@ flowchart TD
 
 **Code references:**
 
-- [TimeOffForm.tsx](../../apps/frontend/src/components/timeoff/TimeOffForm.tsx)
-- [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/timeoff/TimeOffRepeatFields.tsx)
-- [timeOffFormSubmission.ts](../../apps/frontend/src/components/timeoff/timeOffFormSubmission.ts)
+- [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx)
+- [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/time-off/TimeOffRepeatFields.tsx)
+- [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
 - [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts)

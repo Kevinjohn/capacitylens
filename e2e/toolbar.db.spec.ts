@@ -129,10 +129,10 @@ test.describe('Toolbar', () => {
     await openApp(page);
     await showScheduleFilters(page);
     const work = page.getByRole('radio', { name: 'Work', exact: true });
-    const timeoff = page.getByRole('radio', { name: 'Time off', exact: true });
+    const timeOffRadio = page.getByRole('radio', { name: 'Time off', exact: true });
     await expect(work).toHaveAttribute('aria-checked', 'true');
-    await timeoff.click();
-    await expect(timeoff).toHaveAttribute('aria-checked', 'true');
+    await timeOffRadio.click();
+    await expect(timeOffRadio).toHaveAttribute('aria-checked', 'true');
     await expect(work).toHaveAttribute('aria-checked', 'false');
 
     // The work bars go inert via a single ancestor layer (ResourceLane's BarsLayer), not a

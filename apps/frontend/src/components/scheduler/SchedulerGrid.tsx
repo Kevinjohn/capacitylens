@@ -31,7 +31,7 @@ const AllocationModal = lazy(() =>
   })),
 );
 const TimeOffForm = lazy(() =>
-  import('@/components/timeoff/TimeOffForm').then((module) => ({
+  import('@/components/time-off/TimeOffForm').then((module) => ({
     default: module.TimeOffForm,
   })),
 );
@@ -40,7 +40,7 @@ function SchedulerModal({ modal, close }: { modal: ModalState; close: () => void
   if (modal.kind === 'edit') {
     return <AllocationModal kind="edit" allocationId={modal.allocationId} onClose={close} />;
   }
-  if (modal.kind === 'timeoff') {
+  if (modal.kind === 'timeOff') {
     return (
       <TimeOffForm
         defaults={{
@@ -131,13 +131,13 @@ function openDrawModal({
       date: startDate,
       timeOff: listRenderableDateRanges(scopedData.timeOff),
       accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-      closures: drawMode === 'timeoff' ? [] : listRenderableDateRanges(scopedData.closures),
+      closures: drawMode === 'timeOff' ? [] : listRenderableDateRanges(scopedData.closures),
     })
   ) {
     return;
   }
-  if (drawMode === 'timeoff' && isExternalResource(resource)) return;
-  setModal({ kind: drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate });
+  if (drawMode === 'timeOff' && isExternalResource(resource)) return;
+  setModal({ kind: drawMode === 'timeOff' ? 'timeOff' : 'create', resourceId, startDate, endDate });
 }
 
 function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
@@ -149,8 +149,8 @@ function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
     if (previousDrawMode.current === ui.drawMode) return;
     previousDrawMode.current = ui.drawMode;
     announceStatus(
-      ui.drawMode === 'timeoff'
-        ? m.scheduler_sr_timeoff_mode_enabled()
+      ui.drawMode === 'timeOff'
+        ? m.scheduler_sr_time_off_mode_enabled()
         : m.scheduler_sr_work_mode_enabled(),
     );
   }, [announceStatus, ui.drawMode]);
