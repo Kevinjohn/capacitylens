@@ -11,11 +11,11 @@ import { DomainError } from '@capacitylens/shared/domain/errors';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
-import { affectedRows } from '#services/affected_rows';
-import { retainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
+import { parseAffectedRows } from '#services/affected_rows';
+import { buildRetainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
 import { tables } from '#services/product_tables';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { asRecord, existingRow, type WrittenRow } from './writer.js';
+import { asRecord, requireExistingRow, type WrittenRow } from './writer.js';
 import { PlanningOperationError } from './errors.js';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
@@ -54,7 +54,7 @@ export async function deleteRows(
   written: WrittenRow[] = [],
   now = new Date().toISOString()
 ) {
-  const rows = ids.map((id) => existingRow(data, table, id));
+  const rows = ids.map((id) => requireExistingRow(data, table, id));
   const groupId = randomUUID();
   // Restoration bookkeeping, not a product row.
   await trx.table('deleted_groups').insert({
@@ -106,8 +106,8 @@ export async function deleteRows(
       .from(tables[link.entity])
       .where({ id: link.rowId, company_id: companyId, [column]: link.parentId })
       .update({ [column]: null });
-    if (affectedRows(detached) !== 1) refuseRestorationConflict();
-    const child = existingRow(data, link.entity, link.rowId);
+    if (parseAffectedRows(detached) !== 1) refuseRestorationConflict();
+    const child = requireExistingRow(data, link.entity, link.rowId);
     const before = { ...child };
     if ('phaseId' in child) child.phaseId = null;
     else child.disciplineId = null;
@@ -115,7 +115,9 @@ export async function deleteRows(
   }
   for (let start = 0; start < ids.length; start += 500) {
     const selected = ids.slice(start, start + 500);
-    const deleted = await retainedQuery(trx, companyId, table).whereIn('id', selected).softDelete();
+    const deleted = await buildRetainedQuery(trx, companyId, table)
+      .whereIn('id', selected)
+      .softDelete();
     if (deleted !== selected.length) refuseRestorationConflict();
     // Marks the rows deleted above; their entries are recorded below.
     const attached = await trx
@@ -125,7 +127,7 @@ export async function deleteRows(
       .whereNotNull('deleted_at')
       .whereNull('deletion_group_id')
       .update({ deletion_group_id: groupId });
-    if (affectedRows(attached) !== selected.length) refuseRestorationConflict();
+    if (parseAffectedRows(attached) !== selected.length) refuseRestorationConflict();
   }
   // A deleted retained row is not part of the snapshot, so it leaves `data`.
   const deleted = new Set(ids);
@@ -204,7 +206,7 @@ export async function restoreGroup(
     if (payload.kind === 'row') {
       const entity = item.entity as DeletableTable;
       if (!isRetainedTable(entity)) refuseRestorationConflict();
-      const stored = await retainedQuery(trx, companyId, entity)
+      const stored = await buildRetainedQuery(trx, companyId, entity)
         .onlyTrashed()
         .where('id', String(item.row_id))
         .where('deletion_group_id', groupId)
@@ -273,8 +275,8 @@ export async function restoreGroup(
       .where({ id, company_id: companyId, deletion_group_id: groupId })
       .whereNotNull('deleted_at')
       .update({ deletion_group_id: null });
-    if (affectedRows(cleared) !== 1) refuseRestorationConflict();
-    const restored = await retainedQuery(trx, companyId, entity)
+    if (parseAffectedRows(cleared) !== 1) refuseRestorationConflict();
+    const restored = await buildRetainedQuery(trx, companyId, entity)
       .onlyTrashed()
       .where('id', id)
       .whereNull('deletion_group_id')
@@ -306,7 +308,7 @@ export async function restoreGroup(
       .where({ id: rowId, company_id: companyId })
       .whereNull(column)
       .update({ [column]: parentId, updated_at: updatedAt });
-    const kept = existingRow(data, entity, rowId);
+    const kept = requireExistingRow(data, entity, rowId);
     const before = { ...kept };
     Object.assign(kept, { [field]: parentId, updatedAt });
     written.push({ entity, id: rowId, before, after: { ...kept } });
@@ -338,7 +340,7 @@ export async function reclaimRetainedId(
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   // Purges a row already deleted, which is not in the snapshot; the create that follows records it.
-  const purged = await retainedQuery(trx, companyId, table)
+  const purged = await buildRetainedQuery(trx, companyId, table)
     .onlyTrashed()
     .where('id', id)
     .where('deletion_group_id', String(prior.deletion_group_id))
@@ -433,7 +435,7 @@ export async function countRestorableItems(
   let total = 0;
   for (const marker of markers) {
     if (!isRetainedTable(marker.entity)) continue;
-    const row = await retainedQuery(trx, companyId, marker.entity)
+    const row = await buildRetainedQuery(trx, companyId, marker.entity)
       .onlyTrashed()
       .where('id', marker.row_id)
       .where('deletion_group_id', marker.group_id)

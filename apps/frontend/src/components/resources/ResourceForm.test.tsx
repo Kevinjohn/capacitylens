@@ -175,7 +175,7 @@ describe('ResourceForm disciplines', () => {
   });
 
   it('shows Discipline for people and placeholders when enabled with a scoped discipline', async () => {
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#737373', sortOrder: 0 });
+    await useStore.getState().addDiscipline({ name: 'Design', color: '#737373' });
 
     const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
     expect(screen.getByLabelText('Discipline')).toBeVisible();
@@ -188,7 +188,7 @@ describe('ResourceForm disciplines', () => {
   it('preserves an existing discipline when the disabled control is hidden', async () => {
     const user = userEvent.setup();
     const discipline = await requireCreated(
-      useStore.getState().addDiscipline({ name: 'Design', color: '#737373', sortOrder: 0 }),
+      useStore.getState().addDiscipline({ name: 'Design', color: '#737373' }),
     );
     const resource = await requireCreated(
       useStore.getState().addResource({

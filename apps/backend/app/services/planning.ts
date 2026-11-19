@@ -20,9 +20,9 @@ import { executePlanningIntent, PlanningOperationError } from '#services/plannin
 import { resolvePlanningAuthority, type PlanningAuthority } from '#services/planning/authority';
 import {
   changesNothing,
-  invalidatesRestoration,
+  isRestorationInvalidated,
   listAuditedEntities,
-  projectionChanges,
+  buildProjectionChanges,
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
@@ -262,7 +262,7 @@ async function commit({
   }
   // Private names and activity kind can change what a saved before-image may safely reveal.
   // A restoration group is valid only until one of those fields actually changes.
-  const endsRecovery = invalidatesRestoration(intent, written);
+  const endsRecovery = isRestorationInvalidated(intent, written);
   if (endsRecovery) {
     const count = await countRestorableItems(trx, companyId);
     if (
@@ -286,7 +286,7 @@ async function commit({
     originSessionId: restoration.replacementGroupId ? actor.sessionId : null,
   });
   // The receipt carries the rows this commit changed, as the writer's own read shows them.
-  const changed = projectionChanges(
+  const changed = buildProjectionChanges(
     transformState(buildActiveData(before), companyId, authority.role),
     transformState(buildActiveData(working), companyId, authority.role)
   );

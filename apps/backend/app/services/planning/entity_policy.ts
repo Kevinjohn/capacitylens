@@ -27,7 +27,7 @@ import { assertEntityDomain, type EntityWrite } from '#services/planning/entity_
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
 import {
   listHiddenFields,
-  restrictionFor,
+  getRestriction,
   isPrivateRowRestricted,
 } from '#services/planning/restricted_fields';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
@@ -67,7 +67,7 @@ export function assertMayWriteRestrictedFields(
   capabilities: PlanningCapabilities,
   mode: 'create' | 'update'
 ) {
-  const rule = restrictionFor(table, capabilities);
+  const rule = getRestriction(table, capabilities);
   if (!rule) return;
   const named = rule.fields.some(
     (field) =>
@@ -90,7 +90,7 @@ function pinHiddenFields(
   existing: Record<string, unknown> | undefined,
   context: PlanningCapabilities
 ) {
-  const rule = restrictionFor(table, context);
+  const rule = getRestriction(table, context);
   if (!rule) return;
   const privateRow = existing?.isPrivate === true;
   const keepsStored = rule.privateRowFields.length === 0 || privateRow;

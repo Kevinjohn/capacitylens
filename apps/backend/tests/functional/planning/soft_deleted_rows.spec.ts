@@ -6,7 +6,7 @@ import { DateTime } from 'luxon';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
 import { readState } from '#tests/helpers/state_fixture';
-import { retainedQuery } from '#services/planning/retained_rows';
+import { buildRetainedQuery } from '#services/planning/retained_rows';
 import Client from '#models/client';
 
 class ClientWithLaterOrHooks extends Client {
@@ -147,7 +147,7 @@ test.group('soft-deleted rows', (group) => {
     const before = await db.from('allocations').where('id', deletedLocal!.id).first();
 
     const softDeleted = await db.transaction((trx) =>
-      retainedQuery(trx, 'a-studio', 'allocations')
+      buildRetainedQuery(trx, 'a-studio', 'allocations')
         .whereIn('id', [deletedLocal!.id, otherTenant.id])
         .softDelete()
     );
@@ -164,7 +164,7 @@ test.group('soft-deleted rows', (group) => {
       .where('id', otherTenant.id)
       .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
     const purged = await db.transaction((trx) =>
-      retainedQuery(trx, 'a-studio', 'allocations')
+      buildRetainedQuery(trx, 'a-studio', 'allocations')
         .onlyTrashed()
         .whereIn('id', [deletedLocal!.id, activeLocal!.id, otherTenant.id])
         .forceDelete()

@@ -11,7 +11,7 @@ import { signIn, signUpAndIn } from '../../helpers/identities.js';
 import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 import app from '@adonisjs/core/services/app';
 import { pruneViewAs } from '#services/storage_maintenance';
-import { masqueradeService } from '#services/auth/masquerade';
+import { getMasqueradeService } from '#services/auth/masquerade';
 
 const password = 'batman-secret-2026';
 
@@ -1058,7 +1058,7 @@ test.group('native read-only masquerade', (group) => {
       .send();
     ended.assertStatus(200);
 
-    const service = await masqueradeService();
+    const service = await getMasqueradeService();
     const originalStart = service.start;
     try {
       for (const [code, status, body] of [

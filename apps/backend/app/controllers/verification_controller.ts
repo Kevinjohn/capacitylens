@@ -3,8 +3,8 @@ import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidTokenError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { isMailConfigured } from '#services/mail_delivery';
-import { proofHeaders } from '#services/request_helpers';
-import { currentAccount } from '#services/auth/current_actor';
+import { setProofHeaders } from '#services/request_helpers';
+import { readCurrentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import { completeValidator, inspectValidator } from '#validators/verification';
 
@@ -17,7 +17,7 @@ export default class VerificationController {
         code: 'MAIL_UNAVAILABLE',
       });
     }
-    const account = await currentAccount(ctx);
+    const account = await readCurrentAccount(ctx);
     try {
       return ctx.response.ok({
         result: await accountKit.emailVerification.send({ userId: account.id }),
@@ -35,7 +35,7 @@ export default class VerificationController {
 
   /** Reports whether a confirmation link is still usable without spending it. */
   async inspect(ctx: HttpContext) {
-    proofHeaders(ctx);
+    setProofHeaders(ctx);
     const body = await ctx.request.validateUsing(inspectValidator, { data: ctx.request.body() });
     return ctx.response.ok({
       valid: await accountKit.emailVerification.inspect({ token: body.token }),
@@ -47,7 +47,7 @@ export default class VerificationController {
    * proves the mailbox, which could reset the password anyway.
    */
   async complete(ctx: HttpContext) {
-    proofHeaders(ctx);
+    setProofHeaders(ctx);
     const body = await ctx.request.validateUsing(completeValidator, { data: ctx.request.body() });
     try {
       await accountKit.emailVerification.complete({

@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { AUTH_INVALIDATION_STORAGE_KEY } from './signOut';
-import { deferred, freshProvider, me } from './AuthProvider.testSupport';
+import { freshProvider, me } from './AuthProvider.testSupport';
+import { createDeferred } from '@/test/createDeferred';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -26,7 +27,7 @@ afterEach(() => {
 
 describe('AuthProvider — server mode', () => {
   it('signals tenant-data access only after a successful auth check', async () => {
-    const auth = deferred<Response>();
+    const auth = createDeferred<Response>();
     vi.stubGlobal(
       'fetch',
       vi.fn(() => auth.promise),

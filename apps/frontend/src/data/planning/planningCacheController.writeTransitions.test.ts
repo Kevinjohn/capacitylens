@@ -8,13 +8,13 @@ import { PlanningControllerError } from './planningErrors';
 import {
   update,
   makeReceipt,
-  deferred,
   ready,
   snapshot,
   readyWithHistory,
 } from '@/test/planningTransitionHarness';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { createDeferred } from '@/test/createDeferred';
 
 /** A read without rows, as the harness's server reports it for the revision the page named. */
 const unchanged = (revision: number): PlanningSnapshot => ({
@@ -30,7 +30,7 @@ const unchanged = (revision: number): PlanningSnapshot => ({
 describe('planning write transitions', () => {
   it('publishes the pending outcome before the transport answers', async () => {
     const h = await ready();
-    const response = deferred<PlanningMutationSuccess>();
+    const response = createDeferred<PlanningMutationSuccess>();
     h.execute.mockImplementationOnce(() => response.promise);
     const write = h.controller.execute(h.controller.begin(), update);
     const planning = h.state().planning;
@@ -69,7 +69,7 @@ describe('planning write transitions', () => {
     const h = await ready();
     const before = h.state().data;
     const canonical = snapshot(2, 'Ferris Aircraft');
-    const canonicalRead = deferred<PlanningSnapshot>();
+    const canonicalRead = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => canonicalRead.promise);
     const write = h.controller.execute(h.controller.begin(), update);
     await vi.waitFor(() =>
@@ -108,7 +108,7 @@ describe('planning write transitions', () => {
 
   it('shows history ended by another change and resolves a stale refusal through the refetch', async () => {
     const h = await readyWithHistory();
-    const response = deferred<PlanningMutationSuccess>();
+    const response = createDeferred<PlanningMutationSuccess>();
     h.execute.mockImplementationOnce(() => response.promise);
     const write = h.controller.execute(h.controller.begin(), update);
     h.server.revision = 3;
@@ -257,7 +257,7 @@ describe('planning write transitions', () => {
 
   it('does not apply a receipt when the cache has moved past its base revision', async () => {
     const h = await ready();
-    const response = deferred<PlanningMutationSuccess>();
+    const response = createDeferred<PlanningMutationSuccess>();
     h.execute.mockImplementationOnce(() => response.promise);
     const write = h.controller.execute(h.controller.begin(), update);
     h.read.mockResolvedValueOnce(snapshot(3, 'Kord Industries'));

@@ -6,7 +6,7 @@
 
 import type { HttpContext } from '@adonisjs/core/http';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import { passwordConfirmationActor } from '#services/auth/password_confirmation';
+import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
 import { withActor } from '#services/auth/current_actor';
 import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
 import { parseRequestDocument } from '#services/company_import';
@@ -23,7 +23,7 @@ export default class PasswordConfirmationsController {
       intent = { baseRevision: body.intent.baseRevision, document };
     }
     await withActor(ctx, async (_actor, trx) =>
-      passwordConfirmationActor(body.companyId, trx, body.action)
+      requirePasswordConfirmationActor(body.companyId, trx, body.action)
     );
     const { confirmationId } = await passwordConfirmations.confirmPassword(
       await managedGuard.current(ctx),

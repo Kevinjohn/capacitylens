@@ -17,7 +17,7 @@ export function changesNothing(written: WrittenRow[]): boolean {
 }
 
 /** Rows a mutation inserted, changed or removed between two projections. */
-export function projectionChanges(before: AppData, after: AppData) {
+export function buildProjectionChanges(before: AppData, after: AppData) {
   const upserts: ProjectedPlanningRow[] = [];
   const removed: Array<{ entity: AppDataKey; id: string }> = [];
   for (const entity of APP_DATA_KEYS) {
@@ -71,7 +71,7 @@ function triggerFields(entity: AppDataKey) {
 }
 
 /** A catalogue update that actually changes a privacy trigger field ends pending restoration. */
-export function invalidatesRestoration(
+export function isRestorationInvalidated(
   intent: PlanningMutationInput['intent'],
   written: WrittenRow[]
 ) {

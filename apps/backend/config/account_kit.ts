@@ -23,7 +23,7 @@ import {
   withDeletionRecords,
 } from '#services/account_kit/membership_effects';
 import { onCredentialsChangedTransaction } from '#services/account_kit/policy';
-import { registrationDisplayName, users } from '#services/account_kit/users';
+import { requireRegistrationDisplayName, users } from '#services/account_kit/users';
 import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry';
 
 // Access Control decides who may invite, creates the invited membership and removes memberships
@@ -44,7 +44,7 @@ export default defineConfig({
   // Ordinary registration exists only behind the application's own sign-up route, after setup.
   registration: {
     availability: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') ? 'application' : 'closed',
-    mapFields: (data) => ({ name: registrationDisplayName(data) }),
+    mapFields: (data) => ({ name: requireRegistrationDisplayName(data) }),
   },
   authentication: { strategy: 'session', guard: 'web' },
   // Invitations a deleted person sent stay acceptable; the Kit clears their inviter instead.

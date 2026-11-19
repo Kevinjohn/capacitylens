@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, deferred, harness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, harness } from './masqueradeController.testSupport';
+import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -11,7 +12,7 @@ beforeEach(async () => {
 
 describe('MasqueradeController transitions', () => {
   it('does not let a stale start rejection overwrite server-end restoration', async () => {
-    const initialProjection = deferred<boolean>();
+    const initialProjection = createDeferred<boolean>();
     const reproject = vi
       .fn()
       .mockImplementationOnce(() => initialProjection.promise)
@@ -35,7 +36,7 @@ describe('MasqueradeController transitions', () => {
 
 describe('MasqueradeController generation fencing', () => {
   it('does not let a projection retry publish after an explicit end', async () => {
-    const retryProjection = deferred<boolean>();
+    const retryProjection = createDeferred<boolean>();
     const reproject = vi
       .fn()
       .mockResolvedValueOnce(false)
@@ -54,7 +55,7 @@ describe('MasqueradeController generation fencing', () => {
   });
 
   it('does not let server-end restoration release suspension owned by a newer end', async () => {
-    const restoration = deferred<boolean>();
+    const restoration = createDeferred<boolean>();
     const reproject = vi
       .fn()
       .mockResolvedValueOnce(true)

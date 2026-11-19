@@ -79,7 +79,7 @@ export function getClassifiedRouteAccess(name: string): RouteAccess | undefined 
  * The gate's requirement for a route. Only the health probes and the application shell have no
  * name, and they are public; a name in no set gets the strictest requirement.
  */
-export function routeAccess(name: string | undefined): RouteAccess {
+export function resolveRouteAccess(name: string | undefined): RouteAccess {
   if (name === undefined) return 'public';
   return getClassifiedRouteAccess(name) ?? 'admitted';
 }

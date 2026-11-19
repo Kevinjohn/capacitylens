@@ -10,7 +10,7 @@ export function resolveCorsOrigins(configured: string | undefined, environment: 
 }
 
 /** Appends the full-stack dev launcher's lane web origins, which only a development server trusts. */
-export function withDevelopmentWebOrigins(
+export function appendDevelopmentWebOrigins(
   origins: string[],
   devWebOrigins: string | undefined,
   environment: string
@@ -20,7 +20,7 @@ export function withDevelopmentWebOrigins(
     : origins;
 }
 
-export const corsOrigins = withDevelopmentWebOrigins(
+export const corsOrigins = appendDevelopmentWebOrigins(
   resolveCorsOrigins(env.get('CAPACITYLENS_CORS_ORIGIN'), env.get('NODE_ENV')),
   env.get('CAPACITYLENS_DEV_WEB_ORIGINS'),
   env.get('NODE_ENV')

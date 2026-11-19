@@ -1,6 +1,6 @@
 import { planningMutationValidator } from '#validators/planning_operations';
 import { signUpValidator } from '#validators/auth_requests';
-import { registrationDisplayName } from '#services/account_kit/users';
+import { requireRegistrationDisplayName } from '#services/account_kit/users';
 import { test } from '@japa/runner';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { RegistrationEmailAlreadyRegisteredError } from '@kevinjohn/adonisjs-account-kit/errors';
@@ -63,9 +63,9 @@ test.group('ordinary authentication request contracts', (group) => {
     };
     const validated = await signUpValidator.validate(input);
     assert.equal(validated.name, input.name);
-    assert.equal(registrationDisplayName(input), input.name);
+    assert.equal(requireRegistrationDisplayName(input), input.name);
     await assert.rejects(() => signUpValidator.validate({ ...input, name: '𐐀'.repeat(101) }));
-    assert.throws(() => registrationDisplayName({ name: '𐐀'.repeat(101) }));
+    assert.throws(() => requireRegistrationDisplayName({ name: '𐐀'.repeat(101) }));
   });
 
   test('sign-in preserves shape and detail refusals before authentication', async ({

@@ -9,6 +9,7 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { makeCompany, makeClient } from '@/test/fixtures';
 import { useInactiveCompanyData } from './useInactiveCompanyData';
 import { permissionValue } from '@/test/permissionGrants';
+import { createDeferred } from '@/test/createDeferred';
 
 function payload(companyId: string, name: string) {
   return {
@@ -27,14 +28,6 @@ function payload(companyId: string, name: string) {
       }),
     ],
   };
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
 }
 
 function Probe() {
@@ -83,12 +76,12 @@ describe('useInactiveCompanyData', () => {
   });
 
   it('does not reveal an old admin response after an editor role transition', async () => {
-    const first = deferred<{
+    const first = createDeferred<{
       ok: boolean;
       status: number;
       json: () => Promise<ReturnType<typeof payload>>;
     }>();
-    const second = deferred<{
+    const second = createDeferred<{
       ok: boolean;
       status: number;
       json: () => Promise<ReturnType<typeof payload>>;
@@ -127,7 +120,7 @@ describe('useInactiveCompanyData', () => {
     expect(screen.queryByText('Old A')).not.toBeInTheDocument();
   });
   it('hides Owner labels immediately on Admin demotion and same-company principal replacement', async () => {
-    const next = deferred<{
+    const next = createDeferred<{
       ok: boolean;
       status: number;
       json: () => Promise<ReturnType<typeof payload>>;
