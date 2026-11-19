@@ -264,9 +264,7 @@ describe('CommandPalette', () => {
 
     expect(screen.getByTestId('location-probe')).toHaveTextContent('/help');
   });
-});
 
-describe('CommandPalette', () => {
   it('shows People section when typing a resource name', () => {
     renderPalette();
 
@@ -321,9 +319,7 @@ describe('CommandPalette', () => {
     expect(screen.getByText('People')).toBeInTheDocument();
     expect(screen.getByText('José Müller')).toBeInTheDocument();
   });
-});
 
-describe('CommandPalette', () => {
   it('keeps an Internal project searchable', async () => {
     await addInternalSearchItems();
     renderPalette();
@@ -346,9 +342,7 @@ describe('CommandPalette', () => {
     expect(screen.getByText('Office Ritual')).toBeInTheDocument();
     expect(screen.getByText('Internal')).toBeInTheDocument();
   });
-});
 
-describe('CommandPalette', () => {
   it('shows no results message for unmatched query', () => {
     renderPalette();
 
@@ -375,9 +369,7 @@ describe('CommandPalette', () => {
 
     expect(screen.queryByText(/Go to date/)).not.toBeInTheDocument();
   });
-});
 
-describe('CommandPalette', () => {
   it('ArrowDown moves highlight to next option', () => {
     renderPalette();
 
@@ -430,9 +422,7 @@ describe('CommandPalette', () => {
 
     expect(closed).toBe(true);
   });
-});
 
-describe('CommandPalette', () => {
   it('mouse hover sets the active option', () => {
     renderPalette();
 
@@ -458,9 +448,7 @@ describe('CommandPalette', () => {
 
     expect(closed).toBe(true);
   });
-});
 
-describe('CommandPalette', () => {
   it('jumpToResource is called when a resource is selected', () => {
     renderPalette();
 
@@ -485,9 +473,7 @@ describe('CommandPalette', () => {
     expect(sr.token).toBeGreaterThan(0);
     expect(sr.consumed).toBe(false);
   });
-});
 
-describe('CommandPalette', () => {
   it('setFilters is called with projectId when a project is selected', async () => {
     const clients = useStore.getState().data.clients;
     const client = clients[0];
@@ -518,9 +504,7 @@ describe('CommandPalette', () => {
     const filters = useStore.getState().ui.filters;
     expect(filters.projectId).not.toBeNull();
   });
-});
 
-describe('CommandPalette', () => {
   it('carries the selected activity identity to the complete activity list', async () => {
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'Kickoff', kind: 'internal' }),
@@ -543,9 +527,7 @@ describe('CommandPalette', () => {
 
     expect(screen.queryByText(/Go to date/)).not.toBeInTheDocument();
   });
-});
 
-describe('CommandPalette', () => {
   it('project selection REPLACES stale filters with only projectId set', async () => {
     const clients = useStore.getState().data.clients;
     const client = clients[0];
@@ -590,9 +572,7 @@ describe('CommandPalette', () => {
     if (!projectId) throw new Error('Expected Project Alpha id');
     expect(filters).toEqual({ ...buildEmptyFilters(), projectId });
   });
-});
 
-describe('CommandPalette', () => {
   it('client selection REPLACES stale filters with only clientId set', async () => {
     const c = await requireCreated(
       useStore.getState().addClient({ name: 'Client Zeta', color: '#6366f1' }),
