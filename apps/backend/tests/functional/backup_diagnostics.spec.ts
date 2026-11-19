@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resetAuthenticatedClient } from '../helpers/authenticated_data_fixture.js';
 import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
+import { rememberSchemaIntegrity } from '#services/schema_integrity';
 import type { ApiClient } from '@japa/api-client';
 
 test.group('Backup diagnostics', (group) => {
@@ -43,6 +44,27 @@ test.group('Backup diagnostics', (group) => {
     );
   });
 
+  test('readiness issues one query per probe', async ({ client, assert }) => {
+    await rememberSchemaIntegrity();
+    const queries: string[] = [];
+    const record = (query: { sql: string }) => queries.push(query.sql);
+    const knex = db.connection().getWriteClient();
+    knex.on('query', record);
+    try {
+      for (const probe of [1, 2]) {
+        const response = await client.get('/health/ready');
+        assert.equal(response.status(), 200, `probe ${probe}`);
+      }
+    } finally {
+      knex.off('query', record);
+    }
+    // The session middleware reads the caller's session row; every other query is the check's.
+    assert.deepEqual(
+      queries.filter((sql) => !sql.includes('`adonis_sessions`')),
+      ['select 1', 'select 1']
+    );
+  });
+
   test('readiness fails safely when the schema integrity check detects drift', async ({
     client,
     assert,
@@ -57,6 +79,8 @@ test.group('Backup diagnostics', (group) => {
       .first();
     assert.isDefined(index?.sql);
     await db.rawQuery(`DROP INDEX "${String(index!.name)}"`);
+    // Readiness reports what boot recorded; re-running the check stands in for a restart.
+    await assert.rejects(() => rememberSchemaIntegrity());
     const errors: unknown[][] = [];
     const originalError = logger.error;
     logger.error = ((...args: unknown[]) => {
@@ -81,6 +105,7 @@ test.group('Backup diagnostics', (group) => {
     } finally {
       logger.error = originalError;
       await db.rawQuery(String(index!.sql));
+      await rememberSchemaIntegrity();
     }
   });
 
@@ -94,6 +119,7 @@ test.group('Backup diagnostics', (group) => {
       .first();
     assert.isDefined(baseline);
     await db.from('adonis_schema').where('id', baseline!.id).delete();
+    await assert.rejects(() => rememberSchemaIntegrity());
     try {
       const response = await client.get('/health/ready');
       assert.equal(response.status(), 503);
@@ -107,6 +133,7 @@ test.group('Backup diagnostics', (group) => {
       assert.notInclude(JSON.stringify(response.body()), 'adonis_schema');
     } finally {
       await db.table('adonis_schema').insert(baseline!);
+      await rememberSchemaIntegrity();
     }
     const healthy = await client.get('/health/ready');
     assert.equal(healthy.status(), 200);

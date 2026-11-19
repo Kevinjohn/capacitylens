@@ -6,7 +6,7 @@
 import type { ApplicationService } from '@adonisjs/core/types';
 import env from '#start/env';
 import db from '@adonisjs/lucid/services/db';
-import { assertSchemaIntegrity } from '#services/schema_integrity';
+import { rememberSchemaIntegrity } from '#services/schema_integrity';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import {
@@ -67,7 +67,7 @@ export default class ConfigurationProvider {
       .where({ type: 'table', name: 'accounts' })
       .select('name');
     if (rows.length > 0) {
-      await assertSchemaIntegrity();
+      await rememberSchemaIntegrity();
       await bootstrapDevelopmentCredential(this.app);
     }
   }
