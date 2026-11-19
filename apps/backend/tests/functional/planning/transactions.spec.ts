@@ -92,6 +92,49 @@ db.exec('COMMIT')`,
     assert.equal(current.body().data.accounts[0].name, 'Wayne Revised');
   });
 
+  test('one allocation update reads the allocations table once', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const state = await readState(companyId, true);
+    const stored = state.allocations[0]!;
+    const knex = db.connection().getReadClient();
+    let reads = 0;
+    const count = (query: { sql?: unknown }) => {
+      if (
+        typeof query.sql === 'string' &&
+        query.sql.startsWith('select') &&
+        /from [`"]allocations[`"]/.test(query.sql)
+      ) {
+        reads++;
+      }
+    };
+    knex.on('query', count);
+    try {
+      const updated = await session(
+        client.patch(`/api/companies/${companyId}/allocations/${stored.id}`),
+        cookie
+      )
+        .json({
+          mutationId: randomUUID(),
+          baseRevision: 0,
+          intent: {
+            operation: 'allocation.update',
+            id: stored.id,
+            changes: { note: `${stored.note ?? ''} revised` },
+          },
+        })
+        .send();
+      updated.assertStatus(200);
+    } finally {
+      knex.off('query', count);
+    }
+    assert.equal(reads, 1);
+  });
+
   test('audit failure rolls back rows, revision and commitment identity together', async ({
     client,
     assert,
