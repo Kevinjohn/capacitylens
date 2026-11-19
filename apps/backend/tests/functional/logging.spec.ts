@@ -162,6 +162,33 @@ test.group('general HTTP logging privacy', (group) => {
     }
   });
 
+  test('logs the class, stack frames and causes of an unexpected failure without its message', async ({
+    client,
+    assert,
+  }) => {
+    client = await resetAuthenticatedClient(client, true);
+    const originalQuery = Company.query;
+    Company.query = (() => {
+      throw new Error('secret Bruce Wayne', { cause: new TypeError('inner') });
+    }) as typeof Company.query;
+    try {
+      const { output, result } = await captureLogs(() =>
+        client.get('/api/state?companyId=a-studio').send()
+      );
+      assert.equal(result.status(), 500);
+      const line = output.split('\n').find((entry) => entry.includes('"http.request.error"'));
+      assert.isDefined(line);
+      const logged = JSON.parse(line!) as { errorName?: string; stack?: string[] };
+      assert.include(line!, '"errorName":"Error"');
+      assert.include(line!, '"causes":["TypeError"]');
+      assert.isTrue(logged.stack?.some((frame) => frame.includes(' at ')));
+      assert.notInclude(output, 'Bruce Wayne');
+      assert.notInclude(output, 'inner');
+    } finally {
+      Company.query = originalQuery;
+    }
+  });
+
   test('preserves committed writes and emits a safe signal if completion logging fails', async ({
     client,
     assert,
