@@ -190,6 +190,11 @@ This is the short, present-tense record of decisions that constrain future work.
 - Scheduling records and identity snapshots are never persisted in the browser. The planning
   slice is a non-persisted cache replaced from server reads; it is never authoritative.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
+- Each server dataset has one home in the browser. The store owns the planning cache and every
+  dataset that store logic reads, such as the company directory. TanStack Query owns server reads
+  that one screen reads and no store logic reads: archive recovery, the ownership transfer
+  candidates, and the team members and invitations. No dataset is held in both. Undo history is
+  held by the server; the planning controller keeps only the page's history id.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.
 
