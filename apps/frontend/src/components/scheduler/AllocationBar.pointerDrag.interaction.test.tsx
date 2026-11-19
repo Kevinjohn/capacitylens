@@ -5,7 +5,12 @@ import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
 import { useStore } from '@/store/useStore';
 import type { Allocation, Weekday } from '@capacitylens/shared/types/entities';
-import { resetStoreWithCompany, DEFAULT_COMPANY_ID, makeResourceDraft } from '@/test/fixtures';
+import {
+  resetStoreWithCompany,
+  DEFAULT_COMPANY_ID,
+  makeResourceDraft,
+  setPlanningAuthority,
+} from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
@@ -17,7 +22,7 @@ import {
   seedAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
-import { grantFor, permissionValue } from '@/test/permissionGrants';
+import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => resetStoreWithCompany());
 
@@ -180,9 +185,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-    act(() =>
-      useStore.getState().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions),
-    );
+    act(() => setPlanningAuthority({ role: 'viewer', canWrite: false }));
     rerender(barUi('viewer'));
     document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
     await settlePlanning();

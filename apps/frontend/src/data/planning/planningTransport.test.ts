@@ -301,15 +301,29 @@ describe('generated planning transport', () => {
       data: emptyAppData(),
     });
     const result = await transport.read(context, signal);
-    expect(result).toEqual({
-      revision: 5,
-      data: emptyAppData(),
-      canWrite: false,
-      accessKey: JSON.stringify(Object.values(authority)),
-    });
+    expect(result).toEqual({ revision: 5, data: emptyAppData(), authority });
     expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning');
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
+  });
+
+  it('rejects a read whose authority has no role', async () => {
+    const { transport } = harness({
+      companyId: 'wayne',
+      revision: 5,
+      authority: {
+        actorId: 'bruce',
+        effectiveActorId: 'bruce',
+        canWrite: true,
+        canSeePrivateNames: true,
+        canSeeTimeOffNote: true,
+      },
+      data: emptyAppData(),
+    });
+
+    await expect(transport.read(context, signal)).rejects.toThrow(
+      'The server returned an invalid planning authority.',
+    );
   });
 
   it('asks for the capacity window it is given and returns the server figures', async () => {
@@ -323,6 +337,8 @@ describe('generated planning transport', () => {
       effectiveActorId: 'bruce',
       role: 'owner',
       canWrite: true,
+      canSeePrivateNames: true,
+      canSeeTimeOffNote: true,
     };
     const reply = { companyId: 'wayne', revision: 5, authority, data: emptyAppData(), capacity };
     const { transport, requests } = harness(reply);
@@ -341,7 +357,14 @@ describe('generated planning transport', () => {
     const { transport, requests } = harness({
       companyId: 'wayne',
       revision: 5,
-      authority: { actorId: 'bruce', effectiveActorId: 'bruce', role: 'owner', canWrite: true },
+      authority: {
+        actorId: 'bruce',
+        effectiveActorId: 'bruce',
+        role: 'owner',
+        canWrite: true,
+        canSeePrivateNames: true,
+        canSeeTimeOffNote: true,
+      },
       data: emptyAppData(),
       history,
     });

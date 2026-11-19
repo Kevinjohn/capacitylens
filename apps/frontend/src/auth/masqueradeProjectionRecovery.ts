@@ -11,7 +11,6 @@ export function publishMasqueradeCompany(store: StoreState, state: MasqueradeSta
     list: company ? [{ id: company.id, name: company.name, role: state.effectiveRole }] : [],
     complete: company !== undefined,
   });
-  store.setActiveRole(state.effectiveRole, 'resolved', state.permissions);
 }
 
 interface RestoreMasqueradeProjectionInput {

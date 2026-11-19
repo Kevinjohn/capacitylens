@@ -10,6 +10,7 @@ import {
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -23,7 +24,7 @@ async function loaded(transport: Parameters<typeof harness>[0], revision = 1) {
   h.controller.setContext(context);
   await h.readSnapshot({
     revision,
-    canWrite: true,
+    authority: makePlanningAuthority(),
     data: canonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
@@ -56,7 +57,7 @@ describe('planning cache controller history', () => {
   it('keeps history for a same-revision read and loses it when another change moves on', async () => {
     const h = await loaded({ execute: committing(), read: vi.fn<PlanningTransport['read']>() });
     await h.controller.execute(h.controller.begin(), intent);
-    const same = { canWrite: true, data: canonicalData(), today: companyToday };
+    const same = { authority: makePlanningAuthority(), data: canonicalData(), today: companyToday };
     await h.readSnapshot({ ...same, revision: 2, capacity: emptyCapacity() });
     expect(h.state().planning.history.canUndo).toBe(true);
     await h.readSnapshot({ ...same, revision: 3, capacity: emptyCapacity() });
@@ -75,7 +76,7 @@ describe('planning cache controller history', () => {
       .fn<PlanningTransport['read']>()
       .mockResolvedValueOnce({
         revision: 2,
-        canWrite: true,
+        authority: makePlanningAuthority(),
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -83,7 +84,7 @@ describe('planning cache controller history', () => {
       })
       .mockResolvedValueOnce({
         revision: 3,
-        canWrite: true,
+        authority: makePlanningAuthority(),
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -91,7 +92,7 @@ describe('planning cache controller history', () => {
       })
       .mockResolvedValueOnce({
         revision: 4,
-        canWrite: true,
+        authority: makePlanningAuthority(),
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -148,7 +149,7 @@ describe('planning cache controller history', () => {
     // The server ends the history after refusing one of its steps; its next read says so.
     h.read.mockResolvedValueOnce({
       revision: 2,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),

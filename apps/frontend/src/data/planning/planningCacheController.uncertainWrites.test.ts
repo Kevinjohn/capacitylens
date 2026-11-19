@@ -12,6 +12,7 @@ import {
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -37,7 +38,7 @@ const lostReplies: Array<{ name: string; lose: (execute: Execute) => void }> = [
 const serverData = canonicalData({ name: 'Wayne Enterprises' });
 const serverSnapshot: PlanningSnapshot = {
   revision: 3,
-  canWrite: true,
+  authority: makePlanningAuthority(),
   data: serverData,
   today: companyToday,
   capacity: emptyCapacity(),
@@ -56,7 +57,7 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
   h.controller.setContext(context);
   await h.readSnapshot({
     revision: 1,
-    canWrite: true,
+    authority: makePlanningAuthority(),
     data: canonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
@@ -108,7 +109,7 @@ describe('planning write whose reply was lost', () => {
       (read) =>
         read.mockResolvedValueOnce({
           revision: 2,
-          canWrite: true,
+          authority: makePlanningAuthority(),
           data: canonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),

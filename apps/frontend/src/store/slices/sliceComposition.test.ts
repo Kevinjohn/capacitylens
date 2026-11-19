@@ -60,7 +60,6 @@ describe('store slice composition', () => {
         'setBarLabelPref',
         'setSidebarOpen',
         'setMinimiseWeekends',
-        'setActiveRole',
         'invalidateMemberships',
         'setMasquerade',
         'addDiscipline',

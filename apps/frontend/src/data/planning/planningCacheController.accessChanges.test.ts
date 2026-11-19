@@ -11,6 +11,7 @@ import {
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -27,7 +28,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -56,11 +57,10 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      canWrite: true,
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
-      accessKey: 'owner:private',
+      authority: makePlanningAuthority(),
     });
     await h.controller.execute(h.controller.begin(), intent);
     const draft = h.controller.begin();
@@ -68,11 +68,10 @@ describe('planning cache controller', () => {
     await expect(
       h.readSnapshot({
         revision: 2,
-        canWrite: true,
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
-        accessKey: 'editor:public',
+        authority: makePlanningAuthority({ role: 'editor' }),
       }),
     ).resolves.toBe(true);
     expect(h.state().planning.history.canUndo).toBe(false);
@@ -90,22 +89,20 @@ describe('planning cache controller', () => {
     await expect(
       h.readSnapshot({
         revision: 4,
-        canWrite: true,
         data: cached,
         today: companyToday,
         capacity: emptyCapacity(),
-        accessKey: 'owner:private',
+        authority: makePlanningAuthority(),
       }),
     ).resolves.toBe(true);
     expect(h.state().data.accounts).toHaveLength(1);
     await expect(
       h.readSnapshot({
         revision: 3,
-        canWrite: true,
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
-        accessKey: 'viewer:public',
+        authority: makePlanningAuthority({ role: 'viewer' }),
       }),
     ).resolves.toBe(false);
     expect(h.state().data).toEqual(emptyAppData());
@@ -118,7 +115,7 @@ describe('planning cache controller', () => {
       .fn()
       .mockResolvedValueOnce({
         revision: 1,
-        canWrite: true,
+        authority: makePlanningAuthority(),
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -153,7 +150,7 @@ describe('canonical planning write capability', () => {
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 0,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -163,7 +160,7 @@ describe('canonical planning write capability', () => {
     const draft = h.controller.begin();
     await h.readSnapshot({
       revision: 1,
-      canWrite: false,
+      authority: makePlanningAuthority({ canWrite: false }),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),

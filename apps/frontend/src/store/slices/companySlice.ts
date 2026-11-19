@@ -69,10 +69,6 @@ function createSetActiveCompanyAction(
           (state.activeCompanyLoadFailed !== null && state.activeCompanyLoadFailed !== id)
             ? null
             : state.activeCompanyLoadFailed,
-        activeRole: switching && state.activeRole !== null ? 'viewer' : state.activeRole,
-        activeRoleStatus:
-          switching && state.activeRole !== null ? 'pending' : state.activeRoleStatus,
-        activePermissions: switching ? [] : state.activePermissions,
         ...buildCompanyNoticeTransition({ switching, unknown }),
         ui: resetSchedulerView(
           state.ui,

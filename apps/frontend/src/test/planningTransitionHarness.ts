@@ -15,6 +15,7 @@ import type {
 } from '@/data/planning/planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 // Shared setup for the planning cache controller transition tests.
 
@@ -32,8 +33,7 @@ export function snapshot(
 ): PlanningSnapshot {
   return {
     revision,
-    canWrite: true,
-    accessKey: 'owner',
+    authority: makePlanningAuthority(),
     data: makeAppData({
       accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],

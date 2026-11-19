@@ -6,6 +6,18 @@ import type { PlanningSnapshot } from './planningCacheTypes';
 
 // Shape and scope checks for server reads and receipts.
 
+function isValidAuthority(authority: unknown): boolean {
+  return (
+    isRecord(authority) &&
+    typeof authority.actorId === 'string' &&
+    typeof authority.effectiveActorId === 'string' &&
+    typeof authority.role === 'string' &&
+    typeof authority.canWrite === 'boolean' &&
+    typeof authority.canSeePrivateNames === 'boolean' &&
+    typeof authority.canSeeTimeOffNote === 'boolean'
+  );
+}
+
 export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
   if (!isRecord(snapshot) || !isRecord(snapshot.data)) return false;
   const data = snapshot.data;
@@ -17,9 +29,8 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
     data.accounts.every(isRecord) &&
     SCOPED_KEYS.every((key) => Array.isArray(data[key])) &&
     SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord)) &&
-    (snapshot.accessKey === undefined || typeof snapshot.accessKey === 'string') &&
+    isValidAuthority(snapshot.authority) &&
     isValidISODate(snapshot.today) &&
-    typeof snapshot.canWrite === 'boolean' &&
     (snapshot.history === undefined ||
       (isRecord(snapshot.history) &&
         typeof snapshot.history.canUndo === 'boolean' &&

@@ -30,7 +30,7 @@ it('reads a reset snapshot scoped to its company at that company revision', asyn
 
   const snapshot = await transport.read(context, signal);
 
-  expect(snapshot).toMatchObject({ revision: 0, canWrite: true });
+  expect(snapshot).toMatchObject({ revision: 0, authority: { canWrite: true } });
   expect(snapshot.data.clients).toEqual([client]);
   expect(snapshot.data.accounts).toEqual([makeCompany({ id: context.companyId })]);
 });

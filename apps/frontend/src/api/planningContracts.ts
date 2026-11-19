@@ -41,3 +41,6 @@ export type PlanningMutationSuccess = Extract<
   Route.Response<'api.planning.restoreGroup'>,
   { status: 'committed' }
 >;
+
+/** Who the last accepted planning read was for, and what that member may do and see. */
+export type PlanningAuthority = Exclude<Route.Response<'api.planning.show'>, void>['authority'];

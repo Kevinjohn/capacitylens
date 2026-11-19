@@ -3,7 +3,7 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { useStore } from '@/store/useStore';
 import { useAuth } from './authContext';
 import { NO_ACCESS, PermissionContext } from './permissionContext';
-import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
+import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
 import { refreshCompanySummaries } from './useCompanySummaries';
 import { masqueradeApi } from './masqueradeApi';
 import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './companyTransition';
@@ -22,11 +22,6 @@ interface PermissionRefresh {
   membershipRevision: number;
   isCurrent: () => boolean;
   setFetched: Dispatch<SetStateAction<FetchedPermission | null>>;
-  setActiveRole: (
-    role: Role | null,
-    status?: AccessPermissionStatus,
-    permissions?: PermissionKey[],
-  ) => void;
 }
 
 interface PermissionValueInput {
@@ -46,7 +41,6 @@ interface PermissionValue {
 
 function publishUnavailable(refresh: PermissionRefresh) {
   if (!refresh.isCurrent()) return;
-  refresh.setActiveRole('viewer', 'unavailable');
   refresh.setFetched({
     companyId: refresh.companyId,
     membershipRevision: refresh.membershipRevision,
@@ -55,9 +49,6 @@ function publishUnavailable(refresh: PermissionRefresh) {
 }
 
 async function refreshPermission(refresh: PermissionRefresh) {
-  // Reset the store role before the first await so a prior tenant's role cannot leak while the new
-  // fetch is in flight. The provider value is independently keyed and already projects Viewer.
-  refresh.setActiveRole('viewer', 'pending');
   try {
     // Adopt masquerade status before publishing an effective role so reloads never render one
     // writable frame under a masqueraded session.
@@ -92,7 +83,6 @@ async function refreshPermission(refresh: PermissionRefresh) {
       role: entry.role,
       grant: entry.grant,
     });
-    refresh.setActiveRole(entry.role, 'resolved', entry.grant.permissions);
   } catch (error) {
     // Keep the fail-closed Viewer projection until a later successful lookup.
     console.warn('PermissionProvider: the active account role could not be resolved', error);
@@ -115,11 +105,10 @@ function resolvePermissionValue(input: PermissionValueInput): PermissionValue {
   return { role: 'viewer', status: input.fetched?.status ?? 'pending', grant: NO_ACCESS };
 }
 
-/** Publishes the active company role and the server's grant from the shared validated directory. Unresolved membership projects to Viewer with no keys; the store independently applies the same read-only guard. */
+/** Publishes the active company role and the server's grant from the shared validated directory. Unresolved membership projects to Viewer with no keys. */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const setActiveRole = useStore((state) => state.setActiveRole);
   const membershipRevision = useStore((state) => state.membershipRevision);
   const masquerade = useStore((state) => state.masquerade);
   // Tag resolved roles with companyId and membership revision so switching company immediately discards the previous role and projects Viewer until the new lookup succeeds.
@@ -128,32 +117,18 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   const enabled = user !== null;
 
   useEffect(() => {
-    if (masquerade.kind !== 'inactive') {
-      const state = masquerade.state;
-      if (state && state.companyId === activeCompanyId) {
-        setActiveRole(state.effectiveRole, 'resolved', state.permissions);
-      } else {
-        setActiveRole('viewer', 'pending');
-      }
-      return;
-    }
-
-    if (!enabled || !activeCompanyId) {
-      setActiveRole(null, 'not-applicable');
-      return;
-    }
+    if (masquerade.kind !== 'inactive' || !enabled || !activeCompanyId) return;
     let cancelled = false;
     void refreshPermission({
       companyId: activeCompanyId,
       membershipRevision,
       isCurrent: () => !cancelled,
       setFetched,
-      setActiveRole,
     });
     return () => {
       cancelled = true;
     };
-  }, [enabled, activeCompanyId, membershipRevision, masquerade, setActiveRole]);
+  }, [enabled, activeCompanyId, membershipRevision, masquerade]);
 
   const currentFetched =
     fetched?.companyId === activeCompanyId && fetched.membershipRevision === membershipRevision

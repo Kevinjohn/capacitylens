@@ -4,6 +4,7 @@ import {
   getOwned as findOwnedIn,
 } from '@capacitylens/shared/domain/mutations';
 import { m } from '@/i18n';
+import { canWritePlanning } from '@/data/planning/planningAuthority';
 import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { StoreState } from './types';
 
@@ -29,7 +30,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return id;
   };
 
-  // Refuse writes during masquerade or until a concrete writable role is published.
+  // Refuse writes during masquerade or unless the last accepted planning read may write.
   // Return a notice instead of throwing because callers use this guard for interactive mutations.
   const blockedByViewer = (): boolean => {
     const state = get();
@@ -37,11 +38,13 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
       return true;
     }
-    if (state.activePermissions.includes('planning:write')) return false;
+    if (canWritePlanning(state.planning.authority)) return false;
     let message = m.notice_viewer_read_only();
-    if (state.activeRoleStatus === 'pending') message = m.access_checking_summary();
-    if (state.activeRoleStatus === 'unavailable' || state.activeRole === null) {
-      message = m.access_unavailable_summary();
+    if (state.planning.authority === null) {
+      message =
+        state.planning.status === 'error' || state.planning.status === 'refused'
+          ? m.access_unavailable_summary()
+          : m.access_checking_summary();
     }
     state.setNotice(message, 'error');
     return true;

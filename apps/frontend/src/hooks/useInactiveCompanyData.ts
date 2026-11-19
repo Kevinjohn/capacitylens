@@ -11,6 +11,7 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
+import { buildAuthorityKey } from '@/data/planning/planningAuthority';
 
 /** Keeps inactive data outside the active planning store. */
 export function useInactiveCompanyData(): {
@@ -25,6 +26,7 @@ export function useInactiveCompanyData(): {
   const masquerade = useStore((state) => state.masquerade);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
+  const authorityKey = buildAuthorityKey(planning.authority);
   const [serverData, setServerData] = useState<{
     companyId: string;
     reloadKey: number;
@@ -42,7 +44,7 @@ export function useInactiveCompanyData(): {
       role,
       principalId: user?.id,
       context: planning.context,
-      accessKey: planning.accessKey,
+      authorityKey,
       revision: planning.revision,
       masquerade,
     }),
@@ -53,7 +55,7 @@ export function useInactiveCompanyData(): {
       role,
       user?.id,
       planning.context,
-      planning.accessKey,
+      authorityKey,
       planning.revision,
       masquerade,
     ],

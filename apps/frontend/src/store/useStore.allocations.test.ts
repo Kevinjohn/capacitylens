@@ -9,6 +9,7 @@ import {
   requireValue,
   resetStoreWithCompany,
   WORKDAYS,
+  setPlanningAuthority,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import type { Draft } from './useStore';
@@ -19,7 +20,6 @@ import {
 } from '@/test/planning/queuePlanningFixtures';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { grantFor } from '@/test/permissionGrants';
 
 const state = () => useStore.getState();
 const typedHistory = () => state().planning.history;
@@ -237,7 +237,7 @@ describe('atomic allocation creation', () => {
   it('applies the Viewer guard to the whole batch', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory();
-    state().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
+    setPlanningAuthority({ role: 'viewer', canWrite: false });
     const returned = await state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2);
     expect(returned).toEqual({ kind: 'blocked' });
     expect(state().data.allocations).toHaveLength(0);

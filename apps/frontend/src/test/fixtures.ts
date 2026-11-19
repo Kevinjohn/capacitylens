@@ -23,7 +23,8 @@ import {
   updatePlanningFixtureSource as updatePlanningFixtureSourceHandle,
 } from '@/test/planningTransportHandle';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
-import { grantFor } from './permissionGrants';
+import type { PlanningAuthority } from '@/data/planning/planningCacheTypes';
+import { makePlanningAuthority } from './planning/planningAuthorityFixtures';
 
 // Shared fixtures establish an active company so scoped store mutations have a valid tenant.
 
@@ -212,6 +213,14 @@ export function loadPlanningData(data: AppData): void {
   }));
 }
 
+/** Publish a planning authority as the last accepted read's, and have later reads return it. */
+export function setPlanningAuthority(overrides: Partial<PlanningAuthority>): void {
+  getStubPlanningTransport().setAuthority(overrides);
+  useStore.setState((state) => ({
+    planning: { ...state.planning, authority: makePlanningAuthority(overrides) },
+  }));
+}
+
 /** Reset test data and authority, then wait for the selected canonical company snapshot. */
 export function resetStoreWithData(
   data: AppData,
@@ -227,7 +236,6 @@ export function resetStoreWithData(
   useStore.getState().setNotice(null);
   useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
   useStore.getState().setActiveCompany(companyId);
-  useStore.getState().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
   return useStore.getState().refreshPlanning({ fresh: true });
 }
 

@@ -17,6 +17,7 @@ import {
 import { useStore } from '@/store/useStore';
 import { ArchivedEntitySection } from './ArchivedEntitySection';
 import { permissionValue } from '@/test/permissionGrants';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -99,9 +100,8 @@ function setPlanningRole(role: 'owner' | 'editor') {
     planning: {
       ...state.planning,
       status: 'ready',
-      canWrite: true,
       context: { identity: 'test-principal', companyId: DEFAULT_COMPANY_ID },
-      accessKey: JSON.stringify(['test-principal', 'test-principal', role, true]),
+      authority: makePlanningAuthority({ role }),
     },
   }));
 }

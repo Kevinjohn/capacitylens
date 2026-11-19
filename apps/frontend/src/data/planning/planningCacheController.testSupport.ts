@@ -9,6 +9,7 @@ import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { makeCompany } from '@/test/fixtures';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 export const context = { identity: 'actor-1', companyId: 'company-1' };
 export const intent = {
@@ -43,7 +44,7 @@ export function harness(
   const snapshots: PlanningSnapshot[] = [];
   let serverSnapshot: PlanningSnapshot = {
     revision: 0,
-    canWrite: true,
+    authority: makePlanningAuthority(),
     data: canonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),

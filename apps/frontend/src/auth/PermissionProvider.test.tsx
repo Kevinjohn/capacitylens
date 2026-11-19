@@ -157,8 +157,6 @@ describe('PermissionProvider authenticated lookup posture', () => {
     renderProvider();
 
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
-    await waitFor(() => expect(useStore.getState().activeRole).toBe('viewer'));
-    expect(useStore.getState().activeRoleStatus).toBe('pending');
   });
 
   it('stays read-only when role lookup fails or returns malformed data', async () => {
@@ -166,8 +164,6 @@ describe('PermissionProvider authenticated lookup posture', () => {
     renderProvider();
 
     expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('viewer');
-    expect(useStore.getState().activeRoleStatus).toBe('unavailable');
   });
 });
 
@@ -193,7 +189,6 @@ describe('PermissionProvider refresh behavior', () => {
 
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('editor');
   });
 });
 
@@ -221,26 +216,20 @@ describe('PermissionProvider membership invalidation', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
     const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
-    const setActiveRole = vi.spyOn(useStore.getState(), 'setActiveRole');
 
     renderProvider();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(useStore.getState().activeRoleStatus).toBe('pending');
+    expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
     resolveStatus({ active: false, contextToken: 'idle' });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
 
-    const resolvedRoleCall = setActiveRole.mock.calls.findIndex(
-      ([role, status]) => role === 'owner' && status === 'resolved',
-    );
-    expect(resolvedRoleCall).toBeGreaterThanOrEqual(0);
-    const resolvedRoleInvocationOrder = setActiveRole.mock.invocationCallOrder[resolvedRoleCall];
-    if (resolvedRoleInvocationOrder === undefined) {
-      throw new Error('resolved role call was not recorded');
-    }
-    expect(adoptStatus.mock.invocationCallOrder[0]).toBeLessThan(resolvedRoleInvocationOrder);
+    // The role is published from the directory read, so adopting status must precede that read.
+    const directoryReadOrder = fetchMock.mock.invocationCallOrder[0];
+    if (directoryReadOrder === undefined) throw new Error('directory read was not recorded');
+    expect(adoptStatus.mock.invocationCallOrder[0]).toBeLessThan(directoryReadOrder);
   });
 });
 
@@ -270,7 +259,6 @@ describe('PermissionProvider membership generation', () => {
 
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('resolved:admin:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('admin');
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -306,7 +294,7 @@ describe('PermissionProvider membership generation', () => {
 });
 
 describe('PermissionProvider account-switch safety', () => {
-  it('fails closed in context and store immediately after switching from an owner account', async () => {
+  it('fails closed in context immediately after switching from an owner account', async () => {
     addSecondCompany();
     const b = deferred<Response>();
     vi.stubGlobal(
@@ -322,13 +310,9 @@ describe('PermissionProvider account-switch safety', () => {
     act(() => useStore.getState().setActiveCompany('a-studio'));
 
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('viewer');
-    expect(useStore.getState().activeRoleStatus).toBe('pending');
 
     await act(async () => b.resolve(companyResponse('a-studio', 'editor')));
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('editor');
-    expect(useStore.getState().activeRoleStatus).toBe('resolved');
   });
 
   it("does not adopt an old account's delayed masquerade status after a switch", async () => {
@@ -345,12 +329,10 @@ describe('PermissionProvider account-switch safety', () => {
     act(() => useStore.getState().setActiveCompany('a-studio'));
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('editor');
 
     await act(async () => aStatus.resolve({ active: false, contextToken: 'idle' }));
     expect(adoptStatus).toHaveBeenCalledTimes(1);
     expect(screen.getByText('resolved:editor:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('editor');
   });
 
   it('ignores a delayed active status after a local controller transition', async () => {
@@ -412,8 +394,6 @@ describe('PermissionProvider stale directory safety', () => {
     await act(async () => a.resolve(companyResponse('acct-test', 'owner')));
 
     expect(screen.getByText('resolved:admin:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('admin');
-    expect(useStore.getState().activeRoleStatus).toBe('resolved');
   });
 
   it("does not let a stale A directory rejection overwrite B's role", async () => {
@@ -432,8 +412,6 @@ describe('PermissionProvider stale directory safety', () => {
     await act(async () => a.reject(new Error('A timed out')));
 
     expect(screen.getByText('resolved:owner:edit')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBe('owner');
-    expect(useStore.getState().activeRoleStatus).toBe('resolved');
   });
 });
 
@@ -450,8 +428,6 @@ describe('PermissionProvider fail-closed responses', () => {
 
     await waitFor(() => expect(useStore.getState().activeCompanyId).toBeNull());
     expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBeNull();
-    expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
 
     // Simulate a stale active company selection after the complete directory proved the
     // authenticated identity has no membership there.
@@ -459,8 +435,6 @@ describe('PermissionProvider fail-closed responses', () => {
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
     expect(useStore.getState().activeCompanyId).toBe('acct-test');
-    expect(useStore.getState().activeRole).toBe('viewer');
-    expect(useStore.getState().activeRoleStatus).toBe('unavailable');
   });
 
   it('publishes unavailable with no keys for a directory row without a grant', async () => {
@@ -480,8 +454,6 @@ describe('PermissionProvider fail-closed responses', () => {
     renderProvider();
 
     expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
-    expect(useStore.getState().activeRoleStatus).toBe('unavailable');
-    expect(useStore.getState().activePermissions).toEqual([]);
   });
 
   it('does not request permissions until an active account is selected', async () => {
@@ -491,8 +463,6 @@ describe('PermissionProvider fail-closed responses', () => {
 
     renderProvider();
     expect(screen.getByText('not-applicable:none:read')).toBeInTheDocument();
-    expect(useStore.getState().activeRole).toBeNull();
-    expect(useStore.getState().activeRoleStatus).toBe('not-applicable');
     expect(fetchMock).not.toHaveBeenCalled();
     expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
   });

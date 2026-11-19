@@ -9,6 +9,7 @@ import { useStore } from '@/store/useStore';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { useArchiveRecovery } from './useArchiveRecovery';
 import { permissionValue } from '@/test/permissionGrants';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
   ...(await original<typeof import('@/api/queryClient')>()),
@@ -56,8 +57,11 @@ function company(companyId: string) {
       context: { identity: 'principal', companyId },
       status: 'ready',
       revision: 0,
-      canWrite: true,
-      accessKey: JSON.stringify(['bruce', 'bruce', 'editor', true]),
+      authority: makePlanningAuthority({
+        actorId: 'bruce',
+        effectiveActorId: 'bruce',
+        role: 'editor',
+      }),
     },
   }));
 }
@@ -102,7 +106,10 @@ describe('archive recovery request boundaries', () => {
       .mockReturnValue(new Promise(() => {}));
     const cache = new QueryClient();
     useStore.setState((state) => ({
-      planning: { ...state.planning, accessKey: JSON.stringify(['bruce', 'bruce', 'owner', true]) },
+      planning: {
+        ...state.planning,
+        authority: makePlanningAuthority({ actorId: 'bruce', effectiveActorId: 'bruce' }),
+      },
     }));
     const rendered = render(view(cache, 'owner'));
     expect(await screen.findByText('Owner secret')).toBeInTheDocument();
@@ -110,6 +117,22 @@ describe('archive recovery request boundaries', () => {
     expect(screen.getByText('hidden')).toBeInTheDocument();
     rendered.rerender(view(cache, 'owner', 'diana'));
     expect(screen.queryByText('Owner secret')).not.toBeInTheDocument();
+  });
+  it('does not read while viewing as another member', async () => {
+    request.mockResolvedValue(payload('a-studio', 'Hidden while viewing as'));
+    useStore.setState((state) => ({
+      planning: {
+        ...state.planning,
+        authority: makePlanningAuthority({
+          actorId: 'bruce',
+          effectiveActorId: 'diana',
+          role: 'editor',
+        }),
+      },
+    }));
+    render(view(new QueryClient()));
+    expect(screen.getByText('hidden')).toBeInTheDocument();
+    expect(request).not.toHaveBeenCalled();
   });
   it('refuses Viewer reads and surfaces failed reloads without stale success', async () => {
     request
