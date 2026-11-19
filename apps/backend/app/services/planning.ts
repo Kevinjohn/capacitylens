@@ -21,9 +21,10 @@ import {
 import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
 import { resolvePlanningAuthority, type PlanningAuthority } from '#services/planning/authority';
 import {
-  invalidatesRestoration,
-  projectionChanges,
   buildSemanticState,
+  changesNothing,
+  invalidatesRestoration,
+  listAuditedEntities,
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
@@ -227,12 +228,13 @@ async function commit({
     );
   }
   const before = await readStateWithClient(trx, companyId, true);
+  const working = structuredClone(before);
   const { restoration, written } = await executePlanningIntent({
     trx,
     companyId,
     intent,
     capabilities,
-    data: structuredClone(before),
+    data: working,
     identity: {
       actorId: authority.actorId,
       sessionId: actor.sessionId,
@@ -246,9 +248,10 @@ async function commit({
     intent.operation === 'catalogue.archive'
       ? archiveImpact(before, intent.entity.entity, intent.entity.id)
       : undefined;
-  const after = await readStateWithClient(trx, companyId, true);
-  if (app.inTest) assertWrittenMatches(before, written, after);
-  if (buildSemanticState(before) === buildSemanticState(after)) {
+  if (app.inTest) {
+    assertWrittenMatches(before, written, await readStateWithClient(trx, companyId, true));
+  }
+  if (changesNothing(written)) {
     throw new PlanningOperationError(
       400,
       'NO_CHANGE',
@@ -257,7 +260,7 @@ async function commit({
   }
   // Private names and activity kind can change what a saved before-image may safely reveal.
   // A restoration group is valid only until one of those fields actually changes.
-  const endsRecovery = invalidatesRestoration(intent, before, after);
+  const endsRecovery = invalidatesRestoration(intent, written);
   if (endsRecovery) {
     const count = await countRestorableItems(trx, companyId);
     if (
@@ -280,22 +283,13 @@ async function commit({
     restorationGroupId: restoration.replacementGroupId,
     originSessionId: restoration.replacementGroupId ? actor.sessionId : null,
   });
-  const changed = projectionChanges(
-    transformState(activeOnly(before), companyId, authority.role),
-    transformState(activeOnly(after), companyId, authority.role)
-  );
   await writeAudit(trx, {
     companyId,
     actorId: authority.actorId,
     action: intent.operation,
     entity: 'planning',
     entityId: input.mutationId,
-    fields: [
-      ...new Set([
-        ...changed.upserts.map((row) => row.entity),
-        ...changed.removed.map((row) => row.entity),
-      ]),
-    ],
+    fields: listAuditedEntities(written, before, working),
   });
   // A restore cannot be reversed from the rows alone; the entry it came from holds its counterpart.
   const reverse =
@@ -322,7 +316,7 @@ async function commit({
     restoration,
     history,
     ...(archived ? { archived } : {}),
-    ...buildSaveAdvisory(intent, activeOnly(after), companyId),
+    ...buildSaveAdvisory(intent, activeOnly(working), companyId),
   };
 }
 

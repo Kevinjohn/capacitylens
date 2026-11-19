@@ -1,5 +1,39 @@
+import { isDeepStrictEqual } from 'node:util';
+import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationInput, ProjectedPlanningRow } from '#validators/planning/contracts';
+import type { WrittenRow } from '#services/planning/writer';
+
+/** Whether every written row is the same before and after, ignoring its revision timestamp. */
+export function changesNothing(written: WrittenRow[]): boolean {
+  return written.every(({ before, after }) => {
+    if (!before || !after) return false;
+    const fields = new Set([...Object.keys(before), ...Object.keys(after)]);
+    fields.delete('updatedAt');
+    return [...fields].every((field) => isDeepStrictEqual(before[field], after[field]));
+  });
+}
+
+/**
+ * The tables an operation wrote, for the audit entry. A row hidden from the active projection both
+ * before and after the write is left out, so a write to already-hidden rows names no table.
+ */
+export function listAuditedEntities(written: WrittenRow[], before: AppData, after: AppData) {
+  const visibleBefore = activeOnly(before);
+  const visibleAfter = activeOnly(after);
+  const isVisible = (state: AppData, entity: AppDataKey, id: string) =>
+    state[entity].some((row: { id: string }) => row.id === id);
+  return [
+    ...new Set(
+      written
+        .filter(
+          ({ entity, id }) =>
+            isVisible(visibleBefore, entity, id) || isVisible(visibleAfter, entity, id)
+        )
+        .map(({ entity }) => entity)
+    ),
+  ];
+}
 
 /** Planning rows compared without their timestamps, for no-change detection. */
 export function buildSemanticState(data: AppData) {
@@ -54,18 +88,14 @@ function triggerFields(entity: AppDataKey) {
 /** A catalogue update that actually changes a privacy trigger field ends pending restoration. */
 export function invalidatesRestoration(
   intent: PlanningMutationInput['intent'],
-  before: AppData,
-  after: AppData
+  written: WrittenRow[]
 ) {
   if (intent.operation !== 'catalogue.update') return false;
   const { entity, id, changes } = intent.entity;
   const fields = triggerFields(entity);
   if (fields.length === 0) return false;
-  const oldRow = before[entity].find((row) => row.id === id);
-  const newRow = after[entity].find((row) => row.id === id);
+  const row = written.find((item) => item.entity === entity && item.id === id);
   return fields.some(
-    (field) =>
-      Object.hasOwn(changes, field) &&
-      oldRow?.[field as keyof typeof oldRow] !== newRow?.[field as keyof typeof newRow]
+    (field) => Object.hasOwn(changes, field) && row?.before?.[field] !== row?.after?.[field]
   );
 }
