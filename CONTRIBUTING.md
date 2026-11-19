@@ -169,8 +169,9 @@ request. CI runs:
 Dispatch [Validation](.github/workflows/validation.yml) for any required pre-merge evidence.
 
 User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
-spec. New domain fields must flow through shared types, full fixtures, server table columns and
-validators so the compile-time exhaustiveness checks can protect them.
+spec. A new domain field is added to the field table
+(`packages/shared/src/types/entityFields.ts`), the entity interface, the migration and the model;
+the compile-time checks then name every validator and list that must follow.
 
 ## Pull requests
 

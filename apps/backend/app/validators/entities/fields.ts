@@ -1,5 +1,4 @@
 import vine from '@vinejs/vine';
-import { ACTIVITY_KINDS, RESOURCE_KINDS } from '@capacitylens/shared/types/entities';
 import { INTERNAL_CLIENT_COLOR } from '@capacitylens/shared/data/internalClient';
 import { isWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
@@ -11,51 +10,19 @@ import {
   normalizeUserText,
   unicodeCharacterCount,
 } from '@capacitylens/shared/lib/strings';
-import {
-  ALLOCATION_STATUSES,
-  CAPACITY_OVERVIEW_ACCESS_VALUES,
-  DATE_STYLES,
-  EMPLOYMENT_TYPES,
-  RESOURCE_ENGAGEMENTS,
-  SCHEDULING_MODES,
-  TIME_OFF_TYPES,
-} from '@capacitylens/shared/types/entities';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
+import type { FieldSpec } from '@capacitylens/shared/types/entityFields';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-
-export type FieldKind =
-  | 'identifier'
-  | 'text'
-  | 'note'
-  | 'boolean'
-  | 'number'
-  | 'date'
-  | 'weekdays'
-  | 'color'
-  | 'avatar'
-  | 'timezone'
-  | 'weekStart'
-  | 'choice';
-
-const choices: Record<string, readonly unknown[]> = {
-  schedulingMode: SCHEDULING_MODES,
-  capacityOverviewAccess: CAPACITY_OVERVIEW_ACCESS_VALUES,
-  dateStyle: DATE_STYLES,
-  language: ['en'],
-  employmentType: EMPLOYMENT_TYPES,
-  engagement: RESOURCE_ENGAGEMENTS,
-  status: ALLOCATION_STATUSES,
-  type: TIME_OFF_TYPES,
-};
 
 const strictField = vine.createRule<{
   table: AppDataKey;
   field: string;
-  kind: FieldKind;
+  spec: FieldSpec;
   row: Record<string, unknown>;
 }>(
-  (value, { table, field, kind, row }, ctx) => {
+  (value, { table, field, spec, row }, ctx) => {
+    const kind = spec.kind;
     const fail = (reason: string) => ctx.report(`${field} ${reason}.`, 'entityField', ctx);
     if (value === undefined) return;
     if (value === null) {
@@ -108,12 +75,7 @@ const strictField = vine.createRule<{
       return value === 0 || value === 1 ? undefined : fail('must be Sunday or Monday');
     }
     if (kind === 'choice') {
-      const accepted: readonly unknown[] =
-        field === 'kind'
-          ? table === 'activities'
-            ? ACTIVITY_KINDS
-            : RESOURCE_KINDS
-          : choices[field];
+      const accepted: readonly unknown[] = spec.choices ?? [];
       return accepted.includes(value) ? undefined : fail('is not supported');
     }
     if (kind === 'color') {
@@ -157,8 +119,8 @@ const strictField = vine.createRule<{
 export function fieldSchema(
   table: AppDataKey,
   field: string,
-  kind: FieldKind,
+  spec: FieldSpec,
   row: Record<string, unknown>
 ) {
-  return vine.any().optional().use(strictField({ table, field, kind, row }));
+  return vine.any().optional().use(strictField({ table, field, spec, row }));
 }
