@@ -383,6 +383,28 @@ function createYieldingHookTest() {
     view.unmount();
   });
 
+  it('publishes the directory to the store only, never to the query cache', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        json(200, [{ id: 'a1', name: 'Studio A', role: 'owner', ...grantFor('owner') }]),
+      ),
+    );
+    useStore.setState({ activeCompanyId: null });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = render(
+      <QueryClientProvider client={client}>
+        <HookHost />
+      </QueryClientProvider>,
+    );
+
+    await vi.waitFor(() =>
+      expect(useStore.getState().companySummaries.map(({ id }) => id)).toEqual(['a1']),
+    );
+    expect(client.getQueryCache().getAll()).toEqual([]);
+    view.unmount();
+  });
+
   it('yields active-account reads when the permission provider owns that generation', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
