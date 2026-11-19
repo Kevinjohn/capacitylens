@@ -39,7 +39,7 @@ type DirectoryState =
     };
 
 /** A team read whose answer was not `ok`. Thrown so the query keeps its last successful data. */
-class TeamReadError extends Error {
+export class TeamReadError extends Error {
   readonly result: Exclude<TeamAccessResult<unknown>, { kind: 'ok' }>;
 
   constructor(result: Exclude<TeamAccessResult<unknown>, { kind: 'ok' }>) {
@@ -52,6 +52,19 @@ async function readOk<T>(read: Promise<TeamAccessResult<T>>): Promise<T> {
   const result = await read;
   if (result.kind !== 'ok') throw new TeamReadError(result);
   return result.value;
+}
+
+/** The one members query key for a scope and company; every reader of the members list shares it. */
+export function teamMembersQueryKey(scope: ApiQueryScope, companyId: string | null) {
+  return scopeQueryKey(scope, [
+    'team-members',
+    ...api.api.members.index.queryKey({ params: { companyId: companyId ?? '' } }),
+  ]);
+}
+
+/** Reads the members list for the shared members query. */
+export function readTeamMembers(companyId: string, signal: AbortSignal): Promise<TeamDirectory> {
+  return readOk(teamAccessClient.listMembers(companyId, signal));
 }
 
 const isAccessRefusal = (error: unknown): boolean =>
@@ -106,10 +119,7 @@ function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope
   const { membersKey, invitesKey } = useMemo(() => {
     const keyScope = { principalId, companyId: activeCompanyId, masqueradeGeneration };
     return {
-      membersKey: scopeQueryKey(keyScope, [
-        'team-members',
-        ...api.api.members.index.queryKey({ params: { companyId } }),
-      ]),
+      membersKey: teamMembersQueryKey(keyScope, activeCompanyId),
       invitesKey: scopeQueryKey(keyScope, [
         'team-invitations',
         ...api.api.invites.index.queryKey({ params: { companyId } }),
@@ -122,7 +132,7 @@ function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope
     refetchOnWindowFocus: false,
     // An answer is final: a refusal or failure shows at once rather than after retries.
     retry: false,
-    queryFn: ({ signal }) => readOk(teamAccessClient.listMembers(companyId, signal)),
+    queryFn: ({ signal }) => readTeamMembers(companyId, signal),
   });
   const invitationsQuery = useQuery<TeamInvitation[]>({
     queryKey: invitesKey,

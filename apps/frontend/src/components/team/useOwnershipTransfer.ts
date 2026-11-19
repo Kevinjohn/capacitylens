@@ -4,12 +4,12 @@ import { m } from '@/i18n';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamMember } from '@/account/teamAccessClient';
 import { resolveRejectionMessage } from '@/account/accessResult';
-import type { TeamAccessResult } from '@/account/accessResult';
-import { api, queryClient, scopeQueryKey } from '@/api/queryClient';
+import { queryClient } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
 import { useCan, usePermissionStatus } from '@/auth/permissionContext';
 import { reprojectAccess } from '@/auth/reprojectAccess';
+import { readTeamMembers, TeamReadError, teamMembersQueryKey } from './useTeamDirectory';
 import { useStore } from '@/store/useStore';
 
 interface OwnershipTransferState {
@@ -40,15 +40,15 @@ function useOwnerDirectory({
   scope: ApiQueryScope;
   principalId: string | null;
 }) {
-  const routeKey = api.api.members.index.queryKey({ params: { companyId: companyId ?? '' } });
+  // The same members query the team directory reads, so the list is held once.
   const query = useQuery({
-    queryKey: scopeQueryKey(scope, ['team-members', 0, ...routeKey]),
+    queryKey: teamMembersQueryKey(scope, companyId),
     enabled: available && companyId !== null,
     refetchOnWindowFocus: false,
     retry: false,
-    queryFn: ({ signal }) => teamAccessClient.listMembers(companyId ?? '', signal),
+    queryFn: ({ signal }) => readTeamMembers(companyId ?? '', signal),
   });
-  const members = query.data?.kind === 'ok' ? query.data.value.members : EMPTY_MEMBERS;
+  const members = query.isSuccess ? query.data.members : EMPTY_MEMBERS;
   const candidates = useMemo(
     () =>
       members.filter(
@@ -57,7 +57,7 @@ function useOwnerDirectory({
       ),
     [members, principalId],
   );
-  const error = readDirectoryError(query.data, query.error);
+  const error = readDirectoryError(query.error);
   const refresh = useCallback(async (): Promise<void> => {
     await query.refetch();
   }, [query]);
@@ -66,17 +66,15 @@ function useOwnerDirectory({
     candidates,
     error,
     loading: query.isPending,
-    loaded: query.data?.kind === 'ok',
+    loaded: query.isSuccess,
     refresh,
   };
 }
 
-function readDirectoryError(
-  result: TeamAccessResult<unknown> | undefined,
-  error: Error | null,
-): string | null {
-  if (result?.kind === 'ok') return null;
-  if (result) return resolveRejectionMessage(result, m.ownership_transfer_read_failed());
+function readDirectoryError(error: Error | null): string | null {
+  if (error instanceof TeamReadError) {
+    return resolveRejectionMessage(error.result, m.ownership_transfer_read_failed());
+  }
   return error ? m.ownership_transfer_read_failed() : null;
 }
 
