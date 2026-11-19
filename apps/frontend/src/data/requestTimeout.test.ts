@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 import {
-  apiFetch,
+  fetchApi,
   isTransportFailure,
   readMasqueradeErrorCode,
   createRequestSignal,
@@ -61,7 +61,7 @@ describe('requestSignal tiers', () => {
   });
 });
 
-describe('apiFetch', () => {
+describe('fetchApi', () => {
   it('recognizes only shared masquerade codes without consuming the response body', async () => {
     const response = new Response(JSON.stringify({ code: MASQUERADE_ERROR_CODES.readOnly }), {
       status: 403,
@@ -92,7 +92,7 @@ describe('apiFetch', () => {
     const listener = vi.fn();
     globalThis.addEventListener(AUDIT_WARNING_EVENT, listener);
     try {
-      await apiFetch('/api/direct-action');
+      await fetchApi('/api/direct-action');
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(listener).toHaveBeenCalledOnce();
     } finally {
@@ -105,15 +105,15 @@ describe('apiFetch', () => {
     vi.stubGlobal('fetch', fetcher);
     setMasqueradeContextToken('newer-context');
 
-    await apiFetch('/api/write', { method: 'POST' });
-    await apiFetch('/api/write', {
+    await fetchApi('/api/write', { method: 'POST' });
+    await fetchApi('/api/write', {
       method: 'POST',
       headers: { 'X-Masquerade-Context': 'captured-context' },
     });
-    await apiFetch('/api/read');
-    await apiFetch('/api/read', { headers: { 'X-Masquerade-Context': 'captured-read-context' } });
-    await apiFetch('/api/read', { method: 'HEAD' });
-    await apiFetch('/api/preflight', { method: 'OPTIONS' });
+    await fetchApi('/api/read');
+    await fetchApi('/api/read', { headers: { 'X-Masquerade-Context': 'captured-read-context' } });
+    await fetchApi('/api/read', { method: 'HEAD' });
+    await fetchApi('/api/preflight', { method: 'OPTIONS' });
 
     expect(new Headers(fetcher.mock.calls[0]?.[1]?.headers).get('X-Masquerade-Context')).toBe(
       'newer-context',
@@ -163,7 +163,7 @@ describe('apiFetch', () => {
     );
     const ended = vi.fn();
     setMasqueradeEndedHandler(ended);
-    const response = await apiFetch('/api/state');
+    const response = await fetchApi('/api/state');
     expect(response.status).toBe(status);
     expect(ended).toHaveBeenCalledOnce();
   });

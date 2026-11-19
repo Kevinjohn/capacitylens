@@ -8,7 +8,7 @@ import { AUTH_INVALIDATION_STORAGE_KEY } from '@/auth/signOut';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithCompany, jsonResponse, requireValue } from '@/test/fixtures';
 import { MembersSection } from './MembersSection';
-import { mockApi, rawMember } from './MembersSection.testSupport';
+import { mockApi, makeRawMember } from './MembersSection.testSupport';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -90,8 +90,8 @@ afterEach(() => {
 function directory() {
   return jsonResponse({
     members: [
-      rawMember({ userId: principal, role: 'owner', isSelf: true }),
-      rawMember({ userId: 'clark', role: 'editor', name: 'Clark Kent' }),
+      makeRawMember({ userId: principal, role: 'owner', isSelf: true }),
+      makeRawMember({ userId: 'clark', role: 'editor', name: 'Clark Kent' }),
     ],
     resourceCandidates: [],
     signInTrackingEnabled: false,

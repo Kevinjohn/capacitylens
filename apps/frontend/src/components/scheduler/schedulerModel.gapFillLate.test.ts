@@ -4,11 +4,18 @@ import { buildEmptyFilters } from '@/store/useStore';
 import { requireValue } from '@/test/fixtures';
 import { capacityOver } from '@/test/capacityFixtures';
 import { buildSchedulerModel } from './schedulerModel';
-import { dataset, days, end, geom, start, withExternal } from './schedulerModel.testSupport';
+import {
+  makeDataset,
+  days,
+  end,
+  geom,
+  start,
+  makeDatasetWithExternal,
+} from './schedulerModel.testSupport';
 
 describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('positions overlapping bars on the SAME resource at DIFFERENT lane tops (laneById is a real Map, not empty)', () => {
-    const d = dataset();
+    const d = makeDataset();
 
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
@@ -48,7 +55,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(tops.size).toBe(2);
   });
   it('overSoon truly SKIPS external resources — even one with real over-capacity hours', () => {
-    const d = withExternal();
+    const d = makeDatasetWithExternal();
     // Book the external above normal person capacity so missing capacity exclusion changes the result.
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,

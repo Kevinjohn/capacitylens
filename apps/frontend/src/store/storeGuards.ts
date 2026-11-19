@@ -29,7 +29,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
 
   // Refuse writes during masquerade or unless the last accepted planning read may write.
   // Return a notice instead of throwing because callers use this guard for interactive mutations.
-  const blockedByViewer = (): boolean => {
+  const isBlockedByViewer = (): boolean => {
     const state = get();
     if (state.masquerade.kind !== 'inactive') {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
@@ -47,7 +47,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return true;
   };
 
-  return buildGuards({ requireCompany, blockedByViewer });
+  return buildGuards({ requireCompany, blockedByViewer: isBlockedByViewer });
 }
 
 interface BuildGuardsInput {

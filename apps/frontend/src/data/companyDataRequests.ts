@@ -1,5 +1,5 @@
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import { apiFetch, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
@@ -60,7 +60,7 @@ export const companyDataRequests = {
    *   answers off-spec.
    */
   async readTransferPreview(companyId: string, document: unknown): Promise<TransferPreview> {
-    const response = await apiFetch('/api/transfer/preview', {
+    const response = await fetchApi('/api/transfer/preview', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ export const companyDataRequests = {
     baseRevision,
     confirmationId,
   }: ApplyTransferInput): Promise<Response> {
-    return apiFetch(
+    return fetchApi(
       '/api/transfer/apply',
       {
         method: 'POST',
@@ -119,7 +119,7 @@ export const companyDataRequests = {
 
   /** Sends the password-confirmed anonymisation of every person in one company. */
   anonymiseCompanyPeople(companyId: string, confirmationId: string): Promise<Response> {
-    return apiFetch(
+    return fetchApi(
       `/api/companies/${encodeURIComponent(companyId)}/anonymise`,
       {
         method: 'POST',
@@ -133,7 +133,7 @@ export const companyDataRequests = {
 
   /** Sends the anonymisation of one person resource. */
   anonymiseResource(companyId: string, resourceId: string): Promise<Response> {
-    return apiFetch(
+    return fetchApi(
       `/api/companies/${encodeURIComponent(companyId)}/resources/${encodeURIComponent(resourceId)}/anonymise`,
       {
         method: 'POST',
@@ -147,7 +147,7 @@ export const companyDataRequests = {
 
   /** Adds the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(companyId: string): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.example-data', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.example-data', { params: { companyId } }), {
       method: 'POST',
       credentials: 'include',
     });

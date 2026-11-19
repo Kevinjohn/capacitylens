@@ -22,7 +22,11 @@ export class PlanningControllerError extends Error {
 }
 
 /** Reads the code, status and message of any thrown planning failure. */
-export function errorDetails(error: unknown): { code?: string; status?: number; message: string } {
+export function getErrorDetails(error: unknown): {
+  code?: string;
+  status?: number;
+  message: string;
+} {
   if (error !== null && typeof error === 'object') {
     const candidate = error as {
       code?: unknown;

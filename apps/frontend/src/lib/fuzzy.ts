@@ -45,7 +45,7 @@ function scoreFolded(query: string, text: string): number {
 }
 
 /** Score every item in `items` against `query`, drop non-matches, sort by score. */
-export function fuzzyFilter<T>(items: T[], query: string, getText: (item: T) => string): T[] {
+export function filterFuzzy<T>(items: T[], query: string, getText: (item: T) => string): T[] {
   const trimmed = query.trim();
   if (!trimmed) return items;
 

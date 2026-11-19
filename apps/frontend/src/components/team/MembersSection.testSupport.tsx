@@ -34,7 +34,7 @@ export interface RawMember {
 }
 
 /** Builds a complete member fixture while leaving signInConfirmed absent unless requested; presence of that field determines whether sign-in tracking is reported enabled. `manage` defaults to the server's answer for an Owner or Admin reader: anyone but themselves and the Owner. */
-export function rawMember(
+export function makeRawMember(
   overrides: Partial<RawMember> & { userId: string; role: RawMember['role'] },
 ): RawMember {
   return {
@@ -61,7 +61,7 @@ export function mockApi(
         ? jsonResponse({}, members.status)
         : jsonResponse({
             signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
-            members: members.map((member) => rawMember(member)),
+            members: members.map((member) => makeRawMember(member)),
             resourceCandidates: useStore
               .getState()
               .data.resources.filter(
@@ -134,7 +134,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
 }
 
 /** Creates an auth context value for member section tests. */
-export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
+export const makeAuthValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   user: { id: 'me', email: 'me@x.io' },
   refreshAuth: async () => {},
   signOut: async () => {},
@@ -146,7 +146,7 @@ export function renderSection(authOverrides: Partial<AuthContextValue> = {}, rol
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={authValue(authOverrides)}>
+      <AuthContext.Provider value={makeAuthValue(authOverrides)}>
         <PermissionContext.Provider value={permissionValue(role)}>
           <MembersSection />
         </PermissionContext.Provider>

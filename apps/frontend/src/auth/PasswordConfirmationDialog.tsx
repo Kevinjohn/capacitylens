@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Route } from '@capacitylens/backend/registry';
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import { apiFetch } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { Modal } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
@@ -40,8 +40,8 @@ export function PasswordConfirmationDialog({
     setBusy(true);
     setError(null);
     try {
-      const url = apiRouteUrl('api.auth.password-confirmation', {});
-      const response = await apiFetch(url, {
+      const url = buildApiRouteUrl('api.auth.password-confirmation', {});
+      const response = await fetchApi(url, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

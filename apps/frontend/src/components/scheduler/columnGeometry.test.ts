@@ -41,20 +41,20 @@ describe('buildColumnGeometry — minimise OFF reproduces the uniform index*dayW
     }
   });
 
-  it('xForDateInGeom / widthForDates reproduce the uniform index*dayWidth pixel values', () => {
+  it('getDateX / getDatesWidth reproduce the uniform index*dayWidth pixel values', () => {
     for (const [i, day] of WEEK.entries()) {
       expect(day).toBeDefined();
       if (!day) throw new Error('Expected a date for every week index.');
-      expect(geom.xForDateInGeom(day)).toBe(i * 48);
+      expect(geom.getDateX(day)).toBe(i * 48);
     }
 
-    expect(geom.widthForDates('2026-06-01', '2026-06-02')).toBe(2 * 48);
-    expect(geom.widthForDates('2026-06-05', '2026-06-07')).toBe(3 * 48);
+    expect(geom.getDatesWidth('2026-06-01', '2026-06-02')).toBe(2 * 48);
+    expect(geom.getDatesWidth('2026-06-05', '2026-06-07')).toBe(3 * 48);
   });
 
-  it('xForDateInGeom extrapolates off-window dates at full dayWidth (overflow geometry preserved)', () => {
-    expect(geom.xForDateInGeom('2026-05-30')).toBe(-2 * 48);
-    expect(geom.xForDateInGeom('2026-06-09')).toBe(8 * 48);
+  it('getDateX extrapolates off-window dates at full dayWidth (overflow geometry preserved)', () => {
+    expect(geom.getDateX('2026-05-30')).toBe(-2 * 48);
+    expect(geom.getDateX('2026-06-09')).toBe(8 * 48);
   });
 
   it('indexAt reduces to the old floor(px / dayWidth), clamped to [0, n-1]', () => {
@@ -84,15 +84,15 @@ describe('buildColumnGeometry — minimise ON narrows the weekend columns', () =
   it('spanWidth across the narrow weekend sums the real (mixed) widths', () => {
     expect(geom.spanWidth(4, 6)).toBe(88);
 
-    expect(geom.widthForDates('2026-06-05', '2026-06-07')).toBe(88);
+    expect(geom.getDatesWidth('2026-06-05', '2026-06-07')).toBe(88);
 
-    expect(geom.widthForDates('2026-06-01', '2026-06-02')).toBe(96);
+    expect(geom.getDatesWidth('2026-06-01', '2026-06-02')).toBe(96);
   });
 
   it('a bar starting on a narrow weekend lands at the summed offset', () => {
-    expect(geom.xForDateInGeom('2026-06-06')).toBe(240);
+    expect(geom.getDateX('2026-06-06')).toBe(240);
 
-    expect(geom.xForDateInGeom('2026-06-07')).toBe(260);
+    expect(geom.getDateX('2026-06-07')).toBe(260);
   });
 
   it('caps weekendWidth at dayWidth (a "narrow" column can never be wider than a normal one)', () => {
@@ -178,13 +178,13 @@ describe('buildColumnGeometry — gating + degenerate windows', () => {
     expect(geom.indexAt(0)).toBe(0);
     expect(geom.x(3)).toBe(0);
     expect(geom.widthOf(0)).toBe(0);
-    expect(geom.xForDateInGeom('2026-06-01')).toBe(0);
-    expect(geom.widthForDates('2026-06-01', '2026-06-02')).toBe(0);
+    expect(geom.getDateX('2026-06-01')).toBe(0);
+    expect(geom.getDatesWidth('2026-06-01', '2026-06-02')).toBe(0);
   });
 
-  it('widthForDates clamps a reversed range to 0 (never negative)', () => {
+  it('getDatesWidth clamps a reversed range to 0 (never negative)', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
-    expect(geom.widthForDates('2026-06-05', '2026-06-01')).toBe(0);
+    expect(geom.getDatesWidth('2026-06-05', '2026-06-01')).toBe(0);
   });
 
   it('x() clamps a negative index to the left edge (0), not offsets[negativeIndex]', () => {
@@ -203,10 +203,10 @@ describe('buildColumnGeometry — gating + degenerate windows', () => {
     expect(geom.indexAt(5)).toBe(0);
   });
 
-  it('widthForDates returns 0 (not NaN) when only ONE side of the range is unparseable', () => {
+  it('getDatesWidth returns 0 (not NaN) when only ONE side of the range is unparseable', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF);
-    expect(geom.widthForDates('not-a-date', '2026-06-02')).toBe(0);
-    expect(geom.widthForDates('2026-06-02', 'not-a-date')).toBe(0);
+    expect(geom.getDatesWidth('not-a-date', '2026-06-02')).toBe(0);
+    expect(geom.getDatesWidth('2026-06-02', 'not-a-date')).toBe(0);
   });
 
   it('narrows weekends exactly AT the DAY_COLUMN_MIN_WIDTH threshold (>=, not >)', () => {

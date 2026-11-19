@@ -3,7 +3,7 @@ import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type { Activity } from '@capacitylens/shared/types/entities';
 import type { useNavigate } from 'react-router-dom';
-import { fuzzyFilter } from '@/lib/fuzzy';
+import { filterFuzzy } from '@/lib/fuzzy';
 import { resolveResourceDisplayName } from '@/lib/metadata';
 import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import type { AppRouteDefinition } from '@/lib/navLinks';
@@ -48,7 +48,7 @@ function filterPaletteItems({
   showAllWithoutQuery = false,
 }: FilterPaletteItemsOptions): PaletteItem[] {
   if (!query) return showAllWithoutQuery ? items : items.slice(0, SECTION_LIMIT);
-  return fuzzyFilter(items, query, (item) => item.label).slice(0, SECTION_LIMIT);
+  return filterFuzzy(items, query, (item) => item.label).slice(0, SECTION_LIMIT);
 }
 
 function buildActionItems({

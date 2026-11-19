@@ -4,10 +4,10 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  canonicalData,
+  makeCanonicalData,
   companyToday,
   makeReceipt,
-  harness,
+  createHarness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
@@ -19,13 +19,13 @@ const committing = () =>
     Promise.resolve(makeReceipt(execution.mutationId, execution.baseRevision + 1)),
   );
 
-async function loaded(transport: Parameters<typeof harness>[0], revision = 1) {
-  const h = harness(transport);
+async function loaded(transport: Parameters<typeof createHarness>[0], revision = 1) {
+  const h = createHarness(transport);
   h.controller.setContext(context);
   await h.readSnapshot({
     revision,
     authority: makePlanningAuthority(),
-    data: canonicalData(),
+    data: makeCanonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
   });
@@ -57,7 +57,11 @@ describe('planning cache controller history', () => {
   it('keeps history for a same-revision read and loses it when another change moves on', async () => {
     const h = await loaded({ execute: committing(), read: vi.fn<PlanningTransport['read']>() });
     await h.controller.execute(h.controller.begin(), intent);
-    const same = { authority: makePlanningAuthority(), data: canonicalData(), today: companyToday };
+    const same = {
+      authority: makePlanningAuthority(),
+      data: makeCanonicalData(),
+      today: companyToday,
+    };
     await h.readSnapshot({ ...same, revision: 2, capacity: emptyCapacity() });
     expect(h.state().planning.history.canUndo).toBe(true);
     await h.readSnapshot({ ...same, revision: 3, capacity: emptyCapacity() });
@@ -77,7 +81,7 @@ describe('planning cache controller history', () => {
       .mockResolvedValueOnce({
         revision: 2,
         authority: makePlanningAuthority(),
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
         history: { canUndo: true, canRedo: false },
@@ -85,7 +89,7 @@ describe('planning cache controller history', () => {
       .mockResolvedValueOnce({
         revision: 3,
         authority: makePlanningAuthority(),
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
         history: { canUndo: false, canRedo: true },
@@ -93,7 +97,7 @@ describe('planning cache controller history', () => {
       .mockResolvedValueOnce({
         revision: 4,
         authority: makePlanningAuthority(),
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
         history: { canUndo: true, canRedo: false },
@@ -153,7 +157,7 @@ describe('planning cache controller history', () => {
     h.read.mockResolvedValueOnce({
       revision: 2,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
       history: { canUndo: false, canRedo: false },

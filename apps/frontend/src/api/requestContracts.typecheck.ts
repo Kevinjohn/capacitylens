@@ -1,5 +1,5 @@
 import type { RequestArgs } from '@tuyau/core/types';
-import { client, apiReadRouteUrl } from './queryClient';
+import { client, buildApiReadRouteUrl } from './queryClient';
 import type { registry, Route } from '@capacitylens/backend/registry';
 
 type Routes = typeof registry.routes;
@@ -35,9 +35,9 @@ export function checkOrdinaryRequestContracts() {
     query: { companyId: 'a-studio', includeInactive: true },
   };
   // @ts-expect-error The generated read query refuses boolean inactive flags at the browser seam.
-  apiReadRouteUrl('api.state', { query: { companyId: 'a-studio', includeInactive: true } });
+  buildApiReadRouteUrl('api.state', { query: { companyId: 'a-studio', includeInactive: true } });
   // @ts-expect-error Admission status cannot be supplied as a state query.
-  apiReadRouteUrl('api.state', { query: { companyId: 'a-studio', status: 'pending' } });
+  buildApiReadRouteUrl('api.state', { query: { companyId: 'a-studio', status: 'pending' } });
   // @ts-expect-error Sign-in is a generated POST route, never GET.
   client.get('/api/auth/sign-in', {});
   return {

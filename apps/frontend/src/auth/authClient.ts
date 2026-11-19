@@ -2,9 +2,9 @@ import { readHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { RequestArgs, ResponseOf } from '@tuyau/core/types';
 import type { registry, Route } from '@capacitylens/backend/registry';
-import { client, apiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { client, buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { ProductRoutes } from '@/api/queryClient';
-import { apiFetch } from '@/data/requestTimeout';
+import { fetchApi } from '@/data/requestTimeout';
 
 export interface AuthApiError extends Omit<HttpErrorBody, 'error'> {
   message: string;
@@ -44,7 +44,7 @@ async function request<Name extends AuthRoute>(
   name: Name,
   body: string | null,
 ): Promise<AuthApiResult<ResponseOf<ProductRoutes[Name]>>> {
-  const response = await apiFetch(apiRouteUrl<AuthRoute>(name, {}), {
+  const response = await fetchApi(buildApiRouteUrl<AuthRoute>(name, {}), {
     method,
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },

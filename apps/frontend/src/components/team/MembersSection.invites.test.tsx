@@ -9,7 +9,7 @@ import {
   expectNotice,
   mockApi,
   ownerAndEditor,
-  rawMember,
+  makeRawMember,
   renderSection,
 } from './MembersSection.testSupport';
 
@@ -192,13 +192,13 @@ describe('MembersSection — invite mint', () => {
         return jsonResponse({
           members: [
             second
-              ? rawMember({
+              ? makeRawMember({
                   userId: 'second-owner',
                   role: 'owner',
                   email: 'second@example.test',
                   isSelf: true,
                 })
-              : rawMember({ userId: 'me', role: 'owner', isSelf: true }),
+              : makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
           ],
         });
       }

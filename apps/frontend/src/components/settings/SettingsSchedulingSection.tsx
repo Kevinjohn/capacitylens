@@ -5,7 +5,7 @@ import type {
   DateStyle,
   SchedulingMode,
 } from '@capacitylens/shared/types/entities';
-import { externalExplainer } from '@/lib/externalCopy';
+import { getExternalExplainer } from '@/lib/externalCopy';
 import { buildLabels, buildLabelOptions } from '@/lib/metadata';
 import type { listCompanyWorkingDays } from '@/store/selectors';
 import type { StoreState } from '@/store/useStore';
@@ -140,7 +140,7 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
       <p>{m.settings_disciplines_intro()}</p>
       <p>{m.settings_placeholders_intro()}</p>
       <p>{m.settings_external_intro()}</p>
-      <p>{externalExplainer()}</p>
+      <p>{getExternalExplainer()}</p>
       <p>{m.settings_activity_create_intro()}</p>
       <p>{m.settings_task_field_intro()}</p>
     </>

@@ -29,7 +29,7 @@ export function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-export function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
+export function createHarness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   const resume = vi.fn();
   const dependencies: MasqueradeControllerDependencies = {
     flush: vi.fn(async () => ({ kind: 'clean' as const })),

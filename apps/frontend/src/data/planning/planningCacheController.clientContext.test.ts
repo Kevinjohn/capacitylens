@@ -7,10 +7,10 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  canonicalData,
+  makeCanonicalData,
   companyToday,
   makeReceipt,
-  harness,
+  createHarness,
   deferred,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -23,13 +23,13 @@ describe('planning cache controller', () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
       .mockResolvedValue(makeReceipt('mutation-1', 4));
-    const h = harness({ execute, read: vi.fn() });
+    const h = createHarness({ execute, read: vi.fn() });
     setMasqueradeContextToken('captured-idle-context');
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 3,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -48,11 +48,11 @@ describe('planning cache controller', () => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 3,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const h = harness({ execute: vi.fn(), read });
+    const h = createHarness({ execute: vi.fn(), read });
     h.controller.setContext(context);
     setMasqueradeContextToken('current-context');
 
@@ -72,7 +72,7 @@ describe('planning cache controller', () => {
           resolveRead = resolve;
         }),
     );
-    const h = harness({
+    const h = createHarness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read,
     });
@@ -100,7 +100,7 @@ describe('planning cache controller', () => {
           release = resolve;
         }),
     );
-    const h = harness({
+    const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
@@ -110,7 +110,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -120,7 +120,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 7,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -132,7 +132,7 @@ describe('planning cache controller', () => {
   });
 
   it('copies client context so caller mutation cannot rebind the active company', () => {
-    const h = harness({
+    const h = createHarness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read: vi.fn<PlanningTransport['read']>(),
     });
@@ -152,11 +152,11 @@ describe('planning receipt completion context', () => {
           Promise.resolve(makeReceipt(execution.mutationId, execution.baseRevision + 1)),
         );
         const read = vi.fn<PlanningTransport['read']>();
-        const h = harness({ execute, read });
+        const h = createHarness({ execute, read });
         h.controller.setContext(context);
         await h.readSnapshot({
           revision: 1,
-          data: canonicalData(),
+          data: makeCanonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),
           authority: makePlanningAuthority(),
@@ -187,7 +187,7 @@ describe('planning receipt completion context', () => {
           authority: makePlanningAuthority({
             role: change === 'authority change' ? 'editor' : 'owner',
           }),
-          data: canonicalData(),
+          data: makeCanonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),
         });

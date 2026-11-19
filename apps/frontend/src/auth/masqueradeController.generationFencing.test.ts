@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, deferred, harness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, deferred, createHarness } from './masqueradeController.testSupport';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -16,7 +16,7 @@ describe('MasqueradeController transitions', () => {
       .fn()
       .mockImplementationOnce(() => initialProjection.promise)
       .mockResolvedValueOnce(true);
-    const { controller, resume } = harness({ reproject });
+    const { controller, resume } = createHarness({ reproject });
 
     const starting = controller.start(state.companyId, state.targetUserId);
     await vi.waitFor(() =>
@@ -41,7 +41,7 @@ describe('MasqueradeController generation fencing', () => {
       .mockResolvedValueOnce(false)
       .mockImplementationOnce(() => retryProjection.promise)
       .mockResolvedValueOnce(true);
-    const { controller } = harness({ reproject });
+    const { controller } = createHarness({ reproject });
     await controller.start(state.companyId, state.targetUserId);
 
     const retrying = controller.retryProjection();
@@ -60,7 +60,7 @@ describe('MasqueradeController generation fencing', () => {
       .mockResolvedValueOnce(true)
       .mockImplementationOnce(() => restoration.promise)
       .mockResolvedValueOnce(true);
-    const { controller, resume } = harness({ reproject });
+    const { controller, resume } = createHarness({ reproject });
     await controller.adoptStatus({ active: true, ...state });
     await controller.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));

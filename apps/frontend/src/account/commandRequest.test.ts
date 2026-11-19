@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  apiFetch: vi
+  fetchApi: vi
     .fn<(url: string, init?: RequestInit) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
 vi.mock('@/data/requestTimeout', () => ({
-  apiFetch: mocks.apiFetch,
+  fetchApi: mocks.fetchApi,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
 }));
@@ -21,7 +21,7 @@ import { command, transferOwner, expectCommand } from './accountCommands.testSup
 describe('browser account client', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
@@ -51,7 +51,7 @@ describe('browser account client', () => {
     );
     await invitationRequests.revokeInvitation('company / one', 'invite / one', command);
 
-    const [createUrl, createInit] = mocks.apiFetch.mock.calls[0] as unknown as [
+    const [createUrl, createInit] = mocks.fetchApi.mock.calls[0] as unknown as [
       string,
       RequestInit,
     ];
@@ -60,7 +60,7 @@ describe('browser account client', () => {
     expect(new Headers(createInit.headers).get('content-type')).toBe('application/json');
     expect(createInit.body).toBe(JSON.stringify({ toUserId: 'Studio', confirmationId: 'proof-1' }));
 
-    const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
+    const urls = mocks.fetchApi.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
       expect.arrayContaining([
         '/api/companies/company%20%2F%20one/members/person%20%2F%20one',
@@ -73,7 +73,7 @@ describe('browser account client', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000201')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000202');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(Response.json({ fromUserId: 'bruce', toUserId: 'selina' }));
     const input = {
@@ -85,7 +85,7 @@ describe('browser account client', () => {
     await memberRequests.transferOwnership(input);
     await memberRequests.transferOwnership(input);
 
-    const headers = mocks.apiFetch.mock.calls.map((call) => new Headers(call[1]?.headers));
+    const headers = mocks.fetchApi.mock.calls.map((call) => new Headers(call[1]?.headers));
     expect(headers[0]?.get('x-account-command-id')).toBe('00000000-0000-4000-8000-000000000201');
     expect(headers[0]?.get('idempotency-key')).toBe('00000000-0000-4000-8000-000000000202');
     expect(headers[1]?.get('x-account-command-id')).toBe(headers[0]?.get('x-account-command-id'));
@@ -97,7 +97,7 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000002')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000003')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000004');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -106,7 +106,7 @@ describe('browser account client', () => {
     await transferOwner({ name: 'Studio' });
     await transferOwner({ name: 'Studio' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -121,7 +121,7 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000072')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000073')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000074');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 408 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -130,7 +130,7 @@ describe('browser account client', () => {
     await transferOwner({ name: 'Timeout Studio' });
     await transferOwner({ name: 'Timeout Studio' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -145,7 +145,7 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000004')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000005')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000006');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(Response.json({ code: 'COMMAND_IN_PROGRESS' }, { status: 409 }))
       .mockResolvedValueOnce(Response.json({ code: 'IDEMPOTENCY_CONFLICT' }, { status: 409 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -154,7 +154,7 @@ describe('browser account client', () => {
     await transferOwner({ name: 'Studio' });
     await transferOwner({ name: 'Studio' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -169,14 +169,14 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000042')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000043')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000044');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response('truncated', { status: 409 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     await transferOwner({ name: 'Studio' });
     await transferOwner({ name: 'Studio' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -188,7 +188,7 @@ describe('browser account client', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000031')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000032');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -197,7 +197,7 @@ describe('browser account client', () => {
     await transferOwner({ name: 'Studio' }, command);
     await transferOwner({ name: 'Studio' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -212,13 +212,13 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000012')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000013')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000014');
-    mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
+    mocks.fetchApi.mockResolvedValue(new Response(null, { status: 503 }));
 
     await transferOwner({ name: 'Studio A' });
     await transferOwner({ name: 'Studio B' });
     await transferOwner({ name: 'Studio A' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([

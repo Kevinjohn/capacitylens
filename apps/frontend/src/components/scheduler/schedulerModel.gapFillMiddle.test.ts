@@ -7,17 +7,17 @@ import { capacityOver } from '@/test/capacityFixtures';
 import { buildSchedulerModel } from './schedulerModel';
 import type { GroupModel } from './schedulerModel';
 import {
-  allBars,
-  dataset,
+  listAllBars,
+  makeDataset,
   days,
   end,
   geom,
   start,
-  withExternal,
+  makeDatasetWithExternal,
 } from './schedulerModel.testSupport';
 
 function buildDanglingActivityData() {
-  const d = dataset();
+  const d = makeDataset();
   d.allocations.push({
     ...NULLABLE_FIELDS.allocations,
     id: 'a-ghost2',
@@ -100,7 +100,7 @@ function buildDanglingActivityModel(d: AppData) {
 }
 
 function buildCompanyClosureData(): AppData {
-  const d = withExternal();
+  const d = makeDatasetWithExternal();
   d.resources.push(
     makeResource({
       id: 'placeholder-1',
@@ -290,7 +290,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   });
   it('external rows use literal {over:false, unavailable:false} day-states (real booleans, not an empty object)', () => {
     const model = buildSchedulerModel({
-      data: withExternal(),
+      data: makeDatasetWithExternal(),
       geom,
       days,
       visibleWindow: { start, end },
@@ -316,7 +316,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     });
   });
   it('a dangling activityId (missing from `activities`) degrades to safe fallbacks, never throws', () => {
-    const d = dataset();
+    const d = makeDataset();
     d.allocations.push({
       ...NULLABLE_FIELDS.allocations,
       id: 'a-ghost',
@@ -347,7 +347,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       });
     }).not.toThrow();
     const bar = requireValue(
-      allBars(model).find((b) => b.allocation.id === 'a-ghost'),
+      listAllBars(model).find((b) => b.allocation.id === 'a-ghost'),
       'ghost allocation bar',
     );
     expect(bar.label).toBe('Activity');
@@ -358,10 +358,10 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     const d = buildDanglingActivityData();
     assertDanglingActivityFiltersDoNotThrow(d);
     const model = buildDanglingActivityModel(d);
-    expect(allBars(model).map((b) => b.allocation.id)).not.toContain('a-ghost2');
+    expect(listAllBars(model).map((b) => b.allocation.id)).not.toContain('a-ghost2');
   });
   it('keeps assigned discipline bands before unassigned Studio, Supplementary and External bands', () => {
-    const d = withExternal();
+    const d = makeDatasetWithExternal();
     const template = requireValue(d.resources[0], 'resource template');
     const unassignedTemplate = { ...template };
     unassignedTemplate.disciplineId = null;
@@ -415,7 +415,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ).toEqual(['dangling-studio', 'unassigned-studio']);
   });
   it('uses engagement bands when no disciplines exist and ignores a stale discipline filter', () => {
-    const d = withExternal();
+    const d = makeDatasetWithExternal();
     d.disciplines = [];
     d.resources[1] = {
       ...requireValue(d.resources[1], 'second resource'),
@@ -445,7 +445,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ).toEqual(['ext1', 'r1', 'r2']);
   });
   it('uses engagement fallback bands when disciplines exist but nobody is assigned', () => {
-    const d = dataset();
+    const d = makeDataset();
     d.resources = d.resources.map((resource, index) => {
       const unassignedResource = { ...resource };
       unassignedResource.disciplineId = null;
@@ -474,7 +474,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ).toEqual(['r1', 'r2']);
   });
   it('does not render empty fallback bands, including an external-only schedule', () => {
-    const studioOnly = dataset();
+    const studioOnly = makeDataset();
     studioOnly.disciplines = [];
     expect(
       buildSchedulerModel({
@@ -488,7 +488,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       }).map((group) => group.title),
     ).toEqual(['Unassigned']);
 
-    const externalOnly = withExternal();
+    const externalOnly = makeDatasetWithExternal();
     externalOnly.disciplines = [];
     externalOnly.resources = externalOnly.resources.filter((resource) => resource.id === 'ext1');
     expect(
@@ -504,7 +504,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ).toEqual(['External / 3rd party']);
   });
   it('uses one fallback band for a Studio-only company: Unassigned with disciplines, Resources without', () => {
-    const d = withExternal();
+    const d = makeDatasetWithExternal();
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
     if (!firstResource) throw new Error('Expected the base scheduler resource.');
@@ -551,7 +551,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   });
   it('group.external is a real boolean: true for the external band, false (not undefined) for a discipline group', () => {
     const model = buildSchedulerModel({
-      data: withExternal(),
+      data: makeDatasetWithExternal(),
       geom,
       days,
       visibleWindow: { start, end },
@@ -572,7 +572,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(externalGroup.external).toBe(true);
   });
   it('placeholder ordering is stable WITHIN each kind: multiple persons keep their relative order, multiple placeholders too', () => {
-    const d = dataset();
+    const d = makeDataset();
     d.resources = [
       makeResource({
         id: 'ph1',

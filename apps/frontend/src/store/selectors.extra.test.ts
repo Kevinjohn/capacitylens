@@ -1,6 +1,6 @@
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, it, expect } from 'vitest';
-import { byDisciplineOrder, resourceById, activityById } from './selectors';
+import { compareByDisciplineOrder, getResourceById, getActivityById } from './selectors';
 import type { Discipline } from '@capacitylens/shared/types/entities';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
@@ -105,12 +105,12 @@ function assertDefined<T>(value: T | undefined, label: string): T {
 
 describe('lookup selectors', () => {
   it('by-id selectors find entities (and return undefined for misses)', () => {
-    const activity = assertDefined(activityById(data, 't1'), 'activity t1');
-    const resource = assertDefined(resourceById(data, 'r1'), 'resource r1');
+    const activity = assertDefined(getActivityById(data, 't1'), 'activity t1');
+    const resource = assertDefined(getResourceById(data, 'r1'), 'resource r1');
 
     expect(activity.name).toBe('T1');
     expect(resource.name).toBe('A');
-    expect(resourceById(data, 'nope')).toBeUndefined();
+    expect(getResourceById(data, 'nope')).toBeUndefined();
   });
 });
 
@@ -127,6 +127,10 @@ describe('byDisciplineOrder (scheduler grouping)', () => {
 
   it('orders by sortOrder, then name as a stable tiebreak on equal sortOrder', () => {
     const list = [disc('a', 'Zeta', 1), disc('b', 'Alpha', 1), disc('c', 'Beta', 0)];
-    expect([...list].sort(byDisciplineOrder).map((d) => d.name)).toEqual(['Beta', 'Alpha', 'Zeta']);
+    expect([...list].sort(compareByDisciplineOrder).map((d) => d.name)).toEqual([
+      'Beta',
+      'Alpha',
+      'Zeta',
+    ]);
   });
 });

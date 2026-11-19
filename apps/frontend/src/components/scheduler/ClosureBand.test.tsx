@@ -26,8 +26,8 @@ describe('ClosureBand', () => {
 
     const band = screen.getByTestId('scheduler-closure-band');
     expect(screen.getByTestId('scheduler-closure-label-layer')).toHaveTextContent('Long weekend');
-    expect(band.style.left).toBe(`${256 + GEOM.xForDateInGeom('2026-06-05')}px`);
-    expect(band.style.width).toBe(`${GEOM.widthForDates('2026-06-05', '2026-06-08')}px`);
+    expect(band.style.left).toBe(`${256 + GEOM.getDateX('2026-06-05')}px`);
+    expect(band.style.width).toBe(`${GEOM.getDatesWidth('2026-06-05', '2026-06-08')}px`);
     expect(screen.getAllByTestId('scheduler-closure-band')).toHaveLength(1);
     // The band shares the ancestor grid's draw-mode styling hook so time-off highlights can be applied without per-band mode state.
     expect(band).toHaveClass('scheduler-closure-band');
@@ -36,7 +36,7 @@ describe('ClosureBand', () => {
   // With many people the band is taller than the screen and with a long closure it is wider,
   // so a label pinned to the band's own top-left disappears as soon as the schedule is scrolled.
   it('keeps the closure name centred in whatever part of the band is on screen', () => {
-    const width = GEOM.widthForDates('2026-06-05', '2026-06-08');
+    const width = GEOM.getDatesWidth('2026-06-05', '2026-06-08');
     render(
       <ClosureBand
         closure={makeClosure({
@@ -55,9 +55,7 @@ describe('ClosureBand', () => {
     // The clamp is expressed in timeline coordinates, so the published start omits the frozen
     // resource column that the band's own `left` includes.
     const band = screen.getByTestId('scheduler-closure-band');
-    expect(band.style.getPropertyValue('--band-left')).toBe(
-      `${GEOM.xForDateInGeom('2026-06-05')}px`,
-    );
+    expect(band.style.getPropertyValue('--band-left')).toBe(`${GEOM.getDateX('2026-06-05')}px`);
     expect(band.style.getPropertyValue('--band-width')).toBe(`${width}px`);
     expect(band.style.getPropertyValue('--band-height')).toBe('180px');
 

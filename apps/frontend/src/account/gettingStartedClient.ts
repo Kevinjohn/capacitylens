@@ -1,5 +1,5 @@
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import { apiFetch } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 
@@ -14,8 +14,8 @@ export const gettingStartedClient = {
     companyId: string,
     signal?: AbortSignal,
   ): Promise<{ dismissed: boolean; steps: GettingStartedSteps }> {
-    const response = await apiFetch(
-      apiRouteUrl('api.getting-started.show', { params: { companyId } }),
+    const response = await fetchApi(
+      buildApiRouteUrl('api.getting-started.show', { params: { companyId } }),
       {
         credentials: 'include',
         ...(signal ? { signal } : {}),
@@ -47,8 +47,8 @@ export const gettingStartedClient = {
    * @throws An `Error` when the server refuses the change.
    */
   async dismiss(companyId: string): Promise<void> {
-    const response = await apiFetch(
-      apiRouteUrl('api.getting-started.update', { params: { companyId } }),
+    const response = await fetchApi(
+      buildApiRouteUrl('api.getting-started.update', { params: { companyId } }),
       {
         method: 'PUT',
         credentials: 'include',

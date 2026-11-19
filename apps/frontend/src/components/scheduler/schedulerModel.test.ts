@@ -7,10 +7,10 @@ import type { AppData, Weekday } from '@capacitylens/shared/types/entities';
 import { hasRenderableDateRange } from '@/lib/renderableDateRanges';
 import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import {
-  allBars,
-  barIds,
+  listAllBars,
+  listBarIds,
   build,
-  dataset as buildDataset,
+  makeDataset,
   days,
   end,
   geom,
@@ -18,7 +18,7 @@ import {
   start,
 } from './schedulerModel.testSupport';
 
-const dataset = () => buildDataset(makeDisciplines());
+const dataset = () => makeDataset(makeDisciplines());
 
 function buildCompanyWorkingWeekRow(data: AppData, companyWorkingDays: Weekday[]) {
   return requireValue(
@@ -73,9 +73,9 @@ describe('buildSchedulerModel', () => {
   it('groups by discipline and positions bars (no filters)', () => {
     const model = build();
     expect(model.map((g) => g.title)).toEqual(['Design', 'Development']);
-    expect(barIds(model)).toEqual(['a1', 'a2', 'a3']);
+    expect(listBarIds(model)).toEqual(['a1', 'a2', 'a3']);
     const a1 = requireValue(
-      allBars(model).find((b) => b.allocation.id === 'a1'),
+      listAllBars(model).find((b) => b.allocation.id === 'a1'),
       'a1 bar',
     );
     expect(a1.x).toBe(0);
@@ -110,8 +110,10 @@ describe('buildSchedulerModel', () => {
       preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
     });
 
-    expect(allBars(model).find((bar) => bar.allocation.id === 'a1')?.seriesEnd).toBe('2026-08-12');
-    const legacyRepeat = allBars(model).find((bar) => bar.allocation.id === 'legacy-repeat');
+    expect(listAllBars(model).find((bar) => bar.allocation.id === 'a1')?.seriesEnd).toBe(
+      '2026-08-12',
+    );
+    const legacyRepeat = listAllBars(model).find((bar) => bar.allocation.id === 'legacy-repeat');
     expect(legacyRepeat).toBeDefined();
     expect(legacyRepeat).not.toHaveProperty('seriesEnd');
   });
@@ -314,7 +316,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
     expect(resourceIds).not.toContain('r-arch');
     expect(resourceIds).not.toContain('r-del');
 
-    const barIdsAll = barIds(model);
+    const barIdsAll = listBarIds(model);
     expect(barIdsAll).not.toContain('a-arch');
     expect(barIdsAll).not.toContain('a-del');
 
@@ -368,7 +370,7 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
       status: 'confirmed',
     });
     const model = buildActive(d);
-    const barIdsAll = barIds(model);
+    const barIdsAll = listBarIds(model);
     expect(barIdsAll).not.toContain('a-orphan');
   });
 });

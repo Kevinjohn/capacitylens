@@ -56,7 +56,9 @@ function makeDefaultDisciplines(): AppData['disciplines'] {
 }
 
 /** Builds scoped scheduler fixtures with optional discipline overrides. */
-export function dataset(disciplines: AppData['disciplines'] = makeDefaultDisciplines()): AppData {
+export function makeDataset(
+  disciplines: AppData['disciplines'] = makeDefaultDisciplines(),
+): AppData {
   return {
     ...emptyAppData(),
     disciplines,
@@ -113,7 +115,7 @@ export const build = ({
   capacity = null,
 }: SchedulerModelTestInput = {}) =>
   buildSchedulerModel({
-    data: dataset(),
+    data: makeDataset(),
     geom,
     days,
     visibleWindow: { start, end },
@@ -122,12 +124,12 @@ export const build = ({
     preferences: { disciplinesEnabled, placeholdersEnabled, externalEnabled },
   });
 /** Flattens every group and row into the modeled bar list. */
-export const allBars = (model: GroupModel[]) =>
+export const listAllBars = (model: GroupModel[]) =>
   model.flatMap((group) => group.rows).flatMap((row) => row.bars);
 
 /** Adds an external resource to the standard scheduler fixture. */
-export function withExternal(): AppData {
-  const data = dataset();
+export function makeDatasetWithExternal(): AppData {
+  const data = makeDataset();
   data.resources.push(
     makeResource({
       id: 'ext1',
@@ -188,7 +190,7 @@ export function makeDisciplines(): AppData['disciplines'] {
   ];
 }
 
-export const barIds = (model: GroupModel[]) =>
-  allBars(model)
+export const listBarIds = (model: GroupModel[]) =>
+  listAllBars(model)
     .map((b) => b.allocation.id)
     .sort();

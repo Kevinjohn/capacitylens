@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { AUTH_INVALIDATION_STORAGE_KEY } from './signOut';
-import { deferred, freshProvider, me } from './AuthProvider.testSupport';
+import { deferred, renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -32,7 +32,7 @@ describe('AuthProvider — server mode', () => {
       vi.fn(() => auth.promise),
     );
     const onTenantAccessReady = vi.fn();
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider onTenantAccessReady={onTenantAccessReady}>
         <div>app-content</div>
@@ -45,7 +45,7 @@ describe('AuthProvider — server mode', () => {
 
     await act(async () => {
       auth.resolve(
-        me(200, {
+        makeMeResponse(200, {
           user: {
             id: 'authenticated-user',
             name: 'Authenticated user',
@@ -62,13 +62,13 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, {}));
+      .mockResolvedValue(makeMeResponse(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useStore } = await freshProvider();
+    const { AuthProvider, useStore } = await renderFreshProvider();
     const { queryClient } = await import('@/api/queryClient');
     render(
       <AuthProvider>
@@ -97,10 +97,10 @@ describe('AuthProvider — server mode', () => {
   it('does not signal tenant-data access for a signed-out boot', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, {})),
+      vi.fn(async () => makeMeResponse(401, {})),
     );
     const onTenantAccessReady = vi.fn();
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider onTenantAccessReady={onTenantAccessReady}>
         <div>app-content</div>
@@ -113,12 +113,12 @@ describe('AuthProvider — server mode', () => {
   });
   it('refreshes a visible selected company every minute and stops after unmount', async () => {
     const fetchSpy = vi.fn(async () =>
-      me(200, {
+      makeMeResponse(200, {
         user: { id: 'u1', email: 'a@b.test' },
       }),
     );
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useStore } = await freshProvider();
+    const { AuthProvider, useStore } = await renderFreshProvider();
     const refreshPlanning = vi.fn(async () => true);
     let tick: () => void = () => {
       throw new Error('Expected a visible-session refresh timer.');
@@ -182,9 +182,13 @@ describe('AuthProvider — server mode', () => {
       const onTenantAccessReady = vi.fn();
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(me(200, { user: { id: 'u1', email: 'a@b.test' }, ...gates })),
+        vi
+          .fn()
+          .mockResolvedValue(
+            makeMeResponse(200, { user: { id: 'u1', email: 'a@b.test' }, ...gates }),
+          ),
       );
-      const { AuthProvider } = await freshProvider();
+      const { AuthProvider } = await renderFreshProvider();
       render(
         <AuthProvider onTenantAccessReady={onTenantAccessReady}>
           <div>app-content</div>

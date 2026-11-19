@@ -4,7 +4,7 @@ import { QueryClient } from '@tanstack/react-query';
 import type { RequestArgs } from '@tuyau/core/types';
 import { registry } from '@capacitylens/backend/registry';
 import type { Route } from '@capacitylens/backend/registry';
-import { apiFetch } from '@/data/requestTimeout';
+import { fetchApi } from '@/data/requestTimeout';
 
 /** Identifies the principal and read projection that owns a cached API result. */
 export interface ApiQueryScope {
@@ -26,9 +26,9 @@ export const client = createTuyau({
   credentials: 'include',
   retry: 0,
   timeout: false,
-  // Tuyau carries cancellation on a Request; apiFetch composes its timeout from init.signal.
+  // Tuyau carries cancellation on a Request; fetchApi composes its timeout from init.signal.
   fetch: (input, init) =>
-    apiFetch(input, {
+    fetchApi(input, {
       ...init,
       signal: init?.signal ?? (input instanceof Request ? input.signal : null),
     }),
@@ -41,7 +41,7 @@ export const api = createTuyauReactQueryClient({ client });
 export type ProductRoutes = typeof registry.routes;
 
 /** Build a product API URL from a route name and its generated path/query arguments. */
-export function apiRouteUrl<Name extends keyof ProductRoutes>(
+export function buildApiRouteUrl<Name extends keyof ProductRoutes>(
   name: Name,
   args: Omit<RequestArgs<ProductRoutes[Name]>, 'body'>,
 ): string {
@@ -60,11 +60,11 @@ export function buildJsonBody<Name extends keyof ProductRoutes>(
 type QueryReadRoute = 'api.state' | 'api.admission.index';
 
 /** Build query-bearing read URLs with generated inputs; Tuyau getRoute omits query arguments. */
-export function apiReadRouteUrl<Name extends QueryReadRoute>(
+export function buildApiReadRouteUrl<Name extends QueryReadRoute>(
   name: Name,
   args: RequestArgs<ProductRoutes[Name]>,
 ): string;
-export function apiReadRouteUrl(
+export function buildApiReadRouteUrl(
   name: QueryReadRoute,
   args: { query?: ProductRoutes[QueryReadRoute]['types']['query'] },
 ): string {
@@ -72,7 +72,7 @@ export function apiReadRouteUrl(
 }
 
 /** Prefix a Tuyau route key with the identity scope that is allowed to observe its result. */
-export function scopeQueryKey<const T extends readonly unknown[]>(
+export function buildScopeQueryKey<const T extends readonly unknown[]>(
   scope: ApiQueryScope,
   routeKey: T,
 ) {

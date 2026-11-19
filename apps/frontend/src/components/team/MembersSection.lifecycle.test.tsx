@@ -19,7 +19,7 @@ import {
   mockApi,
   openInactiveGroup,
   openMemberMenu,
-  rawMember,
+  makeRawMember,
   renderSection,
   requireCallback,
   requireValue,
@@ -427,8 +427,8 @@ describe('MembersSection — member lifecycle', () => {
         'GET /members': () =>
           jsonResponse({
             members: [
-              rawMember({ userId: 'me', role: 'owner', isSelf: true }),
-              rawMember({
+              makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
+              makeRawMember({
                 userId: 'ed',
                 role: 'editor',
                 name: 'Clark Kent',
@@ -519,8 +519,8 @@ describe('MembersSection — member lifecycle', () => {
           jsonResponse({
             signInTrackingEnabled: false,
             members: [
-              rawMember({ userId: 'me', role: 'owner', isSelf: true }),
-              rawMember({
+              makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
+              makeRawMember({
                 userId: 'ed',
                 role: 'editor',
                 resourceLink: {

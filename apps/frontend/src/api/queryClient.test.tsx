@@ -1,6 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { apiRouteUrl, clearQueryCacheForScopeChange, client, scopeQueryKey } from './queryClient';
+import {
+  buildApiRouteUrl,
+  clearQueryCacheForScopeChange,
+  client,
+  buildScopeQueryKey,
+} from './queryClient';
 
 describe('same-origin API requests', () => {
   it('keeps API requests rooted when the browser is on a nested account route', async () => {
@@ -16,7 +21,7 @@ describe('same-origin API requests', () => {
       await client.request('api.auth.me', {});
       if (requestedUrl === undefined) throw new Error('API request did not reach fetch.');
       expect(new URL(requestedUrl).pathname).toBe('/api/auth/me');
-      expect(apiRouteUrl('api.auth.me', {})).toBe('/api/auth/me');
+      expect(buildApiRouteUrl('api.auth.me', {})).toBe('/api/auth/me');
     } finally {
       vi.unstubAllGlobals();
       window.history.replaceState(null, '', '/');
@@ -27,8 +32,8 @@ describe('same-origin API requests', () => {
     vi.resetModules();
     try {
       const fresh = await import('./queryClient');
-      expect(fresh.apiRouteUrl('api.auth.me', {})).toBe('/api/auth/me');
-      expect(fresh.apiReadRouteUrl('api.admission.index', {})).toMatch(/^\/api\//);
+      expect(fresh.buildApiRouteUrl('api.auth.me', {})).toBe('/api/auth/me');
+      expect(fresh.buildApiReadRouteUrl('api.admission.index', {})).toMatch(/^\/api\//);
     } finally {
       vi.unstubAllEnvs();
       vi.resetModules();
@@ -58,7 +63,7 @@ describe('same-origin API requests', () => {
 describe('account query cache scope', () => {
   it('partitions route keys by principal, company, and masquerade generation', () => {
     expect(
-      scopeQueryKey({ principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 }, [
+      buildScopeQueryKey({ principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 }, [
         'api.members.index',
         { params: { companyId: 'wayne' } },
       ] as const),

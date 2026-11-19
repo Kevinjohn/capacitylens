@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  apiFetch: vi
+  fetchApi: vi
     .fn<(url: string, init?: RequestInit) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
 vi.mock('@/data/requestTimeout', () => ({
-  apiFetch: mocks.apiFetch,
+  fetchApi: mocks.fetchApi,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
 }));
@@ -22,7 +22,7 @@ import { memberRequests } from './memberRequests';
 import { command, expectCommand } from './accountCommands.testSupport';
 
 function requestInitAt(
-  calls: ReadonlyArray<Parameters<typeof mocks.apiFetch>>,
+  calls: ReadonlyArray<Parameters<typeof mocks.fetchApi>>,
   index: number,
 ): RequestInit {
   const call = calls[index];
@@ -35,7 +35,7 @@ function requestInitAt(
 describe('browser account client', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
@@ -46,7 +46,7 @@ describe('browser account client', () => {
     vi.unstubAllGlobals();
   });
   it('routes member-resource commands with operation headers and ambiguous conflict handling', async () => {
-    mocks.apiFetch.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
+    mocks.fetchApi.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
     const link = await memberRequests.setMemberResourceLink(
       {
         companyId: 'company / one',
@@ -58,7 +58,7 @@ describe('browser account client', () => {
     );
 
     expect(hasUnknownAccountCommandOutcome(link)).toBe(true);
-    const [linkUrl, linkInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
+    const [linkUrl, linkInit] = mocks.fetchApi.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
       '/api/companies/company%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
@@ -76,7 +76,7 @@ describe('browser account client', () => {
       },
       command,
     );
-    const [unlinkUrl, unlinkInit] = mocks.apiFetch.mock.calls[1] as unknown as [
+    const [unlinkUrl, unlinkInit] = mocks.fetchApi.mock.calls[1] as unknown as [
       string,
       RequestInit,
     ];
@@ -96,14 +96,14 @@ describe('browser account client', () => {
       password: 'example-password',
     });
 
-    const directoryUrls = mocks.apiFetch.mock.calls
+    const directoryUrls = mocks.fetchApi.mock.calls
       .map((call) => String(call[0]))
       .filter((url) => url.endsWith('/members') || url.endsWith('/invites'));
     expect(directoryUrls).toEqual([
       '/api/companies/company%20%2F%20one/members',
       '/api/companies/company%20%2F%20one/invites',
     ]);
-    const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
+    const urls = mocks.fetchApi.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
       '/api/companies/company%20%2F%20one/members',
       '/api/companies/company%20%2F%20one/invites',
@@ -113,18 +113,18 @@ describe('browser account client', () => {
       '/api/invites/token%20%2F%20one/preview',
       '/api/invites/token%20%2F%20one/signup',
     ]);
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 2)).toMatchObject({
+    expect(requestInitAt(mocks.fetchApi.mock.calls, 2)).toMatchObject({
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify({ targetUserId: 'person / one' }),
     });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 3)).toEqual({ credentials: 'include' });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 4)).toMatchObject({
+    expect(requestInitAt(mocks.fetchApi.mock.calls, 3)).toEqual({ credentials: 'include' });
+    expect(requestInitAt(mocks.fetchApi.mock.calls, 4)).toMatchObject({
       method: 'DELETE',
       credentials: 'include',
       body: JSON.stringify({ token: 'token-1', reason: 'explicit' }),
     });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 6)).toMatchObject({
+    expect(requestInitAt(mocks.fetchApi.mock.calls, 6)).toMatchObject({
       method: 'POST',
       body: JSON.stringify({ name: 'New user', password: 'example-password' }),
     });
@@ -137,7 +137,7 @@ describe('browser account client', () => {
       command,
     });
 
-    const [url, init] = mocks.apiFetch.mock.calls[0] ?? [];
+    const [url, init] = mocks.fetchApi.mock.calls[0] ?? [];
     expect(url).toBe('/api/companies/company%20%2F%20one/ownership-transfer');
     expectCommand(init as RequestInit, 'POST');
     expect(JSON.parse(String(init?.body))).toEqual({

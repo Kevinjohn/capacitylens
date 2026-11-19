@@ -1,5 +1,5 @@
-import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import type { BrowserAccountCommand } from './accountCommands';
 import { runCommand, buildJsonCommandRequestInit } from './commandRequest';
@@ -34,7 +34,7 @@ type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
  */
 export const memberRequests = {
   listMembers(companyId: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.members.index', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.members.index', { params: { companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
@@ -48,7 +48,7 @@ export const memberRequests = {
     companyId,
     enabled,
   }: SetMemberSignInTrackingOptions): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.members.tracking', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.members.tracking', { params: { companyId } }), {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -66,8 +66,8 @@ export const memberRequests = {
       operationKey: `member-role:${companyId}:${principalId}:${role}`,
       explicit: command,
       request: (resolved) =>
-        apiFetch(
-          apiRouteUrl('api.members.role', {
+        fetchApi(
+          buildApiRouteUrl('api.members.role', {
             params: { companyId, userId: principalId },
           }),
           buildJsonCommandRequestInit(
@@ -89,8 +89,8 @@ export const memberRequests = {
       operationKey: `member-status:${companyId}:${principalId}:${status}`,
       explicit: command,
       request: (resolved) =>
-        apiFetch(
-          apiRouteUrl('api.members.status', {
+        fetchApi(
+          buildApiRouteUrl('api.members.status', {
             params: { companyId, userId: principalId },
           }),
           buildJsonCommandRequestInit(
@@ -112,8 +112,8 @@ export const memberRequests = {
       operationKey: `ownership-transfer:${companyId}:${targetPrincipalId}`,
       explicit: command,
       request: (resolved) =>
-        apiFetch(
-          apiRouteUrl('api.ownership.transfer', { params: { companyId } }),
+        fetchApi(
+          buildApiRouteUrl('api.ownership.transfer', { params: { companyId } }),
           buildJsonCommandRequestInit(
             'POST',
             buildJsonBody('api.ownership.transfer', {

@@ -1,5 +1,5 @@
-import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl, apiReadRouteUrl } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildApiReadRouteUrl } from '@/api/queryClient';
 
 /** The admission records an Owner or Admin can act on; approved people are managed as members. */
 export type AdmissionStatus = 'pending' | 'rejected' | 'revoked';
@@ -14,8 +14,10 @@ export const admissionRequests = {
     cursor: string | null,
     signal?: AbortSignal,
   ): Promise<Response> {
-    return apiFetch(
-      apiReadRouteUrl('api.admission.index', { query: { status, ...(cursor ? { cursor } : {}) } }),
+    return fetchApi(
+      buildApiReadRouteUrl('api.admission.index', {
+        query: { status, ...(cursor ? { cursor } : {}) },
+      }),
       {
         credentials: 'include',
         ...(signal ? { signal } : {}),
@@ -24,7 +26,7 @@ export const admissionRequests = {
   },
 
   decideAdmission(userId: string, decision: 'approve' | 'reject' | 'revoke'): Promise<Response> {
-    return apiFetch(apiRouteUrl(`api.admission.${decision}`, { params: { userId } }), {
+    return fetchApi(buildApiRouteUrl(`api.admission.${decision}`, { params: { userId } }), {
       method: 'POST',
       credentials: 'include',
     });

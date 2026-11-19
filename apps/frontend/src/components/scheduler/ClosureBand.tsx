@@ -55,9 +55,9 @@ export function ClosureBand({
 }) {
   const start = closure.startDate < visibleStart ? visibleStart : closure.startDate;
   const end = closure.endDate > visibleEnd ? visibleEnd : closure.endDate;
-  const width = geometry.widthForDates(start, end);
+  const width = geometry.getDatesWidth(start, end);
   if (height <= 0 || width <= 0) return null;
-  const timelineLeft = geometry.xForDateInGeom(start);
+  const timelineLeft = geometry.getDateX(start);
 
   // Both closure layers share one timeline-coordinate geometry so the label stays aligned with its shading. Exclude the frozen resource-column offset from the published clamp coordinate.
   const geometryStyle: CSSProperties = {

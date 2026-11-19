@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { companyDataRequests } from '@/data/companyDataRequests';
 import { PermissionContext } from '@/auth/permissionContext';
-import { apiFetch } from '@/data/requestTimeout';
+import { fetchApi } from '@/data/requestTimeout';
 import { reloadPage } from '@/lib/reloadPage';
 import { useStore } from '@/store/useStore';
 import {
@@ -18,7 +18,7 @@ import {
 import { SettingsDataSection } from './SettingsDataSection';
 import { permissionValue } from '@/test/permissionGrants';
 
-vi.mock('@/data/requestTimeout', () => ({ apiFetch: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
+vi.mock('@/data/requestTimeout', () => ({ fetchApi: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
 vi.mock('@/lib/reloadPage', () => ({ reloadPage: vi.fn() }));
 vi.mock('@/auth/PasswordConfirmationDialog', () => ({
   PasswordConfirmationDialog: ({ onConfirmed }: { onConfirmed: (id: string) => void }) => (
@@ -197,7 +197,7 @@ describe('Company-wide people anonymisation', () => {
   });
 
   it('sends a bound proof to the named server endpoint from a settled planning view', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 204 }));
+    vi.mocked(fetchApi).mockResolvedValue(new Response(null, { status: 204 }));
     renderSection({ role: 'owner' });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Anonymise all people' }));
@@ -205,9 +205,9 @@ describe('Company-wide people anonymisation', () => {
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Anonymise all people' }),
     );
     await user.click(screen.getByRole('button', { name: 'Confirm identity' }));
-    await waitFor(() => expect(apiFetch).toHaveBeenCalledOnce());
+    await waitFor(() => expect(fetchApi).toHaveBeenCalledOnce());
     expect(planningProbe.suspends).toBe(1);
-    expect(apiFetch).toHaveBeenCalledWith(
+    expect(fetchApi).toHaveBeenCalledWith(
       expect.stringMatching(new RegExp(`/api/companies/${DEFAULT_COMPANY_ID}/anonymise$`)),
       expect.objectContaining({
         method: 'POST',
@@ -228,7 +228,7 @@ describe('Company-wide people anonymisation', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Confirm identity' }));
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'));
-    expect(apiFetch).not.toHaveBeenCalled();
+    expect(fetchApi).not.toHaveBeenCalled();
     expect(planningProbe.suspends).toBe(0);
     expect(planningProbe.releases).toBe(0);
   });
@@ -243,13 +243,13 @@ describe('Company-wide people anonymisation', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Confirm identity' }));
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'));
-    expect(apiFetch).not.toHaveBeenCalled();
+    expect(fetchApi).not.toHaveBeenCalled();
   });
 
   it.each([408, 500])(
     'keeps planning commands suspended after an uncertain HTTP %s',
     async (status) => {
-      vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status }));
+      vi.mocked(fetchApi).mockResolvedValue(new Response(null, { status }));
       renderSection({ role: 'owner' });
       const user = userEvent.setup();
       await user.click(screen.getByRole('button', { name: 'Anonymise all people' }));
@@ -266,7 +266,7 @@ describe('Company-wide people anonymisation', () => {
   );
 
   it('keeps planning commands suspended after a lost response', async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new Error('Connection lost'));
+    vi.mocked(fetchApi).mockRejectedValue(new Error('Connection lost'));
     renderSection({ role: 'owner' });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Anonymise all people' }));
@@ -280,7 +280,7 @@ describe('Company-wide people anonymisation', () => {
   });
 
   it('releases suspended planning commands after a definitive refusal', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
+    vi.mocked(fetchApi).mockResolvedValue(
       new Response(JSON.stringify({ error: 'Forbidden.' }), { status: 403 }),
     );
     renderSection({ role: 'owner' });

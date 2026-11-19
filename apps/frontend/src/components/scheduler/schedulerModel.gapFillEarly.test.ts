@@ -4,10 +4,18 @@ import { buildEmptyFilters } from '@/store/useStore';
 import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import { capacityOver } from '@/test/capacityFixtures';
 import { buildSchedulerModel } from './schedulerModel';
-import { allBars, build, dataset, days, end, geom, start } from './schedulerModel.testSupport';
+import {
+  listAllBars,
+  build,
+  makeDataset,
+  days,
+  end,
+  geom,
+  start,
+} from './schedulerModel.testSupport';
 
 function buildBlockTimeOffRows() {
-  const d = dataset();
+  const d = makeDataset();
   d.allocations = [
     {
       ...requireValue(d.allocations[0], 'a1 allocation'),
@@ -72,7 +80,7 @@ function buildBlockTimeOffRows() {
 
 describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('search is TRIMMED before matching (leading/trailing whitespace is not part of the term)', () => {
-    const d = dataset();
+    const d = makeDataset();
     // Use a single-occurrence search term so a duplicate name or role cannot accidentally rescue an untrimmed query.
     d.resources.push(
       makeResource({
@@ -101,7 +109,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(ids).toContain('r-zed');
   });
   it('search falls back to an EMPTY string (not a literal placeholder) when resource.name is undefined', () => {
-    const d = dataset();
+    const d = makeDataset();
     const firstResource = d.resources[0];
     expect(firstResource).toBeDefined();
     if (!firstResource) throw new Error('Expected the base scheduler resource.');
@@ -125,7 +133,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).not.toContain('r1');
   });
   it('a placeholder IS searchable by its own (unusual, but allowed) `name` field', () => {
-    const d = dataset();
+    const d = makeDataset();
     d.resources.push(
       makeResource({
         id: 'ph-named',
@@ -155,14 +163,14 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('bar.project / bar.client resolve through the projectById / clientById maps (real lookups, not empty maps)', () => {
     const model = build();
     const a1 = requireValue(
-      allBars(model).find((b) => b.allocation.id === 'a1'),
+      listAllBars(model).find((b) => b.allocation.id === 'a1'),
       'a1 bar',
     );
     expect(a1.project).toBe('P1');
     expect(a1.client).toBe('Ferris');
   });
   it('an internal activity bar is always neutral grey', () => {
-    const d = dataset();
+    const d = makeDataset();
     d.activities.push({
       ...NULLABLE_FIELDS.activities,
       id: 't-int',
@@ -195,13 +203,13 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       },
     });
     const greyBar = requireValue(
-      allBars(greyModel).find((b) => b.allocation.id === 'a-int'),
+      listAllBars(greyModel).find((b) => b.allocation.id === 'a-int'),
       'internal bar',
     );
     expect(greyBar.color).toBe('#9ca3af');
   });
   it('does not throw when there are no clients at all (scopedCompanyId derivation is optional-chained)', () => {
-    const d = { ...dataset(), clients: [] };
+    const d = { ...makeDataset(), clients: [] };
     expect(() =>
       buildSchedulerModel({
         data: d,
@@ -219,7 +227,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     ).not.toThrow();
   });
   it('positions time-off blocks with real fields (id/x/width/label/note), and marks only its OWN days unavailable', () => {
-    const d = dataset();
+    const d = makeDataset();
     // Time-off indexing must accumulate all entries for a resource rather than replace earlier entries.
     d.timeOff.push(
       {
@@ -267,8 +275,8 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       r1.timeOff.find((t) => t.id === 'to1'),
       'to1 time-off block',
     );
-    expect(t1.x).toBe(geom.xForDateInGeom('2026-06-01'));
-    expect(t1.width).toBe(geom.widthForDates('2026-06-01', '2026-06-01'));
+    expect(t1.x).toBe(geom.getDateX('2026-06-01'));
+    expect(t1.width).toBe(geom.getDatesWidth('2026-06-01', '2026-06-01'));
     expect(t1.note).toBe('day one');
     expect(typeof t1.label).toBe('string');
     expect(t1.label.length).toBeGreaterThan(0);
@@ -278,7 +286,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(r1.dayStates[2]?.unavailable).toBe(false);
   });
   it('signals saved half days only when the date retains partial capacity', () => {
-    const d = dataset();
+    const d = makeDataset();
     const resource = requireValue(
       d.resources.find((candidate) => candidate.id === 'r1'),
       'r1 resource',
@@ -350,7 +358,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(row.dayStates[4]).toMatchObject({ unavailable: true, partialCapacity: false });
   });
   it('marks a holiday the server flags over as a time-off conflict, and only that day', () => {
-    const d = dataset();
+    const d = makeDataset();
 
     d.timeOff.push(
       {

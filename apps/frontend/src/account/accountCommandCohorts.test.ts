@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  apiFetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(),
+  fetchApi: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(),
 }));
 
 vi.mock('@/data/requestTimeout', () => ({
-  apiFetch: mocks.apiFetch,
+  fetchApi: mocks.fetchApi,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
   setMasqueradeEndedHandler: vi.fn(),
@@ -36,14 +36,14 @@ function deferred<T>(): Deferred<T> {
 function commandHeadersAt(
   index: number,
 ): [commandId: string | null, idempotencyKey: string | null] {
-  const init = mocks.apiFetch.mock.calls[index]?.[1];
+  const init = mocks.fetchApi.mock.calls[index]?.[1];
   if (!init) throw new Error(`Expected request call ${index} to include init options.`);
   const headers = new Headers(init.headers);
   return [headers.get('x-account-command-id'), headers.get('idempotency-key')];
 }
 
 async function waitForRequests(count: number): Promise<void> {
-  await vi.waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledTimes(count));
+  await vi.waitFor(() => expect(mocks.fetchApi).toHaveBeenCalledTimes(count));
 }
 
 async function flushPromiseContinuations(): Promise<void> {
@@ -64,7 +64,7 @@ describe('implicit account command cohorts', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
     sessionStorage.clear();
-    mocks.apiFetch.mockReset();
+    mocks.fetchApi.mockReset();
   });
 
   afterEach(() => {
@@ -79,7 +79,7 @@ describe('implicit account command cohorts', () => {
       const held = deferred<ArrayBuffer>();
       const digest = vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(() => held.promise);
       const body = { companyId: 'a-studio', role: 'viewer' as const, email: 'selina@wayne.test' };
-      mocks.apiFetch.mockResolvedValueOnce(ok());
+      mocks.fetchApi.mockResolvedValueOnce(ok());
       const pending = invitationRequests.createInvitation(body);
       try {
         await vi.waitFor(() => expect(digest).toHaveBeenCalledOnce());
@@ -93,11 +93,11 @@ describe('implicit account command cohorts', () => {
         held.resolve(await original(...args));
         if (changed) {
           await expect(pending).resolves.toMatchObject({ status: 409 });
-          expect(mocks.apiFetch).not.toHaveBeenCalled();
+          expect(mocks.fetchApi).not.toHaveBeenCalled();
         } else {
           await expect(pending).resolves.toMatchObject({ status: 201 });
-          expect(mocks.apiFetch).toHaveBeenCalledOnce();
-          expect(JSON.parse(String(mocks.apiFetch.mock.calls[0]?.[1]?.body))).toEqual({
+          expect(mocks.fetchApi).toHaveBeenCalledOnce();
+          expect(JSON.parse(String(mocks.fetchApi.mock.calls[0]?.[1]?.body))).toEqual({
             companyId: 'a-studio',
             role: 'viewer',
             email: 'selina@wayne.test',
@@ -118,7 +118,7 @@ describe('implicit account command cohorts', () => {
     'retains a shared command when concurrent siblings settle $0',
     async (_name, first, second) => {
       const requests = [deferred<Response>(), deferred<Response>()] as const;
-      mocks.apiFetch
+      mocks.fetchApi
         .mockImplementationOnce(() => requests[0].promise)
         .mockImplementationOnce(() => requests[1].promise);
 
@@ -132,7 +132,7 @@ describe('implicit account command cohorts', () => {
       requests[second].resolve(second === 1 ? unknown() : ok());
       await Promise.all(siblings);
 
-      mocks.apiFetch.mockResolvedValueOnce(ok()).mockResolvedValueOnce(ok());
+      mocks.fetchApi.mockResolvedValueOnce(ok()).mockResolvedValueOnce(ok());
       await createInvitation();
       expect(commandHeadersAt(2)).toEqual(shared);
       await createInvitation();
@@ -142,7 +142,7 @@ describe('implicit account command cohorts', () => {
 
   it('retains a three-request cohort when its middle sibling is unknown', async () => {
     const requests = [deferred<Response>(), deferred<Response>(), deferred<Response>()] as const;
-    for (const request of requests) mocks.apiFetch.mockImplementationOnce(() => request.promise);
+    for (const request of requests) mocks.fetchApi.mockImplementationOnce(() => request.promise);
 
     const siblings = [createInvitation(), createInvitation(), createInvitation()];
     await waitForRequests(3);
@@ -155,7 +155,7 @@ describe('implicit account command cohorts', () => {
     requests[2].resolve(ok());
     await Promise.all(siblings);
 
-    mocks.apiFetch.mockResolvedValueOnce(unknown());
+    mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
     expect(commandHeadersAt(3)).toEqual(shared);
   });
@@ -163,7 +163,7 @@ describe('implicit account command cohorts', () => {
   it('keeps overlapping operation keys independent', async () => {
     const uncertain = deferred<Response>();
     const definitive = deferred<Response>();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockImplementationOnce(() => uncertain.promise)
       .mockImplementationOnce(() => definitive.promise);
 
@@ -187,7 +187,7 @@ describe('implicit account command cohorts', () => {
     definitive.resolve(ok());
     await Promise.all([uncertainCall, definitiveCall]);
 
-    mocks.apiFetch.mockResolvedValueOnce(unknown()).mockResolvedValueOnce(ok());
+    mocks.fetchApi.mockResolvedValueOnce(unknown()).mockResolvedValueOnce(ok());
     await invitationRequests.createInvitation({
       companyId: 'a-studio',
       role: 'viewer',
@@ -205,7 +205,7 @@ describe('implicit account command cohorts', () => {
   it('clears an all-definitive cohort only after its last sibling settles', async () => {
     const first = deferred<Response>();
     const second = deferred<Response>();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise);
 
@@ -218,7 +218,7 @@ describe('implicit account command cohorts', () => {
     await firstCall;
 
     const third = deferred<Response>();
-    mocks.apiFetch.mockImplementationOnce(() => third.promise);
+    mocks.fetchApi.mockImplementationOnce(() => third.promise);
     const thirdCall = createInvitation();
     await waitForRequests(3);
     expect(commandHeadersAt(2)).toEqual(shared);
@@ -226,7 +226,7 @@ describe('implicit account command cohorts', () => {
     third.resolve(ok());
     await Promise.all([secondCall, thirdCall]);
 
-    mocks.apiFetch.mockResolvedValueOnce(ok());
+    mocks.fetchApi.mockResolvedValueOnce(ok());
     await createInvitation();
     expect(commandHeadersAt(3)).not.toEqual(shared);
   });
@@ -234,7 +234,7 @@ describe('implicit account command cohorts', () => {
   it('retains the cohort when a transport throws while a sibling succeeds', async () => {
     const success = deferred<Response>();
     const failure = deferred<Response>();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockImplementationOnce(() => success.promise)
       .mockImplementationOnce(() => failure.promise);
 
@@ -248,7 +248,7 @@ describe('implicit account command cohorts', () => {
     success.resolve(ok());
     await successfulCall;
 
-    mocks.apiFetch.mockResolvedValueOnce(unknown());
+    mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
     expect(commandHeadersAt(2)).toEqual(shared);
   });
@@ -256,7 +256,7 @@ describe('implicit account command cohorts', () => {
   it("does not let an earlier identity's completion clear the current identity's cohort", async () => {
     const identityA = deferred<Response>();
     const identityB = deferred<Response>();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockImplementationOnce(() => identityA.promise)
       .mockImplementationOnce(() => identityB.promise);
 
@@ -275,14 +275,14 @@ describe('implicit account command cohorts', () => {
     identityB.resolve(unknown());
     await callB;
 
-    mocks.apiFetch.mockResolvedValueOnce(unknown());
+    mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
     expect(commandHeadersAt(2)).toEqual(headersB);
   });
 
   it('does not let an in-flight completion recreate state cleared during sign-out', async () => {
     const request = deferred<Response>();
-    mocks.apiFetch.mockImplementationOnce(() => request.promise);
+    mocks.fetchApi.mockImplementationOnce(() => request.promise);
     bindStoredAccountCommandsToIdentity('bruce-wayne');
     const call = createInvitation();
     await waitForRequests(1);
@@ -291,14 +291,14 @@ describe('implicit account command cohorts', () => {
     request.resolve(ok());
     await call;
 
-    mocks.apiFetch.mockResolvedValueOnce(ok());
+    mocks.fetchApi.mockResolvedValueOnce(ok());
     await createInvitation();
     expect(commandHeadersAt(1)).not.toEqual(commandHeadersAt(0));
   });
 
   it('does not let a pre-sign-out completion clear a same-identity cohort created afterward', async () => {
     const stale = deferred<Response>();
-    mocks.apiFetch.mockImplementationOnce(() => stale.promise);
+    mocks.fetchApi.mockImplementationOnce(() => stale.promise);
     bindStoredAccountCommandsToIdentity('bruce-wayne');
     const staleCall = createInvitation();
     await waitForRequests(1);
@@ -307,7 +307,7 @@ describe('implicit account command cohorts', () => {
     bindStoredAccountCommandsToIdentity('bruce-wayne');
 
     const fresh = deferred<Response>();
-    mocks.apiFetch.mockImplementationOnce(() => fresh.promise);
+    mocks.fetchApi.mockImplementationOnce(() => fresh.promise);
     const freshCall = createInvitation();
     await waitForRequests(2);
     const freshHeaders = commandHeadersAt(1);
@@ -315,7 +315,7 @@ describe('implicit account command cohorts', () => {
     stale.resolve(ok());
     await staleCall;
 
-    mocks.apiFetch.mockResolvedValueOnce(ok());
+    mocks.fetchApi.mockResolvedValueOnce(ok());
     const thirdCall = createInvitation();
     await waitForRequests(3);
     expect(commandHeadersAt(2)).toEqual(freshHeaders);
@@ -336,7 +336,7 @@ describe('implicit account command cohorts', () => {
     });
     const definitive = deferred<Response>();
     const ambiguous = deferred<Response>();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockImplementationOnce(() => definitive.promise)
       .mockImplementationOnce(() => ambiguous.promise);
 
@@ -347,7 +347,7 @@ describe('implicit account command cohorts', () => {
     ambiguous.resolve(unknown());
     await Promise.all(siblings);
 
-    mocks.apiFetch.mockResolvedValueOnce(unknown());
+    mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
     expect(commandHeadersAt(2)).toEqual(shared);
   });

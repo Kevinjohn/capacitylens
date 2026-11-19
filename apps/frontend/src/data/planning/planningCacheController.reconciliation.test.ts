@@ -7,10 +7,10 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  canonicalData,
+  makeCanonicalData,
   companyToday,
   makeReceipt,
-  harness,
+  createHarness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
@@ -26,7 +26,7 @@ describe('planning cache controller', () => {
           release = resolve;
         }),
     );
-    const h = harness({
+    const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
@@ -34,7 +34,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -43,7 +43,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 2,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -54,7 +54,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 3,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -79,7 +79,7 @@ describe('planning cache controller', () => {
     {
       revision: 4,
       authority: makePlanningAuthority(),
-      data: { ...canonicalData(), accounts: [] },
+      data: { ...makeCanonicalData(), accounts: [] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
@@ -87,17 +87,22 @@ describe('planning cache controller', () => {
       revision: 5,
       authority: makePlanningAuthority(),
       data: {
-        ...canonicalData(),
-        accounts: [...canonicalData().accounts, ...canonicalData().accounts],
+        ...makeCanonicalData(),
+        accounts: [...makeCanonicalData().accounts, ...makeCanonicalData().accounts],
       },
       today: companyToday,
       capacity: emptyCapacity(),
     },
-    { revision: 6, authority: makePlanningAuthority(), data: canonicalData(), today: '2026-02-30' },
-    { revision: 7, authority: makePlanningAuthority(), data: canonicalData() },
+    {
+      revision: 6,
+      authority: makePlanningAuthority(),
+      data: makeCanonicalData(),
+      today: '2026-02-30',
+    },
+    { revision: 7, authority: makePlanningAuthority(), data: makeCanonicalData() },
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
-    const h = harness({ execute: vi.fn(), read });
+    const h = createHarness({ execute: vi.fn(), read });
     h.controller.setContext(context);
     await expect(h.controller.refresh()).resolves.toBe(false);
     expect(h.state().planning.phase.kind).toBe('failed');

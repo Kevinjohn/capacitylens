@@ -36,7 +36,7 @@ interface SchedulerModelProjectionInput {
 }
 
 /** Checks whether the viewport reveals a partial next date column. */
-export function partiallyExposesNextColumn({
+export function isNextColumnPartiallyExposed({
   geometry,
   days,
   scrollLeft,
@@ -76,7 +76,7 @@ export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: numb
   );
   const getSnapshot = useCallback(() => {
     if (dragging) return exposedRef.current;
-    exposedRef.current = partiallyExposesNextColumn({
+    exposedRef.current = isNextColumnPartiallyExposed({
       geometry,
       days,
       scrollLeft: scrollRef.current?.scrollLeft ?? 0,
@@ -218,7 +218,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
     partiallyExposesNextColumn: partiallyExposesNextColumnState,
   });
 
-  const todayX = today >= start && today <= end ? geometry.xForDateInGeom(today) : null;
+  const todayX = today >= start && today <= end ? geometry.getDateX(today) : null;
 
   const filtersActive = hasActiveFilters(ui.filters);
 

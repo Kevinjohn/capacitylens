@@ -1,6 +1,6 @@
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
-import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { BrowserAccountCommand } from './accountCommands';
 import { buildPayloadOperationKey } from './commandOutcome';
 import type { CreateInvitationBody } from './accountRequestTypes';
@@ -12,7 +12,7 @@ import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from
  */
 export const invitationRequests = {
   listInvitations(companyId: string, signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.invites.index', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.invites.index', { params: { companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
@@ -39,8 +39,8 @@ export const invitationRequests = {
       operationKey,
       explicit: command,
       request: (resolved) =>
-        apiFetch(
-          apiRouteUrl('api.invites.create', {}),
+        fetchApi(
+          buildApiRouteUrl('api.invites.create', {}),
           buildJsonCommandRequestInit(
             'POST',
             buildJsonBody('api.invites.create', payload),
@@ -59,8 +59,8 @@ export const invitationRequests = {
       operationKey: `invitation-revoke:${companyId}:${invitationId}`,
       explicit: command,
       request: (resolved) =>
-        apiFetch(
-          apiRouteUrl('api.invites.revoke', {
+        fetchApi(
+          buildApiRouteUrl('api.invites.revoke', {
             params: { companyId, id: invitationId },
           }),
           buildCommandRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
@@ -70,8 +70,8 @@ export const invitationRequests = {
 
   /** Sends a fresh link for a pending invitation; the earlier link stops working. */
   resendInvitation(companyId: string, invitationId: string): Promise<Response> {
-    return apiFetch(
-      apiRouteUrl('api.invites.resend', { params: { companyId, id: invitationId } }),
+    return fetchApi(
+      buildApiRouteUrl('api.invites.resend', { params: { companyId, id: invitationId } }),
       {
         method: 'POST',
         credentials: 'include',

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { freshProvider, me } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -28,15 +28,15 @@ it('gates tenant hydration behind authenticated company setup and opens scheduli
   const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
       created = true;
-      return me(201, { companyId: 'wayne' });
+      return makeMeResponse(201, { companyId: 'wayne' });
     }
-    return me(200, {
+    return makeMeResponse(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example', name: 'Bruce Wayne' },
       companySetupRequired: !created,
     });
   });
   vi.stubGlobal('fetch', fetch);
-  const { AuthProvider } = await freshProvider();
+  const { AuthProvider } = await renderFreshProvider();
   const ready = vi.fn();
   render(
     <AuthProvider onTenantAccessReady={ready}>
@@ -59,16 +59,20 @@ it('adopts a same-principal company created in another browser only after confir
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
       createdElsewhere = true;
-      return me(409, { error: 'First company setup is unavailable for this installation.' });
+      return makeMeResponse(409, {
+        error: 'First company setup is unavailable for this installation.',
+      });
     }
-    if (String(url).endsWith('/api/companies')) return me(200, [{ id: 'wayne', role: 'owner' }]);
-    return me(200, {
+    if (String(url).endsWith('/api/companies')) {
+      return makeMeResponse(200, [{ id: 'wayne', role: 'owner' }]);
+    }
+    return makeMeResponse(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: !createdElsewhere,
     });
   });
   vi.stubGlobal('fetch', fetch);
-  const { AuthProvider } = await freshProvider();
+  const { AuthProvider } = await renderFreshProvider();
   const ready = vi.fn();
   render(
     <AuthProvider onTenantAccessReady={ready}>
@@ -88,16 +92,18 @@ it('adopts a same-principal company created in another browser only after confir
 it('keeps a conflicting setup refusal visible when the principal has no company access', async () => {
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
-      return me(409, { error: 'First company setup is unavailable for this installation.' });
+      return makeMeResponse(409, {
+        error: 'First company setup is unavailable for this installation.',
+      });
     }
-    if (String(url).endsWith('/api/companies')) return me(200, []);
-    return me(200, {
+    if (String(url).endsWith('/api/companies')) return makeMeResponse(200, []);
+    return makeMeResponse(200, {
       user: { id: 'bruce', email: 'bruce@wayne.example' },
       companySetupRequired: true,
     });
   });
   vi.stubGlobal('fetch', fetch);
-  const { AuthProvider } = await freshProvider();
+  const { AuthProvider } = await renderFreshProvider();
   const ready = vi.fn();
   render(
     <AuthProvider onTenantAccessReady={ready}>

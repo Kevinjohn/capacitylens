@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { loadPlanningData, makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, harness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -13,7 +13,7 @@ beforeEach(async () => {
 describe('MasqueradeController', () => {
   it('restores the real projection when End fails after another tab already stopped the mode', async () => {
     await resetStoreWithCompany('a-studio');
-    const { controller, dependencies, resume } = harness({
+    const { controller, dependencies, resume } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
         start: vi.fn(async () => state),
@@ -40,7 +40,7 @@ describe('MasqueradeController', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: true, ...replacement })),
         start: vi.fn(async () => state),
@@ -64,7 +64,7 @@ describe('MasqueradeController', () => {
     loadPlanningData(
       makeAppData({ accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })] }),
     );
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       readBootstrapCompany: vi
         .fn()
@@ -91,7 +91,7 @@ describe('MasqueradeController', () => {
   it("keeps retry ownership when a non-cold End cannot acquire another writer's lock", async () => {
     await resetStoreWithCompany('a-studio');
     const resume = vi.fn();
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       suspend: vi.fn().mockReturnValueOnce(null).mockReturnValueOnce(resume),
     });
     useStore.getState().setMasquerade({
@@ -109,7 +109,7 @@ describe('MasqueradeController', () => {
 
   it('ends a cold server projection without requiring a loaded planning context', async () => {
     useStore.getState().clearPlanning();
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       readBootstrapCompany: vi.fn(async () => null),
     });
@@ -124,7 +124,7 @@ describe('MasqueradeController', () => {
   });
 
   it('succeeds while inactive without navigating or touching masquerade dependencies', async () => {
-    const { controller, dependencies, resume } = harness();
+    const { controller, dependencies, resume } = createHarness();
     const navigate = vi.fn();
 
     await expect(controller.end('explicit', navigate)).resolves.toBe(true);
@@ -145,7 +145,7 @@ describe('MasqueradeController cross-tab reconciliation', () => {
       token: 'token-2',
       contextToken: 'token-2',
     };
-    const { controller, resume } = harness({
+    const { controller, resume } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
         start: vi.fn(async () => state),
@@ -168,7 +168,7 @@ describe('MasqueradeController cross-tab reconciliation', () => {
       token: 'token-2',
       contextToken: 'token-2',
     };
-    const { controller, dependencies, resume } = harness({
+    const { controller, dependencies, resume } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
         start: vi.fn(async () => state),
@@ -188,7 +188,7 @@ describe('MasqueradeController cross-tab reconciliation', () => {
   });
 
   it('refuses an account switch when DELETE fails and keeps writes suspended', async () => {
-    const { controller, dependencies, resume } = harness({
+    const { controller, dependencies, resume } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...state })),
         start: vi.fn(async () => state),
