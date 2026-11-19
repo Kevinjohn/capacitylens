@@ -172,7 +172,7 @@ describe('muted ink token contrast (WCAG 1.4.3 AA)', () => {
       /\.driver-popover-close-btn\s*\{[^}]*color:\s*var\(--color-muted-foreground\)/,
     );
     expect(indexCss).toMatch(
-      /\[data-draw-mode="timeoff"\] \.scheduler-bar[\s\S]*?background-color:\s*var\(--color-muted-foreground\) !important/,
+      /\[data-draw-mode="timeOff"\] \.scheduler-bar[\s\S]*?background-color:\s*var\(--color-muted-foreground\) !important/,
     );
   });
 
@@ -187,17 +187,17 @@ describe('muted ink token contrast (WCAG 1.4.3 AA)', () => {
 describe('time-off draw-mode treatment', () => {
   const rule =
     indexCss.match(
-      /\[data-draw-mode="timeoff"\] \.scheduler-timeoff-block\s*\{([\s\S]*?)\}/,
+      /\[data-draw-mode="timeOff"\] \.scheduler-time-off-block\s*\{([\s\S]*?)\}/,
     )?.[1] ?? '';
 
   it('uses the same vivid yellow and readable dark ink in both themes', () => {
     // Keep the selected treatment in one inherited declaration so theme values cannot drift.
-    expect(indexCss.match(/--c-timeoff-selected:\s*#facc15/g)).toHaveLength(1);
-    expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
+    expect(indexCss.match(/--c-time-off-selected:\s*#facc15/g)).toHaveLength(1);
+    expect(rule).toMatch(/color:\s*var\(--color-time-off-selected-ink\)/);
   });
 
   it('keeps the hatch and limits the selected glow', () => {
-    expect(rule).toMatch(/background-color:\s*var\(--color-timeoff-selected\) !important/);
+    expect(rule).toMatch(/background-color:\s*var\(--color-time-off-selected\) !important/);
     expect(rule).not.toMatch(/(?:^|[;\s])background:\s/);
     expect(rule).toMatch(/0 0 6px 1px/);
   });
@@ -205,12 +205,12 @@ describe('time-off draw-mode treatment', () => {
 
 describe('time-off draw-mode treatment of company closures (#787)', () => {
   const rule =
-    indexCss.match(/\[data-draw-mode="timeoff"\] \.scheduler-closure-band\s*\{([\s\S]*?)\}/)?.[1] ??
+    indexCss.match(/\[data-draw-mode="timeOff"\] \.scheduler-closure-band\s*\{([\s\S]*?)\}/)?.[1] ??
     '';
 
-  it("highlights the closure band with the same timeoff-selected tokens as personal time off, in work mode's own hook", () => {
-    expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
-    expect(rule).toMatch(/background-color:\s*var\(--color-timeoff-selected\) !important/);
+  it("highlights the closure band with the same time-off-selected tokens as personal time off, in work mode's own hook", () => {
+    expect(rule).toMatch(/color:\s*var\(--color-time-off-selected-ink\)/);
+    expect(rule).toMatch(/background-color:\s*var\(--color-time-off-selected\) !important/);
     expect(rule).toMatch(/0 0 6px 1px/);
 
     expect(indexCss).not.toMatch(/\[data-draw-mode="work"\]\s*\.scheduler-closure-band/);
@@ -240,9 +240,9 @@ describe('company closure label stacking (#788)', () => {
   it("keeps #787's time-off ink on the name now that it no longer inherits from the band", () => {
     const rule =
       indexCss.match(
-        /\[data-draw-mode="timeoff"\] \.scheduler-closure-label-layer\s*\{([\s\S]*?)\}/,
+        /\[data-draw-mode="timeOff"\] \.scheduler-closure-label-layer\s*\{([\s\S]*?)\}/,
       )?.[1] ?? '';
-    expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
+    expect(rule).toMatch(/color:\s*var\(--color-time-off-selected-ink\)/);
 
     expect(rule).not.toMatch(/background-color|box-shadow/);
   });

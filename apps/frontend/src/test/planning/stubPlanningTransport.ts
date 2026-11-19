@@ -19,6 +19,8 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from './planningAuthorityFixtures';
+import { makeReceipt } from './makeReceipt';
+import { createServerHistoryModel } from './serverHistoryModel';
 
 type Row = { id: string; companyId?: string; [key: string]: unknown };
 /** Rows a queued write changes in the stub's canonical data, which the next read returns. */
@@ -41,15 +43,12 @@ type Queued =
 
 /** One recorded change: the company's rows before and after it, so undo and redo swap them back. */
 type HistoryChange = { before: AppData; after: AppData };
-/** The server's one history row per company: the last writer's page, at the revision it holds. */
+/** One company's history: the shared model decides who holds it; the stacks hold the rows to swap. */
 type CompanyHistory = {
-  historyId: string;
-  revision: number;
+  model: ReturnType<typeof createServerHistoryModel>;
   past: HistoryChange[];
   future: HistoryChange[];
 };
-
-const HISTORY_LIMIT = 50;
 
 /** The rows that differ between two reads of one company, in the receipt's shape. */
 function diffRows(before: AppData, after: AppData): PlanningMutationSuccess['changes'] {
@@ -174,16 +173,16 @@ export class StubPlanningTransport implements PlanningTransport {
       await gate;
       signal.throwIfAborted();
     }
-    const history = this.liveHistory(context.companyId, historyId);
     const revision = this.revision(context.companyId);
+    const history = this.history(context.companyId).model.report(historyId, revision);
     const base = {
       revision,
       authority: this.authority,
       today: this.todayFor(context.companyId),
       capacity: this.capacity ?? emptyCapacity(window),
       history: {
-        canUndo: this.authority.canWrite && !!history && history.past.length > 0,
-        canRedo: this.authority.canWrite && !!history && history.future.length > 0,
+        canUndo: this.authority.canWrite && history.canUndo,
+        canRedo: this.authority.canWrite && history.canRedo,
       },
     };
     return ifRevision === revision
@@ -210,16 +209,12 @@ export class StubPlanningTransport implements PlanningTransport {
       else if (queued.changed) this.applyPatch(queued.changed(execution));
     } else {
       const deletion = this.applySingleRow(context.companyId, execution.intent);
-      receipt = {
-        status: 'committed',
-        mutationId: execution.mutationId,
-        revision: (this.revisions.get(context.companyId) ?? 0) + 1,
+      receipt = makeReceipt(execution.mutationId, previousRevision + 1, {
         restoration: {
           consumedGroupId: null,
           replacementGroupId: deletion ? crypto.randomUUID() : null,
         },
-        changes: { upserts: [], removed: [] },
-      };
+      });
     }
     // Like the server, the receipt carries the rows the write changed.
     receipt = { ...receipt, changes: diffRows(before, this.companyRows(context.companyId)) };
@@ -276,23 +271,23 @@ export class StubPlanningTransport implements PlanningTransport {
     if (step.baseRevision !== revision) {
       throw new PlanningControllerError('The planning data changed.', 'STALE_REVISION', 409);
     }
-    const history = this.liveHistory(companyId, step.historyId);
-    const change = kind === 'undo' ? history?.past.pop() : history?.future.pop();
-    if (!history || !change) {
+    const history = this.history(companyId);
+    const available = history.model.report(step.historyId, revision);
+    if (!(kind === 'undo' ? available.canUndo : available.canRedo)) {
       throw new PlanningControllerError(`There is nothing to ${kind}.`, undefined, 409);
     }
+    history.model.step(kind, step.historyId, revision, revision + 1);
+    const [from, to] =
+      kind === 'undo' ? [history.past, history.future] : [history.future, history.past];
+    const change = from.pop();
+    if (!change) throw new Error(`stub: the ${kind} stack is out of step with the history model`);
     const before = this.companyRows(companyId);
     this.replaceCompanyRows(companyId, kind === 'undo' ? change.before : change.after, kind);
-    (kind === 'undo' ? history.future : history.past).push(change);
-    history.revision = revision + 1;
-    this.revisions.set(companyId, history.revision);
-    return {
-      status: 'committed',
-      mutationId: step.mutationId,
-      revision: history.revision,
-      restoration: { consumedGroupId: null, replacementGroupId: null },
+    to.push(change);
+    this.revisions.set(companyId, revision + 1);
+    return makeReceipt(step.mutationId, revision + 1, {
       changes: diffRows(before, this.companyRows(companyId)),
-    };
+    });
   }
 
   private advanceRevisions(): void {
@@ -303,14 +298,14 @@ export class StubPlanningTransport implements PlanningTransport {
     return this.revisions.get(companyId) ?? 0;
   }
 
-  /** The company's history when it belongs to `historyId` and no other change has moved past it. */
-  private liveHistory(companyId: string, historyId: string | undefined) {
-    const history = this.histories.get(companyId);
-    return history &&
-      historyId === history.historyId &&
-      history.revision === this.revision(companyId)
-      ? history
-      : undefined;
+  /** The company's history, created empty on first use. */
+  private history(companyId: string): CompanyHistory {
+    let history = this.histories.get(companyId);
+    if (!history) {
+      history = { model: createServerHistoryModel(), past: [], future: [] };
+      this.histories.set(companyId, history);
+    }
+    return history;
   }
 
   /** Records a committed change: it extends the writer's live history or starts a new one. */
@@ -321,19 +316,11 @@ export class StubPlanningTransport implements PlanningTransport {
     revision: number,
     change: HistoryChange,
   ): void {
-    if (historyId === undefined) {
-      this.histories.delete(companyId);
-      return;
-    }
-    const current = this.histories.get(companyId);
-    const continues =
-      current?.historyId === historyId && current.revision === previousRevision ? current : null;
-    this.histories.set(companyId, {
-      historyId,
-      revision,
-      past: [...(continues?.past ?? []), change].slice(-HISTORY_LIMIT),
-      future: [],
-    });
+    const history = this.history(companyId);
+    const continues = history.model.isLive(historyId, previousRevision);
+    history.model.committed(historyId, previousRevision, revision);
+    history.past = historyId === undefined ? [] : [...(continues ? history.past : []), change];
+    history.future = [];
   }
 
   private companyRows(companyId: string): AppData {

@@ -46,7 +46,7 @@ const ActivityList = lazy(() =>
   })),
 );
 const TimeOffList = lazy(() =>
-  import('./components/timeoff/TimeOffList').then((timeOffEntry) => ({
+  import('./components/time-off/TimeOffList').then((timeOffEntry) => ({
     default: timeOffEntry.TimeOffList,
   })),
 );

@@ -76,7 +76,7 @@ describe('rowScreenReaderSummary', () => {
 
   it('drops the allocation count in time-off draw mode', () => {
     expect(
-      buildRowScreenReaderSummary(row({ conflictDayCount: 2 }), { ...ctx, drawMode: 'timeoff' }),
+      buildRowScreenReaderSummary(row({ conflictDayCount: 2 }), { ...ctx, drawMode: 'timeOff' }),
     ).toBe('Over capacity on 2 days. ');
   });
 });

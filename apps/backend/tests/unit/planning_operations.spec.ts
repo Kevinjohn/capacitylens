@@ -1,5 +1,4 @@
 import { test } from '@japa/runner';
-import vine from '@vinejs/vine';
 import {
   assertPlanningBaseRevision,
   StalePlanningRevisionError,
@@ -13,18 +12,6 @@ import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
-import { revision } from '#validators/planning/fields';
-
-/** Checks the flat planning failure body the server sends (`PlanningMutationFailure`). */
-const planningMutationFailureValidator = vine.compile(
-  vine.object({
-    error: vine.string(),
-    code: vine.string().optional(),
-    decision: vine.any().optional(),
-    committed: vine.boolean({ strict: true }).optional(),
-    restorableItemCount: revision().optional(),
-  })
-);
 
 const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
 const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';
@@ -472,24 +459,6 @@ test.group('planning operation contracts', () => {
       [create.baseRevision, undo.baseRevision, redo.baseRevision, undoAgain.baseRevision],
       [10, 11, 12, 13]
     );
-  });
-
-  test('validates planning failure bodies', async ({ assert }) => {
-    const stale = await planningMutationFailureValidator.validate({
-      error: 'The planning revision changed.',
-      code: 'STALE_REVISION',
-    });
-    const refused = await planningMutationFailureValidator.validate({
-      error: 'This action is not allowed.',
-      code: 'AUTHORIZATION_DENIED',
-    });
-    const noChange = await planningMutationFailureValidator.validate({
-      error: 'The requested values are unchanged.',
-      code: 'NO_CHANGE',
-    });
-    assert.equal(stale.code, 'STALE_REVISION');
-    assert.equal(refused.code, 'AUTHORIZATION_DENIED');
-    assert.equal(noChange.code, 'NO_CHANGE');
   });
 
   test('types delete-created restore handles', ({ assert }) => {

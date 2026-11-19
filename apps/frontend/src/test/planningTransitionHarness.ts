@@ -1,7 +1,7 @@
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { expect, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
-import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
+import type { PlanningIntent } from '@/api/planningContracts';
 import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
 import {
   createPlanningCacheController,
@@ -14,8 +14,11 @@ import type {
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makeReceipt } from '@/test/planning/makeReceipt';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+
+export { makeReceipt };
 
 // Shared setup for the planning cache controller transition tests.
 
@@ -44,21 +47,6 @@ export function snapshot(
   };
 }
 
-export function receipt(
-  mutationId: string,
-  revision: number,
-  overrides: Partial<PlanningMutationSuccess> = {},
-): PlanningMutationSuccess {
-  return {
-    status: 'committed',
-    mutationId,
-    revision,
-    restoration: { consumedGroupId: null, replacementGroupId: null },
-    changes: { upserts: [], removed: [] },
-    ...overrides,
-  };
-}
-
 export function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -84,7 +72,7 @@ export function setup(options: Options = {}) {
   const execute = vi.fn<PlanningTransport['execute']>(async (_context, execution) => {
     server.revision = execution.baseRevision + 1;
     server.history.committed(execution.historyId, execution.baseRevision, server.revision);
-    return receipt(execution.mutationId, server.revision);
+    return makeReceipt(execution.mutationId, server.revision);
   });
   const stepper = (kind: 'undo' | 'redo') =>
     vi.fn<PlanningTransport['undo']>(async (_context, step) => {
@@ -96,7 +84,7 @@ export function setup(options: Options = {}) {
       }
       server.history.step(kind, step.historyId, server.revision, server.revision + 1);
       server.revision += 1;
-      return receipt(step.mutationId, server.revision);
+      return makeReceipt(step.mutationId, server.revision);
     });
   const undo = stepper('undo');
   const redo = stepper('redo');

@@ -1,21 +1,12 @@
 import { expect, it } from 'vitest';
-import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
+import type { PlanningIntent } from '@/api/planningContracts';
 import { makeCompany, makeAppData, makeClient, requireFullSnapshot } from './fixtures';
 import { createTestPlanningTransport } from './createTestPlanningTransport';
+import { makeReceipt } from './planning/makeReceipt';
 import { getStubPlanningTransport } from './planningTransportHandle';
 
 const context = { identity: 'test', companyId: 'acct-one' };
 const signal = new AbortController().signal;
-
-function receipt(mutationId: string, revision: number): PlanningMutationSuccess {
-  return {
-    status: 'committed',
-    mutationId,
-    revision,
-    restoration: { consumedGroupId: null, replacementGroupId: null },
-    changes: { upserts: [], removed: [] },
-  };
-}
 
 it('reads a reset snapshot scoped to its company at that company revision', async () => {
   const transport = createTestPlanningTransport();
@@ -73,7 +64,7 @@ it('returns a queued response, preserves its canonical read data and exposes its
   const stub = getStubPlanningTransport();
   stub.reset(context.companyId, makeAppData());
   const client = makeClient({ id: 'canonical-client', companyId: context.companyId });
-  const queued = receipt('queued', 7);
+  const queued = makeReceipt('queued', 7);
   stub.respondNext(queued, makeAppData({ clients: [client] }));
 
   await expect(
@@ -128,7 +119,7 @@ it('reset discards queued responses, failures and calls', async () => {
   const transport = createTestPlanningTransport();
   const stub = getStubPlanningTransport();
   stub.reset(context.companyId, makeAppData());
-  stub.respondNext(receipt('committed', 5));
+  stub.respondNext(makeReceipt('committed', 5));
   await transport.execute(
     context,
     {
@@ -140,7 +131,7 @@ it('reset discards queued responses, failures and calls', async () => {
   );
 
   await expect(transport.read(context, signal)).resolves.toMatchObject({ revision: 5 });
-  stub.respondNext(receipt('discarded-response', 8));
+  stub.respondNext(makeReceipt('discarded-response', 8));
   stub.failNext(new Error('discarded-error'));
 
   stub.reset(
@@ -164,4 +155,53 @@ it('reset discards queued responses, failures and calls', async () => {
       signal,
     ),
   ).resolves.toMatchObject({ revision: 1 });
+});
+
+it('lets one page undo two of its own changes and ends that history when another page writes', async () => {
+  const transport = createTestPlanningTransport();
+  getStubPlanningTransport().reset(
+    context.companyId,
+    makeAppData({ accounts: [makeCompany({ id: context.companyId, name: 'Wayne' })] }),
+  );
+  const rename = (name: string, baseRevision: number, historyId: string) =>
+    transport.execute(
+      context,
+      {
+        mutationId: `rename-${name}`,
+        baseRevision,
+        historyId,
+        intent: { operation: 'settings.update', changes: { name } },
+      },
+      signal,
+    );
+  const readAs = async (historyId: string) => {
+    const snapshot = requireFullSnapshot(await transport.read(context, signal, { historyId }));
+    return { name: snapshot.data.accounts[0]?.name, history: snapshot.history };
+  };
+
+  await rename('Stark', 0, 'page-a');
+  await rename('Kent', 1, 'page-a');
+  await transport.undo(
+    context,
+    { mutationId: 'undo-1', baseRevision: 2, historyId: 'page-a' },
+    signal,
+  );
+  await transport.undo(
+    context,
+    { mutationId: 'undo-2', baseRevision: 3, historyId: 'page-a' },
+    signal,
+  );
+  await expect(readAs('page-a')).resolves.toEqual({
+    name: 'Wayne',
+    history: { canUndo: false, canRedo: true },
+  });
+
+  await rename('Prince', 4, 'page-b');
+  await expect(readAs('page-a')).resolves.toEqual({
+    name: 'Prince',
+    history: { canUndo: false, canRedo: false },
+  });
+  await expect(
+    transport.undo(context, { mutationId: 'undo-3', baseRevision: 5, historyId: 'page-a' }, signal),
+  ).rejects.toThrow('There is nothing to undo.');
 });
