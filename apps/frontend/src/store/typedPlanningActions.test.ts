@@ -7,7 +7,6 @@ import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
-  useStore.setState({ activeCompanyLoadFailed: null });
 });
 
 function refuseNextPlanningMutation(): void {
@@ -17,13 +16,6 @@ function refuseNextPlanningMutation(): void {
 }
 
 describe('typed planning domain rejections', () => {
-  it("refuses a write while the active company's load failed", async () => {
-    useStore.setState({ activeCompanyLoadFailed: useStore.getState().activeCompanyId });
-    await expect(
-      useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),
-    ).rejects.toThrow(/not loaded/i);
-  });
-
   it('passes the shared company guard when the company is known only from the summaries', async () => {
     const { activeCompanyId, data } = useStore.getState();
     if (!activeCompanyId) throw new Error('Expected an active account.');

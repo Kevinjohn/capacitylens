@@ -2,39 +2,36 @@
 
 As a company member, I want to retry loading the active company so that I can continue if its planning data becomes available.
 
-**Status:** Hidden — retained screen with no current error-state producer.
+**Status:** Removed — the company-load recovery screen had no producer and was deleted; a failed planning read shows the shell's planning alert.
 
 **Access:** Owner, Admin, Editor, Viewer.
 
-**Entry:** No current entry; retained company-load recovery screen.
+**Entry:** None.
 
 **Documentation:** [When something goes wrong](../../docs-src/self-hosting/incidents.md)
 
-**Source:** [CompanyLoadRecovery.tsx](../../apps/frontend/src/components/company/CompanyLoadRecovery.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
+**Source:** [router.tsx](../../apps/frontend/src/router.tsx); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [planningNotices.ts](../../apps/frontend/src/data/planning/planningNotices.ts)
 
 ## Acceptance criteria
 
-- Retry attempts to refresh the failed active company's planning data and reports a failed retry.
+- No separate recovery screen exists; a failed planning read is shown by the shell's planning alert.
 
 ## User flow
 
-Intended flow only: the retained screen is not reachable through the current application.
+Unavailable: the screen was removed.
 
 ```mermaid
 flowchart TD
-A["Company-load recovery screen, if made reachable"] --> B{"Choose a recovery action"}
-B -->|retry| C["Refresh company data"]
-C -->|still failing| D["Read the retry error"]
+A["Planning read fails"] --> B["Shell shows the planning alert"]
 ```
 
 ## Code flow
 
 ```mermaid
 flowchart TD
-  initial["runtimeSlice initializes activeAccountLoadFailed null"] --> clear["accountSlice setActiveAccount clears stale failure marker"]
-  clear -. "No current failure assignment found" .-> shell["AppShell passes marker to AppEntryGate"]
-  shell --> gate["AccountLoadRecovery branch remains gated"]
-  gate --> retry["Retry calls refreshPlanning"]
+  read["planningCacheController read fails"] --> phase["planning phase: failed"]
+  phase --> notice["readPlanningProblem returns unavailable"]
+  notice --> shell["AppShell renders the alert"]
 ```
 
-**Code references:** [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts); [companySlice.ts](../../apps/frontend/src/store/slices/companySlice.ts); [useStore.ts](../../apps/frontend/src/store/useStore.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [AppEntryGate.tsx](../../apps/frontend/src/components/AppEntryGate.tsx); [CompanyLoadRecovery.tsx](../../apps/frontend/src/components/company/CompanyLoadRecovery.tsx)
+**Code references:** [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts); [planningNotices.ts](../../apps/frontend/src/data/planning/planningNotices.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)

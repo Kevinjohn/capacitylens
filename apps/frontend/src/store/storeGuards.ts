@@ -18,9 +18,6 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     const state = get();
     const id = state.activeCompanyId;
     if (!id) throw new Error('No active company is selected.');
-    if (state.activeCompanyLoadFailed === id) {
-      throw new Error('The active account is not loaded — cannot mutate scoped data.');
-    }
     if (
       !state.data.accounts.some((company) => company.id === id) &&
       !state.companySummaries.some((company) => company.id === id)

@@ -145,7 +145,7 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Owner, Admin, Editor, Viewer; sign-in wall still applies to protected routes.                   | Current | New       |
-| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Owner, Admin, Editor, Viewer.                                                                   | Hidden  | New       |
+| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Owner, Admin, Editor, Viewer.                                                                   | Removed | New       |
 | [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation         | Owner, Admin, Editor, Viewer.                                                                   | Current | New       |
 
 ## Privacy
