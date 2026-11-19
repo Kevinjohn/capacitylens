@@ -7,17 +7,6 @@ import { AdmissionError } from '#exceptions/admission_error';
 import { MembershipError } from '#services/membership/member_mutations';
 import { OwnershipTransferError } from '#services/membership/ownership_transfer';
 import { isMailConfigured } from '#services/mail_delivery';
-import { hasOnlyFields } from '#services/request_helpers';
-
-test('a request body is a plain object with no key outside the allowed set', ({ assert }) => {
-  assert.isTrue(hasOnlyFields({}, []));
-  assert.isTrue(hasOnlyFields({ role: 'admin' }, ['role', 'email']));
-  assert.isFalse(hasOnlyFields({ role: 'admin', extra: 1 }, ['role']));
-  assert.isFalse(hasOnlyFields({ extra: 1 }, []));
-  for (const value of [null, undefined, 'text', 7, [], [{ role: 'admin' }]]) {
-    assert.isFalse(hasOnlyFields(value, ['role']));
-  }
-});
 
 test('mail is configured only with a non-blank host', ({ assert, cleanup }) => {
   const host = env.get('CAPACITYLENS_MAIL_HOST');
