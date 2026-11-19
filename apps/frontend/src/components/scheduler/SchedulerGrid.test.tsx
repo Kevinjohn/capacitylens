@@ -529,8 +529,6 @@ describe('SchedulerGrid week snap', () => {
     view.unmount();
   });
 
-  installSchedulerSnapHooks();
-
   it('re-arms on each scroll: two quick scrolls fire only ONE snap, after the final idle', () => {
     useStore.setState({ weekSnapEnabled: true });
     const view = renderGrid();
@@ -592,8 +590,6 @@ describe('SchedulerGrid week snap', () => {
     expect(grid.scrollLeft).toBe(nudge);
     view.unmount();
   });
-
-  installSchedulerSnapHooks();
 
   it('drag-freeze: a snap armed before a drag bails when it fires mid-drag', () => {
     useStore.setState({ weekSnapEnabled: true });
