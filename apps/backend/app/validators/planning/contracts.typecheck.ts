@@ -1,8 +1,8 @@
 import type { Infer, SchemaTypes } from '@vinejs/vine/types';
 import type {
-  Account,
   Activity,
   Allocation,
+  Company,
   Resource,
   TimeOff,
 } from '@capacitylens/shared/types/entities';
@@ -66,19 +66,19 @@ export type PlanningChangeContracts = [
   Assert<
     Equal<
       NonNullable<ObjectChanges<typeof settingsChanges>['schedulingMode']>,
-      NonNullable<Account['schedulingMode']>
+      NonNullable<Company['schedulingMode']>
     >
   >,
   Assert<
     Equal<
       NonNullable<ObjectChanges<typeof settingsChanges>['capacityOverviewAccess']>,
-      NonNullable<Account['capacityOverviewAccess']>
+      NonNullable<Company['capacityOverviewAccess']>
     >
   >,
   Assert<
     Equal<
       NonNullable<ObjectChanges<typeof settingsChanges>['dateStyle']>,
-      NonNullable<Account['dateStyle']>
+      NonNullable<Company['dateStyle']>
     >
   >,
 ];
