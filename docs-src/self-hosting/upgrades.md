@@ -81,9 +81,6 @@ and startup refuse it with a `Database schema drift` message. Start a fresh data
 
 ## Member-view state
 
-This upgrade ends existing member views. Their old tokens cannot continue a view; sign in and start
-a new view if needed. Historical application audit remains intact. New lifecycle events use the
-package event schema, without the old company ID or separate company-switch/sign-out reasons.
 The database backup includes current member-view control state and lifecycle events. A restored
 mode still has its original deadline and must pass current credential and company-access checks.
 Scheduling exports do not contain this control data.

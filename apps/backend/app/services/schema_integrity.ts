@@ -21,18 +21,6 @@ const scopedTables = SCOPED_WRITE_ORDER.map((key) => tables[key]);
 
 const tenantIndexedTables = [...scopedTables, 'account_member_resources', 'audit_entries'] as const;
 
-/** Tables only a pre-Account-Kit database has; their presence means an unsupported upgrade. */
-const preCutoverTables = [
-  'sessions',
-  'user_session_index',
-  'email_proofs',
-  'invitations',
-  'invitation_proposals',
-  'account_joining_policies',
-  'company_join_intents',
-  'account_email_changes',
-] as const;
-
 /** Account Kit storage, including the empty tables its pruning and checks still visit. */
 const accountKitTables = [
   'account_sessions',
@@ -48,20 +36,16 @@ const accountKitTables = [
   'social_handoff_codes',
 ] as const;
 
-/**
- * Refuses a database created before the Account Kit cutover, or one missing Kit storage. Such a
- * database cannot be upgraded in place: the installation starts from a fresh database.
- */
+/** Refuses a database missing Account Kit storage. */
 async function assertAccountKitStorage() {
   const rows = (await db.from('sqlite_master').where('type', 'table').select('name')) as Array<{
     name: string;
   }>;
   const existingTables = new Set(rows.map((row) => row.name));
-  const stale = preCutoverTables.filter((table) => existingTables.has(table));
   const missing = accountKitTables.filter((table) => !existingTables.has(table));
-  if (stale.length || missing.length) {
+  if (missing.length) {
     throw new Error(
-      `Database schema drift: this database predates Account Kit sign-in (${[...stale, ...missing.map((table) => `missing ${table}`)].join(', ')}). Back it up, then start from a fresh database as the upgrade guide describes.`
+      `Database schema drift: Account Kit storage is missing (${missing.join(', ')})`
     );
   }
 }
@@ -152,18 +136,9 @@ async function assertPackageColumns(table: string, readColumns: readonly string[
   }
 }
 
-async function assertLegacyMasqueradeRetired() {
-  const legacy = await db
-    .from('sqlite_master')
-    .where({ type: 'table', name: 'masquerades' })
-    .first();
-  if (legacy) throw new Error('Database schema drift: legacy masquerades table remains');
-}
-
 export async function assertSchemaIntegrity() {
   await assertAccountKitStorage();
   await assertBaselineMigrationRecord();
-  await assertLegacyMasqueradeRetired();
   await assertPackageColumns('memberships', [
     'id',
     'scope_id',

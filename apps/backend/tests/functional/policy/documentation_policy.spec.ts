@@ -120,7 +120,7 @@ test.group('M5 documentation and policy contracts', () => {
     assert.include(monitoring, '/health/ready');
     assert.notMatch(
       operatorDocs,
-      /server\/dist|capacitylens-server|recover:audit-outbox|cutover:repair/
+      /server\/dist|capacitylens-server|recover:audit-outbox|cutover:repair|ends existing member views/
     );
   });
 

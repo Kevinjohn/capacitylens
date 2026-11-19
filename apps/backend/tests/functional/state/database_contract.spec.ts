@@ -52,17 +52,7 @@ test.group('M1 database contract', (group) => {
     const journal = await db.from('adonis_schema').orderBy('id').select('name');
     assert.deepEqual(
       journal.map((row) => row.name),
-      [
-        'database/migrations/202610120001_create_capacitylens_baseline',
-        'database/migrations/202610270001_planning_soft_delete_ownership',
-        'database/migrations/202610270001_replace_legacy_masquerades_with_package',
-        'database/migrations/202611090001_replace_command_results_with_request_receipts',
-        'database/migrations/202611090002_replace_action_proofs_with_password_confirmations',
-        'database/migrations/202611110001_unbind_password_confirmation_scope_from_companies',
-        'database/migrations/202611120001_rename_ignore_weekends_to_ignore_working_days',
-        'database/migrations/202611120002_drop_ownership_transfers',
-        'database/migrations/202611180001_create_planning_histories',
-      ]
+      ['database/migrations/202610120001_create_capacitylens_baseline']
     );
     const rows = await db.from('sqlite_master').select('name').where('type', 'table');
     assert.includeMembers(

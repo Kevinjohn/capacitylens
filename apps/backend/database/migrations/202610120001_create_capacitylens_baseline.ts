@@ -1,4 +1,5 @@
 import { BaseSchema } from '@adonisjs/lucid/schema';
+import { createMasqueradeSchema } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
 
 const relationships = [
   ['projects', 'client_id', 'clients'],
@@ -24,6 +25,9 @@ const scopedTables = [
   'time_off',
   'closures',
 ] as const;
+
+/** Planning rows a typed delete moves to trash rather than removing. */
+const retained = ['allocations', 'time_off', 'closures', 'phases', 'disciplines'] as const;
 
 const metadata = (
   table: Parameters<BaseSchema['schema']['createTable']>[1] extends (value: infer T) => void
@@ -181,7 +185,7 @@ export default class extends BaseSchema {
       table.string('status').notNullable();
       table.text('note').nullable();
       table.string('task').nullable();
-      table.json('ignore_weekends').nullable();
+      table.json('ignore_working_days').nullable();
       table.string('series_id').nullable();
       table.index(['resource_id']);
       table.index(['activity_id']);
@@ -284,49 +288,28 @@ export default class extends BaseSchema {
       table.unique(['company_id', 'user_id']);
       table.unique(['company_id', 'resource_id']);
     });
-    this.schema.createTable('ownership_transfers', (table) => {
-      scoped(table);
-      table.string('from_user_id').notNullable();
-      table.string('to_user_id').notNullable();
-      table.string('status').notNullable();
-      table.integer('revision').notNullable();
-    });
-    this.schema.createTable('masquerades', (table) => {
-      scoped(table);
-      // Ending the Account Kit sign-in ends the view it opened.
+    createMasqueradeSchema(this.schema);
+    // Receipts for @kevinjohn/adonisjs-duplicate-request-guard. The two unique indexes arbitrate
+    // reservations; do not drop them. The operation column holds the JSON tuple [operation name,
+    // actor id], so command ids and request keys are scoped to one actor's operation.
+    this.schema.createTable('request_receipts', (table) => {
+      table.string('id', 36).primary();
       table
-        .integer('session_id')
-        .unsigned()
+        .string('scope_id', 255)
         .notNullable()
-        .references('id')
-        .inTable('account_sessions')
-        .onDelete('CASCADE');
-      table.string('actor_user_id').notNullable();
-      table.string('role').notNullable();
-      table.unique(['session_id']);
-      table
-        .string('target_user_id')
-        .nullable()
-        .references('id')
-        .inTable('users')
-        .onDelete('CASCADE');
-      table.string('token').nullable();
-      table.timestamp('started_at').nullable();
-    });
-    this.schema.createTable('command_results', (table) => {
-      metadata(table);
-      table
-        .string('company_id')
-        .nullable()
         .references('id')
         .inTable('accounts')
         .onDelete('CASCADE');
-      table.string('command_id').notNullable().unique();
-      table.string('payload_hash').notNullable();
-      table.json('result').notNullable();
-      table.string('operation').nullable();
-      table.string('idempotency_key').nullable();
-      table.unique(['operation', 'idempotency_key']);
+      table.string('command_id', 255).notNullable();
+      table.string('operation', 255).notNullable();
+      table.string('request_key', 255).notNullable();
+      table.string('payload_hash', 64).notNullable();
+      table.string('state', 16).notNullable();
+      table.text('result').nullable();
+      table.string('created_at', 32).notNullable();
+      table.string('updated_at', 32).notNullable().index();
+      table.unique(['operation', 'command_id']);
+      table.unique(['operation', 'request_key']);
     });
     // A group is one sign-in's server-side before-image of a typed delete; restore consumes it once.
     // Ending that sign-in deletes the group, so before-images never outlive the session.
@@ -365,28 +348,39 @@ export default class extends BaseSchema {
       table.text('payload_json').notNullable();
       table.unique(['group_id', 'entity', 'row_id']);
     });
-    this.schema.createTable('action_proofs', (table) => {
-      table.string('id').primary();
-      table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
+    this.schema.createTable('password_confirmations', (table) => {
+      table.string('id', 36).primary();
       table
-        .integer('session_id')
+        .string('user_id', 254)
+        .notNullable()
+        .references('id')
+        .inTable('users')
+        .onDelete('CASCADE');
+      // Account Kit's sign-in registry row; a logout or credential change deletes it and its proofs.
+      table
+        .integer('sign_in_id')
         .unsigned()
         .notNullable()
         .references('id')
         .inTable('account_sessions')
         .onDelete('CASCADE');
-      table
-        .string('company_id')
-        .notNullable()
-        .references('id')
-        .inTable('accounts')
-        .onDelete('CASCADE');
-      table.string('action').notNullable();
-      table.string('intent_hash').notNullable();
-      table.timestamp('expires_at').notNullable();
-      table.timestamp('verified_at').nullable();
-      table.timestamp('consumed_at').nullable();
-      table.index(['user_id', 'session_id']);
+      table.string('credential_revision', 64).nullable();
+      table.string('action', 255).notNullable();
+      // A `delete-account` confirmation is scoped to the person's own id, so the scope cannot
+      // reference `accounts`; confirmations last five minutes and are pruned globally.
+      table.string('scope', 255).notNullable();
+      table.string('intent_hash', 64).notNullable();
+      // Epoch milliseconds.
+      table.bigInteger('verified_at').notNullable();
+      table.bigInteger('issued_at').notNullable();
+      // The deadline returned at issuance; a later change to the window does not move it.
+      table.bigInteger('expires_at').notNullable();
+      table.bigInteger('consumed_at').nullable();
+      table.index(['user_id']);
+      table.index(['sign_in_id']);
+      // prune(): expired by expires_at, spent by consumed_at.
+      table.index(['expires_at']);
+      table.index(['consumed_at']);
     });
 
     this.schema.createTable('company_settings', (table) => {
@@ -605,6 +599,24 @@ export default class extends BaseSchema {
       table.integer('origin_session_id').nullable();
       table.index(['company_id', 'actor_id', 'origin_session_id', 'restoration_group_id']);
     });
+    // One undo and redo history per company: the last writer's. Any other commit makes it stale,
+    // so every write replaces the row in place and the table never holds more rows than companies.
+    this.schema.createTable('planning_histories', (table) => {
+      table.string('company_id').primary().references('id').inTable('accounts').onDelete('CASCADE');
+      table
+        .integer('session_id')
+        .unsigned()
+        .notNullable()
+        .references('id')
+        .inTable('account_sessions')
+        .onDelete('CASCADE');
+      table.string('actor_id').notNullable();
+      // Minted by the page that owns the history, so a reload starts a new one.
+      table.string('history_id').notNullable();
+      table.integer('revision').notNullable();
+      table.json('entries_json').notNullable();
+      table.check('revision >= 0');
+    });
 
     for (const [table, column, target] of relationships) {
       for (const operation of ['INSERT', 'UPDATE'] as const) {
@@ -622,6 +634,25 @@ export default class extends BaseSchema {
     }
     this.schema.raw(
       "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE company_id = OLD.company_id AND resource_id = OLD.id; END"
+    );
+    // Added after the tables exist, so each table keeps its foreign-key cascade order and these
+    // triggers run before the relationship triggers above.
+    for (const name of retained) {
+      this.schema.raw(`ALTER TABLE ${name} ADD COLUMN deleted_at TIMESTAMP`);
+      this.schema.raw(
+        `ALTER TABLE ${name} ADD COLUMN deletion_group_id VARCHAR REFERENCES deleted_groups(group_id) ON DELETE CASCADE`
+      );
+      this.schema.raw(`CREATE INDEX ${name}_deletion_group_id_index ON ${name}(deletion_group_id)`);
+      for (const operation of ['INSERT', 'UPDATE'])
+        this.schema.raw(
+          `CREATE TRIGGER ${name}_deletion_group_${operation.toLowerCase()} BEFORE ${operation} ON ${name} WHEN NEW.deletion_group_id IS NOT NULL AND (NEW.deleted_at IS NULL OR NOT EXISTS (SELECT 1 FROM deleted_groups WHERE group_id = NEW.deletion_group_id AND company_id = NEW.company_id)) BEGIN SELECT RAISE(ABORT, 'invalid deletion group association'); END`
+        );
+    }
+    this.schema.raw(
+      `CREATE TRIGGER deleted_groups_active_row_guard BEFORE DELETE ON deleted_groups WHEN ${retained.map((name) => `EXISTS (SELECT 1 FROM ${name} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+    );
+    this.schema.raw(
+      "CREATE TRIGGER deleted_groups_account_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"
     );
   }
 }
