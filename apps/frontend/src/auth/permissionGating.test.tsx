@@ -203,14 +203,17 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
   );
 
   it.each([
-    ['loading', /membership is being verified/i],
-    ['error', /role could not be verified/i],
-    ['refused', /role could not be verified/i],
+    ['loading', { kind: 'loading', lastWrite: null }, /membership is being verified/i],
+    [
+      'failed',
+      { kind: 'failed', error: new Error('Read failed'), lastWrite: null },
+      /role could not be verified/i,
+    ],
   ] as const)(
     'attributes a mutation with no authority after a %s read to access checking, not Viewer membership',
-    async (status, message) => {
+    async (_label, phase, message) => {
       useStore.setState((state) => ({
-        planning: { ...state.planning, authority: null, status },
+        planning: { ...state.planning, authority: null, phase },
       }));
 
       await useStore.getState().addResource(makeResourceDraft());
