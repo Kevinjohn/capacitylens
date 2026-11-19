@@ -7,7 +7,7 @@ import {
   intent,
   canonicalData,
   companyToday,
-  success,
+  makeReceipt,
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -105,7 +105,7 @@ describe('planning cache controller', () => {
       })
       .mockRejectedValueOnce(new TypeError('read unavailable'));
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
-      Promise.resolve(success(execution.mutationId, 2)),
+      Promise.resolve(makeReceipt(execution.mutationId, 2)),
     );
     const h = harness({ execute, read });
     h.controller.setContext(context);

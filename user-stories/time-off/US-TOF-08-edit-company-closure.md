@@ -10,7 +10,7 @@ As an Editor, I want to update a company closure so that its name and dates refl
 
 **Documentation:** [time-off.md](../../docs-src/using/time-off.md)
 
-**Source:** [ClosureForm.tsx](../../apps/frontend/src/components/timeoff/ClosureForm.tsx)
+**Source:** [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx)
 
 ## Acceptance criteria
 
@@ -52,6 +52,6 @@ flowchart TD
 
 **Code references:**
 
-- [ClosureForm.tsx](../../apps/frontend/src/components/timeoff/ClosureForm.tsx)
+- [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
 - [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)

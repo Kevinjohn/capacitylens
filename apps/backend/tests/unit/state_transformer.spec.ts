@@ -11,7 +11,7 @@ import {
   FIXTURE_PHASE,
   FIXTURE_PROJECT,
   FIXTURE_RESOURCE,
-  FIXTURE_TIMEOFF,
+  FIXTURE_TIME_OFF,
 } from '@capacitylens/shared/data/fixtures';
 
 const data = {
@@ -23,7 +23,7 @@ const data = {
   resources: [FIXTURE_RESOURCE],
   activities: [FIXTURE_ACTIVITY],
   allocations: [FIXTURE_ALLOCATION],
-  timeOff: [FIXTURE_TIMEOFF],
+  timeOff: [FIXTURE_TIME_OFF],
   closures: [FIXTURE_CLOSURE],
 };
 
@@ -36,12 +36,12 @@ test('projects private names and time-off notes for every role', ({ assert }) =>
     assert.equal(projected.projects[0]?.name, '"Fixture Aurora"');
     assert.property(projected.projects[0]!, 'codeName');
     assert.isNull(projected.projects[0]?.codeName);
-    assert.equal(projected.timeOff[0]?.note, role === 'admin' ? FIXTURE_TIMEOFF.note : null);
+    assert.equal(projected.timeOff[0]?.note, role === 'admin' ? FIXTURE_TIME_OFF.note : null);
   }
   const owner = transformState(data, FIXTURE_COMPANY.id, 'owner');
   assert.equal(owner.clients[0]?.name, FIXTURE_CLIENT.name);
   assert.equal(owner.clients[0]?.codeName, FIXTURE_CLIENT.codeName);
-  assert.equal(owner.timeOff[0]?.note, FIXTURE_TIMEOFF.note);
+  assert.equal(owner.timeOff[0]?.note, FIXTURE_TIME_OFF.note);
 });
 
 test('sends one display name per client and project for the reader role', ({ assert }) => {

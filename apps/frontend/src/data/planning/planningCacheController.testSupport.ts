@@ -8,8 +8,11 @@ import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { makeCompany } from '@/test/fixtures';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makeReceipt } from '@/test/planning/makeReceipt';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+
+export { makeReceipt };
 
 export const context = { identity: 'actor-1', companyId: 'company-1' };
 export const intent = {
@@ -23,12 +26,6 @@ export const companyToday: ISODate = '2026-06-03';
 export const canonicalData = (companyOverrides: Partial<Company> = {}): AppData => ({
   ...emptyAppData(),
   accounts: [makeCompany({ id: context.companyId, ...companyOverrides })],
-});
-export const success = (mutationId: string, revision: number): PlanningMutationSuccess => ({
-  status: 'committed',
-  mutationId,
-  revision,
-  restoration: { consumedGroupId: null, replacementGroupId: null },
 });
 
 /**
@@ -74,7 +71,7 @@ export function harness(
       const revision = historyStep.baseRevision + 1;
       history.step(kind, historyStep.historyId, historyStep.baseRevision, revision);
       serverSnapshot = { ...serverSnapshot, revision };
-      return success(historyStep.mutationId, revision);
+      return makeReceipt(historyStep.mutationId, revision);
     };
   let id = 0;
   const controller = createPlanningCacheController({
