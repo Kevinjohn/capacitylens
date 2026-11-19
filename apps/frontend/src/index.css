@@ -47,8 +47,8 @@
   /* Capacity cells use a stronger red than action-button tints so over-allocation is visible. Opaque allocation bars supply their own text contrast. */
   --color-danger-cell: var(--c-danger-cell);
   --color-warn: var(--c-warn);
-  --color-timeoff-selected: var(--c-timeoff-selected);
-  --color-timeoff-selected-ink: var(--c-timeoff-selected-ink);
+  --color-time-off-selected: var(--c-time-off-selected);
+  --color-time-off-selected-ink: var(--c-time-off-selected-ink);
   --color-ok: var(--c-ok);
   --color-ok-strong: var(--c-ok-strong);
   --color-ok-strong-hover: var(--c-ok-strong-hover);
@@ -123,8 +123,8 @@
   --c-warn: #d97706;
   /* Draw-mode selection stays deliberately identical in both themes: a vivid yellow marker with
      fixed dark ink. The dark theme inherits these root values instead of overriding them. */
-  --c-timeoff-selected: #facc15;
-  --c-timeoff-selected-ink: #1c2230;
+  --c-time-off-selected: #facc15;
+  --c-time-off-selected-ink: #1c2230;
   --c-ok: #047857;
   --c-ok-strong: #047857;
   /* An opaque hover fill preserves contrast with white action text. */
@@ -538,7 +538,7 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
 /* Drawing time off dims work and highlights existing absences while a new range is
    placed. The grid attribute drives the visual change; inert is applied to the bars
    layer so other memoized rows do not rerender. */
-[data-draw-mode="timeoff"] .scheduler-bar {
+[data-draw-mode="timeOff"] .scheduler-bar {
   opacity: 0.2;
   /* A neutral fill makes background bookings read as inert while time off is being drawn. Important overrides the allocation's inline fill. */
   background-color: var(--color-muted-foreground) !important;
@@ -547,41 +547,41 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
     background-color 0.15s ease;
 }
 
-[data-draw-mode="timeoff"] .scheduler-timeoff-block {
+[data-draw-mode="timeOff"] .scheduler-time-off-block {
   /* Time-off highlights sit above sibling work bars within the lane stacking context. */
   z-index: 3;
-  color: var(--color-timeoff-selected-ink);
+  color: var(--color-time-off-selected-ink);
   /* The block sets its hatch with an inline `background` shorthand. `!important` lets the vivid
      yellow colour beat that shorthand's transparent background-color without replacing its
      background-image, so the existing light-grey diagonals remain visible. */
-  background-color: var(--color-timeoff-selected) !important;
+  background-color: var(--color-time-off-selected) !important;
   box-shadow:
-    0 0 0 1px var(--color-timeoff-selected),
-    0 0 6px 1px color-mix(in oklab, var(--color-timeoff-selected) 45%, transparent);
+    0 0 0 1px var(--color-time-off-selected),
+    0 0 6px 1px color-mix(in oklab, var(--color-time-off-selected) 45%, transparent);
   transition:
     background-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
-[data-draw-mode="timeoff"] .scheduler-closure-band {
+[data-draw-mode="timeOff"] .scheduler-closure-band {
   /* Closure bands share the personal time-off highlight because both represent unavailable time. Important overrides the inline background colour while retaining its hatch image. */
-  color: var(--color-timeoff-selected-ink);
-  background-color: var(--color-timeoff-selected) !important;
+  color: var(--color-time-off-selected-ink);
+  background-color: var(--color-time-off-selected) !important;
   box-shadow:
-    0 0 0 1px var(--color-timeoff-selected),
-    0 0 6px 1px color-mix(in oklab, var(--color-timeoff-selected) 45%, transparent);
+    0 0 0 1px var(--color-time-off-selected),
+    0 0 6px 1px color-mix(in oklab, var(--color-time-off-selected) 45%, transparent);
   transition:
     background-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
 /* The separate closure-label layer needs its own text colour because it cannot inherit from the highlighted band. Keep the fill and glow on the band. */
-[data-draw-mode="timeoff"] .scheduler-closure-label-layer {
-  color: var(--color-timeoff-selected-ink);
+[data-draw-mode="timeOff"] .scheduler-closure-label-layer {
+  color: var(--color-time-off-selected-ink);
 }
 
 /* Portalled allocation popovers sit outside the inert bars layer, so time-off draw mode must hide any lingering popover through the grid attribute. */
-body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
+body:has([data-draw-mode="timeOff"]) .scheduler-alloc-popover {
   display: none;
 }
 

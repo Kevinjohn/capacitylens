@@ -49,8 +49,7 @@ export async function readCommandResult<T>(
   expectedStatus?: number,
 ): Promise<TeamAccessResult<T>> {
   if (!response.ok) {
-    const clonedMessage =
-      typeof response.clone === 'function' ? await readApiError(response) : undefined;
+    const clonedMessage = await readApiError(response);
     const body: unknown = await response.json().catch(() => null);
     const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
     const unknown =
