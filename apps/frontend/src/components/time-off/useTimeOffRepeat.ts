@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
-  resolveDefaultTimeOffRepeatUntilDate,
+  calculateDefaultTimeOffRepeatUntilDate,
   maximumTimeOffRepeatUntilDate,
   RepeatingDateError,
 } from '@capacitylens/shared/lib/repeatingDates';
@@ -26,7 +26,7 @@ interface TimeOffRepeatDraftInput {
 /** Manages repeat cadence, end date, and preview state for a time-off draft. */
 export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
   const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } =
-    useRepeatUntil<TimeOffRepeatSelection>(input.startDate, resolveDefaultTimeOffRepeatUntilDate);
+    useRepeatUntil<TimeOffRepeatSelection>(input.startDate, calculateDefaultTimeOffRepeatUntilDate);
 
   const maximum = isValidISODate(input.startDate)
     ? maximumTimeOffRepeatUntilDate(input.startDate)

@@ -55,7 +55,7 @@ handler. A story's role label is descriptive; the server owns enforcement.
 | Clients       | `/clients`     | [Clients](../apps/frontend/src/components/clients/ClientList.tsx)                      | [Clients and projects](../docs-src/using/projects.md)       |
 | Projects      | `/projects`    | [Projects](../apps/frontend/src/components/projects/ProjectList.tsx)                   | [Clients and projects](../docs-src/using/projects.md)       |
 | Activities    | `/activities`  | [Activities](../apps/frontend/src/components/activities/ActivityList.tsx)              | [Activities](../docs-src/using/activities.md)               |
-| Time off      | `/timeoff`     | [Time off](../apps/frontend/src/components/timeoff/TimeOffList.tsx)                    | [Time off](../docs-src/using/time-off.md)                   |
+| Time off      | `/timeoff`     | [Time off](../apps/frontend/src/components/time-off/TimeOffList.tsx)                   | [Time off](../docs-src/using/time-off.md)                   |
 | Team & access | `/team`        | [Team](../apps/frontend/src/components/team/TeamAccessView.tsx)                        | [Team and access](../docs-src/using/team-access.md)         |
 | Settings      | `/settings`    | [Settings](../apps/frontend/src/components/settings/SettingsView.tsx)                  | [Settings](../docs-src/using/settings.md)                   |
 | Diagnostics   | `/diagnostics` | [Diagnostics](../apps/frontend/src/components/diagnostics/DiagnosticsView.tsx)         | [Diagnostics](../docs-src/admin/diagnostics.md)             |

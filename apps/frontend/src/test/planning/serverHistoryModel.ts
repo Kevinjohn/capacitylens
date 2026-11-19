@@ -10,6 +10,10 @@ export function createServerHistoryModel() {
   const live = (historyId: string | null | undefined, revision: number) =>
     row && row.historyId === historyId && row.revision === revision ? row : null;
   return {
+    /** Whether the page with `historyId` holds the history at `revision`. */
+    isLive(historyId: string | null | undefined, revision: number): boolean {
+      return live(historyId, revision) !== null;
+    },
     /** What a read at `revision` by the page with `historyId` is told. */
     report(historyId: string | null | undefined, revision: number): PlanningHistory {
       const current = live(historyId, revision);

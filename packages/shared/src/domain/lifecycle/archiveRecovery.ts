@@ -36,7 +36,7 @@ export function archiveRecovery(data: AppData, companyId: string, role: Role): A
   }
   const lookup = (table: AppDataKey, id: string) => indexes.get(table)?.get(id);
   // Ignoring archive timestamps makes a deleted grandparent visible to the same domain walk.
-  const lookupRowIgnoringArchive = (table: AppDataKey, id: string) => {
+  const getRowIgnoringArchive = (table: AppDataKey, id: string) => {
     const row = lookup(table, id);
     return row ? { ...row, archivedAt: null } : undefined;
   };
@@ -55,7 +55,7 @@ export function archiveRecovery(data: AppData, companyId: string, role: Role): A
     for (const row of indexes.get(entity)?.values() ?? []) {
       const state = lifecycleStatus(row);
       if (state === 'deleted' || (entity === 'clients' && row.builtin === true)) continue;
-      if (inspectLifecycleAncestry(entity, row, lookupRowIgnoringArchive).kind === 'hidden') {
+      if (inspectLifecycleAncestry(entity, row, getRowIgnoringArchive).kind === 'hidden') {
         continue;
       }
       const ancestry = inspectLifecycleAncestry(entity, row, lookup);

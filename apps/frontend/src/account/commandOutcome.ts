@@ -27,8 +27,7 @@ function compareCanonicalKeys(left: string, right: string): number {
 
 async function readResponseBody(response: Response, parsedBody: unknown): Promise<unknown> {
   if (parsedBody !== undefined) return parsedBody;
-  const readableResponse = typeof response.clone === 'function' ? response.clone() : response;
-  return readableResponse.json();
+  return response.clone().json();
 }
 
 /** Keep unknown-outcome retry ceremonies distinct when one UI operation accepts different
