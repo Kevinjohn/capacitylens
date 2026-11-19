@@ -249,8 +249,8 @@ for (const repeat of [false, true]) {
     request,
   }) => {
     const suffix = `${Date.now()}-${repeat ? 'repeat' : 'single'}`;
-    const owner = await signUpUser(`timeoff-owner-${suffix}@capacitylens.dev`);
-    const editor = await signUpUser(`timeoff-editor-${suffix}@capacitylens.dev`);
+    const owner = await signUpUser(`time-off-owner-${suffix}@capacitylens.dev`);
+    const editor = await signUpUser(`time-off-editor-${suffix}@capacitylens.dev`);
     const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`);
     const resourceId = crypto.randomUUID();
     await createFixturePerson(request, owner.cookie, companyId, {

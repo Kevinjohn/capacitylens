@@ -30,7 +30,7 @@ export const entityConfig: Record<
   },
 };
 
-export function getRowName(row: LifecycleRow): string {
+export function resolveRowName(row: LifecycleRow): string {
   if ('name' in row && row.name) return row.name;
   if ('role' in row) return row.role;
   return '';
@@ -113,7 +113,7 @@ export function buildArchivedRows(data: AppData, entity: ArchivedEntity): Archiv
     .filter(({ row, ancestor }) => lifecycleStatus(row) === 'archived' || ancestor !== null)
     .toSorted(
       (left, right) =>
-        getRowName(left.row).localeCompare(getRowName(right.row), undefined, {
+        resolveRowName(left.row).localeCompare(resolveRowName(right.row), undefined, {
           sensitivity: 'base',
         }) || left.row.id.localeCompare(right.row.id),
     );

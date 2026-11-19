@@ -19,7 +19,7 @@ const ADVISORY_COPY: Record<
 > = {
   toast: {
     over: plural(m.scheduler_advisory_over_one, m.scheduler_advisory_over_other),
-    timeOff: plural(m.scheduler_advisory_timeoff_one, m.scheduler_advisory_timeoff_other),
+    timeOff: plural(m.scheduler_advisory_time_off_one, m.scheduler_advisory_time_off_other),
     join: m.scheduler_advisory_join,
     wrap: (bits) => m.scheduler_advisory_prefix({ bits }),
   },
@@ -29,8 +29,8 @@ const ADVISORY_COPY: Record<
       m.form_allocation_advisory_over_capacity_other,
     ),
     timeOff: plural(
-      m.form_allocation_advisory_timeoff_one,
-      m.form_allocation_advisory_timeoff_other,
+      m.form_allocation_advisory_time_off_one,
+      m.form_allocation_advisory_time_off_other,
     ),
     join: m.form_allocation_advisory_join,
     wrap: (advisory) => m.form_allocation_advisory({ advisory }),
@@ -41,8 +41,8 @@ const ADVISORY_COPY: Record<
       m.form_allocation_repeat_advisory_over_capacity_other,
     ),
     timeOff: plural(
-      m.form_allocation_repeat_advisory_timeoff_one,
-      m.form_allocation_repeat_advisory_timeoff_other,
+      m.form_allocation_repeat_advisory_time_off_one,
+      m.form_allocation_repeat_advisory_time_off_other,
     ),
     nonEffectiveStart: plural(
       m.form_allocation_repeat_advisory_non_effective_start_one,

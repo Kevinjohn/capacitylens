@@ -22,7 +22,7 @@ import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { hasAnyIdentity, hasNoCompany } from '#models/installation_company';
 import { managedGuard } from '#services/auth/managed_guard';
 
-function buildAuthRequestMessage(error: unknown, operation: 'sign-in' | 'sign-up') {
+function requireAuthRequestMessage(error: unknown, operation: 'sign-in' | 'sign-up') {
   if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
   const shape = error.messages.some(
     (message: { rule: string }) => message.rule === 'unknownField' || message.rule === 'object'
@@ -77,7 +77,7 @@ export default class AuthController {
       body = await ctx.request.validateUsing(signInValidator, { data: ctx.request.body() });
     } catch (error) {
       // Route wording: sign-in answers a Vine failure with its own sentence and no code.
-      return ctx.response.badRequest({ error: buildAuthRequestMessage(error, 'sign-in') });
+      return ctx.response.badRequest({ error: requireAuthRequestMessage(error, 'sign-in') });
     }
     const { email } = body;
     try {
@@ -107,7 +107,7 @@ export default class AuthController {
       body = await ctx.request.validateUsing(signUpValidator, { data: ctx.request.body() });
     } catch (error) {
       // Route wording: sign-up answers a Vine failure with its own sentence and no code.
-      return ctx.response.badRequest({ error: buildAuthRequestMessage(error, 'sign-up') });
+      return ctx.response.badRequest({ error: requireAuthRequestMessage(error, 'sign-up') });
     }
     const { email, name } = body;
     if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || (await hasNoCompany(db))) {
