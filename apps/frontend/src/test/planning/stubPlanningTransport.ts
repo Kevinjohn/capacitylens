@@ -92,8 +92,10 @@ export class StubPlanningTransport implements PlanningTransport {
     return release;
   }
 
-  /** Replace canonical fixture rows without clearing revision or test response history. */
+  /** Replace canonical fixture rows without clearing test response history. The revision advances
+   * only when the rows differ, as the server's does for a change a reader could see. */
   updateSource(data: AppData): void {
+    if (JSON.stringify(data) !== JSON.stringify(this.data)) this.advanceRevisions();
     this.data = structuredClone(data);
   }
 
@@ -144,7 +146,7 @@ export class StubPlanningTransport implements PlanningTransport {
   async read(
     context: PlanningClientContext,
     signal: AbortSignal,
-    { window, historyId }: PlanningReadRequest = {},
+    { window, historyId, ifRevision }: PlanningReadRequest = {},
   ): Promise<PlanningSnapshot> {
     signal.throwIfAborted();
     this.readWindows.push(window);
@@ -155,10 +157,10 @@ export class StubPlanningTransport implements PlanningTransport {
       signal.throwIfAborted();
     }
     const history = this.liveHistory(context.companyId, historyId);
-    return {
-      revision: this.revision(context.companyId),
+    const revision = this.revision(context.companyId);
+    const base = {
+      revision,
       authority: this.authority,
-      data: this.companyRows(context.companyId),
       today: this.todayFor(context.companyId),
       capacity: this.capacity ?? emptyCapacity(window),
       history: {
@@ -166,6 +168,9 @@ export class StubPlanningTransport implements PlanningTransport {
         canRedo: this.authority.canWrite && !!history && history.future.length > 0,
       },
     };
+    return ifRevision === revision
+      ? { ...base, slice: 'unchanged' }
+      : { ...base, slice: 'full', data: this.companyRows(context.companyId) };
   }
 
   async execute(
@@ -265,6 +270,10 @@ export class StubPlanningTransport implements PlanningTransport {
       revision: history.revision,
       restoration: { consumedGroupId: null, replacementGroupId: null },
     };
+  }
+
+  private advanceRevisions(): void {
+    for (const [companyId, revision] of this.revisions) this.revisions.set(companyId, revision + 1);
   }
 
   private revision(companyId: string): number {

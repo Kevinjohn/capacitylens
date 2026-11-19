@@ -1,7 +1,7 @@
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { makeCompany, makeAppData } from '@/test/fixtures';
+import { makeCompany, makeAppData, requireFullSnapshot } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes';
 import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
@@ -66,9 +66,11 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     reproject: reprojectAccess,
     readBootstrapCompany: async (companyId) => {
       if (bootstrapFailure) throw new Error('Bootstrap company read failed');
-      const snapshot = await bootstrapTransport.read(
-        { companyId, identity: 'bootstrap' },
-        new AbortController().signal,
+      const snapshot = requireFullSnapshot(
+        await bootstrapTransport.read(
+          { companyId, identity: 'bootstrap' },
+          new AbortController().signal,
+        ),
       );
       return snapshot.data.accounts.find((candidate) => candidate.id === companyId)?.name ?? null;
     },

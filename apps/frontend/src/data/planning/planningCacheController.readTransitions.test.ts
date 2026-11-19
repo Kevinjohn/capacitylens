@@ -4,9 +4,27 @@ import { isPlanningHistoryReady } from './planningReadiness';
 import { PlanningControllerError } from './planningErrors';
 import { readPlanningProblem } from './planningNotices';
 import type { PlanningSnapshot } from './planningCacheTypes';
-import { snapshot, deferred, ready, readyWithHistory } from '@/test/planningTransitionHarness';
+import {
+  context,
+  deferred,
+  ready,
+  readyWithHistory,
+  setup,
+  snapshot,
+} from '@/test/planningTransitionHarness';
+import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 // Pins the coordinator transitions that no other controller test asserts directly.
+
+/** A read without rows, as the harness's server reports it for the revision the page named. */
+const unchanged = (revision: number): PlanningSnapshot => ({
+  revision,
+  authority: makePlanningAuthority(),
+  slice: 'unchanged',
+  today: '2026-06-03',
+  capacity: emptyCapacity(),
+});
 
 /** What the server reports to this page after its one change. */
 const undoable = { canUndo: true, canRedo: false };
@@ -136,5 +154,38 @@ describe('planning read transitions', () => {
     await expect(fresh).resolves.toBe(true);
     await expect(pan).resolves.toBe(true);
     expect(h.state().planning.phase.kind).toBe('ready');
+  });
+
+  it('keeps the cached rows on an unchanged read and takes its capacity', async () => {
+    const h = await ready();
+    const rows = h.state().data;
+    const capacity = emptyCapacity({ from: '2026-06-04', to: '2026-06-04' });
+    h.read.mockResolvedValueOnce({ ...unchanged(1), capacity, today: '2026-06-04' });
+    await expect(h.controller.refresh({ quiet: true })).resolves.toBe(true);
+    expect(h.read.mock.lastCall?.[2]?.ifRevision).toBe(1);
+    expect(h.state().data).toBe(rows);
+    expect(h.state().data.clients[0]).toBe(rows.clients[0]);
+    expect(h.state().planning.capacity).toBe(capacity);
+    expect(h.state().planning.today).toBe('2026-06-04');
+  });
+
+  it('reads the full slice once when an unchanged read names another revision', async () => {
+    const h = await ready();
+    h.read.mockResolvedValueOnce(unchanged(2));
+    await expect(h.controller.refresh()).resolves.toBe(true);
+    expect(h.read).toHaveBeenCalledTimes(3);
+    expect(h.read.mock.calls[1]?.[2]?.ifRevision).toBe(1);
+    expect(h.read.mock.calls[2]?.[2]).not.toHaveProperty('ifRevision');
+    expect(h.state().planning.revision).toBe(1);
+  });
+
+  it('names no revision from a new context', async () => {
+    const h = setup();
+    h.controller.setContext(context);
+    await expect(h.controller.refresh()).resolves.toBe(true);
+    expect(h.read.mock.calls[0]?.[2]).not.toHaveProperty('ifRevision');
+    h.controller.setContext({ ...context, identity: 'another-session' });
+    await expect(h.controller.refresh()).resolves.toBe(true);
+    expect(h.read.mock.calls[1]?.[2]).not.toHaveProperty('ifRevision');
   });
 });

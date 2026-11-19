@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningContracts';
-import { makeCompany, makeAppData, makeClient } from './fixtures';
+import { makeCompany, makeAppData, makeClient, requireFullSnapshot } from './fixtures';
 import { createTestPlanningTransport } from './createTestPlanningTransport';
 import { getStubPlanningTransport } from './planningTransportHandle';
 
@@ -28,7 +28,7 @@ it('reads a reset snapshot scoped to its company at that company revision', asyn
     }),
   );
 
-  const snapshot = await transport.read(context, signal);
+  const snapshot = requireFullSnapshot(await transport.read(context, signal));
 
   expect(snapshot).toMatchObject({ revision: 0, authority: { canWrite: true } });
   expect(snapshot.data.clients).toEqual([client]);
@@ -62,7 +62,7 @@ it('records the sent intent and applies an unvalidated single-row change', async
     revision: 1,
     restoration: { consumedGroupId: null, replacementGroupId: null },
   });
-  const snapshot = await transport.read(context, signal);
+  const snapshot = requireFullSnapshot(await transport.read(context, signal));
   expect(snapshot.data.clients).toEqual([client]);
 });
 
@@ -85,7 +85,7 @@ it('returns a queued response, preserves its canonical read data and exposes its
       signal,
     ),
   ).resolves.toEqual(queued);
-  const snapshot = await transport.read(context, signal);
+  const snapshot = requireFullSnapshot(await transport.read(context, signal));
   expect(snapshot.data.clients).toEqual([client]);
 });
 

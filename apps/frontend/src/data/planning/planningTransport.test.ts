@@ -258,7 +258,7 @@ describe('generated planning transport', () => {
       data: emptyAppData(),
     });
     const result = await transport.read(context, signal);
-    expect(result).toEqual({ revision: 5, data: emptyAppData(), authority });
+    expect(result).toEqual({ revision: 5, slice: 'full', data: emptyAppData(), authority });
     expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning');
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
@@ -330,6 +330,28 @@ describe('generated planning transport', () => {
 
     expect(result.history).toEqual(history);
     expect(new URL(requests[0]?.url ?? '').searchParams.get('historyId')).toBe(historyId);
+  });
+
+  it('names the revision it holds and returns an unchanged read without rows', async () => {
+    const { transport, requests } = harness({
+      companyId: 'wayne',
+      revision: 5,
+      slice: 'unchanged',
+      authority: {
+        actorId: 'bruce',
+        effectiveActorId: 'bruce',
+        role: 'owner',
+        canWrite: true,
+        canSeePrivateNames: true,
+        canSeeTimeOffNote: true,
+      },
+    });
+
+    const result = await transport.read(context, signal, { ifRevision: 5 });
+
+    expect(result).toMatchObject({ revision: 5, slice: 'unchanged' });
+    expect(result).not.toHaveProperty('data');
+    expect(new URL(requests[0]?.url ?? '').searchParams.get('ifRevision')).toBe('5');
   });
 
   it.each(['undo', 'redo'] as const)(

@@ -20,12 +20,19 @@ import { withActor } from '#services/auth/current_actor';
 export default class PlanningController {
   async show(ctx: HttpContext) {
     const companyId = String(ctx.params.companyId);
-    const { from, to, historyId } = await ctx.request.validateUsing(planningReadValidator, {
-      data: ctx.request.qs(),
-    });
+    const { from, to, historyId, ifRevision } = await ctx.request.validateUsing(
+      planningReadValidator,
+      {
+        data: ctx.request.qs(),
+      }
+    );
     const window = from !== undefined && to !== undefined ? { from, to } : undefined;
     return withActor(ctx, (actor, trx) =>
-      readPlanning(trx, companyId, window, { sessionId: actor.sessionId, historyId })
+      readPlanning(trx, companyId, window, {
+        sessionId: actor.sessionId,
+        historyId,
+        ifRevision,
+      })
     );
   }
 
