@@ -1,5 +1,5 @@
 import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl } from '@/api/queryClient';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import type { BrowserAccountCommand } from './accountCommands';
 import { runCommand, buildJsonCommandRequestInit } from './commandRequest';
@@ -52,7 +52,7 @@ export const memberRequests = {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled }),
+      body: buildJsonBody('api.members.tracking', { enabled }),
     });
   },
 
@@ -70,7 +70,11 @@ export const memberRequests = {
           apiRouteUrl('api.members.role', {
             params: { companyId, userId: principalId },
           }),
-          buildJsonCommandRequestInit('PATCH', { role }, resolved),
+          buildJsonCommandRequestInit(
+            'PATCH',
+            buildJsonBody('api.members.role', { role }),
+            resolved,
+          ),
         ),
     });
   },
@@ -89,7 +93,11 @@ export const memberRequests = {
           apiRouteUrl('api.members.status', {
             params: { companyId, userId: principalId },
           }),
-          buildJsonCommandRequestInit('PATCH', { status }, resolved),
+          buildJsonCommandRequestInit(
+            'PATCH',
+            buildJsonBody('api.members.status', { status }),
+            resolved,
+          ),
         ),
     });
   },
@@ -108,7 +116,10 @@ export const memberRequests = {
           apiRouteUrl('api.ownership.transfer', { params: { companyId } }),
           buildJsonCommandRequestInit(
             'POST',
-            { toUserId: targetPrincipalId, confirmationId },
+            buildJsonBody('api.ownership.transfer', {
+              toUserId: targetPrincipalId,
+              confirmationId,
+            }),
             resolved,
           ),
         ),

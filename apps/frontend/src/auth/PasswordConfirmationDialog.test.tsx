@@ -3,23 +3,30 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { m } from '@/i18n';
 import { PasswordConfirmationDialog } from './PasswordConfirmationDialog';
+import type { PasswordConfirmationRequest } from './PasswordConfirmationDialog';
 
 const request = vi.hoisted(() => vi.fn());
 
 vi.mock('@/api/queryClient', () => ({
   apiRouteUrl: () => '/api/auth/password-confirmation',
+  buildJsonBody: (_name: string, body: unknown) => JSON.stringify(body),
 }));
 vi.mock('@/data/requestTimeout', () => ({ apiFetch: (...args: unknown[]) => request(...args) }));
 
 afterEach(() => request.mockReset());
 
-function renderDialog(action: 'transfer-ownership' | 'import' | 'anonymise' = 'import') {
+const requests = {
+  'transfer-ownership': { action: 'transfer-ownership', intent: { toUserId: 'user-2' } },
+  import: { action: 'import', intent: { baseRevision: 4, document: {} } },
+  anonymise: { action: 'anonymise', intent: {} },
+} satisfies Record<string, PasswordConfirmationRequest>;
+
+function renderDialog(action: keyof typeof requests = 'import') {
   const onConfirmed = vi.fn();
   render(
     <PasswordConfirmationDialog
-      action={action}
+      {...requests[action]}
       companyId="account-1"
-      intent={{ revision: 4 }}
       onConfirmed={onConfirmed}
       onCancel={vi.fn()}
     />,

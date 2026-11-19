@@ -3,6 +3,7 @@ import { createTuyauReactQueryClient } from '@tuyau/react-query';
 import { QueryClient } from '@tanstack/react-query';
 import type { RequestArgs } from '@tuyau/core/types';
 import { registry } from '@capacitylens/backend/registry';
+import type { Route } from '@capacitylens/backend/registry';
 import { apiFetch } from '@/data/requestTimeout';
 
 /** Identifies the principal and read projection that owns a cached API result. */
@@ -46,6 +47,14 @@ export function apiRouteUrl<Name extends keyof ProductRoutes>(
 ): string {
   // The URL never depends on the body, so callers send the body separately.
   return client.getRoute(name, args as RequestArgs<ProductRoutes[Name]>).url;
+}
+
+/** Serialize a request body checked against the route's generated validator input. */
+export function buildJsonBody<Name extends keyof ProductRoutes>(
+  _name: Name,
+  body: Route.Body<Name>,
+): string {
+  return JSON.stringify(body);
 }
 
 type QueryReadRoute = 'api.state' | 'api.admission.index';

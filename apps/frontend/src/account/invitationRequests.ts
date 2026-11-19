@@ -1,6 +1,6 @@
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl } from '@/api/queryClient';
+import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { BrowserAccountCommand } from './accountCommands';
 import { buildPayloadOperationKey } from './commandOutcome';
 import type { CreateInvitationBody } from './accountRequestTypes';
@@ -41,7 +41,11 @@ export const invitationRequests = {
       request: (resolved) =>
         apiFetch(
           apiRouteUrl('api.invites.create', {}),
-          buildJsonCommandRequestInit('POST', payload, resolved),
+          buildJsonCommandRequestInit(
+            'POST',
+            buildJsonBody('api.invites.create', payload),
+            resolved,
+          ),
         ),
     });
   },
