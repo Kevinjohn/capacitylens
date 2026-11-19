@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { isPlanningMutation, openApp } from './browserTestSupport';
 
 test.describe('CRUD and persistent company transfer', () => {
   test('a project cannot be saved without a client', async ({ page }) => {
@@ -19,10 +19,8 @@ test.describe('CRUD and persistent company transfer', () => {
     await page.getByRole('button', { name: 'Add client' }).click();
 
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Persisted Client');
-    const committed = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'POST' &&
-        new URL(response.url()).pathname === '/api/companies/a-studio/clients',
+    const committed = page.waitForResponse((response) =>
+      isPlanningMutation(response.request(), 'catalogue.create', 'clients'),
     );
     await page.getByRole('button', { name: 'Save' }).click();
     const response = await committed;

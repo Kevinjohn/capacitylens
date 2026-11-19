@@ -59,7 +59,7 @@ flowchart TD
   B -->|invalid| I["Field/form error; dialog remains open"]
   C --> D["Planning cache controller executes command"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends api.planning.allocation.create"]
+  E --> F["planningTransport sends api.planning.mutate"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Form error; draft remains available"]
   F --> G["PlanningController.mutatePlanning executes scoped writeRow"]

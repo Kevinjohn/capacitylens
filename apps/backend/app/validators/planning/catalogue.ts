@@ -5,7 +5,6 @@ import {
   boolean,
   entityId,
   hasEntity,
-  meta,
   nameText,
   nullableId,
   nullableUserText,
@@ -212,7 +211,3 @@ export const catalogueIntent = vine.union([
     vine.object({ operation: vine.literal('catalogue.delete'), entity: catalogueDelete })
   ),
 ]);
-
-export const catalogueMutationValidator = vine.compile(
-  vine.object({ ...meta(), intent: catalogueIntent })
-);

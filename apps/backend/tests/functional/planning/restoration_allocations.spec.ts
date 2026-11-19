@@ -16,9 +16,7 @@ import {
   signIn,
 } from './helpers.js';
 import {
-  allocationsUrl,
   note,
-  send,
   deleteOne,
   deleteGroup,
   restore,
@@ -406,33 +404,5 @@ test.group('session-bound allocation restoration', (suite) => {
     const restoredSecond = await db.from('allocations').where('id', second!).first();
     assert.isNull(restoredSecond.deleted_at);
     assert.isNull(restoredSecond.deletion_group_id);
-  });
-
-  test('delete and restore routes accept only their named operation and target', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup);
-    const { cookie } = await signIn(client);
-    const [id, other] = await createAllocations(client, cookie, 2);
-    const before = await readState(companyId, true);
-    const mismatched = await send(client, cookie, `${allocationsUrl}/${id}/delete`, 1, {
-      operation: 'allocation.delete',
-      id: other,
-    });
-    mismatched.assertStatus(400);
-    assert.equal(mismatched.body().code, 'VALIDATION_ERROR');
-    const wrongOperation = await send(
-      client,
-      cookie,
-      `/api/companies/${companyId}/planning/restore-group`,
-      1,
-      { operation: 'allocation.delete', id }
-    );
-    wrongOperation.assertStatus(400);
-    assert.equal(wrongOperation.body().code, 'VALIDATION_ERROR');
-    assert.deepEqual(await readState(companyId, true), before);
-    assert.lengthOf(await markers(), 1);
   });
 });

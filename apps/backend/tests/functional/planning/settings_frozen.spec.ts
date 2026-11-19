@@ -22,8 +22,8 @@ test.group('typed company calendar settings', (group) => {
       ['weekStartsOn', 0, 1],
       ['timezone', 'Europe/London', 'UTC'],
     ] as const) {
-      const path = `/api/companies/${companyId}/settings`;
-      const first = await session(client.patch(path), cookie)
+      const path = `/api/companies/${companyId}/planning/mutations`;
+      const first = await session(client.post(path), cookie)
         .json({
           mutationId: randomUUID(),
           baseRevision: revision,
@@ -33,7 +33,7 @@ test.group('typed company calendar settings', (group) => {
       first.assertStatus(200);
       revision += 1;
       const before = await readState(companyId, true);
-      const refused = await session(client.patch(path), cookie)
+      const refused = await session(client.post(path), cookie)
         .json({
           mutationId: randomUUID(),
           baseRevision: revision,

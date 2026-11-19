@@ -6,7 +6,6 @@ import {
   calendarDate,
   dateRange,
   entityId,
-  meta,
   nullableUserText,
   occurrenceIdsExcludeFirst,
   hasOperation,
@@ -77,7 +76,3 @@ export const timeOffIntent = vine.union([
   ),
   vine.union.else(vine.object({ operation: vine.literal('timeOff.delete'), id: entityId() })),
 ]);
-
-export const timeOffMutationValidator = vine.compile(
-  vine.object({ ...meta(), intent: timeOffIntent })
-);

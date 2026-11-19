@@ -144,7 +144,10 @@ test.group('authenticated typed planning transactions', (group) => {
         endDate: date,
         hoursPerDay: 24,
       };
-      const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
+      const created = await session(
+        client.post(`/api/companies/${companyId}/planning/mutations`),
+        cookie
+      )
         .json({
           mutationId: randomUUID(),
           baseRevision: revision,
@@ -223,7 +226,10 @@ test.group('authenticated typed planning transactions', (group) => {
       baseRevision: 0,
       intent: { operation: 'allocation.create', allocation },
     };
-    const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
+    const created = await session(
+      client.post(`/api/companies/${companyId}/planning/mutations`),
+      cookie
+    )
       .json(input)
       .send();
     created.assertStatus(200);
@@ -243,13 +249,16 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.isTrue(
       read.body().data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
-    const duplicate = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
+    const duplicate = await session(
+      client.post(`/api/companies/${companyId}/planning/mutations`),
+      cookie
+    )
       .json(input)
       .send();
     duplicate.assertStatus(409);
     assert.equal(duplicate.body().code, 'MUTATION_ID_REUSED');
     const stale = await session(
-      client.patch(`/api/companies/${companyId}/allocations/${allocation.id}`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({
@@ -265,7 +274,7 @@ test.group('authenticated typed planning transactions', (group) => {
     stale.assertStatus(409);
     assert.equal(stale.body().code, 'STALE_REVISION');
     const moved = await session(
-      client.patch(`/api/companies/${companyId}/allocations/${allocation.id}`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({
@@ -285,6 +294,198 @@ test.group('authenticated typed planning transactions', (group) => {
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
       2
     );
+  });
+
+  test('the one mutation route commits each of the 38 planning operations', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(companyId, true);
+    const { cookie } = await signIn(client);
+    const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
+    const resourceId = newAllocation(data).resourceId;
+    const ids = {
+      client: randomUUID(),
+      project: randomUUID(),
+      phase: randomUUID(),
+      activity: randomUUID(),
+      discipline: randomUUID(),
+      resource: randomUUID(),
+      allocation: randomUUID(),
+      duplicate: randomUUID(),
+      group: randomUUID(),
+      timeOff: randomUUID(),
+      repeatedTimeOff: randomUUID(),
+      closure: randomUUID(),
+    };
+    const allocation = { ...newAllocation(data), id: ids.allocation };
+    const timeOff = {
+      resourceId,
+      startDate: '2026-11-16',
+      endDate: '2026-11-16',
+      type: 'holiday',
+    };
+    let restorationGroupId = '';
+    const operations: Array<() => Record<string, unknown>> = [
+      ...(['clients', 'projects', 'phases', 'activities', 'disciplines'] as const).flatMap(
+        (entity) => {
+          const id = {
+            clients: ids.client,
+            projects: ids.project,
+            phases: ids.phase,
+            activities: ids.activity,
+            disciplines: ids.discipline,
+          }[entity];
+          const fields = {
+            clients: { name: 'Wayne Foundation', color },
+            projects: { name: 'Gotham Renewal', color, clientId: ids.client },
+            phases: { name: 'Discovery', projectId: ids.project },
+            activities: {
+              name: 'Research',
+              kind: 'project',
+              projectId: ids.project,
+              phaseId: ids.phase,
+            },
+            disciplines: { name: 'Strategy', color, sortOrder: 8 },
+          }[entity];
+          return [
+            () => ({ operation: 'catalogue.create', entity: { entity, id, fields } }),
+            () => ({
+              operation: 'catalogue.update',
+              entity: { entity, id, changes: { name: `${fields.name} renamed` } },
+            }),
+          ];
+        }
+      ),
+      ...(['clients', 'projects', 'activities'] as const).flatMap((entity) => {
+        const id = { clients: ids.client, projects: ids.project, activities: ids.activity }[entity];
+        return (['catalogue.archive', 'catalogue.unarchive'] as const).map((operation) => () => ({
+          operation,
+          entity: { entity, id },
+        }));
+      }),
+      () => ({ operation: 'catalogue.delete', entity: { entity: 'phases', id: ids.phase } }),
+      () => ({
+        operation: 'catalogue.delete',
+        entity: { entity: 'disciplines', id: ids.discipline },
+      }),
+      () => ({
+        operation: 'resource.create',
+        id: ids.resource,
+        fields: {
+          kind: 'person',
+          name: 'Barbara Gordon',
+          role: 'Analyst',
+          avatarUrl: null,
+          disciplineId: null,
+          employmentType: 'permanent',
+          engagement: 'studio',
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
+          projectId: null,
+          color,
+          isFavourite: false,
+          firstAvailableDate: null,
+          lastAvailableDate: null,
+        },
+      }),
+      () => ({ operation: 'resource.update', id: ids.resource, changes: { role: 'Lead' } }),
+      () => ({ operation: 'resource.archive', id: ids.resource }),
+      () => ({ operation: 'resource.unarchive', id: ids.resource }),
+      () => ({ operation: 'allocation.create', allocation }),
+      () => ({
+        operation: 'allocation.update',
+        id: ids.allocation,
+        changes: { hoursPerDay: 4 },
+      }),
+      () => ({
+        operation: 'allocation.duplicate',
+        sourceAllocationId: ids.allocation,
+        occurrence: { id: ids.duplicate, startDate: '2026-11-09', endDate: '2026-11-13' },
+      }),
+      () => ({
+        operation: 'allocation.createGroup',
+        allocation: {
+          ...allocation,
+          id: ids.group,
+          startDate: '2026-11-23',
+          endDate: '2026-11-23',
+        },
+        repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-30' },
+        occurrenceIds: [randomUUID()],
+      }),
+      () => ({ operation: 'allocation.delete', id: ids.duplicate }),
+      () => ({ operation: 'planning.restoreGroup', restorationGroupId }),
+      () => ({ operation: 'allocation.deleteGroup', ids: [ids.duplicate] }),
+      () => ({ operation: 'timeOff.create', timeOff: { ...timeOff, id: ids.timeOff } }),
+      () => ({ operation: 'timeOff.update', id: ids.timeOff, changes: { type: 'sick' } }),
+      () => ({
+        operation: 'timeOff.repeat',
+        timeOff: {
+          ...timeOff,
+          id: ids.repeatedTimeOff,
+          startDate: '2026-11-17',
+          endDate: '2026-11-17',
+        },
+        repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-24' },
+        occurrenceIds: [randomUUID()],
+      }),
+      () => ({ operation: 'timeOff.delete', id: ids.timeOff }),
+      () => ({ operation: 'timeOff.deleteGroup', ids: [ids.repeatedTimeOff] }),
+      () => ({
+        operation: 'closure.create',
+        id: ids.closure,
+        fields: { name: 'Wayne anniversary', startDate: '2026-12-25', endDate: '2026-12-25' },
+      }),
+      () => ({ operation: 'closure.update', id: ids.closure, changes: { name: 'Wayne holiday' } }),
+      () => ({ operation: 'closure.delete', id: ids.closure }),
+      () => ({ operation: 'settings.update', changes: { dateStyle: 'month-day' } }),
+    ];
+    assert.lengthOf(operations, 38);
+    for (const [revision, build] of operations.entries()) {
+      const intent = build();
+      const reply = await session(
+        client.post(`/api/companies/${companyId}/planning/mutations`),
+        cookie
+      )
+        .json({ mutationId: randomUUID(), baseRevision: revision, intent })
+        .send();
+      assert.equal(reply.status(), 200, `${String(intent.operation)}: ${reply.text()}`);
+      assert.equal(reply.body().status, 'committed');
+      restorationGroupId = reply.body().restoration?.replacementGroupId ?? restorationGroupId;
+    }
+  });
+
+  test('the retired per-operation planning URLs answer 404', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(companyId, true);
+    const { cookie } = await signIn(client);
+    const allocation = newAllocation(data);
+    const base = `/api/companies/${companyId}/allocations`;
+    for (const [request, intent] of [
+      [client.post(base), { operation: 'allocation.create', allocation }],
+      [
+        client.patch(`${base}/${allocation.id}`),
+        { operation: 'allocation.update', id: allocation.id, changes: { hoursPerDay: 4 } },
+      ],
+      [
+        client.post(`${base}/delete-group`),
+        { operation: 'allocation.deleteGroup', ids: [allocation.id] },
+      ],
+    ] as const) {
+      const reply = await session(request, cookie)
+        .json({ mutationId: randomUUID(), baseRevision: 0, intent })
+        .send();
+      assert.equal(reply.status(), 404);
+    }
+    assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 
   test('settings service rejects a language change before writing in its transaction', async ({
@@ -336,7 +537,7 @@ test.group('authenticated typed planning transactions', (group) => {
       },
     };
     const response = await session(
-      client.post(`/api/companies/${companyId}/allocations/${source.id}/duplicate`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json(input)
@@ -366,7 +567,7 @@ test.group('authenticated typed planning transactions', (group) => {
       source
     );
     const replay = await session(
-      client.post(`/api/companies/${companyId}/allocations/${source.id}/duplicate`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json(input)
@@ -453,7 +654,10 @@ test.group('authenticated typed planning transactions', (group) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const allocation = newAllocation(await readState(companyId, true));
-    const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
+    const created = await session(
+      client.post(`/api/companies/${companyId}/planning/mutations`),
+      cookie
+    )
       .json({
         mutationId: randomUUID(),
         baseRevision: 0,
@@ -462,7 +666,10 @@ test.group('authenticated typed planning transactions', (group) => {
       .send();
     created.assertStatus(200);
     const before = await readState(companyId, true);
-    const occupied = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
+    const occupied = await session(
+      client.post(`/api/companies/${companyId}/planning/mutations`),
+      cookie
+    )
       .json({
         mutationId: randomUUID(),
         baseRevision: 1,
@@ -473,7 +680,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(occupied.body().code, 'VALIDATION_ERROR');
     const missingId = randomUUID();
     const missing = await session(
-      client.patch(`/api/companies/${companyId}/allocations/${missingId}`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({
@@ -507,7 +714,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const allocation = data.allocations.find((row) => row.companyId === companyId)!;
     const before = await readState(companyId, true);
     const response = await session(
-      client.patch(`/api/companies/${companyId}/allocations/${allocation.id}`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({

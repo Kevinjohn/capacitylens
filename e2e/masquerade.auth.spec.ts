@@ -148,21 +148,24 @@ test.describe('member masquerade', () => {
     });
     expect(planning.status()).toBe(200);
     const revision = ((await planning.json()) as { revision: number }).revision;
-    const refusedWrite = await request.post(`${AUTH_API}/api/companies/${companyId}/clients`, {
-      headers,
-      data: {
-        mutationId: crypto.randomUUID(),
-        baseRevision: revision,
-        intent: {
-          operation: 'catalogue.create',
-          entity: {
-            entity: 'clients',
-            id: crypto.randomUUID(),
-            fields: { name: 'Kord Industries', color: '#76a5e7' },
+    const refusedWrite = await request.post(
+      `${AUTH_API}/api/companies/${companyId}/planning/mutations`,
+      {
+        headers,
+        data: {
+          mutationId: crypto.randomUUID(),
+          baseRevision: revision,
+          intent: {
+            operation: 'catalogue.create',
+            entity: {
+              entity: 'clients',
+              id: crypto.randomUUID(),
+              fields: { name: 'Kord Industries', color: '#76a5e7' },
+            },
           },
         },
       },
-    });
+    );
     expect(refusedWrite.status()).toBe(403);
     expect((await refusedWrite.json()).code).toBe('MASQUERADE_READ_ONLY');
 

@@ -164,14 +164,17 @@ test('authenticated smoke writes a typed allocation under its isolated company',
       fixture,
       '0.fixture-context',
     );
-    assert.equal(requests[0].url, 'http://localhost:8787/api/companies/isolated-company/resources');
+    assert.equal(
+      requests[0].url,
+      'http://localhost:8787/api/companies/isolated-company/planning/mutations',
+    );
     assert.equal(requests[0].headers.cookie, 'fixture-session');
     assert.equal(requests[0].body.baseRevision, 1);
     assert.equal(requests[0].body.intent.operation, 'resource.create');
     assert.equal(requests[0].body.intent.fields.name, 'Bruce Wayne Packaged Schedule');
     assert.equal(
       requests[1].url,
-      'http://localhost:8787/api/companies/isolated-company/activities',
+      'http://localhost:8787/api/companies/isolated-company/planning/mutations',
     );
     assert.equal(requests[1].headers.cookie, 'fixture-session');
     assert.equal(requests[1].body.baseRevision, 2);
@@ -180,7 +183,7 @@ test('authenticated smoke writes a typed allocation under its isolated company',
     assert.equal(requests[1].body.intent.entity.fields.kind, 'internal');
     assert.equal(
       requests[2].url,
-      'http://localhost:8787/api/companies/isolated-company/allocations',
+      'http://localhost:8787/api/companies/isolated-company/planning/mutations',
     );
     assert.equal(requests[2].headers.cookie, 'fixture-session');
     assert.equal(requests[2].body.baseRevision, 3);

@@ -77,13 +77,8 @@ const resource = {
 type Restoration = { consumedGroupId: string | null; replacementGroupId: string | null };
 const noRestoration: Restoration = { consumedGroupId: null, replacementGroupId: null };
 const groupId = '5d0c3f8e-8a54-4b7e-9f0a-3c2e1b6d7a90';
-const cases: Array<{
-  intent: PlanningIntent;
-  method: string;
-  path: string;
-  restoration?: Restoration;
-}> = [
-  { intent: { operation: 'allocation.create', allocation }, method: 'POST', path: 'allocations' },
+const cases: Array<{ intent: PlanningIntent; restoration?: Restoration }> = [
+  { intent: { operation: 'allocation.create', allocation } },
   {
     intent: {
       operation: 'allocation.createGroup',
@@ -91,46 +86,30 @@ const cases: Array<{
       repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-02' },
       occurrenceIds: ['occurrence-2'],
     },
-    method: 'POST',
-    path: 'allocations/create-group',
   },
   {
     intent: { operation: 'allocation.update', id, changes: { hoursPerDay: 4 } },
-    method: 'PATCH',
-    path: `allocations/${id}`,
   },
   {
     intent: { operation: 'allocation.duplicate', sourceAllocationId: 'source-1', occurrence },
-    method: 'POST',
-    path: 'allocations/source-1/duplicate',
   },
   {
     intent: { operation: 'allocation.delete', id },
-    method: 'POST',
-    path: `allocations/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
     intent: { operation: 'allocation.deleteGroup', ids: [id] },
-    method: 'POST',
-    path: 'allocations/delete-group',
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
     intent: { operation: 'resource.create', id, fields: resource },
-    method: 'POST',
-    path: 'resources',
   },
   {
     intent: { operation: 'resource.update', id, changes: { role: 'Designer' } },
-    method: 'PATCH',
-    path: `resources/${id}`,
   },
-  { intent: { operation: 'timeOff.create', timeOff }, method: 'POST', path: 'time-off' },
+  { intent: { operation: 'timeOff.create', timeOff } },
   {
     intent: { operation: 'timeOff.update', id, changes: { type: 'sick' } },
-    method: 'PATCH',
-    path: `time-off/${id}`,
   },
   {
     intent: {
@@ -139,19 +118,13 @@ const cases: Array<{
       repeat: { pattern: { kind: 'monthly-date' }, until: '2026-12-02' },
       occurrenceIds: ['occurrence-2'],
     },
-    method: 'POST',
-    path: 'time-off/repeat',
   },
   {
     intent: { operation: 'timeOff.delete', id },
-    method: 'POST',
-    path: `time-off/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
     intent: { operation: 'timeOff.deleteGroup', ids: [id] },
-    method: 'POST',
-    path: 'time-off/delete-group',
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
@@ -160,24 +133,16 @@ const cases: Array<{
       id,
       fields: { name: 'Wayne anniversary', startDate: '2026-12-25', endDate: '2026-12-25' },
     },
-    method: 'POST',
-    path: 'closures',
   },
   {
     intent: { operation: 'closure.update', id, changes: { name: 'Wayne holiday' } },
-    method: 'PATCH',
-    path: `closures/${id}`,
   },
   {
     intent: { operation: 'closure.delete', id },
-    method: 'POST',
-    path: `closures/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   },
   {
     intent: { operation: 'settings.update', changes: { timezone: 'Europe/London' } },
-    method: 'PATCH',
-    path: 'settings',
   },
 ];
 for (const entity of ['clients', 'projects', 'activities', 'phases', 'disciplines'] as const) {
@@ -186,21 +151,17 @@ for (const entity of ['clients', 'projects', 'activities', 'phases', 'discipline
     operation: 'catalogue.create',
     entity: { entity, id, fields: createFields[entity] },
   } as PlanningIntent;
-  cases.push({ intent: create, method: 'POST', path: entity });
+  cases.push({ intent: create });
   cases.push({
     intent: {
       operation: 'catalogue.update',
       entity: { entity, id, changes: { name: 'Gotham update' } },
     },
-    method: 'PATCH',
-    path: `${entity}/${id}`,
   });
 }
 for (const entity of ['phases', 'disciplines'] as const) {
   cases.push({
     intent: { operation: 'catalogue.delete', entity: { entity, id } },
-    method: 'POST',
-    path: `${entity}/${id}/delete`,
     restoration: { consumedGroupId: null, replacementGroupId: groupId },
   });
 }
@@ -208,22 +169,18 @@ for (const entity of ['phases', 'disciplines'] as const) {
 for (const action of ['archive', 'unarchive'] as const) {
   cases.push({
     intent: { operation: `resource.${action}`, id },
-    method: 'POST',
-    path: `resources/${id}/${action}`,
   });
   for (const entity of ['clients', 'projects', 'activities'] as const) {
     cases.push({
       intent: { operation: `catalogue.${action}`, entity: { entity, id } },
-      method: 'POST',
-      path: `${entity}/${id}/${action}`,
     });
   }
 }
 
 describe('generated planning transport', () => {
   it.each(cases)(
-    'sends $intent.operation to its implemented $method $path route',
-    async ({ intent, method, path, restoration = noRestoration }) => {
+    'sends $intent.operation to the one mutation route',
+    async ({ intent, restoration = noRestoration }) => {
       const receipt = {
         status: 'committed',
         mutationId,
@@ -233,8 +190,8 @@ describe('generated planning transport', () => {
       const { transport, requests } = harness(receipt);
       expect(await transport.execute(context, execution(intent), signal)).toEqual(receipt);
       expect(requests).toHaveLength(1);
-      expect(requests[0]?.url).toBe(`http://planning.test/api/companies/wayne/${path}`);
-      expect(requests[0]?.method).toBe(method);
+      expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning/mutations');
+      expect(requests[0]?.method).toBe('POST');
       expect(requests[0]?.credentials).toBe('include');
       expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
       expect(await requests[0]?.json()).toEqual(execution(intent));

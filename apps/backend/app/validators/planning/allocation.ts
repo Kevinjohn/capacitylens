@@ -8,7 +8,6 @@ import {
   dateRange,
   entityId,
   hours,
-  meta,
   nullableId,
   nullableUserText,
   occurrenceIdsExcludeFirst,
@@ -126,7 +125,3 @@ export const allocationIntent = vine
   .otherwise((_value, field) =>
     field.report('Unsupported allocation operation.', 'unsupportedOperation', field)
   );
-
-export const allocationMutationValidator = vine.compile(
-  vine.object({ ...meta(), intent: allocationIntent })
-);

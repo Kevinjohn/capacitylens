@@ -28,7 +28,7 @@ flowchart TD
   A["useArchiveRecovery provides archived row and parent identity"] --> B["ArchiveRecoverySection / ArchivedEntitySection Restore control"]
   B --> C["useLifecycleActions.unarchive → sendPlanningCommand"] --> D["project.unarchive intent"]
   D --> E{"createStorePlanningTransport"}
-  E --> F["createPlanningTransport → api.planning.project.unarchive"] --> G["PlanningController.projectUnarchive → mutatePlanning begins scoped transaction"]
+  E --> F["createPlanningTransport → api.planning.mutate"] --> G["PlanningController.mutate → mutatePlanning begins scoped transaction"]
   G --> H["executePlanningIntent.transitionLifecycle updates only the restored row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt and activeOnly refresh update views"]
 ```
 

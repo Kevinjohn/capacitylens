@@ -3,6 +3,7 @@ import {
   boundingBoxOrThrow as box,
   disableWeekSnap,
   expectEditableBar,
+  isPlanningMutation,
   nudgeScheduler as nudge,
   openApp,
   probeSchedulerGeometry as probe,
@@ -129,10 +130,8 @@ test.describe('Minimise weekends', { tag: '@engine' }, () => {
     await page.mouse.down();
     await page.mouse.move(b0.x + b0.width / 2 + 300, cy, { steps: 10 });
     // The server applies the move; reopening the bar before its receipt reads the old dates.
-    const moveCommitted = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'PATCH' &&
-        /\/api\/companies\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
+    const moveCommitted = page.waitForResponse((response) =>
+      isPlanningMutation(response.request(), 'allocation.update'),
     );
     await page.mouse.up();
     expect((await moveCommitted).ok()).toBe(true);

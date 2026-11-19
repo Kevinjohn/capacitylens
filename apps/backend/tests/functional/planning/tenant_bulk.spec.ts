@@ -28,7 +28,6 @@ test.group('typed bulk writer tenant isolation', (group) => {
   for (const scenario of [
     {
       name: 'allocation create-group',
-      path: 'allocations/create-group',
       intent: (data: AppData) => ({
         operation: 'allocation.createGroup',
         allocation: newAllocation(data),
@@ -38,7 +37,6 @@ test.group('typed bulk writer tenant isolation', (group) => {
     },
     {
       name: 'allocation delete-group',
-      path: 'allocations/delete-group',
       intent: (data: AppData) => ({
         operation: 'allocation.deleteGroup',
         ids: [data.allocations[0]!.id],
@@ -46,7 +44,6 @@ test.group('typed bulk writer tenant isolation', (group) => {
     },
     {
       name: 'time-off delete-group',
-      path: 'time-off/delete-group',
       intent: (data: AppData) => ({
         operation: 'timeOff.deleteGroup',
         ids: [data.timeOff[0]!.id],
@@ -54,7 +51,6 @@ test.group('typed bulk writer tenant isolation', (group) => {
     },
     {
       name: 'time-off repeat',
-      path: 'time-off/repeat',
       intent: (data: AppData) => ({
         operation: 'timeOff.repeat',
         timeOff: {
@@ -79,7 +75,10 @@ test.group('typed bulk writer tenant isolation', (group) => {
       const beforeOwn = await readState(companyId, true);
       const intent = scenario.intent(beforeOwn);
       const beforeOther = await readState(otherCompanyId, true);
-      const own = await session(client.post(`/api/companies/${companyId}/${scenario.path}`), cookie)
+      const own = await session(
+        client.post(`/api/companies/${companyId}/planning/mutations`),
+        cookie
+      )
         .json(requestBody(0, intent))
         .send();
       own.assertStatus(200);
@@ -87,7 +86,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
       assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
 
       const foreign = await session(
-        client.post(`/api/companies/${otherCompanyId}/${scenario.path}`),
+        client.post(`/api/companies/${otherCompanyId}/planning/mutations`),
         cookie
       )
         .json(requestBody(0, intent))
@@ -107,7 +106,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
     const initial = await readState(companyId, true);
     const id = initial.allocations[0]!.id;
     const removed = await session(
-      client.post(`/api/companies/${companyId}/allocations/delete-group`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json(requestBody(0, { operation: 'allocation.deleteGroup', ids: [id] }))
@@ -119,7 +118,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
     const beforeOwn = await readState(companyId, true);
     const beforeOther = await readState(otherCompanyId, true);
     const restored = await session(
-      client.post(`/api/companies/${companyId}/planning/restore-group`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json(requestBody(1, intent))
@@ -129,7 +128,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
     assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
 
     const foreign = await session(
-      client.post(`/api/companies/${otherCompanyId}/planning/restore-group`),
+      client.post(`/api/companies/${otherCompanyId}/planning/mutations`),
       cookie
     )
       .json(requestBody(0, intent))

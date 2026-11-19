@@ -27,40 +27,43 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
     name: RESOURCE_NAME,
   };
   assert.ok(resource.id);
-  const createdResource = await fetchOk(`${baseUrl}/api/companies/${companyId}/resources`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'sec-fetch-site': 'same-origin',
-      cookie,
-      'X-Masquerade-Context': contextToken,
-    },
-    body: JSON.stringify({
-      mutationId: randomUUID(),
-      baseRevision: 1,
-      intent: {
-        operation: 'resource.create',
-        id: resource.id,
-        fields: {
-          kind: 'person',
-          name: resource.name,
-          role: resource.role,
-          avatarUrl: null,
-          disciplineId: null,
-          employmentType: resource.employmentType,
-          engagement: resource.engagement,
-          workingHoursPerDay: resource.workingHoursPerDay,
-          workingDays: resource.workingDays,
-          halfDays: resource.halfDays,
-          projectId: null,
-          color: resource.color,
-          isFavourite: false,
-          firstAvailableDate: null,
-          lastAvailableDate: null,
-        },
+  const createdResource = await fetchOk(
+    `${baseUrl}/api/companies/${companyId}/planning/mutations`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'sec-fetch-site': 'same-origin',
+        cookie,
+        'X-Masquerade-Context': contextToken,
       },
-    }),
-  });
+      body: JSON.stringify({
+        mutationId: randomUUID(),
+        baseRevision: 1,
+        intent: {
+          operation: 'resource.create',
+          id: resource.id,
+          fields: {
+            kind: 'person',
+            name: resource.name,
+            role: resource.role,
+            avatarUrl: null,
+            disciplineId: null,
+            employmentType: resource.employmentType,
+            engagement: resource.engagement,
+            workingHoursPerDay: resource.workingHoursPerDay,
+            workingDays: resource.workingDays,
+            halfDays: resource.halfDays,
+            projectId: null,
+            color: resource.color,
+            isFavourite: false,
+            firstAvailableDate: null,
+            lastAvailableDate: null,
+          },
+        },
+      }),
+    },
+  );
   assert.equal(JSON.parse(createdResource.body).revision, 2);
 
   const activity = {
@@ -70,27 +73,30 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
     projectId: null,
     phaseId: null,
   };
-  const createdActivity = await fetchOk(`${baseUrl}/api/companies/${companyId}/activities`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'sec-fetch-site': 'same-origin',
-      cookie,
-      'X-Masquerade-Context': contextToken,
-    },
-    body: JSON.stringify({
-      mutationId: randomUUID(),
-      baseRevision: 2,
-      intent: {
-        operation: 'catalogue.create',
-        entity: {
-          entity: 'activities',
-          id: activity.id,
-          fields: { name: activity.name, kind: activity.kind, projectId: null, phaseId: null },
-        },
+  const createdActivity = await fetchOk(
+    `${baseUrl}/api/companies/${companyId}/planning/mutations`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'sec-fetch-site': 'same-origin',
+        cookie,
+        'X-Masquerade-Context': contextToken,
       },
-    }),
-  });
+      body: JSON.stringify({
+        mutationId: randomUUID(),
+        baseRevision: 2,
+        intent: {
+          operation: 'catalogue.create',
+          entity: {
+            entity: 'activities',
+            id: activity.id,
+            fields: { name: activity.name, kind: activity.kind, projectId: null, phaseId: null },
+          },
+        },
+      }),
+    },
+  );
   assert.equal(JSON.parse(createdActivity.body).revision, 3);
 
   const allocation = {
@@ -103,20 +109,23 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
     hoursPerDay: 7.5,
     status: 'confirmed',
   };
-  const createdAllocation = await fetchOk(`${baseUrl}/api/companies/${companyId}/allocations`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'sec-fetch-site': 'same-origin',
-      cookie,
-      'X-Masquerade-Context': contextToken,
+  const createdAllocation = await fetchOk(
+    `${baseUrl}/api/companies/${companyId}/planning/mutations`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'sec-fetch-site': 'same-origin',
+        cookie,
+        'X-Masquerade-Context': contextToken,
+      },
+      body: JSON.stringify({
+        mutationId: randomUUID(),
+        baseRevision: 3,
+        intent: { operation: 'allocation.create', allocation },
+      }),
     },
-    body: JSON.stringify({
-      mutationId: randomUUID(),
-      baseRevision: 3,
-      intent: { operation: 'allocation.create', allocation },
-    }),
-  });
+  );
   assert.equal(JSON.parse(createdAllocation.body).revision, 4);
   return { companyId, resource, activity, allocation };
 }

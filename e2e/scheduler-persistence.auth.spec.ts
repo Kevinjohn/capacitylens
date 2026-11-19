@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures';
 import type { APIRequestContext, Locator, Page } from './fixtures';
+import type { Request } from '@playwright/test';
 import {
   AUTH_API,
   AUTH_PASSWORD,
@@ -54,7 +55,7 @@ async function createScenario(request: APIRequestContext) {
     name: 'Clark Kent',
     role: 'Planner',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'clients', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -62,7 +63,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { name: 'Wayne Enterprises', color: '#76a5e7' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'projects', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -70,7 +71,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { clientId, name: 'Gotham Renewal', color: '#e776b8' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'activities', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'activities',
@@ -146,17 +147,26 @@ async function createAllocation(page: Page, projectId: string, activityId: strin
   return page.getByTestId('allocation-bar').filter({ hasText: 'City planning' });
 }
 
-type RecordedRequest = { method: string; path: string };
+type RecordedRequest = { method: string; path: string; operation?: string | undefined };
+
+/** The method, path and, for a planning mutation, the operation of one browser request. */
+function recorded(request: Request): RecordedRequest {
+  const path = new URL(request.url()).pathname;
+  if (!path.endsWith('/planning/mutations')) return { method: request.method(), path };
+  const body = request.postDataJSON() as { intent?: { operation?: string } } | null;
+  return { method: request.method(), path, operation: body?.intent?.operation };
+}
 
 function isPlanningRead(companyId: string, method: string, url: string) {
   return method === 'GET' && new URL(url).pathname === `/api/companies/${companyId}/planning`;
 }
 
 // Typed allocation writes and the server's undo and redo steps; the canonical GET is excluded.
-function isTypedAllocationWrite(companyId: string, { method, path }: RecordedRequest) {
+function isTypedAllocationWrite(companyId: string, { method, path, operation }: RecordedRequest) {
   return (
     method !== 'GET' &&
-    (path.startsWith(`/api/companies/${companyId}/allocations`) ||
+    ((path === `/api/companies/${companyId}/planning/mutations` &&
+      operation?.startsWith('allocation.') === true) ||
       path === `/api/companies/${companyId}/planning/undo` ||
       path === `/api/companies/${companyId}/planning/redo`)
   );
@@ -165,9 +175,7 @@ function isTypedAllocationWrite(companyId: string, { method, path }: RecordedReq
 /** Records page requests after fixture seeding, so only scheduler gestures are counted. */
 function recordRequests(page: Page) {
   const requests: RecordedRequest[] = [];
-  page.on('request', (request) =>
-    requests.push({ method: request.method(), path: new URL(request.url()).pathname }),
-  );
+  page.on('request', (request) => requests.push(recorded(request)));
   return requests;
 }
 
@@ -192,10 +200,7 @@ async function expectOneTypedWrite(
 ) {
   const start = requests.length;
   const written = page.waitForResponse((response) =>
-    isTypedAllocationWrite(companyId, {
-      method: response.request().method(),
-      path: new URL(response.url()).pathname,
-    }),
+    isTypedAllocationWrite(companyId, recorded(response.request())),
   );
   await gesture();
   expect((await written).ok()).toBe(true);
@@ -378,10 +383,7 @@ test('same-revision background refresh preserves Undo for a keyboard resize', as
     isPlanningRead(companyId, response.request().method(), response.url()),
   );
   const resize = page.waitForResponse((response) =>
-    isTypedAllocationWrite(companyId, {
-      method: response.request().method(),
-      path: new URL(response.url()).pathname,
-    }),
+    isTypedAllocationWrite(companyId, recorded(response.request())),
   );
   await page.keyboard.press('Shift+ArrowRight');
   expect((await resize).status()).toBe(200);
@@ -419,7 +421,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
 }) => {
   const { owner, companyId, ownerEmail, resourceId, activityId } = await createScenario(request);
   const allocationId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'allocations', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: allocationId,
@@ -441,10 +443,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
     isPlanningRead(companyId, response.request().method(), response.url()),
   );
   const resize = page.waitForResponse((response) =>
-    isTypedAllocationWrite(companyId, {
-      method: response.request().method(),
-      path: new URL(response.url()).pathname,
-    }),
+    isTypedAllocationWrite(companyId, recorded(response.request())),
   );
   await page.keyboard.press('Shift+ArrowRight');
   expect((await resize).status()).toBe(200);
@@ -462,20 +461,17 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
-  const deletion = await request.post(
-    `${AUTH_API}/api/companies/${companyId}/allocations/${allocationId}/delete`,
-    {
-      headers: {
-        ...(await masqueradeContextHeaders(request, owner.cookie)),
-        'content-type': 'application/json',
-      },
-      data: {
-        mutationId: crypto.randomUUID(),
-        baseRevision: revision,
-        intent: { operation: 'allocation.delete', id: allocationId },
-      },
+  const deletion = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
+    headers: {
+      ...(await masqueradeContextHeaders(request, owner.cookie)),
+      'content-type': 'application/json',
     },
-  );
+    data: {
+      mutationId: crypto.randomUUID(),
+      baseRevision: revision,
+      intent: { operation: 'allocation.delete', id: allocationId },
+    },
+  });
   expect(deletion.status()).toBe(200);
   expect(await allocationFrom(request, owner.cookie, companyId, allocationId)).toBeUndefined();
 
@@ -518,19 +514,18 @@ test('a refused scheduler write keeps the schedule and history visible and does 
   const undo = page.getByTestId('undo-button');
   await expect(undo).toBeEnabled();
 
-  await page.route(`**/api/companies/${companyId}/allocations/**`, (route) =>
-    route.fulfill({
-      status: 403,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: 'Write refused', code: 'AUTHORIZATION_DENIED' }),
-    }),
+  await page.route(`**/api/companies/${companyId}/planning/mutations`, (route) =>
+    isTypedAllocationWrite(companyId, recorded(route.request()))
+      ? route.fulfill({
+          status: 403,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Write refused', code: 'AUTHORIZATION_DENIED' }),
+        })
+      : route.fallback(),
   );
   const requests = recordRequests(page);
   const refused = page.waitForResponse((response) =>
-    isTypedAllocationWrite(companyId, {
-      method: response.request().method(),
-      path: new URL(response.url()).pathname,
-    }),
+    isTypedAllocationWrite(companyId, recorded(response.request())),
   );
   await dragByOneDay(page, bar, await dayWidth(page));
   expect((await refused).status()).toBe(403);
@@ -665,7 +660,7 @@ test('a weekly repeat persists all 14 occurrences as one series through one type
 }) => {
   const { owner, companyId, ownerEmail, resourceId, projectId, activityId } =
     await createScenario(request);
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'allocations', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: crypto.randomUUID(),
@@ -765,31 +760,25 @@ test('a stale-revision scheduler write shows server state without a toast or his
   });
   expect(planning.status()).toBe(200);
   const { revision } = (await planning.json()) as { revision: number };
-  const external = await request.patch(
-    `${AUTH_API}/api/companies/${companyId}/allocations/${allocationId}`,
-    {
-      headers: {
-        ...(await masqueradeContextHeaders(request, owner.cookie)),
-        'content-type': 'application/json',
-      },
-      data: {
-        mutationId: crypto.randomUUID(),
-        baseRevision: revision,
-        intent: {
-          operation: 'allocation.update',
-          id: allocationId,
-          changes: { startDate: '2026-06-04', endDate: '2026-06-04' },
-        },
+  const external = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
+    headers: {
+      ...(await masqueradeContextHeaders(request, owner.cookie)),
+      'content-type': 'application/json',
+    },
+    data: {
+      mutationId: crypto.randomUUID(),
+      baseRevision: revision,
+      intent: {
+        operation: 'allocation.update',
+        id: allocationId,
+        changes: { startDate: '2026-06-04', endDate: '2026-06-04' },
       },
     },
-  );
+  });
   expect(external.status()).toBe(200);
 
   const conflict = page.waitForResponse((response) =>
-    isTypedAllocationWrite(companyId, {
-      method: response.request().method(),
-      path: new URL(response.url()).pathname,
-    }),
+    isTypedAllocationWrite(companyId, recorded(response.request())),
   );
   await dragByOneDay(page, bar, await dayWidth(page));
   expect((await conflict).status()).toBe(409);

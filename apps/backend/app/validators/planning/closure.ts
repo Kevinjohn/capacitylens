@@ -4,7 +4,6 @@ import {
   calendarDate,
   dateRange,
   entityId,
-  meta,
   nameText,
   hasOperation,
   requireChanges,
@@ -43,7 +42,3 @@ export const closureIntent = vine.union([
   ),
   vine.union.else(vine.object({ operation: vine.literal('closure.delete'), id: entityId() })),
 ]);
-
-export const closureMutationValidator = vine.compile(
-  vine.object({ ...meta(), intent: closureIntent })
-);

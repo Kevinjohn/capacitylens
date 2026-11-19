@@ -12,6 +12,15 @@ import Company from '#models/company';
 import logger from '@adonisjs/core/services/logger';
 import env from '#start/env';
 import loggerConfig from '#config/logger';
+import { randomUUID } from 'node:crypto';
+import {
+  configureAuth,
+  newAllocation,
+  planningUrl,
+  resetPlanningFixture,
+  session as withPlanningSession,
+  signIn,
+} from './planning/helpers.js';
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -222,6 +231,29 @@ test.group('general HTTP logging privacy', (group) => {
     assert.isUndefined(result.header('x-capacitylens-audit-warning'));
     assert.include(output, '"event":"http.request.logging_failed"');
     assert.notInclude(output, secret);
+  });
+
+  test('names the planning operation on a mutation completion line', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await resetPlanningFixture();
+    const { cookie } = await signIn(client);
+    const { output, result } = await captureLogs(() =>
+      withPlanningSession(client.post(`${planningUrl}/mutations`), cookie)
+        .json({
+          mutationId: randomUUID(),
+          baseRevision: 0,
+          intent: { operation: 'allocation.create', allocation: newAllocation(data) },
+        })
+        .send()
+    );
+
+    assert.equal(result.status(), 200);
+    assert.include(output, '"path":"/api/companies/:companyId/planning/mutations"');
+    assert.include(output, '"planningOperation":"allocation.create"');
   });
 
   test('writes bounded completion diagnostics without secrets from unmatched encoded paths or headers', async ({

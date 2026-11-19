@@ -38,30 +38,15 @@ async function deleteTarget(
   id: string,
   baseRevision: number
 ) {
-  const routes: Record<Target, { path: string; intent: Record<string, unknown> }> = {
-    allocations: {
-      path: `/api/companies/${companyId}/allocations/${id}/delete`,
-      intent: { operation: 'allocation.delete', id },
-    },
-    timeOff: {
-      path: `/api/companies/${companyId}/time-off/${id}/delete`,
-      intent: { operation: 'timeOff.delete', id },
-    },
-    closures: {
-      path: `/api/companies/${companyId}/closures/${id}/delete`,
-      intent: { operation: 'closure.delete', id },
-    },
-    phases: {
-      path: `/api/companies/${companyId}/phases/${id}/delete`,
-      intent: { operation: 'catalogue.delete', entity: { entity: target, id } },
-    },
-    disciplines: {
-      path: `/api/companies/${companyId}/disciplines/${id}/delete`,
-      intent: { operation: 'catalogue.delete', entity: { entity: target, id } },
-    },
+  const intents: Record<Target, Record<string, unknown>> = {
+    allocations: { operation: 'allocation.delete', id },
+    timeOff: { operation: 'timeOff.delete', id },
+    closures: { operation: 'closure.delete', id },
+    phases: { operation: 'catalogue.delete', entity: { entity: target, id } },
+    disciplines: { operation: 'catalogue.delete', entity: { entity: target, id } },
   };
-  return session(client.post(routes[target].path), cookie)
-    .json({ mutationId: randomUUID(), baseRevision, intent: routes[target].intent })
+  return session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
+    .json({ mutationId: randomUUID(), baseRevision, intent: intents[target] })
     .send();
 }
 
@@ -176,7 +161,10 @@ test.group('retained restoration reads', (suite) => {
     const { cookie } = await signIn(client);
     const data = await readState(companyId, true);
     const allocation = { ...newAllocation(data), note: 'Gotham retained note' };
-    const created = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
+    const created = await session(
+      client.post(`/api/companies/${companyId}/planning/mutations`),
+      cookie
+    )
       .json({
         mutationId: randomUUID(),
         baseRevision: await revision(),
@@ -193,7 +181,10 @@ test.group('retained restoration reads', (suite) => {
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId);
 
     assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 1);
-    const reused = await session(client.post(`/api/companies/${companyId}/allocations`), cookie)
+    const reused = await session(
+      client.post(`/api/companies/${companyId}/planning/mutations`),
+      cookie
+    )
       .json({
         mutationId: randomUUID(),
         baseRevision: 2,
@@ -212,7 +203,7 @@ test.group('retained restoration reads', (suite) => {
     assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 0);
     const beforeRefusal = await readState(companyId, true);
     const refused = await session(
-      client.post(`/api/companies/${companyId}/planning/restore-group`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({
@@ -261,7 +252,7 @@ test.group('retained restoration reads', (suite) => {
     await db.from('deleted_rows').where('group_id', groupId).delete();
 
     const refused = await session(
-      client.post(`/api/companies/${companyId}/planning/restore-group`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({

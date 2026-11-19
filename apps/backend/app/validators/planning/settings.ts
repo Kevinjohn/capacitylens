@@ -7,7 +7,6 @@ import {
 import {
   boolean,
   isSupportedTimeZone,
-  meta,
   nameText,
   presetColor,
   requireChanges,
@@ -55,7 +54,3 @@ export const settingsIntent = vine.object({
   // `language` is frozen at company creation, so the writable list here leaves it out.
   changes: vine.object(settingsChanges).use(requireChanges(Object.keys(settingsChanges))),
 });
-
-export const settingsMutationValidator = vine.compile(
-  vine.object({ ...meta(), intent: settingsIntent })
-);

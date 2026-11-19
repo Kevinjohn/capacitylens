@@ -15,7 +15,7 @@ import {
   signIn,
   signInAgain,
 } from './helpers.js';
-import { allocationsUrl, planningAudit, stored } from './restoration_helpers.js';
+import { mutationsUrl, planningAudit, stored } from './restoration_helpers.js';
 
 interface Reply {
   revision: number;
@@ -32,9 +32,8 @@ class Page {
     readonly historyId: string | null = randomUUID()
   ) {}
 
-  private async post(method: 'post' | 'patch', url: string, body: Record<string, unknown>) {
-    const request = method === 'post' ? this.client.post(url) : this.client.patch(url);
-    const response = await session(request, this.cookie)
+  private async post(url: string, body: Record<string, unknown>) {
+    const response = await session(this.client.post(url), this.cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: this.revision,
@@ -47,16 +46,16 @@ class Page {
     return { ...reply, status: response.status() };
   }
 
-  write(url: string, intent: Record<string, unknown>, method: 'post' | 'patch' = 'post') {
-    return this.post(method, url, { intent });
+  write(url: string, intent: Record<string, unknown>) {
+    return this.post(url, { intent });
   }
 
   undo() {
-    return this.post('post', `${planningUrl}/undo`, {});
+    return this.post(`${planningUrl}/undo`, {});
   }
 
   redo() {
-    return this.post('post', `${planningUrl}/redo`, {});
+    return this.post(`${planningUrl}/redo`, {});
   }
 
   async read() {
@@ -92,16 +91,12 @@ const noteOf = async (id: string) => {
 
 async function createAllocation(page: Page) {
   const allocation = { ...newAllocation(await readState(companyId, true)), note: 'Batcave audit' };
-  const reply = await page.write(allocationsUrl, { operation: 'allocation.create', allocation });
+  const reply = await page.write(mutationsUrl, { operation: 'allocation.create', allocation });
   return { id: allocation.id, reply };
 }
 
 const setNote = (page: Page, id: string, note: string) =>
-  page.write(
-    `${allocationsUrl}/${id}`,
-    { operation: 'allocation.update', id, changes: { note } },
-    'patch'
-  );
+  page.write(mutationsUrl, { operation: 'allocation.update', id, changes: { note } });
 
 test.group('server-held undo and redo', (suite) => {
   suite.setup(() => freshDatabase());
@@ -170,7 +165,7 @@ test.group('server-held undo and redo', (suite) => {
     configureAuth(cleanup);
     const page = new Page(client, await cookieFor(client));
     const { id } = await createAllocation(page);
-    const deleted = await page.write(`${allocationsUrl}/${id}/delete`, {
+    const deleted = await page.write(mutationsUrl, {
       operation: 'allocation.delete',
       id,
     });
@@ -325,18 +320,14 @@ test.group('server-held undo and redo', (suite) => {
     const target = state.clients.find(
       (row) => row.companyId === companyId && !row.builtin && !row.isPrivate && !row.archivedAt
     )!;
-    const hidden = await page.write(
-      `/api/companies/${companyId}/clients/${target.id}`,
-      {
-        operation: 'catalogue.update',
-        entity: {
-          entity: 'clients',
-          id: target.id,
-          changes: { isPrivate: true, codeName: 'Gotham confidential' },
-        },
+    const hidden = await page.write(`/api/companies/${companyId}/planning/mutations`, {
+      operation: 'catalogue.update',
+      entity: {
+        entity: 'clients',
+        id: target.id,
+        changes: { isPrivate: true, codeName: 'Gotham confidential' },
       },
-      'patch'
-    );
+    });
     assert.equal(hidden.status, 200);
     assert.deepEqual(hidden.history, { canUndo: false, canRedo: false });
     assert.lengthOf(await histories(), 0);

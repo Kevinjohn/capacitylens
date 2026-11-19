@@ -36,7 +36,7 @@ flowchart TD
   A["ResourceForm (fields from ResourceAvailabilityFields) → useResourceSubmit.createSubmit"] --> B["useStore.updateResource → createTypedPlanningActions.updateResource"]
   B --> C["buildResourceUpdate → allocationSlice.send"]
   C --> D["createPlanningCacheController.execute"] --> E{"createStorePlanningTransport"}
-  E --> F["createPlanningTransport.sendOperation → api.planning.resource.update"] --> G["PlanningController.resourceUpdate → mutatePlanning begins the scoped transaction"]
+  E --> F["createPlanningTransport.sendOperation → api.planning.mutate"] --> G["PlanningController.mutate → mutatePlanning begins the scoped transaction"]
   G --> H["executePlanningIntent applies intent → writeRow persists row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt updates planning state; ResourceList renders"]
 ```
 

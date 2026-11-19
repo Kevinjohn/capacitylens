@@ -84,9 +84,6 @@ function canReadInactive(role: Role) {
 
 const IDENTITY = 'identity or account reply with no client, project or time-off rows';
 const COUNTS = 'counts, ids or no body';
-const UNRESTRICTED = 'changes no restricted table and replies with no restricted row';
-const CALLER =
-  'committed write whose reply carries only the revision, restoration handles and archive counts';
 const PREVIEW =
   "Owner only, refused while viewing as: the caller document's name and counts, the revision and a changed flag";
 
@@ -117,9 +114,9 @@ async function pickOtherColor(table: 'clients' | 'projects', id: string) {
   return other.color;
 }
 
-async function archiveAsOwner(fixture: Fixture, path: string, intent: object) {
+async function archiveAsOwner(fixture: Fixture, intent: object) {
   const archived = await send(
-    fixture.client.post(buildCompanyRoute(path)),
+    fixture.client.post(buildCompanyRoute('planning/mutations')),
     fixture.ownerCookie,
     intent
   );
@@ -128,10 +125,7 @@ async function archiveAsOwner(fixture: Fixture, path: string, intent: object) {
 
 /** Recolours the marked client under a history, a change every writer may make and undo. */
 async function recolourClient(fixture: Fixture, historyId: string) {
-  return session(
-    fixture.client.patch(buildCompanyRoute(`clients/${fixture.clientId}`)),
-    fixture.cookie
-  )
+  return session(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision: await readRevision(),
@@ -208,11 +202,11 @@ const replies: Record<string, Exposure> = {
       ).send();
     },
   },
-  'api.planning.client.update': {
+  'api.planning.mutate#catalogue.update clients': {
     write: true,
     carries: WRITE_REPLY,
     call: async (fixture) =>
-      send(fixture.client.patch(buildCompanyRoute(`clients/${fixture.clientId}`)), fixture.cookie, {
+      send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
         operation: 'catalogue.update',
         entity: {
           entity: 'clients',
@@ -221,102 +215,82 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning.client.unarchive': {
+  'api.planning.mutate#catalogue.unarchive clients': {
     write: true,
     carries: WRITE_REPLY,
     call: async (fixture) => {
       const entity = { entity: 'clients', id: fixture.clientId };
-      await archiveAsOwner(fixture, `clients/${fixture.clientId}/archive`, {
+      await archiveAsOwner(fixture, {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(
-        fixture.client.post(buildCompanyRoute(`clients/${fixture.clientId}/unarchive`)),
-        fixture.cookie,
-        {
-          operation: 'catalogue.unarchive',
-          entity,
-        }
-      );
+      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+        operation: 'catalogue.unarchive',
+        entity,
+      });
     },
   },
-  'api.planning.project.update': {
+  'api.planning.mutate#catalogue.update projects': {
     write: true,
     carries: WRITE_REPLY,
     call: async (fixture) =>
-      send(
-        fixture.client.patch(buildCompanyRoute(`projects/${fixture.projectId}`)),
-        fixture.cookie,
-        {
-          operation: 'catalogue.update',
-          entity: {
-            entity: 'projects',
-            id: fixture.projectId,
-            changes: { color: await pickOtherColor('projects', fixture.projectId) },
-          },
-        }
-      ),
+      send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+        operation: 'catalogue.update',
+        entity: {
+          entity: 'projects',
+          id: fixture.projectId,
+          changes: { color: await pickOtherColor('projects', fixture.projectId) },
+        },
+      }),
   },
-  'api.planning.project.unarchive': {
+  'api.planning.mutate#catalogue.unarchive projects': {
     write: true,
     carries: WRITE_REPLY,
     call: async (fixture) => {
       const entity = { entity: 'projects', id: fixture.projectId };
-      await archiveAsOwner(fixture, `projects/${fixture.projectId}/archive`, {
+      await archiveAsOwner(fixture, {
         operation: 'catalogue.archive',
         entity,
       });
-      return send(
-        fixture.client.post(buildCompanyRoute(`projects/${fixture.projectId}/unarchive`)),
-        fixture.cookie,
-        {
-          operation: 'catalogue.unarchive',
-          entity,
-        }
-      );
+      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+        operation: 'catalogue.unarchive',
+        entity,
+      });
     },
   },
-  'api.planning.timeOff.update': {
+  'api.planning.mutate#timeOff.update': {
     write: true,
     carries: WRITE_REPLY,
     call: async (fixture) => {
       const row = await db.from('time_off').where('id', fixture.timeOffId).first();
       const type = row?.type === 'holiday' ? 'sick' : 'holiday';
-      return send(
-        fixture.client.patch(buildCompanyRoute(`time-off/${fixture.timeOffId}`)),
-        fixture.cookie,
-        {
-          operation: 'timeOff.update',
-          id: fixture.timeOffId,
-          changes: { type },
-        }
-      );
+      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+        operation: 'timeOff.update',
+        id: fixture.timeOffId,
+        changes: { type },
+      });
     },
   },
-  'api.planning.resource.unarchive': {
+  'api.planning.mutate#resource.unarchive': {
     write: true,
     carries: WRITE_REPLY,
     call: async (fixture) => {
-      await archiveAsOwner(fixture, `resources/${fixture.resourceId}/archive`, {
+      await archiveAsOwner(fixture, {
         operation: 'resource.archive',
         id: fixture.resourceId,
       });
-      return send(
-        fixture.client.post(buildCompanyRoute(`resources/${fixture.resourceId}/unarchive`)),
-        fixture.cookie,
-        {
-          operation: 'resource.unarchive',
-          id: fixture.resourceId,
-        }
-      );
+      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+        operation: 'resource.unarchive',
+        id: fixture.resourceId,
+      });
     },
   },
-  'api.planning.restoreGroup': {
+  'api.planning.mutate#planning.restoreGroup': {
     write: true,
     carries: WRITE_REPLY,
     call: async (fixture) => {
       const deleted = await send(
-        fixture.client.post(buildCompanyRoute(`time-off/${fixture.timeOffId}/delete`)),
+        fixture.client.post(buildCompanyRoute('planning/mutations')),
         fixture.cookie,
         {
           operation: 'timeOff.delete',
@@ -329,14 +303,10 @@ const replies: Record<string, Exposure> = {
             (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
               .replacementGroupId
           : randomUUID();
-      return send(
-        fixture.client.post(buildCompanyRoute('planning/restore-group')),
-        fixture.cookie,
-        {
-          operation: 'planning.restoreGroup',
-          restorationGroupId: groupId,
-        }
-      );
+      return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
+        operation: 'planning.restoreGroup',
+        restorationGroupId: groupId,
+      });
     },
   },
   'api.planning.undo': {
@@ -403,37 +373,6 @@ const replies: Record<string, Exposure> = {
   'api.members.tracking': { none: IDENTITY },
   'api.not-found': { none: IDENTITY },
   'api.ownership.transfer': { none: IDENTITY },
-  'api.planning.activity.archive': { none: UNRESTRICTED },
-  'api.planning.activity.create': { none: UNRESTRICTED },
-  'api.planning.activity.unarchive': { none: UNRESTRICTED },
-  'api.planning.activity.update': { none: UNRESTRICTED },
-  'api.planning.allocation.create': { none: UNRESTRICTED },
-  'api.planning.allocation.createGroup': { none: UNRESTRICTED },
-  'api.planning.allocation.delete': { none: UNRESTRICTED },
-  'api.planning.allocation.deleteGroup': { none: UNRESTRICTED },
-  'api.planning.allocation.duplicate': { none: UNRESTRICTED },
-  'api.planning.allocation.update': { none: UNRESTRICTED },
-  'api.planning.client.archive': { none: CALLER },
-  'api.planning.client.create': { none: CALLER },
-  'api.planning.closure.create': { none: UNRESTRICTED },
-  'api.planning.closure.delete': { none: UNRESTRICTED },
-  'api.planning.closure.update': { none: UNRESTRICTED },
-  'api.planning.discipline.create': { none: UNRESTRICTED },
-  'api.planning.discipline.delete': { none: UNRESTRICTED },
-  'api.planning.discipline.update': { none: UNRESTRICTED },
-  'api.planning.phase.create': { none: UNRESTRICTED },
-  'api.planning.phase.delete': { none: UNRESTRICTED },
-  'api.planning.phase.update': { none: UNRESTRICTED },
-  'api.planning.project.archive': { none: CALLER },
-  'api.planning.project.create': { none: CALLER },
-  'api.planning.resource.archive': { none: UNRESTRICTED },
-  'api.planning.resource.create': { none: UNRESTRICTED },
-  'api.planning.resource.update': { none: UNRESTRICTED },
-  'api.planning.settings.update': { none: UNRESTRICTED },
-  'api.planning.timeOff.create': { none: CALLER },
-  'api.planning.timeOff.delete': { none: CALLER },
-  'api.planning.timeOff.deleteGroup': { none: CALLER },
-  'api.planning.timeOff.repeat': { none: CALLER },
   'api.resources.anonymise': { none: COUNTS },
   'api.transfer.apply': { none: COUNTS },
   'api.transfer.preview': { none: PREVIEW },
@@ -458,7 +397,7 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   });
   await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE });
   const archivedId = randomUUID();
-  const created = await send(client.post(buildCompanyRoute('clients')), ownerCookie, {
+  const created = await send(client.post(buildCompanyRoute('planning/mutations')), ownerCookie, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -472,14 +411,10 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
     },
   });
   created.assertStatus(200);
-  const archived = await send(
-    client.post(buildCompanyRoute(`clients/${archivedId}/archive`)),
-    ownerCookie,
-    {
-      operation: 'catalogue.archive',
-      entity: { entity: 'clients', id: archivedId },
-    }
-  );
+  const archived = await send(client.post(buildCompanyRoute('planning/mutations')), ownerCookie, {
+    operation: 'catalogue.archive',
+    entity: { entity: 'clients', id: archivedId },
+  });
   archived.assertStatus(200);
   return {
     clientId: clientRow.id,
@@ -517,7 +452,9 @@ test.group('restricted values in replies', (group) => {
     const names = Object.values(router.toJSON())
       .flat()
       .flatMap((registered) => (registered.name ? [registered.name] : []));
-    assert.sameMembers(Object.keys(replies), names);
+    // A key may name one case of a route after `#`; the mutation route has one case per write.
+    const classified = new Set(Object.keys(replies).map((key) => key.split('#')[0]));
+    assert.sameMembers([...classified], names);
   });
 
   test('no reply carries a restricted value to {label}')

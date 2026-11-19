@@ -1,6 +1,6 @@
 import { test, expect } from './dbFixtures';
 import type { Page } from './dbFixtures';
-import { openApp, showScheduleFilters } from './browserTestSupport';
+import { isPlanningMutation, openApp, showScheduleFilters } from './browserTestSupport';
 
 async function moveDianaToSupplementary(page: Page) {
   await page
@@ -35,10 +35,8 @@ test(
 
     // Enable External (default off) so its final band is present; it's an independent account pref.
     const showExternal = page.getByRole('switch', { name: 'Show external resources' });
-    const showExternalCommitted = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'PATCH' &&
-        /\/api\/companies\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
+    const showExternalCommitted = page.waitForResponse((response) =>
+      isPlanningMutation(response.request(), 'settings.update'),
     );
     await showExternal.click();
     await expect(showExternal).toHaveAttribute('aria-checked', 'true');

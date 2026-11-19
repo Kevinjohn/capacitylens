@@ -6,66 +6,9 @@ export interface ApiDefinition {
     planning: {
       show: typeof routes['api.planning.show']
       archive: typeof routes['api.planning.archive']
-      allocation: {
-        create: typeof routes['api.planning.allocation.create']
-        update: typeof routes['api.planning.allocation.update']
-        createGroup: typeof routes['api.planning.allocation.createGroup']
-        delete: typeof routes['api.planning.allocation.delete']
-        deleteGroup: typeof routes['api.planning.allocation.deleteGroup']
-        duplicate: typeof routes['api.planning.allocation.duplicate']
-      }
-      restoreGroup: typeof routes['api.planning.restoreGroup']
+      mutate: typeof routes['api.planning.mutate']
       undo: typeof routes['api.planning.undo']
       redo: typeof routes['api.planning.redo']
-      resource: {
-        create: typeof routes['api.planning.resource.create']
-        update: typeof routes['api.planning.resource.update']
-        archive: typeof routes['api.planning.resource.archive']
-        unarchive: typeof routes['api.planning.resource.unarchive']
-      }
-      timeOff: {
-        create: typeof routes['api.planning.timeOff.create']
-        update: typeof routes['api.planning.timeOff.update']
-        delete: typeof routes['api.planning.timeOff.delete']
-        deleteGroup: typeof routes['api.planning.timeOff.deleteGroup']
-        repeat: typeof routes['api.planning.timeOff.repeat']
-      }
-      closure: {
-        create: typeof routes['api.planning.closure.create']
-        update: typeof routes['api.planning.closure.update']
-        delete: typeof routes['api.planning.closure.delete']
-      }
-      client: {
-        create: typeof routes['api.planning.client.create']
-        update: typeof routes['api.planning.client.update']
-        archive: typeof routes['api.planning.client.archive']
-        unarchive: typeof routes['api.planning.client.unarchive']
-      }
-      project: {
-        create: typeof routes['api.planning.project.create']
-        update: typeof routes['api.planning.project.update']
-        archive: typeof routes['api.planning.project.archive']
-        unarchive: typeof routes['api.planning.project.unarchive']
-      }
-      activity: {
-        create: typeof routes['api.planning.activity.create']
-        update: typeof routes['api.planning.activity.update']
-        archive: typeof routes['api.planning.activity.archive']
-        unarchive: typeof routes['api.planning.activity.unarchive']
-      }
-      phase: {
-        create: typeof routes['api.planning.phase.create']
-        update: typeof routes['api.planning.phase.update']
-        delete: typeof routes['api.planning.phase.delete']
-      }
-      discipline: {
-        create: typeof routes['api.planning.discipline.create']
-        update: typeof routes['api.planning.discipline.update']
-        delete: typeof routes['api.planning.discipline.delete']
-      }
-      settings: {
-        update: typeof routes['api.planning.settings.update']
-      }
     }
     installation: {
       company: typeof routes['api.installation.company']

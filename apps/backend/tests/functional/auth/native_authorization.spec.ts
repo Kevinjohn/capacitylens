@@ -219,7 +219,9 @@ test.group('native authorization and role projections', (group) => {
       const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);
       const planning = currentPlanning.body() as { revision: number };
-      const settingsRequest = trusted(client.patch(`/api/companies/${companyId}/settings`));
+      const settingsRequest = trusted(
+        client.post(`/api/companies/${companyId}/planning/mutations`)
+      );
       const setting = await withSession(settingsRequest, cookie)
         .json(
           input(planning.revision, {

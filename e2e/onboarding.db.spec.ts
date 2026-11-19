@@ -41,18 +41,21 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
     for (const [field, initial, target] of changes) {
       // The fixture deliberately models legacy accounts with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
-      const initialized = await request.patch(`${API}/api/companies/${account.id}/settings`, {
-        headers: await masqueradeContextHeaders(request, undefined, API),
-        data: {
-          mutationId: crypto.randomUUID(),
-          baseRevision: revision,
-          intent: { operation: 'settings.update', changes: { [field]: initial } },
+      const initialized = await request.post(
+        `${API}/api/companies/${account.id}/planning/mutations`,
+        {
+          headers: await masqueradeContextHeaders(request, undefined, API),
+          data: {
+            mutationId: crypto.randomUUID(),
+            baseRevision: revision,
+            intent: { operation: 'settings.update', changes: { [field]: initial } },
+          },
         },
-      });
+      );
       expect(initialized.status(), `${field} must allow one-time initialization`).toBe(200);
       revision += 1;
 
-      const res = await request.patch(`${API}/api/companies/${account.id}/settings`, {
+      const res = await request.post(`${API}/api/companies/${account.id}/planning/mutations`, {
         headers: await masqueradeContextHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
@@ -65,7 +68,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
 
     // The settings-update schema excludes language, so language-only updates are rejected
     // before frozen-field handling, even when the supplied language is English ('en').
-    const language = await request.patch(`${API}/api/companies/${account.id}/settings`, {
+    const language = await request.post(`${API}/api/companies/${account.id}/planning/mutations`, {
       headers: await masqueradeContextHeaders(request, undefined, API),
       data: {
         mutationId: crypto.randomUUID(),

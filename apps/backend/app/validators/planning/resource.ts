@@ -20,7 +20,6 @@ import {
   boolean,
   calendarDate,
   entityId,
-  meta,
   nullableId,
   nullableUserText,
   number,
@@ -187,7 +186,3 @@ export const resourceIntent = vine.union([
     })
   ),
 ]);
-
-export const resourceMutationValidator = vine.compile(
-  vine.object({ ...meta(), intent: resourceIntent })
-);

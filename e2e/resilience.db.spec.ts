@@ -1,7 +1,12 @@
 import { test, expect } from './dbFixtures';
 import { API, serverState, requireStateRows } from './serverTestState';
 import { failRequestsUntilReleased } from './failRequestsUntilReleased';
-import { waitForAppLanding, freezeBrowserDate, openApp } from './browserTestSupport';
+import {
+  freezeBrowserDate,
+  isPlanningMutation,
+  openApp,
+  waitForAppLanding,
+} from './browserTestSupport';
 
 test.describe('database-backed resilience', () => {
   test('an initial planning read failure prevents a write until reload recovers the real server data', async ({
@@ -52,14 +57,15 @@ test.describe('database-backed resilience', () => {
     await openApp(page, '/clients');
     const clientPosts: string[] = [];
     page.on('request', (browserRequest) => {
-      const path = new URL(browserRequest.url()).pathname;
-      if (browserRequest.method() === 'POST' && /\/api\/companies\/[^/]+\/clients$/.test(path))
-        clientPosts.push(path);
+      if (isPlanningMutation(browserRequest, 'catalogue.create', 'clients'))
+        clientPosts.push(new URL(browserRequest.url()).pathname);
     });
-    const clientFailure = await failRequestsUntilReleased(page, '**/api/companies/*/clients', {
-      status: 503,
-      body: { error: 'Temporary test outage' },
-    });
+    const clientFailure = await failRequestsUntilReleased(
+      page,
+      '**/api/companies/*/planning/mutations',
+      { status: 503, body: { error: 'Temporary test outage' } },
+      (request) => isPlanningMutation(request, 'catalogue.create', 'clients'),
+    );
 
     await page.getByRole('button', { name: 'Add client' }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Retry Recovery Co');
@@ -140,13 +146,12 @@ test.describe('database-backed resilience', () => {
       )
       .toBe('First Editor Co');
 
-    const conflict = secondPage.waitForResponse((response) => {
-      const path = new URL(response.url()).pathname;
-      return (
-        response.request().method() === 'PATCH' &&
-        /\/api\/companies\/[^/]+\/clients\/c-acme$/.test(path)
-      );
-    });
+    const conflict = secondPage.waitForResponse(
+      (response) =>
+        isPlanningMutation(response.request(), 'catalogue.update', 'clients') &&
+        (response.request().postDataJSON() as { intent: { entity: { id: string } } }).intent.entity
+          .id === 'c-acme',
+    );
     await secondPage.getByRole('button', { name: 'Save' }).click();
     expect((await conflict).status()).toBe(409);
     await expect(

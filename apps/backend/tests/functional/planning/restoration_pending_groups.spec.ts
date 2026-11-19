@@ -45,21 +45,20 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const settings = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/settings`,
+      `/api/companies/${companyId}/planning/mutations`,
       2,
       {
         operation: 'settings.update',
         changes: { dateStyle: 'month-day' },
       },
-      randomUUID(),
-      'patch'
+      randomUUID()
     );
     settings.assertStatus(200);
     assert.isDefined(await group(groupId));
     const ordinary = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/projects/${target.id}`,
+      `/api/companies/${companyId}/planning/mutations`,
       3,
       {
         operation: 'catalogue.update',
@@ -69,15 +68,14 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           changes: { name: 'Gotham review', codeName: target.codeName },
         },
       },
-      randomUUID(),
-      'patch'
+      randomUUID()
     );
     ordinary.assertStatus(200);
     assert.isDefined(await group(groupId));
     const changed = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/projects/${target.id}`,
+      `/api/companies/${companyId}/planning/mutations`,
       4,
       {
         operation: 'catalogue.update',
@@ -87,15 +85,14 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           changes: { isPrivate: true, codeName: 'Gotham confidential' },
         },
       },
-      randomUUID(),
-      'patch'
+      randomUUID()
     );
     changed.assertStatus(409);
     assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED');
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.patch(`/api/companies/${companyId}/projects/${target.id}`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({
@@ -134,7 +131,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const renamed = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/activities/${activity.id}`,
+      `/api/companies/${companyId}/planning/mutations`,
       2,
       {
         operation: 'catalogue.update',
@@ -144,29 +141,27 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           changes: { kind: activity.kind, name: 'Gotham planning' },
         },
       },
-      randomUUID(),
-      'patch'
+      randomUUID()
     );
     renamed.assertStatus(200);
     assert.isDefined(await group(groupId));
     const changed = await send(
       client,
       cookie,
-      `/api/companies/${companyId}/activities/${activity.id}`,
+      `/api/companies/${companyId}/planning/mutations`,
       3,
       {
         operation: 'catalogue.update',
         entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
       },
-      randomUUID(),
-      'patch'
+      randomUUID()
     );
     changed.assertStatus(409);
     assert.equal(changed.body().code, 'RESTORATION_CONFIRMATION_REQUIRED');
     assert.equal(changed.body().restorableItemCount, 1);
     assert.isDefined(await group(groupId));
     const confirmed = await session(
-      client.patch(`/api/companies/${companyId}/activities/${activity.id}`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({
@@ -257,7 +252,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       },
     };
     const request = (confirmedRestorationCount?: number, baseRevision = 2) =>
-      session(client.patch(`/api/companies/${companyId}/projects/${target.id}`), cookie)
+      session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
         .json({
           mutationId,
           baseRevision,
@@ -323,7 +318,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       const refused = await send(
         client,
         cookie,
-        `/api/companies/${companyId}/projects/${target.id}`,
+        `/api/companies/${companyId}/planning/mutations`,
         2,
         {
           operation: 'catalogue.update',
@@ -334,7 +329,6 @@ test.group('typed catalogue and time-off restoration', (suite) => {
           },
         },
         randomUUID(),
-        'patch',
         1
       );
       refused.assertStatus(500);
