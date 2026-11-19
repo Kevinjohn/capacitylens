@@ -8,12 +8,10 @@ import type {
 
 export type { PlanningAuthority };
 
-/** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */
-export interface PlanningSnapshot {
+interface PlanningSnapshotBase {
   revision: number;
   /** Who the read was for, and what that member may do and see, as the server verified it. */
   authority: PlanningAuthority;
-  data: AppData;
   /** The company's calendar date, resolved by the server in the company time zone. */
   today: ISODate;
   /** The server's per-day capacity figures for the requested window and the overview horizon. */
@@ -22,12 +20,26 @@ export interface PlanningSnapshot {
   history?: PlanningHistory;
 }
 
+/**
+ * A canonical read normalized by the typed transport; its wire shape remains transport-owned. A
+ * `full` read carries the complete company slice, and a read without `slice` is a full one. An
+ * `unchanged` read carries no rows: the server confirmed that the revision the reader named is current.
+ */
+export type PlanningSnapshot =
+  FullPlanningSnapshot | (PlanningSnapshotBase & { slice: 'unchanged' });
+
+/** A read that carries the complete company slice. */
+export type FullPlanningSnapshot = PlanningSnapshotBase & { slice?: 'full'; data: AppData };
+
 /** What a planning read asks for: the capacity window, absent for the server's default, and the
  * page's history id, so the server reports that history's undo and redo availability. The planning
- * controller always names its history; a read outside it names none and is told neither is available. */
+ * controller always names its history; a read outside it names none and is told neither is available.
+ * `ifRevision` names the revision the reader already holds; the server then leaves the rows out if
+ * that revision is current. */
 export interface PlanningReadRequest {
   window?: CapacityRange;
   historyId?: string;
+  ifRevision?: number;
 }
 
 /** One undo or redo of the page's server-held history; the server holds the intent it applies. */

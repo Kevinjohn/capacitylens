@@ -158,7 +158,9 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     options.onAuthLoss?.();
   }
 
-  function acceptRead(snapshot: PlanningSnapshot): boolean {
+  /** Accepts a read. Returns null for a reply without rows that the cache cannot stand on: its
+   * revision is not the one held, or the reader's access changed. */
+  function acceptRead(snapshot: PlanningSnapshot): boolean | null {
     const current = store.getState();
     const context = current.planning.context;
     if (
@@ -171,6 +173,12 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const accessChanged =
       current.planning.authority !== null &&
       buildAuthorityKey(snapshot.authority) !== buildAuthorityKey(current.planning.authority);
+    if (
+      snapshot.slice === 'unchanged' &&
+      (accessChanged || snapshot.revision !== current.planning.revision)
+    ) {
+      return null;
+    }
     const older =
       current.planning.revision !== null && snapshot.revision < current.planning.revision;
     if (accessChanged) {
@@ -180,7 +188,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       historyId = createHistoryId();
       abortAll();
       store.setState(() => ({
-        data: older ? emptyAppData() : snapshot.data,
+        data: older || snapshot.slice === 'unchanged' ? emptyAppData() : snapshot.data,
         planning: {
           ...initialMetadata(context),
           authority: older ? null : snapshot.authority,
@@ -224,7 +232,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       return { kind: 'ready', lastWrite: keptLastWrite(phase) };
     };
     store.setState((state) => ({
-      data: snapshot.data,
+      // An unchanged read keeps the cached rows and their identities.
+      ...(snapshot.slice === 'unchanged' ? {} : { data: snapshot.data }),
       planning: {
         ...state.planning,
         authority: snapshot.authority,
@@ -243,15 +252,22 @@ export function createPlanningCacheController(options: PlanningControllerOptions
    * a move of the capacity window, leaves a ready phase alone so writes stay allowed meanwhile. Any
    * other read shows as loading, except while a write is pending, when the phase stays writing.
    * A newer read aborts this one, and this one then resolves with the newer read's outcome.
+   * A read names the revision the cache holds, unless `full` asks for the complete slice.
    */
-  function refresh(readOptions: { quiet?: boolean } = {}): Promise<boolean> {
+  function refresh(readOptions: { quiet?: boolean; full?: boolean } = {}): Promise<boolean> {
     const read = readSnapshot(readOptions);
     latestRead = read;
     return read;
   }
 
-  async function readSnapshot({ quiet = false }: { quiet?: boolean }): Promise<boolean> {
-    const context = store.getState().planning.context;
+  async function readSnapshot({
+    quiet = false,
+    full = false,
+  }: {
+    quiet?: boolean;
+    full?: boolean;
+  }): Promise<boolean> {
+    const { context, revision } = store.getState().planning;
     if (!context) return false;
     const capturedGeneration = generation;
     const sequence = ++readSequence;
@@ -277,10 +293,12 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       const snapshot = await transport.read(applyContextToken(context), controller.signal, {
         ...(window ? { window } : {}),
         historyId,
+        ...(full || revision === null ? {} : { ifRevision: revision }),
       });
       if (!isCurrent(capturedGeneration, context)) return false;
       if (sequence !== readSequence) return await (latestRead ?? false);
-      return acceptRead(snapshot);
+      // Rows the cache cannot stand on are never guessed at: read the complete slice once.
+      return acceptRead(snapshot) ?? (await refresh({ quiet, full: true }));
     } catch (error) {
       if (!isCurrent(capturedGeneration, context)) return false;
       if (sequence !== readSequence) return await (latestRead ?? false);

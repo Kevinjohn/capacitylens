@@ -5,6 +5,7 @@ import {
   DEFAULT_COMPANY_ID,
   makeAppData,
   makeResource,
+  requireFullSnapshot,
   requireValue,
   resetStoreWithCompany,
   resetStoreWithData,
@@ -39,7 +40,7 @@ describe('typed undo restores cascade bindings', () => {
     const transport = getPlanningTransportHandle();
     const read = transport.read;
     vi.spyOn(transport, 'read').mockImplementationOnce(async (...args) => {
-      const snapshot = await read(...args);
+      const snapshot = requireFullSnapshot(await read(...args));
       return {
         ...snapshot,
         data: { ...snapshot.data, clients: [{ ...original, updatedAt: restoredAt }] },

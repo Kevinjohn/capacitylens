@@ -8,9 +8,9 @@ import {
   createPlanningCacheState,
 } from '@/data/planning/planningCacheController';
 import type {
+  FullPlanningSnapshot,
   PlanningCacheState,
   PlanningControllerOptions,
-  PlanningSnapshot,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -33,7 +33,7 @@ export function snapshot(
   revision: number,
   clientName = 'Wayne Enterprises',
   history = { canUndo: false, canRedo: false },
-): PlanningSnapshot {
+): FullPlanningSnapshot {
   return {
     revision,
     authority: makePlanningAuthority(),

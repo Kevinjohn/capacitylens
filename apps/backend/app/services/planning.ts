@@ -66,11 +66,10 @@ export interface PlanningHistoryStepOptions {
   step: 'undo' | 'redo';
 }
 
-export interface PlanningSnapshot {
+interface PlanningReadBase {
   companyId: string;
   revision: number;
   authority: PlanningAuthority;
-  data: AppData;
   /** The company's current calendar date in its own time zone. */
   today: ISODate;
   capacity: CapacitySection;
@@ -78,25 +77,31 @@ export interface PlanningSnapshot {
   history: PlanningHistoryState;
 }
 
+/** A planning read: the complete projected slice, or none when the reader named the current
+ * revision as the one it already holds. */
+export type PlanningRead =
+  | (PlanningReadBase & { slice: 'full'; data: AppData })
+  | (PlanningReadBase & { slice: 'unchanged' });
+
 /** Resolves current product authority, revision, rows and their capacity from the same database
- * snapshot. Capacity covers `window`, or the scheduler's default window when it is absent. */
+ * snapshot. Capacity covers `window`, or the scheduler's default window when it is absent. The rows
+ * are left out only when `page.ifRevision` is exactly the current revision. */
 export async function readPlanning(
   trx: TransactionClientContract,
   companyId: string,
   window?: CapacityRange,
-  page?: { sessionId: number; historyId?: string }
-): Promise<PlanningSnapshot> {
+  page?: { sessionId: number; historyId?: string; ifRevision?: number }
+): Promise<PlanningRead> {
   const { authority } = await resolvePlanningAuthority(trx, companyId);
   const revision = await getPlanningRevision(trx, companyId);
   const data = await readStateWithClient(trx, companyId, true);
   const company = data.accounts.find((row) => row.id === companyId);
   const today = readCompanyToday(company?.timezone ?? null);
   const visible = transformState(activeOnly(data), companyId, authority.role);
-  return {
+  const base: PlanningReadBase = {
     companyId,
     revision,
     authority,
-    data: visible,
     today,
     // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
     capacity: buildCapacitySection({ data: visible, company, today, window }),
@@ -114,6 +119,9 @@ export async function readPlanning(
             revision
           ),
   };
+  return page?.ifRevision === revision
+    ? { ...base, slice: 'unchanged' }
+    : { ...base, slice: 'full', data: visible };
 }
 
 /** Read only recoverable identities under current transactional write authority. */

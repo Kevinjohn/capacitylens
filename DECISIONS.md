@@ -93,8 +93,9 @@ This is the short, present-tense record of decisions that constrain future work.
   companies itself.
 - Code that works across several companies stays on purpose: view-as searches every membership when
   no company is named. An export always names its company.
-- Planning reads return current authority, one integer company revision and the complete,
-  confidentially projected company slice from one transaction. Every typed mutation carries the
+- A planning read returns current authority, one integer company revision and the complete,
+  confidentially projected company slice, or no slice when the reader names the revision it already
+  holds and that revision is current, from one transaction. Every typed mutation carries the
   company revision it was drafted against; a mismatch returns 409 and the client refetches. An edit
   form's update also carries the row's `updatedAt` from when the form opened, and a mismatch
   returns the same 409. No automatic rebase or replay. A revision advances once per transaction

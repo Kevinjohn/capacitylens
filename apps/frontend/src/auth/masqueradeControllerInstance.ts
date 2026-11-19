@@ -28,6 +28,8 @@ export const masqueradeController = new MasqueradeController({
       },
       new AbortController().signal,
     );
+    // A read that names no revision always carries the rows.
+    if (snapshot.slice === 'unchanged') return null;
     return snapshot.data.accounts.find((company) => company.id === companyId)?.name ?? null;
   },
   api: masqueradeApi,

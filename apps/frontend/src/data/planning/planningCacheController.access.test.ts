@@ -5,7 +5,7 @@ import { createStore } from 'zustand/vanilla';
 import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
 import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
 import { PlanningControllerError } from './planningErrors';
-import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
+import type { FullPlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
@@ -19,7 +19,7 @@ const update = {
   changes: { startDate: '2026-10-21' },
 } as const;
 
-function snapshot(name: string, revision = 1): PlanningSnapshot {
+function snapshot(name: string, revision = 1): FullPlanningSnapshot {
   return {
     revision,
     authority: makePlanningAuthority(),

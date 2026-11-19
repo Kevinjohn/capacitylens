@@ -21,14 +21,16 @@ const readRange = vine.createRule((value, _options, field) => {
   }
 });
 
-/** The planning read's query: the capacity window, both dates or neither, and the reading page's
- * history. Other fields are ignored. */
+/** The planning read's query: the capacity window, both dates or neither, the reading page's
+ * history, and the revision the reader already holds. The query carries strings, so `ifRevision` is
+ * converted rather than strict. Other fields are ignored. */
 export const planningReadValidator = vine.compile(
   vine
     .object({
       from: calendarDate().optional(),
       to: calendarDate().optional(),
       historyId: uuid().optional(),
+      ifRevision: vine.number().min(0).withoutDecimals().optional(),
     })
     .use(readRange())
 );

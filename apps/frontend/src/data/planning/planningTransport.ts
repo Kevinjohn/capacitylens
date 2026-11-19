@@ -72,7 +72,7 @@ async function sendOperation(
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
 export function createPlanningTransport(apiClient: PlanningClient = client): PlanningTransport {
   return {
-    async read(context, signal, { window, historyId } = {}) {
+    async read(context, signal, { window, historyId, ifRevision } = {}) {
       try {
         const scopedClient = applyMasqueradeContext(apiClient, getContextToken(context));
         const snapshot = requireReply(
@@ -81,6 +81,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             query: {
               ...(window ? { from: window.from, to: window.to } : {}),
               ...(historyId === undefined ? {} : { historyId }),
+              ...(ifRevision === undefined ? {} : { ifRevision }),
             },
             signal,
           }),
@@ -99,7 +100,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
         ) {
           throw new PlanningControllerError('The server returned an invalid planning authority.');
         }
-        return {
+        const base = {
           revision: snapshot.revision,
           authority: {
             actorId: authority.actorId,
@@ -109,11 +110,13 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             canSeePrivateNames: authority.canSeePrivateNames,
             canSeeTimeOffNote: authority.canSeeTimeOffNote,
           },
-          data: snapshot.data,
           today: snapshot.today,
           capacity: snapshot.capacity,
           history: snapshot.history,
         };
+        return snapshot.slice === 'unchanged'
+          ? { ...base, slice: 'unchanged' }
+          : { ...base, slice: 'full', data: snapshot.data };
       } catch (error) {
         throw mapPlanningError(error);
       }

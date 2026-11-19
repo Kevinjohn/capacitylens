@@ -482,6 +482,9 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   const refreshed = await refresh;
   expect(refreshed.status()).toBe(200);
+  // The page names the revision it holds; the other session's change makes it stale.
+  expect(new URL(refreshed.url()).searchParams.has('ifRevision')).toBe(true);
+  expect(((await refreshed.json()) as { slice: string }).slice).toBe('full');
   await refreshed.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 

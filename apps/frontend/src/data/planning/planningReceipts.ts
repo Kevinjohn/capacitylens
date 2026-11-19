@@ -18,17 +18,26 @@ function isValidAuthority(authority: unknown): boolean {
   );
 }
 
-export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
-  if (!isRecord(snapshot) || !isRecord(snapshot.data)) return false;
+function isValidSlice(snapshot: Record<string, unknown>): boolean {
+  if (snapshot.slice === 'unchanged') return !('data' in snapshot);
+  if (snapshot.slice !== undefined && snapshot.slice !== 'full') return false;
   const data = snapshot.data;
+  return (
+    isRecord(data) &&
+    Array.isArray(data.accounts) &&
+    data.accounts.every(isRecord) &&
+    SCOPED_KEYS.every((key) => Array.isArray(data[key])) &&
+    SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord))
+  );
+}
+
+export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot {
+  if (!isRecord(snapshot)) return false;
   return (
     Number.isSafeInteger(snapshot.revision) &&
     typeof snapshot.revision === 'number' &&
     snapshot.revision >= 0 &&
-    Array.isArray(data.accounts) &&
-    data.accounts.every(isRecord) &&
-    SCOPED_KEYS.every((key) => Array.isArray(data[key])) &&
-    SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord)) &&
+    isValidSlice(snapshot) &&
     isValidAuthority(snapshot.authority) &&
     isValidISODate(snapshot.today) &&
     (snapshot.history === undefined ||
@@ -39,6 +48,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
 }
 
 export function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: string): boolean {
+  if (snapshot.slice === 'unchanged') return true;
   return (
     snapshot.data.accounts.length === 1 &&
     snapshot.data.accounts.every((company) => isRecord(company) && company.id === companyId) &&

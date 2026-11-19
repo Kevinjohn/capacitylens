@@ -6,6 +6,7 @@ import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
 import { updateSettings, PlanningOperationError } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
+import { advancePlanningRevision } from '#services/planning_revision';
 import {
   companyId,
   planningUrl,
@@ -171,6 +172,52 @@ test.group('authenticated typed planning transactions', (group) => {
       openDays.map((index) => after.days.window.over[index]),
       [false, false]
     );
+  });
+
+  test('read leaves the rows out only for the current ifRevision', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie, userId } = await signIn(client, 'editor');
+    await db.transaction((trx) => advancePlanningRevision(trx, companyId));
+    const read = (query: Record<string, string | number>) =>
+      session(client.get(planningUrl).qs(query), cookie).send();
+
+    const unchanged = await read({ ifRevision: 1 });
+    unchanged.assertStatus(200);
+    assert.equal(unchanged.body().slice, 'unchanged');
+    assert.equal(unchanged.body().revision, 1);
+    assert.notProperty(unchanged.body(), 'data');
+    assert.property(unchanged.body(), 'capacity');
+    assert.equal(unchanged.body().authority.role, 'editor');
+
+    const fullQueries: Array<Record<string, number>> = [{ ifRevision: 0 }, { ifRevision: 2 }, {}];
+    for (const query of fullQueries) {
+      const full = await read(query);
+      full.assertStatus(200);
+      assert.equal(full.body().slice, 'full', JSON.stringify(query));
+      assert.isArray(full.body().data.clients, JSON.stringify(query));
+    }
+    for (const ifRevision of ['-1', '1.5', 'abc']) {
+      const refused = await read({ ifRevision });
+      refused.assertStatus(400);
+      assert.equal(refused.body().code, 'VALIDATION_ERROR', ifRevision);
+    }
+
+    // A role change advances the revision, so the reader's old revision gets the full slice.
+    await db.transaction(async (trx) => {
+      await trx
+        .from('memberships')
+        .where({ scope_id: companyId, user_id: userId })
+        .update({ role: 'viewer' });
+      await advancePlanningRevision(trx, companyId);
+    });
+    const afterRoleChange = await read({ ifRevision: 1 });
+    afterRoleChange.assertStatus(200);
+    assert.equal(afterRoleChange.body().slice, 'full');
+    assert.equal(afterRoleChange.body().authority.role, 'viewer');
   });
 
   test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({

@@ -15,6 +15,7 @@ import type {
 import type { Draft } from '@/store/useStore';
 import type { LifecycleEntity } from '@/lib/entityDrafts';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
+import type { FullPlanningSnapshot, PlanningSnapshot } from '@/data/planning/planningCacheTypes';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import {
@@ -314,6 +315,12 @@ export function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+/** A read that sent no `ifRevision` carries the complete slice; narrow it to one that does. */
+export function requireFullSnapshot(snapshot: PlanningSnapshot): FullPlanningSnapshot {
+  if (snapshot.slice === 'unchanged') throw new Error('Expected a full planning read');
+  return snapshot;
 }
 
 /** Establish an indexed-fixture precondition without weakening the assertion that consumes it. */
