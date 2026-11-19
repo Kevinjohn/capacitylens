@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import type { CompanySummary } from '@/store/useStore';
 import { isRole } from '@capacitylens/shared/account/types';
@@ -8,7 +8,6 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { m } from '@/i18n';
 import { useAuth } from './authContext';
-import { api, scopeQueryKey } from '@/api/queryClient';
 
 // The company directory is loaded before a tenant is selected because the active company slice
 // cannot enumerate other memberships.
@@ -181,9 +180,10 @@ export async function refreshCompanySummaries(requestOptions?: {
   return list;
 }
 
-/** Keeps the company directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list. */
+/** Keeps the company directory current in the store, its one home. Active-company reads belong to
+ * PermissionProvider; failed reads preserve the previous list. */
 export function useCompanySummaries(): void {
-  // Re-key the request owner on the active company so a sign-in or membership change re-pulls the list.
+  // Re-read on the active company so a sign-in or membership change re-pulls the list.
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const membershipRevision = useStore((state) => state.membershipRevision);
@@ -191,21 +191,14 @@ export function useCompanySummaries(): void {
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const { user } = useAuth();
-  const companyRouteKey = api.api.companies.index.queryKey({});
-  useQuery<CompanySummary[] | null>({
-    queryKey: scopeQueryKey(
-      { principalId: user?.id ?? null, companyId: activeCompanyId, masqueradeGeneration },
-      ['account-summaries', membershipRevision, ...companyRouteKey],
-    ),
-    enabled: !masqueradeActive && activeCompanyId === null,
-    // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not
-    // silently change the company directory.
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: false,
-    queryFn: ({ signal }) =>
-      refreshCompanySummaries({
-        signal,
-        acceptEffects: () => !signal.aborted,
-      }),
-  });
+  const principalId = user?.id ?? null;
+  useEffect(() => {
+    if (masqueradeActive || activeCompanyId !== null) return;
+    const controller = new AbortController();
+    void refreshCompanySummaries({
+      signal: controller.signal,
+      acceptEffects: () => !controller.signal.aborted,
+    });
+    return () => controller.abort();
+  }, [principalId, activeCompanyId, masqueradeActive, membershipRevision, masqueradeGeneration]);
 }
