@@ -178,7 +178,7 @@ describe('SchedulerGrid', () => {
   it('announces time-off mode, hides work counts and offers keyboard time-off creation', async () => {
     renderGrid();
 
-    act(() => useStore.getState().setDrawMode('timeoff'));
+    act(() => useStore.getState().setDrawMode('timeOff'));
 
     expect(screen.getByTestId('scheduler-live-region')).toHaveTextContent(/Time-off mode/);
     expect(screen.queryByText(/1 allocation\./)).not.toBeInTheDocument();

@@ -49,7 +49,7 @@ export interface AccountSummary {
 export type { WeeksZoom };
 
 /** What a draw-on-a-lane gesture creates. */
-export type DrawMode = 'work' | 'timeoff';
+export type DrawMode = 'work' | 'timeOff';
 
 /** UI state that controls scheduler zoom, range, and interaction modes. */
 export interface SchedulerUI {
