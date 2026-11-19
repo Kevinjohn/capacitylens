@@ -42,7 +42,7 @@ function requireReply<T>(reply: T | void): T {
   return reply;
 }
 
-function normalizePlanningError(error: unknown): unknown {
+function mapPlanningError(error: unknown): unknown {
   const failure = readProductHttpFailure(error, 'The planning request was refused.');
   if (!failure) return error;
   return new PlanningControllerError(
@@ -371,7 +371,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           ]),
         };
       } catch (error) {
-        throw normalizePlanningError(error);
+        throw mapPlanningError(error);
       }
     },
     async execute(context, execution, signal) {
@@ -383,7 +383,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           signal,
         );
       } catch (error) {
-        throw normalizePlanningError(error);
+        throw mapPlanningError(error);
       }
     },
     async undo(context, step, signal) {
@@ -395,7 +395,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           ),
         );
       } catch (error) {
-        throw normalizePlanningError(error);
+        throw mapPlanningError(error);
       }
     },
     async redo(context, step, signal) {
@@ -407,7 +407,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           ),
         );
       } catch (error) {
-        throw normalizePlanningError(error);
+        throw mapPlanningError(error);
       }
     },
   };

@@ -34,7 +34,7 @@ export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryCo
   if (row.timeOff.length) {
     const count = row.timeOff.length;
     parts.push(
-      count > 1 ? m.scheduler_sr_timeoff_other({ count }) : m.scheduler_sr_timeoff_one({ count }),
+      count > 1 ? m.scheduler_sr_time_off_other({ count }) : m.scheduler_sr_time_off_one({ count }),
     );
   }
   if (context.showPersonalUtilisation && isCapacityTracked(row.resource)) {
@@ -46,7 +46,7 @@ export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryCo
     );
   }
   // Time-off draw mode is about absences, not bookings: an allocation count would be noise there.
-  if (context.drawMode !== 'timeoff') {
+  if (context.drawMode !== 'timeOff') {
     const count = row.bars.length;
     parts.push(
       count === 1

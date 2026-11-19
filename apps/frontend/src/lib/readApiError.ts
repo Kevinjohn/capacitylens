@@ -1,15 +1,15 @@
 /**
  * Read the server's user-facing error from a failed response.
- * Standard responses are cloned; adapters without `clone()` are read directly.
+ * The response is cloned, so the caller can still read the original.
  * Invalid or unreadable JSON returns undefined so callers can use a fallback.
  */
 export async function readApiError(res: Response): Promise<string | undefined> {
   let readable: Response;
   try {
     if (res.bodyUsed) return undefined;
-    readable = typeof res.clone === 'function' ? res.clone() : res;
+    readable = res.clone();
   } catch {
-    // Cloning is optional; callers still handle the original response with a fallback message.
+    // A locked body cannot be cloned; callers still handle the original response with a fallback message.
     return undefined;
   }
   // Unreadable JSON loses only the optional server detail; callers still handle the response.
@@ -19,7 +19,7 @@ export async function readApiError(res: Response): Promise<string | undefined> {
 
 /** Best-effort read of a string API error code without consuming the response body. */
 export async function readApiErrorCode(res: Response): Promise<string | null> {
-  if (res.bodyUsed || typeof res.clone !== 'function') return null;
+  if (res.bodyUsed) return null;
   let readable: Response;
   try {
     readable = res.clone();
