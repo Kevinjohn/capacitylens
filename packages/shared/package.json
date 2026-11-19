@@ -198,6 +198,11 @@
       "types": "./src/types/entities.ts",
       "default": "./dist/types/entities.js"
     },
+    "./types/entityFields": {
+      "development": "./src/types/entityFields.ts",
+      "types": "./src/types/entityFields.ts",
+      "default": "./dist/types/entityFields.js"
+    },
     "./types/nullableFields": {
       "development": "./src/types/nullableFields.ts",
       "types": "./src/types/nullableFields.ts",

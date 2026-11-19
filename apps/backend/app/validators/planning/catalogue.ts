@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { writableFields } from '@capacitylens/shared/types/entityFields';
 import { ACTIVITY_KINDS } from '@capacitylens/shared/types/entities';
 import {
   boolean,
@@ -77,20 +78,64 @@ const catalogueCreate = vine.union([
   ),
 ]);
 
+export const clientChanges = vine
+  .object({
+    name: nameText().optional(),
+    color: presetColor().optional(),
+    isPrivate: boolean().nullable().optional(),
+    codeName: nullableUserText().optional(),
+  })
+  // `builtin` is set only by the server, so a client change cannot name it.
+  .use(requireChanges(['name', 'color', 'isPrivate', 'codeName']));
+
+export const projectChanges = vine
+  .object({
+    name: nameText().optional(),
+    color: presetColor().optional(),
+    clientId: entityId().optional(),
+    isPrivate: boolean().nullable().optional(),
+    codeName: nullableUserText().optional(),
+  })
+  .use(requireChanges(writableFields('projects')));
+
+export const phaseChanges = vine
+  .object({
+    name: nameText().optional(),
+    projectId: entityId().optional(),
+  })
+  .use(requireChanges(writableFields('phases')));
+
+export const activityChanges = vine
+  .object({
+    name: nameText().optional(),
+    kind: vine.enum(ACTIVITY_KINDS).optional(),
+    projectId: nullableId().optional(),
+    phaseId: nullableId().optional(),
+  })
+  .use(requireChanges(writableFields('activities')));
+
+export const disciplineChanges = vine
+  .object({
+    name: nameText().optional(),
+    color: presetColor().nullable().optional(),
+    sortOrder: number()
+      .use(
+        vine.createRule((value, _options, field) => {
+          if (Number.isSafeInteger(value)) return;
+          field.report('Sort order must be a safe integer.', 'safeInteger', field);
+        })()
+      )
+      .optional(),
+  })
+  .use(requireChanges(writableFields('disciplines')));
+
 const catalogueChanges = vine.union([
   vine.union.if(
     (value) => hasEntity(value, 'clients'),
     vine.object({
       entity: vine.literal('clients'),
       id: entityId(),
-      changes: vine
-        .object({
-          name: nameText().optional(),
-          color: presetColor().optional(),
-          isPrivate: boolean().nullable().optional(),
-          codeName: nullableUserText().optional(),
-        })
-        .use(requireChanges(['name', 'color', 'isPrivate', 'codeName'])),
+      changes: clientChanges,
     })
   ),
   vine.union.if(
@@ -98,15 +143,7 @@ const catalogueChanges = vine.union([
     vine.object({
       entity: vine.literal('projects'),
       id: entityId(),
-      changes: vine
-        .object({
-          name: nameText().optional(),
-          color: presetColor().optional(),
-          clientId: entityId().optional(),
-          isPrivate: boolean().nullable().optional(),
-          codeName: nullableUserText().optional(),
-        })
-        .use(requireChanges(['name', 'color', 'clientId', 'isPrivate', 'codeName'])),
+      changes: projectChanges,
     })
   ),
   vine.union.if(
@@ -114,12 +151,7 @@ const catalogueChanges = vine.union([
     vine.object({
       entity: vine.literal('phases'),
       id: entityId(),
-      changes: vine
-        .object({
-          name: nameText().optional(),
-          projectId: entityId().optional(),
-        })
-        .use(requireChanges(['name', 'projectId'])),
+      changes: phaseChanges,
     })
   ),
   vine.union.if(
@@ -127,34 +159,14 @@ const catalogueChanges = vine.union([
     vine.object({
       entity: vine.literal('activities'),
       id: entityId(),
-      changes: vine
-        .object({
-          name: nameText().optional(),
-          kind: vine.enum(ACTIVITY_KINDS).optional(),
-          projectId: nullableId().optional(),
-          phaseId: nullableId().optional(),
-        })
-        .use(requireChanges(['name', 'kind', 'projectId', 'phaseId'])),
+      changes: activityChanges,
     })
   ),
   vine.union.else(
     vine.object({
       entity: vine.literal('disciplines'),
       id: entityId(),
-      changes: vine
-        .object({
-          name: nameText().optional(),
-          color: presetColor().nullable().optional(),
-          sortOrder: number()
-            .use(
-              vine.createRule((value, _options, field) => {
-                if (Number.isSafeInteger(value)) return;
-                field.report('Sort order must be a safe integer.', 'safeInteger', field);
-              })()
-            )
-            .optional(),
-        })
-        .use(requireChanges(['name', 'color', 'sortOrder'])),
+      changes: disciplineChanges,
     })
   ),
 ]);

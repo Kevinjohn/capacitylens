@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { writableFields } from '@capacitylens/shared/types/entityFields';
 import { ALLOCATION_STATUSES } from '@capacitylens/shared/types/entities';
 import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDates';
 import {
@@ -34,7 +35,7 @@ const allocationCreate = vine
   })
   .use(dateRange());
 
-const allocationChanges = vine
+export const allocationChanges = vine
   .object({
     resourceId: entityId().optional(),
     activityId: entityId().optional(),
@@ -80,20 +81,7 @@ export const allocationIntent = vine
       vine.object({
         operation: vine.literal('allocation.update'),
         id: entityId(),
-        changes: allocationChanges.use(
-          requireChanges([
-            'resourceId',
-            'activityId',
-            'projectId',
-            'startDate',
-            'endDate',
-            'hoursPerDay',
-            'status',
-            'note',
-            'task',
-            'ignoreWorkingDays',
-          ])
-        ),
+        changes: allocationChanges.use(requireChanges(writableFields('allocations'))),
       })
     ),
     vine.union.if(

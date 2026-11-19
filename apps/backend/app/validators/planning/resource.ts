@@ -56,7 +56,7 @@ const resourceFields = {
   firstAvailableDate: calendarDate().nullable(),
   lastAvailableDate: calendarDate().nullable(),
 };
-const resourceChanges = {
+export const resourceChanges = {
   name: resourceFields.name.optional(),
   role: resourceFields.role.optional(),
   avatarUrl: resourceFields.avatarUrl.optional(),
@@ -160,6 +160,7 @@ export const resourceIntent = vine.union([
       id: entityId(),
       changes: vine
         .object(resourceChanges)
+        // `kind` cannot change after create, so the writable list here leaves it out.
         .use(requireChanges(Object.keys(resourceChanges)))
         .use(
           vine.createRule((value, _options, field) => {

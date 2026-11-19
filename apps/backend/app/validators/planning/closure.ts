@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine';
+import { writableFields } from '@capacitylens/shared/types/entityFields';
 import {
   calendarDate,
   dateRange,
@@ -15,7 +16,7 @@ const closureFields = {
   startDate: calendarDate(),
   endDate: calendarDate(),
 };
-const closureChanges = {
+export const closureChanges = {
   name: closureFields.name.optional(),
   startDate: closureFields.startDate.optional(),
   endDate: closureFields.endDate.optional(),
@@ -36,7 +37,7 @@ export const closureIntent = vine.union([
       id: entityId(),
       changes: vine
         .object(closureChanges)
-        .use(requireChanges(Object.keys(closureChanges)))
+        .use(requireChanges(writableFields('closures')))
         .use(dateRange()),
     })
   ),
