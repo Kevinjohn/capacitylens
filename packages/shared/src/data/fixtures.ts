@@ -229,7 +229,7 @@ export const FIXTURE_ALLOCATION_ATTRIBUTED: Allocation = {
 };
 
 /** Complete time-off fixture for {@link FIXTURE_RESOURCE}. */
-export const FIXTURE_TIMEOFF: TimeOff = {
+export const FIXTURE_TIME_OFF: TimeOff = {
   id: 'fix-to1',
   companyId: 'fix-a1',
   resourceId: 'fix-r1',
