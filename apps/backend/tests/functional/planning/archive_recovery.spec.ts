@@ -50,11 +50,9 @@ function mutationInput(baseRevision: number, intent: Record<string, unknown>) {
 function unarchiveOperation(entity: ArchiveRecoveryRow['entity'], id: string) {
   if (entity === 'resources')
     return {
-      path: `resources/${id}/unarchive`,
       intent: { operation: 'resource.unarchive', id },
     };
   return {
-    path: `${entity}/${id}/unarchive`,
     intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
   };
 }
@@ -67,7 +65,7 @@ async function unarchive(
   baseRevision: number
 ) {
   const operation = unarchiveOperation(entity, id);
-  return session(client.post(route(operation.path)), cookie)
+  return session(client.post(route('planning/mutations')), cookie)
     .json(mutationInput(baseRevision, operation.intent))
     .send();
 }
@@ -377,10 +375,7 @@ test.group('identity-only archive recovery', (suite) => {
     );
 
     // Capture the archive-to-active projection boundary on a normal typed operation.
-    const archiveProject = await session(
-      client.post(route(`projects/${projectId}/archive`)),
-      editor.cookie
-    )
+    const archiveProject = await session(client.post(route('planning/mutations')), editor.cookie)
       .json(
         mutationInput(0, {
           operation: 'catalogue.archive',
@@ -404,7 +399,7 @@ test.group('identity-only archive recovery', (suite) => {
     assert.notInclude(afterArchive.text(), privateProjectName);
 
     for (const [index, id] of ['t-brand', 't-cms'].entries()) {
-      const response = await session(client.post(route(`activities/${id}/archive`)), editor.cookie)
+      const response = await session(client.post(route('planning/mutations')), editor.cookie)
         .json(
           mutationInput(index + 1, {
             operation: 'catalogue.archive',
@@ -536,7 +531,7 @@ test.group('identity-only archive recovery', (suite) => {
     const archiveRead = await session(client.get(archiveUrl), editor.cookie).send();
     archiveRead.assertStatus(200);
 
-    const advance = await session(client.post(route('activities/t-design/archive')), editor.cookie)
+    const advance = await session(client.post(route('planning/mutations')), editor.cookie)
       .json(
         mutationInput(0, {
           operation: 'catalogue.archive',
@@ -561,10 +556,7 @@ test.group('identity-only archive recovery', (suite) => {
     deletedTarget.assertStatus(400);
     assert.equal((deletedTarget.body() as { code: string }).code, 'VALIDATION_ERROR');
 
-    const foreignTarget = await session(
-      client.post(route('projects/p-loft-app/unarchive')),
-      editor.cookie
-    )
+    const foreignTarget = await session(client.post(route('planning/mutations')), editor.cookie)
       .json(
         mutationInput(1, {
           operation: 'catalogue.unarchive',

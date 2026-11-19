@@ -2,7 +2,7 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import { expect, test } from './fixtures';
 import type { APIRequestContext, Page } from './fixtures';
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+import { isPlanningMutation, waitForAppLanding } from './browserTestSupport';
 
 const MODULE_URL = '/src/test/planningServerHarness.ts';
 const STAMP = Date.now();
@@ -201,8 +201,9 @@ test('unactivated planning controller uses authenticated typed routes and reconc
   // until acknowledgement; then the dropped response ends in a canonical read.
   const committedAtServer = deferred<{ status: number; body: unknown }>();
   const releaseResponse = deferred<void>();
-  const updatePath = `**/api/companies/${companyId}/allocations/${allocationId}`;
+  const updatePath = `**/api/companies/${companyId}/planning/mutations`;
   await page.route(updatePath, async (route) => {
+    if (!isPlanningMutation(route.request(), 'allocation.update')) return route.fallback();
     const response = await route.fetch();
     committedAtServer.resolve({ status: response.status(), body: await response.json() });
     await releaseResponse.promise;
@@ -442,8 +443,12 @@ test('unactivated planning controller uses authenticated typed routes and reconc
 
   // A request lost before dispatch committed nothing. The browser shows the server's state, asks the
   // person to check, and never resends; a deliberate retry is a new change with a new identity.
-  const unknownRoute = `**/api/companies/${companyId}/allocations/${allocationId}`;
-  await page.route(unknownRoute, async (route) => route.abort('failed'));
+  const unknownRoute = `**/api/companies/${companyId}/planning/mutations`;
+  await page.route(unknownRoute, async (route) =>
+    isPlanningMutation(route.request(), 'allocation.update')
+      ? route.abort('failed')
+      : route.fallback(),
+  );
   const confirm = {
     operation: 'allocation.update',
     id: allocationId,

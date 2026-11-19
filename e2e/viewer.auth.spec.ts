@@ -42,7 +42,7 @@ async function assertViewerWriteRejected(
   cookie: string,
 ) {
   const newClientId = crypto.randomUUID();
-  const directWrite = await request.post(`${API}/api/companies/${companyId}/clients`, {
+  const directWrite = await request.post(`${API}/api/companies/${companyId}/planning/mutations`, {
     headers: await masqueradeContextHeaders(request, cookie),
     data: {
       mutationId: crypto.randomUUID(),
@@ -66,7 +66,7 @@ async function seedViewerScenario(request: APIRequestContext) {
   const editor = await signUp(EDITOR);
   const companyId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
   const clientId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'clients', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',

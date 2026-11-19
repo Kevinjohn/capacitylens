@@ -2,6 +2,7 @@ import { test, expect } from './dbFixtures';
 import {
   boundingBoxOrThrow as box,
   expectEditableBar,
+  isPlanningMutation,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -179,10 +180,8 @@ test.describe('Feature flows', () => {
       await page.mouse.down();
       await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, targetY, { steps: 10 });
       await expect(barryLane).toHaveAttribute('data-droptarget', '');
-      const committed = page.waitForResponse(
-        (response) =>
-          response.request().method() === 'PATCH' &&
-          /\/api\/companies\/[^/]+\/allocations\/[^/]+$/.test(new URL(response.url()).pathname),
+      const committed = page.waitForResponse((response) =>
+        isPlanningMutation(response.request(), 'allocation.update'),
       );
       await page.mouse.up();
       const receipt = await committed;

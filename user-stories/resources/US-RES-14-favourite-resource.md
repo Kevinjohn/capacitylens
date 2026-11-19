@@ -28,7 +28,7 @@ flowchart TD
 flowchart TD
   A["FavouriteButton click toggles isFavourite"] --> B["useStore.updateResource"] --> C["createTypedPlanningActions.updateResource → resource.update"]
   C --> D{{"Typed server transport"}}
-  D --> E["PlanningController.resourceUpdate → mutatePlanning → executePlanningIntent.writeRow"] --> E2["writeRow persists isFavourite"]
+  D --> E["PlanningController.mutate → mutatePlanning → executePlanningIntent.writeRow"] --> E2["writeRow persists isFavourite"]
   E2 --> G["acceptReceipt updates planning state"]
   F --> G
   G --> H["useResourceListModel comparator moves favourite row"]

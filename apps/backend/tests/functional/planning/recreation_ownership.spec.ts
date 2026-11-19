@@ -16,7 +16,7 @@ import {
   signInAgain,
 } from './helpers.js';
 
-const allocationsUrl = `/api/companies/${companyId}/allocations`;
+const mutationsUrl = `/api/companies/${companyId}/planning/mutations`;
 
 interface SendPlanningOptions {
   client: ApiClient;
@@ -63,7 +63,7 @@ test.group('retained id recreation ownership', (suite) => {
       const created = await sendPlanning({
         client,
         cookie: owner.cookie,
-        path: allocationsUrl,
+        path: mutationsUrl,
         baseRevision: 0,
         intent: { operation: 'allocation.create', allocation },
       });
@@ -71,7 +71,7 @@ test.group('retained id recreation ownership', (suite) => {
       const deleted = await sendPlanning({
         client,
         cookie: owner.cookie,
-        path: `${allocationsUrl}/${allocation.id}/delete`,
+        path: mutationsUrl,
         baseRevision: 1,
         intent: { operation: 'allocation.delete', id: allocation.id },
       });
@@ -93,7 +93,7 @@ test.group('retained id recreation ownership', (suite) => {
       const refused = await sendPlanning({
         client,
         cookie,
-        path: allocationsUrl,
+        path: mutationsUrl,
         baseRevision: 2,
         intent: { operation: 'allocation.create', allocation: { ...allocation, hoursPerDay: 6 } },
       });
@@ -106,7 +106,7 @@ test.group('retained id recreation ownership', (suite) => {
       const restored = await sendPlanning({
         client,
         cookie: owner.cookie,
-        path: `${planningUrl}/restore-group`,
+        path: mutationsUrl,
         baseRevision: 2,
         intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
       });
@@ -129,7 +129,7 @@ test.group('retained id recreation ownership', (suite) => {
     const created = await sendPlanning({
       client,
       cookie,
-      path: allocationsUrl,
+      path: mutationsUrl,
       baseRevision: 0,
       intent: { operation: 'allocation.create', allocation },
     });
@@ -137,7 +137,7 @@ test.group('retained id recreation ownership', (suite) => {
     const deleted = await sendPlanning({
       client,
       cookie,
-      path: `${allocationsUrl}/${allocation.id}/delete`,
+      path: mutationsUrl,
       baseRevision: 1,
       intent: { operation: 'allocation.delete', id: allocation.id },
     });
@@ -146,7 +146,7 @@ test.group('retained id recreation ownership', (suite) => {
     const recreated = await sendPlanning({
       client,
       cookie,
-      path: allocationsUrl,
+      path: mutationsUrl,
       baseRevision: 2,
       intent: { operation: 'allocation.create', allocation: { ...allocation, hoursPerDay: 6 } },
     });
@@ -159,7 +159,7 @@ test.group('retained id recreation ownership', (suite) => {
     const restored = await sendPlanning({
       client,
       cookie,
-      path: `${planningUrl}/restore-group`,
+      path: mutationsUrl,
       baseRevision: 3,
       intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
     });

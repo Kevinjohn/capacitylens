@@ -43,7 +43,7 @@ flowchart TD
   C --> D["TimeOffForm calls saveTimeOff, which invokes the addTimeOff store action"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends timeOff.create API operation"]
-  F --> G["PlanningController.timeOffCreate calls mutatePlanning"]
+  F --> G["PlanningController.mutate calls mutatePlanning"]
   G --> H["executePlanningIntent and writer persist in transaction"]
   H --> J["planningCacheController publishes returned snapshot"]
   I --> J

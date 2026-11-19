@@ -441,7 +441,7 @@ export async function runPackagedSmoke({
     assert.equal(memberState.accounts[0].id, companyId);
     assert.equal(memberState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
 
-    const refusedWrite = await fetch(`${baseUrl}/api/companies/${companyId}/clients`, {
+    const refusedWrite = await fetch(`${baseUrl}/api/companies/${companyId}/planning/mutations`, {
       method: 'POST',
       headers: {
         cookie: secondOwnerCookie,

@@ -35,7 +35,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
     name: 'Victor Stone',
     role: 'Developer',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'time-off', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'timeOff.create',
     timeOff: {
       id: TIME_OFF_ID,
@@ -46,7 +46,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       note: PRIVATE_NOTE,
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'clients', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -54,7 +54,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'projects', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -68,7 +68,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'activities', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'activities',
@@ -81,7 +81,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'allocations', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: ALLOCATION_ID,

@@ -94,7 +94,7 @@ async function seedPrivateNames(
 ) {
   const clientId = crypto.randomUUID();
   const projectId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, ownerCookie, companyId, 'clients', {
+  await sendPlanningFixtureCommand(request, ownerCookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -102,7 +102,7 @@ async function seedPrivateNames(
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  await sendPlanningFixtureCommand(request, ownerCookie, companyId, 'projects', {
+  await sendPlanningFixtureCommand(request, ownerCookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',

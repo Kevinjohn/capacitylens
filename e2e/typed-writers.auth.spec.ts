@@ -9,21 +9,49 @@ import {
   sendPlanningFixtureCommand,
   signUpUser,
 } from './authTestSupport';
-import { freezeBrowserDate, selectShadOption, waitForAppLanding } from './browserTestSupport';
+import {
+  freezeBrowserDate,
+  isPlanningMutation,
+  selectShadOption,
+  waitForAppLanding,
+} from './browserTestSupport';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
+type PlanningWrite = {
+  method: string;
+  path: string;
+  operation?: string | undefined;
+  entity?: string | undefined;
+};
+
 function recordPlanningWrites(page: Page) {
-  const writes: Array<{ method: string; path: string }> = [];
+  const writes: PlanningWrite[] = [];
   page.on('request', (request) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return;
     const path = new URL(request.url()).pathname;
     if (path === '/api/batch' || path.startsWith('/api/companies/')) {
-      writes.push({ method: request.method(), path });
+      const intent = path.endsWith('/planning/mutations')
+        ? (request.postDataJSON() as { intent: { operation: string; entity?: { entity: string } } })
+            .intent
+        : undefined;
+      writes.push({
+        method: request.method(),
+        path,
+        operation: intent?.operation,
+        entity: intent?.entity?.entity,
+      });
     }
   });
   return writes;
 }
+
+const mutationWrite = (companyId: string, operation: string, entity?: string): PlanningWrite => ({
+  method: 'POST',
+  path: `/api/companies/${companyId}/planning/mutations`,
+  operation,
+  entity,
+});
 
 test('authenticated client creation and settings Undo/Redo persist as typed writes', async ({
   page,
@@ -86,8 +114,8 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
   expect((await state()).clients.some((row) => row.name === 'Wayne Foundation')).toBe(true);
-  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${companyId}/clients` });
-  expect(writes).toContainEqual({ method: 'PATCH', path: `/api/companies/${companyId}/settings` });
+  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.create', 'clients'));
+  expect(writes).toContainEqual(mutationWrite(companyId, 'settings.update'));
   expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
 });
 
@@ -99,14 +127,10 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   const email = `diana-prince-writers-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email);
   const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`);
-  await sendPlanningFixtureCommand(
-    request,
-    owner.cookie,
-    companyId,
-    'settings',
-    { operation: 'settings.update', changes: { disciplinesEnabled: true } },
-    'patch',
-  );
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+    operation: 'settings.update',
+    changes: { disciplinesEnabled: true },
+  });
   const resourceId = crypto.randomUUID();
   await createFixturePerson(request, owner.cookie, companyId, {
     id: resourceId,
@@ -212,19 +236,10 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   await expect
     .poll(async () => (await state()).timeOff.find((entry) => entry.id === timeOffId)?.note)
     .toBe('Watchtower briefing');
-  expect(writes).toContainEqual({
-    method: 'POST',
-    path: `/api/companies/${companyId}/disciplines`,
-  });
-  expect(writes).toContainEqual({
-    method: 'PATCH',
-    path: `/api/companies/${companyId}/disciplines/${disciplineId}`,
-  });
-  expect(writes).toContainEqual({ method: 'POST', path: `/api/companies/${companyId}/time-off` });
-  expect(writes).toContainEqual({
-    method: 'PATCH',
-    path: `/api/companies/${companyId}/time-off/${timeOffId}`,
-  });
+  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.create', 'disciplines'));
+  expect(writes).toContainEqual(mutationWrite(companyId, 'catalogue.update', 'disciplines'));
+  expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.create'));
+  expect(writes).toContainEqual(mutationWrite(companyId, 'timeOff.update'));
   expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
 });
 
@@ -267,9 +282,8 @@ for (const repeat of [false, true]) {
       await dialog.getByTestId('timeoff-repeat-until').fill('2026-11-09');
       await expect(dialog.getByTestId('timeoff-repeat-preview')).toContainText('Creates 2 entries');
     }
-    const path = `/api/companies/${companyId}/time-off${repeat ? '/repeat' : ''}`;
-    const responsePromise = page.waitForResponse(
-      (response) => response.url().endsWith(path) && response.request().method() === 'POST',
+    const responsePromise = page.waitForResponse((response) =>
+      isPlanningMutation(response.request(), repeat ? 'timeOff.repeat' : 'timeOff.create'),
     );
     await dialog.getByRole('button', { name: 'Save' }).click();
     const response = await responsePromise;
@@ -294,7 +308,9 @@ for (const repeat of [false, true]) {
         .filter((entry) => entry.resourceId === resourceId)
         .every((entry) => entry.note === null),
     ).toBe(true);
-    expect(writes).toContainEqual({ method: 'POST', path });
+    expect(writes).toContainEqual(
+      mutationWrite(companyId, repeat ? 'timeOff.repeat' : 'timeOff.create'),
+    );
     expect(writes.some((write) => write.path === '/api/batch')).toBe(false);
   });
 }

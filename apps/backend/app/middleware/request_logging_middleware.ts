@@ -2,6 +2,13 @@ import type { HttpContext } from '@adonisjs/core/http';
 import env from '#start/env';
 import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety';
 
+declare module '@adonisjs/core/http' {
+  interface HttpContext {
+    /** The validated planning operation, set by the mutation route for the completion line. */
+    planningOperation?: string;
+  }
+}
+
 /** Emit one bounded completion record for every request, including parser and route failures. */
 export default class RequestLoggingMiddleware {
   async handle(ctx: HttpContext, next: () => Promise<void>) {
@@ -20,6 +27,7 @@ export default class RequestLoggingMiddleware {
               event: 'http.request.completed',
               method,
               path,
+              ...(ctx.planningOperation ? { planningOperation: ctx.planningOperation } : {}),
               status,
               outcome: status >= 400 ? 'failure' : 'success',
             },

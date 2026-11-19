@@ -32,40 +32,22 @@ test.group('authenticated planning operations', (group) => {
     await resetPlanningFixture();
   });
 
-  test('Viewer writes, route mismatches and foreign references are refused', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
+  test('Viewer writes and foreign references are refused', async ({ client, assert, cleanup }) => {
     configureAuth(cleanup);
     const data = await readState(companyId, true);
     const { cookie: viewerCookie } = await signIn(client, 'viewer');
     const allocation = newAllocation(data);
-    const viewer = await session(client.post(route('allocations')), viewerCookie)
+    const viewer = await session(client.post(route('planning/mutations')), viewerCookie)
       .json(input(0, { operation: 'allocation.create', allocation }))
       .send();
     viewer.assertStatus(403);
     assert.equal(body(viewer).code, 'AUTHORIZATION_DENIED');
 
     const { cookie } = await signIn(client);
-    const mismatch = await session(
-      client.patch(route(`allocations/${data.allocations[0]!.id}`)),
-      cookie
-    )
-      .json(
-        input(0, {
-          operation: 'allocation.update',
-          id: data.allocations[1]!.id,
-          changes: { hoursPerDay: 4 },
-        })
-      )
-      .send();
-    mismatch.assertStatus(400);
-    assert.equal(body(mismatch).code, 'VALIDATION_ERROR');
 
     const allAccounts = await readState();
     const foreignResource = allAccounts.resources.find((row) => row.companyId === 'a-loft')!;
-    const foreign = await session(client.post(route('allocations')), cookie)
+    const foreign = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'allocation.create',
@@ -99,33 +81,29 @@ test.group('authenticated planning operations', (group) => {
     const disciplineId = randomUUID();
     const operations = [
       {
-        path: 'clients',
         entity: 'clients',
         id: clientId,
         fields: { name: 'Wayne Foundation', color },
       },
       {
-        path: 'projects',
         entity: 'projects',
         id: projectId,
         fields: { name: 'Gotham Renewal', color, clientId },
       },
-      { path: 'phases', entity: 'phases', id: phaseId, fields: { name: 'Discovery', projectId } },
+      { entity: 'phases', id: phaseId, fields: { name: 'Discovery', projectId } },
       {
-        path: 'activities',
         entity: 'activities',
         id: activityId,
         fields: { name: 'Research', kind: 'project', projectId, phaseId },
       },
       {
-        path: 'disciplines',
         entity: 'disciplines',
         id: disciplineId,
         fields: { name: 'Strategy', color, sortOrder: 8 },
       },
     ];
     for (const [index, operation] of operations.entries()) {
-      const response = await session(client.post(route(operation.path)), cookie)
+      const response = await session(client.post(route('planning/mutations')), cookie)
         .json(
           input(index, {
             operation: 'catalogue.create',
@@ -140,7 +118,7 @@ test.group('authenticated planning operations', (group) => {
       response.assertStatus(200);
       assert.equal(body(response).revision, index + 1);
     }
-    const updated = await session(client.patch(route(`phases/${phaseId}`)), cookie)
+    const updated = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(5, {
           operation: 'catalogue.update',
@@ -191,11 +169,11 @@ test.group('authenticated planning operations', (group) => {
       firstAvailableDate: null,
       lastAvailableDate: null,
     };
-    const created = await session(client.post(route('resources')), cookie)
+    const created = await session(client.post(route('planning/mutations')), cookie)
       .json(input(0, { operation: 'resource.create', id, fields }))
       .send();
     created.assertStatus(200);
-    const updated = await session(client.patch(route(`resources/${id}`)), cookie)
+    const updated = await session(client.post(route('planning/mutations')), cookie)
       .json(input(1, { operation: 'resource.update', id, changes: { role: 'Lead Designer' } }))
       .send();
     updated.assertStatus(200);
@@ -221,7 +199,7 @@ test.group('authenticated planning operations', (group) => {
     const before = await readState(companyId, true);
     const changedDays = external!.workingDays.includes(0) ? [1, 2, 3, 4, 5] : [0, 1, 2, 3, 4];
 
-    const refused = await session(client.patch(route(`resources/${external!.id}`)), cookie)
+    const refused = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'resource.update',
@@ -252,7 +230,7 @@ test.group('authenticated planning operations', (group) => {
       ['disciplineId', data.disciplines[0]!.id],
       ['projectId', data.projects[0]!.id],
     ] as const) {
-      const refused = await session(client.patch(route(`resources/${external.id}`)), cookie)
+      const refused = await session(client.post(route('planning/mutations')), cookie)
         .json(
           input(0, { operation: 'resource.update', id: external.id, changes: { [field]: value } })
         )
@@ -277,7 +255,7 @@ test.group('authenticated planning operations', (group) => {
     const auditBefore = await db.from('audit_entries').where('company_id', companyId);
     const mutationsBefore = await db.from('planning_mutations').where('company_id', companyId);
 
-    const refused = await session(client.post(route('closures')), cookie)
+    const refused = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'closure.create',
@@ -310,7 +288,7 @@ test.group('authenticated planning operations', (group) => {
     const { cookie: ownerCookie } = await signIn(client);
     const clientId = randomUUID();
     const color = data.clients.find((row) => row.companyId === companyId && !row.builtin)!.color;
-    const privateClient = await session(client.post(route('clients')), ownerCookie)
+    const privateClient = await session(client.post(route('planning/mutations')), ownerCookie)
       .json(
         input(0, {
           operation: 'catalogue.create',
@@ -327,7 +305,7 @@ test.group('authenticated planning operations', (group) => {
     const resourceId = data.resources.find(
       (row) => row.companyId === companyId && row.kind === 'person'
     )!.id;
-    const timeOff = await session(client.post(route('time-off')), ownerCookie)
+    const timeOff = await session(client.post(route('planning/mutations')), ownerCookie)
       .json(
         input(1, {
           operation: 'timeOff.create',
@@ -345,7 +323,7 @@ test.group('authenticated planning operations', (group) => {
     timeOff.assertStatus(200);
 
     const { cookie } = await signIn(client, 'editor');
-    const nameEdit = await session(client.patch(route(`clients/${clientId}`)), cookie)
+    const nameEdit = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(2, {
           operation: 'catalogue.update',
@@ -355,7 +333,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     nameEdit.assertStatus(400);
     assert.equal(body(nameEdit).code, 'NO_CHANGE');
-    const colourEdit = await session(client.patch(route(`clients/${clientId}`)), cookie)
+    const colourEdit = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(2, {
           operation: 'catalogue.update',
@@ -371,11 +349,11 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     colourEdit.assertStatus(200);
-    const notePreserved = await session(client.patch(route(`time-off/${timeOffId}`)), cookie)
+    const notePreserved = await session(client.post(route('planning/mutations')), cookie)
       .json(input(3, { operation: 'timeOff.update', id: timeOffId, changes: { type: 'sick' } }))
       .send();
     notePreserved.assertStatus(200);
-    const privacyRefused = await session(client.patch(route(`clients/${clientId}`)), cookie)
+    const privacyRefused = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(4, {
           operation: 'catalogue.update',
@@ -384,7 +362,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     privacyRefused.assertStatus(403);
-    const noteRefused = await session(client.patch(route(`time-off/${timeOffId}`)), cookie)
+    const noteRefused = await session(client.post(route('planning/mutations')), cookie)
       .json(input(4, { operation: 'timeOff.update', id: timeOffId, changes: { note: 'Read it' } }))
       .send();
     noteRefused.assertStatus(403);
@@ -404,7 +382,7 @@ test.group('authenticated planning operations', (group) => {
     const { cookie } = await signIn(client);
     const allocation = newAllocation(data);
     const repeatGroup = (until: string, occurrenceIds: string[]) =>
-      session(client.post(route('allocations/create-group')), cookie)
+      session(client.post(route('planning/mutations')), cookie)
         .json(
           input(0, {
             operation: 'allocation.createGroup',
@@ -436,14 +414,14 @@ test.group('authenticated planning operations', (group) => {
     assert.isTrue(saved.every((row) => row?.seriesId === saved[0]!.seriesId));
 
     // Undo deletes the minted ids as one group; redo restores that group.
-    const undone = await session(client.post(route('allocations/delete-group')), cookie)
+    const undone = await session(client.post(route('planning/mutations')), cookie)
       .json(input(1, { operation: 'allocation.deleteGroup', ids }))
       .send();
     undone.assertStatus(200);
     assert.deepEqual(await rows(), [undefined, undefined, undefined, undefined]);
     const restorationGroupId = (undone.body() as { restoration: { replacementGroupId: string } })
       .restoration.replacementGroupId;
-    const redone = await session(client.post(route('planning/restore-group')), cookie)
+    const redone = await session(client.post(route('planning/mutations')), cookie)
       .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
       .send();
     redone.assertStatus(200);
@@ -469,7 +447,7 @@ test.group('authenticated planning operations', (group) => {
       type: 'holiday',
     };
     const repeatTimeOff = (until: string, occurrenceIds: string[]) =>
-      session(client.post(route('time-off/repeat')), cookie)
+      session(client.post(route('planning/mutations')), cookie)
         .json(
           input(0, {
             operation: 'timeOff.repeat',
@@ -504,14 +482,14 @@ test.group('authenticated planning operations', (group) => {
     assert.isTrue(saved.every((row) => row?.resourceId === resourceId && row.type === 'holiday'));
 
     // Undo deletes the minted ids as one group; redo restores that group.
-    const undone = await session(client.post(route('time-off/delete-group')), cookie)
+    const undone = await session(client.post(route('planning/mutations')), cookie)
       .json(input(1, { operation: 'timeOff.deleteGroup', ids }))
       .send();
     undone.assertStatus(200);
     assert.deepEqual(await rows(), [undefined, undefined, undefined]);
     const restorationGroupId = (undone.body() as { restoration: { replacementGroupId: string } })
       .restoration.replacementGroupId;
-    const redone = await session(client.post(route('planning/restore-group')), cookie)
+    const redone = await session(client.post(route('planning/mutations')), cookie)
       .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
       .send();
     redone.assertStatus(200);
@@ -532,17 +510,14 @@ test.group('authenticated planning operations', (group) => {
       (response.body() as { advisory?: unknown }).advisory;
 
     // The saved row is not counted against itself.
-    const created = await session(client.post(route('allocations')), cookie)
+    const created = await session(client.post(route('planning/mutations')), cookie)
       .json(input(0, { operation: 'allocation.create', allocation }))
       .send();
     created.assertStatus(200);
     assert.deepEqual(advisory(created), { overDays: 0, timeOffDays: 0 });
 
     // A copy on the same days adds five hours to five: ten is over eight on each of five days.
-    const duplicated = await session(
-      client.post(route(`allocations/${allocation.id}/duplicate`)),
-      cookie
-    )
+    const duplicated = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(1, {
           operation: 'allocation.duplicate',
@@ -555,7 +530,7 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(advisory(duplicated), { overDays: 5, timeOffDays: 0 });
 
     // Three plus five is exactly eight, which is not over capacity.
-    const updated = await session(client.patch(route(`allocations/${allocation.id}`)), cookie)
+    const updated = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(2, { operation: 'allocation.update', id: allocation.id, changes: { hoursPerDay: 3 } })
       )
@@ -564,7 +539,7 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(advisory(updated), { overDays: 0, timeOffDays: 0 });
     assert.notProperty(updated.body(), 'repeatAdvisory');
 
-    const timeOff = await session(client.post(route('time-off')), cookie)
+    const timeOff = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(3, {
           operation: 'timeOff.create',
@@ -583,7 +558,7 @@ test.group('authenticated planning operations', (group) => {
 
     // Monthly from Monday 2 November: 2 November meets eight booked hours, 2 December is time off,
     // 2 January is a Saturday and 2 February is clear.
-    const repeated = await session(client.post(route('allocations/create-group')), cookie)
+    const repeated = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(4, {
           operation: 'allocation.createGroup',
@@ -620,7 +595,7 @@ test.group('authenticated planning operations', (group) => {
     )!.id;
     const firstId = randomUUID();
     // Weekly from 2 November to 9 November makes two occurrences, so one later id, not two.
-    const repeat = await session(client.post(route('time-off/repeat')), cookie)
+    const repeat = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'timeOff.repeat',
@@ -645,7 +620,7 @@ test.group('authenticated planning operations', (group) => {
     assert.isFalse(afterRepeat.timeOff.some((row) => row.id === firstId));
 
     const closureId = randomUUID();
-    const closure = await session(client.post(route('closures')), cookie)
+    const closure = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'closure.create',
@@ -656,7 +631,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     closure.assertStatus(200);
     assert.equal(body(closure).revision, 1);
-    const setting = await session(client.patch(route('settings')), cookie)
+    const setting = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(1, {
           operation: 'settings.update',
@@ -689,11 +664,11 @@ test.group('authenticated planning operations', (group) => {
   }) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
-    const styled = await session(client.patch(route('settings')), cookie)
+    const styled = await session(client.post(route('planning/mutations')), cookie)
       .json(input(0, { operation: 'settings.update', changes: { dateStyle: 'month-day' } }))
       .send();
     styled.assertStatus(200);
-    const cleared = await session(client.patch(route('settings')), cookie)
+    const cleared = await session(client.post(route('planning/mutations')), cookie)
       .json(input(1, { operation: 'settings.update', changes: { dateStyle: null } }))
       .send();
     cleared.assertStatus(200);
@@ -712,7 +687,7 @@ test.group('authenticated planning operations', (group) => {
     const before = await readState(companyId, true);
     const phase = before.phases.find((row) => row.id === 'ph-disc')!;
     const target = before.projects.find((row) => row.id === 'p-brand')!;
-    const refused = await session(client.patch(route(`phases/${phase.id}`)), cookie)
+    const refused = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'catalogue.update',
@@ -751,7 +726,7 @@ test.group('authenticated planning operations', (group) => {
       (entry) => entry.companyId === companyId && !entry.builtin
     )!;
     const edit = (expectedUpdatedAt: string) =>
-      session(client.patch(route(`clients/${row.id}`)), cookie)
+      session(client.post(route('planning/mutations')), cookie)
         .json({
           ...input(0, {
             operation: 'catalogue.update',
@@ -782,7 +757,7 @@ test.group('authenticated planning operations', (group) => {
     configureAuth(cleanup);
     const { cookie } = await signIn(client);
     const id = randomUUID();
-    const created = await session(client.post(route('phases')), cookie)
+    const created = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'catalogue.create',
@@ -795,7 +770,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     created.assertStatus(200);
-    const moved = await session(client.patch(route(`phases/${id}`)), cookie)
+    const moved = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(1, {
           operation: 'catalogue.update',
@@ -817,7 +792,7 @@ test.group('authenticated planning operations', (group) => {
     const { cookie } = await signIn(client);
     const data = await readState(companyId, true);
     const activityId = randomUUID();
-    const created = await session(client.post(route('activities')), cookie)
+    const created = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'catalogue.create',
@@ -836,11 +811,11 @@ test.group('authenticated planning operations', (group) => {
       .send();
     created.assertStatus(200);
     const allocation = { ...newAllocation(data), activityId, projectId: 'p-acme' };
-    const allocated = await session(client.post(route('allocations')), cookie)
+    const allocated = await session(client.post(route('planning/mutations')), cookie)
       .json(input(1, { operation: 'allocation.create', allocation }))
       .send();
     allocated.assertStatus(200);
-    const changed = await session(client.patch(route(`activities/${activityId}`)), cookie)
+    const changed = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(2, {
           operation: 'catalogue.update',
@@ -859,7 +834,7 @@ test.group('authenticated planning operations', (group) => {
 
     const auditBeforeNoop = await db.from('audit_entries').where('company_id', companyId);
     const markersBeforeNoop = await db.from('planning_mutations').where('company_id', companyId);
-    const sameKindOnly = await session(client.patch(route(`activities/${activityId}`)), cookie)
+    const sameKindOnly = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(3, {
           operation: 'catalogue.update',
@@ -886,7 +861,7 @@ test.group('authenticated planning operations', (group) => {
     afterNoop.assertStatus(200);
     assert.equal(body(afterNoop).revision, 3);
 
-    const sameKind = await session(client.patch(route(`activities/${activityId}`)), cookie)
+    const sameKind = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(3, {
           operation: 'catalogue.update',
@@ -899,7 +874,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     sameKind.assertStatus(200);
-    const renamed = await session(client.patch(route(`activities/${activityId}`)), cookie)
+    const renamed = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(4, {
           operation: 'catalogue.update',

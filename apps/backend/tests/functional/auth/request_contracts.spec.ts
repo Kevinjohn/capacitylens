@@ -1,4 +1,4 @@
-import { allocationMutationValidator } from '#validators/planning/allocation';
+import { planningMutationValidator } from '#validators/planning_operations';
 import { signUpValidator } from '#validators/auth_requests';
 import { registrationDisplayName } from '#services/account_kit/users';
 import { test } from '@japa/runner';
@@ -26,7 +26,7 @@ test.group('ordinary authentication request contracts', (group) => {
     assert,
   }) => {
     const meta = { mutationId: crypto.randomUUID(), baseRevision: 0 };
-    const existing = await allocationMutationValidator.validate({
+    const existing = await planningMutationValidator.validate({
       ...meta,
       intent: { operation: 'allocation.delete', id: 'legacy:allocation' },
     });
@@ -40,13 +40,13 @@ test.group('ordinary authentication request contracts', (group) => {
       hoursPerDay: 7.5,
       status: 'confirmed',
     };
-    const created = await allocationMutationValidator.validate({
+    const created = await planningMutationValidator.validate({
       ...meta,
       intent: { operation: 'allocation.create', allocation },
     });
     assert.equal(created.intent.operation, 'allocation.create');
     await assert.rejects(() =>
-      allocationMutationValidator.validate({
+      planningMutationValidator.validate({
         ...meta,
         intent: { operation: 'allocation.create', allocation: { ...allocation, id: 'legacy:new' } },
       })

@@ -46,14 +46,10 @@ test('the account access setting gates viewer navigation and direct routes', asy
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
 
-  await sendPlanningFixtureCommand(
-    request,
-    owner.cookie,
-    companyId,
-    'settings',
-    { operation: 'settings.update', changes: { capacityOverviewAccess: 'everyone' } },
-    'patch',
-  );
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+    operation: 'settings.update',
+    changes: { capacityOverviewAccess: 'everyone' },
+  });
   await page.reload();
   const capacityOverviewLink = page.getByRole('link', { name: 'Overview' });
   await expect(capacityOverviewLink).toBeVisible();

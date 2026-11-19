@@ -530,37 +530,37 @@ export async function sendPlanningFixtureCommand(
   request: APIRequestContext,
   cookie: string,
   companyId: string,
-  path: string,
   intent: Record<string, unknown>,
-  method: 'post' | 'patch' = 'post',
 ): Promise<unknown> {
   const headers = { cookie, 'sec-fetch-site': 'same-origin' };
   const snapshot = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
     headers,
   });
-  expect(snapshot.status(), `read planning revision for ${path}`).toBe(200);
+  expect(snapshot.status(), `read planning revision for ${String(intent.operation)}`).toBe(200);
   const revision = ((await snapshot.json()) as { revision?: unknown }).revision;
   if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
     throw new Error('The fixture planning read did not return a revision.');
-  const url = `${AUTH_API}/api/companies/${companyId}/${path}`;
+  const url = `${AUTH_API}/api/companies/${companyId}/planning/mutations`;
   const options = {
     headers: await masqueradeContextHeaders(request, cookie),
     data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
   };
-  const response =
-    method === 'patch' ? await request.patch(url, options) : await request.post(url, options);
-  expect(response.status(), `seed planning command ${path}: ${await response.text()}`).toBe(200);
+  const response = await request.post(url, options);
+  expect(
+    response.status(),
+    `seed planning command ${String(intent.operation)}: ${await response.text()}`,
+  ).toBe(200);
   return response.json();
 }
 
-/** Creates a fully specified person through the retained typed resource route for browser scenarios. */
+/** Creates a fully specified person through the planning mutation route for browser scenarios. */
 export async function createFixturePerson(
   request: APIRequestContext,
   cookie: string,
   companyId: string,
   person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
 ): Promise<void> {
-  await sendPlanningFixtureCommand(request, cookie, companyId, 'resources', {
+  await sendPlanningFixtureCommand(request, cookie, companyId, {
     operation: 'resource.create',
     id: person.id,
     fields: {

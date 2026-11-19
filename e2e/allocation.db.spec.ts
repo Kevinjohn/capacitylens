@@ -2,6 +2,7 @@ import { test, expect } from './dbFixtures';
 import {
   expectEditableBar,
   goToSeedWeek,
+  isPlanningMutation,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -185,12 +186,8 @@ test.describe('Allocation editor', () => {
       await expect(
         repeatedDelete.getByRole('button', { name: 'Delete this occurrence' }),
       ).toBeVisible();
-      const tailDeleteCommitted = page.waitForResponse(
-        (response) =>
-          response.request().method() === 'POST' &&
-          /\/api\/companies\/[^/]+\/allocations\/delete-group$/.test(
-            new URL(response.url()).pathname,
-          ),
+      const tailDeleteCommitted = page.waitForResponse((response) =>
+        isPlanningMutation(response.request(), 'allocation.deleteGroup'),
       );
       await repeatedDelete
         .getByRole('button', { name: 'Delete this and future occurrences' })

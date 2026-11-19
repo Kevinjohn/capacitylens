@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import type { JSHandle, Locator, Page } from '@playwright/test';
+import type { JSHandle, Locator, Page, Request } from '@playwright/test';
 import { WEEK_SNAP_IDLE_MS } from '../apps/frontend/src/lib/schedulerConfig';
 
 // Freeze browser Date inside the June seed window so scheduler tests remain independent of the wall clock.
@@ -207,17 +207,27 @@ export async function showPlaceholders(page: Page): Promise<void> {
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
 }
 
+/** True for a planning mutation request carrying the named operation and, when given, entity. */
+export function isPlanningMutation(request: Request, operation?: string, entity?: string): boolean {
+  if (
+    request.method() !== 'POST' ||
+    !/^\/api\/companies\/[^/]+\/planning\/mutations$/.test(new URL(request.url()).pathname)
+  )
+    return false;
+  const intent = (request.postDataJSON() as { intent?: { operation?: string; entity?: unknown } })
+    ?.intent;
+  if (operation !== undefined && intent?.operation !== operation) return false;
+  if (entity === undefined) return true;
+  return (intent?.entity as { entity?: string } | undefined)?.entity === entity;
+}
+
 /** Wait for a settings receipt and its canonical read before starting another planning change. */
 export async function changeCompanySetting(
   page: Page,
   action: () => Promise<unknown>,
 ): Promise<void> {
   const written = page
-    .waitForResponse(
-      (response) =>
-        response.request().method() === 'PATCH' &&
-        /\/api\/companies\/[^/]+\/settings$/.test(new URL(response.url()).pathname),
-    )
+    .waitForResponse((response) => isPlanningMutation(response.request(), 'settings.update'))
     .then(async (response) => {
       expect(response.ok(), await response.text()).toBe(true);
       const receipt = await response.json();

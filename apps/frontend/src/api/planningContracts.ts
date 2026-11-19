@@ -12,7 +12,7 @@ import type { Route } from '@capacitylens/backend/registry';
  * The frontend constructs typed intents with real numbers and booleans; the server validator
  * remains authoritative for every persisted mutation.
  */
-type PlanningMutationBody = Route.Body<'api.planning.restoreGroup'>;
+type PlanningMutationBody = Route.Body<'api.planning.mutate'>;
 
 /** Execution metadata the browser only ever holds as server-issued integers. */
 type ServerIssuedIntegers = Pick<
@@ -38,7 +38,7 @@ export type PlanningExecution = Omit<
 
 /** Refusals are sent through the response object, so the generated reply also admits `void`. */
 export type PlanningMutationSuccess = Extract<
-  Route.Response<'api.planning.restoreGroup'>,
+  Route.Response<'api.planning.mutate'>,
   { status: 'committed' }
 >;
 

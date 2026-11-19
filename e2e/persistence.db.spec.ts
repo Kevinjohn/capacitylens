@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, selectShadOption } from './browserTestSupport';
+import { isPlanningMutation, openApp, selectShadOption } from './browserTestSupport';
 import { serverState, requireStateRows } from './serverTestState';
 
 test.describe('database-backed persistence', () => {
@@ -45,7 +45,7 @@ test.describe('database-backed persistence', () => {
       page.on('request', (outgoing) => {
         if (outgoing.method() !== 'POST') return;
         if (outgoing.url().endsWith('/api/batch')) batchRequests++;
-        if (outgoing.url().endsWith('/allocations/create-group')) groupRequests++;
+        if (isPlanningMutation(outgoing, 'allocation.createGroup')) groupRequests++;
       });
       await openApp(page);
       await page.getByRole('button', { name: 'Add allocation for Clark Kent' }).click();
@@ -165,7 +165,7 @@ test.describe('database-backed persistence', () => {
     await expect(page.getByRole('radio', { name: 'Supplementary' })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Tuesday Half day' })).toBeChecked();
   });
-  // The per-row destructive action archives a client through the server-authoritative /api/clients/:id/archive route.
+  // The per-row destructive action archives a client through the server-authoritative planning mutation route (`catalogue.archive`).
   // The route sets archivedAt and preserves the record; reload then confirms it is absent from active views.
   test('archive + reload: an archived client is retained in the DB but hidden from the active view', async ({
     page,

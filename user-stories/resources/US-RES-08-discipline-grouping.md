@@ -28,7 +28,7 @@ flowchart TD
   A["ResourceForm SelectField Discipline"] --> B["useResourceSubmit.buildResourcePatch stores disciplineId"]
   B --> C["updateResource → createTypedPlanningActions.updateResource"] --> D["resource.update planning intent"]
   D --> E{{"Typed server route"}}
-  E --> F["PlanningController.resourceUpdate → mutatePlanning → executePlanningIntent.writeRow"] --> F2["writeRow persists disciplineId"]
+  E --> F["PlanningController.mutate → mutatePlanning → executePlanningIntent.writeRow"] --> F2["writeRow persists disciplineId"]
   F2 --> H["selectors.buildDisciplineGroups groups resource"]
   G --> H
 ```

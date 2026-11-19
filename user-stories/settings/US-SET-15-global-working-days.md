@@ -33,8 +33,8 @@ flowchart TD
   control["SettingsWorkingDaysSection calls updateSetting({ workingDays })"] --> view["useSettingsViewController.updateSetting checks active company and catches failure"]
   view --> action["typedPlanningActions.updateAccount builds settings.update command"]
   action --> execute["allocationSlice.sendPlanningCommand calls execute on the planning cache controller (createPlanningCacheController)"]
-  execute --> transport["planningTransport sends api.planning.settings.update"]
-  transport --> route["PlanningController.settingsUpdate validates and calls mutatePlanning"]
+  execute --> transport["planningTransport sends api.planning.mutate"]
+  transport --> route["PlanningController.mutate validates and calls mutatePlanning"]
   route --> reply["Planning cache controller reconciles the response into the company projection"]
   reply --> read["store selectors.listAccountWorkingDays supplies setting to views"]
 ```

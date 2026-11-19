@@ -46,24 +46,17 @@ async function seedClosureAccount(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const editor = await signUpUser(EDITOR);
   const companyId = await bootstrapOrg(request, owner.cookie, ORG);
-  await sendPlanningFixtureCommand(
-    request,
-    owner.cookie,
-    companyId,
-    'settings',
-    {
-      operation: 'settings.update',
-      changes: { externalEnabled: true },
-    },
-    'patch',
-  );
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+    operation: 'settings.update',
+    changes: { externalEnabled: true },
+  });
 
   await createFixturePerson(request, owner.cookie, companyId, {
     id: IDS.person,
     name: 'Barbara Gordon',
     role: 'Designer',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, 'resources', {
+  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
     operation: 'resource.create',
     id: IDS.external,
     fields: {

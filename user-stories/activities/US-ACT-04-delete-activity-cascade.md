@@ -31,7 +31,7 @@ flowchart TD
 flowchart TD
   A["ActivityList confirmation onConfirm"] --> B["typedPlanningActions.deleteActivity"] --> C["catalogue.archive intent → allocationSlice.send"]
   C --> D["createStorePlanningTransport"]
-  D --> E["createPlanningTransport → api.planning.activity.archive"] --> F["PlanningController.activityArchive → mutatePlanning begins scoped transaction"] --> G["executePlanningIntent.transitionLifecycle updates only the activity row"] --> K["mutatePlanning records revision/audit and commits"]
+  D --> E["createPlanningTransport → api.planning.mutate"] --> F["PlanningController.mutate → mutatePlanning begins scoped transaction"] --> G["executePlanningIntent.transitionLifecycle updates only the activity row"] --> K["mutatePlanning records revision/audit and commits"]
   K --> L["activeOnly projection hides allocations linked to archived activity"] --> I["ActivityList and schedule refresh"]
   H --> L
 ```

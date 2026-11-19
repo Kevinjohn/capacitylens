@@ -37,6 +37,15 @@ function isWebKitUnloadFetchRefusal(error: Error, page: Page, browserName: strin
   );
 }
 
+/**
+ * Chromium reports no body for the app's planning mutation requests unless Playwright intercepts
+ * them, and the request body is the only place the operation is named. A pass-through route makes
+ * `postDataJSON()` available to every request listener and predicate.
+ */
+async function exposePlanningMutationBodies(context: BrowserContext) {
+  await context.route('**/api/companies/*/planning/mutations', (route) => route.fallback());
+}
+
 /** Every browser spec fails if application code raises on any page registered with the fixture. */
 export const test = base.extend<CapacityLensFixtures>({
   authCompanyIsolation: [
@@ -82,6 +91,7 @@ export const test = base.extend<CapacityLensFixtures>({
   ],
   context: async ({ context, pageErrorObserver }, use) => {
     const observePage = pageErrorObserver.observePage;
+    await exposePlanningMutationBodies(context);
     context.pages().forEach(observePage);
     context.on('page', observePage);
     try {
@@ -96,6 +106,7 @@ export const test = base.extend<CapacityLensFixtures>({
     try {
       await use(async (options) => {
         const context = await browser.newContext(options);
+        await exposePlanningMutationBodies(context);
         context.pages().forEach(observePage);
         context.on('page', observePage);
         contexts.push(context);

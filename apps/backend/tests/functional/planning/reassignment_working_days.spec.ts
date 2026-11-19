@@ -42,7 +42,7 @@ test.group('reassignment working-day override', (group) => {
       .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: 'false' });
     const { cookie } = await signIn(client);
     const patch = (revision: number, changes: Record<string, unknown>) =>
-      session(client.patch(route(`allocations/${allocation.id}`)), cookie)
+      session(client.post(route('planning/mutations')), cookie)
         .json(input(revision, { operation: 'allocation.update', id: allocation.id, changes }))
         .send();
     const refused = await patch(0, { resourceId: 'r-alex' });
@@ -69,7 +69,7 @@ test.group('reassignment working-day override', (group) => {
       endDate: '2026-06-05',
       ignoreWorkingDays: true,
     };
-    const newBooking = await session(client.post(route('allocations')), cookie)
+    const newBooking = await session(client.post(route('planning/mutations')), cookie)
       .json(input(2, { operation: 'allocation.create', allocation: newRow }))
       .send();
     newBooking.assertStatus(400);

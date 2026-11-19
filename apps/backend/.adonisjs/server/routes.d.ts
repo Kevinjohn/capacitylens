@@ -6,46 +6,9 @@ export type ScannedRoutes = {
   ALL: {
     'api.planning.show': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.archive': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.allocation.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.allocation.deleteGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.restoreGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning.mutate': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.undo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.redo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.resource.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.timeOff.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.timeOff.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.timeOff.deleteGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.closure.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.closure.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.closure.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.client.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.client.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.client.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.client.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.project.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.project.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.project.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.project.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.activity.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.activity.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.activity.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.activity.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.phase.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.phase.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.phase.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.discipline.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.discipline.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.discipline.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.installation.company': { paramsTuple?: []; params?: {} }
     'api.companies.index': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
@@ -134,36 +97,9 @@ export type ScannedRoutes = {
     'api.not-found': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
   }
   POST: {
-    'api.planning.allocation.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.allocation.createGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.allocation.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.allocation.deleteGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.restoreGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
+    'api.planning.mutate': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.undo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.planning.redo': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.resource.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.timeOff.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.timeOff.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.timeOff.deleteGroup': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.closure.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.closure.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.client.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.client.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.client.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.project.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.project.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.project.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.activity.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.activity.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.activity.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.phase.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.phase.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.discipline.create': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.planning.discipline.delete': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.resource.archive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.resource.unarchive': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.allocation.duplicate': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.timeOff.repeat': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.installation.company': { paramsTuple?: []; params?: {} }
     'api.transfer.preview': { paramsTuple?: []; params?: {} }
     'api.transfer.apply': { paramsTuple?: []; params?: {} }
@@ -193,24 +129,14 @@ export type ScannedRoutes = {
     'api.masquerade.start': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.ownership.transfer': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
   }
-  PATCH: {
-    'api.planning.allocation.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.resource.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.timeOff.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.closure.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.client.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.project.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.activity.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.phase.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.discipline.update': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }
-    'api.planning.settings.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
-    'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-    'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
-  }
   PUT: {
     'api.getting-started.update': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.members.tracking': { paramsTuple: [ParamValue]; params: {'companyId': ParamValue} }
     'api.member-resources.set': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+  }
+  PATCH: {
+    'api.members.role': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
+    'api.members.status': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'userId': ParamValue} }
   }
   DELETE: {
     'api.invites.revoke': { paramsTuple: [ParamValue,ParamValue]; params: {'companyId': ParamValue,'id': ParamValue} }

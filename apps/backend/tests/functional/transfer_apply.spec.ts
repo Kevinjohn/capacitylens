@@ -43,7 +43,7 @@ async function deleteForRestoration(
   const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, targetCompanyId));
   const mutationId = randomUUID();
   const response = await asDataOwner(
-    client.post(`/api/companies/${targetCompanyId}/allocations/${allocation.id}/delete`),
+    client.post(`/api/companies/${targetCompanyId}/planning/mutations`),
     cookie
   )
     .json({
@@ -320,7 +320,7 @@ test.group('beta transfer apply', (group) => {
         .first()
     );
     const restore = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/restore-group`),
+      client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
     )
       .json({

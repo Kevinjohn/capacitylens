@@ -25,7 +25,7 @@ test.group('account gate', (group) => {
 
   test('every route is classified by name and only the non-API routes have none', ({ assert }) => {
     const routes = Object.values(router.toJSON()).flat();
-    assert.isAbove(routes.length, 90);
+    assert.isAbove(routes.length, 50);
     assert.deepEqual(
       routes.filter((route) => route.name === undefined).map((route) => route.pattern),
       ['/health/live', '/health/ready', '/*']
@@ -84,7 +84,10 @@ test.group('account gate', (group) => {
       assert.isObject(body.decision);
     }
     // The body is invalid; the gate answers before the handler reads it.
-    const write = await asDataOwner(client.post(`/api/companies/${companyId}/clients`), cookie)
+    const write = await asDataOwner(
+      client.post(`/api/companies/${companyId}/planning/mutations`),
+      cookie
+    )
       .json({ unknown: true })
       .send();
     write.assertStatus(403);

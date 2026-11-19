@@ -8,12 +8,6 @@ import {
   placeholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
 import { planningMutationValidator } from '#validators/planning_operations';
-import { allocationMutationValidator } from '#validators/planning/allocation';
-import { catalogueMutationValidator } from '#validators/planning/catalogue';
-import { resourceMutationValidator } from '#validators/planning/resource';
-import { timeOffMutationValidator } from '#validators/planning/time_off';
-import { closureMutationValidator } from '#validators/planning/closure';
-import { settingsMutationValidator } from '#validators/planning/settings';
 import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
@@ -262,7 +256,7 @@ test.group('planning operation contracts', () => {
   }) => {
     assert.equal(
       await operationOf(
-        catalogueMutationValidator.validate({
+        planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'catalogue.delete', entity: { entity: 'phases', id: uuid } },
@@ -272,7 +266,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        resourceMutationValidator.validate({
+        planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'resource.update', id: uuid, changes: { role: 'Designer' } },
@@ -282,7 +276,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        timeOffMutationValidator.validate({
+        planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'timeOff.delete', id: uuid },
@@ -292,7 +286,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        closureMutationValidator.validate({
+        planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'closure.delete', id: uuid },
@@ -302,7 +296,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        settingsMutationValidator.validate({
+        planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'settings.update', changes: { weekStartsOn: 0 } },
@@ -312,7 +306,7 @@ test.group('planning operation contracts', () => {
     );
     assert.equal(
       await operationOf(
-        allocationMutationValidator.validate({
+        planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
           intent: { operation: 'allocation.delete', id: uuid },
@@ -527,7 +521,7 @@ test.group('planning operation contracts', () => {
       firstAvailableDate: null,
       lastAvailableDate: null,
     };
-    const valid = await resourceMutationValidator.validate({
+    const valid = await planningMutationValidator.validate({
       mutationId: uuid,
       baseRevision: 1,
       intent: { operation: 'resource.create', id: otherUuid, fields: external },
@@ -542,7 +536,7 @@ test.group('planning operation contracts', () => {
       { ...external, name: 'x'.repeat(300) },
     ]) {
       await assert.rejects(() =>
-        resourceMutationValidator.validate({
+        planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 1,
           intent: { operation: 'resource.create', id: otherUuid, fields },
@@ -570,7 +564,7 @@ test.group('planning operation contracts', () => {
       firstAvailableDate: null,
       lastAvailableDate: null,
     };
-    const validPlaceholder = await resourceMutationValidator.validate({
+    const validPlaceholder = await planningMutationValidator.validate({
       mutationId: uuid,
       baseRevision: 1,
       intent: { operation: 'resource.create', id: otherUuid, fields: placeholder },
@@ -588,7 +582,7 @@ test.group('planning operation contracts', () => {
       projectId: null,
     };
     await assert.rejects(() =>
-      resourceMutationValidator.validate({
+      planningMutationValidator.validate({
         mutationId: uuid,
         baseRevision: 1,
         intent: {
@@ -599,7 +593,7 @@ test.group('planning operation contracts', () => {
       })
     );
     await assert.rejects(() =>
-      resourceMutationValidator.validate({
+      planningMutationValidator.validate({
         mutationId: uuid,
         baseRevision: 1,
         intent: {
@@ -610,7 +604,7 @@ test.group('planning operation contracts', () => {
       })
     );
     await assert.rejects(() =>
-      resourceMutationValidator.validate({
+      planningMutationValidator.validate({
         mutationId: uuid,
         baseRevision: 1,
         intent: { operation: 'resource.update', id: otherUuid, changes: { workingDays: [] } },

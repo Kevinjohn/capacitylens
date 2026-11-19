@@ -43,7 +43,7 @@ flowchart TD
   C --> D["allocationSlice creates typed planning intent"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends allocation.create API operation"]
-  F --> G["PlanningController.allocationCreate calls mutatePlanning"]
+  F --> G["PlanningController.mutate calls mutatePlanning"]
   G --> H["executePlanningIntent and writer persist inside transaction"]
   H --> J["planningCacheController reconciles receipt and publishes grid"]
   I --> J
