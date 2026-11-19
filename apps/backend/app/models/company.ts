@@ -1,4 +1,5 @@
 import { column } from '@adonisjs/lucid/orm';
+import { CAPACITY_OVERVIEW_ACCESS_VALUES } from '@capacitylens/shared/types/entities';
 import type {
   CapacityOverviewAccess,
   ISOTimestamp,
@@ -39,11 +40,7 @@ export default class Company extends AccountSchema {
   declare showTaskFieldInSchedule: boolean | null;
 
   @column(
-    jsonColumn(
-      'accounts',
-      'capacity_overview_access',
-      isOneOf(['owner_admin', 'owner_admin_editor', 'everyone'] as const)
-    )
+    jsonColumn('accounts', 'capacity_overview_access', isOneOf(CAPACITY_OVERVIEW_ACCESS_VALUES))
   )
   declare capacityOverviewAccess: CapacityOverviewAccess | null;
 
