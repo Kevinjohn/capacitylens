@@ -1,18 +1,22 @@
 import { BaseCheck, Result } from '@adonisjs/core/health';
 import type { HealthCheckResult } from '@adonisjs/core/types/health';
 import { classifyLogError } from '#services/logging_safety';
-import { assertSchemaIntegrity } from '#services/schema_integrity';
+import { readSchemaIntegrity } from '#services/schema_integrity';
 import logger from '@adonisjs/core/services/logger';
 import db from '@adonisjs/lucid/services/db';
 
-/** Checks connectivity and product schema together, without exposing failure details. */
+/**
+ * Checks connectivity and the schema check boot recorded, without exposing failure details. An
+ * empty database, where boot skips the check, is ready.
+ */
 export class DatabaseReadinessCheck extends BaseCheck {
   name = 'Database health check (sqlite)';
 
   async run(): Promise<HealthCheckResult> {
     try {
       await db.rawQuery('select 1');
-      await assertSchemaIntegrity();
+      const schema = readSchemaIntegrity();
+      if (schema.kind === 'drift') throw new Error(schema.message);
       return Result.ok('Database and schema are ready');
     } catch (error) {
       // The public readiness report must not expose database paths or schema details, so the

@@ -266,3 +266,26 @@ export async function assertSchemaIntegrity() {
     }
   }
 }
+
+type SchemaIntegrity = { kind: 'ok' } | { kind: 'drift'; message: string } | { kind: 'unchecked' };
+
+let remembered: SchemaIntegrity = { kind: 'unchecked' };
+
+/**
+ * Runs {@link assertSchemaIntegrity} and keeps the outcome for readiness probes, then rethrows a
+ * failure. Boot calls it; the database is only replaced while the server is stopped.
+ */
+export async function rememberSchemaIntegrity() {
+  try {
+    await assertSchemaIntegrity();
+    remembered = { kind: 'ok' };
+  } catch (error) {
+    remembered = { kind: 'drift', message: error instanceof Error ? error.message : String(error) };
+    throw error;
+  }
+}
+
+/** The outcome of the last {@link rememberSchemaIntegrity}; `unchecked` until boot runs it. */
+export function readSchemaIntegrity(): SchemaIntegrity {
+  return remembered;
+}
