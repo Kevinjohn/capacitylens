@@ -1,6 +1,6 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { HttpContext } from '@adonisjs/core/http';
-import vine, { errors as vineErrors } from '@vinejs/vine';
+import { errors as vineErrors } from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
 import {
@@ -8,8 +8,7 @@ import {
   isGettingStartedDismissed,
   readGettingStartedSteps,
 } from '#services/getting_started';
-
-const dismissal = vine.compile(vine.object({ dismissed: vine.literal(true) }));
+import { updateValidator } from '#validators/getting_started';
 
 export default class GettingStartedController {
   async show(ctx: HttpContext) {
@@ -26,7 +25,7 @@ export default class GettingStartedController {
   async update(ctx: HttpContext) {
     const { params, request, response } = ctx;
     try {
-      await request.validateUsing(dismissal, { data: request.body() });
+      await request.validateUsing(updateValidator, { data: request.body() });
     } catch (error) {
       if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
       return response.badRequest({ error: 'dismissed must be true.' });

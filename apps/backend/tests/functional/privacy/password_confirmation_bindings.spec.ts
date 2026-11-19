@@ -29,7 +29,8 @@ test.group('password confirmation bindings', (group) => {
     document.data.accounts[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
       const response = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
-        .json({ action, companyId, intent, password: fixturePassword })
+        // The helper takes any action and intent, including ones the server refuses.
+        .json({ action, companyId, intent, password: fixturePassword } as never)
         .send();
       response.assertStatus(200);
       return (response.body() as { confirmationId: string }).confirmationId;

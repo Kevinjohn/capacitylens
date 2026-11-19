@@ -126,7 +126,8 @@ This is the short, present-tense record of decisions that constrain future work.
   cross-device undo.
 - Ordinary writes reject invalid supplied input; nothing is repaired on the way in. Blind writers
   cannot echo hidden names or notes, so an unrelated edit preserves protected stored values.
-  Unknown request fields are stripped by the validator.
+  Unknown request fields are stripped by the validator. Identity, membership and transfer routes
+  refuse unknown fields.
 - The portable export is this product's own document and the only import source. Import is
   Owner-only, atomic and not undoable. A malformed or foreign document is rejected, never repaired.
   Identity, sessions, membership and admission records are never part of the export. The server

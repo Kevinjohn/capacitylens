@@ -63,7 +63,8 @@ async function deleteForRestoration(
 
 async function proof(client: ApiClient, cookie: string, intent: unknown, action = 'import') {
   const result = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
-    .json({ action, companyId, intent, password })
+    // The helper takes any action and intent; each test supplies a valid pair.
+    .json({ action, companyId, intent, password } as never)
     .send();
   result.assertStatus(200);
   return (result.body() as { confirmationId: string }).confirmationId;

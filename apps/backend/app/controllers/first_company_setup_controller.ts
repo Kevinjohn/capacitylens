@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { parseFirstCompanyInput, isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { createInitialCompany } from '#services/initial_company_defaults';
-import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings';
+import { firstCompanySetupMessage, storeValidator } from '#validators/first_company_setup';
 
 /**
  * Establishes company access only for the sole confirmed, admitted principal on an empty
@@ -10,13 +10,10 @@ import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings';
  */
 export default class FirstCompanySetupController {
   async store(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
+    const body = await ctx.request.validateUsing(storeValidator, { data: ctx.request.body() });
     const input = parseFirstCompanyInput(body);
     if (input === null) {
-      return ctx.response.badRequest({
-        error: `Enter a company name of up to ${MAX_NAME_LENGTH} characters without unsupported characters, a Sunday or Monday week start, and a supported time zone.`,
-        code: 'VALIDATION_ERROR',
-      });
+      return ctx.response.badRequest({ error: firstCompanySetupMessage, code: 'VALIDATION_ERROR' });
     }
     const result = await withActor(ctx, async (actor, trx) => {
       if (!(await isFirstCompanySetupRequired(actor.userId, trx))) return null;

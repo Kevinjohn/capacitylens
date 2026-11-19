@@ -148,7 +148,8 @@ test.group('account deletion', (group) => {
     wrong.assertStatus(403);
     wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
     const malformed = await asDataOwner(client.post('/api/auth/delete-account'), cookie)
-      .json({ currentPassword: editor.password, extra: true })
+      // Deliberately outside the generated body type, to reach the server's refusal.
+      .json({ currentPassword: editor.password, extra: true } as never)
       .send();
     malformed.assertStatus(400);
 

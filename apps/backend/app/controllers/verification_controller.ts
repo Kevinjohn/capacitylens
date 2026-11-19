@@ -2,19 +2,11 @@ import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { InvalidTokenError } from '@kevinjohn/adonisjs-account-kit/errors';
-import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
 import { isMailConfigured } from '#services/mail_delivery';
-import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
+import { proofHeaders } from '#services/request_helpers';
 import { currentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
-
-function parseTokenBody(value: unknown, extra: string[] = []): Record<string, unknown> | null {
-  const body = value;
-  if (!hasOnlyFields(body, ['token', ...extra])) return null;
-  return typeof body.token === 'string' && body.token.length > 0 && body.token.length <= 512
-    ? body
-    : null;
-}
+import { completeValidator, inspectValidator } from '#validators/verification';
 
 /** Address confirmation for a signed-in identity, reachable before admission. */
 export default class VerificationController {
@@ -43,10 +35,9 @@ export default class VerificationController {
   /** Reports whether a confirmation link is still usable without spending it. */
   async inspect(ctx: HttpContext) {
     proofHeaders(ctx);
-    const body = parseTokenBody(ctx.request.body());
-    if (!body) return ctx.response.badRequest({ error: 'Invalid confirmation request.' });
+    const body = await ctx.request.validateUsing(inspectValidator, { data: ctx.request.body() });
     return ctx.response.ok({
-      valid: await accountKit.emailVerification.inspect({ token: body.token as string }),
+      valid: await accountKit.emailVerification.inspect({ token: body.token }),
     });
   }
 
@@ -56,13 +47,10 @@ export default class VerificationController {
    */
   async complete(ctx: HttpContext) {
     proofHeaders(ctx);
-    const body = parseTokenBody(ctx.request.body(), ['password']);
-    if (!body || typeof body.password !== 'string' || passwordLengthFailure(body.password)) {
-      return ctx.response.badRequest({ error: 'Invalid confirmation request.' });
-    }
+    const body = await ctx.request.validateUsing(completeValidator, { data: ctx.request.body() });
     try {
       await accountKit.emailVerification.complete({
-        token: body.token as string,
+        token: body.token,
         password: body.password,
       });
       return ctx.response.ok({ result: 'verified' });

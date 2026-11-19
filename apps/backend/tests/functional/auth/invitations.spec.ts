@@ -53,7 +53,8 @@ async function member(email: string, role: 'admin' | 'editor' | 'viewer') {
 const invite = (client: ApiClient, cookie: string, email: string, role = 'editor') =>
   asDataOwner(client.post('/api/invites'), cookie)
     .timeout({ response: 10000, deadline: 15000 })
-    .json({ companyId, email, role })
+    // The role is deliberately untyped so a test can send `owner` and reach the refusal.
+    .json({ companyId, email, role } as never)
     .send();
 
 const accept = (client: ApiClient, token: string, name = 'Clark Kent') =>

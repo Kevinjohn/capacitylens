@@ -268,7 +268,8 @@ test.group('company member administration', (group) => {
         name: 'invalid status',
         send: () =>
           signed(client.patch(`${memberPath}/status`), ownerCookie)
-            .json({ status: 'removed' })
+            // Deliberately outside the generated body type, to reach the server's refusal.
+            .json({ status: 'removed' } as never)
             .send(),
         error: 'Invalid member status.',
       },
@@ -276,7 +277,8 @@ test.group('company member administration', (group) => {
         name: 'unknown status field',
         send: () =>
           signed(client.patch(`${memberPath}/status`), ownerCookie)
-            .json({ status: 'suspended', extra: true })
+            // Deliberately outside the generated body type, to reach the server's refusal.
+            .json({ status: 'suspended', extra: true } as never)
             .send(),
         error: 'Invalid member status.',
       },
@@ -302,7 +304,11 @@ test.group('company member administration', (group) => {
     for (const request of requests) {
       const response = await request.send();
       response.assertStatus(400);
-      assert.deepEqual(response.body(), { error: request.error }, request.name);
+      assert.deepEqual(
+        response.body(),
+        { error: request.error, code: 'VALIDATION_ERROR' },
+        request.name
+      );
     }
 
     const member = await db

@@ -8,21 +8,18 @@ import {
   ThrottledError,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
-import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
-import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { isMailConfigured } from '#services/mail_delivery';
-import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
+import { proofHeaders } from '#services/request_helpers';
 import { currentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import { managedGuard } from '#services/auth/managed_guard';
-
-function isValidPasswordShape(value: unknown): value is string {
-  return typeof value === 'string' && !passwordLengthFailure(value);
-}
-
-function isBearerToken(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= 512;
-}
+import {
+  changePasswordValidator,
+  deleteAccountValidator,
+  inspectResetValidator,
+  requestResetValidator,
+  resetPasswordValidator,
+} from '#validators/credentials';
 
 function parsePrivateErrorCode(error: unknown) {
   const code =
@@ -47,14 +44,9 @@ export default class CredentialController {
     if (!isMailConfigured()) {
       return ctx.response.notFound({ error: 'Password recovery is unavailable.' });
     }
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['email']) || typeof body.email !== 'string') {
-      return ctx.response.badRequest({ error: 'Invalid recovery request.' });
-    }
-    const email = normalizeAccountEmail(body.email);
-    if (!isAccountEmail(email)) {
-      return ctx.response.badRequest({ error: 'Invalid recovery request.' });
-    }
+    const { email } = await ctx.request.validateUsing(requestResetValidator, {
+      data: ctx.request.body(),
+    });
     try {
       await accountKit.passwordReset.request({ email, clientKey: ctx.request.ip() });
     } catch (error) {
@@ -68,10 +60,9 @@ export default class CredentialController {
   /** Reports whether a reset link is still usable without spending it. */
   async inspectReset(ctx: HttpContext) {
     proofHeaders(ctx);
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['token']) || !isBearerToken(body.token)) {
-      return ctx.response.badRequest({ error: 'Invalid recovery request.' });
-    }
+    const body = await ctx.request.validateUsing(inspectResetValidator, {
+      data: ctx.request.body(),
+    });
     return ctx.response.ok({
       valid: await accountKit.passwordReset.inspect({ token: body.token }),
     });
@@ -80,14 +71,9 @@ export default class CredentialController {
   /** Every sign-in, including any on this device, ends with the old password. */
   async resetPassword(ctx: HttpContext) {
     proofHeaders(ctx);
-    const body: unknown = ctx.request.body();
-    if (
-      !hasOnlyFields(body, ['token', 'newPassword']) ||
-      !isBearerToken(body.token) ||
-      !isValidPasswordShape(body.newPassword)
-    ) {
-      return ctx.response.badRequest({ error: 'Invalid recovery request.' });
-    }
+    const body = await ctx.request.validateUsing(resetPasswordValidator, {
+      data: ctx.request.body(),
+    });
     try {
       await accountKit.passwordReset.reset({ token: body.token, password: body.newPassword });
       return ctx.response.ok({ ok: true });
@@ -105,14 +91,9 @@ export default class CredentialController {
 
   /** Changes the password and ends every sign-in, this one included. */
   async changePassword(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
-    if (
-      !hasOnlyFields(body, ['currentPassword', 'newPassword']) ||
-      typeof body.currentPassword !== 'string' ||
-      !isValidPasswordShape(body.newPassword)
-    ) {
-      return ctx.response.badRequest({ error: 'Invalid credential request.' });
-    }
+    const body = await ctx.request.validateUsing(changePasswordValidator, {
+      data: ctx.request.body(),
+    });
     const account = await currentAccount(ctx);
     let outcome: 'changed' | 'committed' = 'changed';
     try {
@@ -145,10 +126,9 @@ export default class CredentialController {
    * ownership first.
    */
   async deleteAccount(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['currentPassword']) || typeof body.currentPassword !== 'string') {
-      return ctx.response.badRequest({ error: 'Invalid credential request.' });
-    }
+    const body = await ctx.request.validateUsing(deleteAccountValidator, {
+      data: ctx.request.body(),
+    });
     const input = await managedGuard.current(ctx);
     const request = { action: 'delete-account', scope: String(input.userId), intent: {} };
     const { confirmationId } = await passwordConfirmations.confirmPassword(input, {

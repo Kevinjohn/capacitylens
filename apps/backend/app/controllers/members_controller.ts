@@ -1,13 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { isRole, isMembershipStatus } from '@capacitylens/shared/account/types';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
-import { hasOnlyFields } from '#services/request_helpers';
 import { changeMemberRole, changeMemberStatus } from '#services/membership/member_mutations';
 import { changeMemberSignInTracking } from '#services/membership/sign_in_tracking';
 import { readMemberDirectory } from '#services/membership/member_directory';
+import { changeRoleValidator, changeStatusValidator, trackingValidator } from '#validators/members';
 
 function readRouteParam(value: unknown) {
   // Adonis calls the controller after matching a route, so each parameter is already a string.
@@ -55,11 +54,9 @@ export default class MembersController {
   }
 
   async tracking(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['enabled']) || typeof body.enabled !== 'boolean') {
-      return ctx.response.badRequest({ error: 'enabled must be a Boolean.' });
-    }
-    const enabled = body.enabled;
+    const { enabled } = await ctx.request.validateUsing(trackingValidator, {
+      data: ctx.request.body(),
+    });
     const companyId = readRouteParam(ctx.params.companyId);
     await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyAction(companyId, 'members:signInTracking', trx);
@@ -69,11 +66,9 @@ export default class MembersController {
   }
 
   async changeRole(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['role']) || !isRole(body.role)) {
-      return ctx.response.badRequest({ error: 'Invalid member role.' });
-    }
-    const role = body.role;
+    const { role } = await ctx.request.validateUsing(changeRoleValidator, {
+      data: ctx.request.body(),
+    });
     const companyId = readRouteParam(ctx.params.companyId);
     const userId = readRouteParam(ctx.params.userId);
     const result = await runMemberMutation(ctx, {
@@ -95,11 +90,9 @@ export default class MembersController {
   }
 
   async changeStatus(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['status']) || !isMembershipStatus(body.status)) {
-      return ctx.response.badRequest({ error: 'Invalid member status.' });
-    }
-    const status = body.status;
+    const { status } = await ctx.request.validateUsing(changeStatusValidator, {
+      data: ctx.request.body(),
+    });
     const companyId = readRouteParam(ctx.params.companyId);
     const userId = readRouteParam(ctx.params.userId);
     const result = await runMemberMutation(ctx, {

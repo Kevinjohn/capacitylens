@@ -146,7 +146,7 @@ test.group('authenticated first company setup', (group) => {
     }) => {
       const { cookie } = await acceptBootstrap(client);
       const result = await asDataOwner(client.post('/api/installation/company'), cookie)
-        .json({ name: 'Wayne Enterprises', ...choice.fields })
+        .json({ name: 'Wayne Enterprises', ...choice.fields } as never)
         .send();
       result.assertStatus(201);
       const account = await db.from('accounts').first();
@@ -171,7 +171,8 @@ test.group('authenticated first company setup', (group) => {
       { weekStartsOn: '1', timeZone: 'Etc/GMT' },
     ]) {
       const refused = await asDataOwner(client.post('/api/installation/company'), cookie)
-        .json({ name: 'Wayne Enterprises', ...extra })
+        // Deliberately outside the generated body type, to reach the server's refusal.
+        .json({ name: 'Wayne Enterprises', ...extra } as never)
         .send();
       refused.assertStatus(400);
       for (const table of companyTables) assert.lengthOf(await db.from(table), 0);
@@ -244,7 +245,8 @@ test.group('authenticated first company setup', (group) => {
       ['Wayne Enterprises'],
     ]) {
       const result = await asDataOwner(client.post('/api/installation/company'), cookie)
-        .json(body)
+        // Deliberately outside the generated body type, to reach the server's refusal.
+        .json(body as never)
         .send();
       result.assertStatus(400);
     }

@@ -6,62 +6,22 @@
 
 import type { HttpContext } from '@adonisjs/core/http';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import {
-  PASSWORD_CONFIRMATION_KINDS,
-  passwordConfirmationActor,
-  type PasswordConfirmationKind,
-} from '#services/auth/password_confirmation';
+import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import { withActor } from '#services/auth/current_actor';
 import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
-import { hasOnlyFields } from '#services/request_helpers';
 import { parseRequestDocument } from '#services/company_import';
 import { managedGuard } from '#services/auth/managed_guard';
-
-type ConfirmationRequest = {
-  action: PasswordConfirmationKind;
-  companyId: string;
-  intent: unknown;
-  password: string;
-};
-
-function requestBody(value: unknown): ConfirmationRequest | null {
-  const body = value;
-  if (!hasOnlyFields(body, ['action', 'companyId', 'intent', 'password'])) return null;
-  if (!PASSWORD_CONFIRMATION_KINDS.includes(body.action as PasswordConfirmationKind)) return null;
-  if (typeof body.companyId !== 'string' || !body.companyId) return null;
-  if (typeof body.password !== 'string') return null;
-  if (!body.intent || typeof body.intent !== 'object' || Array.isArray(body.intent)) return null;
-  const intent = body.intent as Record<string, unknown>;
-  if (body.action === 'transfer-ownership') {
-    if (
-      Object.keys(intent).length !== 1 ||
-      typeof intent.toUserId !== 'string' ||
-      !intent.toUserId
-    ) {
-      return null;
-    }
-  } else if (body.action === 'import') {
-    if (
-      Object.keys(intent).length !== 2 ||
-      !Number.isSafeInteger(intent.baseRevision) ||
-      (intent.baseRevision as number) < 0
-    ) {
-      return null;
-    }
-    const document = parseRequestDocument(intent.document);
-    if (!document) return null;
-    return {
-      ...body,
-      intent: { baseRevision: intent.baseRevision, document },
-    } as ConfirmationRequest;
-  } else if (Object.keys(intent).length !== 0) return null;
-  return body as ConfirmationRequest;
-}
+import { passwordValidator } from '#validators/password_confirmations';
 
 export default class PasswordConfirmationsController {
   async password(ctx: HttpContext) {
-    const body = requestBody(ctx.request.body());
-    if (!body) return ctx.response.badRequest({ error: 'Invalid password confirmation.' });
+    const body = await ctx.request.validateUsing(passwordValidator, { data: ctx.request.body() });
+    let intent: unknown = body.intent;
+    if (body.action === 'import') {
+      const document = parseRequestDocument(body.intent.document);
+      if (!document) return ctx.response.badRequest({ error: 'Invalid password confirmation.' });
+      intent = { baseRevision: body.intent.baseRevision, document };
+    }
     await withActor(ctx, async (_actor, trx) =>
       passwordConfirmationActor(body.companyId, trx, body.action)
     );
@@ -70,7 +30,7 @@ export default class PasswordConfirmationsController {
       {
         action: body.action,
         scope: body.companyId,
-        intent: body.intent,
+        intent,
         password: body.password,
       }
     );
