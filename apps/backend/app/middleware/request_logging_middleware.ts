@@ -26,6 +26,7 @@ export default class RequestLoggingMiddleware {
             'HTTP request completed'
           );
         } catch {
+          // Logging is diagnostic only: a failed completion line is reported through the fallback.
           try {
             ctx.logger.error(
               {

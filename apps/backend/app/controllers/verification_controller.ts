@@ -23,6 +23,7 @@ export default class VerificationController {
         result: await accountKit.emailVerification.send({ userId: account.id }),
       });
     } catch (error) {
+      // Does work: a committed address whose email failed is logged and answered 503.
       if (!isCommittedFailure(error)) throw error;
       ctx.logger.warn({ code: 'VERIFICATION_DELIVERY_FAILED' }, 'Verification delivery failed');
       return ctx.response.serviceUnavailable({
@@ -55,6 +56,7 @@ export default class VerificationController {
       });
       return ctx.response.ok({ result: 'verified' });
     } catch (error) {
+      // Route wording: completion answers INVALID_TOKEN where the handler sends the Kit's own code.
       if (error instanceof InvalidTokenError) {
         return ctx.response.badRequest({
           error: 'This link is invalid or expired.',

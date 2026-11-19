@@ -98,7 +98,7 @@ export function useArchiveRecovery() {
         signal,
         headers: { 'X-Masquerade-Context': contextToken ?? '' },
       });
-      if (!response || response.companyId !== companyId) {
+      if (response.companyId !== companyId) {
         throw new Error(m.settings_archived_err_incomplete());
       }
       return response;

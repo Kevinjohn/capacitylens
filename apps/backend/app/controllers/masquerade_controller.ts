@@ -12,6 +12,7 @@ async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
   try {
     return await work();
   } catch (error) {
+    // Route wording: view-as controls refuse identity failures with their own sentence.
     if (error instanceof IdentityAuthorityError) {
       return ctx.response
         .status(error.status)
@@ -59,6 +60,7 @@ export default class MasqueradeController {
         }
         return ctx.response.ok(await currentMasquerade(ctx, db.connection(), undefined));
       } catch (error) {
+        // Does work: no session is the inactive status, not a refusal.
         if (error instanceof InvalidSessionError) {
           return ctx.response.ok({ active: false, contextToken: null });
         }

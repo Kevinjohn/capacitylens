@@ -4,87 +4,78 @@ import { assertCompanyAction } from '#services/auth/authorization';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
 import { refuseInvalidAdmissionBody } from '#services/admission/errors';
-import { renderAdmissionFailure } from '#services/admission/http';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
 
 /** Scoped member/person association. */
 export default class MemberResourcesController {
   async setLink(ctx: HttpContext) {
-    try {
-      const body = await ctx.request
-        .validateUsing(setLinkValidator, { data: ctx.request.body() })
-        .catch(refuseInvalidAdmissionBody);
-      const command = parseAccountCommand(
-        ctx.request.header('x-account-command-id'),
-        ctx.request.header('idempotency-key')
-      );
-      const { companyId, userId } = ctx.params;
-      const result = await withActor(ctx, async (currentActor, trx) => {
-        let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
-        return runAccountCommand(trx, {
-          name: 'set-member-resource-link',
-          authorizeAccess: async () => {
-            actor = await assertCompanyAction(companyId, 'members:manage', trx);
-          },
-          work: async () => {
-            const { actorId } = actor;
-            const link = await setMemberResourceLink(trx, {
-              companyId,
-              userId,
-              resourceId: body.resourceId,
-              expectedRevision: body.expectedRevision,
-              actorId,
-            });
-            return { resourceId: link.resourceId, revision: link.revision };
-          },
-          actorId: currentActor.userId,
-          scopeId: companyId,
-          payload: { principalId: userId, ...body },
-          command,
-        });
+    const body = await ctx.request
+      .validateUsing(setLinkValidator, { data: ctx.request.body() })
+      .catch(refuseInvalidAdmissionBody);
+    const command = parseAccountCommand(
+      ctx.request.header('x-account-command-id'),
+      ctx.request.header('idempotency-key')
+    );
+    const { companyId, userId } = ctx.params;
+    const result = await withActor(ctx, async (currentActor, trx) => {
+      let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+      return runAccountCommand(trx, {
+        name: 'set-member-resource-link',
+        authorizeAccess: async () => {
+          actor = await assertCompanyAction(companyId, 'members:manage', trx);
+        },
+        work: async () => {
+          const { actorId } = actor;
+          const link = await setMemberResourceLink(trx, {
+            companyId,
+            userId,
+            resourceId: body.resourceId,
+            expectedRevision: body.expectedRevision,
+            actorId,
+          });
+          return { resourceId: link.resourceId, revision: link.revision };
+        },
+        actorId: currentActor.userId,
+        scopeId: companyId,
+        payload: { principalId: userId, ...body },
+        command,
       });
-      return ctx.response.ok(result);
-    } catch (error) {
-      return renderAdmissionFailure(ctx, error);
-    }
+    });
+    return ctx.response.ok(result);
   }
 
   async clearLink(ctx: HttpContext) {
-    try {
-      const body = await ctx.request
-        .validateUsing(clearLinkValidator, { data: ctx.request.body() })
-        .catch(refuseInvalidAdmissionBody);
-      const command = parseAccountCommand(
-        ctx.request.header('x-account-command-id'),
-        ctx.request.header('idempotency-key')
-      );
-      const { companyId, userId } = ctx.params;
-      await withActor(ctx, async (currentActor, trx) => {
-        let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
-        return runAccountCommand(trx, {
-          name: 'clear-member-resource-link',
-          authorizeAccess: async () => {
-            actor = await assertCompanyAction(companyId, 'members:manage', trx);
-          },
-          work: async () => {
-            const { actorId } = actor;
-            await clearMemberResourceLink(trx, {
-              companyId,
-              userId,
-              expectedRevision: body.expectedRevision,
-              actorId,
-            });
-            return { ok: true };
-          },
-          actorId: currentActor.userId,
-          scopeId: companyId,
-          payload: { principalId: userId, ...body },
-          command,
-        });
+    const body = await ctx.request
+      .validateUsing(clearLinkValidator, { data: ctx.request.body() })
+      .catch(refuseInvalidAdmissionBody);
+    const command = parseAccountCommand(
+      ctx.request.header('x-account-command-id'),
+      ctx.request.header('idempotency-key')
+    );
+    const { companyId, userId } = ctx.params;
+    await withActor(ctx, async (currentActor, trx) => {
+      let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+      return runAccountCommand(trx, {
+        name: 'clear-member-resource-link',
+        authorizeAccess: async () => {
+          actor = await assertCompanyAction(companyId, 'members:manage', trx);
+        },
+        work: async () => {
+          const { actorId } = actor;
+          await clearMemberResourceLink(trx, {
+            companyId,
+            userId,
+            expectedRevision: body.expectedRevision,
+            actorId,
+          });
+          return { ok: true };
+        },
+        actorId: currentActor.userId,
+        scopeId: companyId,
+        payload: { principalId: userId, ...body },
+        command,
       });
-      return ctx.response.noContent();
-    } catch (error) {
-      return renderAdmissionFailure(ctx, error);
-    }
+    });
+    return ctx.response.noContent();
   }
 }

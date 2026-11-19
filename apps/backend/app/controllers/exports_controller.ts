@@ -7,9 +7,7 @@ import { effectiveReadPrincipal } from '#services/auth/masquerade';
 import { withActor } from '#services/auth/current_actor';
 import access from '#config/access_control';
 import { resolvePlanningAuthority } from '#services/planning/authority';
-import { sendRefusal } from '#services/planning/http_refusal';
 import {
-  CompanyDocumentError,
   buildCompanyExport,
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyDocument';
@@ -37,31 +35,23 @@ export default class ExportsController {
    * the document `full` only for a reader who may see private names.
    */
   async download(ctx: HttpContext) {
-    try {
-      const companyId = String(ctx.params.companyId);
-      const text = await withActor(ctx, async (_actor, trx) => {
-        const { authority } = await resolvePlanningAuthority(trx, companyId);
-        const rows = await readStateWithClient(
-          trx,
+    const companyId = String(ctx.params.companyId);
+    const text = await withActor(ctx, async (_actor, trx) => {
+      const { authority } = await resolvePlanningAuthority(trx, companyId);
+      const rows = await readStateWithClient(
+        trx,
+        companyId,
+        access.can(authority.role, 'members:manage')
+      );
+      return serializeCompanyExport(
+        buildCompanyExport(transformState(rows, companyId, authority.role), {
           companyId,
-          access.can(authority.role, 'members:manage')
-        );
-        return serializeCompanyExport(
-          buildCompanyExport(transformState(rows, companyId, authority.role), {
-            companyId,
-            completeness: authority.canSeePrivateNames ? 'full' : 'redacted',
-          })
-        );
-      });
-      ctx.response.header('Content-Type', 'application/json; charset=utf-8');
-      ctx.response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
-      return ctx.response.send(text);
-    } catch (error) {
-      // A document that fails validation is refused as the import path refuses one.
-      if (error instanceof CompanyDocumentError) {
-        return ctx.response.badRequest({ error: error.message });
-      }
-      return sendRefusal(error, ctx);
-    }
+          completeness: authority.canSeePrivateNames ? 'full' : 'redacted',
+        })
+      );
+    });
+    ctx.response.header('Content-Type', 'application/json; charset=utf-8');
+    ctx.response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
+    return ctx.response.send(text);
   }
 }

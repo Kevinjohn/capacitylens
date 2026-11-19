@@ -4,7 +4,6 @@ import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import ScopeMiddleware from '@kevinjohn/adonisjs-access-control/middleware';
 import { IdentityAuthorityError } from '#services/auth/authorization';
 import { PlanningOperationError } from '#services/planning/execute';
-import { sendRefusal } from '#services/planning/http_refusal';
 
 const scope = new ScopeMiddleware();
 
@@ -23,17 +22,15 @@ export default class CompanyScopeMiddleware {
         resolveScope: (request) => request.params.companyId,
       });
     } catch (error) {
+      // Translates the package's FORBIDDEN into the product's class; the handler answers it.
       if (!(error instanceof AccessControlError) || error.code !== 'E_ACCESS_CONTROL_FORBIDDEN') {
         throw error;
       }
       if (!options.planning) throw new IdentityAuthorityError('Forbidden.');
-      return sendRefusal(
-        new PlanningOperationError(
-          403,
-          'ACCOUNT_MEMBERSHIP_LOST',
-          'Company membership is unavailable.'
-        ),
-        ctx
+      throw new PlanningOperationError(
+        403,
+        'ACCOUNT_MEMBERSHIP_LOST',
+        'Company membership is unavailable.'
       );
     }
     return next();

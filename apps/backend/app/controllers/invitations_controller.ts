@@ -78,6 +78,7 @@ export default class InvitationsController {
       });
       return ctx.response.created({ ...buildInvitationView(invitation), emailed: true });
     } catch (error) {
+      // Does work: a committed invitation whose email failed is logged and answered 202.
       if (!isCommittedFailure(error)) throw error;
       ctx.logger.warn({ code: 'INVITATION_DELIVERY_FAILED' }, 'Invitation delivery failed');
       return ctx.response.accepted({ committed: true, emailed: false });
@@ -112,6 +113,7 @@ export default class InvitationsController {
       const invitation = await accountKit.invitations.resend({ actorId, invitationId: id });
       return ctx.response.ok({ ...buildInvitationView(invitation), emailed: true });
     } catch (error) {
+      // Does work: a committed resend whose email failed is answered 202.
       if (!isCommittedFailure(error)) throw error;
       return ctx.response.accepted({ committed: true, emailed: false });
     }
@@ -160,6 +162,8 @@ export default class InvitationsController {
       });
       email = user.email;
     } catch (error) {
+      // Route wording: acceptance words these refusals for this route; sign-up words them
+      // differently.
       if (error instanceof InvalidTokenError) return ctx.response.badRequest(invalidLink);
       if (error instanceof RegistrationEmailAlreadyRegisteredError) {
         return ctx.response.conflict({
@@ -183,6 +187,8 @@ export default class InvitationsController {
         }),
       });
     } catch (error) {
+      // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
+      // required.
       ctx.logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
         'Sign-in after invitation acceptance failed'

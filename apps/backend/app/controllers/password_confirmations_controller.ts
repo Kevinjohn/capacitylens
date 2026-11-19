@@ -37,6 +37,7 @@ export default class PasswordConfirmationsController {
     try {
       await passwordConfirmations.prune();
     } catch (error) {
+      // Does work: pruning is best effort, so its failure is logged and the confirmation stands.
       reportPrivateFailure(
         ctx,
         { event: 'password_confirmation.prune', errorType: classifyLogError(error) },

@@ -23,33 +23,24 @@ import type {
   PlanningHistoryStepInput,
   PlanningMutationInput,
 } from '#validators/planning/contracts';
-import { sendRefusal } from '#services/planning/http_refusal';
 import { withActor } from '#services/auth/current_actor';
 
 /** Resource routes accept only their named operation and matching target; the body never selects a table. */
 export default class PlanningController {
   async show(ctx: HttpContext) {
-    try {
-      const companyId = String(ctx.params.companyId);
-      const { from, to, historyId } = await ctx.request.validateUsing(planningReadValidator, {
-        data: ctx.request.qs(),
-      });
-      const window = from !== undefined && to !== undefined ? { from, to } : undefined;
-      return await withActor(ctx, (actor, trx) =>
-        readPlanning(trx, companyId, window, { sessionId: actor.sessionId, historyId })
-      );
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    const companyId = String(ctx.params.companyId);
+    const { from, to, historyId } = await ctx.request.validateUsing(planningReadValidator, {
+      data: ctx.request.qs(),
+    });
+    const window = from !== undefined && to !== undefined ? { from, to } : undefined;
+    return withActor(ctx, (actor, trx) =>
+      readPlanning(trx, companyId, window, { sessionId: actor.sessionId, historyId })
+    );
   }
 
   async archive(ctx: HttpContext) {
-    try {
-      const companyId = String(ctx.params.companyId);
-      return await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, companyId));
-    } catch (error) {
-      return sendRefusal(error, ctx);
-    }
+    const companyId = String(ctx.params.companyId);
+    return withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, companyId));
   }
 
   async undo(ctx: HttpContext) {
@@ -88,7 +79,7 @@ export default class PlanningController {
           abandonPlanningHistory({ trx, actor, companyId, historyId: refused })
         );
       }
-      return sendRefusal(error, ctx);
+      throw error;
     }
   }
 
@@ -100,41 +91,37 @@ export default class PlanningController {
     operation: PlanningMutationInput['intent']['operation'],
     entity?: string
   ) {
-    try {
-      const input = await validate();
-      if (input.intent.operation !== operation) {
-        throw new PlanningOperationError(
-          400,
-          'VALIDATION_ERROR',
-          'The operation does not match this resource route.'
-        );
-      }
-      const target = 'entity' in input.intent ? input.intent.entity : input.intent;
-      if (entity && (!('entity' in target) || target.entity !== entity)) {
-        throw new PlanningOperationError(
-          400,
-          'VALIDATION_ERROR',
-          'The operation does not match this resource route.'
-        );
-      }
-      const targetId =
-        'sourceAllocationId' in target
-          ? target.sourceAllocationId
-          : 'id' in target
-            ? target.id
-            : undefined;
-      if (ctx.params.id !== undefined && targetId !== ctx.params.id) {
-        throw new PlanningOperationError(
-          400,
-          'VALIDATION_ERROR',
-          'The operation target does not match this resource route.'
-        );
-      }
-      const companyId = String(ctx.params.companyId);
-      return await withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, companyId, input }));
-    } catch (error) {
-      return sendRefusal(error, ctx);
+    const input = await validate();
+    if (input.intent.operation !== operation) {
+      throw new PlanningOperationError(
+        400,
+        'VALIDATION_ERROR',
+        'The operation does not match this resource route.'
+      );
     }
+    const target = 'entity' in input.intent ? input.intent.entity : input.intent;
+    if (entity && (!('entity' in target) || target.entity !== entity)) {
+      throw new PlanningOperationError(
+        400,
+        'VALIDATION_ERROR',
+        'The operation does not match this resource route.'
+      );
+    }
+    const targetId =
+      'sourceAllocationId' in target
+        ? target.sourceAllocationId
+        : 'id' in target
+          ? target.id
+          : undefined;
+    if (ctx.params.id !== undefined && targetId !== ctx.params.id) {
+      throw new PlanningOperationError(
+        400,
+        'VALIDATION_ERROR',
+        'The operation target does not match this resource route.'
+      );
+    }
+    const companyId = String(ctx.params.companyId);
+    return await withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, companyId, input }));
   }
 
   async allocationCreate(ctx: HttpContext) {
