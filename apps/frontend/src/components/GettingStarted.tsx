@@ -67,7 +67,7 @@ function isChecklistOpenByDefault(pathname: string): boolean {
 
 function GettingStartedForCompany({ companyId }: { companyId: string }) {
   const setNotice = useStore((state) => state.setNotice);
-  const activeRole = useRole();
+  const role = useRole();
   const { pathname } = useLocation();
   const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null);
   const open = openChoice?.path === pathname ? openChoice.open : isChecklistOpenByDefault(pathname);
@@ -87,7 +87,7 @@ function GettingStartedForCompany({ companyId }: { companyId: string }) {
   const done = Object.values(steps).filter(Boolean).length;
   const requestDismiss = () => setConfirmOpen(true);
   if (done === 5 || !loaded || dismissed) return null;
-  const canDismiss = isOwnerOrAdmin(activeRole);
+  const canDismiss = isOwnerOrAdmin(role);
 
   return (
     <div

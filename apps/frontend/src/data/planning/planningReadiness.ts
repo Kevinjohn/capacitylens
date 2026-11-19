@@ -1,10 +1,11 @@
+import { canWritePlanning } from './planningAuthority';
 import type { PlanningControllerMetadata } from './planningCacheTypes';
 
 /** The one readiness rule: a writable, loaded context at a known revision with no unresolved write. */
 export function isPlanningReadyForChange(planning: PlanningControllerMetadata): boolean {
   return (
     planning.context !== null &&
-    planning.canWrite &&
+    canWritePlanning(planning.authority) &&
     planning.revision !== null &&
     planning.pending === null &&
     (planning.status === 'ready' || planning.status === 'refused')

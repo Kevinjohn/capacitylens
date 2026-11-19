@@ -12,6 +12,7 @@ import type {
   PlanningPendingMutation,
   PlanningSnapshot,
 } from './planningCacheTypes';
+import { buildAuthorityKey, canWritePlanning } from './planningAuthority';
 import { errorDetails, PlanningControllerError } from './planningErrors';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
 import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './planningReceipts';
@@ -42,8 +43,7 @@ const initialMetadata = (
   context: PlanningClientContext | null = null,
 ): PlanningControllerMetadata => ({
   context,
-  accessKey: null,
-  canWrite: false,
+  authority: null,
   revision: null,
   today: null,
   capacity: null,
@@ -97,7 +97,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       : context;
   let generation = 0;
   let readSequence = 0;
-  let accessKeyEstablished = false;
   // The newest read: a read it supersedes is aborted and resolves with its outcome.
   let latestRead: Promise<boolean> | null = null;
   let readController: AbortController | null = null;
@@ -139,7 +138,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     generation += 1;
     readSequence += 1;
     attempt = null;
-    accessKeyEstablished = false;
     historyId = createHistoryId();
     abortAll();
     store.setState(() => ({ data: emptyAppData(), planning: initialMetadata(frozenContext) }));
@@ -161,10 +159,8 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       throw new PlanningControllerError('The canonical planning read was invalid.');
     }
     const accessChanged =
-      (snapshot.accessKey !== undefined &&
-        accessKeyEstablished &&
-        snapshot.accessKey !== current.planning.accessKey) ||
-      (current.planning.revision !== null && snapshot.canWrite !== current.planning.canWrite);
+      current.planning.authority !== null &&
+      buildAuthorityKey(snapshot.authority) !== buildAuthorityKey(current.planning.authority);
     const older =
       current.planning.revision !== null && snapshot.revision < current.planning.revision;
     if (accessChanged) {
@@ -173,13 +169,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       attempt = null;
       historyId = createHistoryId();
       abortAll();
-      accessKeyEstablished = true;
       store.setState(() => ({
         data: older ? emptyAppData() : snapshot.data,
         planning: {
           ...initialMetadata(context),
-          accessKey: snapshot.accessKey ?? null,
-          canWrite: !older && snapshot.canWrite,
+          authority: older ? null : snapshot.authority,
           revision: older ? null : snapshot.revision,
           today: older ? null : snapshot.today,
           capacity: older ? null : snapshot.capacity,
@@ -192,7 +186,6 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       return !older;
     }
     if (older) throw new PlanningControllerError('The canonical planning read was stale.');
-    if (snapshot.accessKey !== undefined) accessKeyEstablished = true;
 
     const commitment = attempt?.pending.commitment;
     const finalized = !!commitment && snapshot.revision >= commitment.revision;
@@ -207,8 +200,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       data: snapshot.data,
       planning: {
         ...state.planning,
-        accessKey: snapshot.accessKey ?? state.planning.accessKey,
-        canWrite: snapshot.canWrite,
+        authority: snapshot.authority,
         revision: snapshot.revision,
         today: snapshot.today,
         capacity: snapshot.capacity,
@@ -287,7 +279,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const state = store.getState();
     const context = state.planning.context;
     const baseRevision = state.planning.revision;
-    if (!state.planning.canWrite) {
+    if (!canWritePlanning(state.planning.authority)) {
       throw new PlanningControllerError(
         'This planning view is read-only.',
         'AUTHORIZATION_DENIED',
@@ -331,7 +323,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         'Planning context changed before the change could be sent.',
       );
     }
-    if (!state.planning.canWrite) {
+    if (!canWritePlanning(state.planning.authority)) {
       throw new PlanningControllerError(
         'This planning view is read-only.',
         'AUTHORIZATION_DENIED',

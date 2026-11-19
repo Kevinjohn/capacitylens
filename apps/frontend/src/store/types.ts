@@ -7,7 +7,7 @@ export * from './StoreEntityActions';
 import type { WeeksZoom } from '@/lib/schedulerConfig';
 import type { BarLabelPreferences, UtilisationPreferences } from '@/lib/displayPrefs';
 import type { ThemePreference } from '@/lib/theme';
-import type { AccessGrant, PermissionKey, Role } from '@capacitylens/shared/domain/access';
+import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
 import type { Company, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningControllerMetadata } from '@/data/planning/planningCacheTypes';
@@ -153,17 +153,6 @@ export interface StoreState extends StoreEntityActions {
    * `readStoredWeekSnapOverride`). The navigation snap (zoom / Prev-Next / date-picker) is
    * independent of this flag. */
   weekSnapEnabled: boolean;
-  /** Current company role or a fail-closed Viewer projection while role resolution is
-   * pending or unavailable. Null applies when identity roles are not applicable.
-   * Transient; the store guard supplements independent server authorization.
-   */
-  activeRole: Role | null;
-  /** Why a fail-closed Viewer projection is active. Keeps mutation notices factual while role
-   * resolution is pending/unavailable; transient and never persisted. */
-  activeRoleStatus: 'not-applicable' | 'pending' | 'resolved' | 'unavailable';
-  /** Permission keys the server sent for the active company; empty until a grant is published.
-   * Transient; the store guard reads it, and the server authorizes independently. */
-  activePermissions: PermissionKey[];
   /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
    * the current directory-request owner re-reads the caller's effective role/list without an
    * company switch or page reload. Transient: never persisted or included in undo history. */
@@ -207,14 +196,6 @@ export interface StoreState extends StoreEntityActions {
   setSidebarOpen: (open: boolean) => void;
   /** Toggle the minimise-weekends preference: persist and update state. */
   setMinimiseWeekends: (value: boolean) => void;
-  /** Publishes the current role or fail-closed Viewer projection and its resolution status.
-   * Transient and excluded from persistence and undo history.
-   */
-  setActiveRole: (
-    role: Role | null,
-    status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable',
-    permissions?: PermissionKey[],
-  ) => void;
   /** Invalidate all client projections derived from company membership. */
   invalidateMemberships: () => void;
   /** Replace the view-as-member runtime state. */

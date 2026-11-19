@@ -13,6 +13,7 @@ import {
   deferred,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -26,7 +27,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 3,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -45,7 +46,7 @@ describe('planning cache controller', () => {
   it('sends a canonical read with the proof current when the read is dispatched', async () => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 3,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -79,7 +80,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(null);
     resolveRead({
       revision: 9,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: { ...emptyAppData(), accounts: [{ id: 'leak' } as never] },
       today: companyToday,
       capacity: emptyCapacity(),
@@ -107,7 +108,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(anonymous);
     await h.readSnapshot({
       revision: 1,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -117,7 +118,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(anonymous);
     await h.readSnapshot({
       revision: 7,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -154,11 +155,10 @@ describe('planning receipt completion context', () => {
         h.controller.setContext(context);
         await h.readSnapshot({
           revision: 1,
-          canWrite: true,
           data: canonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),
-          accessKey: 'owner',
+          authority: makePlanningAuthority(),
         });
         await h.controller.execute(h.controller.begin(), intent);
         if (action === 'redo') await h.controller.undo();
@@ -180,11 +180,12 @@ describe('planning receipt completion context', () => {
         }
         delayed.resolve({
           revision,
-          canWrite: true,
+          authority: makePlanningAuthority({
+            role: change === 'authority change' ? 'editor' : 'owner',
+          }),
           data: canonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),
-          accessKey: change === 'authority change' ? 'editor' : 'owner',
         });
         await expect(completion).resolves.toBe(action === 'execute' ? null : false);
         expect(h.state().planning.pending).toBeNull();

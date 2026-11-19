@@ -6,30 +6,10 @@ import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { buildAuthorityKey } from '@/data/planning/planningAuthority';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-
-function hasCurrentPlanningAccess(
-  accessKey: string | null,
-  principalId: string | undefined,
-  role: string | null,
-): boolean {
-  if (!accessKey || !principalId || !role) return false;
-  try {
-    const access: unknown = JSON.parse(accessKey);
-    return (
-      Array.isArray(access) &&
-      access[0] === principalId &&
-      access[1] === principalId &&
-      access[2] === role &&
-      access[3] === true
-    );
-  } catch {
-    // Unrecognised authority keys cannot establish permission for an inactive-data request.
-    return false;
-  }
-}
 
 /** Reads recovery identities with a fresh cache fence for every principal/access transition. */
 export function useArchiveRecovery() {
@@ -49,14 +29,18 @@ export function useArchiveRecovery() {
       }),
     [reload],
   );
+  const authorityKey = buildAuthorityKey(planning.authority);
   const enabled =
     mayWrite &&
     !!companyId &&
     !!user &&
     permissionStatus === 'resolved' &&
-    hasCurrentPlanningAccess(planning.accessKey, user.id, role) &&
+    planning.authority !== null &&
+    planning.authority.actorId === user.id &&
+    planning.authority.effectiveActorId === user.id &&
+    planning.authority.role === role &&
+    planning.authority.canWrite &&
     planning.context?.companyId === companyId &&
-    planning.canWrite &&
     planning.status === 'ready';
   const scope = {
     principalId: user?.id ?? null,
@@ -68,7 +52,7 @@ export function useArchiveRecovery() {
     role,
     permissionStatus,
     enabled,
-    planning.accessKey,
+    authorityKey,
     planning.revision,
     reloadKey,
   ]);
@@ -84,7 +68,7 @@ export function useArchiveRecovery() {
       instance,
       epoch,
       role,
-      planning.accessKey,
+      authorityKey,
       planning.revision,
       reloadKey,
     ]),

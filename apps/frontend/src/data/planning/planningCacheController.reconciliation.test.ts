@@ -12,6 +12,7 @@ import {
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -31,7 +32,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -40,7 +41,7 @@ describe('planning cache controller', () => {
     const write = h.controller.execute(draft, intent);
     await h.readSnapshot({
       revision: 2,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -51,7 +52,7 @@ describe('planning cache controller', () => {
     expect(h.state().planning.history.canUndo).toBe(true);
     await h.readSnapshot({
       revision: 3,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -63,7 +64,7 @@ describe('planning cache controller', () => {
     {},
     {
       revision: 2,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: { ...emptyAppData(), accounts: [{ id: 'other-company' }] },
       today: companyToday,
       capacity: emptyCapacity(),
@@ -76,14 +77,14 @@ describe('planning cache controller', () => {
     },
     {
       revision: 4,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: { ...canonicalData(), accounts: [] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 5,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: {
         ...canonicalData(),
         accounts: [...canonicalData().accounts, ...canonicalData().accounts],
@@ -91,8 +92,8 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     },
-    { revision: 6, canWrite: true, data: canonicalData(), today: '2026-02-30' },
-    { revision: 7, canWrite: true, data: canonicalData() },
+    { revision: 6, authority: makePlanningAuthority(), data: canonicalData(), today: '2026-02-30' },
+    { revision: 7, authority: makePlanningAuthority(), data: canonicalData() },
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
     const h = harness({ execute: vi.fn(), read });
@@ -101,7 +102,7 @@ describe('planning cache controller', () => {
     expect(h.state().planning.status).toBe('error');
     expect(h.state().planning.error).toBeInstanceOf(Error);
     expect(h.state().data).toEqual(emptyAppData());
-    expect(h.state().planning.canWrite).toBe(false);
+    expect(h.state().planning.authority).toBeNull();
     expect(h.state().planning.history.canUndo).toBe(false);
     expect(() => h.controller.begin()).toThrow(/read-only/);
   });

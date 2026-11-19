@@ -10,6 +10,7 @@ import { makeCompany } from '@/test/fixtures';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makeReceipt } from '@/test/planning/makeReceipt';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 export { makeReceipt };
 
@@ -40,7 +41,7 @@ export function harness(
   const snapshots: PlanningSnapshot[] = [];
   let serverSnapshot: PlanningSnapshot = {
     revision: 0,
-    canWrite: true,
+    authority: makePlanningAuthority(),
     data: canonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),

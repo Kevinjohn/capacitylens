@@ -6,6 +6,7 @@ import { createPlanningCacheController, createPlanningCacheState } from './plann
 import { PlanningControllerError } from './planningErrors';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 type RequestStage = 'read' | 'execute';
 type Success = Awaited<ReturnType<PlanningTransport['execute']>>;
@@ -20,8 +21,7 @@ const update = {
 function snapshot(name: string, revision = 1): PlanningSnapshot {
   return {
     revision,
-    canWrite: true,
-    accessKey: 'owner',
+    authority: makePlanningAuthority(),
     data: makeAppData({
       accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ companyId: 'wayne', name })],
@@ -126,7 +126,10 @@ describe('planning request access boundaries', () => {
       else fixture.execute.mockImplementationOnce(() => pending.promise);
       const oldRequest = startRequest(fixture, stage).catch((error: unknown) => error);
       fixture.controller.setContext({ ...context, identity: 'diana-session-2' });
-      fixture.read.mockResolvedValueOnce({ ...snapshot('Gotham', 2), accessKey: 'editor' });
+      fixture.read.mockResolvedValueOnce({
+        ...snapshot('Gotham', 2),
+        authority: makePlanningAuthority({ role: 'editor' }),
+      });
       await fixture.controller.refresh();
       pending.reject(new PlanningControllerError('Previous session ended', undefined, 401));
       await oldRequest;
@@ -144,7 +147,10 @@ describe('planning request access boundaries', () => {
     const oldRequest = fixture.controller.execute(draft, update).catch((error: unknown) => error);
     const execution = fixture.store.getState().planning.pending?.execution;
     expect(execution).toBeDefined();
-    fixture.read.mockResolvedValueOnce({ ...snapshot('Gotham', 2), accessKey: 'editor' });
+    fixture.read.mockResolvedValueOnce({
+      ...snapshot('Gotham', 2),
+      authority: makePlanningAuthority({ role: 'editor' }),
+    });
     await fixture.controller.refresh();
     pending.resolve({
       status: 'committed',

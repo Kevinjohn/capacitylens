@@ -1,14 +1,19 @@
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
-import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
+import type {
+  PlanningAuthority,
+  PlanningExecution,
+  PlanningMutationSuccess,
+} from '@/api/planningContracts';
+
+export type { PlanningAuthority };
 
 /** A canonical read normalized by the typed transport; its wire shape remains transport-owned. */
 export interface PlanningSnapshot {
   revision: number;
-  canWrite: boolean;
+  /** Who the read was for, and what that member may do and see, as the server verified it. */
+  authority: PlanningAuthority;
   data: AppData;
-  /** Stable key produced by the typed transport from its verified authority projection. */
-  accessKey?: string;
   /** The company's calendar date, resolved by the server in the company time zone. */
   today: ISODate;
   /** The server's per-day capacity figures for the requested window and the overview horizon. */
@@ -100,8 +105,8 @@ export type PlanningPendingMutation = (
 
 export interface PlanningControllerMetadata {
   context: PlanningClientContext | null;
-  accessKey: string | null;
-  canWrite: boolean;
+  /** The authority of the last accepted read; null until a read is accepted. */
+  authority: PlanningAuthority | null;
   revision: number | null;
   /** The company's calendar date from the last accepted read; null until a read is accepted. */
   today: ISODate | null;

@@ -11,6 +11,7 @@ import {
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -21,7 +22,7 @@ describe('planning cache controller', () => {
       .mockRejectedValue({ status: 409, code: 'STALE_REVISION' });
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 4,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -30,7 +31,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 3,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -38,7 +39,7 @@ describe('planning cache controller', () => {
     const draft = h.controller.begin();
     await h.readSnapshot({
       revision: 4,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -60,7 +61,7 @@ describe('planning cache controller', () => {
       execute,
       read: vi.fn<PlanningTransport['read']>().mockResolvedValue({
         revision: 2,
-        canWrite: true,
+        authority: makePlanningAuthority(),
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -69,7 +70,7 @@ describe('planning cache controller', () => {
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -77,7 +78,7 @@ describe('planning cache controller', () => {
     const gesture = h.controller.begin();
     await h.readSnapshot({
       revision: 2,
-      canWrite: true,
+      authority: makePlanningAuthority(),
       data: canonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -97,7 +98,7 @@ describe('planning cache controller', () => {
       .fn()
       .mockResolvedValueOnce({
         revision: 1,
-        canWrite: true,
+        authority: makePlanningAuthority(),
         data: canonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),

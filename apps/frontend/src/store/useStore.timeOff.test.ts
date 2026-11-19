@@ -7,12 +7,12 @@ import {
   makeResource,
   makeResourceDraft,
   resetStoreWithCompany,
+  setPlanningAuthority,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningFixtures';
-import { grantFor } from '@/test/permissionGrants';
 
 const state = () => useStore.getState();
 
@@ -194,7 +194,7 @@ describe('atomic time-off creation: viewer guard', () => {
   it('applies the Viewer guard to the whole batch without data or history mutation', async () => {
     const { draft } = await timeOffSetup();
     const historyBefore = state().planning.history;
-    state().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);
+    setPlanningAuthority({ role: 'viewer', canWrite: false });
     const returned = await state().addRepeatedTimeOff(draft(), weekly('2026-06-08'), 2);
 
     expect(returned).toEqual({ kind: 'blocked' });

@@ -16,6 +16,7 @@ import type {
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makeReceipt } from '@/test/planning/makeReceipt';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 export { makeReceipt };
 
@@ -35,8 +36,7 @@ export function snapshot(
 ): PlanningSnapshot {
   return {
     revision,
-    canWrite: true,
-    accessKey: 'owner',
+    authority: makePlanningAuthority(),
     data: makeAppData({
       accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],

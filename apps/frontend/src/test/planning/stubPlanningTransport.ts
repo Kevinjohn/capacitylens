@@ -1,4 +1,5 @@
 import type {
+  PlanningAuthority,
   PlanningClientContext,
   PlanningHistoryStep,
   PlanningReadRequest,
@@ -17,6 +18,7 @@ import type { AppData, AppDataKey, ISODate } from '@capacitylens/shared/types/en
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from './planningAuthorityFixtures';
 import { makeReceipt } from './makeReceipt';
 import { createServerHistoryModel } from './serverHistoryModel';
 
@@ -54,7 +56,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Every undo and redo request, in order, including refused ones. */
   readonly historySteps: Array<'undo' | 'redo'> = [];
   private data = emptyAppData();
-  private canWrite = true;
+  private authority = makePlanningAuthority();
   private today: ISODate | null = null;
   private capacity: CapacitySection | null = null;
   /** The capacity window each read asked for; undefined for a read that asked for the default. */
@@ -67,7 +69,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
     this.data = structuredClone(data);
-    this.canWrite = true;
+    this.authority = makePlanningAuthority();
     this.today = null;
     this.capacity = null;
     this.readWindows.length = 0;
@@ -116,9 +118,9 @@ export class StubPlanningTransport implements PlanningTransport {
     this.queued.push({ kind: 'error', error });
   }
 
-  /** Set the canonical authority projection returned by subsequent reads. */
-  setCanWrite(canWrite: boolean): void {
-    this.canWrite = canWrite;
+  /** Set the canonical authority returned by subsequent reads: an Owner who can write, with these overrides. */
+  setAuthority(overrides: Partial<PlanningAuthority>): void {
+    this.authority = makePlanningAuthority(overrides);
   }
 
   /** Set the company date returned by subsequent reads, in place of the one read from the clock. */
@@ -155,13 +157,13 @@ export class StubPlanningTransport implements PlanningTransport {
     const history = this.history(context.companyId).model.report(historyId, revision);
     return {
       revision,
-      canWrite: this.canWrite,
+      authority: this.authority,
       data: this.companyRows(context.companyId),
       today: this.todayFor(context.companyId),
       capacity: this.capacity ?? emptyCapacity(window),
       history: {
-        canUndo: this.canWrite && history.canUndo,
-        canRedo: this.canWrite && history.canRedo,
+        canUndo: this.authority.canWrite && history.canUndo,
+        canRedo: this.authority.canWrite && history.canRedo,
       },
     };
   }

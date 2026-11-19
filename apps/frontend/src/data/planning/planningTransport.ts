@@ -351,24 +351,30 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           throw new PlanningControllerError("The server returned another company's planning data.");
         }
         const authority = snapshot.authority;
-        if (typeof authority.canWrite !== 'boolean') {
+        if (
+          typeof authority.actorId !== 'string' ||
+          typeof authority.effectiveActorId !== 'string' ||
+          typeof authority.role !== 'string' ||
+          typeof authority.canWrite !== 'boolean' ||
+          typeof authority.canSeePrivateNames !== 'boolean' ||
+          typeof authority.canSeeTimeOffNote !== 'boolean'
+        ) {
           throw new PlanningControllerError('The server returned an invalid planning authority.');
         }
         return {
           revision: snapshot.revision,
-          canWrite: authority.canWrite,
+          authority: {
+            actorId: authority.actorId,
+            effectiveActorId: authority.effectiveActorId,
+            role: authority.role,
+            canWrite: authority.canWrite,
+            canSeePrivateNames: authority.canSeePrivateNames,
+            canSeeTimeOffNote: authority.canSeeTimeOffNote,
+          },
           data: snapshot.data,
           today: snapshot.today,
           capacity: snapshot.capacity,
           history: snapshot.history,
-          accessKey: JSON.stringify([
-            authority.actorId,
-            authority.effectiveActorId,
-            authority.role,
-            authority.canWrite,
-            authority.canSeePrivateNames,
-            authority.canSeeTimeOffNote,
-          ]),
         };
       } catch (error) {
         throw mapPlanningError(error);

@@ -3,10 +3,18 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useStore } from './useStore';
 import { m } from '@/i18n';
-import { makeCompany, makeAppData, resetStoreWithData, WORKDAYS } from '@/test/fixtures';
-import { getStubPlanningTransport } from '@/test/planningTransportHandle';
+import {
+  makeCompany,
+  makeAppData,
+  resetStoreWithData,
+  setPlanningAuthority,
+  WORKDAYS,
+} from '@/test/fixtures';
+import {
+  getPlanningTransportHandle,
+  getStubPlanningTransport,
+} from '@/test/planningTransportHandle';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { grantFor } from '@/test/permissionGrants';
 
 // The store is the strict per-company write boundary: an update/delete must own
 // the target row, and every foreign key on an add/update must point inside the
@@ -93,7 +101,6 @@ beforeEach(async () => {
     ],
   });
   s().setActiveCompany(A);
-  s().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
   expect(s().activeCompanyId).toBe(A);
 });
 
@@ -123,16 +130,19 @@ describe('active-account replacement invariant', () => {
 });
 
 describe('active-account permission publication', () => {
-  it('atomically fail-closes a switched tenant before an imperative write can use the prior role', async () => {
-    s().setActiveRole('editor', 'resolved', grantFor('editor').permissions);
+  it('atomically fail-closes a switched tenant before an imperative write can use the prior authority', async () => {
+    setPlanningAuthority({ role: 'editor' });
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {
-      if (state.activeCompanyId === B) rolesPublishedForB.push(state.activeRole);
+      if (state.activeCompanyId === B) {
+        rolesPublishedForB.push(state.planning.authority?.role ?? null);
+      }
     });
 
+    getStubPlanningTransport().setAuthority({ role: 'viewer', canWrite: false });
     s().setActiveCompany(B);
-    // B is known from the summaries before its rows load, so the write reaches the role check,
-    // which refuses it under the fail-closed viewer role.
+    // B is known from the summaries before its rows load, so the write reaches the authority check,
+    // which refuses it while B's planning read has not been accepted.
     await expect(s().addClient({ name: 'Must not land', color: '#111111' })).resolves.toEqual({
       kind: 'blocked',
     });
@@ -140,24 +150,29 @@ describe('active-account permission publication', () => {
     await s().addClient({ name: 'Still must not land', color: '#111111' });
     unsubscribe();
 
-    expect(rolesPublishedForB[0]).toBe('viewer');
-    expect(new Set(rolesPublishedForB)).toEqual(new Set(['viewer']));
-    expect(s().activeRole).toBe('viewer');
+    expect(rolesPublishedForB[0]).toBeNull();
+    expect(new Set(rolesPublishedForB)).toEqual(new Set([null, 'viewer']));
+    expect(s().planning.authority?.role).toBe('viewer');
     expect(s().data.clients.some((client) => client.name.includes('must not land'))).toBe(false);
     expect(s().data.clients.find((client) => client.id === 'cB')?.companyId).toBe(B);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
 
-  it('denies a write with null role across an account switch', async () => {
-    s().setActiveRole(null);
+  it("denies a write when the switched company's planning read fails", async () => {
+    const transport = getStubPlanningTransport();
+    const read = vi
+      .spyOn(getPlanningTransportHandle(), 'read')
+      .mockRejectedValue(new Error('offline'));
     s().setActiveCompany(B);
     await s().refreshPlanning();
+    read.mockRestore();
 
-    expect(s().activeRole).toBeNull();
+    expect(s().planning.authority).toBeNull();
     const dataBefore = s().data;
-    const transport = getStubPlanningTransport();
     expect(transport.calls).toEqual([]);
-    await s().addClient({ name: 'Must not land', color: '#111111' });
+    await expect(s().addClient({ name: 'Must not land', color: '#111111' })).rejects.toThrow(
+      'No active company is selected.',
+    );
     await s().sendPlanningCommand({
       intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'cB' } },
     });
@@ -169,21 +184,22 @@ describe('active-account permission publication', () => {
     expect(s().notice?.message).toBe(m.access_unavailable_summary());
   });
 
-  it('honors canonical read-only authority even when the local role says owner', async () => {
-    s().setActiveRole('owner', 'resolved', grantFor('owner').permissions);
+  it('honors canonical read-only authority even when the role is owner', async () => {
     const transport = getStubPlanningTransport();
-    transport.setCanWrite(false);
+    transport.setAuthority({ role: 'owner', canWrite: false });
     expect(await s().refreshPlanning({ fresh: true })).toBe(true);
 
-    expect(s().activeRole).toBe('owner');
-    expect(s().planning.canWrite).toBe(false);
+    expect(s().planning.authority).toMatchObject({ role: 'owner', canWrite: false });
     expect(s().planningReadyForReplacement()).toBe(false);
-    await expect(s().addClient({ name: 'Must not land', color: '#111111' })).rejects.toThrow();
+    await expect(s().addClient({ name: 'Must not land', color: '#111111' })).resolves.toEqual({
+      kind: 'blocked',
+    });
     await expect(
       s().sendPlanningCommand({
         intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'cB' } },
       }),
-    ).rejects.toThrow(/read-only/i);
+    ).resolves.toBeUndefined();
+    expect(s().notice?.message).toBe(m.notice_viewer_read_only());
     expect(transport.calls).toEqual([]);
     expect(s().data.clients.some((client) => client.name === 'Must not land')).toBe(false);
   });
