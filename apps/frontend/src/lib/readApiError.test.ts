@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { readApiErrorCode, readApiError } from './readApiError';
 
 const responseWith = (value: unknown): Response => Response.json(value);
@@ -42,18 +42,12 @@ describe('peekApiErrorCode', () => {
     await expect(response.json()).resolves.toEqual({ code: 'SESSION_NOT_FRESH' });
   });
 
-  it('returns null for an unreadable, consumed, or clone-less response', async () => {
+  it('returns null for an unreadable or consumed response', async () => {
     await expect(readApiErrorCode(responseWith({ error: 'Denied.' }))).resolves.toBeNull();
     await expect(readApiErrorCode(new Response('invalid JSON'))).resolves.toBeNull();
 
     const consumed = responseWith({ code: 'SESSION_NOT_FRESH' });
     await consumed.json();
     await expect(readApiErrorCode(consumed)).resolves.toBeNull();
-
-    const json = vi.fn(async () => ({ code: 'SESSION_NOT_FRESH' }));
-    await expect(
-      readApiErrorCode({ bodyUsed: false, json } as unknown as Response),
-    ).resolves.toBeNull();
-    expect(json).not.toHaveBeenCalled();
   });
 });

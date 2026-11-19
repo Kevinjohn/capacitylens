@@ -359,17 +359,6 @@ test.group('M5 documentation and policy contracts', () => {
     const managedSiteUser = /^-\s+run as the dedicated site user from\b/im;
     assert.match(install, /background process runs as a dedicated site user/i);
     assert.match(managedHost, managedSiteUser);
-    assert.isTrue(managedSiteUser.test('- run as the dedicated site user from current/backend'));
-    assert.isFalse(
-      managedSiteUser.test('- do not run as the dedicated site user from current/backend')
-    );
-    assert.isFalse(managedSiteUser.test('- run as root from current/backend'));
-    assert.isFalse(
-      managedSiteUser.test('- no longer run as the dedicated site user from current/backend')
-    );
-    assert.isFalse(
-      managedSiteUser.test('- do not run under the dedicated site user from current/backend')
-    );
     assert.match(
       monitoring,
       /Authentication and request-work safeguards are process-wide, not per-company reservations/

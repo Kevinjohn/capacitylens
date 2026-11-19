@@ -37,7 +37,7 @@ const BarsLayer = memo(function BarsLayerComponent({
   indexAt,
   onEdit,
 }: Pick<LayersProps, 'bars' | 'geometry' | 'indexAt' | 'onEdit'>) {
-  const inert = useStore((state) => state.ui.drawMode === 'timeoff');
+  const inert = useStore((state) => state.ui.drawMode === 'timeOff');
   return (
     <div className="absolute inset-0" inert={inert || undefined}>
       {bars.map((bar) => (
@@ -107,7 +107,7 @@ function ScheduleSignals({ days, dayStates, geometry, timeOff }: LayersProps) {
         <div
           key={entry.id}
           data-testid="timeoff-block"
-          className="scheduler-timeoff-block pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
+          className="scheduler-time-off-block pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
           style={{
             left: entry.x,
             width: entry.width,

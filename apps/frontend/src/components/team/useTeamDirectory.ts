@@ -78,7 +78,7 @@ function replaceInvites(
   return state;
 }
 
-function getFailureMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
+function resolveFailureMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
   return result.kind === 'rejected' && result.message ? result.message : fallback;
 }
 
@@ -162,7 +162,10 @@ function useMemberQueryEffects({
     }
     if (result.kind !== 'ok') {
       setDirectory((previous) => markDirectoryError(previous, activeCompanyId));
-      fail(null, getFailureMessage(result, m.settings_members_err_load({ status: result.status })));
+      fail(
+        null,
+        resolveFailureMessage(result, m.settings_members_err_load({ status: result.status })),
+      );
       return;
     }
     authorizedAccountRef.current = { scopeId, companyId: activeCompanyId };
@@ -216,7 +219,10 @@ function useInvitationQueryEffects({
       return;
     }
     if (result.kind !== 'ok') {
-      fail(null, getFailureMessage(result, m.settings_invites_err_load({ status: result.status })));
+      fail(
+        null,
+        resolveFailureMessage(result, m.settings_invites_err_load({ status: result.status })),
+      );
       return;
     }
     setDirectory((previous) => replaceInvites(previous, activeCompanyId, result.value));

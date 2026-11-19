@@ -193,7 +193,7 @@ export function CompanyFeaturesSection(props: CompanyFeaturesSectionProps) {
   );
 }
 
-type SchedulingFoundationSectionsProps = Pick<
+type SettingsCompanySetupSectionsProps = Pick<
   SettingsSchedulingSectionProps,
   | 'canEdit'
   | 'schedulingMode'
@@ -201,9 +201,13 @@ type SchedulingFoundationSectionsProps = Pick<
   | 'workingDays'
   | 'workingDaysMinimumId'
   | 'updateSetting'
+  | 'canManageCapacityOverviewAccess'
+  | 'capacityOverviewAccess'
+  | 'dateStyle'
 >;
 
-function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) {
+/** Groups company scheduling defaults and setup controls. */
+export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {
   return (
     <>
       <SchedulingModeSection
@@ -218,21 +222,6 @@ function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) 
         workingDaysMinimumId={props.workingDaysMinimumId}
         updateSetting={props.updateSetting}
       />
-    </>
-  );
-}
-
-type SettingsCompanySetupSectionsProps = SchedulingFoundationSectionsProps &
-  Pick<
-    SettingsSchedulingSectionProps,
-    'canManageCapacityOverviewAccess' | 'capacityOverviewAccess' | 'dateStyle'
-  >;
-
-/** Groups company scheduling defaults and setup controls. */
-export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {
-  return (
-    <>
-      <SchedulingFoundationSections {...props} />
       <SettingsDateFormatSection
         canEdit={props.canEdit}
         dateStyle={props.dateStyle}

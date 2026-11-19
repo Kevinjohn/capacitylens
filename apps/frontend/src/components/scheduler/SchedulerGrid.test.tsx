@@ -105,9 +105,7 @@ describe('SchedulerGrid', () => {
     expect(Number.parseInt(bar.style.width, 10)).toBeGreaterThan(0);
     expect(bar).toHaveAttribute('data-status', 'confirmed');
   });
-});
 
-describe('SchedulerGrid', () => {
   it('keeps the dragged source mounted while vertical windowing exposes a distant target', async () => {
     const base = dataset();
     const baseResource = base.resources[0];
@@ -167,9 +165,7 @@ describe('SchedulerGrid', () => {
       useStore.setState({ draggingAllocationId: null });
     }
   });
-});
 
-describe('SchedulerGrid', () => {
   it('exposes grid semantics + an sr-only capacity summary for screen readers', () => {
     renderGrid();
     expect(screen.getByRole('grid', { name: 'Resource schedule' })).toBeInTheDocument();
@@ -182,7 +178,7 @@ describe('SchedulerGrid', () => {
   it('announces time-off mode, hides work counts and offers keyboard time-off creation', async () => {
     renderGrid();
 
-    act(() => useStore.getState().setDrawMode('timeoff'));
+    act(() => useStore.getState().setDrawMode('timeOff'));
 
     expect(screen.getByTestId('scheduler-live-region')).toHaveTextContent(/Time-off mode/);
     expect(screen.queryByText(/1 allocation\./)).not.toBeInTheDocument();
@@ -192,9 +188,7 @@ describe('SchedulerGrid', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add time off for Bruce' }));
     expect(await screen.findByRole('heading', { name: 'Add time off' })).toBeInTheDocument();
   });
-});
 
-describe('SchedulerGrid', () => {
   it('folds the per-row utilisation % into the sr-only summary (WCAG 1.3.1)', () => {
     renderGrid();
     // The utilisation % is otherwise only a `title` on a non-interactive span (AT may not expose it);
@@ -232,9 +226,7 @@ describe('SchedulerGrid', () => {
     expect(within(row).getByTestId('utilization')).toHaveTextContent('0%');
     expect(screen.getByTestId('overall-utilization')).toHaveTextContent('0%');
   });
-});
 
-describe('SchedulerGrid', () => {
   it('renders each closure once across tracked rows, alongside personal time off, and stops before External', async () => {
     await useStore.getState().updateAccount(ACC, { externalEnabled: true });
     await resetStoreWithData(
@@ -312,9 +304,7 @@ describe('SchedulerGrid', () => {
     );
     expect(group.style.height).toBe(`${LAYOUT.groupHeaderHeight}px`);
   });
-});
 
-describe('SchedulerGrid', () => {
   it('does not replay a handled resource jump after a later model change', async () => {
     renderGrid();
     const grid = screen.getByTestId('scheduler-grid');
@@ -514,7 +504,7 @@ function installSchedulerSnapHooks() {
   });
 }
 
-describe('SchedulerGrid — week snap (Feature 2 wiring)', () => {
+describe('SchedulerGrid week snap', () => {
   installSchedulerSnapHooks();
 
   it('snap on: a mid-week nudge floors back to the week start after the idle (and not before)', () => {
@@ -538,10 +528,6 @@ describe('SchedulerGrid — week snap (Feature 2 wiring)', () => {
     expect(grid.scrollLeft).toBe(snapped);
     view.unmount();
   });
-});
-
-describe('SchedulerGrid — week snap (Feature 2 wiring)', () => {
-  installSchedulerSnapHooks();
 
   it('re-arms on each scroll: two quick scrolls fire only ONE snap, after the final idle', () => {
     useStore.setState({ weekSnapEnabled: true });
@@ -604,10 +590,6 @@ describe('SchedulerGrid — week snap (Feature 2 wiring)', () => {
     expect(grid.scrollLeft).toBe(nudge);
     view.unmount();
   });
-});
-
-describe('SchedulerGrid — week snap (Feature 2 wiring)', () => {
-  installSchedulerSnapHooks();
 
   it('drag-freeze: a snap armed before a drag bails when it fires mid-drag', () => {
     useStore.setState({ weekSnapEnabled: true });

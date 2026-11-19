@@ -6,7 +6,7 @@ import {
   intent,
   canonicalData,
   companyToday,
-  success,
+  makeReceipt,
   harness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -15,7 +15,7 @@ afterEach(() => setMasqueradeContextToken(null));
 
 const committing = () =>
   vi.fn<PlanningTransport['execute']>((_context, execution) =>
-    Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
+    Promise.resolve(makeReceipt(execution.mutationId, execution.baseRevision + 1)),
   );
 
 async function loaded(transport: Parameters<typeof harness>[0], revision = 1) {
@@ -65,10 +65,10 @@ describe('planning cache controller history', () => {
 
   it('sends Undo and Redo as fresh steps of the same history at the current revision', async () => {
     const undo = vi.fn<PlanningTransport['undo']>(async (_context, step) =>
-      success(step.mutationId, step.baseRevision + 1),
+      makeReceipt(step.mutationId, step.baseRevision + 1),
     );
     const redo = vi.fn<PlanningTransport['redo']>(async (_context, step) =>
-      success(step.mutationId, step.baseRevision + 1),
+      makeReceipt(step.mutationId, step.baseRevision + 1),
     );
     const execute = committing();
     const read = vi
