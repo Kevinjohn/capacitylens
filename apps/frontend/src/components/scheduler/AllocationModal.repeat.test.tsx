@@ -232,7 +232,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
 
   it('previews the original monthly numeric day and sends the monthly pattern', async () => {
     // The numeric repeat anchor must be an effective working day, so use a seven-day calendar to isolate date preservation from the creation gate.
-    await useStore.getState().updateAccount(ACC, { workingDays: [0, 1, 2, 3, 4, 5, 6] });
+    await useStore.getState().updateCompany(ACC, { workingDays: [0, 1, 2, 3, 4, 5, 6] });
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [0, 1, 2, 3, 4, 5, 6] }),
     );
@@ -279,7 +279,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     async (schedulingMode) => {
       await useStore
         .getState()
-        .updateAccount(ACC, { schedulingMode, workingDays: [0, 1, 2, 3, 4, 5, 6] });
+        .updateCompany(ACC, { schedulingMode, workingDays: [0, 1, 2, 3, 4, 5, 6] });
       const resource = await requireCreated(
         useStore.getState().addResource({
           ...person('Tyler'),
@@ -319,7 +319,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
   );
 
   it('routes a zero-overlap repeat to the assignee/form error instead of Repeat until', async () => {
-    await useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    await useStore.getState().updateCompany(ACC, { workingDays: [2] });
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Tyler'), workingDays: [1] }),
     );
@@ -394,7 +394,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
   });
 
   it('validates the required, temporal and six-month Repeat until boundaries', async () => {
-    await useStore.getState().updateAccount(ACC, { timezone: 'UTC' });
+    await useStore.getState().updateCompany(ACC, { timezone: 'UTC' });
     const resource = await addPerson();
     const bulkSpy = vi.spyOn(useStore.getState(), 'addRepeatedAllocation');
     const user = userEvent.setup();

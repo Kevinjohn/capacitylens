@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render as renderTestingLibrary, screen } from '@testing-library/react';
 import { TimeOffForm } from './TimeOffForm';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, setPlaceholdersEnabled, WORKDAYS } from '@/test/fixtures';
+import { resetStoreWithCompany, setPlaceholdersEnabled, WORKDAYS } from '@/test/fixtures';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
@@ -24,7 +24,7 @@ const personDraft = {
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   await setPlaceholdersEnabled({ on: true });
 });
 

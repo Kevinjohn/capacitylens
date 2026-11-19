@@ -1,4 +1,4 @@
-import { canonicalWeekdaySet } from './accountWorkingDays.js';
+import { canonicalWeekdaySet } from './companyWorkingDays.js';
 import { hasPersonalWorkingPattern } from '../types/entities.js';
 import type { Resource, Weekday } from '../types/entities.js';
 

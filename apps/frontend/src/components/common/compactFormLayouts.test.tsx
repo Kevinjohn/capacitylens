@@ -3,7 +3,7 @@ import { render as rtlRender, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import userEvent from '@testing-library/user-event';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { ExternalForm } from '@/components/external/ExternalForm';
 import { DisciplineForm } from '@/components/disciplines/DisciplineForm';
 import { ClientForm } from '@/components/clients/ClientForm';
@@ -15,7 +15,7 @@ function render(ui: ReactNode) {
   return rtlRender(ui, { wrapper: OwnerPermissions });
 }
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(() => resetStoreWithCompany());
 
 function expectCompact(control: HTMLElement) {
   expect(control.closest('[data-slot="field"]')).toHaveAttribute(

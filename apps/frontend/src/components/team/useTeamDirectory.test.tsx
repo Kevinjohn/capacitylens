@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { teamAccessClient } from '@/account/teamAccessClient';
 import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { AuthContext } from '@/auth/authContext';
-import { DEFAULT_COMPANY_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
 import { authValue } from './MembersSection.testSupport';
 import { useTeamDirectory } from './useTeamDirectory';
@@ -66,7 +66,7 @@ function renderDirectory(
 }
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 afterEach(() => {
   vi.restoreAllMocks();

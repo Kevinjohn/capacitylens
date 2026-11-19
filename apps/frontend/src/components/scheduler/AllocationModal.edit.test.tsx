@@ -339,7 +339,7 @@ describe('AllocationModal edit', () => {
   });
 
   it('rejects reassigning a normal allocation to a zero-overlap person', async () => {
-    await useStore.getState().updateAccount(ACC, { workingDays: [2] });
+    await useStore.getState().updateCompany(ACC, { workingDays: [2] });
     const source = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [2] }),
     );
@@ -379,7 +379,7 @@ describe('AllocationModal edit', () => {
     { calendar: 'Monday only', companyDays: [1, 2] as Weekday[] },
     { calendar: 'no effective weekdays', companyDays: [2] as Weekday[] },
   ])('reassigns with Ignore working days to a person with $calendar', async ({ companyDays }) => {
-    await useStore.getState().updateAccount(ACC, { workingDays: companyDays });
+    await useStore.getState().updateCompany(ACC, { workingDays: companyDays });
     const source = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [2] }),
     );
@@ -654,7 +654,7 @@ describe('AllocationModal edit', () => {
     const a = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
     );
-    await useStore.getState().updateAccount(ACC, { schedulingMode: 'blocks' });
+    await useStore.getState().updateCompany(ACC, { schedulingMode: 'blocks' });
     const alloc = requireCreated(
       await useStore.getState().addAllocation({
         resourceId: a.id,
@@ -665,7 +665,7 @@ describe('AllocationModal edit', () => {
         status: 'confirmed',
       }),
     );
-    await useStore.getState().updateAccount(ACC, { schedulingMode: 'hourly' });
+    await useStore.getState().updateCompany(ACC, { schedulingMode: 'hourly' });
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={onClose} />);

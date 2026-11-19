@@ -7,11 +7,11 @@ import {
 } from '@capacitylens/shared/data/companyDocument';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 
-const ACCOUNT_ID = 'a-studio';
+const COMPANY_ID = 'a-studio';
 
 function restoredDocument() {
   const document = buildCompanyExport(seedForCurrentWeek(), {
-    companyId: ACCOUNT_ID,
+    companyId: COMPANY_ID,
     completeness: 'full',
   });
   const person = document.data.resources.find((row) => row.name === 'Bruce Wayne');
@@ -83,7 +83,7 @@ test.describe('Beta company transfer through the server', () => {
       'redacted document',
       serializeCompanyExport(
         buildCompanyExport(seedForCurrentWeek(), {
-          companyId: ACCOUNT_ID,
+          companyId: COMPANY_ID,
           completeness: 'redacted',
         }),
       ),

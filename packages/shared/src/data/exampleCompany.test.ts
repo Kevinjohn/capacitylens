@@ -5,14 +5,14 @@ import { emptyAppData } from '../types/entities.js';
 import type { AppData } from '../types/entities.js';
 import { buildExampleCompany, countExampleRows } from './exampleCompany.js';
 
-const ACCOUNT = 'a-example';
+const COMPANY = 'a-example';
 const NOW = '2031-09-17T10:00:00.000Z';
 // Week starts Monday 15th.
 const WEDNESDAY = '2031-09-17';
 
 function build(overrides: Partial<Parameters<typeof buildExampleCompany>[0]> = {}) {
   return buildExampleCompany({
-    companyId: ACCOUNT,
+    companyId: COMPANY,
     referenceDate: WEDNESDAY,
     now: NOW,
     ...overrides,
@@ -38,7 +38,7 @@ describe('buildExampleCompany', () => {
     expect(data.timeOff).toHaveLength(1);
     expect(countExampleRows(data)).toBe(15);
     for (const rows of Object.values(data) as { companyId: string }[][]) {
-      for (const row of rows) expect(row.companyId).toBe(ACCOUNT);
+      for (const row of rows) expect(row.companyId).toBe(COMPANY);
     }
   });
 

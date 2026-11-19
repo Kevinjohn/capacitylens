@@ -6,7 +6,7 @@ import { useAuth } from '@/auth/authContext';
 import { queryClient } from '@/api/queryClient';
 import { AUTH_INVALIDATION_STORAGE_KEY } from '@/auth/signOut';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, jsonResponse, requireValue } from '@/test/fixtures';
+import { resetStoreWithCompany, jsonResponse, requireValue } from '@/test/fixtures';
 import { MembersSection } from './MembersSection';
 import { mockApi, rawMember } from './MembersSection.testSupport';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -28,7 +28,7 @@ let invitationReads: number;
 let writes: number;
 beforeEach(async () => {
   queryClient.clear();
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   principal = 'bruce';
   holdDirectory = null;
   heldMutation = null;
@@ -182,7 +182,7 @@ it.each(
       );
       await screen.findByTestId('principal');
       await act(async () => {
-        await resetStoreWithAccount(companyId ?? undefined);
+        await resetStoreWithCompany(companyId ?? undefined);
       });
     } else await refreshed(kind === 'same principal' ? 'bruce' : 'diana');
     holdDirectory = null;

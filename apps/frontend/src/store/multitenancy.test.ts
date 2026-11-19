@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
-import { makeAccount, makeClient, makeProject } from '@/test/fixtures';
+import { makeCompany, makeClient, makeProject } from '@/test/fixtures';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { scopeData } from './selectors';
 
 function twoCompanyData(): AppData {
   return {
     ...emptyAppData(),
-    accounts: [makeAccount({ id: 'a1', name: 'One' }), makeAccount({ id: 'a2', name: 'Two' })],
+    accounts: [makeCompany({ id: 'a1', name: 'One' }), makeCompany({ id: 'a2', name: 'Two' })],
     clients: [
       makeClient({ id: 'c1', companyId: 'a1', name: 'Client A1' }),
       makeClient({ id: 'c2', companyId: 'a2', name: 'Client A2' }),
@@ -29,10 +29,10 @@ describe('scopeData', () => {
 
   it('excludes company settings from a portable company slice', () => {
     const source = twoCompanyData();
-    const account = source.accounts[0];
-    if (!account) throw new Error('Expected the first company fixture');
+    const company = source.accounts[0];
+    if (!company) throw new Error('Expected the first company fixture');
     source.accounts[0] = {
-      ...account,
+      ...company,
       schedulingMode: 'days',
       placeholdersEnabled: true,
       dateStyle: 'month-day',

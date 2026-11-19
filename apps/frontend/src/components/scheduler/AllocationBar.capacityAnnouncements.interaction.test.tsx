@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, screen, fireEvent } from '@testing-library/react';
 import { AllocationBar } from './AllocationBar';
 import { useStore, WINDOW_READ_DELAY_MS } from '@/store/useStore';
-import { resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
+import { resetStoreWithCompany, makeResourceDraft } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 import {
   getPlanningTransportHandle,
@@ -20,7 +20,7 @@ import {
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 
-beforeEach(async () => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithCompany());
 
 async function seedConflictPair() {
   const st = useStore.getState();

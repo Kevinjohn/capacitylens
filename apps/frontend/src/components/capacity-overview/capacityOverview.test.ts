@@ -16,9 +16,9 @@ import { buildCapacityOverviewPeriods } from './capacityOverviewDates';
 import { buildCapacityOverviewModel } from './capacityOverviewModel';
 import type { CapacityOverviewModel } from './capacityOverviewModel';
 
-const ACCOUNT_ID = 'account-1';
+const COMPANY_ID = 'account-1';
 const BASE = {
-  companyId: ACCOUNT_ID,
+  companyId: COMPANY_ID,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 };

@@ -3,7 +3,7 @@ import { isTransportFailure } from '@/data/requestTimeout';
 import { m } from '@/i18n';
 import type { AuthStatusResult } from './authStatus';
 import { parseAuthUser } from './validateAuthUser';
-import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './accountTransition';
+import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './companyTransition';
 import { masqueradeApi } from './masqueradeApi';
 import { rejectInvalidResponse, readAuthResponse } from './authResponse';
 import { useStore } from '@/store/useStore';

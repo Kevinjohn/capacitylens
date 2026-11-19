@@ -1,7 +1,7 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, ScopedEntityKey, Weekday } from '@capacitylens/shared/types/entities';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { tables } from '#services/product_tables';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
 import {
@@ -49,8 +49,8 @@ function lookupFor(data: AppData): ValidationDataLookup {
     resourceHasTimeOff: (companyId, resourceId) =>
       data.timeOff.some((row) => row.companyId === companyId && row.resourceId === resourceId),
     companyWorkingDays: (companyId): Weekday[] => {
-      const account = data.accounts.find((row) => row.id === companyId);
-      return normalizeCompanyWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
+      const company = data.accounts.find((row) => row.id === companyId);
+      return normalizeCompanyWorkingDays(company?.workingDays, company?.weekStartsOn === 0 ? 0 : 1);
     },
   };
 }

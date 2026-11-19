@@ -17,3 +17,6 @@
 
 # refactor: rename exported tenant Account identifiers to Company (#2224)
 8fe2d22d8d74b78d9d3027dc5f31179b85f8b8dd
+
+# refactor: rename remaining tenant Account identifiers, locals and files to Company (#2224)
+844a8a47fc8a2c623ff1307069c8d15c3b0292dc

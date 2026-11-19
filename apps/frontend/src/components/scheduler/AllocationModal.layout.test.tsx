@@ -44,7 +44,7 @@ describe('AllocationModal compact layout', () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
     );
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     renderAsOwner(
       <AllocationModal
@@ -108,7 +108,7 @@ describe('AllocationModal compact layout', () => {
     ['days', ['Start Date', 'Days of work', 'Days over']],
     ['blocks', ['Start Date', 'Days over']],
   ] as const)('uses a full-width scheduling row for %s mode', async (mode, labels) => {
-    await useStore.getState().updateAccount(ACC, { schedulingMode: mode });
+    await useStore.getState().updateCompany(ACC, { schedulingMode: mode });
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
     );

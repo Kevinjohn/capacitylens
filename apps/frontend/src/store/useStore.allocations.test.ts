@@ -7,7 +7,7 @@ import {
   makeResource,
   makeResourceDraft,
   requireValue,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   WORKDAYS,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
@@ -24,7 +24,7 @@ import { grantFor } from '@/test/permissionGrants';
 const state = () => useStore.getState();
 const typedHistory = () => state().planning.history;
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(() => resetStoreWithCompany());
 
 async function allocationSetup() {
   const resource = await requireCreated(state().addResource(makeResourceDraft()));
@@ -84,7 +84,7 @@ describe('atomic allocation creation', () => {
   });
   it('applies the monthly end dates returned for a three-day working week', async () => {
     const { resource, draft } = await allocationSetup();
-    await state().updateAccount(DEFAULT_COMPANY_ID, {
+    await state().updateCompany(DEFAULT_COMPANY_ID, {
       schedulingMode: 'days',
       workingDays: WORKDAYS,
     });
@@ -150,7 +150,7 @@ describe('atomic allocation creation', () => {
         activities: [...current.data.activities, otherActivity],
       },
     }));
-    const historyBeforeCrossAccountRejection = typedHistory();
+    const historyBeforeCrossCompanyRejection = typedHistory();
     await expect(
       state().addRepeatedAllocation(
         first.draft({ resourceId: otherResource.id, activityId: otherActivity.id }),
@@ -159,7 +159,7 @@ describe('atomic allocation creation', () => {
       ),
     ).rejects.toThrow(/active company|existing resource and activity/i);
     expect(state().data.allocations).toHaveLength(0);
-    expect(typedHistory()).toEqual(historyBeforeCrossAccountRejection);
+    expect(typedHistory()).toEqual(historyBeforeCrossCompanyRejection);
 
     const client = await requireCreated(state().addClient({ name: 'Client', color: '#111111' }));
     const boundProject = await requireCreated(
@@ -337,7 +337,7 @@ describe('resource availability boundaries', () => {
 
   it('uses the company and person working-day intersection for boundary checks', async () => {
     const { resource, draft } = await allocationSetup();
-    await state().updateAccount(DEFAULT_COMPANY_ID, { workingDays: [1, 2, 3, 4] });
+    await state().updateCompany(DEFAULT_COMPANY_ID, { workingDays: [1, 2, 3, 4] });
     await state().updateResource(resource.id, {
       workingDays: [1, 2, 3, 4, 5],
       lastAvailableDate: '2026-06-04',

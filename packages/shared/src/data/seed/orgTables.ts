@@ -1,6 +1,6 @@
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
 import type { AppData } from '../../types/entities.js';
-import { defaultCompanyWorkingDays } from '../../lib/accountWorkingDays.js';
+import { defaultCompanyWorkingDays } from '../../lib/companyWorkingDays.js';
 import { buildInternalClient } from '../internalClient.js';
 import { SEED_TIMESTAMP, STUDIO, LOFT } from './constants.js';
 
@@ -66,7 +66,7 @@ const ORG_TABLES: OrgTables = {
     },
   ],
   clients: [
-    // One built-in "Internal" pseudo-client per account (builtin: true), owns project-less
+    // One built-in "Internal" pseudo-client per company (builtin: true), owns project-less
     // internal/all-projects work and can own real projects. Protected (no rename/delete). See
     // internalClient.ts; the invariant is also enforced by imports and company setup.
     buildInternalClient(STUDIO, SEED_TIMESTAMP, 'c-internal-studio'),
@@ -151,12 +151,12 @@ const ORG_TABLES: OrgTables = {
   ],
 };
 
-/** Fresh copies of the seed accounts, disciplines, clients, projects and phases. */
+/** Fresh copies of the seed companies, disciplines, clients, projects and phases. */
 export function createOrgTables(): OrgTables {
   return {
-    accounts: ORG_TABLES.accounts.map((account) => ({
-      ...account,
-      workingDays: [...(account.workingDays ?? [])],
+    accounts: ORG_TABLES.accounts.map((company) => ({
+      ...company,
+      workingDays: [...(company.workingDays ?? [])],
     })),
     disciplines: ORG_TABLES.disciplines.map((discipline) => ({ ...discipline })),
     clients: ORG_TABLES.clients.map((client) => ({ ...client })),

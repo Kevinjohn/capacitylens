@@ -6,7 +6,7 @@ As a company member, I want to see the company name, week start and time zone so
 **Access:** Owner, Admin, Editor, Viewer
 **Entry:** Settings → Data and support → Company details
 **Documentation:** [Settings](../../docs-src/using/settings.md#calendar)
-**Source:** [SettingsAccountSections.tsx](../../apps/frontend/src/components/settings/SettingsAccountSections.tsx)
+**Source:** [SettingsCompanySections.tsx](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx)
 
 The read-only values differ from the configuration target; see [GAP-01](../GAPS.md).
 
@@ -36,4 +36,4 @@ flowchart TD
   details --> display["SettingsAccountOptions displays read-only table"]
 ```
 
-**Code references:** [SettingsView.tsx](../../apps/frontend/src/components/settings/SettingsView.tsx), [SettingsAccountSections.tsx](../../apps/frontend/src/components/settings/SettingsAccountSections.tsx)
+**Code references:** [SettingsView.tsx](../../apps/frontend/src/components/settings/SettingsView.tsx), [SettingsCompanySections.tsx](../../apps/frontend/src/components/settings/SettingsCompanySections.tsx)

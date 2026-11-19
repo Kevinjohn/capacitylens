@@ -10,11 +10,11 @@ async function loadMasqueradeController() {
   return masqueradeController;
 }
 
-/** The authenticated account-switch boundary. It ends any current read projection before the
- * persistence subscriber installs another account's slice. */
-export async function transitionAccount(companyId: string | null): Promise<boolean> {
+/** The authenticated company-switch boundary. It ends any current read projection before the
+ * persistence subscriber installs another company's slice. */
+export async function transitionCompany(companyId: string | null): Promise<boolean> {
   const controller = await loadMasqueradeController();
-  return controller.transitionAccount(companyId);
+  return controller.transitionCompany(companyId);
 }
 
 /** Start a server-backed read-only member projection through the lazily loaded transition owner. */

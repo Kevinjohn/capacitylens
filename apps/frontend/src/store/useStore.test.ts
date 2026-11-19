@@ -3,10 +3,10 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { hasActiveFilters, useStore } from './useStore';
 import {
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   resetStoreWithData,
   makeAppData,
-  makeAccount,
+  makeCompany,
   makeResourceDraft,
   requireValue,
   updatePlanningFixtureSource,
@@ -20,7 +20,7 @@ import { resolveDateStyle } from './selectors';
 import { PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
 
 const s = () => useStore.getState();
-beforeEach(() => resetStoreWithAccount());
+beforeEach(() => resetStoreWithCompany());
 
 const personDraft = makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#1' });
 
@@ -123,7 +123,7 @@ describe('store scheduler UI', () => {
     };
 
     updatePlanningFixtureSource(
-      makeAppData({ accounts: [makeAccount({ name: 'Updated account name' })] }),
+      makeAppData({ accounts: [makeCompany({ name: 'Updated account name' })] }),
     );
     await s().refreshPlanning();
 
@@ -201,7 +201,7 @@ describe('store scheduler UI', () => {
       s().setCompanySummaries({ list: [{ id: companyId, name: 'Late account', role: 'owner' }] });
       updatePlanningFixtureSource(
         makeAppData({
-          accounts: [makeAccount({ id: companyId, weekStartsOn })],
+          accounts: [makeCompany({ id: companyId, weekStartsOn })],
         }),
       );
       s().setActiveCompany(companyId);
@@ -222,7 +222,7 @@ describe('store scheduler UI', () => {
   it('the date format is account data: undoable and mirrored to the formatters', async () => {
     const companyId = s().activeCompanyId;
     if (!companyId) throw new Error('Expected an active account.');
-    await s().updateAccount(companyId, { dateStyle: 'month-day' });
+    await s().updateCompany(companyId, { dateStyle: 'month-day' });
     expect(resolveDateStyle(s().data, companyId)).toBe('month-day');
 
     expect(formatDayMonth('2026-09-09')).toBe('Sep 9');
@@ -246,7 +246,7 @@ describe('store scheduler UI', () => {
     expect(s().ui.collapsedGroups).not.toContain('d-design');
   });
   it('undo and redo move through mutation history', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
     expect(s().data.clients).toHaveLength(1);
     await s().undoPlanning();
@@ -259,7 +259,7 @@ describe('store scheduler UI', () => {
   });
 
   it('undo restores changed client fields without changing unrelated rows', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     const clients = [];
     for (let index = 0; index < 100; index += 1) {
       clients.push(await requireCreated(s().addClient({ name: `Client ${index}`, color: '#1' })));
@@ -388,7 +388,7 @@ describe('store scheduler UI', () => {
     const sunStart = 'acct-sun';
     await resetStoreWithData(
       makeAppData({
-        accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })],
+        accounts: [makeCompany({ id: sunStart, weekStartsOn: 0 })],
       }),
       sunStart,
     );

@@ -6,14 +6,14 @@ import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { makeAccount, makeClient } from '@/test/fixtures';
-import { useInactiveAccountData } from './useInactiveAccountData';
+import { makeCompany, makeClient } from '@/test/fixtures';
+import { useInactiveCompanyData } from './useInactiveCompanyData';
 import { permissionValue } from '@/test/permissionGrants';
 
 function payload(companyId: string, name: string) {
   return {
     ...emptyAppData(),
-    accounts: [makeAccount({ id: companyId })],
+    accounts: [makeCompany({ id: companyId })],
     clients: [
       buildInternalClient(companyId, '2026-01-01T00:00:00.000Z'),
       makeClient({
@@ -38,7 +38,7 @@ function deferred<T>() {
 }
 
 function Probe() {
-  const { data } = useInactiveAccountData();
+  const { data } = useInactiveCompanyData();
   return <div>{data?.clients.map((client) => client.name).join(',') ?? 'hidden'}</div>;
 }
 
@@ -64,7 +64,7 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('useInactiveAccountData', () => {
+describe('useInactiveCompanyData', () => {
   it('invalidates its private server slice after a lifecycle mutation', async () => {
     const fetchMock = vi
       .fn()

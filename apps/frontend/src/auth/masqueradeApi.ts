@@ -12,10 +12,10 @@ import { masqueradeRequests } from './masqueradeRequests';
 import { extractApiErrorMessage } from '@/lib/readApiError';
 import { parseAccessGrant } from './accessGrant';
 
-function parseMasqueradeState(value: unknown, accountIdFallback?: string): MasqueradeState | null {
+function parseMasqueradeState(value: unknown, companyIdFallback?: string): MasqueradeState | null {
   if (!isRecord(value)) return null;
   const state = value;
-  const companyId = typeof state.companyId === 'string' ? state.companyId : accountIdFallback;
+  const companyId = typeof state.companyId === 'string' ? state.companyId : companyIdFallback;
   if (
     typeof companyId !== 'string' ||
     companyId.length === 0 ||

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useCompanySummaries } from '@/auth/useAccountSummaries';
+import { useCompanySummaries } from '@/auth/useCompanySummaries';
 import { useStore } from '@/store/useStore';
-import { useJoinedAccountHandoff, useSingleAccountReload } from './app-shell/accountEntry';
+import { useJoinedCompanyHandoff, useSingleCompanyReload } from './app-shell/companyEntry';
 import {
-  useAccountLocale,
+  useCompanyLocale,
   useBeforeUnloadWarning,
   useDocumentTitle,
 } from './app-shell/pageEffects';
@@ -13,14 +13,14 @@ import { useGlobalShortcuts } from './app-shell/globalShortcuts';
 
 /** Owns AppShell's bootstrap handoff, global effects, shortcuts and notice bridge. */
 export function useAppShellController() {
-  // PermissionProvider owns active-account refreshes and publishes the validated directory.
+  // PermissionProvider owns active-company refreshes and publishes the validated directory.
   useCompanySummaries();
   const notice = useStore((state) => state.notice);
   const setNotice = useStore((state) => state.setNotice);
   const dirtyForm = useStore((state) => state.dirtyForm);
   const undo = useStore((state) => state.undoPlanning);
   const redo = useStore((state) => state.redoPlanning);
-  const accounts = useStore((state) => state.data.accounts);
+  const companies = useStore((state) => state.data.accounts);
   const companySummaries = useStore((state) => state.companySummaries);
   const companySummariesComplete = useStore((state) => state.companySummariesComplete);
   const hydrated = useStore((state) => state.hydrated);
@@ -28,7 +28,7 @@ export function useAppShellController() {
   const { pathname, search, hash } = useLocation();
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  useJoinedAccountHandoff({
+  useJoinedCompanyHandoff({
     companySummaries,
     activeCompanyId,
     hash,
@@ -37,13 +37,13 @@ export function useAppShellController() {
     pathname,
     search,
   });
-  useSingleAccountReload({
+  useSingleCompanyReload({
     companySummaries,
     companySummariesComplete,
     activeCompanyId,
     hydrated,
   });
-  const { activeLanguage, activeLanguagePending } = useAccountLocale(accounts, activeCompanyId);
+  const { activeLanguage, activeLanguagePending } = useCompanyLocale(companies, activeCompanyId);
   useDocumentTitle({ activeLanguage, activeLanguagePending, pathname });
   useBeforeUnloadWarning(dirtyForm);
   useNoticeBridge(notice, setNotice);

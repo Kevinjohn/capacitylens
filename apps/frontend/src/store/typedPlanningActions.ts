@@ -3,7 +3,7 @@ import { clampWorkingHoursPerDay } from '@capacitylens/shared/types/entities';
 import {
   isWeekdaySet,
   normalizeCompanyWorkingDays,
-} from '@capacitylens/shared/lib/accountWorkingDays';
+} from '@capacitylens/shared/lib/companyWorkingDays';
 import { assertResourceExists } from '@capacitylens/shared/domain/mutations';
 import { getOwned } from '@capacitylens/shared/domain/mutations';
 import type {
@@ -302,7 +302,7 @@ export function createTypedPlanningActions(
       if (blocked() || !owned('closures', id, companyId)) return;
       await send({ intent: { operation: 'closure.delete', id } });
     },
-    updateAccount: async (id: string, patch: Patch<Company>) => {
+    updateCompany: async (id: string, patch: Patch<Company>) => {
       const companyId = requireCompany();
       if (blocked()) return;
       if (id !== companyId) {

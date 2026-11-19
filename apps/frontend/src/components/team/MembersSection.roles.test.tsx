@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { resetStoreWithAccount, DEFAULT_COMPANY_ID, makeResourceDraft } from '@/test/fixtures';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID, makeResourceDraft } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import {
@@ -19,17 +19,17 @@ import {
 } from './MembersSection.testSupport';
 import type { RawMember } from './MembersSection.testSupport';
 
-const accountTransitionMocks = vi.hoisted(() => ({
+const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
 }));
 
-vi.mock('@/auth/accountTransition', () => ({
-  startMasquerade: accountTransitionMocks.startMasquerade,
+vi.mock('@/auth/companyTransition', () => ({
+  startMasquerade: companyTransitionMocks.startMasquerade,
 }));
 
 beforeEach(async () => {
-  accountTransitionMocks.startMasquerade.mockClear();
-  await resetStoreWithAccount();
+  companyTransitionMocks.startMasquerade.mockClear();
+  await resetStoreWithCompany();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -126,7 +126,7 @@ describe('MembersSection — admin affordances', () => {
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent('Confirm you would like to masquerade as theeditor@x.io');
     await user.click(within(dialog).getByRole('button', { name: 'Start masquerade' }));
-    expect(accountTransitionMocks.startMasquerade).toHaveBeenCalledWith(
+    expect(companyTransitionMocks.startMasquerade).toHaveBeenCalledWith(
       DEFAULT_COMPANY_ID,
       'theeditor',
     );

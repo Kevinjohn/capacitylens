@@ -56,22 +56,22 @@ function publishPlanning(
   }
   const companyId = planning.context.companyId;
   const data = emptyAppData();
-  data.accounts = next.data.accounts.filter((account) => account.id === companyId);
+  data.accounts = next.data.accounts.filter((company) => company.id === companyId);
   for (const key of SCOPED_KEYS) {
     const rows = next.data[key].filter((row) => row.companyId === companyId);
     Object.assign(data, { [key]: rows });
   }
-  const account = data.accounts.find((row) => row.id === companyId);
+  const company = data.accounts.find((row) => row.id === companyId);
   return {
     planning,
     data,
-    ...(account && !state.data.accounts.some((row) => row.id === companyId)
+    ...(company && !state.data.accounts.some((row) => row.id === companyId)
       ? { ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, companyId, planning.today)) }
       : {}),
-    ...(account
+    ...(company
       ? {
           companySummaries: state.companySummaries.map((summary) =>
-            summary.id === companyId ? { ...summary, name: account.name } : summary,
+            summary.id === companyId ? { ...summary, name: company.name } : summary,
           ),
         }
       : {}),

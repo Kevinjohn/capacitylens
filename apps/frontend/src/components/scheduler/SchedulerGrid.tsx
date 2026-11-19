@@ -200,7 +200,7 @@ function SchedulerGridContents(props: GridViewProps) {
   const { preferences, gridModel, virtualization, interactions } = props;
   const { headerRef, timelineWidth, days, geom, visibleStartDate } = props;
   const { canEdit, toggleGroup, clearFilters, navigateToResources } = props;
-  const { ui, utilisationPrefs, accountPrefs } = preferences;
+  const { ui, utilisationPrefs, companyPrefs } = preferences;
   const {
     model,
     density,
@@ -222,7 +222,7 @@ function SchedulerGridContents(props: GridViewProps) {
         days={days}
         geom={geom}
         ui={ui}
-        calendarWeekStartsOn={accountPrefs.calendarWeekStartsOn}
+        calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
         today={today}
       />
       {model.length === 0 && (
@@ -246,7 +246,7 @@ function SchedulerGridContents(props: GridViewProps) {
         setModal={interactions.setModal}
         days={days}
         todayX={todayX}
-        calendarWeekStartsOn={accountPrefs.calendarWeekStartsOn}
+        calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
         onEdit={interactions.editAllocation}
         onDraw={interactions.createFromDraw}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
@@ -367,13 +367,13 @@ export function SchedulerGrid() {
   const canEdit = useCanEdit();
   const toggleGroup = useStore((state) => state.toggleGroup);
   const clearFilters = useStore((state) => state.clearFilters);
-  const { accountPrefs, ui, minimiseWeekends, weekSnapEnabled } = preferences;
+  const { companyPrefs, ui, minimiseWeekends, weekSnapEnabled } = preferences;
   const interactions = useSchedulerInteractions(ui);
   const viewport = useSchedulerViewport({
     ui,
     minimiseWeekends,
     weekSnapEnabled,
-    calendarWeekStartsOn: accountPrefs.calendarWeekStartsOn,
+    calendarWeekStartsOn: companyPrefs.calendarWeekStartsOn,
   });
   const gridModel = useSchedulerGridModel(preferences, viewport);
   const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport;

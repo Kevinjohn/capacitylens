@@ -7,14 +7,14 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { ResourceForm } from './ResourceForm';
 import { useStore } from '@/store/useStore';
-import { makeResourceDraft, requireValue, resetStoreWithAccount } from '@/test/fixtures';
+import { makeResourceDraft, requireValue, resetStoreWithCompany } from '@/test/fixtures';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const addResource = useStore.getState().addResource;
 const updateResource = useStore.getState().updateResource;
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(() => resetStoreWithCompany());
 
 afterEach(async () => {
   useStore.setState({ addResource, updateResource });
@@ -206,7 +206,7 @@ describe('ResourceForm disciplines', () => {
     );
     await useStore
       .getState()
-      .updateAccount(requireValue(useStore.getState().data.accounts[0], 'account').id, {
+      .updateCompany(requireValue(useStore.getState().data.accounts[0], 'account').id, {
         disciplinesEnabled: false,
       });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
@@ -529,7 +529,7 @@ it('saves a placeholder once a bound project is chosen', async () => {
   const onClose = vi.fn();
   await useStore
     .getState()
-    .updateAccount(requireValue(useStore.getState().data.accounts[0], 'account').id, {
+    .updateCompany(requireValue(useStore.getState().data.accounts[0], 'account').id, {
       workingDays: [1, 3, 5],
     });
   const client = await requireCreated(

@@ -1,4 +1,4 @@
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import {
   applyCapacityMode,
   buildDayCapacity,
@@ -31,7 +31,7 @@ import type { Company, AppData, ISODate } from '@capacitylens/shared/types/entit
 interface BuildCapacitySectionInput {
   /** The active rows the reader receives. */
   data: AppData;
-  account: Company | undefined;
+  company: Company | undefined;
   today: ISODate;
   /** The requested window; the scheduler's default window when absent. */
   window?: CapacityRange | undefined;
@@ -56,13 +56,13 @@ function groupByResource<T extends { resourceId: string }>(rows: T[]): Map<strin
 /** Computes the planning read's capacity section with the shared capacity rules. */
 export function buildCapacitySection({
   data,
-  account,
+  company,
   today,
   window,
 }: BuildCapacitySectionInput): CapacitySection {
-  const weekStartsOn = account?.weekStartsOn ?? 1;
-  const companyWorkingDays = normalizeCompanyWorkingDays(account?.workingDays, weekStartsOn);
-  const blocksMode = account?.schedulingMode === 'blocks';
+  const weekStartsOn = company?.weekStartsOn ?? 1;
+  const companyWorkingDays = normalizeCompanyWorkingDays(company?.workingDays, weekStartsOn);
+  const blocksMode = company?.schedulingMode === 'blocks';
   const range = window ?? buildDefaultCapacityWindow(today, weekStartsOn);
   const horizon = {
     from: today,

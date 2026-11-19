@@ -4,7 +4,7 @@ import { screen, fireEvent, act } from '@testing-library/react';
 import { AllocationBar } from './AllocationBar';
 import { buildAllocationBarInset } from './layout';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithData, resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
+import { resetStoreWithData, resetStoreWithCompany, makeResourceDraft } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import {
@@ -15,7 +15,7 @@ import {
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 
-beforeEach(async () => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithCompany());
 
 describe('AllocationBar target-calendar and weekend preview interactions', () => {
   it('a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s', async () => {

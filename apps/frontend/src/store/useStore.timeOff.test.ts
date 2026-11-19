@@ -6,7 +6,7 @@ import {
   DEFAULT_COMPANY_ID,
   makeResource,
   makeResourceDraft,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
@@ -16,7 +16,7 @@ import { grantFor } from '@/test/permissionGrants';
 
 const state = () => useStore.getState();
 
-beforeEach(async () => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithCompany());
 
 async function timeOffSetup() {
   const resource = await requireCreated(state().addResource(makeResourceDraft()));

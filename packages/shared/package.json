@@ -128,10 +128,10 @@
       "types": "./src/lib/color.ts",
       "default": "./dist/lib/color.js"
     },
-    "./lib/accountWorkingDays": {
-      "development": "./src/lib/accountWorkingDays.ts",
-      "types": "./src/lib/accountWorkingDays.ts",
-      "default": "./dist/lib/accountWorkingDays.js"
+    "./lib/companyWorkingDays": {
+      "development": "./src/lib/companyWorkingDays.ts",
+      "types": "./src/lib/companyWorkingDays.ts",
+      "default": "./dist/lib/companyWorkingDays.js"
     },
     "./lib/dateMath": {
       "development": "./src/lib/dateMath.ts",

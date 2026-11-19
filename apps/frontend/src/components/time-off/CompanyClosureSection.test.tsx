@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render as renderTestingLibrary, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
-import { DEFAULT_COMPANY_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { useStore } from '@/store/useStore';
 import { CompanyClosureSection } from './CompanyClosureSection';
@@ -17,7 +17,7 @@ const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 
 afterEach(() => {
@@ -68,19 +68,19 @@ describe('CompanyClosureSection', () => {
 
     await useStore
       .getState()
-      .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+      .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
     const { rerender } = render(<CompanyClosureSection />);
     expect(screen.queryByTestId('company-closure-row')).not.toBeInTheDocument();
 
     await useStore
       .getState()
-      .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
+      .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Pacific/Honolulu', weekStartsOn: 1 });
     rerender(<CompanyClosureSection />);
     expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
 
     await useStore
       .getState()
-      .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
+      .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 0 });
     rerender(<CompanyClosureSection />);
     expect(screen.getByTestId('company-closure-row')).toBeInTheDocument();
   });
@@ -88,7 +88,7 @@ describe('CompanyClosureSection', () => {
   it('removes an expired closure when a read brings the next company week while mounted', async () => {
     await useStore
       .getState()
-      .updateAccount(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
+      .updateCompany(DEFAULT_COMPANY_ID, { timezone: 'Etc/GMT', weekStartsOn: 1 });
     getStubPlanningTransport().setToday('2026-06-07');
     await useStore.getState().refreshPlanning({ fresh: true });
     await useStore.getState().addClosure({

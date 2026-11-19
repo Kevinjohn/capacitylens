@@ -20,7 +20,7 @@ import type { BarLayout } from '@/components/scheduler/schedulerModel';
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
 import { useStore } from '@/store/useStore';
 import { requireCreated } from '@/test/requireCreated';
-import { loadPlanningData, resetStoreWithAccount, makeResourceDraft } from '@/test/fixtures';
+import { loadPlanningData, resetStoreWithCompany, makeResourceDraft } from '@/test/fixtures';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import type { Role } from '@capacitylens/shared/domain/access';
@@ -149,7 +149,7 @@ describe('private name fields require a resolved role', () => {
   });
 
   it('hides TimeOff notes when the permission provider has no resolved role', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
 
     render(
@@ -166,7 +166,7 @@ describe('private name fields require a resolved role', () => {
 });
 
 describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () => {
-  beforeEach(() => resetStoreWithAccount());
+  beforeEach(() => resetStoreWithCompany());
 
   it('add*/update*/delete* NO-OP for a viewer and surface a read-only notice', async () => {
     useStore.getState().setActiveRole('viewer', 'resolved', grantFor('viewer').permissions);

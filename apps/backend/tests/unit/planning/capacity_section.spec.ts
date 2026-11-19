@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import { buildCapacityWindow } from '@capacitylens/shared/lib/capacity';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
 import type {
@@ -22,13 +22,13 @@ import { resetPlanningFixture } from '../../functional/planning/helpers.js';
 // Each Scheduling-invariants rule (DECISIONS.md) is one case against the read's capacity section.
 // 2026-06-01 is a Monday.
 
-const ACCOUNT = 'a-themyscira';
-const stamp = { companyId: ACCOUNT, createdAt: 't', updatedAt: 't' };
+const COMPANY = 'a-themyscira';
+const stamp = { companyId: COMPANY, createdAt: 't', updatedAt: 't' };
 
-function account(changes: Partial<Company> = {}): Company {
+function companyRow(changes: Partial<Company> = {}): Company {
   return {
     ...NULLABLE_FIELDS.accounts,
-    id: ACCOUNT,
+    id: COMPANY,
     createdAt: 't',
     updatedAt: 't',
     name: 'Themyscira',
@@ -103,10 +103,10 @@ function data(rows: Partial<AppData>): AppData {
   };
 }
 
-function section(rows: Partial<AppData>, options: { account?: Company; today?: string } = {}) {
+function section(rows: Partial<AppData>, options: { company?: Company; today?: string } = {}) {
   return buildCapacitySection({
     data: data(rows),
-    account: options.account ?? account(),
+    company: options.company ?? companyRow(),
     today: options.today ?? '2026-06-03',
     window: { from: '2026-06-01', to: '2026-06-14' },
   });
@@ -146,7 +146,7 @@ test.group('capacity section', () => {
           allocation({ resourceId: 'r-slot', startDate: '2026-06-01', endDate: '2026-06-05' }),
         ],
       },
-      { account: account({ workingDays: [1, 2, 3, 4] }) }
+      { company: companyRow({ workingDays: [1, 2, 3, 4] }) }
     );
     const person = resources['r-diana']!.window;
     assert.deepEqual(person.available.slice(0, 5), [0, 8, 8, 8, 0]);
@@ -194,7 +194,7 @@ test.group('capacity section', () => {
   }) => {
     const rows = { allocations: [allocation({ startDate: '2026-06-01', endDate: '2026-06-05' })] };
     const before = section(rows).resources['r-diana']!.window;
-    const after = section(rows, { account: account({ workingDays: [1, 2, 3] }) }).resources[
+    const after = section(rows, { company: companyRow({ workingDays: [1, 2, 3] }) }).resources[
       'r-diana'
     ]!.window;
     assert.deepEqual(before.allocated.slice(0, 5), [4, 4, 4, 4, 4]);
@@ -208,7 +208,7 @@ test.group('capacity section', () => {
     const overSoonFor = (date: string) =>
       buildCapacitySection({
         data: data({ allocations: [allocation({ startDate: date, hoursPerDay: 9 })] }),
-        account: account(),
+        company: companyRow(),
         today: '2026-06-03',
         window: { from: '2026-01-05', to: '2026-01-11' },
       }).resources['r-diana']!.overSoon;
@@ -221,7 +221,7 @@ test.group('capacity section', () => {
   test('blocks mode places allocations without hourly load', ({ assert }) => {
     const rows = { allocations: [allocation({ startDate: '2026-06-01', hoursPerDay: 12 })] };
     const hourly = section(rows).resources['r-diana']!.window;
-    const blocks = section(rows, { account: account({ schedulingMode: 'blocks' }) }).resources[
+    const blocks = section(rows, { company: companyRow({ schedulingMode: 'blocks' }) }).resources[
       'r-diana'
     ]!.window;
     assert.deepEqual([hourly.allocated[0], hourly.over[0]], [12, true]);
@@ -245,7 +245,7 @@ test.group('capacity section', () => {
     const build = (weekStartsOn: 0 | 1) =>
       buildCapacitySection({
         data: data({}),
-        account: account({ weekStartsOn }),
+        company: companyRow({ weekStartsOn }),
         today: '2026-06-03',
       });
     const monday = build(1);
@@ -264,7 +264,7 @@ test.group('capacity section', () => {
         resources: [resource('r-diana', { workingDays: [0, 1, 2, 3, 4, 5, 6] })],
         allocations: [allocation({ startDate: '2026-06-05', endDate: '2026-06-07' })],
       }),
-      account: account({ weekStartsOn: 0, workingDays: null }),
+      company: companyRow({ weekStartsOn: 0, workingDays: null }),
       today: '2026-06-03',
     }).resources['r-diana']!;
     // Wednesday 3 June is index 0: Friday 5 June is index 2, Sunday 7 June index 4.
@@ -281,7 +281,7 @@ test.group('capacity section on the sample company', (group) => {
     const stored = activeOnly(await readState('a-studio', true));
     const company = stored.accounts[0]!;
     const today = '2026-06-03';
-    const result = buildCapacitySection({ data: stored, account: company, today });
+    const result = buildCapacitySection({ data: stored, company, today });
     const companyWorkingDays: Weekday[] = normalizeCompanyWorkingDays(
       company.workingDays,
       company.weekStartsOn ?? 1

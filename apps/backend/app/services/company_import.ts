@@ -162,12 +162,12 @@ export async function applyCompanyImport(
   for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
     await trx.from(tables[key]).where('company_id', companyId).delete();
   }
-  const account = prepared.data.accounts.at(0);
-  if (!account) throw new Error('A prepared beta import always carries exactly one account.');
+  const company = prepared.data.accounts.at(0);
+  if (!company) throw new Error('A prepared beta import always carries exactly one account.');
   await trx
     .from('accounts')
     .where('id', companyId)
-    .update(encodeRow('accounts', account as unknown as Record<string, unknown>));
+    .update(encodeRow('accounts', company as unknown as Record<string, unknown>));
   for (const key of SCOPED_WRITE_ORDER) {
     const rows = prepared.data[key];
     for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {

@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { isIsoTimestamp } from '@kevinjohn/adonisjs-lucid-checked-columns';
-import { isWeekdaySet } from '@capacitylens/shared/lib/accountWorkingDays';
+import { isWeekdaySet } from '@capacitylens/shared/lib/companyWorkingDays';
 import { isPresetColor, NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import {

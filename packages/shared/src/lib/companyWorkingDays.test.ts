@@ -5,7 +5,7 @@ import {
   isWeekdaySet,
   normalizeCompanyWorkingDays,
   orderedWeekdays,
-} from './accountWorkingDays.js';
+} from './companyWorkingDays.js';
 
 describe('account working days', () => {
   it('defaults to the first five days of the configured week', () => {

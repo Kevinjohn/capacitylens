@@ -4,14 +4,14 @@ import { act, render as renderTestingLibrary, screen, within } from '@testing-li
 import userEvent from '@testing-library/user-event';
 import { DisciplineList } from './DisciplineList';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().clearFilters();
 });
 

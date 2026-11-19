@@ -1,6 +1,6 @@
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
-import { byAccount } from '@capacitylens/shared/domain/tenancy';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
+import { byCompany } from '@capacitylens/shared/domain/tenancy';
 import {
   emptyAppData,
   isCapacityTracked,
@@ -25,27 +25,27 @@ const DEFAULT_CALENDAR_TIME_ZONE = DEFAULT_TIME_ZONE;
 /** Monday is the default first day for calendar weeks. */
 export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 
-// Missing accounts and missing setting fields must resolve to the same per-setting default.
-const createAccountFieldSelector =
+// Missing companies and missing setting fields must resolve to the same per-setting default.
+const createCompanyFieldSelector =
   <K extends keyof Company>(key: K, fallback: NonNullable<Company[K]>) =>
   (data: AppData, activeCompanyId: ID | null): NonNullable<Company[K]> =>
-    data.accounts.find((account) => account.id === activeCompanyId)?.[key] ?? fallback;
+    data.accounts.find((company) => company.id === activeCompanyId)?.[key] ?? fallback;
 
 // Mirror one company date convention into synchronous formatters. Unknown stored
 // styles fall back so a hand-edited row cannot break date rendering.
-const rawDateStyle = createAccountFieldSelector('dateStyle', DEFAULT_DATE_STYLE);
-/** Resolve the date display style for the active account. */
+const rawDateStyle = createCompanyFieldSelector('dateStyle', DEFAULT_DATE_STYLE);
+/** Resolve the date display style for the active company. */
 export function resolveDateStyle(data: AppData, activeCompanyId: ID | null): DateStyle {
   const stored = rawDateStyle(data, activeCompanyId);
   return DATE_STYLES.includes(stored) ? stored : DEFAULT_DATE_STYLE;
 }
 
-/** The active company's scheduling input mode. Absent on the account reads as 'hourly'.
+/** The active company's scheduling input mode. Absent on the company reads as 'hourly'.
  * Shared by the modal and bar. */
-export const resolveSchedulingMode = createAccountFieldSelector('schedulingMode', 'hourly');
+export const resolveSchedulingMode = createCompanyFieldSelector('schedulingMode', 'hourly');
 
 /** Whether the active company uses disciplines; every discipline surface shares this value. */
-export const hasDisciplinesEnabled = createAccountFieldSelector('disciplinesEnabled', true);
+export const hasDisciplinesEnabled = createCompanyFieldSelector('disciplinesEnabled', true);
 
 function isActiveSupplementary(resource: Resource): boolean {
   return (
@@ -68,46 +68,46 @@ export function hasResourceEngagementGrouping(data: AppData, activeCompanyId: ID
 }
 
 /** Whether the active company shows placeholders; an absent field defaults to false. */
-export const hasPlaceholdersEnabled = createAccountFieldSelector('placeholdersEnabled', false);
+export const hasPlaceholdersEnabled = createCompanyFieldSelector('placeholdersEnabled', false);
 
 /** Whether the active company shows external resources; an absent field defaults to false. */
-export const hasExternalResourcesEnabled = createAccountFieldSelector('externalEnabled', false);
+export const hasExternalResourcesEnabled = createCompanyFieldSelector('externalEnabled', false);
 
 /** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
  * false (disabled). Single source so Settings and the modal use the same company value. */
-export const canCreateInlineActivity = createAccountFieldSelector(
+export const canCreateInlineActivity = createCompanyFieldSelector(
   'inlineActivityCreateEnabled',
   false,
 );
 
 /** Whether populated allocation task text is shown in schedule details. Absent reads as false. */
-export const hasVisibleTaskFieldInSchedule = createAccountFieldSelector(
+export const hasVisibleTaskFieldInSchedule = createCompanyFieldSelector(
   'showTaskFieldInSchedule',
   false,
 );
 
 /** Who may open Overview. Absent reads as the restricted owner/admin default. */
-export const resolveCapacityOverviewAccess = createAccountFieldSelector(
+export const resolveCapacityOverviewAccess = createCompanyFieldSelector(
   'capacityOverviewAccess',
   'owner_admin',
 );
 
 /** Reads the active company time zone, defaulting to DEFAULT_CALENDAR_TIME_ZONE when unavailable. */
-export const resolveTimeZone = createAccountFieldSelector('timezone', DEFAULT_CALENDAR_TIME_ZONE);
+export const resolveTimeZone = createCompanyFieldSelector('timezone', DEFAULT_CALENDAR_TIME_ZONE);
 
-/** Resolve the week start day for the active account. */
-export const resolveWeekStart = createAccountFieldSelector('weekStartsOn', DEFAULT_WEEK_STARTS_ON);
+/** Resolve the week start day for the active company. */
+export const resolveWeekStart = createCompanyFieldSelector('weekStartsOn', DEFAULT_WEEK_STARTS_ON);
 
-/** Account-wide dates on which a schedule creation gesture may start. */
+/** Company-wide dates on which a schedule creation gesture may start. */
 export const listCompanyWorkingDays = (data: AppData, activeCompanyId: ID | null): Weekday[] => {
-  const account = data.accounts.find((candidate) => candidate.id === activeCompanyId);
+  const company = data.accounts.find((candidate) => candidate.id === activeCompanyId);
   return normalizeCompanyWorkingDays(
-    account?.workingDays,
-    account?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON,
+    company?.workingDays,
+    company?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON,
   );
 };
 
-/** Narrow the full store data to a single account: every scoped array filtered to
+/** Narrow the full store data to a single company: every scoped array filtered to
  * `companyId`, and `accounts` blanked (scoped views never read the tenant list).
  *
  * This is the read-side tenancy boundary, and its correctness rests on a non-local fact:
@@ -120,7 +120,7 @@ export function scopeData(data: AppData, companyId: ID): AppData {
   const sourceTables = scopedTables(data);
   const destinationTables = scopedTables(scoped);
   for (const key of SCOPED_KEYS) {
-    destinationTables[key] = sourceTables[key].filter(byAccount(companyId));
+    destinationTables[key] = sourceTables[key].filter(byCompany(companyId));
   }
   return scoped;
 }
@@ -129,7 +129,7 @@ export function scopeData(data: AppData, companyId: ID): AppData {
 // relevant slice) so Zustand selectors never return fresh objects directly,
 // avoiding the useSyncExternalStore re-render trap.
 
-// These helpers search only the supplied account-scoped data and can miss stale IDs. Callers must
+// These helpers search only the supplied company-scoped data and can miss stale IDs. Callers must
 // narrow the result before dereferencing it.
 /** Find an activity by its stable ID. */
 export const activityById = (data: AppData, id: ID) =>

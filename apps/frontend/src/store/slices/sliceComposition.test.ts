@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createTestPlanningTransport } from '@/test/createTestPlanningTransport';
-import { createAccountSlice } from './accountSlice';
+import { createCompanySlice } from './companySlice';
 import { createAllocationSlice } from './allocationSlice';
 import { createPlanningSessionSlice } from './planningSessionSlice';
 import { createRuntimeSlice } from './runtimeSlice';
@@ -15,7 +15,7 @@ describe('store slice composition', () => {
     const get = useStore.getState;
     const internals = createStoreInternals(get);
     const slices = [
-      createAccountSlice()(set, get, useStore),
+      createCompanySlice()(set, get, useStore),
       createRuntimeSlice(set, get, useStore),
       createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
       createPlanningSessionSlice(internals.blockedByViewer, createTestPlanningTransport())(
@@ -45,7 +45,7 @@ describe('store slice composition', () => {
 
     expect(actionNames).toEqual(
       expect.arrayContaining([
-        'updateAccount',
+        'updateCompany',
         'setActiveCompany',
         'beginCompanySummariesRequest',
         'setCompanySummaries',

@@ -1,14 +1,14 @@
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useStore } from './useStore';
-import { makeResourceDraft, requireValue, resetStoreWithAccount } from '@/test/fixtures';
+import { makeResourceDraft, requireValue, resetStoreWithCompany } from '@/test/fixtures';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { grantFor } from '@/test/permissionGrants';
 
 const s = () => useStore.getState();
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   s().clearFilters();
 });
 
@@ -20,22 +20,22 @@ delete unflaggedDraft.isFavourite;
 
 describe('store CRUD covers every entity', () => {
   it('accounts: update', async () => {
-    const account = requireValue(s().data.accounts[0], 'account');
-    await s().updateAccount(account.id, { name: 'Renamed company' });
+    const company = requireValue(s().data.accounts[0], 'account');
+    await s().updateCompany(company.id, { name: 'Renamed company' });
     expect(s().data.accounts[0]?.name).toBe('Renamed company');
   });
   it('accounts: stores working days and keeps the update undoable', async () => {
-    const account = requireValue(s().data.accounts[0], 'account');
-    await s().updateAccount(account.id, { workingDays: [1, 3, 5] });
+    const company = requireValue(s().data.accounts[0], 'account');
+    await s().updateCompany(company.id, { workingDays: [1, 3, 5] });
     expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
 
-    await s().updateAccount(account.id, { workingDays: [2, 4] });
+    await s().updateCompany(company.id, { workingDays: [2, 4] });
     await s().undoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === account.id)?.workingDays).toEqual(
+    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
       [1, 3, 5],
     );
     await s().redoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === account.id)?.workingDays).toEqual(
+    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
       [2, 4],
     );
   });

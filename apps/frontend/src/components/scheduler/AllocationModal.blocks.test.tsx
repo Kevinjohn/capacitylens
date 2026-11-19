@@ -16,7 +16,7 @@ beforeEach(async () => {
   await resetAllocationModalStore();
 });
 
-const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMode: 'blocks' });
+const enableBlocks = () => useStore.getState().updateCompany(ACC, { schedulingMode: 'blocks' });
 
 describe('AllocationModal blocks mode', () => {
   it('asks only for start + days over, and persists a zero-load span', async () => {

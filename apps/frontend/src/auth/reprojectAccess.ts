@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore';
-import { refreshCompanySummaries } from './useAccountSummaries';
+import { refreshCompanySummaries } from './useCompanySummaries';
 
 /** Reload every actor-dependent read model while server writes remain suspended. */
 export async function reprojectAccess(

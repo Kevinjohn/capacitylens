@@ -6,7 +6,7 @@ import {
   makeAppData,
   makeResource,
   requireValue,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   resetStoreWithData,
 } from '@/test/fixtures';
 import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
@@ -15,7 +15,7 @@ import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 const T = '2026-01-01T00:00:00.000Z';
 const meta = { companyId: DEFAULT_COMPANY_ID, createdAt: T, updatedAt: T };
 
-beforeEach(() => resetStoreWithAccount());
+beforeEach(() => resetStoreWithCompany());
 afterEach(() => {
   vi.restoreAllMocks();
 });

@@ -12,7 +12,7 @@ import {
   signIn,
 } from './helpers.js';
 
-const otherAccountId = 'a-loft';
+const otherCompanyId = 'a-loft';
 const requestBody = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -78,22 +78,22 @@ test.group('typed bulk writer tenant isolation', (group) => {
       const { cookie } = await signIn(client);
       const beforeOwn = await readState(companyId, true);
       const intent = scenario.intent(beforeOwn);
-      const beforeOther = await readState(otherAccountId, true);
+      const beforeOther = await readState(otherCompanyId, true);
       const own = await session(client.post(`/api/companies/${companyId}/${scenario.path}`), cookie)
         .json(requestBody(0, intent))
         .send();
       own.assertStatus(200);
       assert.notDeepEqual(await readState(companyId, true), beforeOwn);
-      assert.deepEqual(await readState(otherAccountId, true), beforeOther);
+      assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
 
       const foreign = await session(
-        client.post(`/api/companies/${otherAccountId}/${scenario.path}`),
+        client.post(`/api/companies/${otherCompanyId}/${scenario.path}`),
         cookie
       )
         .json(requestBody(0, intent))
         .send();
       foreign.assertStatus(403);
-      assert.deepEqual(await readState(otherAccountId, true), beforeOther);
+      assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
     });
   }
 
@@ -117,7 +117,7 @@ test.group('typed bulk writer tenant isolation', (group) => {
       .replacementGroupId;
     const intent = { operation: 'planning.restoreGroup', restorationGroupId: groupId };
     const beforeOwn = await readState(companyId, true);
-    const beforeOther = await readState(otherAccountId, true);
+    const beforeOther = await readState(otherCompanyId, true);
     const restored = await session(
       client.post(`/api/companies/${companyId}/planning/restore-group`),
       cookie
@@ -126,15 +126,15 @@ test.group('typed bulk writer tenant isolation', (group) => {
       .send();
     restored.assertStatus(200);
     assert.notDeepEqual(await readState(companyId, true), beforeOwn);
-    assert.deepEqual(await readState(otherAccountId, true), beforeOther);
+    assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
 
     const foreign = await session(
-      client.post(`/api/companies/${otherAccountId}/planning/restore-group`),
+      client.post(`/api/companies/${otherCompanyId}/planning/restore-group`),
       cookie
     )
       .json(requestBody(0, intent))
       .send();
     foreign.assertStatus(403);
-    assert.deepEqual(await readState(otherAccountId, true), beforeOther);
+    assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
   });
 });

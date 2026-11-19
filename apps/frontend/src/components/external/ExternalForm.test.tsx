@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render as renderTestingLibrary, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { ExternalForm } from './ExternalForm';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -15,7 +15,7 @@ const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 
 describe('ExternalForm', () => {

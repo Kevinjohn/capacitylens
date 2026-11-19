@@ -25,7 +25,7 @@ const A1 = 'a-studio';
 const A2 = 'a-loft';
 
 const meta = (id: ID, companyId: ID = A1) => ({ id, companyId, createdAt: TS, updatedAt: TS });
-const account = (id: ID, name: string): Company => ({
+const company = (id: ID, name: string): Company => ({
   ...NULLABLE_FIELDS.accounts,
   id,
   name,
@@ -81,7 +81,7 @@ const activity = (id: ID, overrides: Partial<Activity> = {}): Activity => ({
 function data(): AppData {
   return {
     ...emptyAppData(),
-    accounts: [account(A1, 'Wayne Enterprises'), account(A2, 'Stark Industries')],
+    accounts: [company(A1, 'Wayne Enterprises'), company(A2, 'Stark Industries')],
     clients: [
       client('c1'),
       client('c-archived', { archivedAt: TS }),

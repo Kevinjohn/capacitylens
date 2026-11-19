@@ -3,12 +3,12 @@ import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
-/** Shows a failed account load with available recovery actions. */
-export function AccountLoadRecovery({
-  accountName,
+/** Shows a failed company load with available recovery actions. */
+export function CompanyLoadRecovery({
+  companyName,
   onRetry,
 }: {
-  accountName: string;
+  companyName: string;
   onRetry: () => Promise<boolean>;
 }) {
   const [retrying, setRetrying] = useState(false);
@@ -35,7 +35,7 @@ export function AccountLoadRecovery({
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>
-            <h1>{m.account_load_failed_title({ company: accountName })}</h1>
+            <h1>{m.account_load_failed_title({ company: companyName })}</h1>
           </CardTitle>
           <CardDescription>{m.account_load_failed_body()}</CardDescription>
         </CardHeader>

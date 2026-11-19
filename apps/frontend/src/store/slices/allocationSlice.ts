@@ -8,7 +8,7 @@ import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement
 import { newId } from '@capacitylens/shared/lib/id';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import type { Allocation, AppData, ID } from '@capacitylens/shared/types/entities';
 import {
   buildAllocationCreate,
@@ -48,10 +48,10 @@ function assertNewAllocations(
   companyId: ID,
   inputs: readonly Draft<Allocation>[],
 ): void {
-  const account = data.accounts.find((candidate) => candidate.id === companyId);
+  const company = data.accounts.find((candidate) => candidate.id === companyId);
   const companyWorkingDays = normalizeCompanyWorkingDays(
-    account?.workingDays,
-    account?.weekStartsOn ?? 1,
+    company?.workingDays,
+    company?.weekStartsOn ?? 1,
   );
   for (const input of inputs) {
     const allocation = { ...NULLABLE_FIELDS.allocations, ...input, companyId };
@@ -82,10 +82,10 @@ function assertAvailabilityAfterPlacementChange(
     (candidate) =>
       candidate.companyId === existing.companyId && candidate.id === effective.resourceId,
   );
-  const account = data.accounts.find((candidate) => candidate.id === existing.companyId);
+  const company = data.accounts.find((candidate) => candidate.id === existing.companyId);
   const companyWorkingDays = normalizeCompanyWorkingDays(
-    account?.workingDays,
-    account?.weekStartsOn ?? 1,
+    company?.workingDays,
+    company?.weekStartsOn ?? 1,
   );
   if (resource) {
     assertAllocationPlacement({ allocation: effective, existing, resource, companyWorkingDays });

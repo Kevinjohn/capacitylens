@@ -37,10 +37,10 @@ export async function installationCompanyId(reader: CompanyReader): Promise<stri
 /** The installation's single company and its name, both null before first setup. */
 export async function getInstallationCompany(reader: CompanyReader) {
   const companyId = await installationCompanyId(reader);
-  const account = companyId
+  const company = companyId
     ? await reader.from('accounts').where('id', companyId).select('name').first()
     : null;
-  return { companyId, accountName: (account?.name as string | undefined) ?? null };
+  return { companyId, accountName: (company?.name as string | undefined) ?? null };
 }
 
 /** Whether any identity exists yet; before the first one, sign-in offers setup instead. */

@@ -41,13 +41,13 @@ export function renderAsOwner(ui: ReactElement, options: Omit<RenderOptions, 'wr
   return render(ui, { ...options, wrapper: OwnerPermissions });
 }
 
-/** Account fixture ID used by allocation modal tests. */
+/** Company fixture ID used by allocation modal tests. */
 export const ACC = DEFAULT_COMPANY_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
 const originalAddRepeatedAllocation = useStore.getState().addRepeatedAllocation;
 const originalAddActivity = useStore.getState().addActivity;
 
-/** Builds the base account data for allocation modal tests. */
+/** Builds the base company data for allocation modal tests. */
 export function base(): AppData {
   return makeAppData({
     clients: [makeClient({ companyId: ACC, color: '#2d75da' })],
@@ -78,19 +78,19 @@ export async function resetAllocationModalStore(): Promise<void> {
   restoreStoreAllocationActions();
   await resetStoreWithData(base(), ACC);
   // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.
-  await useStore.getState().updateAccount(ACC, { placeholdersEnabled: true });
+  await useStore.getState().updateCompany(ACC, { placeholdersEnabled: true });
 }
 
 /** Builds a person fixture with the supplied display name. */
 export const person = (name: string) => makeResourceDraft({ name, role: 'Dev', color: '#2d75da' });
 
-/** Enables day scheduling for the test account. */
+/** Enables day scheduling for the test company. */
 export const enableDays = (workingDays?: Weekday[]) =>
   useStore
     .getState()
-    .updateAccount(ACC, { schedulingMode: 'days', ...(workingDays && { workingDays }) });
+    .updateCompany(ACC, { schedulingMode: 'days', ...(workingDays && { workingDays }) });
 
-/** Adds a person fixture to the test account. */
+/** Adds a person fixture to the test company. */
 export const addPerson = () =>
   requireCreated(
     useStore.getState().addResource(makeResourceDraft({ name: 'Tyler', color: '#111111' })),

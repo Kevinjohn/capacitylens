@@ -1,23 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getPlanningTransportHandle } from '@/test/planningTransportHandle';
 import {
-  makeAccount,
+  makeCompany,
   makeAppData,
   makeResource,
   makeResourceDraft,
   replaceFixtureData,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   resetStoreWithData,
 } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('resetStoreWithAccount', () => {
+describe('resetStoreWithCompany', () => {
   it('resets a cold company before its first canonical read', async () => {
     const transport = getPlanningTransportHandle();
     const read = vi.spyOn(transport, 'read');
-    await expect(resetStoreWithAccount('acct-cold-reset')).resolves.toBe(true);
+    await expect(resetStoreWithCompany('acct-cold-reset')).resolves.toBe(true);
     expect(read).toHaveBeenCalled();
     expect(useStore.getState().planning.context?.companyId).toBe('acct-cold-reset');
     expect(useStore.getState().planning.status).toBe('ready');
@@ -26,11 +26,11 @@ describe('resetStoreWithAccount', () => {
 
   it('restores the seeded rows and revision on a repeated same-company reset', async () => {
     const companyId = 'acct-repeat-reset';
-    await resetStoreWithAccount(companyId);
-    await useStore.getState().updateAccount(companyId, { name: 'Changed Test Co' });
+    await resetStoreWithCompany(companyId);
+    await useStore.getState().updateCompany(companyId, { name: 'Changed Test Co' });
     expect(useStore.getState().planning.revision).toBe(1);
 
-    await expect(resetStoreWithAccount(companyId)).resolves.toBe(true);
+    await expect(resetStoreWithCompany(companyId)).resolves.toBe(true);
 
     expect(useStore.getState().planning.revision).toBe(0);
     expect(useStore.getState().data.accounts.map(({ name }) => name)).toEqual(['Test Co']);
@@ -39,20 +39,20 @@ describe('resetStoreWithAccount', () => {
   });
   it('resets a selected company after its context is cleared, removes prior rows and permits a new write', async () => {
     const companyId = 'acct-cleared-context';
-    await resetStoreWithAccount(companyId);
+    await resetStoreWithCompany(companyId);
     await useStore.getState().addResource(makeResourceDraft({ name: 'Clark Kent' }));
     expect(useStore.getState().data.resources).toHaveLength(1);
     useStore.setState({ planning: { ...useStore.getState().planning, context: null } });
     expect(useStore.getState().activeCompanyId).toBe(companyId);
-    await expect(resetStoreWithAccount(companyId)).resolves.toBe(true);
+    await expect(resetStoreWithCompany(companyId)).resolves.toBe(true);
     expect(useStore.getState().data.resources).toHaveLength(0);
-    await useStore.getState().updateAccount(companyId, { name: 'New Company' });
+    await useStore.getState().updateCompany(companyId, { name: 'New Company' });
     expect(useStore.getState().data.accounts[0]?.name).toBe('New Company');
   });
 
   it('re-enters the first company after visiting another and clearing the active context', async () => {
-    const first = makeAccount({ id: 'acct-first' });
-    const second = makeAccount({ id: 'acct-second', name: 'Stark Industries' });
+    const first = makeCompany({ id: 'acct-first' });
+    const second = makeCompany({ id: 'acct-second', name: 'Stark Industries' });
     const data = makeAppData({
       accounts: [first, second],
       resources: [

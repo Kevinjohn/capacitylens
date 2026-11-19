@@ -6,7 +6,7 @@ import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { TeamMember } from '@/account/teamAccessClient';
-import { DEFAULT_COMPANY_ID, resetStoreWithAccount } from '@/test/fixtures';
+import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
 import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
@@ -113,7 +113,7 @@ beforeEach(async () => {
     value: { fromUserId: OWNER.userId, toUserId: ADMIN.userId },
   });
   reproject.mockResolvedValue(true);
-  await resetStoreWithAccount(DEFAULT_COMPANY_ID);
+  await resetStoreWithCompany(DEFAULT_COMPANY_ID);
 });
 
 describe('OwnershipTransferCard', () => {

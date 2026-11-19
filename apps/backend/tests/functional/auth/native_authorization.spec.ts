@@ -13,7 +13,7 @@ import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
-const otherAccountId = 'a-loft';
+const otherCompanyId = 'a-loft';
 const password = 'batman-secret-2026';
 const privateClientName = 'SENTINEL_PRIVATE_CLIENT_NAME';
 const privateProjectName = 'SENTINEL_PRIVATE_PROJECT_NAME';
@@ -172,10 +172,10 @@ test.group('native authorization and role projections', (group) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
-    const foreignRead = await stateFor(client, cookie, otherAccountId);
+    const foreignRead = await stateFor(client, cookie, otherCompanyId);
     foreignRead.assertStatus(403);
 
-    const foreignClient = seed().clients.find((row) => row.companyId === otherAccountId);
+    const foreignClient = seed().clients.find((row) => row.companyId === otherCompanyId);
     assert.isDefined(foreignClient);
     const concealed = await withSession(
       trusted(client.post(`/api/clients/${foreignClient!.id}/archive`)),
@@ -186,7 +186,7 @@ test.group('native authorization and role projections', (group) => {
     concealed.assertStatus(404);
     assert.notInclude(JSON.stringify(concealed.body()), foreignClient!.name);
     const foreignRow = await db.from('clients').where({ id: foreignClient!.id }).first();
-    assert.equal(foreignRow?.company_id, otherAccountId);
+    assert.equal(foreignRow?.company_id, otherCompanyId);
   });
 
   test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import authority', async ({

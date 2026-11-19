@@ -207,14 +207,14 @@ test.group('member directory malformed storage', (group) => {
 
   test('ignores malformed rows from another company', async ({ client, assert }) => {
     const { ownerCookie, ownerId, contextToken } = await createFixture(client);
-    const otherAccountId = 'member-directory-storage-other';
-    await createFixtureCompanyForOwner(ownerId, 'Daily Planet', otherAccountId);
+    const otherCompanyId = 'member-directory-storage-other';
+    await createFixtureCompanyForOwner(ownerId, 'Daily Planet', otherCompanyId);
     const foreignMemberId = await createIdentity('lex.luthor@dailyplanet.example', {
       name: 'Lex Luthor',
     });
     await db.transaction(async (trx) => {
       await trx.table('memberships').insert({
-        scope_id: otherAccountId,
+        scope_id: otherCompanyId,
         user_id: foreignMemberId,
         role: 'foreign-invalid-role-sentinel',
         status: 'foreign-invalid-status-sentinel',

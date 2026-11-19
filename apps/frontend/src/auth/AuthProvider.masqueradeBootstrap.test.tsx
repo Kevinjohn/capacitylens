@@ -42,8 +42,8 @@ describe('AuthProvider — server mode', () => {
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useAuth, useStore, resetStoreWithAccount } = await freshProvider();
-    await resetStoreWithAccount('a-studio');
+    const { AuthProvider, useAuth, useStore, resetStoreWithCompany } = await freshProvider();
+    await resetStoreWithCompany('a-studio');
 
     render(
       <AuthProvider>
@@ -77,7 +77,7 @@ describe('AuthProvider — server mode', () => {
     });
     try {
       const { AuthProvider, useStore } = await freshProvider('server');
-      const { makeAccount, makeAppData } = await import('@/test/fixtures');
+      const { makeCompany, makeAppData } = await import('@/test/fixtures');
       const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
         const url = input instanceof Request ? input.url : String(input);
         if (!url.includes('/api/companies/a-studio/planning')) {
@@ -95,7 +95,7 @@ describe('AuthProvider — server mode', () => {
             canSeeTimeOffNote: false,
           },
           data: makeAppData({
-            accounts: [makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' })],
+            accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
           }),
           today: '2026-06-03',
         });

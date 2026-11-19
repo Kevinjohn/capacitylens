@@ -11,7 +11,7 @@ import {
   DEFAULT_COMPANY_ID,
   WORKDAYS,
   loadPlanningData,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   requireValue,
   setExternalEnabled,
   setPlaceholdersEnabled,
@@ -56,7 +56,7 @@ function mockInactiveRead() {
 afterEach(() => vi.unstubAllGlobals());
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().clearFilters();
   // Enable placeholders for this suite because the management cases require their otherwise-hidden section.
   await setPlaceholdersEnabled({ on: true });
@@ -227,7 +227,7 @@ describe('ResourceList display', () => {
   });
 
   it('omits both fixed hours text and dangling metadata separators', async () => {
-    await useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { disciplinesEnabled: false });
+    await useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { disciplinesEnabled: false });
     await useStore.getState().addResource({ ...personDraft('Alice'), role: '' });
     render(<ResourceList />);
 

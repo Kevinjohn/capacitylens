@@ -8,7 +8,7 @@ import type { SetNotice } from './types';
 // A confirmed anonymisation without its mandatory refresh must stay gated across route/component
 // remounts: the same stale store slice is shared across those surfaces. Module lifetime matches the
 // required recovery boundary, a full page reload boots, hydrates, and creates a fresh gate map.
-const reloadRequiredByAccount = new Map<string, string>();
+const reloadRequiredByCompany = new Map<string, string>();
 
 function describeUncertainFailure(failure: UncertainReplacementFailure): string {
   return failure.kind === 'status'
@@ -28,7 +28,7 @@ export async function runResourceAnonymisation(
   id: string,
   setNotice: SetNotice,
 ): Promise<boolean> {
-  const reloadRequiredMessage = reloadRequiredByAccount.get(activeCompanyId);
+  const reloadRequiredMessage = reloadRequiredByCompany.get(activeCompanyId);
   if (reloadRequiredMessage) {
     setNotice(reloadRequiredMessage, 'error');
     return false;
@@ -52,7 +52,7 @@ export async function runResourceAnonymisation(
     case 'committed':
       if (outcome.reloadRequired) {
         const message = m.settings_archived_committed_refresh_failed();
-        reloadRequiredByAccount.set(activeCompanyId, message);
+        reloadRequiredByCompany.set(activeCompanyId, message);
         setNotice(message, 'error');
         return false;
       }
@@ -62,7 +62,7 @@ export async function runResourceAnonymisation(
       if (outcome.reloadRequired) {
         // Keep the gate so another destructive attempt cannot race the unknown server state.
         const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. Authoritative reload did not complete (failed). Original request: ${cause}`;
-        reloadRequiredByAccount.set(activeCompanyId, message);
+        reloadRequiredByCompany.set(activeCompanyId, message);
         setNotice(message, 'error');
         return false;
       }

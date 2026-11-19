@@ -17,12 +17,12 @@ import type { AppData, Weekday } from '../types/entities.js';
 const T_ARCH = '2026-01-01T00:00:00.000Z';
 const T_DEL = '2026-02-01T00:00:00.000Z';
 
-const ACTIVE_ONLY_ACCOUNT = 'acct-1';
+const ACTIVE_ONLY_COMPANY = 'acct-1';
 
 const makeActiveOnlyResource = (id: string, name: string, tombstones: LifecycleFields = {}) => ({
   ...NULLABLE_FIELDS.resources,
   id,
-  companyId: ACTIVE_ONLY_ACCOUNT,
+  companyId: ACTIVE_ONLY_COMPANY,
   kind: 'person' as const,
   name,
   role: 'Designer',
@@ -44,7 +44,7 @@ const makeActiveOnlyPlaceholder = (id: string, name: string, projectId: string |
 const makeActiveOnlyClient = (id: string, name: string, tombstones: LifecycleFields = {}) => ({
   ...NULLABLE_FIELDS.clients,
   id,
-  companyId: ACTIVE_ONLY_ACCOUNT,
+  companyId: ACTIVE_ONLY_COMPANY,
   name,
   color: '#3b82f6',
   createdAt: T_ARCH,
@@ -64,7 +64,7 @@ const makeActiveOnlyProject = ({
 }) => ({
   ...NULLABLE_FIELDS.projects,
   id,
-  companyId: ACTIVE_ONLY_ACCOUNT,
+  companyId: ACTIVE_ONLY_COMPANY,
   name,
   clientId,
   color: '#3b82f6',
@@ -77,7 +77,7 @@ const ACTIVE_ONLY_DATA: AppData = {
   accounts: [
     {
       ...NULLABLE_FIELDS.accounts,
-      id: ACTIVE_ONLY_ACCOUNT,
+      id: ACTIVE_ONLY_COMPANY,
       name: 'Studio',
       color: '#3b82f6',
       createdAt: T_ARCH,
@@ -88,7 +88,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.disciplines,
       id: 'd1',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       name: 'Design',
       sortOrder: 0,
       createdAt: T_ARCH,
@@ -149,7 +149,7 @@ const ACTIVE_ONLY_DATA: AppData = {
   phases: [
     {
       id: 'ph1',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       name: 'Build',
       projectId: 'p-active',
       createdAt: T_ARCH,
@@ -157,7 +157,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     },
     {
       id: 'ph-hidden',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       name: 'Hidden',
       projectId: 'p-hidden-parent',
       createdAt: T_ARCH,
@@ -168,7 +168,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.activities,
       id: 'act1',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       name: 'Activity',
       kind: 'project' as const,
       projectId: 'p-active',
@@ -178,7 +178,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.activities,
       id: 'act-hidden',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       name: 'Hidden Activity',
       kind: 'project' as const,
       projectId: 'p-hidden-parent',
@@ -190,7 +190,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'al1',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       resourceId: 'r-active',
       activityId: 'act1',
       startDate: '2026-01-01',
@@ -203,7 +203,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'al-hidden-activity',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       resourceId: 'r-active',
       activityId: 'act-hidden',
       startDate: '2026-01-01',
@@ -216,7 +216,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'al-hidden-resource',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       resourceId: 'r-archived',
       activityId: 'act1',
       startDate: '2026-01-01',
@@ -231,7 +231,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       note: null,
       id: 'to1',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       resourceId: 'r-active',
       startDate: '2026-02-01',
       endDate: '2026-02-03',
@@ -242,7 +242,7 @@ const ACTIVE_ONLY_DATA: AppData = {
     {
       note: null,
       id: 'to-hidden',
-      companyId: ACTIVE_ONLY_ACCOUNT,
+      companyId: ACTIVE_ONLY_COMPANY,
       resourceId: 'r-archived',
       startDate: '2026-02-01',
       endDate: '2026-02-03',
@@ -471,14 +471,14 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
   });
 });
 
-const ARCHIVE_IMPACT_ACCOUNT = 'acct-1';
+const ARCHIVE_IMPACT_COMPANY = 'acct-1';
 
 const ARCHIVE_IMPACT_DATA: AppData = {
   ...emptyAppData(),
   accounts: [
     {
       ...NULLABLE_FIELDS.accounts,
-      id: ARCHIVE_IMPACT_ACCOUNT,
+      id: ARCHIVE_IMPACT_COMPANY,
       name: 'Studio',
       color: '#3b82f6',
       createdAt: T_ARCH,
@@ -489,7 +489,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.resources,
       id: 'r1',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       kind: 'person',
       name: 'R',
       role: 'Dev',
@@ -507,7 +507,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.clients,
       id: 'c1',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       name: 'C1',
       color: '#3b82f6',
       createdAt: T_ARCH,
@@ -516,7 +516,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.clients,
       id: 'c-empty',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       name: 'Empty',
       color: '#3b82f6',
       createdAt: T_ARCH,
@@ -527,7 +527,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.projects,
       id: 'p1',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       name: 'P1',
       clientId: 'c1',
       color: '#3b82f6',
@@ -538,7 +538,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
   phases: [
     {
       id: 'ph1',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       name: 'Discovery',
       projectId: 'p1',
       createdAt: T_ARCH,
@@ -549,7 +549,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.activities,
       id: 'a1',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       name: 'A1',
       kind: 'project',
       projectId: 'p1',
@@ -559,7 +559,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.activities,
       id: 'internal',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       name: 'Admin',
       kind: 'internal',
       createdAt: T_ARCH,
@@ -570,7 +570,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'al1',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       resourceId: 'r1',
       activityId: 'a1',
       startDate: '2026-01-01',
@@ -583,7 +583,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       ...NULLABLE_FIELDS.allocations,
       id: 'al-internal',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       resourceId: 'r1',
       activityId: 'internal',
       startDate: '2026-01-01',
@@ -598,7 +598,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
     {
       note: null,
       id: 'to1',
-      companyId: ARCHIVE_IMPACT_ACCOUNT,
+      companyId: ARCHIVE_IMPACT_COMPANY,
       resourceId: 'r1',
       startDate: '2026-02-01',
       endDate: '2026-02-03',

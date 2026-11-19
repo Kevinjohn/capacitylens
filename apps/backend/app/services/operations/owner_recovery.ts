@@ -9,22 +9,22 @@ import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-
 
 const ineligible = 'Recovery requires a sole active Owner with a local password';
 
-async function requireSoleOwnerAccounts(userId: string, trx: Pick<Trx, 'from'>) {
+async function requireSoleOwnerCompanyIds(userId: string, trx: Pick<Trx, 'from'>) {
   const memberships = await trx
     .from(access.config.membershipsTable)
     .where({ user_id: userId, role: 'owner', status: 'active' })
     .select('scope_id');
-  const accounts: string[] = [];
+  const companyIds: string[] = [];
   for (const membership of memberships) {
     const owners = await trx
       .from(access.config.membershipsTable)
       .where({ scope_id: membership.scope_id, role: 'owner', status: 'active' })
       .count('* as n')
       .first();
-    if (Number(owners?.n) === 1) accounts.push(String(membership.scope_id));
+    if (Number(owners?.n) === 1) companyIds.push(String(membership.scope_id));
   }
-  if (!accounts.length) throw new Error(ineligible);
-  return accounts.sort();
+  if (!companyIds.length) throw new Error(ineligible);
+  return companyIds.sort();
 }
 
 /**
@@ -40,7 +40,7 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     const user = await db.from('users').where('email', email).select('id', 'password').first();
     if (!user?.password) throw new Error(ineligible);
     const userId = String(user.id);
-    const companyIds = await requireSoleOwnerAccounts(userId, db);
+    const companyIds = await requireSoleOwnerCompanyIds(userId, db);
     const issued = await accountKit.operator.resetLink({ email, deliver: 'print' });
     if (!issued.url || String(issued.user.id) !== userId) {
       throw new Error('Owner recovery failed; no recovery link was delivered');

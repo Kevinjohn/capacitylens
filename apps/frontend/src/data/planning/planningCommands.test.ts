@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  makeAccount,
+  makeCompany,
   makeActivity,
   makeAllocation,
   makeAppData,
@@ -255,7 +255,7 @@ describe('planning command builders', () => {
 
   it('normalizes create drafts and reports created IDs for resources and time off', () => {
     const data = makeAppData({
-      accounts: [makeAccount({ id: companyId })],
+      accounts: [makeCompany({ id: companyId })],
       resources: [makeResource({ id: 'resource-1', companyId })],
     });
     const resource = buildResourceCreate({
@@ -361,7 +361,7 @@ describe('planning command builders', () => {
   });
 
   it('preserves supplied activity fields for authoritative validation and creates closures by id', () => {
-    const data = makeAppData({ accounts: [makeAccount({ id: companyId })] });
+    const data = makeAppData({ accounts: [makeCompany({ id: companyId })] });
     expect(
       buildCatalogueCreate({
         data,
@@ -416,18 +416,18 @@ describe('planning command builders', () => {
       intent: { operation: 'closure.update', id: closure.id, changes: { name: 'New shutdown' } },
     });
 
-    const account = makeAccount({ id: companyId, name: 'Before' });
+    const company = makeCompany({ id: companyId, name: 'Before' });
     const settings = buildSettingsUpdate({
-      data: makeAppData({ accounts: [account] }),
+      data: makeAppData({ accounts: [company] }),
       companyId,
-      original: account,
+      original: company,
       args: { name: 'After' },
     });
     expect(settings).toEqual({
       intent: { operation: 'settings.update', changes: { name: 'After' } },
     });
 
-    const nullableSetting = makeAccount({ id: companyId, timezone: 'Etc/GMT' });
+    const nullableSetting = makeCompany({ id: companyId, timezone: 'Etc/GMT' });
     expect(
       buildSettingsUpdate({
         data: makeAppData({ accounts: [nullableSetting] }),

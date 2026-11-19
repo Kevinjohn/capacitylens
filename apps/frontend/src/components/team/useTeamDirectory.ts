@@ -119,7 +119,7 @@ function useScopedDirectoryQueries({
 function useMemberQueryEffects({
   activeCompanyId,
   fail,
-  authorizedAccountRef,
+  authorizedCompanyRef,
   setDirectory,
   membersQuery,
   scopeId,
@@ -128,7 +128,7 @@ function useMemberQueryEffects({
 }: {
   activeCompanyId: string | null;
   fail: FieldError['fail'];
-  authorizedAccountRef: { current: { scopeId: string; companyId: string } | null };
+  authorizedCompanyRef: { current: { scopeId: string; companyId: string } | null };
   setDirectory: SetDirectory;
   membersQuery: ReturnType<typeof useScopedDirectoryQueries>['membersQuery'];
   scopeId: string;
@@ -141,8 +141,8 @@ function useMemberQueryEffects({
     const result = membersQuery.data;
     if (result.kind === 'rejected' && result.status === 403) {
       if (
-        authorizedAccountRef.current?.scopeId === scopeId &&
-        authorizedAccountRef.current.companyId === activeCompanyId
+        authorizedCompanyRef.current?.scopeId === scopeId &&
+        authorizedCompanyRef.current.companyId === activeCompanyId
       ) {
         setDirectory({
           kind: 'error',
@@ -168,7 +168,7 @@ function useMemberQueryEffects({
       );
       return;
     }
-    authorizedAccountRef.current = { scopeId, companyId: activeCompanyId };
+    authorizedCompanyRef.current = { scopeId, companyId: activeCompanyId };
     setDirectory((previous) => ({
       kind: 'ready',
       companyId: activeCompanyId,
@@ -184,7 +184,7 @@ function useMemberQueryEffects({
     activeCompanyId,
     membersQuery.data,
     fail,
-    authorizedAccountRef,
+    authorizedCompanyRef,
     setDirectory,
     scopeId,
     readGeneration,
@@ -263,7 +263,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     [activeCompanyId, scopeId],
   );
   // Remember which principal projection returned an authorized company directory.
-  const authorizedAccountRef = useRef<{ scopeId: string; companyId: string } | null>(null);
+  const authorizedCompanyRef = useRef<{ scopeId: string; companyId: string } | null>(null);
   // Each reload requests a new read generation. Only a successful members read applied for that
   // generation accepts it; failures and other snapshot replacements leave it unaccepted.
   const [reloadKey, setReloadKey] = useState(0);
@@ -275,7 +275,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     return lastRequestedReadGeneration;
   }, []);
   // Invitation-only writes refresh the independently authorized invite read. Apply its response
-  // only while both its account and authorizing member-load generation remain current.
+  // only while both its company and authorizing member-load generation remain current.
   const reloadInvites = useCallback(async () => setInviteReloadKey((key) => key + 1), []);
   const { membersQuery, invitationsQuery } = useScopedDirectoryQueries({
     options: { ...options, enabled: options.enabled && !masqueradeActive },
@@ -286,7 +286,7 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
   useMemberQueryEffects({
     activeCompanyId,
     fail,
-    authorizedAccountRef,
+    authorizedCompanyRef,
     setDirectory,
     membersQuery,
     scopeId,
@@ -318,7 +318,7 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeCompanyId } = options;
   const { directory, setDirectory, reload, acceptedReadGeneration, reloadInvites } =
     useDirectoryRead(options);
-  const currentAccountLoaded = directory.companyId === activeCompanyId;
+  const currentCompanyLoaded = directory.companyId === activeCompanyId;
   const replaceAuthorizedDirectory = useCallback(
     (next: TeamDirectory, invites: TeamInvitation[]) => {
       setDirectory((previous) => {
@@ -339,7 +339,7 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
 
   return {
     directory:
-      currentAccountLoaded && directory.companyId !== null
+      currentCompanyLoaded && directory.companyId !== null
         ? directory
         : ({ kind: 'loading', companyId: activeCompanyId } satisfies DirectoryState),
     replaceAuthorizedDirectory,

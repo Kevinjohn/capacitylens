@@ -8,7 +8,7 @@ import { useStore } from '@/store/useStore';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import {
-  makeAccount,
+  makeCompany,
   makeAllocation as makeAllocationBase,
   makeBar as makeBarBase,
   resetStoreWithData,
@@ -20,7 +20,7 @@ import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetStoreWithData(
-    { ...emptyAppData(), accounts: [makeAccount({ id: 'acct-test' })] },
+    { ...emptyAppData(), accounts: [makeCompany({ id: 'acct-test' })] },
     'acct-test',
   );
   useStore.getState().clearFilters();
@@ -57,7 +57,7 @@ async function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions
   await resetStoreWithData(
     {
       ...emptyAppData(),
-      accounts: [makeAccount({ id: 'acct-test', showTaskFieldInSchedule: enabled })],
+      accounts: [makeCompany({ id: 'acct-test', showTaskFieldInSchedule: enabled })],
     },
     'acct-test',
   );
@@ -66,7 +66,7 @@ async function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions
 describe('AllocationBar rendering', () => {
   it('re-reads its accessible name when the date style changes with a stable bar', async () => {
     await resetStoreWithData(
-      { ...emptyAppData(), accounts: [makeAccount({ id: 'acct-test', dateStyle: 'day-month' })] },
+      { ...emptyAppData(), accounts: [makeCompany({ id: 'acct-test', dateStyle: 'day-month' })] },
       'acct-test',
     );
     const bar = makeBar(makeAllocation());
@@ -77,7 +77,7 @@ describe('AllocationBar rendering', () => {
     expect(element).toHaveAccessibleName(/1 Jun to 7 Jun/);
 
     await act(async () => {
-      await useStore.getState().updateAccount('acct-test', { dateStyle: 'month-day' });
+      await useStore.getState().updateCompany('acct-test', { dateStyle: 'month-day' });
     });
 
     expect(element).toHaveAccessibleName(/Jun 1 to Jun 7/);

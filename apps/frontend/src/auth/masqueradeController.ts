@@ -6,7 +6,7 @@ import type {
 import type { masqueradeApi } from './masqueradeApi';
 import type { StoreState } from '@/store/types';
 import {
-  publishMasqueradeAccount,
+  publishMasqueradeCompany,
   restoreMasqueradeProjection,
 } from './masqueradeProjectionRecovery';
 import type { FinishProjectionResult } from './masqueradeProjectionRecovery';
@@ -41,13 +41,13 @@ function isSwitchSuccessful(outcome: RefreshOutcome): boolean {
   return outcome.kind === 'reloaded';
 }
 
-/** Store and persistence operations required to switch masquerade accounts safely. */
+/** Store and persistence operations required to switch masquerade companies safely. */
 export interface MasqueradeControllerDependencies {
   flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites | null;
   reproject: (companyId: string, includeCompanySummaries?: boolean) => Promise<boolean>;
-  switchAccount: (companyId: string | null) => Promise<RefreshOutcome>;
-  readBootstrapAccount: (companyId: string) => Promise<string | null>;
+  switchCompany: (companyId: string | null) => Promise<RefreshOutcome>;
+  readBootstrapCompany: (companyId: string) => Promise<string | null>;
   api: typeof masqueradeApi;
   /** The store state this controller reads and writes; the controller reaches no other state. */
   readState: () => StoreState;
@@ -180,7 +180,7 @@ export class MasqueradeController {
         'The member view started, but its data could not be loaded. Retry or end the masquerade.',
       );
     }
-    publishMasqueradeAccount(this.store, state);
+    publishMasqueradeCompany(this.store, state);
     this.store.setMasquerade({ kind: 'active', state, generation });
     return true;
   }
@@ -256,7 +256,7 @@ export class MasqueradeController {
       console.error('Masquerade projection retry failed', error);
       return this.fail('The member view could not be loaded.');
     }
-    publishMasqueradeAccount(this.store, state);
+    publishMasqueradeCompany(this.store, state);
     this.store.setMasquerade({ kind: 'active', state, generation });
     return true;
   }
@@ -267,14 +267,14 @@ export class MasqueradeController {
   ): Promise<boolean> {
     const runtime = this.store.masquerade;
     // A selected company can still lack a trustworthy projection after its first canonical read fails.
-    // Once End is confirmed, show account recovery rather than expose that unread projection.
+    // Once End is confirmed, show company recovery rather than expose that unread projection.
     const cold =
       this.store.activeCompanyId === null || (runtime.kind === 'starting' && !this.resumeWrites);
     const ended = await this.endProjection({
       reason,
       finish: async (state) => {
         if (cold) {
-          const outcome = await this.dependencies.switchAccount(null);
+          const outcome = await this.dependencies.switchCompany(null);
           return isSwitchSuccessful(outcome)
             ? { kind: 'finished' }
             : {
@@ -298,7 +298,7 @@ export class MasqueradeController {
     return ended.kind !== 'failed';
   }
 
-  async transitionAccount(companyId: string | null): Promise<boolean> {
+  async transitionCompany(companyId: string | null): Promise<boolean> {
     const runtime = this.store.masquerade;
     if (runtime.kind === 'inactive') {
       // A start still flushing belongs to the old company and must not run after the switch.
@@ -306,12 +306,12 @@ export class MasqueradeController {
         ++this.generation;
         this.startPendingGeneration = null;
       }
-      return isSwitchSuccessful(await this.dependencies.switchAccount(companyId));
+      return isSwitchSuccessful(await this.dependencies.switchCompany(companyId));
     }
     const ended = await this.endProjection({
       reason: 'account_switch',
       finish: async () => {
-        const outcome = await this.dependencies.switchAccount(companyId);
+        const outcome = await this.dependencies.switchCompany(companyId);
         if (!isSwitchSuccessful(outcome)) {
           return { kind: 'failed', message: 'The selected company could not be loaded.' };
         }
@@ -448,7 +448,7 @@ export class MasqueradeController {
 
   private async loadColdProjection(state: MasqueradeState, generation: number): Promise<boolean> {
     try {
-      const name = await this.dependencies.readBootstrapAccount(state.companyId);
+      const name = await this.dependencies.readBootstrapCompany(state.companyId);
       if (!this.ownsRuntime(generation, 'starting')) return false;
       if (name === null) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
@@ -468,9 +468,9 @@ export class MasqueradeController {
       if (!this.acquireSuspension()) {
         return this.fail('The member view could not be loaded. Retry or end the masquerade.');
       }
-      publishMasqueradeAccount(this.store, state);
+      publishMasqueradeCompany(this.store, state);
       const loadedName =
-        this.store.data.accounts.find((account) => account.id === state.companyId)?.name ?? name;
+        this.store.data.accounts.find((company) => company.id === state.companyId)?.name ?? name;
       this.store.setCompanySummaries({
         list: [{ id: state.companyId, name: loadedName, role: state.effectiveRole }],
         complete: true,
@@ -540,7 +540,7 @@ export class MasqueradeController {
       }
       if (projection.kind !== 'restored') return;
     } catch (error) {
-      // A completed remote end still needs visible recovery if reloading the real account fails.
+      // A completed remote end still needs visible recovery if reloading the real company fails.
       if (!this.ownsRuntime(generation, 'ending')) return;
       console.error('The real account projection could not be restored', error);
       this.fail('The masquerade ended, but the real account view could not be restored. Retry.');

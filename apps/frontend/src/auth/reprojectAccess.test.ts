@@ -12,7 +12,7 @@ const { invalidateMemberships, refreshCompanySummaries, refreshPlanning, state }
 vi.mock('@/store/useStore', () => ({
   useStore: { getState: () => ({ invalidateMemberships, refreshPlanning, ...state }) },
 }));
-vi.mock('./useAccountSummaries', () => ({ refreshCompanySummaries }));
+vi.mock('./useCompanySummaries', () => ({ refreshCompanySummaries }));
 
 import { reprojectAccess } from './reprojectAccess';
 

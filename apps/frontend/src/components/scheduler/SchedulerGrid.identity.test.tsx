@@ -153,7 +153,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
   });
 
   it('preserves the dimmed placeholder surface and work-mode creation affordance', async () => {
-    await useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { placeholdersEnabled: true });
+    await useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { placeholdersEnabled: true });
     await resetStoreWithData(
       {
         ...useStore.getState().data,

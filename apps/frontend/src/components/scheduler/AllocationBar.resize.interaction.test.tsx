@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { AllocationBar } from './AllocationBar';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount, DEFAULT_COMPANY_ID, makeResourceDraft } from '@/test/fixtures';
+import { resetStoreWithCompany, DEFAULT_COMPANY_ID, makeResourceDraft } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import {
@@ -13,10 +13,10 @@ import {
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 
-beforeEach(async () => resetStoreWithAccount());
+beforeEach(async () => resetStoreWithCompany());
 
 const enableDays = () =>
-  useStore.getState().updateAccount(DEFAULT_COMPANY_ID, { schedulingMode: 'days' });
+  useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { schedulingMode: 'days' });
 
 // Keyboard edits announce the updated visible-window conflict result through the polite live region; pointer drag feedback remains visual.
 

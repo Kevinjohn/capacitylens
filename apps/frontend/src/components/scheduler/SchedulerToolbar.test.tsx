@@ -17,7 +17,7 @@ import { buildEmptyFilters, useStore } from '@/store/useStore';
 import {
   DEFAULT_COMPANY_ID,
   makeResourceDraft,
-  resetStoreWithAccount,
+  resetStoreWithCompany,
   resetStoreWithData,
 } from '@/test/fixtures';
 import { chooseOption } from '@/test/schedulerTestKit';
@@ -33,7 +33,7 @@ function showFilters() {
 }
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.getState().clearFilters();
   useStore.getState().setZoom(4);
 });
@@ -152,8 +152,8 @@ describe('SchedulerToolbar discipline filter visibility', () => {
     useStore.setState((state) => ({
       data: {
         ...state.data,
-        accounts: state.data.accounts.map((account) =>
-          account.id === state.activeCompanyId ? { ...account, disciplinesEnabled: true } : account,
+        accounts: state.data.accounts.map((company) =>
+          company.id === state.activeCompanyId ? { ...company, disciplinesEnabled: true } : company,
         ),
         disciplines: [],
       },

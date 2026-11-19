@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScopedEntity } from '../types/entities.js';
-import { belongsToCompany, byAccount } from './tenancy.js';
+import { belongsToCompany, byCompany } from './tenancy.js';
 
 const rows = [
   { id: 'a-row', companyId: 'a' },
@@ -18,7 +18,7 @@ describe('tenant predicates', () => {
   });
 
   it('partitions a mixed table exactly without changing row identity', () => {
-    const owned = rows.filter(byAccount('a'));
+    const owned = rows.filter(byCompany('a'));
     const remaining = rows.filter((scopedEntity) => !belongsToCompany(scopedEntity, 'a'));
 
     expect(owned).toEqual([rows[0], rows[2]]);

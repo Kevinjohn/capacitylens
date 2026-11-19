@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { m } from '@/i18n';
 import { ListPage } from '@/components/common/ui';
 import { ImportExport } from '@/components/ImportExport';
-import { SettingsAccountOptions } from './SettingsAccountSections';
+import { SettingsCompanyOptions } from './SettingsCompanySections';
 import { SettingsAppearanceSection } from './SettingsAppearanceSection';
 import { SettingsDataSection } from './SettingsDataSection';
 import {
@@ -47,9 +47,9 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
   return (
     <>
       <SettingsImportSection />
-      {controller.activeAccount && (
-        <SettingsAccountOptions
-          companyName={controller.activeAccount.name}
+      {controller.activeCompany && (
+        <SettingsCompanyOptions
+          companyName={controller.activeCompany.name}
           weekStartsOn={scheduling.weekStartsOn}
           timezone={scheduling.timezone}
         />
@@ -58,11 +58,11 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
   );
 }
 
-/** Coordinates account, scheduling, data, and security settings for the current role. */
+/** Coordinates company, scheduling, data, and security settings for the current role. */
 export function SettingsView() {
   const controller = useSettingsViewController();
-  useSettingsOnboardingTarget(controller.activeAccount !== null);
-  if (!controller.activeAccount) return null;
+  useSettingsOnboardingTarget(controller.activeCompany !== null);
+  if (!controller.activeCompany) return null;
   const { scheduling, display } = controller;
   return (
     <ListPage title={m.settings_title()}>

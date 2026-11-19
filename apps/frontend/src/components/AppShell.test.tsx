@@ -5,13 +5,13 @@ import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { setUpAppShellTests, renderAppShell } from './AppShell.testSupport';
 
-const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
+const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
-  syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
+  syncLocaleFromCompany: i18nMocks.syncLocaleFromCompany,
 }));
 
-setUpAppShellTests(i18nMocks.syncLocaleFromAccount);
+setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
 it('guards navigation while a typed planning write is unacknowledged', () => {
   const { unmount } = renderAppShell({});

@@ -20,7 +20,7 @@ export type AllocationStatus = 'confirmed' | 'tentative' | 'completed';
 export type SchedulingMode = 'hourly' | 'days' | 'blocks';
 /** The valid scheduling modes; the settings validator refuses anything else. */
 export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks'];
-/** Who may open the Capacity Overview for an account. Null means owner/admin only. */
+/** Who may open the Capacity Overview for a company. Null means owner/admin only. */
 export type CapacityOverviewAccess = 'owner_admin' | 'owner_admin_editor' | 'everyone';
 /** The valid access policies; the settings validator refuses anything else. */
 export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
@@ -28,8 +28,8 @@ export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
   'owner_admin_editor',
   'everyone',
 ];
-/** How human-readable dates read across an account: day/month order, and whether the day number
- * carries an ordinal suffix. Null means "day-month" ("9 Sep"). This is account data, not a device preference. A company reads one convention. */
+/** How human-readable dates read across a company: day/month order, and whether the day number
+ * carries an ordinal suffix. Null means "day-month" ("9 Sep"). This is company data, not a device preference. A company reads one convention. */
 export type DateStyle = 'day-month' | 'day-ordinal-month' | 'month-day' | 'month-day-ordinal';
 /** Supported date styles in Settings order; the settings validator refuses any other value.
  * Keep this list aligned with DateStyle; the array type alone does not enforce union completeness. */
@@ -85,7 +85,7 @@ export interface Company extends Entity {
   color: string;
   /** How this company enters allocations. Null = 'hourly'. */
   schedulingMode: SchedulingMode | null;
-  /** IANA time zone used to derive "today" for this account. Null = 'Etc/GMT'. */
+  /** IANA time zone used to derive "today" for this company. Null = 'Etc/GMT'. */
   timezone: string | null;
   /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Null = 1. */
   weekStartsOn: 0 | 1 | null;
@@ -121,7 +121,7 @@ export interface Company extends Entity {
   dateStyle: DateStyle | null;
 }
 
-/** Every domain entity belongs to exactly one account. Accounts themselves don't. */
+/** Every domain entity belongs to exactly one company. Companies themselves don't. */
 export interface ScopedEntity extends Entity {
   companyId: ID;
 }
@@ -158,7 +158,7 @@ export interface Resource extends ScopedEntity {
   /** Placeholders only: the single project a placeholder is bound to. */
   projectId: ID | null;
   color: string;
-  /** Account-wide display preference for people and external resources. Null = not favourite. */
+  /** Company-wide display preference for people and external resources. Null = not favourite. */
   isFavourite: boolean | null;
   /** Inclusive first date on which this person may be scheduled. Null = unbounded. */
   firstAvailableDate: ISODate | null;
@@ -175,7 +175,7 @@ export interface Resource extends ScopedEntity {
 export interface Client extends ScopedEntity {
   name: string;
   color: string;
-  /** When true, only account owners receive `name`; every other role receives the quoted
+  /** When true, only company owners receive `name`; every other role receives the quoted
    * `codeName` in its place. Null = public (the default). */
   isPrivate: boolean | null;
   /** Owner-managed cover name for a private client. Stored without quotation marks; the read
@@ -184,7 +184,7 @@ export interface Client extends ScopedEntity {
   /** Read projection only: the reader's ordering label, set by the server. Never stored, exported
    * or accepted on writes. */
   displayName?: string;
-  /** True only for the built-in "Internal" pseudo-client, exactly one per account, created by
+  /** True only for the built-in "Internal" pseudo-client, exactly one per company, created by
    * the seed, company setup and imports. A built-in client cannot be renamed or deleted, and a project-less
    * internal/all-projects activity buckets under it for display + filtering. Null/false = a normal,
    * user-managed client. Identified at runtime by this flag, never a hard-coded id (so it survives
@@ -201,7 +201,7 @@ export interface Project extends ScopedEntity {
   name: string;
   clientId: ID;
   color: string;
-  /** When true, only account owners receive `name`; every other role receives the quoted
+  /** When true, only company owners receive `name`; every other role receives the quoted
    * `codeName` in its place. Null = public (the default). */
   isPrivate: boolean | null;
   /** Owner-managed cover name for a private project. Stored without quotation marks; the read

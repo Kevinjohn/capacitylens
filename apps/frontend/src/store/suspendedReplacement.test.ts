@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '@/store/useStore';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { runSuspendedReplacement } from './suspendedReplacement';
 
 const original = {
@@ -13,7 +13,7 @@ const probe = { ready: true, suspends: 0, releases: 0, refreshed: true };
 const refreshPlanning = vi.fn(async () => probe.refreshed);
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   Object.assign(probe, { ready: true, suspends: 0, releases: 0, refreshed: true });
   refreshPlanning.mockClear();
   useStore.setState({

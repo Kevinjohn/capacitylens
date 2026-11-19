@@ -1,5 +1,5 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { orderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { useId } from 'react';
 import { useCanEdit, useRole } from '@/auth/permissionContext';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -52,22 +52,22 @@ function readSchedulingSettings(
   };
 }
 
-/** Combines current permissions, account preferences, and section actions for settings. */
+/** Combines current permissions, company preferences, and section actions for settings. */
 export function useSettingsViewController() {
   const workingDaysMinimumId = useId();
   const canEdit = useCanEdit();
   const role = useRole();
   const data = useStore((state) => state.data);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const activeAccount = data.accounts.find((account) => account.id === activeCompanyId) ?? null;
-  const updateAccount = useStore((state) => state.updateAccount);
+  const activeCompany = data.accounts.find((company) => company.id === activeCompanyId) ?? null;
+  const updateCompany = useStore((state) => state.updateCompany);
   const setNotice = useStore((state) => state.setNotice);
   const display = useDisplayPreferences();
   const scheduling = readSchedulingSettings(data, activeCompanyId);
-  const updateSetting = async (patch: Parameters<typeof updateAccount>[1]) => {
-    if (!activeAccount) return;
+  const updateSetting = async (patch: Parameters<typeof updateCompany>[1]) => {
+    if (!activeCompany) return;
     try {
-      await updateAccount(activeAccount.id, patch);
+      await updateCompany(activeCompany.id, patch);
     } catch (error) {
       // Surface the rejected settings write so controls cannot imply a saved value.
       setNotice(resolveErrorMessage(error), 'error');
@@ -75,7 +75,7 @@ export function useSettingsViewController() {
   };
 
   return {
-    activeAccount,
+    activeCompany,
     display,
     scheduling,
     workingDaysMinimumId,

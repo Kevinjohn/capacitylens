@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from './useStore';
-import { makeClient, makeResourceDraft, resetStoreWithAccount } from '@/test/fixtures';
+import { makeClient, makeResourceDraft, resetStoreWithCompany } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.setState({ activeCompanyLoadFailed: null });
 });
 
@@ -73,25 +73,25 @@ describe('typed planning domain rejections', () => {
   });
 
   it('rejects an empty company working week before normalization', async () => {
-    const account = useStore.getState().data.accounts[0];
-    if (!account) throw new Error('Expected account fixture.');
+    const company = useStore.getState().data.accounts[0];
+    if (!company) throw new Error('Expected account fixture.');
     await expect(
-      useStore.getState().updateAccount(account.id, { workingDays: [] }),
+      useStore.getState().updateCompany(company.id, { workingDays: [] }),
     ).rejects.toThrow(/at least one working day/i);
-    expect(useStore.getState().data.accounts[0]?.workingDays).toEqual(account.workingDays);
+    expect(useStore.getState().data.accounts[0]?.workingDays).toEqual(company.workingDays);
   });
 
   it('restores the previous working week when the latest settings change is undone', async () => {
-    const account = useStore.getState().data.accounts[0];
-    if (!account) throw new Error('Expected account fixture.');
-    await useStore.getState().updateAccount(account.id, { workingDays: [1, 3, 5] });
+    const company = useStore.getState().data.accounts[0];
+    if (!company) throw new Error('Expected account fixture.');
+    await useStore.getState().updateCompany(company.id, { workingDays: [1, 3, 5] });
     expect(
-      useStore.getState().data.accounts.find((row) => row.id === account.id)?.workingDays,
+      useStore.getState().data.accounts.find((row) => row.id === company.id)?.workingDays,
     ).toEqual([1, 3, 5]);
-    await useStore.getState().updateAccount(account.id, { workingDays: [2, 4] });
+    await useStore.getState().updateCompany(company.id, { workingDays: [2, 4] });
     await expect(useStore.getState().undoPlanning()).resolves.toBe(true);
     expect(
-      useStore.getState().data.accounts.find((row) => row.id === account.id)?.workingDays,
+      useStore.getState().data.accounts.find((row) => row.id === company.id)?.workingDays,
     ).toEqual([1, 3, 5]);
   });
 

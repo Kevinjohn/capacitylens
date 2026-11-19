@@ -4,7 +4,7 @@ import { MemoryRouter, Outlet, Route, RouterProvider, Routes } from 'react-route
 import { ActivityList } from './components/activities/ActivityList';
 import { CapacityOverviewRoute, DiagnosticsRoute, RouteLoading, router } from './router';
 import { PermissionContext } from './auth/permissionContext';
-import { resetStoreWithAccount } from './test/fixtures';
+import { resetStoreWithCompany } from './test/fixtures';
 import { useStore } from './store/useStore';
 import { STATIC_SPA_ROUTES } from '../../../scripts/build/staticSpaRoutes.mjs';
 import { permissionValue } from '@/test/permissionGrants';
@@ -68,7 +68,7 @@ describe('activity route selection', () => {
 
 describe('company date routes', () => {
   it('holds the routed view behind the loader until a read brings the company date', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     useStore.setState((state) => ({ planning: { ...state.planning, today: null } }));
     await act(async () => {
       await router.navigate('/');
@@ -85,7 +85,7 @@ describe('company date routes', () => {
   });
 
   it('keeps date-independent routes open after a failed read and leaves the alert to the shell', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     useStore.setState((state) => ({
       planning: { ...state.planning, today: null, status: 'error' },
     }));
@@ -122,24 +122,24 @@ describe('Overview route access', () => {
   }
 
   it('allows a viewer when the company setting allows everyone', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     const companyId = useStore.getState().activeCompanyId;
     if (!companyId) throw new Error('Expected an active account');
-    await useStore.getState().updateAccount(companyId, { capacityOverviewAccess: 'everyone' });
+    await useStore.getState().updateCompany(companyId, { capacityOverviewAccess: 'everyone' });
     renderRoute('viewer', 'resolved');
 
     expect(await screen.findByText('Overview content')).toBeInTheDocument();
   });
 
   it('redirects a viewer under the default policy', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     renderRoute('viewer', 'resolved');
 
     expect(screen.getByText('Schedule content')).toBeInTheDocument();
   });
 
   it('waits for role resolution before deciding', async () => {
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     renderRoute('viewer', 'pending');
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading…');

@@ -5,11 +5,11 @@ export type FinishProjectionResult = { kind: 'finished' } | { kind: 'failed'; me
 export type RealProjectionResult =
   { kind: 'restored' } | { kind: 'active' } | { kind: 'superseded' } | { kind: 'failed' };
 
-export function publishMasqueradeAccount(store: StoreState, state: MasqueradeState): void {
-  const account = store.data.accounts.find((candidate) => candidate.id === state.companyId);
+export function publishMasqueradeCompany(store: StoreState, state: MasqueradeState): void {
+  const company = store.data.accounts.find((candidate) => candidate.id === state.companyId);
   store.setCompanySummaries({
-    list: account ? [{ id: account.id, name: account.name, role: state.effectiveRole }] : [],
-    complete: account !== undefined,
+    list: company ? [{ id: company.id, name: company.name, role: state.effectiveRole }] : [],
+    complete: company !== undefined,
   });
   store.setActiveRole(state.effectiveRole, 'resolved', state.permissions);
 }

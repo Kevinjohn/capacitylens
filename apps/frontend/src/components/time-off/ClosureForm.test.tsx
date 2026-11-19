@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render as renderTestingLibrary, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { resetStoreWithAccount } from '@/test/fixtures';
+import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { ClosureForm } from './ClosureForm';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -12,7 +12,7 @@ const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-06-03T12:00:00.000Z'));
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
 });
 
 afterEach(() => {

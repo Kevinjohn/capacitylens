@@ -1,6 +1,6 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { m } from '@/i18n';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/accountWorkingDays';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
 import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -41,12 +41,12 @@ function useAllocationStoreActions() {
 
 function useSchedulingContext() {
   const mode = useStore((state) => resolveSchedulingMode(state.data, state.activeCompanyId));
-  const activeAccount = useStore((state) =>
-    state.data.accounts.find((account) => account.id === state.activeCompanyId),
+  const activeCompany = useStore((state) =>
+    state.data.accounts.find((company) => company.id === state.activeCompanyId),
   );
   const companyWorkingDays = useMemo(
-    () => normalizeCompanyWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
-    [activeAccount],
+    () => normalizeCompanyWorkingDays(activeCompany?.workingDays, activeCompany?.weekStartsOn ?? 1),
+    [activeCompany],
   );
   return { mode, companyWorkingDays };
 }
@@ -82,7 +82,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     return result;
   };
   const { mode, companyWorkingDays } = useSchedulingContext();
-  // Read the active account row directly because the scoped entity projection omits accounts.
+  // Read the active company row directly because the scoped entity projection omits companies.
   const placeholdersEnabled = useStore((state) =>
     hasPlaceholdersEnabled(state.data, state.activeCompanyId),
   );

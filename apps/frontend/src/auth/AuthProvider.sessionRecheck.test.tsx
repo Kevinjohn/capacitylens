@@ -78,7 +78,7 @@ describe('AuthProvider — server mode', () => {
       )
       .mockResolvedValue(me(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useStore, resetStoreWithAccount } = await freshProvider();
+    const { AuthProvider, useStore, resetStoreWithCompany } = await freshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -86,7 +86,7 @@ describe('AuthProvider — server mode', () => {
     );
     expect(await screen.findByText('app-content')).toBeInTheDocument();
 
-    await resetStoreWithAccount();
+    await resetStoreWithCompany();
     useStore.setState((state) => ({
       planning: { ...state.planning, pending: {} as NonNullable<typeof state.planning.pending> },
     }));

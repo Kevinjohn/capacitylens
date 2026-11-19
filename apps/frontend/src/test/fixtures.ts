@@ -25,18 +25,18 @@ import {
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
 import { grantFor } from './permissionGrants';
 
-// Shared fixtures establish an active account so scoped store mutations have a valid tenant.
+// Shared fixtures establish an active company so scoped store mutations have a valid tenant.
 
 /** Mon–Fri, typed as Weekday[] so call sites don't need the `as Weekday[]` cast. */
 export const WORKDAYS: Weekday[] = [1, 2, 3, 4, 5];
 
-/** The account every fixture/entity is filed under unless overridden. */
+/** The company every fixture/entity is filed under unless overridden. */
 export const DEFAULT_COMPANY_ID = 'acct-test';
 
 const TS = '2026-05-01T00:00:00.000Z';
 
-/** A complete Account; override any field per test. */
-export function makeAccount(overrides: Partial<Company> = {}): Company {
+/** A complete Company; override any field per test. */
+export function makeCompany(overrides: Partial<Company> = {}): Company {
   return {
     ...NULLABLE_FIELDS.accounts,
     id: DEFAULT_COMPANY_ID,
@@ -49,9 +49,9 @@ export function makeAccount(overrides: Partial<Company> = {}): Company {
   };
 }
 
-/** Empty AppData that already contains the default test account. */
+/** Empty AppData that already contains the default test company. */
 export function makeAppData(overrides: Partial<AppData> = {}): AppData {
-  return { ...emptyAppData(), accounts: [makeAccount()], ...overrides };
+  return { ...emptyAppData(), accounts: [makeCompany()], ...overrides };
 }
 
 /** A valid person Draft<Resource>; override any field per test. */
@@ -217,12 +217,12 @@ export function resetStoreWithData(
   data: AppData,
   companyId: ID = data.accounts[0]?.id ?? DEFAULT_COMPANY_ID,
 ): Promise<boolean> {
-  const account = data.accounts.find(({ id }) => id === companyId);
-  if (!account) throw new Error(`The fixture data must contain account ${companyId}.`);
+  const company = data.accounts.find(({ id }) => id === companyId);
+  if (!company) throw new Error(`The fixture data must contain account ${companyId}.`);
   useStore.getState().clearPlanning();
   resetPlanningTransport(companyId, data, useStore);
   useStore.getState().setCompanySummaries({
-    list: [{ id: companyId, name: account.name, role: 'owner' }],
+    list: [{ id: companyId, name: company.name, role: 'owner' }],
   });
   useStore.getState().setNotice(null);
   useStore.setState({ srAnnouncement: null, membershipRevision: 0 });
@@ -255,12 +255,12 @@ export function unarchiveForTest(
   return useStore.getState().sendPlanningCommand({ intent });
 }
 
-/** Reset the store to a clean single-account state with that account active.
- * Use in beforeEach so `add*` (which requires an active account) works. The returned promise
- * settles once the planning cache has read the account, so allocation writes can begin. */
-export function resetStoreWithAccount(companyId: ID = DEFAULT_COMPANY_ID): Promise<boolean> {
-  const account = makeAccount({ id: companyId });
-  return resetStoreWithData(makeAppData({ accounts: [account] }), companyId);
+/** Reset the store to a clean single-company state with that company active.
+ * Use in beforeEach so `add*` (which requires an active company) works. The returned promise
+ * settles once the planning cache has read the company, so allocation writes can begin. */
+export function resetStoreWithCompany(companyId: ID = DEFAULT_COMPANY_ID): Promise<boolean> {
+  const company = makeCompany({ id: companyId });
+  return resetStoreWithData(makeAppData({ accounts: [company] }), companyId);
 }
 
 /** Change test-only canonical rows while preserving the store's planning revision and history. */
@@ -279,21 +279,21 @@ export function replaceFixtureData(data: AppData): void {
 }
 
 type SetPlaceholdersEnabledOptions = { on: boolean; companyId?: ID };
-/** Set the test account placeholder setting. */
+/** Set the test company placeholder setting. */
 export async function setPlaceholdersEnabled({
   on,
   companyId = DEFAULT_COMPANY_ID,
 }: SetPlaceholdersEnabledOptions): Promise<void> {
-  await useStore.getState().updateAccount(companyId, { placeholdersEnabled: on });
+  await useStore.getState().updateCompany(companyId, { placeholdersEnabled: on });
 }
 
 type SetExternalEnabledOptions = { on: boolean; companyId?: ID };
-/** Set the test account external resource setting. */
+/** Set the test company external resource setting. */
 export async function setExternalEnabled({
   on,
   companyId = DEFAULT_COMPANY_ID,
 }: SetExternalEnabledOptions): Promise<void> {
-  await useStore.getState().updateAccount(companyId, { externalEnabled: on });
+  await useStore.getState().updateCompany(companyId, { externalEnabled: on });
 }
 
 /** Creates a fresh JSON Response for one mocked request. Bodies are single-use, so

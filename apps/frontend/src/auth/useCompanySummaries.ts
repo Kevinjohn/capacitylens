@@ -62,17 +62,17 @@ function parseCompanySummaryList(body: unknown): CompanySummaryParseOutcome {
   };
 }
 
-type ApplyLiveAccountSummaryEffectsOptions = {
+type ApplyLiveCompanySummaryEffectsOptions = {
   complete: boolean;
   onCompleteness: ((complete: boolean) => void) | undefined;
 };
 
-function applyLiveAccountSummaryEffects(options: ApplyLiveAccountSummaryEffectsOptions): void {
+function applyLiveCompanySummaryEffects(options: ApplyLiveCompanySummaryEffectsOptions): void {
   const { complete, onCompleteness } = options;
   onCompleteness?.(complete);
 }
 
-function applyAccountSummaryParseEffects(
+function applyCompanySummaryParseEffects(
   outcome: CompanySummaryParseOutcome,
   acceptEffects: () => boolean,
 ): void {
@@ -81,7 +81,7 @@ function applyAccountSummaryParseEffects(
   }
 }
 
-function reportAccountSummaryFailure(error: unknown): null {
+function reportCompanySummaryFailure(error: unknown): null {
   console.warn(
     'fetchCompanySummaries: /api/companies read failed; reporting null (callers keep their existing list)',
     error,
@@ -124,23 +124,23 @@ export async function fetchCompanySummaries(requestOptions?: {
     }
     const body: unknown = await res.json();
     const parsed = parseCompanySummaryList(body);
-    applyAccountSummaryParseEffects(parsed, acceptEffects);
+    applyCompanySummaryParseEffects(parsed, acceptEffects);
     if (parsed.kind === 'rejected') return null;
-    applyLiveAccountSummaryEffects({
+    applyLiveCompanySummaryEffects({
       complete: parsed.complete,
       onCompleteness: requestOptions?.onCompleteness,
     });
     return parsed.valid;
   } catch (e) {
     // A failed directory read preserves existing data; warn for diagnosis and return null rather than presenting a false empty directory.
-    return reportAccountSummaryFailure(e);
+    return reportCompanySummaryFailure(e);
   }
 }
 
 /**
  * Fetch and publish the company directory through the store's shared request sequence. Every
  * caller uses this boundary: a newer read or membership mutation makes an older response ineligible
- * to replace the company directory. The fetched list is also returned to reconcile active-account
+ * to replace the company directory. The fetched list is also returned to reconcile active-company
  * selection; only publication to the shared store is sequenced.
  */
 export async function refreshCompanySummaries(requestOptions?: {
@@ -170,9 +170,9 @@ export async function refreshCompanySummaries(requestOptions?: {
       completeness.value &&
       requestOptions?.preserveActiveCompanyIfMissing !== true &&
       activeCompanyId !== null &&
-      !list.some((account) => account.id === activeCompanyId)
+      !list.some((company) => company.id === activeCompanyId)
     ) {
-      // Internal membership repair: the authoritative directory proved this account is no longer
+      // Internal membership repair: the authoritative directory proved this company is no longer
       // accessible, so close it synchronously before publishing the explanatory notice.
       useStore.getState().setActiveCompany(null);
       useStore.getState().setNotice(m.notice_company_access_removed(), 'warning');
@@ -181,9 +181,9 @@ export async function refreshCompanySummaries(requestOptions?: {
   return list;
 }
 
-/** Keeps the account directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list. */
+/** Keeps the company directory current. Active-company reads belong to PermissionProvider; failed reads preserve the previous list. */
 export function useCompanySummaries(): void {
-  // Re-key the request owner on the active account so a sign-in or membership change re-pulls the list.
+  // Re-key the request owner on the active company so a sign-in or membership change re-pulls the list.
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const membershipRevision = useStore((state) => state.membershipRevision);
@@ -191,11 +191,11 @@ export function useCompanySummaries(): void {
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const { user } = useAuth();
-  const accountRouteKey = api.api.companies.index.queryKey({});
+  const companyRouteKey = api.api.companies.index.queryKey({});
   useQuery<CompanySummary[] | null>({
     queryKey: scopeQueryKey(
       { principalId: user?.id ?? null, companyId: activeCompanyId, masqueradeGeneration },
-      ['account-summaries', membershipRevision, ...accountRouteKey],
+      ['account-summaries', membershipRevision, ...companyRouteKey],
     ),
     enabled: !masqueradeActive && activeCompanyId === null,
     // Keep refresh triggers aligned with the existing effect dependencies; focus alone must not

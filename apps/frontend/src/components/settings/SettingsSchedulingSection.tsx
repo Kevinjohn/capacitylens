@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import type { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
+import type { orderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
 import type {
   CapacityOverviewAccess,
   DateStyle,
@@ -15,7 +15,7 @@ import { SettingsDateFormatSection } from './SettingsDateFormatSection';
 import { SettingsWorkingDaysSection } from './SettingsWorkingDaysSection';
 import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, SCHEDULING_MESSAGES } from './settingsLabels';
 
-type UpdateSetting = (patch: Parameters<StoreState['updateAccount']>[1]) => Promise<void>;
+type UpdateSetting = (patch: Parameters<StoreState['updateCompany']>[1]) => Promise<void>;
 type SettingsSchedulingSectionProps = {
   canEdit: boolean;
   canManageCapacityOverviewAccess: boolean;

@@ -20,11 +20,11 @@ export function usePendingImport(
 ) {
   const [pending, setPending] = useState<PendingImport | null>(null);
   const selectionRef = useRef(0);
-  const accountRef = useRef(activeCompanyId);
+  const companyRef = useRef(activeCompanyId);
 
   useEffect(() => {
-    if (accountRef.current === activeCompanyId) return;
-    accountRef.current = activeCompanyId;
+    if (companyRef.current === activeCompanyId) return;
+    companyRef.current = activeCompanyId;
     selectionRef.current += 1;
     setPending(null);
   }, [activeCompanyId]);

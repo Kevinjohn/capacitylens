@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 import {
   DEFAULT_COMPANY_ID,
-  makeAccount,
+  makeCompany,
   makeClosure,
   makeTimeOff,
   resetStoreWithData,
@@ -37,25 +37,25 @@ vi.mock('./ResourceLane', () => ({
   ),
 }));
 
-const ACTIVE_ACCOUNT_ID = DEFAULT_COMPANY_ID;
-const INACTIVE_ACCOUNT_ID = 'a-loft';
+const ACTIVE_COMPANY_ID = DEFAULT_COMPANY_ID;
+const INACTIVE_COMPANY_ID = 'a-loft';
 
 beforeEach(async () => {
   await resetStoreWithData(
     schedulerDataset({
       accounts: [
-        makeAccount({ id: ACTIVE_ACCOUNT_ID }),
-        makeAccount({ id: INACTIVE_ACCOUNT_ID, name: 'Stark Industries' }),
+        makeCompany({ id: ACTIVE_COMPANY_ID }),
+        makeCompany({ id: INACTIVE_COMPANY_ID, name: 'Stark Industries' }),
       ],
       closures: [
         makeClosure({
-          companyId: INACTIVE_ACCOUNT_ID,
+          companyId: INACTIVE_COMPANY_ID,
           startDate: '2026-06-03',
           endDate: '2026-06-03',
         }),
       ],
     }),
-    ACTIVE_ACCOUNT_ID,
+    ACTIVE_COMPANY_ID,
   );
   useStore.getState().setDrawMode('work');
   useStore.getState().clearFilters();
@@ -75,7 +75,7 @@ describe('SchedulerGrid draw gate', () => {
   it('opens over a closure omitted for an invalid date range', async () => {
     const corrupt = makeClosure({
       id: 'closure-corrupt',
-      companyId: ACTIVE_ACCOUNT_ID,
+      companyId: ACTIVE_COMPANY_ID,
       startDate: '2026-02-30',
       endDate: '2026-06-07',
     });
@@ -96,7 +96,7 @@ describe('SchedulerGrid draw gate', () => {
   it('opens over time off omitted for an invalid date range', async () => {
     const corrupt = makeTimeOff({
       id: 'time-off-corrupt',
-      companyId: ACTIVE_ACCOUNT_ID,
+      companyId: ACTIVE_COMPANY_ID,
       startDate: '2026-02-30',
       endDate: '2026-06-07',
     });

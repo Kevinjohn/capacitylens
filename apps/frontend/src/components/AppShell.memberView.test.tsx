@@ -7,13 +7,13 @@ import { DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { setUpAppShellTests, renderAppShell, renderAuthenticated } from './AppShell.testSupport';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
-const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
+const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/i18n')>()),
-  syncLocaleFromAccount: i18nMocks.syncLocaleFromAccount,
+  syncLocaleFromCompany: i18nMocks.syncLocaleFromCompany,
 }));
 
-setUpAppShellTests(i18nMocks.syncLocaleFromAccount);
+setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
 it('shows a fail-closed banner while a member view is starting', () => {
   useStore.getState().setMasquerade({

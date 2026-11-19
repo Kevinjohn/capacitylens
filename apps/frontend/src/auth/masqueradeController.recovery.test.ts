@@ -1,7 +1,7 @@
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
-import { makeAccount, makeAppData } from '@/test/fixtures';
+import { makeCompany, makeAppData } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes';
 import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
@@ -45,7 +45,7 @@ const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
 function controllerWithNativeSlice(bootstrapFailure = false) {
   const nativeData = makeAppData({
-    accounts: [makeAccount({ id: state.companyId, name: 'Wayne Enterprises' })],
+    accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })],
   });
   useStore.setState({ data: nativeData });
   getStubPlanningTransport().reset(state.companyId, nativeData);
@@ -56,7 +56,7 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     start: vi.fn(async () => state),
     end: vi.fn(async () => {}),
   };
-  const switchAccount = vi.fn(async (companyId: string | null) => {
+  const switchCompany = vi.fn(async (companyId: string | null) => {
     useStore.getState().setActiveCompany(companyId);
     return { kind: 'reloaded' as const };
   });
@@ -64,7 +64,7 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     flush: vi.fn(async () => ({ kind: 'clean' as const })),
     suspend: () => useStore.getState().suspendPlanningCommands(),
     reproject: reprojectAccess,
-    readBootstrapAccount: async (companyId) => {
+    readBootstrapCompany: async (companyId) => {
       if (bootstrapFailure) throw new Error('Bootstrap company read failed');
       const snapshot = await bootstrapTransport.read(
         { companyId, identity: 'bootstrap' },
@@ -72,22 +72,22 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
       );
       return snapshot.data.accounts.find((candidate) => candidate.id === companyId)?.name ?? null;
     },
-    switchAccount,
+    switchCompany,
     api,
     readState: () => useStore.getState(),
     setContextToken: setMasqueradeContextToken,
   });
-  return { controller, api, switchAccount };
+  return { controller, api, switchCompany };
 }
 
 it('keeps a failed bootstrap read gated while allowing a confirmed cold End', async () => {
-  const { controller, api, switchAccount } = controllerWithNativeSlice(true);
+  const { controller, api, switchCompany } = controllerWithNativeSlice(true);
   await controller.adoptStatus({ active: true, ...state });
   expect(useStore.getState().activeCompanyId).toBeNull();
   expect(useStore.getState().masquerade.kind).toBe('starting');
   expect(await controller.end()).toBe(true);
   expect(api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
-  expect(switchAccount).toHaveBeenCalledExactlyOnceWith(null);
+  expect(switchCompany).toHaveBeenCalledExactlyOnceWith(null);
   expect(useStore.getState().masquerade.kind).toBe('inactive');
 });
 
@@ -136,11 +136,11 @@ it("recovers a selected company after its canonical read fails, but refuses anot
 });
 
 it('ends a selected cold member view even while canonical reads keep failing', async () => {
-  const { controller, api, switchAccount } = controllerWithNativeSlice();
+  const { controller, api, switchCompany } = controllerWithNativeSlice();
   await failSelectedCanonicalRead(controller);
   expect(await controller.end()).toBe(true);
   expect(api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
-  expect(switchAccount).toHaveBeenCalledExactlyOnceWith(null);
+  expect(switchCompany).toHaveBeenCalledExactlyOnceWith(null);
   expect(useStore.getState().masquerade.kind).toBe('inactive');
   expect(useStore.getState().activeCompanyId).toBeNull();
 });

@@ -84,7 +84,7 @@ describe('AllocationModal Enter key submission', () => {
       useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
     );
     const resourceId = resource.id;
-    await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+    await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
@@ -192,7 +192,7 @@ describe('AllocationModal lifecycle', () => {
     'saves after its own inline activity only when canonical allocation remains current (concurrent edit: %s)',
     async (concurrent) => {
       const resource = await addPerson();
-      await useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
+      await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
       const allocation = requireCreated(
         await useStore.getState().addAllocation({
           resourceId: resource.id,

@@ -5,10 +5,10 @@ import { PermissionProvider } from './PermissionProvider';
 import { AuthContext } from './authContext';
 import type { AuthContextValue } from './authContext';
 import { useCanEdit, usePermissionStatus, useRole } from './permissionContext';
-import { loadPlanningData, makeAccount, makeAppData, resetStoreWithAccount } from '@/test/fixtures';
+import { loadPlanningData, makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { useCompanySummaries } from './useAccountSummaries';
-import * as accountTransition from './accountTransition';
+import { useCompanySummaries } from './useCompanySummaries';
+import * as companyTransition from './companyTransition';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { isRole } from '@capacitylens/shared/account/types';
 import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
@@ -77,7 +77,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function accountResponse(id: string, role: string) {
+function companyResponse(id: string, role: string) {
   return new Response(
     JSON.stringify([
       {
@@ -93,12 +93,12 @@ function accountResponse(id: string, role: string) {
   );
 }
 
-function addSecondAccount() {
+function addSecondCompany() {
   loadPlanningData(
     makeAppData({
       accounts: [
-        makeAccount({ id: 'acct-test' }),
-        makeAccount({ id: 'a-studio', name: 'Wayne Enterprises' }),
+        makeCompany({ id: 'acct-test' }),
+        makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' }),
       ],
     }),
   );
@@ -109,7 +109,7 @@ beforeEach(async () => {
   permissionMocks.masqueradeStatus
     .mockReset()
     .mockResolvedValue({ active: false, contextToken: 'idle' });
-  await resetStoreWithAccount();
+  await resetStoreWithCompany();
   useStore.setState({ masquerade: { kind: 'inactive' } });
 });
 
@@ -220,7 +220,7 @@ describe('PermissionProvider membership invalidation', () => {
       ),
     );
     vi.stubGlobal('fetch', fetchMock);
-    const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
+    const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
     const setActiveRole = vi.spyOn(useStore.getState(), 'setActiveRole');
 
     renderProvider();
@@ -307,13 +307,13 @@ describe('PermissionProvider membership generation', () => {
 
 describe('PermissionProvider account-switch safety', () => {
   it('fails closed in context and store immediately after switching from an owner account', async () => {
-    addSecondAccount();
+    addSecondCompany();
     const b = deferred<Response>();
     vi.stubGlobal(
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(accountResponse('acct-test', 'owner'))
+        .mockResolvedValueOnce(companyResponse('acct-test', 'owner'))
         .mockImplementationOnce(() => b.promise),
     );
     renderProvider();
@@ -325,20 +325,20 @@ describe('PermissionProvider account-switch safety', () => {
     expect(useStore.getState().activeRole).toBe('viewer');
     expect(useStore.getState().activeRoleStatus).toBe('pending');
 
-    await act(async () => b.resolve(accountResponse('a-studio', 'editor')));
+    await act(async () => b.resolve(companyResponse('a-studio', 'editor')));
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe('editor');
     expect(useStore.getState().activeRoleStatus).toBe('resolved');
   });
 
   it("does not adopt an old account's delayed masquerade status after a switch", async () => {
-    addSecondAccount();
+    addSecondCompany();
     const aStatus = deferred<{ active: false; contextToken: string }>();
     permissionMocks.masqueradeStatus
       .mockImplementationOnce(() => aStatus.promise)
       .mockResolvedValueOnce({ active: false, contextToken: 'idle' });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(accountResponse('a-studio', 'editor')));
-    const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(companyResponse('a-studio', 'editor')));
+    const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
     renderProvider();
 
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
@@ -354,7 +354,7 @@ describe('PermissionProvider account-switch safety', () => {
   });
 
   it('ignores a delayed active status after a local controller transition', async () => {
-    await resetStoreWithAccount('a-studio');
+    await resetStoreWithCompany('a-studio');
     let resolveStatus!: (status: MasqueradeStatus) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
       () =>
@@ -366,7 +366,7 @@ describe('PermissionProvider account-switch safety', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { masqueradeController } = await import('./masqueradeControllerInstance');
     const inactiveProjection = useStore.getState().masquerade;
-    const adoptStatus = vi.spyOn(accountTransition, 'adoptMasqueradeStatus');
+    const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
     renderProvider();
 
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
@@ -397,19 +397,19 @@ describe('PermissionProvider account-switch safety', () => {
 
 describe('PermissionProvider stale directory safety', () => {
   it("keeps B authoritative when A's delayed directory response resolves later", async () => {
-    addSecondAccount();
+    addSecondCompany();
     const a = deferred<Response>();
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => a.promise)
-      .mockResolvedValueOnce(accountResponse('a-studio', 'admin'));
+      .mockResolvedValueOnce(companyResponse('a-studio', 'admin'));
     vi.stubGlobal('fetch', fetchMock);
     renderProvider();
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     act(() => useStore.getState().setActiveCompany('a-studio'));
     expect(await screen.findByText('resolved:admin:edit')).toBeInTheDocument();
-    await act(async () => a.resolve(accountResponse('acct-test', 'owner')));
+    await act(async () => a.resolve(companyResponse('acct-test', 'owner')));
 
     expect(screen.getByText('resolved:admin:edit')).toBeInTheDocument();
     expect(useStore.getState().activeRole).toBe('admin');
@@ -417,12 +417,12 @@ describe('PermissionProvider stale directory safety', () => {
   });
 
   it("does not let a stale A directory rejection overwrite B's role", async () => {
-    addSecondAccount();
+    addSecondCompany();
     const a = deferred<Response>();
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => a.promise)
-      .mockResolvedValueOnce(accountResponse('a-studio', 'owner'));
+      .mockResolvedValueOnce(companyResponse('a-studio', 'owner'));
     vi.stubGlobal('fetch', fetchMock);
     renderProvider();
 
@@ -443,8 +443,8 @@ describe('PermissionProvider fail-closed responses', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce(accountResponse('other', 'owner'))
-        .mockResolvedValueOnce(accountResponse('acct-test', 'unknown-role')),
+        .mockResolvedValueOnce(companyResponse('other', 'owner'))
+        .mockResolvedValueOnce(companyResponse('acct-test', 'unknown-role')),
     );
     renderProvider();
 

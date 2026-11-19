@@ -1,5 +1,5 @@
 import { m } from '@/i18n';
-import type { orderedWeekdays } from '@capacitylens/shared/lib/accountWorkingDays';
+import type { orderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { resolveWeekdayLabel, resolveWeekdayShortLabel } from '@/lib/weekdays';
 import type { listCompanyWorkingDays } from '@/store/selectors';
 import type { StoreState } from '@/store/useStore';
@@ -8,7 +8,7 @@ import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/co
 import { SettingsSection } from './SettingsSection';
 
 type WorkingDays = ReturnType<typeof listCompanyWorkingDays>;
-type UpdateSetting = (patch: Parameters<StoreState['updateAccount']>[1]) => Promise<void>;
+type UpdateSetting = (patch: Parameters<StoreState['updateCompany']>[1]) => Promise<void>;
 
 function WorkingDayCheckbox({
   canEdit,
