@@ -21,8 +21,9 @@ import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle';
 import { requiredFields } from '@capacitylens/shared/types/entityFields';
 import { validateRow } from '#validators/planning/row';
+import { asRecord } from '#services/planning/writer';
 import { ENTITY_ID_PATTERN } from '#validators/planning/fields';
-import { assertEntityDomain } from '#services/planning/entity_validation/domain';
+import { assertEntityDomain, type EntityWrite } from '#services/planning/entity_validation/domain';
 import { normalizeValidWrite } from '#services/planning/entity_validation/normalization';
 import {
   listHiddenFields,
@@ -274,14 +275,15 @@ export interface EntityWriteOptions {
 }
 
 /** Prepare one complete entity row for a typed write against the current transaction projection. */
-export async function prepareEntityWrite(
-  table: ScopedEntityKey,
+export async function prepareEntityWrite<K extends ScopedEntityKey>(
+  table: K,
   row: Record<string, unknown>,
-  existing: Record<string, unknown> | undefined,
+  stored: AppData[K][number] | undefined,
   state: AppData,
   context: PlanningCapabilities,
   options: EntityWriteOptions
-): Promise<Record<string, unknown>> {
+): Promise<AppData[K][number]> {
+  const existing = stored && asRecord(stored);
   if (typeof row.id !== 'string' || !ENTITY_ID_PATTERN.test(row.id)) {
     throw new EntityWriteError(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde, colon or hyphen.'
@@ -302,14 +304,15 @@ export async function prepareEntityWrite(
   pinHiddenFields(table, candidate, existing, context);
   assertRequired(table, candidate);
   if (table === 'resources' && existing) assertResourceKind(candidate, existing);
+  let validated: AppData[K][number];
   try {
     const visible = buildValidationView(table, candidate, existing, context);
-    const validated = await validateRow(table, visible);
-    const preserved: Record<string, unknown> = {};
+    validated = await validateRow(table, visible);
+    // The validated row keeps what the caller cannot see as stored; `candidate` is its field view.
     for (const field of hidden) {
-      if (Object.hasOwn(candidate, field)) preserved[field] = candidate[field];
+      if (Object.hasOwn(candidate, field)) asRecord(validated)[field] = candidate[field];
     }
-    candidate = { ...validated, ...preserved };
+    candidate = asRecord(validated);
   } catch (error) {
     if (error instanceof errors.E_VALIDATION_ERROR) {
       const first = error.messages[0];
@@ -353,14 +356,10 @@ export async function prepareEntityWrite(
     restrictedPrivateRow: isPrivateRowRestricted(table, context, existing),
   });
   try {
-    assertEntityDomain(
-      table,
-      candidate,
-      existing,
-      state,
-      options.lookup,
-      options.hasOtherBuiltinClient
-    );
+    // `table` is the key `validated` and `stored` were read for; the compiler cannot relate a
+    // generic key to the table-keyed union, so name the pairing once here.
+    const write = { table, row: validated, existing: stored } as EntityWrite;
+    assertEntityDomain(write, state, options.lookup, options.hasOtherBuiltinClient);
   } catch (error) {
     if (error instanceof EntityWriteError) throw error;
     if (error instanceof DomainError) {
@@ -369,6 +368,6 @@ export async function prepareEntityWrite(
     throw error;
   }
   fillNullableFields(table, candidate);
-  const now = createServerRevision(existing?.updatedAt);
-  return { ...candidate, createdAt: existing?.createdAt ?? now, updatedAt: now };
+  const now = createServerRevision(stored?.updatedAt);
+  return { ...validated, createdAt: stored?.createdAt ?? now, updatedAt: now };
 }

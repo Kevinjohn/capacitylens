@@ -2,15 +2,17 @@ import { isDeepStrictEqual } from 'node:util';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationInput } from '#validators/planning/contracts';
-import type { WrittenRow } from '#services/planning/writer';
+import { asRecord, type WrittenRow } from '#services/planning/writer';
 
 /** Whether every written row is the same before and after, ignoring its revision timestamp. */
 export function changesNothing(written: WrittenRow[]): boolean {
   return written.every(({ before, after }) => {
     if (!before || !after) return false;
-    const fields = new Set([...Object.keys(before), ...Object.keys(after)]);
+    const stored = asRecord(before);
+    const saved = asRecord(after);
+    const fields = new Set([...Object.keys(stored), ...Object.keys(saved)]);
     fields.delete('updatedAt');
-    return [...fields].every((field) => isDeepStrictEqual(before[field], after[field]));
+    return [...fields].every((field) => isDeepStrictEqual(stored[field], saved[field]));
   });
 }
 
@@ -59,7 +61,9 @@ export function invalidatesRestoration(
   const fields = triggerFields(entity);
   if (fields.length === 0) return false;
   const row = written.find((item) => item.entity === entity && item.id === id);
+  const stored = row?.before ? asRecord(row.before) : undefined;
+  const saved = row?.after ? asRecord(row.after) : undefined;
   return fields.some(
-    (field) => Object.hasOwn(changes, field) && row?.before?.[field] !== row?.after?.[field]
+    (field) => Object.hasOwn(changes, field) && stored?.[field] !== saved?.[field]
   );
 }

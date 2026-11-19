@@ -13,22 +13,20 @@ import type { PlanningCapabilities } from '#services/planning/data_policy';
 
 export { PlanningOperationError };
 
-export type Row = Record<string, unknown> & { id: string };
-
 /** One row a planning operation wrote: its table, id, and the row before and after. */
 export interface WrittenRow {
   entity: AppDataKey;
   id: string;
-  before: Row | null;
-  after: Row | null;
+  before: AppData[AppDataKey][number] | null;
+  after: AppData[AppDataKey][number] | null;
 }
 
 /**
- * Returns a table's rows as untyped records. The write path treats every table's rows this way;
- * this is the single seam where the typed snapshot is widened.
+ * A row read field by field. Policy checks that apply to several tables read and set fields by name;
+ * every row is a plain object, so the view is the same object.
  */
-export function listRows(data: AppData, table: AppDataKey): Row[] {
-  return data[table] as unknown as Row[];
+export function asRecord(row: object): Record<string, unknown> {
+  return row as Record<string, unknown>;
 }
 
 /** Resolves a stored row of the named table from the complete company snapshot, refusing missing targets. */
@@ -48,7 +46,7 @@ export function existingRow<K extends AppDataKey>(
  * Persists one prepared row in the caller's transaction and applies it to the unprojected company
  * snapshot, so later compound entries validate against it. `writeEntity` prepares the row.
  */
-export async function writeRow({
+export async function writeRow<K extends ScopedEntityKey>({
   trx,
   data,
   companyId,
@@ -60,23 +58,24 @@ export async function writeRow({
   trx: TransactionClientContract;
   data: AppData;
   companyId: string;
-  table: ScopedEntityKey;
-  row: Record<string, unknown>;
-  existing: Row | undefined;
+  table: K;
+  row: AppData[K][number];
+  existing: AppData[K][number] | undefined;
   written: WrittenRow[];
-}) {
+}): Promise<AppData[K][number]> {
   if (existing) {
     await trx
       .from(tables[table])
       .where({ id: row.id, company_id: companyId })
-      .update(encodeRow(tables[table], row));
+      .update(encodeRow(tables[table], asRecord(row)));
     const before = { ...existing };
     Object.assign(existing, row);
     written.push({ entity: table, id: existing.id, before, after: { ...existing } });
   } else {
-    await trx.table(tables[table]).insert(encodeRow(tables[table], row));
-    listRows(data, table).push(row as Row);
-    written.push({ entity: table, id: String(row.id), before: null, after: { ...(row as Row) } });
+    await trx.table(tables[table]).insert(encodeRow(tables[table], asRecord(row)));
+    const rows: AppData[K][number][] = data[table];
+    rows.push(row);
+    written.push({ entity: table, id: row.id, before: null, after: { ...row } });
   }
   return row;
 }
@@ -111,10 +110,13 @@ export async function updateSettings(
   const now = createServerRevision(existing.updatedAt);
   candidate.updatedAt = now;
   const validated = await validateRow('accounts', candidate);
-  if (typeof validated.name === 'string') validated.name = cleanText(validated.name);
+  validated.name = cleanText(validated.name);
   // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
   fillNullableFields('accounts', validated);
-  await trx.from('accounts').where('id', companyId).update(encodeRow('accounts', validated));
+  await trx
+    .from('accounts')
+    .where('id', companyId)
+    .update(encodeRow('accounts', asRecord(validated)));
   const before = { ...existing };
   Object.assign(existing, validated);
   written.push({ entity: 'accounts', id: companyId, before, after: { ...existing } });
