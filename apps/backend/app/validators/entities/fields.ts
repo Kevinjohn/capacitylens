@@ -13,7 +13,6 @@ import {
 import { parseResourceAvatarUrl } from '@capacitylens/shared/domain/resourceAvatarUrl';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
 import type { FieldSpec } from '@capacitylens/shared/types/entityFields';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 
 const strictField = vine.createRule<{
   table: AppDataKey;
@@ -26,7 +25,7 @@ const strictField = vine.createRule<{
     const fail = (reason: string) => ctx.report(`${field} ${reason}.`, 'entityField', ctx);
     if (value === undefined) return;
     if (value === null) {
-      if (field in NULLABLE_FIELDS[table]) return;
+      if (spec.nullable) return;
       return fail('cannot be null');
     }
     if (kind === 'text' || kind === 'note') {

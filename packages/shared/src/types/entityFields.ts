@@ -190,7 +190,9 @@ export type NullableFieldValues<K extends AppDataKey> = {
 
 function fieldsWhere<K extends AppDataKey>(table: K, test: (spec: FieldSpec) => boolean) {
   const specs: Record<string, FieldSpec> = ENTITY_FIELDS[table];
-  return Object.keys(specs).filter((field) => test(specs[field] as FieldSpec));
+  return Object.entries(specs)
+    .filter(([, spec]) => test(spec))
+    .map(([field]) => field);
 }
 
 function buildRequiredFields() {
