@@ -25,7 +25,7 @@ import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
-const body = { action: 'anonymise', companyId, intent: {}, password: fixturePassword };
+const body = { action: 'anonymise' as const, companyId, intent: {}, password: fixturePassword };
 function issue(client: ApiClient, cookie: string, input = body) {
   return asDataOwner(client.post('/api/auth/password-confirmation'), cookie).json(input).send();
 }

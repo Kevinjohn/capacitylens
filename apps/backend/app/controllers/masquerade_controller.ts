@@ -4,8 +4,8 @@ import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { currentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
 import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
-import { hasOnlyFields } from '#services/request_helpers';
 import { getSignedInSession } from '#services/auth/current_actor';
+import { endValidator, startValidator } from '#validators/masquerade';
 
 /** Package refusals reach the global handler's single mapping; only the authority refusal is reworded. */
 async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
@@ -24,20 +24,14 @@ async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
 export default class MasqueradeController {
   async start(ctx: HttpContext) {
     const companyId = ctx.params.companyId;
-    const body: unknown = ctx.request.body();
-    if (
-      typeof companyId !== 'string' ||
-      !companyId ||
-      !hasOnlyFields(body, ['targetUserId']) ||
-      typeof body.targetUserId !== 'string' ||
-      !body.targetUserId
-    ) {
+    if (typeof companyId !== 'string' || !companyId) {
       return ctx.response.badRequest({ error: 'Target member is required.' });
     }
+    const body = await ctx.request.validateUsing(startValidator, { data: ctx.request.body() });
     return respond(ctx, async () => {
       const started = await startMasquerade(
         ctx,
-        body.targetUserId as string,
+        body.targetUserId,
         ctx.request.header('X-Masquerade-Context') ?? ''
       );
       if (!started.isMasquerading) throw new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
@@ -74,15 +68,7 @@ export default class MasqueradeController {
   }
 
   async end(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
-    if (
-      !hasOnlyFields(body, ['token', 'reason']) ||
-      typeof body.token !== 'string' ||
-      !body.token ||
-      (body.reason !== 'explicit' && body.reason !== 'account_switch')
-    ) {
-      return ctx.response.badRequest({ error: 'Invalid masquerade end request.' });
-    }
+    const body = await ctx.request.validateUsing(endValidator, { data: ctx.request.body() });
     return respond(ctx, async () => {
       const header = ctx.request.header('X-Masquerade-Context');
       if (typeof header !== 'string' || !header) {

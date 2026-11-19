@@ -3,7 +3,6 @@ import { CompanyDocumentError } from '@capacitylens/shared/data/companyDocument'
 import { withActor, kitContextIn } from '#services/auth/current_actor';
 import { passwordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import { hasOnlyFields } from '#services/request_helpers';
 import { EntityWriteError } from '#services/planning/errors';
 import {
   applyCompanyImport,
@@ -11,33 +10,7 @@ import {
   previewCompanyImport,
   readRequestDocument,
 } from '#services/company_import';
-
-function parseImportBody(value: unknown) {
-  const expected = ['companyId', 'document', 'baseRevision'];
-  const body = value;
-  if (
-    !hasOnlyFields(body, [...expected, 'confirmationId']) ||
-    expected.some((key) => !Object.hasOwn(body, key))
-  ) {
-    return null;
-  }
-  if (typeof body.companyId !== 'string' || !body.companyId) return null;
-  if (
-    !Number.isSafeInteger(body.baseRevision) ||
-    (body.baseRevision as number) < 0 ||
-    (body.confirmationId !== undefined && typeof body.confirmationId !== 'string')
-  ) {
-    return null;
-  }
-  const document = parseRequestDocument(body.document);
-  if (!document) return null;
-  return {
-    companyId: body.companyId,
-    document,
-    baseRevision: body.baseRevision as number,
-    confirmationId: (body.confirmationId as string | undefined) ?? '',
-  };
-}
+import { applyValidator, previewValidator } from '#validators/transfer';
 
 function sendTransferFailure(ctx: HttpContext, error: unknown) {
   if (error instanceof EntityWriteError) {
@@ -55,15 +28,7 @@ function sendTransferFailure(ctx: HttpContext, error: unknown) {
 
 export default class TransferController {
   async preview(ctx: HttpContext) {
-    const body = ctx.request.body();
-    if (
-      !hasOnlyFields(body, ['companyId', 'document']) ||
-      !Object.hasOwn(body, 'document') ||
-      typeof body.companyId !== 'string' ||
-      !body.companyId
-    ) {
-      return ctx.response.badRequest({ error: 'Invalid beta transfer document.' });
-    }
+    const body = await ctx.request.validateUsing(previewValidator, { data: ctx.request.body() });
     const companyId = body.companyId;
     try {
       // The preview names why a document is refused, so the browser never validates it itself.
@@ -79,24 +44,20 @@ export default class TransferController {
   }
 
   async apply(ctx: HttpContext) {
-    const body = parseImportBody(ctx.request.body());
-    if (!body) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
+    const body = await ctx.request.validateUsing(applyValidator, { data: ctx.request.body() });
+    const { companyId, baseRevision, confirmationId = '' } = body;
+    const document = parseRequestDocument(body.document);
+    if (!document) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
     try {
       const result = await withActor(ctx, async (_actor, trx) => {
-        const actor = await passwordConfirmationActor(body.companyId, trx, 'import');
+        const actor = await passwordConfirmationActor(companyId, trx, 'import');
         await passwordConfirmations.consume(kitContextIn(trx), {
-          confirmationId: body.confirmationId,
+          confirmationId,
           action: 'import',
-          scope: body.companyId,
-          intent: { baseRevision: body.baseRevision, document: body.document },
+          scope: companyId,
+          intent: { baseRevision, document },
         });
-        return applyCompanyImport(
-          trx,
-          body.companyId,
-          body.document,
-          body.baseRevision,
-          actor.userId
-        );
+        return applyCompanyImport(trx, companyId, document, baseRevision, actor.userId);
       });
       return ctx.response.ok(result);
     } catch (error) {

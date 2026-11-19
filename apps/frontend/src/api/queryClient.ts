@@ -42,9 +42,10 @@ export type ProductRoutes = typeof registry.routes;
 /** Build a product API URL from a route name and its generated path/query arguments. */
 export function apiRouteUrl<Name extends keyof ProductRoutes>(
   name: Name,
-  args: RequestArgs<ProductRoutes[Name]>,
+  args: Omit<RequestArgs<ProductRoutes[Name]>, 'body'>,
 ): string {
-  return client.getRoute(name, args).url;
+  // The URL never depends on the body, so callers send the body separately.
+  return client.getRoute(name, args as RequestArgs<ProductRoutes[Name]>).url;
 }
 
 type QueryReadRoute = 'api.state' | 'api.admission.index';

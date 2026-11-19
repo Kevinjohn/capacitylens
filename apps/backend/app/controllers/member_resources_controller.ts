@@ -3,27 +3,17 @@ import { withActor } from '#services/auth/current_actor';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
-import { refuseInvalidAdmission } from '#services/admission/errors';
+import { refuseInvalidAdmissionBody } from '#services/admission/errors';
 import { renderAdmissionFailure } from '#services/admission/http';
-import { hasOnlyFields } from '#services/request_helpers';
-
-function requireBodyFields(value: unknown, keys: string[]): Record<string, unknown> {
-  if (!hasOnlyFields(value, keys)) refuseInvalidAdmission();
-  return value;
-}
+import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
 
 /** Scoped member/person association. */
 export default class MemberResourcesController {
   async setLink(ctx: HttpContext) {
     try {
-      const body = requireBodyFields(ctx.request.body(), ['resourceId', 'expectedRevision']);
-      if (
-        typeof body.resourceId !== 'string' ||
-        !body.resourceId ||
-        !(body.expectedRevision === null || typeof body.expectedRevision === 'string')
-      ) {
-        refuseInvalidAdmission();
-      }
+      const body = await ctx.request
+        .validateUsing(setLinkValidator, { data: ctx.request.body() })
+        .catch(refuseInvalidAdmissionBody);
       const command = parseAccountCommand(
         ctx.request.header('x-account-command-id'),
         ctx.request.header('idempotency-key')
@@ -41,8 +31,8 @@ export default class MemberResourcesController {
             const link = await setMemberResourceLink(trx, {
               companyId,
               userId,
-              resourceId: body.resourceId as string,
-              expectedRevision: body.expectedRevision as string | null,
+              resourceId: body.resourceId,
+              expectedRevision: body.expectedRevision,
               actorId,
             });
             return { resourceId: link.resourceId, revision: link.revision };
@@ -61,10 +51,9 @@ export default class MemberResourcesController {
 
   async clearLink(ctx: HttpContext) {
     try {
-      const body = requireBodyFields(ctx.request.body(), ['expectedRevision']);
-      if (typeof body.expectedRevision !== 'string' || !body.expectedRevision) {
-        refuseInvalidAdmission();
-      }
+      const body = await ctx.request
+        .validateUsing(clearLinkValidator, { data: ctx.request.body() })
+        .catch(refuseInvalidAdmissionBody);
       const command = parseAccountCommand(
         ctx.request.header('x-account-command-id'),
         ctx.request.header('idempotency-key')
@@ -82,7 +71,7 @@ export default class MemberResourcesController {
             await clearMemberResourceLink(trx, {
               companyId,
               userId,
-              expectedRevision: body.expectedRevision as string,
+              expectedRevision: body.expectedRevision,
               actorId,
             });
             return { ok: true };

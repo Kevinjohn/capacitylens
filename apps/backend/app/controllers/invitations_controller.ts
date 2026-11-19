@@ -5,20 +5,21 @@ import {
   RegistrationEmailAlreadyRegisteredError,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
-import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
-import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
-import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings';
 import { isMailConfigured } from '#services/mail_delivery';
-import { hasOnlyFields, proofHeaders } from '#services/request_helpers';
+import { proofHeaders } from '#services/request_helpers';
 import { assertCompanyAction } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
-import { isInvitableRole } from '#services/account_kit/policy';
 import { getInstallationCompany, installationCompanyId } from '#models/installation_company';
-import { refuseInvalidAdmission, refuseMissingAdmission } from '#services/admission/errors';
+import {
+  refuseInvalidAdmission,
+  refuseInvalidAdmissionBody,
+  refuseMissingAdmission,
+} from '#services/admission/errors';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
+import { createValidator, signUpValidator } from '#validators/invitations';
 
 function parseInvitationId(value: unknown) {
   const id = Number(value);
@@ -62,12 +63,10 @@ export default class InvitationsController {
   }
 
   async create(ctx: HttpContext) {
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['companyId', 'role', 'email']) || !isInvitableRole(body.role)) {
-      refuseInvalidAdmission();
-    }
-    const email = typeof body.email === 'string' ? normalizeAccountEmail(body.email) : '';
-    if (!isAccountEmail(email)) refuseInvalidAdmission('Invalid invitation email.');
+    const body = await ctx.request
+      .validateUsing(createValidator, { data: ctx.request.body() })
+      .catch(refuseInvalidAdmissionBody);
+    const { email } = body;
     const actorId = await this.manager(ctx, body.companyId);
     if (!isMailConfigured()) return sendMailUnavailable(ctx);
     try {
@@ -75,7 +74,7 @@ export default class InvitationsController {
         actorId,
         email,
         role: body.role,
-        scope: body.companyId as string,
+        scope: body.companyId,
       });
       return ctx.response.created({ ...buildInvitationView(invitation), emailed: true });
     } catch (error) {
@@ -148,17 +147,10 @@ export default class InvitationsController {
    */
   async signUp(ctx: HttpContext) {
     proofHeaders(ctx);
-    const body: unknown = ctx.request.body();
-    if (!hasOnlyFields(body, ['name', 'password'])) refuseInvalidAdmission();
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
-    if (
-      !name ||
-      unicodeCharacterCount(name) > MAX_NAME_LENGTH ||
-      typeof body.password !== 'string' ||
-      passwordLengthFailure(body.password)
-    ) {
-      refuseInvalidAdmission('Invalid sign-up details.');
-    }
+    const body = await ctx.request
+      .validateUsing(signUpValidator, { data: ctx.request.body() })
+      .catch(refuseInvalidAdmissionBody);
+    const { name } = body;
     let email: string;
     try {
       const user = await accountKit.invitations.accept({
