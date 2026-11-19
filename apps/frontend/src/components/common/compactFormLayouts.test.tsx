@@ -9,7 +9,7 @@ import { DisciplineForm } from '@/components/disciplines/DisciplineForm';
 import { ClientForm } from '@/components/clients/ClientForm';
 import { ProjectForm } from '@/components/projects/ProjectForm';
 import { ActivityForm } from '@/components/activities/ActivityForm';
-import { TimeOffForm } from '@/components/timeoff/TimeOffForm';
+import { TimeOffForm } from '@/components/time-off/TimeOffForm';
 
 function render(ui: ReactNode) {
   return rtlRender(ui, { wrapper: OwnerPermissions });
@@ -92,7 +92,7 @@ describe('compact input modal layouts', () => {
     expect(startField).not.toHaveAttribute('data-product-layout');
     expect(endField).not.toHaveAttribute('data-product-layout');
     expect(startField?.parentElement).toBe(endField?.parentElement);
-    expect(startField?.parentElement).toHaveAttribute('data-timeoff-date-row');
+    expect(startField?.parentElement).toHaveAttribute('data-time-off-date-row');
     expect(startField?.parentElement).toHaveClass(
       'grid',
       'min-w-0',
