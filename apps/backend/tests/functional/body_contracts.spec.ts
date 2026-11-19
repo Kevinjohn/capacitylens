@@ -47,7 +47,7 @@ const contracts: Record<string, BodyContract> = {
     untyped: ['document'],
     scalar: { baseRevision: '1' },
   },
-  'api.accounts.anonymise': {
+  'api.companies.anonymise': {
     method: 'post',
     url: (companyId) => `/api/companies/${companyId}/anonymise`,
     sentence: 'Invalid anonymisation request.',

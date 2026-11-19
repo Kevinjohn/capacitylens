@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine';
-import { ACCOUNT_ROLES, MEMBERSHIP_STATUSES } from '@capacitylens/shared/account/types';
+import { ROLES, MEMBERSHIP_STATUSES } from '@capacitylens/shared/account/types';
 import { allowedFields, fixedMessage } from '#validators/request_rules';
 
 const trackingMessage = 'enabled must be a Boolean.';
@@ -13,7 +13,7 @@ trackingValidator.messagesProvider = fixedMessage(trackingMessage);
 const changeRoleMessage = 'Invalid member role.';
 export const changeRoleValidator = vine.compile(
   vine
-    .object({ role: vine.enum(ACCOUNT_ROLES) })
+    .object({ role: vine.enum(ROLES) })
     .use(allowedFields({ fields: ['role'], message: changeRoleMessage }))
 );
 changeRoleValidator.messagesProvider = fixedMessage(changeRoleMessage);
