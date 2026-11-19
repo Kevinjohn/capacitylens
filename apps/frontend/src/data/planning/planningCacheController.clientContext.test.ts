@@ -8,7 +8,7 @@ import {
   intent,
   canonicalData,
   companyToday,
-  success,
+  makeReceipt,
   harness,
   deferred,
 } from './planningCacheController.testSupport';
@@ -21,7 +21,7 @@ describe('planning cache controller', () => {
   it('keeps the context proof captured with a planning action when status changes before execution', async () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
-      .mockResolvedValue(success('mutation-1', 4));
+      .mockResolvedValue(makeReceipt('mutation-1', 4));
     const h = harness({ execute, read: vi.fn() });
     setMasqueradeContextToken('captured-idle-context');
     h.controller.setContext(context);
@@ -123,7 +123,7 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    release(success('mutation-1', 2));
+    release(makeReceipt('mutation-1', 2));
     await write;
     expect(h.state().planning.revision).toBe(7);
     expect(h.state().planning.outcome).toBeNull();
@@ -148,7 +148,7 @@ describe('planning receipt completion context', () => {
       `suppresses ${action} completion after %s during the acknowledged read`,
       async (change) => {
         const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
-          Promise.resolve(success(execution.mutationId, execution.baseRevision + 1)),
+          Promise.resolve(makeReceipt(execution.mutationId, execution.baseRevision + 1)),
         );
         const read = vi.fn<PlanningTransport['read']>();
         const h = harness({ execute, read });

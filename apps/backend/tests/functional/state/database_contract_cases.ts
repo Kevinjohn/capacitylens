@@ -14,7 +14,7 @@ import {
   FIXTURE_RESOURCE,
   FIXTURE_RESOURCE_EXTERNAL,
   FIXTURE_RESOURCE_PERSON,
-  FIXTURE_TIMEOFF,
+  FIXTURE_TIME_OFF,
 } from '@capacitylens/shared/data/fixtures';
 
 const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
@@ -131,7 +131,7 @@ export const fullFixtureRows = [
   ],
   ['activities', [FIXTURE_ACTIVITY, FIXTURE_ACTIVITY_INTERNAL, FIXTURE_ACTIVITY_REPEATABLE]],
   ['allocations', [FIXTURE_ALLOCATION, FIXTURE_ALLOCATION_ATTRIBUTED]],
-  ['time_off', [FIXTURE_TIMEOFF]],
+  ['time_off', [FIXTURE_TIME_OFF]],
   ['closures', [FIXTURE_CLOSURE]],
 ] as const;
 

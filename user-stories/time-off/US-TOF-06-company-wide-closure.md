@@ -6,7 +6,7 @@ As an Editor, I want to record a company-wide closure so that people and placeho
 **Access:** Editor, Admin or Owner
 **Entry:** Time off page
 **Documentation:** [time-off.md](../../docs-src/using/time-off.md)
-**Source:** [ClosureForm.tsx](../../apps/frontend/src/components/timeoff/ClosureForm.tsx)
+**Source:** [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx)
 
 ## Acceptance criteria
 
@@ -52,6 +52,6 @@ flowchart TD
 
 **Code references:**
 
-- [ClosureForm.tsx](../../apps/frontend/src/components/timeoff/ClosureForm.tsx)
+- [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
 - [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
