@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { emptyAppData, SCOPED_KEYS } from '@capacitylens/shared/types/entities';
+import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import {
   loadPlanningData,
@@ -140,14 +140,11 @@ beforeEach(() => {
 });
 
 describe('scoped data', () => {
-  it('returns only every selected-account collection through the imperative resolver', () => {
-    const scoped = resolveSharedScopedData(twoCompanyData(), COMPANY_A);
+  it("selects another company's dataset as empty", () => {
+    const data = { ...emptyAppData(), accounts: [makeCompany({ id: COMPANY_B })] };
 
-    expect(scoped.accounts).toEqual([]);
-    for (const table of SCOPED_KEYS) {
-      expect(scoped[table]).toHaveLength(1);
-      expect(scoped[table].every((row) => row.companyId === COMPANY_A)).toBe(true);
-    }
+    expect(resolveSharedScopedData(data, COMPANY_A)).toEqual(emptyAppData());
+    expect(resolveSharedScopedData(data, COMPANY_B)).toBe(data);
   });
 
   it('returns one stable empty projection without an active account', () => {
@@ -158,16 +155,6 @@ describe('scoped data', () => {
 
     expect(second).toBe(first);
     expect(first).toEqual(emptyAppData());
-  });
-
-  it('memoises projections by source-data identity and account', () => {
-    const data = twoCompanyData();
-    const a = resolveSharedScopedData(data, COMPANY_A);
-    const b = resolveSharedScopedData(data, COMPANY_B);
-
-    expect(resolveSharedScopedData(data, COMPANY_A)).toBe(a);
-    expect(b).not.toBe(a);
-    expect(resolveSharedScopedData({ ...data, clients: [...data.clients] }, COMPANY_A)).not.toBe(a);
   });
 });
 

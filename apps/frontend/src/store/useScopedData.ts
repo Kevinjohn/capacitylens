@@ -1,32 +1,23 @@
 import { useStore } from './useStore';
-import { scopeData } from './selectors';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
 import { emptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 
 const emptyScopedData = emptyAppData();
-const scopedCache = new WeakMap<AppData, Map<string, AppData>>();
 const activeCache = new WeakMap<AppData, AppData>();
 
-/** Memoizes a tenant slice by data identity and account ID so hooks and imperative
- * readers share one stable projection.
+/** The published dataset when it is `companyId`'s, otherwise one stable empty dataset. The planning
+ * read is rejected unless every row is the context company's, so only a whole dataset can belong
+ * to another company: the previous one, while a company switch has not reached the planning context.
  */
 export function resolveSharedScopedData(data: AppData, companyId: string | null): AppData {
-  if (!companyId) return emptyScopedData;
-  let scopedDataByCompanyId = scopedCache.get(data);
-  if (!scopedDataByCompanyId) {
-    scopedDataByCompanyId = new Map();
-    scopedCache.set(data, scopedDataByCompanyId);
-  }
-  let scoped = scopedDataByCompanyId.get(companyId);
-  if (!scoped) {
-    scoped = scopeData(data, companyId);
-    scopedDataByCompanyId.set(companyId, scoped);
-  }
-  return scoped;
+  const [company, ...others] = data.accounts;
+  return companyId !== null && company?.id === companyId && others.length === 0
+    ? data
+    : emptyScopedData;
 }
 
-/** Memoizes the active-only projection of an account-scoped slice. */
+/** Memoizes the active-only projection of a company-scoped slice. */
 export function resolveSharedActiveData(data: AppData): AppData {
   let active = activeCache.get(data);
   if (!active) {
@@ -39,8 +30,8 @@ export function resolveSharedActiveData(data: AppData): AppData {
 /**
  * The read-side seam for multi-tenancy. Components receive only the active account's entities.
  *
- * Memoised on `(data, activeCompanyId)` so the scoped object is stable between renders, avoiding the
- * `useSyncExternalStore` fresh-object trap.
+ * Returns the store's own `data` or one shared empty value, so the result is stable between renders,
+ * avoiding the `useSyncExternalStore` fresh-object trap.
  *
  * @returns The active account's {@link AppData} slice, or an empty `AppData` when no account is active.
  */
