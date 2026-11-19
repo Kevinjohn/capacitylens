@@ -114,7 +114,10 @@ describe('useTeamDirectory read generations', () => {
     });
     const replaced = makeDirectory({ resourceId: 'r-bruce', revision: 'rev-2' });
     act(() => result.current.replaceAuthorizedDirectory(replaced, []));
-    expect(result.current.directory).toMatchObject({ snapshot: { members: replaced.members } });
+    // The query cache notifies its observers on the next task.
+    await waitFor(() =>
+      expect(result.current.directory).toMatchObject({ snapshot: { members: replaced.members } }),
+    );
     expect(result.current.acceptedReadGeneration).toBe(accepted);
 
     await reads.settleNext({ kind: 'ok', status: 200, value: replaced });

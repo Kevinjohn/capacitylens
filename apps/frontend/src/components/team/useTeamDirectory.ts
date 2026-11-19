@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import type { Dispatch, SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { teamAccessClient } from '@/account/teamAccessClient';
@@ -39,204 +38,155 @@ type DirectoryState =
       content: { kind: 'authorized'; snapshot: DirectorySnapshot } | { kind: 'unavailable' };
     };
 
-type SetDirectory = Dispatch<SetStateAction<DirectoryState>>;
+/** A team read whose answer was not `ok`. Thrown so the query keeps its last successful data. */
+export class TeamReadError extends Error {
+  readonly result: Exclude<TeamAccessResult<unknown>, { kind: 'ok' }>;
 
-// Reload generations are part of the members query key, so they stay unique for the life of the
-// query cache: a later mount must not reuse a key whose cached read predates its write. Every mount
-// still starts on generation 0, so a revisit shows the cached directory while it refetches.
-let lastRequestedReadGeneration = 0;
-
-function getDirectorySnapshot(state: DirectoryState, companyId: string): DirectorySnapshot | null {
-  if (state.companyId !== companyId) return null;
-  if (state.kind === 'ready') return state.snapshot;
-  return state.kind === 'error' && state.content.kind === 'authorized'
-    ? state.content.snapshot
-    : null;
+  constructor(result: Exclude<TeamAccessResult<unknown>, { kind: 'ok' }>) {
+    super(result.message ?? `Team read failed with status ${result.status}.`);
+    this.result = result;
+  }
 }
 
-function markDirectoryError(state: DirectoryState, companyId: string): DirectoryState {
-  const snapshot = getDirectorySnapshot(state, companyId);
+async function readOk<T>(read: Promise<TeamAccessResult<T>>): Promise<T> {
+  const result = await read;
+  if (result.kind !== 'ok') throw new TeamReadError(result);
+  return result.value;
+}
+
+/** The one members query key for a scope and company; every reader of the members list shares it. */
+export function teamMembersQueryKey(scope: ApiQueryScope, companyId: string | null) {
+  return scopeQueryKey(scope, [
+    'team-members',
+    ...api.api.members.index.queryKey({ params: { companyId: companyId ?? '' } }),
+  ]);
+}
+
+/** Reads the members list for the shared members query. */
+export function readTeamMembers(companyId: string, signal: AbortSignal): Promise<TeamDirectory> {
+  return readOk(teamAccessClient.listMembers(companyId, signal));
+}
+
+const isAccessRefusal = (error: unknown): boolean =>
+  error instanceof TeamReadError && error.result.kind === 'rejected' && error.result.status === 403;
+
+function resolveFailureMessage(error: unknown, fallback: (status: number) => string): string {
+  if (!(error instanceof TeamReadError)) {
+    return m.settings_err_server({ error: resolveErrorMessage(error) });
+  }
+  const { result } = error;
+  return result.kind === 'rejected' && result.message ? result.message : fallback(result.status);
+}
+
+function toSnapshot(directory: TeamDirectory, invites: TeamInvitation[]): DirectorySnapshot {
   return {
-    kind: 'error',
-    companyId,
-    content: snapshot === null ? { kind: 'unavailable' } : { kind: 'authorized', snapshot },
+    members: directory.members,
+    signInTrackingEnabled: directory.signInTrackingEnabled,
+    resourceCandidates: directory.resourceCandidates,
+    invites,
   };
 }
 
-function replaceInvites(
-  state: DirectoryState,
-  companyId: string,
-  invites: TeamInvitation[],
+/** The directory as the members and invitations queries hold it; nothing is copied out of them. */
+function deriveDirectory(
+  companyId: string | null,
+  members: { data: TeamDirectory | undefined; error: unknown },
+  invites: TeamInvitation[] | undefined,
 ): DirectoryState {
-  const snapshot = getDirectorySnapshot(state, companyId);
-  if (snapshot === null) return state;
-  const nextSnapshot = { ...snapshot, invites };
-  if (state.kind === 'ready') return { ...state, snapshot: nextSnapshot };
-  if (state.kind === 'error' && state.content.kind === 'authorized') {
-    return { ...state, content: { kind: 'authorized', snapshot: nextSnapshot } };
+  if (companyId === null) return { kind: 'loading', companyId };
+  const snapshot = members.data ? toSnapshot(members.data, invites ?? []) : null;
+  if (members.error) {
+    if (isAccessRefusal(members.error)) {
+      // A refusal after a successful read in this scope means access changed while the page was open.
+      return snapshot
+        ? { kind: 'error', companyId, content: { kind: 'unavailable' } }
+        : { kind: 'hidden', companyId };
+    }
+    return {
+      kind: 'error',
+      companyId,
+      content: snapshot ? { kind: 'authorized', snapshot } : { kind: 'unavailable' },
+    };
   }
-  return state;
+  return snapshot ? { kind: 'ready', companyId, snapshot } : { kind: 'loading', companyId };
 }
 
-function resolveFailureMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
-  return result.kind === 'rejected' && result.message ? result.message : fallback;
-}
-
-function useScopedDirectoryQueries({
-  options,
-  reloadKey,
-  inviteReloadKey,
-  scope,
-}: {
-  options: TeamDirectoryOptions;
-  reloadKey: number;
-  inviteReloadKey: number;
-  scope: ApiQueryScope;
-}) {
+function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope) {
   const { enabled, activeCompanyId } = options;
-  const scopeId = JSON.stringify([scope.principalId, scope.companyId, scope.masqueradeGeneration]);
-  const memberRouteKey = api.api.members.index.queryKey({
-    params: { companyId: activeCompanyId ?? '' },
-  });
-  const membersQuery = useQuery<TeamAccessResult<TeamDirectory>>({
-    queryKey: scopeQueryKey(scope, ['team-members', reloadKey, ...memberRouteKey]),
+  const companyId = activeCompanyId ?? '';
+  const { principalId, masqueradeGeneration } = scope;
+  // Stable keys, so the reload and replace callbacks keep their identity between renders.
+  const { membersKey, invitesKey } = useMemo(() => {
+    const keyScope = { principalId, companyId: activeCompanyId, masqueradeGeneration };
+    return {
+      membersKey: teamMembersQueryKey(keyScope, activeCompanyId),
+      invitesKey: scopeQueryKey(keyScope, [
+        'team-invitations',
+        ...api.api.invites.index.queryKey({ params: { companyId } }),
+      ]),
+    };
+  }, [principalId, activeCompanyId, masqueradeGeneration, companyId]);
+  const membersQuery = useQuery<TeamDirectory>({
+    queryKey: membersKey,
     enabled: enabled && !!activeCompanyId,
     refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => teamAccessClient.listMembers(activeCompanyId ?? '', signal),
+    // An answer is final: a refusal or failure shows at once rather than after retries.
+    retry: false,
+    queryFn: ({ signal }) => readTeamMembers(companyId, signal),
   });
-  const inviteRouteKey = api.api.invites.index.queryKey({
-    params: { companyId: activeCompanyId ?? '' },
-  });
-  const invitationsQuery = useQuery<TeamAccessResult<TeamInvitation[]>>({
-    queryKey: scopeQueryKey(scope, ['team-invitations', inviteReloadKey, ...inviteRouteKey]),
-    enabled: enabled && !!activeCompanyId && membersQuery.data?.kind === 'ok',
+  const invitationsQuery = useQuery<TeamInvitation[]>({
+    queryKey: invitesKey,
+    enabled: enabled && !!activeCompanyId && membersQuery.isSuccess,
     refetchOnWindowFocus: false,
-    queryFn: ({ signal }) => teamAccessClient.listInvitations(activeCompanyId ?? '', signal),
+    retry: false,
+    queryFn: ({ signal }) => readOk(teamAccessClient.listInvitations(companyId, signal)),
   });
-  return { membersQuery, invitationsQuery, scopeId };
+  return { membersKey, membersQuery, invitesKey, invitationsQuery };
 }
 
-function useMemberQueryEffects({
-  activeCompanyId,
-  fail,
-  authorizedCompanyRef,
-  setDirectory,
-  membersQuery,
-  scopeId,
-  readGeneration,
-  acceptReadGeneration,
-}: {
-  activeCompanyId: string | null;
-  fail: FieldError['fail'];
-  authorizedCompanyRef: { current: { scopeId: string; companyId: string } | null };
-  setDirectory: SetDirectory;
-  membersQuery: ReturnType<typeof useScopedDirectoryQueries>['membersQuery'];
-  scopeId: string;
-  /** The reload generation whose members query produced `membersQuery.data`. */
-  readGeneration: number;
-  acceptReadGeneration(generation: number): void;
-}) {
+function useReadFailureNotices(
+  fail: FieldError['fail'],
+  queries: ReturnType<typeof useDirectoryQueries>,
+) {
+  const { membersQuery, invitationsQuery } = queries;
+  const hadMembers = membersQuery.data !== undefined;
   useEffect(() => {
-    if (!activeCompanyId || !membersQuery.data) return;
-    const result = membersQuery.data;
-    if (result.kind === 'rejected' && result.status === 403) {
-      if (
-        authorizedCompanyRef.current?.scopeId === scopeId &&
-        authorizedCompanyRef.current.companyId === activeCompanyId
-      ) {
-        setDirectory({
-          kind: 'error',
-          companyId: activeCompanyId,
-          content: { kind: 'unavailable' },
-        });
-        fail(null, m.settings_members_err_access_changed());
-      } else {
-        setDirectory({ kind: 'hidden', companyId: activeCompanyId });
-      }
+    const error = membersQuery.error;
+    if (!error) return;
+    if (isAccessRefusal(error)) {
+      if (hadMembers) fail(null, m.settings_members_err_access_changed());
       return;
     }
-    if (result.kind === 'invalid') {
-      setDirectory((previous) => markDirectoryError(previous, activeCompanyId));
+    if (error instanceof TeamReadError && error.result.kind === 'invalid') {
       fail(null, 'The server returned an invalid members response.');
       return;
     }
-    if (result.kind !== 'ok') {
-      setDirectory((previous) => markDirectoryError(previous, activeCompanyId));
-      fail(
-        null,
-        resolveFailureMessage(result, m.settings_members_err_load({ status: result.status })),
-      );
-      return;
-    }
-    authorizedCompanyRef.current = { scopeId, companyId: activeCompanyId };
-    setDirectory((previous) => ({
-      kind: 'ready',
-      companyId: activeCompanyId,
-      snapshot: {
-        members: result.value.members,
-        signInTrackingEnabled: result.value.signInTrackingEnabled,
-        resourceCandidates: result.value.resourceCandidates,
-        invites: getDirectorySnapshot(previous, activeCompanyId)?.invites ?? [],
-      },
-    }));
-    acceptReadGeneration(readGeneration);
-  }, [
-    activeCompanyId,
-    membersQuery.data,
-    fail,
-    authorizedCompanyRef,
-    setDirectory,
-    scopeId,
-    readGeneration,
-    acceptReadGeneration,
-  ]);
+    fail(
+      null,
+      resolveFailureMessage(error, (status) => m.settings_members_err_load({ status })),
+    );
+    // Report each failed read once: a new failure has a new error time.
+  }, [membersQuery.error, membersQuery.errorUpdatedAt, hadMembers, fail]);
+  const membersOk = membersQuery.isSuccess;
   useEffect(() => {
-    if (membersQuery.error && activeCompanyId) {
-      setDirectory((previous) => markDirectoryError(previous, activeCompanyId));
-      fail(null, m.settings_err_server({ error: resolveErrorMessage(membersQuery.error) }));
-    }
-  }, [activeCompanyId, membersQuery.error, fail, setDirectory]);
-}
-
-function useInvitationQueryEffects({
-  activeCompanyId,
-  fail,
-  membersQuery,
-  invitationsQuery,
-  setDirectory,
-}: {
-  activeCompanyId: string | null;
-  fail: FieldError['fail'];
-  membersQuery: ReturnType<typeof useScopedDirectoryQueries>['membersQuery'];
-  invitationsQuery: ReturnType<typeof useScopedDirectoryQueries>['invitationsQuery'];
-  setDirectory: SetDirectory;
-}) {
-  useEffect(() => {
-    if (!activeCompanyId || membersQuery.data?.kind !== 'ok' || !invitationsQuery.data) return;
-    const result = invitationsQuery.data;
-    if (result.kind === 'invalid') {
+    const error = invitationsQuery.error;
+    if (!error || !membersOk) return;
+    if (error instanceof TeamReadError && error.result.kind === 'invalid') {
       fail(null, 'The server returned an invalid invites response.');
       return;
     }
-    if (result.kind !== 'ok') {
-      fail(
-        null,
-        resolveFailureMessage(result, m.settings_invites_err_load({ status: result.status })),
-      );
-      return;
-    }
-    setDirectory((previous) => replaceInvites(previous, activeCompanyId, result.value));
-  }, [activeCompanyId, membersQuery.data, invitationsQuery.data, fail, setDirectory]);
-  useEffect(() => {
-    if (membersQuery.data?.kind === 'ok' && invitationsQuery.error) {
-      fail(null, m.settings_err_server({ error: resolveErrorMessage(invitationsQuery.error) }));
-    }
-  }, [invitationsQuery.error, membersQuery.data, fail]);
+    fail(
+      null,
+      resolveFailureMessage(error, (status) => m.settings_invites_err_load({ status })),
+    );
+  }, [invitationsQuery.error, invitationsQuery.errorUpdatedAt, membersOk, fail]);
 }
 
-function useDirectoryRead(options: TeamDirectoryOptions) {
+/** Owns authoritative directory reads, self-gating and reload generations. */
+export function useTeamDirectory(options: TeamDirectoryOptions) {
   const { activeCompanyId, fail } = options;
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const masqueradeGeneration = useStore((state) =>
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
@@ -246,102 +196,52 @@ function useDirectoryRead(options: TeamDirectoryOptions) {
     companyId: activeCompanyId,
     masqueradeGeneration,
   };
-  const scopeId = JSON.stringify([scope.principalId, scope.companyId, scope.masqueradeGeneration]);
-  const [directoryState, setDirectoryState] = useState({
-    scopeId,
-    directory: { kind: 'loading', companyId: activeCompanyId } as DirectoryState,
-  });
-  const setDirectory = useCallback<SetDirectory>(
-    (next) =>
-      setDirectoryState((current) => {
-        const previous: DirectoryState =
-          current.scopeId === scopeId
-            ? current.directory
-            : { kind: 'loading', companyId: activeCompanyId };
-        return { scopeId, directory: typeof next === 'function' ? next(previous) : next };
-      }),
-    [activeCompanyId, scopeId],
-  );
-  // Remember which principal projection returned an authorized company directory.
-  const authorizedCompanyRef = useRef<{ scopeId: string; companyId: string } | null>(null);
-  // Each reload requests a new read generation. Only a successful members read applied for that
-  // generation accepts it; failures and other snapshot replacements leave it unaccepted.
-  const [reloadKey, setReloadKey] = useState(0);
-  const [acceptedReadGeneration, setAcceptedReadGeneration] = useState(0);
-  const [inviteReloadKey, setInviteReloadKey] = useState(0);
-  const reload = useCallback((): number => {
-    lastRequestedReadGeneration += 1;
-    setReloadKey(lastRequestedReadGeneration);
-    return lastRequestedReadGeneration;
-  }, []);
-  // Invitation-only writes refresh the independently authorized invite read. Apply its response
-  // only while both its company and authorizing member-load generation remain current.
-  const reloadInvites = useCallback(async () => setInviteReloadKey((key) => key + 1), []);
-  const { membersQuery, invitationsQuery } = useScopedDirectoryQueries({
-    options: { ...options, enabled: options.enabled && !masqueradeActive },
-    reloadKey,
-    inviteReloadKey,
+  const queries = useDirectoryQueries(
+    { ...options, enabled: options.enabled && !masqueradeActive },
     scope,
-  });
-  useMemberQueryEffects({
-    activeCompanyId,
-    fail,
-    authorizedCompanyRef,
-    setDirectory,
-    membersQuery,
-    scopeId,
-    readGeneration: reloadKey,
-    acceptReadGeneration: setAcceptedReadGeneration,
-  });
-  useInvitationQueryEffects({
-    activeCompanyId,
-    fail,
-    membersQuery,
-    invitationsQuery,
-    setDirectory,
-  });
+  );
+  const { membersKey, membersQuery, invitesKey, invitationsQuery } = queries;
+  useReadFailureNotices(fail, queries);
 
-  return {
-    directory:
-      directoryState.scopeId === scopeId
-        ? directoryState.directory
-        : ({ kind: 'loading', companyId: activeCompanyId } satisfies DirectoryState),
-    setDirectory,
-    reload,
-    acceptedReadGeneration,
-    reloadInvites,
-  };
-}
-
-/** Owns authoritative directory reads, self-gating and reload generations. */
-export function useTeamDirectory(options: TeamDirectoryOptions) {
-  const { activeCompanyId } = options;
-  const { directory, setDirectory, reload, acceptedReadGeneration, reloadInvites } =
-    useDirectoryRead(options);
-  const currentCompanyLoaded = directory.companyId === activeCompanyId;
+  // Each reload requests a new read generation. A generation is accepted once the members read it
+  // started settles successfully; failures leave it unaccepted.
+  const requestedGeneration = useRef(0);
+  const [acceptedReadGeneration, setAcceptedReadGeneration] = useState(0);
+  const reload = useCallback((): number => {
+    const generation = ++requestedGeneration.current;
+    void queryClient.invalidateQueries({ queryKey: membersKey, exact: true }).then(() => {
+      const state = queryClient.getQueryState(membersKey);
+      if (state?.status === 'success') {
+        setAcceptedReadGeneration((accepted) => Math.max(accepted, generation));
+      }
+    });
+    return generation;
+  }, [queryClient, membersKey]);
+  const reloadInvites = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: invitesKey, exact: true }),
+    [queryClient, invitesKey],
+  );
   const replaceAuthorizedDirectory = useCallback(
     (next: TeamDirectory, invites: TeamInvitation[]) => {
-      setDirectory((previous) => {
-        if (previous.kind !== 'ready' && previous.kind !== 'error') return previous;
-        const snapshot = {
-          members: next.members,
-          signInTrackingEnabled: next.signInTrackingEnabled,
-          resourceCandidates: next.resourceCandidates,
-          invites,
-        };
-        return previous.kind === 'ready'
-          ? { ...previous, snapshot }
-          : { ...previous, content: { kind: 'authorized', snapshot } };
-      });
+      if (queryClient.getQueryData(membersKey) === undefined) return;
+      queryClient.setQueryData(membersKey, next);
+      queryClient.setQueryData(invitesKey, invites);
     },
-    [setDirectory],
+    [queryClient, membersKey, invitesKey],
+  );
+
+  const directory = useMemo(
+    () =>
+      deriveDirectory(
+        activeCompanyId,
+        { data: membersQuery.data, error: membersQuery.error },
+        invitationsQuery.data,
+      ),
+    [activeCompanyId, membersQuery.data, membersQuery.error, invitationsQuery.data],
   );
 
   return {
-    directory:
-      currentCompanyLoaded && directory.companyId !== null
-        ? directory
-        : ({ kind: 'loading', companyId: activeCompanyId } satisfies DirectoryState),
+    directory,
     replaceAuthorizedDirectory,
     reload,
     acceptedReadGeneration,
