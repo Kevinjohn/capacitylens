@@ -18,6 +18,7 @@ import {
   changesNothing,
   invalidatesRestoration,
   listAuditedEntities,
+  projectionChanges,
 } from '#services/planning/mutation_changes';
 import { writeAudit } from '#services/audit';
 import { buildSaveAdvisory } from '#services/planning/save_advisory';
@@ -280,6 +281,11 @@ async function commit({
     restorationGroupId: restoration.replacementGroupId,
     originSessionId: restoration.replacementGroupId ? actor.sessionId : null,
   });
+  // The receipt carries the rows this commit changed, as the writer's own read shows them.
+  const changed = projectionChanges(
+    transformState(activeOnly(before), companyId, authority.role),
+    transformState(activeOnly(working), companyId, authority.role)
+  );
   await writeAudit(trx, {
     companyId,
     actorId: authority.actorId,
