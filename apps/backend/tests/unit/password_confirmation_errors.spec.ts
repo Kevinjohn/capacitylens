@@ -11,6 +11,7 @@ import {
   SessionRegistryRequiredException,
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import HttpExceptionHandler from '#exceptions/handler';
+import { describeFailure } from '#services/logging_safety';
 
 const required = { error: 'Confirm this action again.', code: 'PASSWORD_CONFIRMATION_REQUIRED' };
 for (const [error, status, expected] of [
@@ -91,6 +92,7 @@ for (const [error, status, expected] of [
         method: 'POST',
         path: '/api/auth/password-confirmation',
         status: 500,
+        ...describeFailure(error),
       });
   });
 }

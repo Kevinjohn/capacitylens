@@ -3,22 +3,17 @@ import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
 import { mapHttpError } from '#exceptions/http_error_mapping';
 import {
   classifyLogError,
+  describeFailure,
   reportPrivateFailure,
   normalizeRequestMethod,
   normalizeRoutePattern,
 } from '#services/logging_safety';
 
 export default class HttpExceptionHandler extends ExceptionHandler {
-  /**
-   * In debug mode, the exception handler will display verbose errors
-   * with pretty printed stack traces.
-   */
+  // In development a 500 carries the error's message and stack.
   protected debug = app.inDev;
 
-  /**
-   * The method is used for handling errors and returning
-   * response to the client
-   */
+  /** Answers a mapped refusal with its body, anything else with a bare 500. */
   async handle(error: unknown, ctx: HttpContext) {
     const mapped = mapHttpError(error);
     if (mapped) {
@@ -34,10 +29,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
   }
 
   /**
-   * The method is used to report error to the logging service or
-   * the a third party error monitoring service.
-   *
-   * @note You should not attempt to send a response from this method.
+   * Logs server faults with their class and stack frames, never the message; expected refusals are
+   * not logged.
    */
   async report(error: unknown, ctx: HttpContext) {
     // Expected refusals are the mapped outcomes below 500; the mapping marks the ones still logged.
@@ -54,6 +47,9 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         method: normalizeRequestMethod(ctx.request.method()),
         path: normalizeRoutePattern(ctx.route?.pattern),
         status: failure.status,
+        ...(failure.errorType === 'unexpected' || failure.status >= 500
+          ? describeFailure(error)
+          : {}),
       },
       'HTTP request failed'
     );
