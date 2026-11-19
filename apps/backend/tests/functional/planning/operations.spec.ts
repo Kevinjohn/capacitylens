@@ -682,6 +682,26 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
   });
 
+  test('a setting set back to empty commits and reads back empty', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const { cookie } = await signIn(client);
+    const styled = await session(client.patch(route('settings')), cookie)
+      .json(input(0, { operation: 'settings.update', changes: { dateStyle: 'month-day' } }))
+      .send();
+    styled.assertStatus(200);
+    const cleared = await session(client.patch(route('settings')), cookie)
+      .json(input(1, { operation: 'settings.update', changes: { dateStyle: null } }))
+      .send();
+    cleared.assertStatus(200);
+    assert.equal(body(cleared).revision, 2);
+    const state = await readState(companyId, true);
+    assert.isNull(state.accounts[0]?.dateStyle);
+  });
+
   test('refuses phase reassignment that would invalidate its activities without committing effects', async ({
     client,
     assert,

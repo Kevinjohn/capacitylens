@@ -317,6 +317,8 @@ test.group('session-bound allocation restoration', (suite) => {
     const othersBefore = await otherAccounts();
     assert.isAbove(Number(othersBefore[0].n), 0);
     const data = await readState(companyId, true);
+    // The delete removes its rows from `data` too, so count them first.
+    const storedCount = data.allocations.length;
     const sessionId = await fixtureSession('u-bruce');
     const groupId = await withTransaction((trx) =>
       deleteAllocations(trx, data, companyId, listed, {
@@ -331,7 +333,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const listedIds = new Set(listed);
     assert.isTrue(saved.every((row) => listedIds.has(String(row.row_id))));
     const remaining = await readState(companyId, true);
-    assert.lengthOf(remaining.allocations, data.allocations.length - listedCount);
+    assert.lengthOf(remaining.allocations, storedCount - listedCount);
     assert.isFalse(remaining.allocations.some((row) => listedIds.has(row.id)));
     assert.deepEqual(
       remaining.allocations.find((row) => row.id === kept),

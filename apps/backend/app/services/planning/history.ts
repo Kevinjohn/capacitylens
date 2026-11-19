@@ -66,6 +66,7 @@ export async function readHistoryState(
 
 /** Ends the company's history; stored inverses hold earlier field values. */
 export async function discardHistory(trx: TransactionClientContract, companyId: string) {
+  // Undo history, not a product row.
   await trx.from('planning_histories').where('company_id', companyId).delete();
 }
 
@@ -79,6 +80,7 @@ export async function writeHistory(
   // Redo entries only ever come off the past, so bounding the past bounds both lists.
   const bounded = { past: entries.past.slice(-HISTORY_LIMIT), future: entries.future };
   await discardHistory(trx, owner.companyId);
+  // Undo history, not a product row.
   await trx.table('planning_histories').insert({
     company_id: owner.companyId,
     session_id: owner.sessionId,

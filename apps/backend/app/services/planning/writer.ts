@@ -2,6 +2,7 @@ import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, AppDataKey, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { cleanText } from '@capacitylens/shared/lib/strings';
+import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
 import { assertFrozenCompanyFields } from '#services/planning/entity_policy';
 import { tables } from '#services/product_tables';
@@ -13,6 +14,14 @@ import type { PlanningCapabilities } from '#services/planning/data_policy';
 export { PlanningOperationError };
 
 export type Row = Record<string, unknown> & { id: string };
+
+/** One row a planning operation wrote: its table, id, and the row before and after. */
+export interface WrittenRow {
+  entity: AppDataKey;
+  id: string;
+  before: Row | null;
+  after: Row | null;
+}
 
 /**
  * Returns a table's rows as untyped records. The write path treats every table's rows this way;
@@ -46,6 +55,7 @@ export async function writeRow({
   table,
   row,
   existing,
+  written,
 }: {
   trx: TransactionClientContract;
   data: AppData;
@@ -53,16 +63,20 @@ export async function writeRow({
   table: ScopedEntityKey;
   row: Record<string, unknown>;
   existing: Row | undefined;
+  written: WrittenRow[];
 }) {
   if (existing) {
     await trx
       .from(tables[table])
       .where({ id: row.id, company_id: companyId })
       .update(encodeRow(tables[table], row));
+    const before = { ...existing };
     Object.assign(existing, row);
+    written.push({ entity: table, id: existing.id, before, after: { ...existing } });
   } else {
     await trx.table(tables[table]).insert(encodeRow(tables[table], row));
     listRows(data, table).push(row as Row);
+    written.push({ entity: table, id: String(row.id), before: null, after: { ...(row as Row) } });
   }
   return row;
 }
@@ -76,7 +90,8 @@ export async function updateSettings(
   data: AppData,
   companyId: string,
   changes: Record<string, unknown>,
-  capabilities: PlanningCapabilities
+  capabilities: PlanningCapabilities,
+  written: WrittenRow[] = []
 ) {
   if (Object.hasOwn(changes, 'capacityOverviewAccess') && !isOwnerOrAdmin(capabilities.role)) {
     throw new PlanningOperationError(
@@ -97,6 +112,10 @@ export async function updateSettings(
   candidate.updatedAt = now;
   const validated = await assertEntityRow('accounts', candidate);
   if (typeof validated.name === 'string') validated.name = cleanText(validated.name);
+  // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
+  fillNullableFields('accounts', validated);
   await trx.from('accounts').where('id', companyId).update(encodeRow('accounts', validated));
+  const before = { ...existing };
   Object.assign(existing, validated);
+  written.push({ entity: 'accounts', id: companyId, before, after: { ...existing } });
 }

@@ -15,7 +15,7 @@ import { encodeRow } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
-import { existingRow, PlanningOperationError, updateSettings } from './writer.js';
+import { existingRow, PlanningOperationError, updateSettings, type WrittenRow } from './writer.js';
 import { writeEntity } from './entity_write.js';
 import { buildAllocationOccurrences, buildTimeOffOccurrences } from './repeat_occurrences.js';
 import {
@@ -45,7 +45,8 @@ async function transitionLifecycle(
   companyId: string,
   table: LifecycleTable,
   id: string,
-  action: 'archive' | 'unarchive'
+  action: 'archive' | 'unarchive',
+  written: WrittenRow[]
 ) {
   const current = existingRow(data, table, id);
   // Checking the table does not narrow the row, but a clients row is a Client.
@@ -83,7 +84,9 @@ async function transitionLifecycle(
     .from(tables[table])
     .where({ id, company_id: companyId })
     .update(encodeRow(tables[table], next));
+  const before = { ...current, id };
   Object.assign(current, next);
+  written.push({ entity: table, id, before, after: { ...current, id } });
 }
 
 /** One planning intent and the verified context it is applied in. */
@@ -99,20 +102,37 @@ export interface ExecutePlanningIntentOptions {
   expectedUpdatedAt?: string;
 }
 
+/** What one executed intent did: its restoration handles and every product row it wrote. */
+export interface PlanningExecution {
+  restoration: PlanningMutationSuccess['restoration'];
+  written: WrittenRow[];
+}
+
 /**
  * Applies one intent to the caller's transaction and mutable, complete company snapshot.
  * The caller retains a separate before-image and owns rollback, revision, audit and commitment.
  * Typed allocation deletes return a new restoration group; restore returns the group it consumed.
  */
-export async function executePlanningIntent({
-  trx,
-  companyId,
-  intent,
-  capabilities,
-  data,
-  identity,
-  expectedUpdatedAt,
-}: ExecutePlanningIntentOptions): Promise<PlanningMutationSuccess['restoration']> {
+export async function executePlanningIntent(
+  options: ExecutePlanningIntentOptions
+): Promise<PlanningExecution> {
+  const written: WrittenRow[] = [];
+  const restoration = await applyIntent(options, written);
+  return { restoration, written };
+}
+
+async function applyIntent(
+  {
+    trx,
+    companyId,
+    intent,
+    capabilities,
+    data,
+    identity,
+    expectedUpdatedAt,
+  }: ExecutePlanningIntentOptions,
+  written: WrittenRow[]
+): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
   if (!capabilities.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
@@ -120,7 +140,7 @@ export async function executePlanningIntent({
   if (!data.accounts.some((row) => row.id === companyId)) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
-  const writeOptions = { trx, data, companyId, capabilities, identity, expectedUpdatedAt };
+  const writeOptions = { trx, data, written, companyId, capabilities, identity, expectedUpdatedAt };
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -207,13 +227,19 @@ export async function executePlanningIntent({
           if (!allocationAttributionAllowed(activity.kind)) {
             for (const allocation of data.allocations) {
               if (allocation.activityId !== entity.id || allocation.projectId === null) continue;
+              const updatedAt = createServerRevision(allocation.updatedAt);
               await trx
                 .from('allocations')
                 .where({ id: allocation.id, company_id: companyId })
-                .update({
-                  project_id: null,
-                  updated_at: createServerRevision(allocation.updatedAt),
-                });
+                .update({ project_id: null, updated_at: updatedAt });
+              const before = { ...allocation };
+              Object.assign(allocation, { projectId: null, updatedAt });
+              written.push({
+                entity: 'allocations',
+                id: allocation.id,
+                before,
+                after: { ...allocation },
+              });
             }
           }
         }
@@ -227,7 +253,8 @@ export async function executePlanningIntent({
           companyId,
           intent.entity.entity,
           intent.entity.id,
-          intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive'
+          intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive',
+          written
         );
         return unchanged;
       case 'catalogue.delete': {
@@ -237,7 +264,8 @@ export async function executePlanningIntent({
           companyId,
           intent.entity.entity,
           [intent.entity.id],
-          identity
+          identity,
+          written
         );
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
@@ -259,7 +287,8 @@ export async function executePlanningIntent({
           companyId,
           'resources',
           intent.id,
-          intent.operation === 'resource.archive' ? 'archive' : 'unarchive'
+          intent.operation === 'resource.archive' ? 'archive' : 'unarchive',
+          written
         );
         return unchanged;
       case 'timeOff.create':
@@ -307,7 +336,7 @@ export async function executePlanningIntent({
       case 'timeOff.delete':
       case 'timeOff.deleteGroup': {
         const ids = intent.operation === 'timeOff.delete' ? [intent.id] : intent.ids;
-        const groupId = await deleteRows(trx, data, companyId, 'timeOff', ids, identity);
+        const groupId = await deleteRows(trx, data, companyId, 'timeOff', ids, identity, written);
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'closure.create':
@@ -321,20 +350,28 @@ export async function executePlanningIntent({
         });
         return unchanged;
       case 'closure.delete': {
-        const groupId = await deleteRows(trx, data, companyId, 'closures', [intent.id], identity);
+        const groupId = await deleteRows(
+          trx,
+          data,
+          companyId,
+          'closures',
+          [intent.id],
+          identity,
+          written
+        );
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'settings.update':
-        await updateSettings(trx, data, companyId, intent.changes, capabilities);
+        await updateSettings(trx, data, companyId, intent.changes, capabilities, written);
         return unchanged;
       case 'allocation.delete':
       case 'allocation.deleteGroup': {
         const ids = intent.operation === 'allocation.delete' ? [intent.id] : intent.ids;
-        const groupId = await deleteAllocations(trx, data, companyId, ids, identity);
+        const groupId = await deleteAllocations(trx, data, companyId, ids, identity, written);
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'planning.restoreGroup':
-        await restoreGroup(trx, companyId, intent.restorationGroupId, identity);
+        await restoreGroup(trx, data, companyId, intent.restorationGroupId, identity, written);
         return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null };
       default:
         throw new PlanningOperationError(
