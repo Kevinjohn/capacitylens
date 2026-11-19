@@ -170,7 +170,9 @@ describe('active-account permission publication', () => {
     expect(s().planning.authority).toBeNull();
     const dataBefore = s().data;
     expect(transport.calls).toEqual([]);
-    await s().addClient({ name: 'Must not land', color: '#111111' });
+    await expect(s().addClient({ name: 'Must not land', color: '#111111' })).rejects.toThrow(
+      'No active company is selected.',
+    );
     await s().sendPlanningCommand({
       intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'cB' } },
     });

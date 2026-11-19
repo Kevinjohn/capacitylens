@@ -39,10 +39,25 @@ function requireCreatedId(value: unknown): string {
 
 /** The remaining planning writers share the allocation controller and await its reconciliation. */
 export function createTypedPlanningActions(
-  get: () => Pick<StoreState, 'data' | 'sendPlanningCommand'>,
+  get: () => Pick<StoreState, 'data' | 'planning' | 'masquerade' | 'sendPlanningCommand'>,
   { requireCompany, blockedByViewer }: Pick<StoreInternals, 'requireCompany' | 'blockedByViewer'>,
 ) {
   const blocked = blockedByViewer;
+  // After a failed first read the company row was never published, so a create reports that, as it
+  // did before the authority gate existed, instead of the gate's role-unavailable notice.
+  const requireCreateAccount = () => {
+    const companyId = requireCompany();
+    const { data, planning, masquerade } = get();
+    if (
+      masquerade.kind === 'inactive' &&
+      planning.authority === null &&
+      (planning.status === 'error' || planning.status === 'refused') &&
+      !data.accounts.some((row) => row.id === companyId)
+    ) {
+      throw new Error('No active company is selected.');
+    }
+    return companyId;
+  };
   // The guard admits a company still loading from the summaries; no command can be built for it
   // until its row is published, which the person sees as no company being selected yet.
   const buildUnpreparedError = (companyId: string, message: string) =>
@@ -97,7 +112,7 @@ export function createTypedPlanningActions(
     key: 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines',
     fields: Draft<T>,
   ): Promise<CreateResult<T>> => {
-    const companyId = requireCompany();
+    const companyId = requireCreateAccount();
     if (blocked()) return { kind: 'blocked' };
     const id = newId();
     const command = buildCatalogueCreate({
@@ -139,7 +154,7 @@ export function createTypedPlanningActions(
     await send({ intent: { operation: 'catalogue.delete', entity: { entity: key, id } } });
   };
   const createTimeOff = async (input: Draft<TimeOff>): Promise<CreateResult<TimeOff>> => {
-    const companyId = requireCompany();
+    const companyId = requireCreateAccount();
     if (blocked()) return { kind: 'blocked' };
     assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
     const id = newId();
@@ -179,7 +194,7 @@ export function createTypedPlanningActions(
       });
     },
     addResource: async (input: Draft<Resource>): Promise<CreateResult<Resource>> => {
-      const companyId = requireCompany();
+      const companyId = requireCreateAccount();
       if (blocked()) return { kind: 'blocked' };
       const id = newId();
       const fields = {
@@ -225,7 +240,7 @@ export function createTypedPlanningActions(
       if (!Number.isSafeInteger(count) || count < 2) {
         throw new Error('A repeat needs at least two entries.');
       }
-      const companyId = requireCompany();
+      const companyId = requireCreateAccount();
       if (blocked()) return { kind: 'blocked' };
       assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
       const command = buildTimeOffCreate({
@@ -267,7 +282,7 @@ export function createTypedPlanningActions(
       await send({ intent: { operation: 'timeOff.delete', id } });
     },
     addClosure: async (input: Draft<Closure>): Promise<CreateResult<Closure>> => {
-      const companyId = requireCompany();
+      const companyId = requireCreateAccount();
       if (blocked()) return { kind: 'blocked' };
       const id = newId();
       const command = buildClosureCreate({

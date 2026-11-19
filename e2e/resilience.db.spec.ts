@@ -30,8 +30,9 @@ test.describe('database-backed resilience', () => {
     await page.getByRole('button', { name: 'Add client' }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Outage Client');
     await page.getByRole('button', { name: 'Save' }).click();
-    // With no accepted planning read there is no planning authority, so the store refuses the write.
-    await expect(page.getByText('Your company role could not be verified.')).toBeVisible();
+    await expect(
+      page.getByRole('dialog', { name: 'Add client' }).getByText('No active company is selected.'),
+    ).toBeVisible();
     expect(
       requireStateRows(await serverState(request), 'clients').some(
         ({ name }) => name === 'Outage Client',
