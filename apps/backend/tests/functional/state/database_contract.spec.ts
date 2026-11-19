@@ -67,8 +67,8 @@ test.group('M1 database contract', (group) => {
 
   test('schema checks reject an unknown enum value or reversed date range')
     .with([
-      { table: 'accounts', id: accountIds.dc, values: { scheduling_mode: 'weekly' } },
-      { table: 'accounts', id: accountIds.dc, values: { date_style: 'iso' } },
+      { table: 'accounts', id: companyIds.dc, values: { scheduling_mode: 'weekly' } },
+      { table: 'accounts', id: companyIds.dc, values: { date_style: 'iso' } },
       { table: 'resources', id: 'm1-dc-resource', values: { kind: 'robot' } },
       { table: 'resources', id: 'm1-dc-resource', values: { employment_type: 'intern' } },
       { table: 'resources', id: 'm1-dc-resource', values: { engagement: 'remote' } },
