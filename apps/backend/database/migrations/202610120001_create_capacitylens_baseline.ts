@@ -67,6 +67,10 @@ export default class extends BaseSchema {
       table.json('show_task_field_in_schedule').nullable();
       table.json('capacity_overview_access').nullable();
       table.string('date_style').nullable();
+      table.check("scheduling_mode IS NULL OR scheduling_mode IN ('hourly','days','blocks')");
+      table.check(
+        "date_style IS NULL OR date_style IN ('day-month','day-ordinal-month','month-day','month-day-ordinal')"
+      );
     });
     this.schema.createTable('clients', (table) => {
       scoped(table);
@@ -142,6 +146,12 @@ export default class extends BaseSchema {
       table.timestamp('deleted_at').nullable();
       table.index(['discipline_id']);
       table.index(['project_id']);
+      table.check("kind IN ('person','placeholder','external')");
+      table.check("employment_type IN ('permanent','freelancer','contractor')");
+      table.check("engagement IN ('studio','supplementary')");
+      table.check(
+        'first_available_date IS NULL OR last_available_date IS NULL OR first_available_date <= last_available_date'
+      );
     });
     this.schema.createTable('activities', (table) => {
       scoped(table);
@@ -158,6 +168,7 @@ export default class extends BaseSchema {
       table.timestamp('deleted_at').nullable();
       table.index(['project_id']);
       table.index(['phase_id']);
+      table.check("kind IN ('project','internal','repeatable')");
     });
     this.schema.createTable('allocations', (table) => {
       scoped(table);
@@ -190,6 +201,9 @@ export default class extends BaseSchema {
       table.index(['resource_id']);
       table.index(['activity_id']);
       table.index(['project_id']);
+      table.check("status IN ('confirmed','tentative','completed')");
+      table.check('start_date <= end_date');
+      table.check('hours_per_day >= 0 AND hours_per_day <= 24');
     });
     this.schema.createTable('time_off', (table) => {
       scoped(table);
@@ -204,12 +218,15 @@ export default class extends BaseSchema {
       table.string('type').notNullable();
       table.text('note').nullable();
       table.index(['resource_id']);
+      table.check("type IN ('holiday','sick','unpaid','other')");
+      table.check('start_date <= end_date');
     });
     this.schema.createTable('closures', (table) => {
       scoped(table);
       table.string('name').notNullable();
       table.date('start_date').notNullable();
       table.date('end_date').notNullable();
+      table.check('start_date <= end_date');
     });
 
     // Account Kit's Lucid adapter maps these columns; password is the Adonis hasher's output.

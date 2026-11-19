@@ -65,6 +65,56 @@ test.group('M1 database contract', (group) => {
     );
   });
 
+  test('schema checks reject an unknown enum value or reversed date range')
+    .with([
+      { table: 'accounts', id: accountIds.dc, values: { scheduling_mode: 'weekly' } },
+      { table: 'accounts', id: accountIds.dc, values: { date_style: 'iso' } },
+      { table: 'resources', id: 'm1-dc-resource', values: { kind: 'robot' } },
+      { table: 'resources', id: 'm1-dc-resource', values: { employment_type: 'intern' } },
+      { table: 'resources', id: 'm1-dc-resource', values: { engagement: 'remote' } },
+      {
+        table: 'resources',
+        id: 'm1-dc-resource',
+        values: { first_available_date: '2026-02-01', last_available_date: '2026-01-01' },
+      },
+      { table: 'activities', id: 'm1-dc-activity', values: { kind: 'meeting' } },
+      { table: 'allocations', id: 'm1-dc-allocation', values: { status: 'maybe' } },
+      {
+        table: 'allocations',
+        id: 'm1-dc-allocation',
+        values: { start_date: '2026-02-01', end_date: '2026-01-01' },
+      },
+      { table: 'allocations', id: 'm1-dc-allocation', values: { hours_per_day: 25 } },
+      { table: 'allocations', id: 'm1-dc-allocation', values: { hours_per_day: -1 } },
+      { table: 'time_off', id: 'm1-dc-time-off', values: { type: 'vacation' } },
+      {
+        table: 'time_off',
+        id: 'm1-dc-time-off',
+        values: { start_date: '2026-02-01', end_date: '2026-01-01' },
+      },
+      {
+        table: 'closures',
+        id: 'm1-dc-closure',
+        values: { start_date: '2026-02-01', end_date: '2026-01-01' },
+      },
+    ])
+    .run(async ({ assert }, { table, id, values }) => {
+      const source = await db.from(table).where('id', id).first();
+      assert.isDefined(source);
+      const copy = { ...source, id: `${id}-check-copy` };
+      const error = await db
+        .table(table)
+        .insert({ ...copy, ...values })
+        .then(
+          () => undefined,
+          (rejection: unknown) => rejection as { code?: string }
+        );
+      assert.equal(error?.code, 'SQLITE_CONSTRAINT_CHECK');
+      // The same row without the bad value is accepted, so only that value failed the check.
+      await db.table(table).insert(copy);
+      await db.from(table).where('id', copy.id).delete();
+    });
+
   test('physical account deletion cascades only its idempotency receipts', async ({ assert }) => {
     const receipts = [companyIds.dc, companyIds.marvel].map((scopeId) => ({
       id: `receipt-${scopeId}`,
