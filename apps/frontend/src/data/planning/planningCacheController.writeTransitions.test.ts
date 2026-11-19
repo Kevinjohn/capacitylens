@@ -13,6 +13,17 @@ import {
   snapshot,
   readyWithHistory,
 } from '@/test/planningTransitionHarness';
+import { emptyCapacity } from '@/test/capacityFixtures';
+import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+
+/** A read without rows, as the harness's server reports it for the revision the page named. */
+const unchanged = (revision: number): PlanningSnapshot => ({
+  revision,
+  authority: makePlanningAuthority(),
+  slice: 'unchanged',
+  today: '2026-06-03',
+  capacity: emptyCapacity(),
+});
 
 // Pins the coordinator transitions that no other controller test asserts directly.
 
@@ -54,7 +65,7 @@ describe('planning write transitions', () => {
     });
   });
 
-  it("an acknowledged write shows the server's rows only after the canonical read", async () => {
+  it("an acknowledged write without receipt rows shows the server's rows only after the canonical read", async () => {
     const h = await ready();
     const before = h.state().data;
     const canonical = snapshot(2, 'Ferris Aircraft');
@@ -65,7 +76,7 @@ describe('planning write transitions', () => {
       expect(h.state().planning.phase).toMatchObject({ write: { commitment: { revision: 2 } } }),
     );
     expect(h.state().data).toBe(before);
-    expect(h.state().planning).toMatchObject({ phase: { kind: 'writing' }, revision: 1 });
+    expect(h.state().planning).toMatchObject({ phase: { kind: 'writing' }, revision: 2 });
     canonicalRead.resolve(canonical);
     await expect(write).resolves.toMatchObject({ revision: 2 });
     expect(h.state().data).toEqual(canonical.data);
@@ -220,5 +231,55 @@ describe('planning write transitions', () => {
       revision: 4,
       history: { canUndo: false, canRedo: false },
     });
+  });
+
+  it("applies a receipt's rows on top of the revision it was written against", async () => {
+    const h = await ready();
+    const client = h.state().data.clients[0];
+    if (!client) throw new Error('Expected a cached client.');
+    const renamed = { ...client, name: 'Ferris Aircraft' };
+    h.execute.mockImplementationOnce(async (_context, execution) => {
+      h.server.revision = 2;
+      return makeReceipt(execution.mutationId, 2, {
+        changes: { upserts: [{ entity: 'clients', row: renamed }], removed: [] },
+      });
+    });
+    h.read.mockImplementationOnce(async (_context, _signal, request) => {
+      if (request?.ifRevision !== 2) throw new Error('Expected the read to name revision 2.');
+      return unchanged(2);
+    });
+    await expect(h.controller.execute(h.controller.begin(), update)).resolves.toMatchObject({
+      revision: 2,
+    });
+    expect(h.state().data.clients).toEqual([renamed]);
+    expect(h.state().planning).toMatchObject({ phase: { kind: 'ready' }, revision: 2 });
+  });
+
+  it('does not apply a receipt when the cache has moved past its base revision', async () => {
+    const h = await ready();
+    const response = deferred<PlanningMutationSuccess>();
+    h.execute.mockImplementationOnce(() => response.promise);
+    const write = h.controller.execute(h.controller.begin(), update);
+    h.read.mockResolvedValueOnce(snapshot(3, 'Kord Industries'));
+    await h.controller.refresh({ quiet: true });
+    expect(h.state().planning.revision).toBe(3);
+
+    h.server.revision = 3;
+    h.read.mockImplementationOnce(async (_context, _signal, request) =>
+      request?.ifRevision === 3 ? unchanged(3) : snapshot(3),
+    );
+    const client = h.state().data.clients[0];
+    if (!client) throw new Error('Expected a cached client.');
+    response.resolve(
+      makeReceipt('mutation-1', 2, {
+        changes: {
+          upserts: [{ entity: 'clients', row: { ...client, name: 'Stale' } }],
+          removed: [],
+        },
+      }),
+    );
+    await write;
+    expect(h.read.mock.lastCall?.[2]?.ifRevision).toBe(3);
+    expect(h.state().data.clients[0]?.name).toBe('Kord Industries');
   });
 });

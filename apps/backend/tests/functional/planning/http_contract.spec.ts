@@ -282,7 +282,8 @@ test.group('authenticated typed planning transactions', (group) => {
     created.assertStatus(200);
     assert.equal(created.body().revision, 1);
     assert.equal(created.body().status, 'committed');
-    assert.deepEqual(created.body(), {
+    const { changes, ...receipt } = created.body();
+    assert.deepEqual(receipt, {
       status: 'committed',
       mutationId,
       revision: 1,
@@ -290,6 +291,14 @@ test.group('authenticated typed planning transactions', (group) => {
       history: { canUndo: false, canRedo: false },
       advisory: { overDays: 0, timeOffDays: 0 },
     });
+    assert.deepEqual(
+      changes.upserts.map((upsert: { entity: string; row: { id: string } }) => [
+        upsert.entity,
+        upsert.row.id,
+      ]),
+      [['allocations', allocation.id]]
+    );
+    assert.deepEqual(changes.removed, []);
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
     assert.equal(read.body().revision, 1);

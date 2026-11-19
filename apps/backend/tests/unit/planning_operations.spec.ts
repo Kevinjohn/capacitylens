@@ -467,6 +467,7 @@ test.group('planning operation contracts', () => {
       mutationId: uuid,
       revision: 18,
       restoration: { consumedGroupId: null, replacementGroupId: otherUuid },
+      changes: { upserts: [], removed: [] },
       history: { canUndo: true, canRedo: false },
     };
     const restoration: PlanningMutationSuccess = {

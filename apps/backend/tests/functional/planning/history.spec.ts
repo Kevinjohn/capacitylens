@@ -376,7 +376,10 @@ test.group('server-held undo and redo', (suite) => {
     const read = await page.read();
     for (const body of [reply, updated, read]) {
       assert.deepEqual(body.history, { canUndo: true, canRedo: false });
-      // The note before the update exists only in the stored inverse.
+    }
+    // After the update, the note before it exists only in the stored inverse. The create's own
+    // receipt carried it as the row it wrote.
+    for (const body of [updated, read]) {
       assert.notInclude(JSON.stringify(body), 'Batcave audit');
     }
     const [row] = await histories();

@@ -189,7 +189,8 @@ This is the short, present-tense record of decisions that constrain future work.
 ## Browser data
 
 - Scheduling records and identity snapshots are never persisted in the browser. The planning
-  slice is a non-persisted cache replaced from server reads; it is never authoritative.
+  slice is a non-persisted cache replaced from server reads, or advanced by the rows a committed
+  write's receipt returns; it is never authoritative.
   Server failures stay visible and retryable. There is no offline mode, write queue or fallback.
 - Each server dataset has one home in the browser. The store owns the planning cache and every
   dataset that store logic reads, such as the company directory. TanStack Query owns server reads

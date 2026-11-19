@@ -4,6 +4,19 @@ import type { ArchiveImpact } from '@capacitylens/shared/domain/lifecycle';
 import type { CapacityAdvisory } from '@capacitylens/shared/lib/capacity';
 import type { RepeatingAllocationAdvisory } from '@capacitylens/shared/lib/capacity/repeatAdvisory';
 import type {
+  Activity,
+  Allocation,
+  AppDataKey,
+  Client,
+  Closure,
+  Company,
+  Discipline,
+  Phase,
+  Project,
+  Resource,
+  TimeOff,
+} from '@capacitylens/shared/types/entities';
+import type {
   planningHistoryStepValidator,
   planningMutationValidator,
 } from '#validators/planning_operations';
@@ -20,6 +33,23 @@ export interface PlanningHistoryState {
   canRedo: boolean;
 }
 
+type PlanningRowByEntity = {
+  accounts: Company;
+  disciplines: Discipline;
+  resources: Resource;
+  clients: Client;
+  projects: Project;
+  phases: Phase;
+  activities: Activity;
+  allocations: Allocation;
+  timeOff: TimeOff;
+  closures: Closure;
+};
+
+export type ProjectedPlanningRow = {
+  [Entity in AppDataKey]: { entity: Entity; row: PlanningRowByEntity[Entity] };
+}[AppDataKey];
+
 export interface PlanningMutationSuccess {
   status: 'committed';
   mutationId: string;
@@ -30,6 +60,8 @@ export interface PlanningMutationSuccess {
     | { consumedGroupId: null; replacementGroupId: string }
     | { consumedGroupId: string; replacementGroupId: null }
     | { consumedGroupId: null; replacementGroupId: null };
+  /** Rows this commit changed, as the writer may see them. Apply only on top of `revision - 1`. */
+  changes: { upserts: ProjectedPlanningRow[]; removed: Array<{ entity: AppDataKey; id: string }> };
   /** The sending page's history after this commit; both false when it named no history. */
   history?: PlanningHistoryState;
   /** Active descendants this archive hid, measured from the committed before-state. */

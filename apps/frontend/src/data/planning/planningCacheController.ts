@@ -18,6 +18,7 @@ import { buildAuthorityKey, canWritePlanning } from './planningAuthority';
 import { errorDetails, PlanningControllerError } from './planningErrors';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
 import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './planningReceipts';
+import { applyReceiptChanges } from './planningReceiptChanges';
 
 // A declined restoration confirmation; distinct from any reply the transport can return.
 const DECLINED = Symbol('declined');
@@ -492,6 +493,17 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       );
     }
     acknowledge(owner, receipt.revision);
+    // The receipt's rows apply only on top of the revision it was written against; otherwise the
+    // read below differs in revision and returns the full slice.
+    if (
+      isCurrent(draft.generation, draft.context) &&
+      store.getState().planning.revision === receipt.revision - 1
+    ) {
+      store.setState((state) => ({
+        data: applyReceiptChanges(state.data, receipt.changes),
+        planning: { ...state.planning, revision: receipt.revision },
+      }));
+    }
     // The read after the commit is the only source of the page's undo and redo availability.
     await refresh();
     return isCurrent(draft.generation, draft.context) ? receipt : null;

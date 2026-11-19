@@ -53,6 +53,7 @@ it('records the sent intent and applies an unvalidated single-row change', async
     mutationId: 'create-client',
     revision: 1,
     restoration: { consumedGroupId: null, replacementGroupId: null },
+    changes: { upserts: [{ entity: 'clients', row: client }], removed: [] },
   });
   const snapshot = requireFullSnapshot(await transport.read(context, signal));
   expect(snapshot.data.clients).toEqual([client]);
@@ -76,7 +77,10 @@ it('returns a queued response, preserves its canonical read data and exposes its
       },
       signal,
     ),
-  ).resolves.toEqual(queued);
+  ).resolves.toEqual({
+    ...queued,
+    changes: { upserts: [{ entity: 'clients', row: client }], removed: [] },
+  });
   const snapshot = requireFullSnapshot(await transport.read(context, signal));
   expect(snapshot.data.clients).toEqual([client]);
 });

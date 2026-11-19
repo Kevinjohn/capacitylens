@@ -50,6 +50,24 @@ type CompanyHistory = {
   future: HistoryChange[];
 };
 
+/** The rows that differ between two reads of one company, in the receipt's shape. */
+function diffRows(before: AppData, after: AppData): PlanningMutationSuccess['changes'] {
+  const changes: PlanningPatch = { upserts: [], removed: [] };
+  for (const entity of APP_DATA_KEYS) {
+    const previous = new Map<string, unknown>(before[entity].map((row) => [row.id, row]));
+    const current = new Set(after[entity].map((row) => row.id));
+    for (const row of after[entity]) {
+      if (JSON.stringify(previous.get(row.id)) !== JSON.stringify(row)) {
+        changes.upserts.push({ entity, row } as PlanningPatch['upserts'][number]);
+      }
+    }
+    for (const row of before[entity]) {
+      if (!current.has(row.id)) changes.removed.push({ entity, id: row.id });
+    }
+  }
+  return changes;
+}
+
 /** A controlled response source for frontend tests; scheduling and validation belong to the server. */
 export class StubPlanningTransport implements PlanningTransport {
   readonly calls: PlanningIntent[] = [];
@@ -198,6 +216,8 @@ export class StubPlanningTransport implements PlanningTransport {
         },
       });
     }
+    // Like the server, the receipt carries the rows the write changed.
+    receipt = { ...receipt, changes: diffRows(before, this.companyRows(context.companyId)) };
     this.revisions.set(context.companyId, receipt.revision);
     this.record(
       context.companyId,
@@ -261,10 +281,13 @@ export class StubPlanningTransport implements PlanningTransport {
       kind === 'undo' ? [history.past, history.future] : [history.future, history.past];
     const change = from.pop();
     if (!change) throw new Error(`stub: the ${kind} stack is out of step with the history model`);
+    const before = this.companyRows(companyId);
     this.replaceCompanyRows(companyId, kind === 'undo' ? change.before : change.after, kind);
     to.push(change);
     this.revisions.set(companyId, revision + 1);
-    return makeReceipt(step.mutationId, revision + 1);
+    return makeReceipt(step.mutationId, revision + 1, {
+      changes: diffRows(before, this.companyRows(companyId)),
+    });
   }
 
   private advanceRevisions(): void {

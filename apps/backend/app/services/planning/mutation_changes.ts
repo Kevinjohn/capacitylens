@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
-import type { AppData, AppDataKey } from '@capacitylens/shared/types/entities';
-import type { PlanningMutationInput } from '#validators/planning/contracts';
+import { APP_DATA_KEYS, type AppData, type AppDataKey } from '@capacitylens/shared/types/entities';
+import type { PlanningMutationInput, ProjectedPlanningRow } from '#validators/planning/contracts';
 import { asRecord, type WrittenRow } from '#services/planning/writer';
 
 /** Whether every written row is the same before and after, ignoring its revision timestamp. */
@@ -14,6 +14,25 @@ export function changesNothing(written: WrittenRow[]): boolean {
     fields.delete('updatedAt');
     return [...fields].every((field) => isDeepStrictEqual(stored[field], saved[field]));
   });
+}
+
+/** Rows a mutation inserted, changed or removed between two projections. */
+export function projectionChanges(before: AppData, after: AppData) {
+  const upserts: ProjectedPlanningRow[] = [];
+  const removed: Array<{ entity: AppDataKey; id: string }> = [];
+  for (const entity of APP_DATA_KEYS) {
+    const previous = new Map(before[entity].map((row) => [row.id, row]));
+    const currentIds = new Set(after[entity].map((row) => row.id));
+    for (const row of after[entity]) {
+      if (JSON.stringify(previous.get(row.id)) !== JSON.stringify(row)) {
+        upserts.push({ entity, row } as ProjectedPlanningRow);
+      }
+    }
+    for (const row of before[entity]) {
+      if (!currentIds.has(row.id)) removed.push({ entity, id: row.id });
+    }
+  }
+  return { upserts, removed };
 }
 
 /**

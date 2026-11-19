@@ -11,6 +11,7 @@ export function makeReceipt(
     mutationId,
     revision,
     restoration: { consumedGroupId: null, replacementGroupId: null },
+    changes: { upserts: [], removed: [] },
     ...overrides,
   };
 }

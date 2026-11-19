@@ -159,6 +159,7 @@ describe('planning request access boundaries', () => {
       mutationId: execution?.mutationId ?? 'missing',
       revision: 2,
       restoration: { consumedGroupId: null, replacementGroupId: null },
+      changes: { upserts: [], removed: [] },
     });
     await oldRequest;
     expect(fixture.store.getState().data.clients[0]?.name).toBe('Gotham');

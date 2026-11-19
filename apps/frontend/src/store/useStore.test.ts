@@ -178,6 +178,7 @@ describe('store scheduler UI', () => {
       mutationId,
       revision: revision + 1,
       restoration: { consumedGroupId: null, replacementGroupId: null },
+      changes: { upserts: [], removed: [] },
     };
     getStubPlanningTransport().respondNext(remoteReceipt, undefined, () => ({
       removed: [],
