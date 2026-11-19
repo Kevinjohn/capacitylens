@@ -19,4 +19,4 @@ export function buildAverageUtilisationLabel(rows: RowModel[]): string | null {
 export type ModalState =
   | { kind: 'edit'; allocationId: ID }
   | { kind: 'create'; resourceId: ID; startDate: ISODate; endDate: ISODate }
-  | { kind: 'timeoff'; resourceId: ID; startDate: ISODate; endDate: ISODate };
+  | { kind: 'timeOff'; resourceId: ID; startDate: ISODate; endDate: ISODate };

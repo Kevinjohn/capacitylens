@@ -48,12 +48,12 @@ export function InviteAccept() {
   return <InviteAcceptForToken key={token ?? ''} token={token} />;
 }
 
-function getInitialState(token: string | undefined): State {
+function buildInitialState(token: string | undefined): State {
   return token ? { kind: 'checking' } : { kind: 'failed', message: m.invite_err_missing_token() };
 }
 
 function useInvitePreview(token: string | undefined) {
-  const [state, setState] = useState<State>(() => getInitialState(token));
+  const [state, setState] = useState<State>(() => buildInitialState(token));
   useEffect(() => {
     if (!token) return;
     let current = true;

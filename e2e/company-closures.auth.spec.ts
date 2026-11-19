@@ -143,17 +143,17 @@ async function assertClosureBand(page: Page) {
   await disableCssMotion(page);
   const workTreatment = await computedStyles(band, ['background-color', 'box-shadow']);
   await page.getByRole('radio', { name: 'Time off', exact: true }).click();
-  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeoff');
-  const timeoffTreatment = await computedStyles(band, [
+  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeOff');
+  const timeOffTreatment = await computedStyles(band, [
     'background-color',
     'background-image',
     'box-shadow',
     'color',
   ]);
-  expect(timeoffTreatment['background-color']).toBe('rgb(250, 204, 21)');
-  expect(timeoffTreatment['background-color']).not.toBe(workTreatment['background-color']);
-  expect(timeoffTreatment['background-image']).toContain('repeating-linear-gradient');
-  expect(timeoffTreatment['box-shadow']).toContain('6px 1px');
+  expect(timeOffTreatment['background-color']).toBe('rgb(250, 204, 21)');
+  expect(timeOffTreatment['background-color']).not.toBe(workTreatment['background-color']);
+  expect(timeOffTreatment['background-image']).toContain('repeating-linear-gradient');
+  expect(timeOffTreatment['box-shadow']).toContain('6px 1px');
 
   await page.getByRole('radio', { name: 'Work', exact: true }).click();
   await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'work');

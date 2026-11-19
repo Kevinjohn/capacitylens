@@ -28,7 +28,7 @@ import {
   ROUTE_SCHEDULE,
   ROUTE_SETTINGS,
   ROUTE_TEAM,
-  ROUTE_TIMEOFF,
+  ROUTE_TIME_OFF,
 } from './tourAnchors';
 
 /** A route, deferred label getter, and icon used by sidebar navigation. Labels resolve at render time so switching account locale does not retain import-time text. */
@@ -138,8 +138,8 @@ export const APP_ROUTES: readonly AppRouteDefinition[] = [
     visibility: 'everyone',
   },
   {
-    to: ROUTE_TIMEOFF,
-    label: () => m.nav_timeoff(),
+    to: ROUTE_TIME_OFF,
+    label: () => m.nav_time_off(),
     icon: SunIcon,
     sidebar: 'primary',
     visibility: 'everyone',

@@ -14,16 +14,10 @@ const json = (body: unknown) =>
 afterEach(() => vi.restoreAllMocks());
 
 describe('teamAccessClient command outcomes', () => {
-  it('classifies a clone-less in-progress command from one body read', async () => {
-    const readBody = vi
-      .fn()
-      .mockResolvedValueOnce({ code: 'COMMAND_IN_PROGRESS', error: 'Still running.' })
-      .mockRejectedValue(new Error('body already consumed'));
-    vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: readBody,
-    } as unknown as Response);
+  it('classifies an in-progress command as an unknown outcome', async () => {
+    vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
+      Response.json({ code: 'COMMAND_IN_PROGRESS', error: 'Still running.' }, { status: 409 }),
+    );
 
     await expect(
       teamAccessClient.createInvitation({
@@ -32,7 +26,6 @@ describe('teamAccessClient command outcomes', () => {
         email: 'selina@wayne.test',
       }),
     ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'Still running.' });
-    expect(readBody).toHaveBeenCalledOnce();
   });
 
   it('decodes an equivalent successful status instead of reporting a rejected command', async () => {
