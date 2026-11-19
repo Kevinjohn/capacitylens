@@ -94,19 +94,29 @@ export function ProjectForm({
       footer={<FormActions onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
-        <ProjectFormFields
+        <ProjectNameFields
           name={name}
           setName={setName}
           protectedName={privateNameFields.protectedName}
           errorField={errorField}
           errorId={errorId}
           privateNameFields={privateNameFields}
+          disabled={pending}
+        />
+        <ProjectClientField
           clientId={clientId}
           setClientId={setClientId}
           clientOptions={clientOptions}
+          errorField={errorField}
+          errorId={errorId}
+          disabled={pending}
+        />
+        <ProjectFormDetails
           showColourPicker={showColourPicker}
           color={color}
           setColor={setColor}
+          errorField={errorField}
+          errorId={errorId}
           error={error}
           disabled={pending}
         />
@@ -182,69 +192,6 @@ function prepareProjectSave({
         ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
         : {}),
     });
-}
-
-function ProjectFormFields({
-  name,
-  setName,
-  protectedName,
-  errorField,
-  errorId,
-  privateNameFields,
-  clientId,
-  setClientId,
-  clientOptions,
-  showColourPicker,
-  color,
-  setColor,
-  error,
-  disabled,
-}: {
-  name: string;
-  setName: (value: string) => void;
-  protectedName: boolean;
-  errorField: string | null;
-  errorId: string;
-  privateNameFields: ReturnType<typeof usePrivateNameFields>;
-  clientId: string;
-  setClientId: (value: string) => void;
-  clientOptions: Option[];
-  showColourPicker: boolean;
-  color: string;
-  setColor: (value: string) => void;
-  error: string | null;
-  disabled: boolean;
-}) {
-  return (
-    <>
-      <ProjectNameFields
-        name={name}
-        setName={setName}
-        protectedName={protectedName}
-        errorField={errorField}
-        errorId={errorId}
-        privateNameFields={privateNameFields}
-        disabled={disabled}
-      />
-      <ProjectClientField
-        clientId={clientId}
-        setClientId={setClientId}
-        clientOptions={clientOptions}
-        errorField={errorField}
-        errorId={errorId}
-        disabled={disabled}
-      />
-      <ProjectFormDetails
-        showColourPicker={showColourPicker}
-        color={color}
-        setColor={setColor}
-        errorField={errorField}
-        errorId={errorId}
-        error={error}
-        disabled={disabled}
-      />
-    </>
-  );
 }
 
 function ProjectClientField({

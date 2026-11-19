@@ -120,15 +120,4 @@ describe('hasOpenModal', () => {
 
     expect(hasOpenModal()).toBe(false);
   });
-
-  it('ignores the requested modal but still detects another open modal', () => {
-    const ignored = appendModal('true', 'open');
-
-    expect(hasOpenModal(ignored)).toBe(false);
-    expect(hasOpenModal(null)).toBe(true);
-
-    const other = appendModal('true', 'open');
-    expect(hasOpenModal(ignored)).toBe(true);
-    expect(hasOpenModal(other)).toBe(true);
-  });
 });

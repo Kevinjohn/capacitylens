@@ -70,7 +70,7 @@ export function readTeamMembers(companyId: string, signal: AbortSignal): Promise
 const isAccessRefusal = (error: unknown): boolean =>
   error instanceof TeamReadError && error.result.kind === 'rejected' && error.result.status === 403;
 
-function getFailureMessage(error: unknown, fallback: (status: number) => string): string {
+function resolveFailureMessage(error: unknown, fallback: (status: number) => string): string {
   if (!(error instanceof TeamReadError)) {
     return m.settings_err_server({ error: resolveErrorMessage(error) });
   }
@@ -163,7 +163,7 @@ function useReadFailureNotices(
     }
     fail(
       null,
-      getFailureMessage(error, (status) => m.settings_members_err_load({ status })),
+      resolveFailureMessage(error, (status) => m.settings_members_err_load({ status })),
     );
     // Report each failed read once: a new failure has a new error time.
   }, [membersQuery.error, membersQuery.errorUpdatedAt, hadMembers, fail]);
@@ -177,7 +177,7 @@ function useReadFailureNotices(
     }
     fail(
       null,
-      getFailureMessage(error, (status) => m.settings_invites_err_load({ status })),
+      resolveFailureMessage(error, (status) => m.settings_invites_err_load({ status })),
     );
   }, [invitationsQuery.error, invitationsQuery.errorUpdatedAt, membersOk, fail]);
 }

@@ -78,7 +78,7 @@ async function openDrawMode(page: import('@playwright/test').Page): Promise<void
   await setZoom(page, 4);
   await resetSchedulerScroll(page);
   await page.getByRole('radio', { name: 'Time off', exact: true }).click();
-  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeoff');
+  await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeOff');
   // Settle the 0.15s colour transitions before inspecting the time-off treatment as well as
   // before axe runs; an immediate style read can otherwise sample the transparent starting fill.
   await disableCssMotion(page);

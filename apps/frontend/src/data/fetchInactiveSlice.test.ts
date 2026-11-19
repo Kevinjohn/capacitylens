@@ -43,11 +43,7 @@ describe('fetchInactiveSlice', () => {
   it('throws InactiveSliceHttpError carrying the status and the server `{ error }` sentence', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({
-        ok: false,
-        status: 503,
-        json: async () => ({ error: 'Down for backup.' }),
-      })),
+      vi.fn(async () => Response.json({ error: 'Down for backup.' }, { status: 503 })),
     );
     const err = await fetchInactiveSlice('a1').then(
       () => null,
@@ -61,7 +57,7 @@ describe('fetchInactiveSlice', () => {
   it('throws InactiveSliceHttpError with serverMessage undefined when the error body is unreadable', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) })),
+      vi.fn(async () => new Response('not JSON', { status: 403 })),
     );
     const err = await fetchInactiveSlice('a1').then(
       () => null,
