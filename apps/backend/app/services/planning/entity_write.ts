@@ -32,6 +32,13 @@ interface WriteEntityOptions<K extends ScopedEntityKey> {
   expectedUpdatedAt?: string;
 }
 
+/** One past the company's highest discipline sort order, counting archived and deleted rows. */
+function resolveNextDisciplineSortOrder(data: AppData, companyId: string): number {
+  return data.disciplines
+    .filter((row) => row.companyId === companyId)
+    .reduce((next, row) => Math.max(next, row.sortOrder + 1), 0);
+}
+
 function lookupFor(data: AppData): ValidationDataLookup {
   return {
     row: (table, id) => {
@@ -116,6 +123,9 @@ export async function writeEntity<K extends ScopedEntityKey>({
     companyId,
   };
   if (!existing) applyCreateDefaults(table, candidate);
+  if (!existing && table === 'disciplines') {
+    candidate.sortOrder = resolveNextDisciplineSortOrder(data, companyId);
+  }
   const lookup = lookupFor(data);
   const clean = await prepareEntityWrite(table, candidate, existing, data, capabilities, {
     lookup,

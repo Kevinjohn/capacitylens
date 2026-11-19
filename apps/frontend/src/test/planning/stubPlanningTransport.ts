@@ -374,6 +374,10 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   private applySingleRow(companyId: string, intent: PlanningIntent): boolean {
+    const nextDisciplineSortOrder = () =>
+      this.rows('disciplines')
+        .filter((row) => row.companyId === companyId)
+        .reduce((next, row) => Math.max(next, Number(row.sortOrder) + 1), 0);
     const create = (entity: AppDataKey, id: string, fields: object) => {
       const now = new Date().toISOString();
       const row = {
@@ -412,7 +416,14 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'allocation.delete':
         return remove('allocations', intent.id);
       case 'catalogue.create':
-        create(intent.entity.entity, intent.entity.id, intent.entity.fields);
+        create(
+          intent.entity.entity,
+          intent.entity.id,
+          // Like the server, append a new discipline after the company's highest sort order.
+          intent.entity.entity === 'disciplines'
+            ? { ...intent.entity.fields, sortOrder: nextDisciplineSortOrder() }
+            : intent.entity.fields,
+        );
         break;
       case 'catalogue.update':
         update(intent.entity.entity, intent.entity.id, intent.entity.changes);

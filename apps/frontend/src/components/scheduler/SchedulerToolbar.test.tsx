@@ -169,11 +169,15 @@ describe('SchedulerToolbar discipline filter visibility', () => {
 
 describe('SchedulerToolbar discipline and client ordering', () => {
   it('orders disciplines by sortOrder, not by name or insertion order', async () => {
-    await useStore.getState().addDiscipline({ name: 'Design', color: '#111', sortOrder: 0 });
-    await useStore
+    await useStore.getState().addDiscipline({ name: 'Design', color: '#111' });
+    const accountManagement = await useStore
       .getState()
-      .addDiscipline({ name: 'Account Management', color: '#222', sortOrder: 2 });
-    await useStore.getState().addDiscipline({ name: 'Development', color: '#333', sortOrder: 1 });
+      .addDiscipline({ name: 'Account Management', color: '#222' });
+    await useStore.getState().addDiscipline({ name: 'Development', color: '#333' });
+    if (accountManagement.kind !== 'created') {
+      throw new Error('Expected the discipline to be created.');
+    }
+    await useStore.getState().updateDiscipline(accountManagement.value.id, { sortOrder: 5 });
     render(<SchedulerToolbar />);
     showFilters();
 

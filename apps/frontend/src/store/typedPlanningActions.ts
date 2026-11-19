@@ -110,7 +110,7 @@ export function createTypedPlanningActions(
   };
   const createCatalogue = async <T extends Client | Project | Phase | Activity | Discipline>(
     key: 'clients' | 'projects' | 'phases' | 'activities' | 'disciplines',
-    fields: Draft<T>,
+    fields: Omit<Draft<T>, 'sortOrder'>,
   ): Promise<CreateResult<T>> => {
     const companyId = requireCreateAccount();
     if (blocked()) return { kind: 'blocked' };
@@ -170,7 +170,8 @@ export function createTypedPlanningActions(
     return { kind: 'created', value: created('timeOff', id) };
   };
   return {
-    addDiscipline: (input: Draft<Discipline>) => createCatalogue<Discipline>('disciplines', input),
+    addDiscipline: (input: Omit<Draft<Discipline>, 'sortOrder'>) =>
+      createCatalogue<Discipline>('disciplines', input),
     updateDiscipline: (id: string, patch: Patch<Discipline>, expectedUpdatedAt?: string) =>
       updateCatalogue('disciplines', id, patch, expectedUpdatedAt),
     deleteDiscipline: (id: string) => deleteCatalogue('disciplines', id),

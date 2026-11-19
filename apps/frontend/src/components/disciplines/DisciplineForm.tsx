@@ -1,7 +1,6 @@
 import { useFormLifetimeClose } from '@/hooks/useFormLifetimeClose';
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { useActiveScopedData } from '@/store/useScopedData';
 import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError } from '@/hooks/useFieldError';
@@ -12,7 +11,7 @@ import { FieldError } from '@/components/ui/field';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import type { Discipline } from '@capacitylens/shared/types/entities';
 
-/** Creates or edits a discipline with its name and colour, closing after save or cancel. New disciplines receive the next canonical sortOrder. */
+/** Creates or edits a discipline with its name and colour, closing after save or cancel. The server places a new discipline after the existing ones. */
 export function DisciplineForm({
   discipline,
   onClose: close,
@@ -23,12 +22,8 @@ export function DisciplineForm({
   const onClose = useFormLifetimeClose(close);
   const add = useStore((state) => state.addDiscipline);
   const update = useStore((state) => state.updateDiscipline);
-  // Append new disciplines after the maximum sortOrder so gaps from deleted disciplines cannot collide. Edits retain the existing order.
-  const disciplines = useActiveScopedData().disciplines;
-  const nextSortOrder = disciplines.reduce((max, item) => Math.max(max, item.sortOrder + 1), 0);
   const [name, setName] = useState(discipline?.name ?? '');
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline);
-  const sortOrder = discipline?.sortOrder ?? nextSortOrder;
   const { error, errorField, errorId, fail } = useFieldError();
   const allDisciplines = useStore((state) => state.data.disciplines);
   const { pending, submit } = useEditSubmit({
@@ -44,7 +39,7 @@ export function DisciplineForm({
     const trimmed = parseName(name, fail);
     if (!trimmed) return null;
     if (!validatePresetColor(color, fail)) return null;
-    const patch = { name: trimmed, color, sortOrder };
+    const patch = { name: trimmed, color };
     return discipline ? () => update(discipline.id, patch, discipline.updatedAt) : () => add(patch);
   };
 

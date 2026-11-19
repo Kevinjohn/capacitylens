@@ -44,9 +44,7 @@ describe('store CRUD covers every entity', () => {
     );
   });
   it('disciplines: add / update / delete', async () => {
-    const d = await requireCreated(
-      s().addDiscipline({ name: 'Design', color: '#1', sortOrder: 0 }),
-    );
+    const d = await requireCreated(s().addDiscipline({ name: 'Design', color: '#1' }));
     await s().updateDiscipline(d.id, { name: 'Design 2' });
     expect(s().data.disciplines[0]?.name).toBe('Design 2');
     await s().deleteDiscipline(d.id);
