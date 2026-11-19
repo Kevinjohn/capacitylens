@@ -9,8 +9,8 @@ import {
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { isMailConfigured } from '#services/mail_delivery';
-import { proofHeaders } from '#services/request_helpers';
-import { currentAccount } from '#services/auth/current_actor';
+import { setProofHeaders } from '#services/request_helpers';
+import { readCurrentAccount } from '#services/auth/current_actor';
 import { isCommittedFailure } from '#services/account_kit/committed';
 import { managedGuard } from '#services/auth/managed_guard';
 import {
@@ -59,7 +59,7 @@ export default class CredentialController {
 
   /** Reports whether a reset link is still usable without spending it. */
   async inspectReset(ctx: HttpContext) {
-    proofHeaders(ctx);
+    setProofHeaders(ctx);
     const body = await ctx.request.validateUsing(inspectResetValidator, {
       data: ctx.request.body(),
     });
@@ -70,7 +70,7 @@ export default class CredentialController {
 
   /** Every sign-in, including any on this device, ends with the old password. */
   async resetPassword(ctx: HttpContext) {
-    proofHeaders(ctx);
+    setProofHeaders(ctx);
     const body = await ctx.request.validateUsing(resetPasswordValidator, {
       data: ctx.request.body(),
     });
@@ -95,7 +95,7 @@ export default class CredentialController {
     const body = await ctx.request.validateUsing(changePasswordValidator, {
       data: ctx.request.body(),
     });
-    const account = await currentAccount(ctx);
+    const account = await readCurrentAccount(ctx);
     let outcome: 'changed' | 'committed' = 'changed';
     try {
       await accountKit.emailPasswordManagement.changePassword({

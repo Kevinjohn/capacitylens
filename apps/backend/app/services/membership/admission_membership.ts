@@ -2,7 +2,7 @@ import app from '@adonisjs/core/services/app';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { isInvitableRole } from '#services/account_kit/policy';
-import { hasNoCompany, installationCompanyId } from '#models/installation_company';
+import { hasNoCompany, getInstallationCompanyId } from '#models/installation_company';
 import { AdmissionError } from '#exceptions/admission_error';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
@@ -15,7 +15,7 @@ import access from '#config/access_control';
  * membership is returned unchanged; a suspended one is never reactivated here.
  */
 export async function completeMembership(userId: string, trx: TransactionClientContract) {
-  const companyId = await installationCompanyId(trx);
+  const companyId = await getInstallationCompanyId(trx);
   if (!companyId) {
     throw new AdmissionError('The company has not been set up yet.', 409, 'COMPANY_SETUP_REQUIRED');
   }

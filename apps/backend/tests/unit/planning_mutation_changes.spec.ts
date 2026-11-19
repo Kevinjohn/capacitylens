@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import type { AppDataKey } from '@capacitylens/shared/types/entities';
-import { changesNothing, invalidatesRestoration } from '#services/planning/mutation_changes';
+import { changesNothing, isRestorationInvalidated } from '#services/planning/mutation_changes';
 import type { WrittenRow } from '#services/planning/writer';
 import type { PlanningMutationInput } from '#validators/planning/contracts';
 
@@ -28,16 +28,19 @@ test.group('planning privacy trigger fields', () => {
   test('restoration ends only when a trigger field actually changes', ({ assert }) => {
     const intent = update('activities', { kind: 'internal' });
     assert.isTrue(
-      invalidatesRestoration(intent, write('activities', { kind: 'project' }, { kind: 'internal' }))
+      isRestorationInvalidated(
+        intent,
+        write('activities', { kind: 'project' }, { kind: 'internal' })
+      )
     );
     assert.isFalse(
-      invalidatesRestoration(
+      isRestorationInvalidated(
         intent,
         write('activities', { kind: 'internal' }, { kind: 'internal' })
       )
     );
     assert.isFalse(
-      invalidatesRestoration(
+      isRestorationInvalidated(
         update('clients', { name: 'Wayne' }),
         write('clients', { name: 'Gotham' }, { name: 'Wayne' })
       )

@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { readStateWithClient } from '#services/state_repository';
 import { transformState } from '#transformers/state_transformer';
 import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
-import { effectiveReadPrincipal } from '#services/auth/masquerade';
+import { resolveEffectiveReadPrincipal } from '#services/auth/masquerade';
 import { withActor } from '#services/auth/current_actor';
 import access from '#config/access_control';
 import { resolvePlanningAuthority } from '#services/planning/authority';
@@ -18,7 +18,7 @@ export default class ExportsController {
     const { companyId, includeInactive } = await exportQueryValidator.validate(request.qs());
     return withActor(ctx, async (_actor, trx) => {
       // Under view-as this also refuses unless the actor may view the named company as its member.
-      const principal = await effectiveReadPrincipal(trx, companyId);
+      const principal = await resolveEffectiveReadPrincipal(trx, companyId);
       const role = await getActiveCompanyRole(principal.effectiveId, companyId, trx);
       if (!role) throw new IdentityAuthorityError('Forbidden.');
       if (includeInactive === '1' && !access.can(role, 'members:manage')) {

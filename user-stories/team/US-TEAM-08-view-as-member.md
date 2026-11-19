@@ -36,7 +36,7 @@ flowchart TD
     Start --> Controller["masqueradeController.start → masqueradeApi.start"]
     Controller --> Request["masqueradeRequests POST api.masquerade.start"]
     Request --> Server["MasqueradeController.start → auth masquerade service → Masquerade package start"]
-    Server --> Projection["Controller returns currentMasquerade; controller loads target projection into store"]
+    Server --> Projection["Controller returns readCurrentMasquerade; controller loads target projection into store"]
     Projection --> Banner["AppShell renders MasqueradeBanner; permissionContext hides write affordances"]
     Banner --> ReadOnly["Masquerade context middleware refuses product writes while mode is active"]
     Banner --> End["End now → accountTransition.endMasquerade → package stop and real projection restore"]

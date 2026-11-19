@@ -15,7 +15,12 @@ import { encodeRow } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import type { PlanningCapabilities } from '#services/planning/data_policy';
-import { existingRow, PlanningOperationError, updateSettings, type WrittenRow } from './writer.js';
+import {
+  requireExistingRow,
+  PlanningOperationError,
+  updateSettings,
+  type WrittenRow,
+} from './writer.js';
 import { writeEntity } from './entity_write.js';
 import { buildAllocationOccurrences, buildTimeOffOccurrences } from './repeat_occurrences.js';
 import {
@@ -48,7 +53,7 @@ async function transitionLifecycle(
   action: 'archive' | 'unarchive',
   written: WrittenRow[]
 ) {
-  const current = existingRow(data, table, id);
+  const current = requireExistingRow(data, table, id);
   // Checking the table does not narrow the row, but a clients row is a Client.
   if (table === 'clients' && (current as Client).builtin === true) {
     throw new PlanningOperationError(
@@ -188,7 +193,7 @@ async function applyIntent(
         });
         return unchanged;
       case 'allocation.duplicate': {
-        const source = existingRow(data, 'allocations', intent.sourceAllocationId);
+        const source = requireExistingRow(data, 'allocations', intent.sourceAllocationId);
         const { occurrence } = intent;
         await writeEntity({
           ...writeOptions,
@@ -223,7 +228,7 @@ async function applyIntent(
           mode: intent.operation === 'catalogue.create' ? 'create' : 'update',
         });
         if (entity.entity === 'activities' && intent.operation === 'catalogue.update') {
-          const activity = existingRow(data, 'activities', entity.id);
+          const activity = requireExistingRow(data, 'activities', entity.id);
           if (!allocationAttributionAllowed(activity.kind)) {
             for (const allocation of data.allocations) {
               if (allocation.activityId !== entity.id || allocation.projectId === null) continue;

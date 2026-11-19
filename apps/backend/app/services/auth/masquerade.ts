@@ -12,7 +12,7 @@ import { MasqueradeError as PackageMasqueradeError } from '@kevinjohn/adonisjs-m
 import type { MasqueradeService, ModeView } from '@kevinjohn/adonisjs-masquerade';
 import app from '@adonisjs/core/services/app';
 import { nativeAdapter } from '#config/masquerade';
-import { actorIn } from '#services/auth/current_actor';
+import { requireActor } from '#services/auth/current_actor';
 import type {
   QueryClientContract,
   TransactionClientContract,
@@ -29,7 +29,7 @@ import { buildAccessGrant } from '#services/auth/access_grant';
 export { PackageMasqueradeError as MasqueradeError };
 
 /** The Masquerade service the package's provider builds and owns. */
-export async function masqueradeService(): Promise<MasqueradeService<HttpContext>> {
+export async function getMasqueradeService(): Promise<MasqueradeService<HttpContext>> {
   const runtime = await app.container.make('masquerade.runtime');
   return runtime.service;
 }
@@ -38,12 +38,12 @@ export async function masqueradeService(): Promise<MasqueradeService<HttpContext
  * Current package mode with product display details, read outside any product transaction. The
  * package reads its own state from the request; the caller supplies the company it asked about.
  */
-export async function currentMasquerade(
+export async function readCurrentMasquerade(
   ctx: HttpContext,
   client: QueryClientContract,
   requestedCompanyId: string | undefined
 ) {
-  const service = await masqueradeService();
+  const service = await getMasqueradeService();
   try {
     await service.resolve(ctx);
   } catch (error) {
@@ -75,7 +75,7 @@ export async function currentMasquerade(
   }
   // Another tab of the same sign-in may sit on a company the target does not share. Report the
   // mode where it holds so that tab can adopt the current context and offer End; company reads
-  // are still authorized per request by effectiveReadPrincipal.
+  // are still authorized per request by resolveEffectiveReadPrincipal.
   if (!companyId) {
     const memberships = await listActiveCompanyIds(actor.id, undefined);
     for (const candidate of memberships) {
@@ -114,22 +114,22 @@ export async function startMasquerade(
   targetUserId: string,
   expectedContext: string
 ) {
-  const service = await masqueradeService();
+  const service = await getMasqueradeService();
   return service.start(ctx, { targetId: targetUserId, access: 'view', expectedContext });
 }
 
 /** Ends the view; `expectedContext` is the caller's current context token. */
 export async function endMasquerade(ctx: HttpContext, expectedContext: string) {
-  const service = await masqueradeService();
+  const service = await getMasqueradeService();
   return service.stop(ctx, { expectedContext });
 }
 
 /** Resolves only the identity admitted before the product transaction; never substitutes on error. */
-export async function effectiveReadPrincipal(
+export async function resolveEffectiveReadPrincipal(
   trx: TransactionClientContract,
   companyId: string | undefined
 ) {
-  const actor = actorIn(trx);
+  const actor = requireActor(trx);
   const context = actor.masqueradeContext;
   if (!context || context.actorId !== actor.userId) {
     throw new PackageMasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');

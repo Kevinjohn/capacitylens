@@ -44,7 +44,7 @@ export const RESTRICTED_FIELDS: Partial<Record<ScopedEntityKey, RestrictedFieldR
 type Capabilities = Pick<PlanningCapabilities, RestrictionCapability>;
 
 /** The table's rule when the caller lacks its capability; otherwise nothing is restricted. */
-export function restrictionFor(table: ScopedEntityKey, capabilities: Capabilities) {
+export function getRestriction(table: ScopedEntityKey, capabilities: Capabilities) {
   const rule = RESTRICTED_FIELDS[table];
   return rule && !capabilities[rule.capability] ? rule : undefined;
 }
@@ -55,7 +55,7 @@ export function isPrivateRowRestricted(
   capabilities: Capabilities,
   existing: Record<string, unknown> | undefined
 ) {
-  const rule = restrictionFor(table, capabilities);
+  const rule = getRestriction(table, capabilities);
   return Boolean(rule && rule.privateRowFields.length > 0 && existing?.isPrivate === true);
 }
 
@@ -65,7 +65,7 @@ export function listHiddenFields(
   capabilities: Capabilities,
   existing: Record<string, unknown> | undefined
 ): readonly string[] {
-  const rule = restrictionFor(table, capabilities);
+  const rule = getRestriction(table, capabilities);
   if (!rule) return [];
   return existing?.isPrivate === true ? [...rule.fields, ...rule.privateRowFields] : rule.fields;
 }
@@ -79,7 +79,7 @@ export function projectForReader<T extends object>(
   capabilities: Capabilities,
   row: T
 ): T {
-  const rule = restrictionFor(table, capabilities);
+  const rule = getRestriction(table, capabilities);
   if (!rule) return row;
   // Only clients and projects have private-row fields, so a row reaching redaction is one of them.
   let projected = (
@@ -99,7 +99,7 @@ export function projectForReader<T extends object>(
  * reader received, otherwise the name. A non-Owner receives no code name, only the quoted code name
  * as `name`.
  */
-export function displayNameOf(row: { name: string; codeName?: string | null }): string {
+export function resolveDisplayName(row: { name: string; codeName?: string | null }): string {
   const codeName = row.codeName?.trim();
   return codeName === undefined || codeName === '' ? row.name : codeName;
 }

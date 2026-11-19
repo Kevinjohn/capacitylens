@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { publicOrigin } from '#config/public_origin';
 import { freshDatabase } from '../../helpers/fresh_database.js';
-import { resolveCorsOrigins, withDevelopmentWebOrigins } from '#services/cors_policy';
+import { resolveCorsOrigins, appendDevelopmentWebOrigins } from '#services/cors_policy';
 
 test('CORS uses finite development origins and no production cross-origin defaults', ({
   assert,
@@ -18,14 +18,14 @@ test('CORS uses finite development origins and no production cross-origin defaul
 test('only a development server appends the dev launcher web origins', ({ assert }) => {
   const configured = ['https://wayne.example'];
   const lane = 'http://localhost:5176,http://127.0.0.1:5176';
-  assert.deepEqual(withDevelopmentWebOrigins(configured, lane, 'development'), [
+  assert.deepEqual(appendDevelopmentWebOrigins(configured, lane, 'development'), [
     'https://wayne.example',
     'http://localhost:5176',
     'http://127.0.0.1:5176',
   ]);
   for (const environment of ['production', 'test'])
-    assert.deepEqual(withDevelopmentWebOrigins(configured, lane, environment), configured);
-  assert.deepEqual(withDevelopmentWebOrigins(configured, undefined, 'development'), configured);
+    assert.deepEqual(appendDevelopmentWebOrigins(configured, lane, environment), configured);
+  assert.deepEqual(appendDevelopmentWebOrigins(configured, undefined, 'development'), configured);
 });
 
 // An unmatched route answers 404 once the origin guard admits the write, and 403 when it refuses.

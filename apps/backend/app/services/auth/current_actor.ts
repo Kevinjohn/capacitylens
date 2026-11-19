@@ -29,12 +29,12 @@ export interface CurrentActor {
 }
 
 /** The signed-in Account Kit account, checked in the Kit's own transaction. */
-export async function currentAccount(ctx: HttpContext) {
+export async function readCurrentAccount(ctx: HttpContext) {
   return accountKit.authentication.current(await managedGuard.current(ctx));
 }
 
 /** The Kit's admission decision for an account, read under the lock `trx` already holds. */
-export async function admissionDecision(userId: string | number, trx: Trx) {
+export async function requireAdmissionDecision(userId: string | number, trx: Trx) {
   const user = await users.findById(userId, trx);
   if (!user) throw new InvalidSessionError();
   const admission = await app.container.make(AccountAdmission);
@@ -47,7 +47,7 @@ const kitContexts = new WeakMap<Trx, KitContext>();
 /** Requires the confirmed address and admission shared by product and password confirmation transactions. */
 export async function requireConfirmedAdmission(account: KitContext['account'], trx: Trx) {
   if (!account.active) throw new UnverifiedEmailError();
-  const decision = await admissionDecision(account.id, trx);
+  const decision = await requireAdmissionDecision(account.id, trx);
   if (!decision.admitted) throw new AdmissionRequiredError(decision);
 }
 
@@ -111,14 +111,14 @@ export async function withActor<T>(
 }
 
 /** The actor `withActor` verified for this transaction; anything else is a programming error. */
-export function actorIn(trx: Trx): CurrentActor {
+export function requireActor(trx: Trx): CurrentActor {
   const actor = actors.get(trx);
   if (!actor) throw new Error('This operation must run inside withActor.');
   return actor;
 }
 
 /** The Kit context verified by `withActor`; valid only during its callback. */
-export function kitContextIn(trx: Trx): KitContext {
+export function requireKitContext(trx: Trx): KitContext {
   const context = kitContexts.get(trx);
   if (!context) throw new Error('This operation must run inside withActor.');
   return context;

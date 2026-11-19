@@ -6,7 +6,7 @@ import { AccountAdmission, admissionMiddleware } from '@kevinjohn/adonisjs-accou
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { managedAccountMiddleware } from '@kevinjohn/adonisjs-account-kit/http';
 import { managedGuard } from '#services/auth/managed_guard';
-import { routeAccess } from '#services/auth/route_access';
+import { resolveRouteAccess } from '#services/auth/route_access';
 
 const checks = {
   limited: managedAccountMiddleware({
@@ -30,7 +30,7 @@ const checks = {
  */
 export default class AccountGateMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
-    const access = routeAccess(ctx.route?.name);
+    const access = resolveRouteAccess(ctx.route?.name);
     if (access !== 'public') {
       try {
         // The check runs alone, so a refusal raised later by the handler is not mistaken for it.
