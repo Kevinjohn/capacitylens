@@ -15,6 +15,7 @@ export default class AnonymiseController {
       try {
         await assertCompanyAction(companyId, 'resources:anonymise', trx);
       } catch (error) {
+        // Route wording: this route refuses identity failures as a bare 'Forbidden.'.
         if (error instanceof IdentityAuthorityError) return 'forbidden';
         throw error;
       }

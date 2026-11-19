@@ -8,16 +8,10 @@ export default class ApiRateLimitMiddleware {
     const path = ctx.request.url();
     const count = readApiLimit();
     if (!count || !path.startsWith('/api/') || path.startsWith('/api/health')) return next();
-    try {
-      await limiter
-        .use({ requests: count, duration: '1 minute' })
-        .consume(`api:${requestClientKey(ctx.request.ip())}`);
-    } catch (error) {
-      if ((error as { status?: number }).status === 429) {
-        return ctx.response.tooManyRequests({ error: 'Rate limit exceeded.' });
-      }
-      throw error;
-    }
+    // An exhausted limit throws E_TOO_MANY_REQUESTS, which the exception handler answers with 429.
+    await limiter
+      .use({ requests: count, duration: '1 minute' })
+      .consume(`api:${requestClientKey(ctx.request.ip())}`);
     return next();
   }
 }

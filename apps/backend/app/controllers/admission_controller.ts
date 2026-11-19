@@ -37,6 +37,7 @@ export default class AdmissionController {
     try {
       query = await ctx.request.validateUsing(admissionQueryValidator, { data: ctx.request.qs() });
     } catch (error) {
+      // Route wording: this list answers a Vine failure with its own sentence and no code.
       if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
       return ctx.response.badRequest({ error: 'Invalid admission list request.' });
     }

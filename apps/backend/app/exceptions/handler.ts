@@ -1,6 +1,6 @@
 import app from '@adonisjs/core/services/app';
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http';
-import { mapHttpError } from '#exceptions/http_error_mapping';
+import { mapHttpError, readRefusalSurface } from '#exceptions/http_error_mapping';
 import {
   classifyLogError,
   describeFailure,
@@ -15,7 +15,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
 
   /** Answers a mapped refusal with its body, anything else with a bare 500. */
   async handle(error: unknown, ctx: HttpContext) {
-    const mapped = mapHttpError(error);
+    const mapped = mapHttpError(error, readRefusalSurface(ctx));
     if (mapped) {
       for (const [name, value] of Object.entries(mapped.headers ?? {})) {
         ctx.response.header(name, value);
@@ -34,7 +34,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    */
   async report(error: unknown, ctx: HttpContext) {
     // Expected refusals are the mapped outcomes below 500; the mapping marks the ones still logged.
-    const mapped = mapHttpError(error);
+    const mapped = mapHttpError(error, readRefusalSurface(ctx));
     if (mapped && mapped.status < 500 && !mapped.report) return;
     const failure = mapped?.report ?? { errorType: classifyLogError(error), status: 500 };
     if (!mapped?.report && failure.errorType !== 'unexpected') return;

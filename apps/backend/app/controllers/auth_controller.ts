@@ -59,6 +59,7 @@ export default class AuthController {
         { limited: true }
       );
     } catch (error) {
+      // Does work: a missing session reads whether any identity exists for the 401 body.
       if (!(error instanceof InvalidSessionError)) throw error;
       const hasUsers = await hasAnyIdentity(db);
       return ctx.response.unauthorized({
@@ -75,6 +76,7 @@ export default class AuthController {
     try {
       body = await ctx.request.validateUsing(signInValidator, { data: ctx.request.body() });
     } catch (error) {
+      // Route wording: sign-in answers a Vine failure with its own sentence and no code.
       return ctx.response.badRequest({ error: buildAuthRequestMessage(error, 'sign-in') });
     }
     const { email } = body;
@@ -87,6 +89,7 @@ export default class AuthController {
       });
       return ctx.response.ok({ user });
     } catch (error) {
+      // Route wording: sign-in names a credential failure; the handler sends the Kit's generic one.
       if (error instanceof InvalidCredentialsError) {
         return ctx.response.unauthorized({ error: 'Invalid email or password.' });
       }
@@ -103,6 +106,7 @@ export default class AuthController {
     try {
       body = await ctx.request.validateUsing(signUpValidator, { data: ctx.request.body() });
     } catch (error) {
+      // Route wording: sign-up answers a Vine failure with its own sentence and no code.
       return ctx.response.badRequest({ error: buildAuthRequestMessage(error, 'sign-up') });
     }
     const { email, name } = body;
@@ -116,6 +120,8 @@ export default class AuthController {
         registrationData: { name },
       });
     } catch (error) {
+      // Route wording: sign-up words these refusals for this route; invitations word them
+      // differently.
       if (error instanceof FirstCompanyPendingError) {
         return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
       }
@@ -139,6 +145,8 @@ export default class AuthController {
         }),
       });
     } catch (error) {
+      // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
+      // required.
       ctx.logger.warn(
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
         'Sign-in after registration failed'
@@ -153,6 +161,7 @@ export default class AuthController {
     try {
       current = await managedGuard.current(ctx);
     } catch (error) {
+      // Does work: signing out without a session is a normal outcome, not a refusal.
       if (!(error instanceof InvalidSessionError)) throw error;
     }
     await accountKit.authentication.logout(managedGuard.forRequest(ctx), undefined, current);

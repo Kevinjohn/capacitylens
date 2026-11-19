@@ -1,11 +1,10 @@
 import { test } from '@japa/runner';
-import type { HttpContext } from '@adonisjs/core/http';
 import {
   E_DUPLICATE_REQUEST_CONFLICT,
   E_INVALID_COMMAND_VALUE,
 } from '@kevinjohn/adonisjs-duplicate-request-guard';
 import { mapAccountCommandError } from '#services/account_commands';
-import { renderAdmissionFailure } from '#services/admission/http';
+import { mapHttpError } from '#exceptions/http_error_mapping';
 
 test('package command refusals retain the exact HTTP status and body', ({ assert }) => {
   for (const [error, status, body] of [
@@ -20,14 +19,7 @@ test('package command refusals retain the exact HTTP status and body', ({ assert
       { error: 'Command identity already used.', code: 'IDEMPOTENCY_CONFLICT' },
     ],
   ] as const) {
-    const ctx = {
-      response: {
-        status: (actualStatus: number) => ({
-          send: (actualBody: unknown) => ({ status: actualStatus, body: actualBody }),
-        }),
-      },
-    } as unknown as HttpContext;
-    assert.deepEqual(renderAdmissionFailure(ctx, mapAccountCommandError(error)), { status, body });
+    assert.deepEqual(mapHttpError(mapAccountCommandError(error), 'admission'), { status, body });
   }
   const unexpected = new Error('Database unavailable.');
   assert.strictEqual(mapAccountCommandError(unexpected), unexpected);

@@ -27,6 +27,7 @@ export default class GettingStartedController {
     try {
       await request.validateUsing(updateValidator, { data: request.body() });
     } catch (error) {
+      // Route wording: this route answers a Vine failure with its own sentence and no code.
       if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
       return response.badRequest({ error: 'dismissed must be true.' });
     }

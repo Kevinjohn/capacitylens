@@ -78,6 +78,7 @@ export default class CredentialController {
       await accountKit.passwordReset.reset({ token: body.token, password: body.newPassword });
       return ctx.response.ok({ ok: true });
     } catch (error) {
+      // Route wording: reset answers INVALID_TOKEN where the handler sends the Kit's own code.
       if (error instanceof InvalidTokenError) {
         return ctx.response.badRequest({
           error: 'This link is invalid or expired.',
@@ -103,6 +104,7 @@ export default class CredentialController {
         newPassword: body.newPassword,
       });
     } catch (error) {
+      // Does work: a committed change is recorded before the session ends.
       if (error instanceof IdentityNotConfirmedError) {
         return ctx.response.forbidden({
           error: 'Current password is incorrect.',
@@ -147,6 +149,7 @@ export default class CredentialController {
         currentPassword: body.currentPassword,
       });
     } catch (error) {
+      // Does work: a committed deletion is recorded before the session ends.
       if (error instanceof IdentityNotConfirmedError) {
         return ctx.response.forbidden({
           error: 'Current password is incorrect.',

@@ -13,9 +13,8 @@ import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import { renderAdmissionFailure } from '#services/admission/http';
 
-function context(error: unknown) {
+function context(error: unknown, routeName?: string) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
   const diagnostics: Array<{ fields: Record<string, unknown>; message: string }> = [];
   const response = {
@@ -54,12 +53,23 @@ function context(error: unknown) {
         },
       },
       request: { method: () => 'POST' },
-      route: { pattern: '/api/companies/:companyId/resources' },
+      route: { pattern: '/api/companies/:companyId/resources', name: routeName },
       get params() {
         throw error;
       },
     } as unknown as HttpContext,
   };
+}
+
+/** Runs the planning read on a planning route; what it throws is answered by the handler. */
+async function answerOnPlanning(error: unknown) {
+  const planning = context(error, 'api.planning.show');
+  try {
+    await new PlanningController().show(planning.ctx);
+  } catch (thrown) {
+    await new HttpExceptionHandler().handle(thrown, planning.ctx);
+  }
+  return planning.result;
 }
 
 test.group('product error adapters', () => {
@@ -70,13 +80,7 @@ test.group('product error adapters', () => {
       for (const error of [new ThrottledError(37), new PostCommitError()]) {
         const { ctx, result } = context(error);
         if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
-        else {
-          try {
-            await new PlanningController().show(ctx);
-          } catch (unhandled) {
-            await new HttpExceptionHandler().handle(unhandled, ctx);
-          }
-        }
+        else Object.assign(result, await answerOnPlanning(error));
         const expected = accountErrorResponse(error)!;
         const [kitError] = expected.body.errors;
         assert.equal(result.status, expected.status);
@@ -93,13 +97,7 @@ test.group('product error adapters', () => {
       const error = new AdmissionRequiredError(decision);
       const { ctx, result } = context(error);
       if (adapter === 'global') await new HttpExceptionHandler().handle(error, ctx);
-      else {
-        try {
-          await new PlanningController().show(ctx);
-        } catch (unhandled) {
-          await new HttpExceptionHandler().handle(unhandled, ctx);
-        }
-      }
+      else Object.assign(result, await answerOnPlanning(error));
       assert.equal(result.status, 403);
       assert.properties(result.body as object, ['error', 'code', 'decision']);
       assert.deepEqual((result.body as { decision: unknown }).decision, decision);
@@ -118,8 +116,7 @@ test.group('product error adapters', () => {
       return result.body;
     };
     const viaPlanning = async (error: unknown) => {
-      const { ctx, result } = context(error);
-      await new PlanningController().show(ctx);
+      const result = await answerOnPlanning(error);
       return result.body;
     };
     assert.deepEqual(await viaHandler(identity), {
@@ -130,8 +127,8 @@ test.group('product error adapters', () => {
       error: 'Planning access is unavailable.',
       code: 'ACCOUNT_MEMBERSHIP_LOST',
     });
-    const admissionRoute = context(identity);
-    renderAdmissionFailure(admissionRoute.ctx, identity);
+    const admissionRoute = context(identity, 'api.member-resources.set');
+    await new HttpExceptionHandler().handle(identity, admissionRoute.ctx);
     assert.deepEqual(admissionRoute.result.body, {
       error: 'Forbidden.',
       code: 'IDENTITY_AUTHORITY_DENIED',
@@ -146,6 +143,59 @@ test.group('product error adapters', () => {
       code: 'ADMISSION_REQUIRED',
       decision,
     });
+  });
+  test('each surface keeps its wording for identity, admission and Vine refusals', async ({
+    assert,
+  }) => {
+    const decision = { admitted: false, requirements: { invitation: { met: false } } };
+    const routes = {
+      product: 'api.companies.index',
+      planning: 'api.planning.show',
+      admission: 'api.member-resources.set',
+    } as const;
+    const productAdmission = 'Your access to this company is waiting on admission.';
+    const cases = [
+      {
+        error: () => new IdentityAuthorityError('Invalid membership role.'),
+        expected: {
+          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORITY_DENIED' },
+          planning: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
+          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORITY_DENIED' },
+        },
+      },
+      {
+        error: () => new AdmissionRequiredError(decision),
+        expected: {
+          product: { error: productAdmission, code: 'ADMISSION_REQUIRED', decision },
+          planning: {
+            error: 'Company access needs admission.',
+            code: 'ADMISSION_REQUIRED',
+            decision,
+          },
+          admission: { error: productAdmission, code: 'ADMISSION_REQUIRED', decision },
+        },
+      },
+      {
+        error: () => new vineErrors.E_VALIDATION_ERROR([]),
+        expected: {
+          product: { error: 'Invalid request.', code: 'VALIDATION_ERROR' },
+          planning: { error: 'Invalid planning input.', code: 'VALIDATION_ERROR' },
+          admission: { error: 'Invalid request.', code: 'VALIDATION_ERROR' },
+        },
+      },
+    ];
+    for (const { error, expected } of cases) {
+      for (const surface of ['product', 'planning', 'admission'] as const) {
+        const thrown = error();
+        const { ctx, result } = context(thrown, routes[surface]);
+        await new HttpExceptionHandler().handle(thrown, ctx);
+        assert.deepEqual(
+          result.body,
+          expected[surface],
+          `${thrown.constructor.name} on ${surface}`
+        );
+      }
+    }
   });
   test('reporting skips every refusal the handler maps below 500', async ({ assert }) => {
     for (const error of [
@@ -202,29 +252,31 @@ test.group('product error adapters', () => {
   test('planning operation refusals send the status and code the service states', async ({
     assert,
   }) => {
-    const conflict = context(new PlanningOperationError(409, null, 'The record is in use.'));
-    await new PlanningController().show(conflict.ctx);
-    assert.equal(conflict.result.status, 409);
-    assert.deepEqual(conflict.result.body, { error: 'The record is in use.' });
+    const conflict = await answerOnPlanning(
+      new PlanningOperationError(409, null, 'The record is in use.')
+    );
+    assert.equal(conflict.status, 409);
+    assert.deepEqual(conflict.body, { error: 'The record is in use.' });
 
     // No code is inferred from the status, and a stated code does not rewrite the status.
-    const uncoded = context(new PlanningOperationError(400, null, 'Nothing to restore.'));
-    await new PlanningController().show(uncoded.ctx);
-    assert.equal(uncoded.result.status, 400);
-    assert.deepEqual(uncoded.result.body, { error: 'Nothing to restore.' });
+    const uncoded = await answerOnPlanning(
+      new PlanningOperationError(400, null, 'Nothing to restore.')
+    );
+    assert.equal(uncoded.status, 400);
+    assert.deepEqual(uncoded.body, { error: 'Nothing to restore.' });
 
-    const stale = context(new PlanningOperationError(409, 'STALE_REVISION', 'Reload first.'));
-    await new PlanningController().show(stale.ctx);
-    assert.equal(stale.result.status, 409);
-    assert.deepEqual(stale.result.body, { error: 'Reload first.', code: 'STALE_REVISION' });
+    const stale = await answerOnPlanning(
+      new PlanningOperationError(409, 'STALE_REVISION', 'Reload first.')
+    );
+    assert.equal(stale.status, 409);
+    assert.deepEqual(stale.body, { error: 'Reload first.', code: 'STALE_REVISION' });
   });
   test('planning restoration failures retain both typed count-bearing variants', async ({
     assert,
   }) => {
     for (const stale of [false, true]) {
       const error = new RestorationConfirmationError(3, stale);
-      const { ctx, result } = context(error);
-      await new PlanningController().show(ctx);
+      const result = await answerOnPlanning(error);
       assert.equal(result.status, 409);
       assert.deepEqual(result.body, {
         error: error.message,
