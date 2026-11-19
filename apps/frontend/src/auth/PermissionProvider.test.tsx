@@ -12,6 +12,7 @@ import * as companyTransition from './companyTransition';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { isRole } from '@capacitylens/shared/account/types';
 import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
+import { createDeferred } from '@/test/createDeferred';
 
 const permissionMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({
@@ -65,16 +66,6 @@ function renderSharedDirectoryProvider() {
       </AuthContext.Provider>
     </QueryClientProvider>,
   );
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
-  });
-  return { promise, resolve, reject };
 }
 
 function companyResponse(id: string, role: string) {
@@ -296,7 +287,7 @@ describe('PermissionProvider membership generation', () => {
 describe('PermissionProvider account-switch safety', () => {
   it('fails closed in context immediately after switching from an owner account', async () => {
     addSecondCompany();
-    const b = deferred<Response>();
+    const b = createDeferred<Response>();
     vi.stubGlobal(
       'fetch',
       vi
@@ -317,7 +308,7 @@ describe('PermissionProvider account-switch safety', () => {
 
   it("does not adopt an old account's delayed masquerade status after a switch", async () => {
     addSecondCompany();
-    const aStatus = deferred<{ active: false; contextToken: string }>();
+    const aStatus = createDeferred<{ active: false; contextToken: string }>();
     permissionMocks.masqueradeStatus
       .mockImplementationOnce(() => aStatus.promise)
       .mockResolvedValueOnce({ active: false, contextToken: 'idle' });
@@ -380,7 +371,7 @@ describe('PermissionProvider account-switch safety', () => {
 describe('PermissionProvider stale directory safety', () => {
   it("keeps B authoritative when A's delayed directory response resolves later", async () => {
     addSecondCompany();
-    const a = deferred<Response>();
+    const a = createDeferred<Response>();
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => a.promise)
@@ -398,7 +389,7 @@ describe('PermissionProvider stale directory safety', () => {
 
   it("does not let a stale A directory rejection overwrite B's role", async () => {
     addSecondCompany();
-    const a = deferred<Response>();
+    const a = createDeferred<Response>();
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => a.promise)

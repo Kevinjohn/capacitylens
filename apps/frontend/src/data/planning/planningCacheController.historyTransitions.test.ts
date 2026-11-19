@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { isPlanningHistoryReady } from './planningReadiness';
-import { update, makeReceipt, deferred, readyWithHistory } from '@/test/planningTransitionHarness';
+import { update, makeReceipt, readyWithHistory } from '@/test/planningTransitionHarness';
+import { createDeferred } from '@/test/createDeferred';
 
 // Pins the coordinator transitions that no other controller test asserts directly.
 
@@ -13,7 +14,7 @@ describe('planning history transitions', () => {
     await expect(h.controller.redo()).resolves.toBe(true);
     expect(h.state().planning.history).toEqual({ canUndo: true, canRedo: false });
 
-    const response = deferred<PlanningMutationSuccess>();
+    const response = createDeferred<PlanningMutationSuccess>();
     h.execute.mockImplementationOnce(() => response.promise);
     const write = h.controller.execute(h.controller.begin(), update);
     await expect(h.controller.undo()).resolves.toBe(false);

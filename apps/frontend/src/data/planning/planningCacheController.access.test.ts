@@ -8,6 +8,7 @@ import { PlanningControllerError } from './planningErrors';
 import type { FullPlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { createDeferred } from '@/test/createDeferred';
 
 type RequestStage = 'read' | 'execute';
 type Success = Awaited<ReturnType<PlanningTransport['execute']>>;
@@ -31,16 +32,6 @@ function snapshot(name: string, revision = 1): FullPlanningSnapshot {
     capacity: emptyCapacity(),
     history: { canUndo: true, canRedo: false },
   };
-}
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason: unknown) => void;
-  const promise = new Promise<T>((yes, no) => {
-    resolve = yes;
-    reject = no;
-  });
-  return { promise, resolve, reject };
 }
 
 async function setup() {
@@ -122,7 +113,7 @@ describe('planning request access boundaries', () => {
 
     it(`ignores a delayed ${stage} access-loss error after a new context has loaded`, async () => {
       const fixture = await setup();
-      const pending = deferred<never>();
+      const pending = createDeferred<never>();
       if (stage === 'read') fixture.read.mockImplementationOnce(() => pending.promise);
       else fixture.execute.mockImplementationOnce(() => pending.promise);
       const oldRequest = startRequest(fixture, stage).catch((error: unknown) => error);
@@ -142,7 +133,7 @@ describe('planning request access boundaries', () => {
 
   it('rejects an old mutation response after canonical authority changes inside the same company', async () => {
     const fixture = await setup();
-    const pending = deferred<Success>();
+    const pending = createDeferred<Success>();
     fixture.execute.mockImplementationOnce(() => pending.promise);
     const draft = fixture.controller.begin();
     const oldRequest = fixture.controller.execute(draft, update).catch((error: unknown) => error);
