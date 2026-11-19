@@ -9,7 +9,10 @@ import {
   assertMayWriteRestrictedFields,
   prepareEntityWrite,
 } from '#services/planning/entity_policy';
-import { assertAllocationStartsOnWorkingDay } from '#services/planning/entity_validation/domain';
+import {
+  assertAllocationStartIsAvailable,
+  assertAllocationStartsOnWorkingDay,
+} from '#services/planning/entity_validation/domain';
 import { PlanningOperationError } from '#services/planning/errors';
 import { isRetainedTable } from './retained_rows.js';
 import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
@@ -139,6 +142,13 @@ export async function writeEntity<K extends ScopedEntityKey>({
       asRecord(clean),
       existing && asRecord(existing),
       lookup,
+      companyId
+    );
+    assertAllocationStartIsAvailable(
+      asRecord(clean),
+      existing && asRecord(existing),
+      lookup,
+      data,
       companyId
     );
   }

@@ -10,6 +10,7 @@ import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { useArchiveRecovery } from './useArchiveRecovery';
 import { permissionValue } from '@/test/permissionGrants';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { createDeferred } from '@/test/createDeferred';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
   ...(await original<typeof import('@/api/queryClient')>()),
@@ -20,13 +21,6 @@ function payload(companyId: string, label: string): ArchiveRecovery {
     companyId,
     rows: [{ entity: 'clients', id: 'client', label, archived: true, parent: null }],
   };
-}
-function deferred() {
-  let resolve!: (value: ArchiveRecovery) => void;
-  const promise = new Promise<ArchiveRecovery>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
 }
 function Probe() {
   const { data, error } = useArchiveRecovery();
@@ -83,7 +77,7 @@ describe('archive recovery request boundaries', () => {
     expect(request.mock.calls.every(([name]) => name === 'api.planning.archive')).toBe(true);
   });
   it('hides cached A synchronously on A → B → A and aborts obsolete reads', async () => {
-    const pending = deferred();
+    const pending = createDeferred<ArchiveRecovery>();
     request
       .mockResolvedValueOnce(payload('a-studio', 'Old A'))
       .mockReturnValueOnce(pending.promise)
@@ -148,7 +142,7 @@ describe('archive recovery request boundaries', () => {
     expect(screen.queryByText('First')).not.toBeInTheDocument();
   });
   it('aborts a delayed response on sign-out and rejects it after a new projection', async () => {
-    const late = deferred();
+    const late = createDeferred<ArchiveRecovery>();
     request.mockReturnValue(late.promise);
     const cache = new QueryClient();
     const rendered = render(view(cache));

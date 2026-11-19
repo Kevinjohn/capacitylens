@@ -48,11 +48,3 @@ export async function freshProvider(planningTransport: 'fixture' | 'server' = 'f
     resetStoreWithCompany,
   };
 }
-
-export function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((r) => {
-    resolve = r;
-  });
-  return { promise, resolve };
-}

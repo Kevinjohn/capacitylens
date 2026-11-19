@@ -11,10 +11,10 @@ import {
   companyToday,
   makeReceipt,
   harness,
-  deferred,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { createDeferred } from '@/test/createDeferred';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -166,7 +166,7 @@ describe('planning receipt completion context', () => {
         const baseRevision = h.state().planning.revision;
         if (baseRevision === null) throw new Error('Expected an initialized planning revision.');
         const revision = baseRevision + 1;
-        const delayed = deferred<PlanningSnapshot>();
+        const delayed = createDeferred<PlanningSnapshot>();
         read.mockImplementationOnce(() => delayed.promise);
         const completion =
           action === 'execute'
