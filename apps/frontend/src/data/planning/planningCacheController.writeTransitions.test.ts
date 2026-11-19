@@ -7,7 +7,7 @@ import { isShownByPlanningState, readPlanningProblem } from './planningNotices';
 import { PlanningControllerError } from './planningErrors';
 import {
   update,
-  receipt,
+  makeReceipt,
   deferred,
   ready,
   snapshot,
@@ -30,7 +30,7 @@ describe('planning write transitions', () => {
     });
     expect(isPlanningHistoryReady(planning, 'undo')).toBe(false);
     h.server.revision = 2;
-    response.resolve(receipt('mutation-1', 2));
+    response.resolve(makeReceipt('mutation-1', 2));
     await expect(write).resolves.toMatchObject({ revision: 2 });
     expect(h.state().planning.phase).toMatchObject({ kind: 'ready' });
   });
@@ -73,8 +73,8 @@ describe('planning write transitions', () => {
   });
 
   it.each([
-    { name: 'a skipped revision', make: () => receipt('mutation-1', 3) },
-    { name: 'another mutation id', make: () => receipt('mutation-9', 2) },
+    { name: 'a skipped revision', make: () => makeReceipt('mutation-1', 3) },
+    { name: 'another mutation id', make: () => makeReceipt('mutation-9', 2) },
   ])('treats a receipt with $name as unconfirmed and shows the server state', async ({ make }) => {
     const h = await ready();
     h.execute.mockResolvedValueOnce(make());
@@ -210,7 +210,7 @@ describe('planning write transitions', () => {
     const h = await readyWithHistory();
     h.execute.mockImplementationOnce(async (_context, execution) => {
       h.server.revision = 4;
-      return receipt(execution.mutationId, execution.baseRevision + 1);
+      return makeReceipt(execution.mutationId, execution.baseRevision + 1);
     });
     await expect(h.controller.execute(h.controller.begin(), update)).resolves.toMatchObject({
       revision: 3,
