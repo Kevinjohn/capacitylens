@@ -21,10 +21,10 @@ import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement
 import type { AppData, Resource, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { asRecord } from '#services/planning/writer';
-import { weekdayOf } from '@capacitylens/shared/lib/dateMath';
+import { getWeekday } from '@capacitylens/shared/lib/dateMath';
 import {
-  effectiveWorkingWeek,
-  effectiveWeekIncludes,
+  resolveEffectiveWorkingWeek,
+  hasEffectiveWeekDay,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { isUnavailable } from '@capacitylens/shared/lib/capacity';
@@ -207,8 +207,8 @@ export function assertAllocationStartsOnWorkingDay(
   }
   const resource = lookup.row('resources', String(row.resourceId)) as Resource | undefined;
   if (!resource || typeof row.startDate !== 'string') return;
-  const effectiveWeek = effectiveWorkingWeek(resource, lookup.companyWorkingDays(companyId));
-  if (!effectiveWeekIncludes(effectiveWeek, weekdayOf(row.startDate))) {
+  const effectiveWeek = resolveEffectiveWorkingWeek(resource, lookup.companyWorkingDays(companyId));
+  if (!hasEffectiveWeekDay(effectiveWeek, getWeekday(row.startDate))) {
     throw new PlanningOperationError(
       400,
       'VALIDATION_ERROR',

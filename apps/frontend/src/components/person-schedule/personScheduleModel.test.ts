@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { Activity } from '@capacitylens/shared/types/entities';
 import {
   makeActivity,
@@ -48,7 +48,7 @@ function build(overrides: Partial<Parameters<typeof buildPersonSchedule>[0]> = {
     companyId: 'a1',
     resource,
     data: {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       resources: [resource],
       clients: [client],
       projects: [project],
@@ -90,7 +90,7 @@ describe('buildPersonSchedule inclusion and ordering', () => {
 
     const complete = build({
       data: {
-        ...emptyAppData(),
+        ...createEmptyAppData(),
         resources: [resource],
         clients: [client],
         projects: [project],
@@ -146,7 +146,7 @@ describe('buildPersonSchedule allocation projection', () => {
     });
     const result = build({
       data: {
-        ...emptyAppData(),
+        ...createEmptyAppData(),
         resources: [resource],
         clients: [client],
         projects: [project],
@@ -175,7 +175,7 @@ describe('buildPersonSchedule task visibility', () => {
   it('omits task text when the company visibility setting is off', () => {
     const result = build({
       data: {
-        ...emptyAppData(),
+        ...createEmptyAppData(),
         resources: [resource],
         activities: [activity],
         allocations: [
@@ -193,7 +193,7 @@ describe('buildPersonSchedule hour visibility', () => {
     const result = build({
       schedulingMode,
       data: {
-        ...emptyAppData(),
+        ...createEmptyAppData(),
         resources: [resource],
         activities: [activity],
         allocations: [makeAllocation({ startDate: '2026-09-10', endDate: '2026-09-10' })],
@@ -207,7 +207,7 @@ describe('buildPersonSchedule hour visibility', () => {
     const inBlocks = build({
       schedulingMode: 'blocks',
       data: {
-        ...emptyAppData(),
+        ...createEmptyAppData(),
         resources: [resource],
         activities: [activity],
         allocations: [makeAllocation({ startDate: '2026-09-10', endDate: '2026-09-10' })],
@@ -216,7 +216,7 @@ describe('buildPersonSchedule hour visibility', () => {
     const externalResult = build({
       resource: external,
       data: {
-        ...emptyAppData(),
+        ...createEmptyAppData(),
         resources: [external],
         activities: [activity],
         allocations: [makeAllocation({ startDate: '2026-09-10', endDate: '2026-09-10' })],
@@ -241,17 +241,17 @@ describe('buildPersonSchedule time off and Internal work', () => {
       note: 'Second occurrence',
     });
     const denied = build({
-      data: { ...emptyAppData(), resources: [resource], timeOff: [timeOff, repeatedTimeOff] },
+      data: { ...createEmptyAppData(), resources: [resource], timeOff: [timeOff, repeatedTimeOff] },
     });
     const allowed = build({
       canSeeTimeOffNotes: true,
-      data: { ...emptyAppData(), resources: [resource], timeOff: [timeOff] },
+      data: { ...createEmptyAppData(), resources: [resource], timeOff: [timeOff] },
     });
     const external = makeResource({ id: 'r1', kind: 'external', name: 'Daily Planet' });
     const externalResult = build({
       resource: external,
       canSeeTimeOffNotes: true,
-      data: { ...emptyAppData(), resources: [external], timeOff: [timeOff] },
+      data: { ...createEmptyAppData(), resources: [external], timeOff: [timeOff] },
     });
 
     expect(denied.model.entries).toHaveLength(2);
@@ -272,7 +272,7 @@ describe('buildPersonSchedule time off and Internal work', () => {
     });
     const internalActivity = withoutProjectId(makeActivity({ kind: 'internal', name: 'Admin' }));
     const data = {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       resources: [resource],
       clients: [internalClient],
       activities: [internalActivity],
@@ -314,7 +314,7 @@ describe('buildPersonSchedule defensive projection', () => {
     });
     const result = build({
       data: {
-        ...emptyAppData(),
+        ...createEmptyAppData(),
         resources: [resource],
         clients: [projectedClient],
         projects: [projectedProject],

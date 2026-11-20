@@ -1,7 +1,7 @@
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import type { AppData } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
-import { fail, own } from './companyDocument.errors.js';
+import { fail, hasOwn } from './companyDocument.errors.js';
 import { FIELDS } from './companyDocument.fields.js';
 import type { Row } from './companyDocument.fields.js';
 
@@ -18,7 +18,7 @@ export function projectCompanyData(data: AppData, accountId: string): AppData {
     (projected as unknown as Record<string, unknown>)[key] = selected.map((input) => {
       const copy: Row = {};
       for (const field of FIELDS[key] as readonly string[]) {
-        if (own(input, field)) {
+        if (hasOwn(input, field)) {
           const fieldValue = input[field];
           copy[field] = Array.isArray(fieldValue)
             ? (fieldValue as unknown[]).map((item: unknown) => item)

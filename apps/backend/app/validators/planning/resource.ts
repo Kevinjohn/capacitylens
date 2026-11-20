@@ -6,13 +6,13 @@ import {
   RESOURCE_KINDS,
 } from '@capacitylens/shared/types/entities';
 import {
-  externalCapacityDefaults,
-  placeholderCapacityDefaults,
+  buildExternalCapacityDefaults,
+  buildPlaceholderCapacityDefaults,
 } from '@capacitylens/shared/types/entities';
 import {
-  fixedWorkingPattern,
-  halfDaysWithinWorkingDays,
-  sameWeekdays,
+  parseFixedWorkingPattern,
+  areHalfDaysWithinWorkingDays,
+  isSameWeekdays,
 } from '@capacitylens/shared/domain/resourceWorkingPattern';
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import { normalizeUserText } from '@capacitylens/shared/lib/strings';
@@ -112,13 +112,13 @@ export const resourceIntent = vine.union([
           }
           const defaults =
             fields.kind === 'external'
-              ? externalCapacityDefaults()
+              ? buildExternalCapacityDefaults()
               : fields.kind === 'placeholder'
-                ? placeholderCapacityDefaults()
+                ? buildPlaceholderCapacityDefaults()
                 : undefined;
-          const pattern = fixedWorkingPattern(fields.kind);
+          const pattern = parseFixedWorkingPattern(fields.kind);
           for (const key of ['workingDays', 'halfDays'] as const) {
-            if (pattern && !sameWeekdays(fields[key], pattern[key])) {
+            if (pattern && !isSameWeekdays(fields[key], pattern[key])) {
               field.report(`${key} must match the resource kind defaults.`, key, field);
             }
           }
@@ -145,7 +145,7 @@ export const resourceIntent = vine.union([
           if (
             Array.isArray(halfDays) &&
             Array.isArray(workingDays) &&
-            !halfDaysWithinWorkingDays(workingDays, halfDays)
+            !areHalfDaysWithinWorkingDays(workingDays, halfDays)
           ) {
             field.report('Half days must be included in working days.', 'halfDays', field);
           }
@@ -171,7 +171,7 @@ export const resourceIntent = vine.union([
             if (
               Array.isArray(halfDays) &&
               Array.isArray(workingDays) &&
-              !halfDaysWithinWorkingDays(workingDays, halfDays)
+              !areHalfDaysWithinWorkingDays(workingDays, halfDays)
             ) {
               field.report('Half days must be included in working days.', 'halfDays', field);
             }

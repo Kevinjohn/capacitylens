@@ -1,5 +1,5 @@
-import { isWithin, weekdayOf } from '../dateMath.js';
-import { effectiveWeekIncludes } from '../effectiveWorkingWeek.js';
+import { isWithin, getWeekday } from '../dateMath.js';
+import { hasEffectiveWeekDay } from '../effectiveWorkingWeek.js';
 import type { EffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import {
   FULL_DAY_HOURS,
@@ -20,7 +20,7 @@ import { addCapacityHours, hasAllocationLoadOnDay, warnOnNonFiniteCapacity } fro
 
 /** Checks whether a date belongs to the effective working week. */
 export function isWorkingDay(effectiveWeek: EffectiveWorkingWeek, date: ISODate): boolean {
-  return effectiveWeekIncludes(effectiveWeek, weekdayOf(date));
+  return hasEffectiveWeekDay(effectiveWeek, getWeekday(date));
 }
 
 /** A saved half-day working pattern on this weekday, 4h of capacity instead of 8h. The scheduler's
@@ -35,7 +35,7 @@ export function resolveScheduledHoursForWeekday(
   weekday: Weekday,
   effectiveWeek: EffectiveWorkingWeek,
 ): number {
-  if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
+  if (!hasEffectiveWeekDay(effectiveWeek, weekday)) return 0;
   return isHalfDay(resource, weekday) ? HALF_DAY_HOURS : FULL_DAY_HOURS;
 }
 
@@ -59,7 +59,7 @@ export function resolveScheduledHoursOnDay(
   ) {
     return 0;
   }
-  return resolveScheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
+  return resolveScheduledHoursForWeekday(resource, getWeekday(date), effectiveWeek);
 }
 
 function isApplicableToResource(resourceId: ID, timeOffEntry: TimeOff): boolean {
@@ -132,7 +132,7 @@ export function resolveAvailableHoursForWeekday({
   ) {
     return 0;
   }
-  if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
+  if (!hasEffectiveWeekDay(effectiveWeek, weekday)) return 0;
   if (isUnavailable({ resource, date, timeOff, closures })) {
     return 0;
   }
@@ -161,7 +161,7 @@ export function resolveAvailableHoursOnDay({
     date,
     timeOff,
     closures,
-    weekday: weekdayOf(date),
+    weekday: getWeekday(date),
     effectiveWeek,
   });
 }
@@ -184,7 +184,7 @@ export function resolveAllocatedHoursOnDay({
     resource,
     date,
     allocations,
-    weekday: weekdayOf(date),
+    weekday: getWeekday(date),
     effectiveWeek,
   });
 }
@@ -208,7 +208,7 @@ export function resolveAllocationLoadForWeekday({
   // Derive the working-weekday flag once per day: it's invariant across the loop, only the
   // allocation's `ignoreWorkingDays` varies (and isWeekendAware is parse-free), so this keeps the
   // render-time over-marker hot path off a per-allocation parseISO.
-  const dayIsWorking = effectiveWeekIncludes(effectiveWeek, weekday);
+  const dayIsWorking = hasEffectiveWeekDay(effectiveWeek, weekday);
   let sum = 0;
   let components: number[] = [];
   for (const allocation of allocations) {

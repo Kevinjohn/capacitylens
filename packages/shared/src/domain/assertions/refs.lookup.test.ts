@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NULLABLE_FIELDS } from '../../types/nullableFields.js';
-import { emptyAppData } from '../../types/entities.js';
+import { createEmptyAppData } from '../../types/entities.js';
 import type {
   Activity,
   AppData,
@@ -61,7 +61,7 @@ const activity = (id: ID): Activity => ({
 
 function data(overrides: Partial<AppData> = {}): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     clients: [client('c1')],
     projects: [project('p1')],
     activities: [activity('t1')],

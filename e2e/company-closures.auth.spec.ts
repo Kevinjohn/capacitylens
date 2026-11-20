@@ -9,7 +9,7 @@ import {
   sendPlanningFixtureCommand,
   signUpUser,
 } from './authTestSupport';
-import { externalCapacityDefaults } from '@capacitylens/shared/types/entities';
+import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
 import {
   computedStyles,
   disableCssMotion,
@@ -65,7 +65,7 @@ async function seedClosureAccount(request: APIRequestContext) {
       role: 'Partner studio',
       avatarUrl: null,
       disciplineId: null,
-      ...externalCapacityDefaults(),
+      ...buildExternalCapacityDefaults(),
       projectId: null,
       color: '#9ca3af',
       isFavourite: null,

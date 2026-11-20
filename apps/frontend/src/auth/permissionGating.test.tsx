@@ -17,7 +17,7 @@ import { AddButton, ListPage } from '@/components/common/ui';
 import { AllocationBar } from '@/components/scheduler/AllocationBar';
 import { buildColumnGeometry } from '@/components/scheduler/columnGeometry';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { useStore } from '@/store/useStore';
 import { requireCreated } from '@/test/requireCreated';
 import {
@@ -26,7 +26,7 @@ import {
   makeResourceDraft,
   setPlanningAuthority,
 } from '@/test/fixtures';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { permissionValue } from '@/test/permissionGrants';
@@ -44,7 +44,7 @@ function PrivateNameFieldsHarness() {
 }
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setNotice(null);
 });
@@ -81,7 +81,7 @@ describe('useCanEdit gates direct AddButton create affordances', () => {
 });
 
 describe('useCanEdit gates the AllocationBar resize grips', () => {
-  const GEOM = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 48, {
+  const GEOM = buildColumnGeometry(listDaysISO('2026-06-01', '2026-06-30'), 48, {
     minimiseWeekends: false,
     weekendWidth: 22,
   });

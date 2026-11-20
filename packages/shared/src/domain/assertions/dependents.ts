@@ -1,7 +1,7 @@
 import {
-  allocationAttributionAllowed,
-  effectiveProjectId,
-  withoutAllocationAttribution,
+  isAllocationAttributionAllowed,
+  resolveEffectiveProjectId,
+  removeAllocationAttribution,
   validateAllocationAssignment,
   validateDateRange,
 } from '../../lib/integrity.js';
@@ -16,7 +16,7 @@ import type {
   Resource,
   TimeOff,
 } from '../../types/entities.js';
-import { belongsToCompany } from '../tenancy.js';
+import { isInCompany } from '../tenancy.js';
 import { throwDomainError } from '../errors.js';
 import type { DomainErrorCode } from '../errors.js';
 import {
@@ -89,7 +89,7 @@ function assertResourceKindAllowsDependents({
   // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
   // allocation is allowed on an external, so it doesn't block the flip).
   const isOwnedByResource = (entity: Allocation | TimeOff) =>
-    entity.resourceId === resourceId && belongsToCompany(entity, companyId);
+    entity.resourceId === resourceId && isInCompany(entity, companyId);
   const hasLoadedAllocation = lookup
     ? lookup.resourceHasLoadedAllocation(companyId, resourceId)
     : data.allocations.some(
@@ -172,7 +172,7 @@ function assertAllocationPairStaysValid({
         ...lookupOptions,
       });
       if (!activity) continue;
-      const projectId = effectiveProjectId(allocation, activity);
+      const projectId = resolveEffectiveProjectId(allocation, activity);
       before = edit.existing && validateAllocationAssignment(edit.existing, projectId);
       after = validateAllocationAssignment(edit.merged, projectId);
     } else {
@@ -186,13 +186,16 @@ function assertAllocationPairStaysValid({
       if (!resource) continue;
       before =
         edit.existing &&
-        validateAllocationAssignment(resource, effectiveProjectId(allocation, edit.existing));
-      const allocationAfter = allocationAttributionAllowed(edit.merged.kind)
+        validateAllocationAssignment(
+          resource,
+          resolveEffectiveProjectId(allocation, edit.existing),
+        );
+      const allocationAfter = isAllocationAttributionAllowed(edit.merged.kind)
         ? allocation
-        : withoutAllocationAttribution(allocation);
+        : removeAllocationAttribution(allocation);
       after = validateAllocationAssignment(
         resource,
-        effectiveProjectId(allocationAfter, edit.merged),
+        resolveEffectiveProjectId(allocationAfter, edit.merged),
       );
     }
     // With no existing endpoint, treat the prior assignment as valid so new invalidity is rejected.

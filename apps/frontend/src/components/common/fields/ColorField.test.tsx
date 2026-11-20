@@ -5,10 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { Modal, ColorField } from '@/components/common/ui';
 import { useStore } from '@/store/useStore';
 import { resolveColorName, SWATCHES } from '@/lib/palette';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
 });

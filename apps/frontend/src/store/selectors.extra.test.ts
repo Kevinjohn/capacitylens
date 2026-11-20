@@ -2,12 +2,12 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, it, expect } from 'vitest';
 import { byDisciplineOrder, resourceById, activityById } from './selectors';
 import type { Discipline } from '@capacitylens/shared/types/entities';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { DEFAULT_COMPANY_ID, makeResource } from '@/test/fixtures';
 
 const data: AppData = {
-  ...emptyAppData(),
+  ...createEmptyAppData(),
   clients: [
     {
       ...NULLABLE_FIELDS.clients,

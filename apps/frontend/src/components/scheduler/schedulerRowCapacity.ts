@@ -1,6 +1,10 @@
 import { resolveUtilisationFromCapacity } from '@capacitylens/shared/lib/capacity';
 import type { CapacitySection, DayCapacity } from '@capacitylens/shared/lib/capacity';
-import { bucketByCoveredDate, dayIndex, eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import {
+  bucketByCoveredDate,
+  calculateDayIndex,
+  listDaysISO,
+} from '@capacitylens/shared/lib/dateMath';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
 import type {
   Allocation,
@@ -40,7 +44,7 @@ export function readServerDayCapacity(
 ): DayCapacity | undefined {
   const days = capacity?.resources[resourceId]?.window;
   if (!capacity || !days) return undefined;
-  const index = dayIndex(date, capacity.window.from);
+  const index = calculateDayIndex(date, capacity.window.from);
   const allocated = days.allocated[index];
   const available = days.available[index];
   const over = days.over[index];
@@ -104,6 +108,6 @@ export function createCapacitySource({
 
   return {
     capacitySourceFor: createResourceCapacitySource,
-    visDays: visibleWindow ? eachDayISO(visibleWindow.start, visibleWindow.end) : [],
+    visDays: visibleWindow ? listDaysISO(visibleWindow.start, visibleWindow.end) : [],
   };
 }

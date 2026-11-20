@@ -4,7 +4,7 @@ import { canSeePrivateNames } from '../access.js';
 import { redactPrivateName } from '../privateNames.js';
 import { inspectLifecycleAncestry } from './ancestry.js';
 import type { LifecycleAncestryRow } from './ancestry.js';
-import { LIFECYCLE_ENTITY_KEYS, lifecycleStatus } from './types.js';
+import { LIFECYCLE_ENTITY_KEYS, resolveLifecycleStatus } from './types.js';
 
 /** The identity of the first archived ancestor preventing visibility. */
 export type ArchivedParent = { entity: 'clients' | 'projects'; id: string; label: string };
@@ -53,7 +53,7 @@ export function archiveRecovery(data: AppData, companyId: string, role: Role): A
   const rows: ArchiveRecoveryRow[] = [];
   for (const entity of LIFECYCLE_ENTITY_KEYS) {
     for (const row of indexes.get(entity)?.values() ?? []) {
-      const state = lifecycleStatus(row);
+      const state = resolveLifecycleStatus(row);
       if (state === 'deleted' || (entity === 'clients' && row.builtin === true)) continue;
       if (inspectLifecycleAncestry(entity, row, getRowIgnoringArchive).kind === 'hidden') {
         continue;

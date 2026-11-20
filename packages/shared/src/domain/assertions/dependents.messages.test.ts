@@ -13,9 +13,9 @@ import {
 import {
   TS,
   makeMeta,
-  client,
+  makeClient,
   project,
-  activity,
+  makeActivity,
   makePerson,
   makePlaceholder,
   makeExternal,
@@ -23,7 +23,7 @@ import {
   timeOff,
   A1,
   A2,
-  base,
+  makeBaseData,
 } from './assertionMessagesTestSupport.js';
 
 // These specs check each rule's rejection message without the store or React. The server uses
@@ -54,18 +54,18 @@ describe('assertDateRange', () => {
 
 describe('assertResourceExists', () => {
   it('passes when the resource is in the account', () => {
-    const data = { ...base(), resources: [makePerson('r1', A1)] };
+    const data = { ...makeBaseData(), resources: [makePerson('r1', A1)] };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).not.toThrow();
   });
   it('throws for a missing / cross-account resource', () => {
-    const data = { ...base(), resources: [makePerson('r1', A2)] };
+    const data = { ...makeBaseData(), resources: [makePerson('r1', A2)] };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).toThrow(
       'Time off must reference an existing resource in this company.',
     );
   });
   it('rejects a new reference to an archived resource but permits an unchanged archived reference', () => {
     const data = {
-      ...base(),
+      ...makeBaseData(),
       resources: [{ ...makePerson('r1', A1), archivedAt: TS }],
     };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).toThrow(
@@ -90,8 +90,8 @@ describe('assertResourceExists', () => {
   });
   it('rejects a resource hidden by an inactive project ancestor', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [{ ...project('p1', A1, 'c1'), archivedAt: TS }],
       resources: [{ ...makePerson('r1', A1), kind: 'placeholder' as const, projectId: 'p1' }],
     };
@@ -100,7 +100,7 @@ describe('assertResourceExists', () => {
     );
   });
   it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
-    const data = { ...base(), resources: [makeExternal('ext', A1)] };
+    const data = { ...makeBaseData(), resources: [makeExternal('ext', A1)] };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'ext' })).toThrow(
       'Time off can’t be recorded for an external / 3rd-party resource.',
     );
@@ -112,9 +112,9 @@ describe('assertResourceKindAllowsDependents', () => {
 
   it('is a no-op when the merged kind is not external', () => {
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePerson('r1', A1)],
-      activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
+      activities: [makeActivity({ id: 't1', companyId: A1, projectId: 'p1' })],
       allocations: [
         allocation({
           id: 'al',
@@ -146,7 +146,7 @@ describe('assertResourceKindAllowsDependents', () => {
 
   it('rejects making external a resource that still owns a loaded allocation', () => {
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePerson('r1', A1)],
       allocations: [
         allocation({
@@ -170,7 +170,7 @@ describe('assertResourceKindAllowsDependents', () => {
 
   it('rejects making external a resource that still owns time off', () => {
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePerson('r1', A1)],
       timeOff: [timeOff({ id: 'to', companyId: A1, resourceId: 'r1' })],
     };
@@ -185,7 +185,7 @@ describe('assertResourceKindAllowsDependents', () => {
   });
   it('ignores company closures when making a resource external', () => {
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePerson('r1', A1)],
       closures: [
         {
@@ -208,7 +208,7 @@ describe('assertResourceKindAllowsDependents', () => {
 
   it('allows making external a resource whose only allocation carries a zero load (already valid for an external)', () => {
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePerson('r1', A1)],
       allocations: [
         allocation({
@@ -231,7 +231,7 @@ describe('assertResourceKindAllowsDependents', () => {
   });
 
   it('allows making external a resource with no dependents', () => {
-    const data: AppData = { ...base(), resources: [makePerson('r1', A1)] };
+    const data: AppData = { ...makeBaseData(), resources: [makePerson('r1', A1)] };
     expect(() =>
       assertResourceKindAllowsDependents({
         data,
@@ -245,7 +245,7 @@ describe('assertResourceKindAllowsDependents', () => {
   it('only considers THIS resource’s dependents in THIS account', () => {
     // Another resource's loaded allocation + a same-id dependent in a different account must not block.
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePerson('r1', A1), makePerson('other', A1)],
       allocations: [
         allocation({
@@ -283,11 +283,11 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   it('rejects rebinding a placeholder while it owns work under its previous project', () => {
     const existing = makePlaceholder('ph', A1, 'p1');
     const data: AppData = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       resources: [existing],
-      activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
+      activities: [makeActivity({ id: 't1', companyId: A1, projectId: 'p1' })],
       allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'ph', activityId: 't1' })],
     };
 
@@ -305,7 +305,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   it('allows a rebind when the placeholder only owns project-less work', () => {
     const existing = makePlaceholder('ph', A1, 'p1');
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [existing],
       activities: [
         {
@@ -339,8 +339,8 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       kind: 'repeatable',
     };
     const data: AppData = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       resources: [existing],
       activities: [repeatable],
@@ -374,8 +374,8 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       kind: 'repeatable',
     };
     const data: AppData = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       resources: [makePlaceholder('ph', A1, 'p1')],
       activities: [existing],
@@ -412,9 +412,9 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   it('rejects converting a person with all-projects work into a bound placeholder', () => {
     const existing = makePerson('r1', A1);
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [existing],
-      activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
+      activities: [makeActivity({ id: 't1', companyId: A1, projectId: 'p1' })],
       allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'r1', activityId: 't1' })],
     };
 
@@ -430,9 +430,9 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   });
 
   it('rejects moving an activity while a placeholder bound to its previous project owns it', () => {
-    const existing = activity({ id: 't1', companyId: A1, projectId: 'p1' });
+    const existing = makeActivity({ id: 't1', companyId: A1, projectId: 'p1' });
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePlaceholder('ph', A1, 'p1')],
       activities: [existing],
       allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'ph', activityId: 't1' })],
@@ -449,14 +449,14 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     ).toThrow(rejectActivity);
   });
   it('allows moving an activity owned only by people and allows making placeholder work project-less', () => {
-    const projectActivity = activity({ id: 'project-work', companyId: A1, projectId: 'p1' });
-    const placeholderActivity = activity({
+    const projectActivity = makeActivity({ id: 'project-work', companyId: A1, projectId: 'p1' });
+    const placeholderActivity = makeActivity({
       id: 'placeholder-work',
       companyId: A1,
       projectId: 'p1',
     });
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [makePerson('person', A1), makePlaceholder('ph', A1, 'p1')],
       activities: [projectActivity, placeholderActivity],
       allocations: [
@@ -500,9 +500,9 @@ describe('parent project edits preserve placeholder allocation assignments', () 
   });
   it('does not make an unrelated edit the repair boundary for already-corrupt assignments', () => {
     const resource = makePlaceholder('ph', A1, 'p2');
-    const activityRow = activity({ id: 't1', companyId: A1, projectId: 'p1' });
+    const activityRow = makeActivity({ id: 't1', companyId: A1, projectId: 'p1' });
     const data: AppData = {
-      ...base(),
+      ...makeBaseData(),
       resources: [resource],
       activities: [activityRow],
       allocations: [allocation({ id: 'al', companyId: A1, resourceId: 'ph', activityId: 't1' })],

@@ -46,7 +46,7 @@ function isObjectValue(value: unknown): value is object {
 /** The account's built-in Internal client, or undefined if none exists yet. Identifies it by the
  * `builtin` flag, so an imported id still matches. First match wins; seed, company creation and
  * import validation guarantee at most one per account. */
-export function internalClientFor(clients: Client[], companyId: ID): Client | undefined {
+export function getInternalClient(clients: Client[], companyId: ID): Client | undefined {
   return clients.find(
     (client) => isObjectValue(client) && isBuiltinClient(client) && client.companyId === companyId,
   );

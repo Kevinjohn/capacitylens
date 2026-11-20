@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  carriesHourlyLoad,
+  hasHourlyLoad,
   clampHoursPerDay,
-  externalCapacityDefaults,
+  buildExternalCapacityDefaults,
   isCapacityTracked,
   isScopedEntityKey,
-  placeholderCapacityDefaults,
+  buildPlaceholderCapacityDefaults,
 } from './entities.js';
 
 describe('entity helpers through the public facade', () => {
   it('distinguishes hourly loads, capacity-free resources and scoped tables', () => {
-    expect(carriesHourlyLoad('hourly')).toBe(true);
-    expect(carriesHourlyLoad('days')).toBe(true);
-    expect(carriesHourlyLoad('blocks')).toBe(false);
+    expect(hasHourlyLoad('hourly')).toBe(true);
+    expect(hasHourlyLoad('days')).toBe(true);
+    expect(hasHourlyLoad('blocks')).toBe(false);
     expect(isCapacityTracked({ kind: 'person' })).toBe(true);
     expect(isCapacityTracked({ kind: 'placeholder' })).toBe(true);
     expect(isCapacityTracked({ kind: 'external' })).toBe(false);
@@ -30,10 +30,10 @@ describe('entity helpers through the public facade', () => {
   );
 
   it('returns independent weekday arrays for every capacity-default factory call', () => {
-    const external = externalCapacityDefaults();
-    const placeholder = placeholderCapacityDefaults();
-    const nextExternal = externalCapacityDefaults();
-    const nextPlaceholder = placeholderCapacityDefaults();
+    const external = buildExternalCapacityDefaults();
+    const placeholder = buildPlaceholderCapacityDefaults();
+    const nextExternal = buildExternalCapacityDefaults();
+    const nextPlaceholder = buildPlaceholderCapacityDefaults();
 
     external.workingDays.length = 0;
     external.halfDays.push(1);

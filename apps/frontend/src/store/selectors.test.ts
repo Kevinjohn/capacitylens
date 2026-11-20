@@ -17,12 +17,12 @@ import {
 } from './selectors';
 import { buildEmptyFilters } from './useStore';
 import { DEFAULT_COMPANY_ID, makeCompany, makeResource } from '@/test/fixtures';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { Company, AppData, ID } from '@capacitylens/shared/types/entities';
 
 function data(): AppData {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     disciplines: [
       {
         ...NULLABLE_FIELDS.disciplines,
@@ -114,7 +114,7 @@ describe('resourcesByDiscipline', () => {
 type CompaniesOptions = { disciplinesEnabled?: boolean | undefined };
 describe('disciplinesEnabledFor', () => {
   const companies = ({ disciplinesEnabled }: CompaniesOptions) => ({
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: [
       makeCompany({
         id: 'a1',
@@ -142,7 +142,7 @@ describe('disciplinesEnabledFor', () => {
 });
 
 const companyData = (values: Partial<Company> = {}): AppData => ({
-  ...emptyAppData(),
+  ...createEmptyAppData(),
   accounts: [
     makeCompany({
       id: 'a1',
@@ -212,7 +212,7 @@ describe('calendar primitive selectors', () => {
   const companies = (
     calendar?: Pick<Partial<Company>, 'timezone' | 'weekStartsOn' | 'workingDays'>,
   ) => ({
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: [
       makeCompany({
         id: 'a1',
@@ -267,7 +267,7 @@ describe('calendar primitive selectors', () => {
 
 describe('hasResourceEngagementGrouping', () => {
   const resources = (...rows: Parameters<typeof makeResource>[0][]): AppData => ({
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     resources: rows.map((row, index) => makeResource({ id: `r${index}`, companyId: 'a1', ...row })),
   });
 
@@ -303,7 +303,7 @@ describe('hasResourceEngagementGrouping', () => {
 describe('hasVisibleTaskFieldInSchedule', () => {
   it('defaults off and remains account-scoped', () => {
     const appData = {
-      ...emptyAppData(),
+      ...createEmptyAppData(),
       accounts: [
         { ...makeCompany({ id: 'a1' }), showTaskFieldInSchedule: true },
         { ...makeCompany({ id: 'a2' }), showTaskFieldInSchedule: false },
@@ -347,7 +347,7 @@ describe('resolveDateStyle', () => {
       color: '#1',
     };
     if (dateStyle) company.dateStyle = dateStyle as NonNullable<Company['dateStyle']>;
-    return { ...emptyAppData(), accounts: [company] };
+    return { ...createEmptyAppData(), accounts: [company] };
   };
 
   it('defaults absent and unmatched accounts to day-month', () => {

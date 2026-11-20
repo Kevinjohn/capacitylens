@@ -1,7 +1,7 @@
 import type { Client, Project } from '../types/entities.js';
 
 // The fallback used when an id is absent, empty, or yields no alphanumerics, so a derived label is
-// never left with an empty marker. Constant (not random) to keep {@link shortIdTag} deterministic;
+// never left with an empty marker. Constant (not random) to keep {@link buildShortIdTag} deterministic;
 // `0000` reads clearly as "no usable id".
 const SHORT_ID_FALLBACK_TAG = '0000';
 
@@ -14,7 +14,7 @@ const SHORT_ID_FALLBACK_TAG = '0000';
  * take the first 12 of what remains, enough of a UUID to keep rows distinguishable without exposing
  * user data. A non-string, empty or alphanumeric-free id yields {@link SHORT_ID_FALLBACK_TAG}.
  */
-export function shortIdTag(id: unknown): string {
+export function buildShortIdTag(id: unknown): string {
   const tag = typeof id === 'string' ? id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) : '';
   return tag.length > 0 ? tag : SHORT_ID_FALLBACK_TAG;
 }
@@ -22,8 +22,8 @@ export function shortIdTag(id: unknown): string {
 /** Stable, non-secret cover name used only when repairing malformed private data. Imported records
  * have already received their final remapped id, so the tag distinguishes rows without using the
  * private name. */
-export function privateCodeNameFallback(id: unknown): string {
-  return `Confidential #${shortIdTag(id)}`;
+export function buildPrivateCodeNameFallback(id: unknown): string {
+  return `Confidential #${buildShortIdTag(id)}`;
 }
 
 const CODE_NAME_QUOTES = new Set(['"', '“', '”']);
@@ -41,7 +41,7 @@ export function normalizeCodeName(value: string): string {
 
 /** Code names always render inside straight double quotation marks. */
 export function buildQuotedCodeName(value: string, id?: unknown): string {
-  return `"${normalizeCodeName(value) || privateCodeNameFallback(id)}"`;
+  return `"${normalizeCodeName(value) || buildPrivateCodeNameFallback(id)}"`;
 }
 
 /** Ordinary writes must supply a real code name when they make a client/project private. */
@@ -54,7 +54,7 @@ export function hasUsablePrivateCodeName(entity: Record<string, unknown>): boole
 
 /** Name value to pass into copy that already supplies its own surrounding quotation marks. Private
  * read projections already carry quotes, so remove only those outer marks to prevent `""Code""`. */
-export function nameForQuotedContext(value: string): string {
+export function buildQuotedContextName(value: string): string {
   return normalizeCodeName(value);
 }
 

@@ -9,7 +9,7 @@ import { m } from '@/i18n';
 import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { NEUTRAL_COLOR } from '@/lib/palette';
-import { externalCapacityDefaults } from '@capacitylens/shared/types/entities';
+import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
 import type { Resource } from '@capacitylens/shared/types/entities';
 
 type ExternalFormFieldsProps = {
@@ -87,7 +87,7 @@ export function ExternalForm({
       name: cleanName,
       role: cleanRole,
       // External capacity defaults satisfy the shared Resource validation contract even though capacity views exclude external load.
-      ...externalCapacityDefaults(),
+      ...buildExternalCapacityDefaults(),
       color: NEUTRAL_COLOR,
     };
     return resource ? () => update(resource.id, patch, resource.updatedAt) : () => add(patch);

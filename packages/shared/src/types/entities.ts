@@ -16,16 +16,16 @@ export type { AppDataKey, ScopedEntityKey } from './entityKeys.js';
 export const EXPORT_SCHEMA_VERSION = 25;
 
 export {
-  carriesHourlyLoad,
+  hasHourlyLoad,
   isScopedEntityKey,
-  scopedTables,
+  buildScopedTables,
   clampHoursPerDay,
   clampWorkingHoursPerDay,
   isExternalResource,
   isCapacityTracked,
   hasPersonalWorkingPattern,
   isPlaceholderResource,
-  externalCapacityDefaults,
-  placeholderCapacityDefaults,
-  emptyAppData,
+  buildExternalCapacityDefaults,
+  buildPlaceholderCapacityDefaults,
+  createEmptyAppData,
 } from './entityHelpers.js';

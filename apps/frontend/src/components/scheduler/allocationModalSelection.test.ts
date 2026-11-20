@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addDaysISO, daysInclusive, MAX_ISO_DATE } from '@capacitylens/shared/lib/dateMath';
+import { addDaysISO, countDaysInclusive, MAX_ISO_DATE } from '@capacitylens/shared/lib/dateMath';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import {
-  blockHoursPerDay,
-  hoursPerDayFor,
+  resolveBlockHoursPerDay,
+  calculateHoursPerDay,
   MAX_SPAN_DAYS,
-  maxSpanDaysForStart,
+  calculateMaxSpanDays,
 } from '@capacitylens/shared/lib/schedulingDays';
 import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
 import type { ISODate, SchedulingMode } from '@capacitylens/shared/types/entities';
@@ -149,7 +149,7 @@ describe('buildEffectiveAllocationValues', () => {
   it('flags a start so late that fewer than MAX_SPAN_DAYS calendar days remain', () => {
     const atLimit = { startDate: LAST_UNLIMITED_START, ignoreWorkingDays: true };
     const pastLimit = { startDate: addDaysISO(LAST_UNLIMITED_START, 1), ignoreWorkingDays: true };
-    expect(daysInclusive(LAST_UNLIMITED_START, MAX_ISO_DATE)).toBe(MAX_SPAN_DAYS);
+    expect(countDaysInclusive(LAST_UNLIMITED_START, MAX_ISO_DATE)).toBe(MAX_SPAN_DAYS);
     for (const mode of ['hourly', 'days'] as const) {
       expect(
         buildEffectiveAllocationValues(input({ ...atLimit, mode })).spanLimitedByDateDomain,
@@ -172,10 +172,10 @@ describe('buildEffectiveAllocationValues', () => {
       maximumDaysOver: MAX_SPAN_DAYS,
       spanLimitedByDateDomain: false,
       endDate: '2026-06-03',
-      hoursPerDay: blockHoursPerDay(FULL_DAY_HOURS),
+      hoursPerDay: resolveBlockHoursPerDay(FULL_DAY_HOURS),
     });
     expect(buildEffectiveAllocationValues(input({ ...noWeek, mode: 'days' }))).toMatchObject({
-      hoursPerDay: hoursPerDayFor(2, 4, FULL_DAY_HOURS),
+      hoursPerDay: calculateHoursPerDay(2, 4, FULL_DAY_HOURS),
     });
     expect(
       buildEffectiveAllocationValues(input({ ...noWeek, effectiveWeek: undefined, daysOver: 0 })),
@@ -186,9 +186,9 @@ describe('buildEffectiveAllocationValues', () => {
     const working = buildEffectiveAllocationValues(input({ daysOver: 6, daysOfWork: 3 }));
     expect(working).toMatchObject({
       endDate: '2026-06-08',
-      hoursPerDay: hoursPerDayFor(3, 6, FULL_DAY_HOURS),
+      hoursPerDay: calculateHoursPerDay(3, 6, FULL_DAY_HOURS),
       spanFitsDateDomain: true,
-      maximumDaysOver: maxSpanDaysForStart('2026-06-01', {
+      maximumDaysOver: calculateMaxSpanDays('2026-06-01', {
         workingDays: WORKDAYS,
         ignoreWorkingDays: false,
       }),
@@ -197,7 +197,7 @@ describe('buildEffectiveAllocationValues', () => {
       buildEffectiveAllocationValues(input({ daysOver: 6, ignoreWorkingDays: true })).endDate,
     ).toBe('2026-06-06');
     expect(buildEffectiveAllocationValues(input({ mode: 'blocks' })).hoursPerDay).toBe(
-      blockHoursPerDay(FULL_DAY_HOURS),
+      resolveBlockHoursPerDay(FULL_DAY_HOURS),
     );
   });
 

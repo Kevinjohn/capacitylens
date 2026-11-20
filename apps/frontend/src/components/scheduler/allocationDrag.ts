@@ -2,7 +2,7 @@ import { applyGesture } from '@/lib/gestureMath';
 import type { DateRange, DragMode, GestureOptions } from '@/lib/gestureMath';
 import { resolveScheduledHoursOnDay } from '@capacitylens/shared/lib/capacity';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { spanDays } from '@capacitylens/shared/lib/schedulingDays';
+import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
 import {
   FULL_DAY_HOURS,
   isExternalResource,
@@ -60,8 +60,8 @@ export function resolveVolumePreservingHours({
   options,
   hoursPerDay,
 }: ResolveVolumePreservingHoursInput): { hours: number; clamped: boolean } {
-  const oldSpan = spanDays(previousDate.startDate, previousDate.endDate, options);
-  const newSpan = spanDays(next.startDate, next.endDate, options);
+  const oldSpan = countSpanDays(previousDate.startDate, previousDate.endDate, options);
+  const newSpan = countSpanDays(next.startDate, next.endDate, options);
   // A source span with no effective work duration must keep its stored hours so resizing cannot silently erase a booking.
   let raw = hoursPerDay;
   if (oldSpan !== 0 && newSpan > 0) raw = (hoursPerDay * oldSpan) / newSpan;

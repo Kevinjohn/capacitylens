@@ -2,7 +2,7 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { describe, it, expect, vi } from 'vitest';
 import { buildSchedulerModel } from './schedulerModel';
 import { buildEmptyFilters } from '@/store/useStore';
-import { activeOnly } from '@capacitylens/shared/domain/lifecycle';
+import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, Weekday } from '@capacitylens/shared/types/entities';
 import { hasRenderableDateRange } from '@/lib/renderableDateRanges';
 import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
@@ -270,10 +270,10 @@ function buildNonActiveResourceData(): AppData {
   return d;
 }
 
-describe('buildSchedulerModel(activeOnly(data), …) — non-active resources vanish (P2.4)', () => {
+describe('buildSchedulerModel(buildActiveData(data), …) — non-active resources vanish (P2.4)', () => {
   const buildActive = (d: AppData) =>
     buildSchedulerModel({
-      data: activeOnly(d),
+      data: buildActiveData(d),
       geom,
       days,
       visibleWindow: { start, end },

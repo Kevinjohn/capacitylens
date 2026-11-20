@@ -4,7 +4,7 @@ import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { useStore } from '@/store/useStore';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { makeCompany, makeClient } from '@/test/fixtures';
 import { useInactiveCompanyData } from './useInactiveCompanyData';
@@ -13,7 +13,7 @@ import { createDeferred } from '@/test/createDeferred';
 
 function payload(companyId: string, name: string) {
   return {
-    ...emptyAppData(),
+    ...createEmptyAppData(),
     accounts: [makeCompany({ id: companyId })],
     clients: [
       buildInternalClient(companyId, '2026-01-01T00:00:00.000Z'),

@@ -1,5 +1,5 @@
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
-import { dayIndex, eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { calculateDayIndex, listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { isCapacityTracked, isPlaceholderResource } from '@capacitylens/shared/types/entities';
 import type { AppData, Resource } from '@capacitylens/shared/types/entities';
 import {
@@ -78,9 +78,9 @@ function calculatePeriod({
   let overHours = 0;
   let tentativeHours = 0;
   let unassignedDemandHours = 0;
-  for (const date of eachDayISO(period.start, period.end)) {
+  for (const date of listDaysISO(period.start, period.end)) {
     // A date outside the server's horizon contributes nothing.
-    const index = capacity ? dayIndex(date, capacity.horizon.from) : -1;
+    const index = capacity ? calculateDayIndex(date, capacity.horizon.from) : -1;
     const available = days?.available[index];
     const allAllocated = days?.allocated[index];
     const confirmed = days?.confirmedAllocated[index];

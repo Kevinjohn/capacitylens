@@ -314,7 +314,7 @@ retain their existing string contract.
 
 Complete-state reads explicitly include trashed Client, Project, Activity and Resource rows. A root
 `withTrashed()` does not change related queries; select the mode separately on every preload.
-The shared `activeOnly` projection owns descendant hiding, using the complete parent state.
+The shared `buildActiveData` projection owns descendant hiding, using the complete parent state.
 The package hides a model's own tombstone and does not implement application ancestry rules.
 
 Archive transitions, planning revisions, audit rows and session-bound restoration groups already

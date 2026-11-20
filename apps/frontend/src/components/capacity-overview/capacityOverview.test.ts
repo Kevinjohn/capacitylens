@@ -4,12 +4,12 @@ import { describe, expect, it } from 'vitest';
 import type { CapacitySection } from '@capacitylens/shared/lib/capacity';
 import {
   addDaysISO,
-  eachDayISO,
+  listDaysISO,
   startOfWeekISO,
-  weekdayOf,
+  getWeekday,
 } from '@capacitylens/shared/lib/dateMath';
 import type { AppData, ISODate, Resource, Weekday } from '@capacitylens/shared/types/entities';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { capacityOver, onlyRange } from '@/test/capacityFixtures';
 import type { ServerDayFigures } from '@/test/capacityFixtures';
 import { buildCapacityOverviewPeriods } from './capacityOverviewDates';
@@ -47,7 +47,7 @@ function placeholder(id: string, overrides: Partial<Resource> = {}): Resource {
 }
 
 function data(resources: Resource[]): AppData {
-  return { ...emptyAppData(), resources };
+  return { ...createEmptyAppData(), resources };
 }
 
 /** The server's figures over the twelve-week horizon from `today`: eight hours on each weekday and
@@ -58,8 +58,8 @@ function horizonCapacity(
 ): CapacitySection {
   const range = { from: today, to: addDaysISO(startOfWeekISO(today, 1), 83) };
   const weekends = Object.fromEntries(
-    eachDayISO(range.from, range.to)
-      .filter((date) => weekdayOf(date) === 0 || weekdayOf(date) === 6)
+    listDaysISO(range.from, range.to)
+      .filter((date) => getWeekday(date) === 0 || getWeekday(date) === 6)
       .map((date) => [date, { available: 0 }]),
   );
   return capacityOver(
@@ -72,7 +72,7 @@ function horizonCapacity(
 
 /** The same figures on each date from `from` to `to`. */
 function onDates(from: ISODate, to: ISODate, figures: ServerDayFigures) {
-  return Object.fromEntries(eachDayISO(from, to).map((date) => [date, figures]));
+  return Object.fromEntries(listDaysISO(from, to).map((date) => [date, figures]));
 }
 
 function period(model: CapacityOverviewModel, rowId: string, index: number) {
@@ -168,8 +168,8 @@ describe('buildCapacityOverviewModel', () => {
       [resource.id]: {
         ...onDates('2026-06-01', '2026-08-23', { available: 0 }),
         ...Object.fromEntries(
-          eachDayISO('2026-06-01', '2026-08-23')
-            .filter((date) => weekdayOf(date) === 1)
+          listDaysISO('2026-06-01', '2026-08-23')
+            .filter((date) => getWeekday(date) === 1)
             .map((date) => [
               date,
               { allocated: date <= '2026-06-22' ? 8 : date === '2026-06-29' ? 6 : 0 },
@@ -534,8 +534,8 @@ describe('buildCapacityOverviewModel', () => {
       capacity: horizonCapacity('2026-06-01', {
         [available.id]: {},
         [full.id]: Object.fromEntries(
-          eachDayISO('2026-06-01', '2026-06-26')
-            .filter((date) => weekdayOf(date) !== 0 && weekdayOf(date) !== 6)
+          listDaysISO('2026-06-01', '2026-06-26')
+            .filter((date) => getWeekday(date) !== 0 && getWeekday(date) !== 6)
             .map((date) => [date, { allocated: 8 }]),
         ),
         [slot.id]: { '2026-06-08': { allocated: 1 } },

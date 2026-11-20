@@ -7,9 +7,9 @@ import type {
   Weekday,
 } from '../types/entities.js';
 import type { ValidationResult } from '../lib/integrity.js';
-import { belongsToCompany } from './tenancy.js';
+import { isInCompany } from './tenancy.js';
 import { throwDomainError } from './errors.js';
-import { inspectLifecycleAncestry, lifecycleStatus } from './lifecycle.js';
+import { inspectLifecycleAncestry, resolveLifecycleStatus } from './lifecycle.js';
 import type { LifecycleAncestryRow, LifecycleFields } from './lifecycle.js';
 
 interface ValidationRowOptions {
@@ -85,7 +85,7 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
     id,
     ...(lookup === undefined ? {} : { lookup }),
   }) as T | undefined;
-  return row && belongsToCompany(row, companyId) ? row : undefined;
+  return row && isInCompany(row, companyId) ? row : undefined;
 };
 
 /** The account's allocations on one end of the pair, beside {@link resolveValidationRow}: the indexed
@@ -104,7 +104,7 @@ export const listValidationAllocations = ({
   }
   return data.allocations.filter(
     (allocation) =>
-      belongsToCompany(allocation, companyId) &&
+      isInCompany(allocation, companyId) &&
       (side === 'resource' ? allocation.resourceId : allocation.activityId) === id,
   );
 };
@@ -134,7 +134,7 @@ export const isEffectivelyActive = ({
 }: IsEffectivelyActiveOptions): boolean => {
   const lookupOptions = lookup === undefined ? {} : { lookup };
   return (
-    lifecycleStatus(row) === 'active' &&
+    resolveLifecycleStatus(row) === 'active' &&
     inspectLifecycleAncestry(
       table,
       // The one named seam for the single cast the ancestry walk needs: an interface-typed entity

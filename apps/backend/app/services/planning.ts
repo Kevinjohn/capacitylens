@@ -1,4 +1,8 @@
-import { activeOnly, archiveImpact, archiveRecovery } from '@capacitylens/shared/domain/lifecycle';
+import {
+  buildActiveData,
+  archiveImpact,
+  archiveRecovery,
+} from '@capacitylens/shared/domain/lifecycle';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { readCompanyToday } from '#services/company_today';
@@ -98,7 +102,7 @@ export async function readPlanning(
   const data = await readStateWithClient(trx, companyId, true);
   const company = data.accounts.find((row) => row.id === companyId);
   const today = readCompanyToday(company?.timezone ?? null);
-  const visible = transformState(activeOnly(data), companyId, authority.role);
+  const visible = transformState(buildActiveData(data), companyId, authority.role);
   const base: PlanningReadBase = {
     companyId,
     revision,
@@ -283,8 +287,8 @@ async function commit({
   });
   // The receipt carries the rows this commit changed, as the writer's own read shows them.
   const changed = buildProjectionChanges(
-    transformState(activeOnly(before), companyId, authority.role),
-    transformState(activeOnly(working), companyId, authority.role)
+    transformState(buildActiveData(before), companyId, authority.role),
+    transformState(buildActiveData(working), companyId, authority.role)
   );
   await writeAudit(trx, {
     companyId,
@@ -320,7 +324,7 @@ async function commit({
     changes: changed,
     history,
     ...(archived ? { archived } : {}),
-    ...buildSaveAdvisory(intent, activeOnly(working), companyId),
+    ...buildSaveAdvisory(intent, buildActiveData(working), companyId),
   };
 }
 

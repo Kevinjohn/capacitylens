@@ -1,22 +1,22 @@
 import type { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { daysInclusive } from '@capacitylens/shared/lib/dateMath';
+import { countDaysInclusive } from '@capacitylens/shared/lib/dateMath';
 import {
-  effectiveWorkingWeek,
-  lacksEffectiveWorkingDays,
+  resolveEffectiveWorkingWeek,
+  hasNoEffectiveWorkingDays,
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
-  defaultRepeatUntilDate,
-  maximumRepeatUntilDate,
+  resolveDefaultRepeatUntilDate,
+  resolveMaximumRepeatUntilDate,
 } from '@capacitylens/shared/lib/repeatingDates';
-import { daysOfWorkFor, MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
+import { calculateDaysOfWork, MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 import type {
   AllocationStatus,
   ISODate,
   Resource,
   SchedulingMode,
 } from '@capacitylens/shared/types/entities';
-import { carriesHourlyLoad, FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
+import { hasHourlyLoad, FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
 import { useMemo, useState } from 'react';
 import type { RepeatSelection } from '@/lib/repeatingAllocations';
 import { useRepeatUntil } from '@/hooks/useRepeatUntil';
@@ -45,7 +45,9 @@ function useEffectiveSchedule(input: {
   const { startDate, endDate, hoursPerDay, ignoreWorkingDays, daysOver, daysOfWork } = fields;
   const selectedEffectiveWeek = useMemo(
     () =>
-      selectedResource ? effectiveWorkingWeek(selectedResource, companyWorkingDays) : undefined,
+      selectedResource
+        ? resolveEffectiveWorkingWeek(selectedResource, companyWorkingDays)
+        : undefined,
     [companyWorkingDays, selectedResource],
   );
   const values = useMemo(
@@ -81,14 +83,16 @@ function resolveRepeatRange(startDate: ISODate, repeatToday: ISODate) {
     repeatToday,
     repeatUntilMinimum:
       isValidISODate(startDate) && startDate > repeatToday ? startDate : repeatToday,
-    repeatUntilMaximum: isValidISODate(startDate) ? maximumRepeatUntilDate(startDate) : undefined,
+    repeatUntilMaximum: isValidISODate(startDate)
+      ? resolveMaximumRepeatUntilDate(startDate)
+      : undefined,
   };
 }
 
 function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
   const { editing, initialCapacityHours, initialDaysOver } = seed;
   if (editing) {
-    return roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS));
+    return roundDays(calculateDaysOfWork(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS));
   }
   return roundDays(
     initialCapacityHours > 0 ? initialCapacityHours / FULL_DAY_HOURS : initialDaysOver,
@@ -158,13 +162,13 @@ export function useAllocationScheduleState({
   seed,
 }: ScheduleInput) {
   const isDays = mode === 'days';
-  const isBlocks = !carriesHourlyLoad(mode);
+  const isBlocks = !hasHourlyLoad(mode);
   const fields = useScheduleFields(seed, today);
   const { noteEdited, ...scheduleFields } = fields;
   const { startDate, endDate, ignoreWorkingDays } = fields;
   const { repeat, repeatUntil, changeRepeat, changeRepeatUntil } = useRepeatUntil<RepeatSelection>(
     startDate,
-    defaultRepeatUntilDate,
+    resolveDefaultRepeatUntilDate,
   );
   const { selectedEffectiveWeek, values: effectiveValues } = useEffectiveSchedule({
     selectedResource,
@@ -183,7 +187,7 @@ export function useAllocationScheduleState({
   } = effectiveValues;
   const usesTypedDateRange = isExternal || (!isBlocks && !isDays);
   // Validate typed ranges in O(1); expanding an untrusted range can freeze rendering.
-  const typedDateSpanDays = startDate && endDate ? daysInclusive(startDate, endDate) : 0;
+  const typedDateSpanDays = startDate && endDate ? countDaysInclusive(startDate, endDate) : 0;
   const typedDateSpanTooLong = typedDateSpanDays > MAX_SPAN_DAYS;
   const { repeatToday, repeatUntilMinimum, repeatUntilMaximum } = resolveRepeatRange(
     startDate,
@@ -192,7 +196,7 @@ export function useAllocationScheduleState({
 
   const daysOverDisabled =
     hasWorkingSpan(selectedResource, mode) &&
-    lacksEffectiveWorkingDays(selectedEffectiveWeek, ignoreWorkingDays);
+    hasNoEffectiveWorkingDays(selectedEffectiveWeek, ignoreWorkingDays);
 
   return {
     selectedEffectiveWeek,

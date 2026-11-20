@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData } from '@/test/fixtures';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { CompanyAccessRecovery } from './CompanyAccessRecovery';
 
 describe('Account access recovery boundary', () => {
   beforeEach(() => {
-    loadPlanningData(emptyAppData());
+    loadPlanningData(createEmptyAppData());
     useStore.getState().setCompanySummaries({ list: [] });
   });
 

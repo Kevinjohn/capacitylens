@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Allocation, TimeOff, Weekday } from '../types/entities.js';
-import { effectiveWorkingWeek } from './effectiveWorkingWeek.js';
+import { resolveEffectiveWorkingWeek } from './effectiveWorkingWeek.js';
 import { generateRepeatingStartDates } from './repeatingDates.js';
 import type { RepeatPattern } from './repeatingDates.js';
 import {
@@ -53,7 +53,7 @@ const repeatContext = ({
   schedulingMode,
   daysOver,
   resource,
-  effectiveWeek: effectiveWorkingWeek(resource, companyWorkingDays),
+  effectiveWeek: resolveEffectiveWorkingWeek(resource, companyWorkingDays),
 });
 
 const draft = (startDate: string, endDate: string = startDate): TimeOffDraft => ({

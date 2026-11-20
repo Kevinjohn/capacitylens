@@ -1,7 +1,7 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import { describe, expect, it } from 'vitest';
 import { buildGettingStartedSteps } from './gettingStarted.js';
-import { emptyAppData } from '../types/entities.js';
+import { createEmptyAppData } from '../types/entities.js';
 import type {
   Activity,
   Allocation,
@@ -68,11 +68,11 @@ const allocation = (
   ...entity,
   ...over,
 });
-const dataWith = (slices: Partial<AppData>): AppData => ({ ...emptyAppData(), ...slices });
+const dataWith = (slices: Partial<AppData>): AppData => ({ ...createEmptyAppData(), ...slices });
 
 describe('first-use outcome truth table', () => {
   it('starts with all five outcomes incomplete', () => {
-    expect(buildGettingStartedSteps(emptyAppData())).toEqual({
+    expect(buildGettingStartedSteps(createEmptyAppData())).toEqual({
       person: false,
       client: false,
       project: false,
@@ -103,7 +103,7 @@ describe('first-use outcome truth table', () => {
     ).toBe(false);
   });
 
-  it('treats malformed lifecycle tombstones as active, matching activeOnly', () => {
+  it('treats malformed lifecycle tombstones as active, matching buildActiveData', () => {
     const malformed = 'not-a-date';
     const malformedPerson = person({ archivedAt: malformed, deletedAt: malformed });
     const malformedClient = client({ archivedAt: malformed, deletedAt: malformed });

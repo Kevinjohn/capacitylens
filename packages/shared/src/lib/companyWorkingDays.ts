@@ -16,25 +16,25 @@ export const isWeekdaySet = (days: unknown): days is Weekday[] =>
 /** The first five weekdays in a company's configured week, stored as a stable set.
  * Both legal week starts (Sunday and Monday) run 0–4 / 1–5, i.e. already ascending, so taking the
  * presentation order's first five is the stored set. No re-sort needed. */
-export function defaultCompanyWorkingDays(weekStartsOn: 0 | 1 = 1): Weekday[] {
-  return orderedWeekdays(weekStartsOn).slice(0, DEFAULT_WORKING_DAY_COUNT);
+export function buildDefaultCompanyWorkingDays(weekStartsOn: 0 | 1 = 1): Weekday[] {
+  return listOrderedWeekdays(weekStartsOn).slice(0, DEFAULT_WORKING_DAY_COUNT);
 }
 
 /** The stored canonical form for every weekday set: distinct values, ascending. */
-export function canonicalWeekdaySet(days: readonly Weekday[]): Weekday[] {
+export function normalizeWeekdays(days: readonly Weekday[]): Weekday[] {
   return [...new Set(days)].sort((a, b) => a - b);
 }
 
 /** Read an absent, empty or malformed stored selection as the week-start-aware default. */
 export function normalizeCompanyWorkingDays(value: unknown, weekStartsOn: 0 | 1 = 1): Weekday[] {
   if (!Array.isArray(value) || value.length === 0 || !Array.from(value).every(isWeekday)) {
-    return defaultCompanyWorkingDays(weekStartsOn);
+    return buildDefaultCompanyWorkingDays(weekStartsOn);
   }
-  return canonicalWeekdaySet(value);
+  return normalizeWeekdays(value);
 }
 
 /** Weekdays ordered for presentation, beginning with the company's configured week start. */
-export function orderedWeekdays(weekStartsOn: 0 | 1 = 1): Weekday[] {
+export function listOrderedWeekdays(weekStartsOn: 0 | 1 = 1): Weekday[] {
   return Array.from(
     { length: WEEKDAY_COUNT },
     (_, offset) => ((weekStartsOn + offset) % WEEKDAY_COUNT) as Weekday,

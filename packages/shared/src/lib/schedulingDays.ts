@@ -1,4 +1,4 @@
-import { addDaysISO, daysInclusive, MAX_ISO_DATE, MAX_MATERIALISED_DAYS } from './dateMath.js';
+import { addDaysISO, countDaysInclusive, MAX_ISO_DATE, MAX_MATERIALISED_DAYS } from './dateMath.js';
 import { countWorkingDays, endDateForWorkingDays, isWeekendAware } from './workingWeek.js';
 import type { ISODate, Weekday } from '../types/entities.js';
 
@@ -38,8 +38,8 @@ function resolveSchedulingMode(options: DaysModeOpts): SchedulingModeResolution 
 }
 
 /** Maximum days-over value that fits both the persisted calendar-span ceiling and YYYY-MM-DD. */
-export function maxSpanDaysForStart(start: ISODate, options: DaysModeOpts): number {
-  const calendarDaysAvailable = Math.min(MAX_SPAN_DAYS, daysInclusive(start, MAX_ISO_DATE));
+export function calculateMaxSpanDays(start: ISODate, options: DaysModeOpts): number {
+  const calendarDaysAvailable = Math.min(MAX_SPAN_DAYS, countDaysInclusive(start, MAX_ISO_DATE));
   const mode = resolveSchedulingMode(options);
   if (mode.kind === 'workingDays') {
     const lastAllowedDate = addDaysISO(start, calendarDaysAvailable - 1);
@@ -50,12 +50,12 @@ export function maxSpanDaysForStart(start: ISODate, options: DaysModeOpts): numb
 
 /** Count inclusive calendar days, or working days under the supplied calendar.
  * Pure; endpoints must be validated ISO dates. A weekend-aware range with no working days returns zero. */
-export function spanDays(start: ISODate, end: ISODate, options: DaysModeOpts): number {
+export function countSpanDays(start: ISODate, end: ISODate, options: DaysModeOpts): number {
   const mode = resolveSchedulingMode(options);
   if (mode.kind === 'workingDays') {
     return countWorkingDays(start, end, mode.days);
   }
-  return daysInclusive(start, end);
+  return countDaysInclusive(start, end);
 }
 
 /** Derive an end date under the selected calendar after clamping the requested span to supported limits.
@@ -65,7 +65,7 @@ export function endDateForSpan(start: ISODate, daysOver: number, options: DaysMo
   // Clamp first to the product span, then to the working days that fit inside the persisted
   // calendar-span and four-digit-date boundaries.
   const spanDayCount = Math.min(Math.max(1, Math.round(daysOver) || 1), MAX_SPAN_DAYS);
-  const available = maxSpanDaysForStart(start, options);
+  const available = calculateMaxSpanDays(start, options);
   if (available < 1) return MAX_ISO_DATE;
   const safeCount = Math.min(spanDayCount, available);
   const mode = resolveSchedulingMode(options);
@@ -76,7 +76,7 @@ export function endDateForSpan(start: ISODate, daysOver: number, options: DaysMo
 }
 
 /** Hours/day needed to fit `daysOfWork` of effort into a `daysOver` span. */
-export function hoursPerDayFor(
+export function calculateHoursPerDay(
   daysOfWork: number,
   daysOver: number,
   workingHoursPerDay: number,
@@ -86,7 +86,7 @@ export function hoursPerDayFor(
 }
 
 /** Inverse: the days-of-work implied by an allocation's hours/day over a span. */
-export function daysOfWorkFor(
+export function calculateDaysOfWork(
   hoursPerDay: number,
   daysOver: number,
   workingHoursPerDay: number,
@@ -101,6 +101,6 @@ export const BLOCK_LOAD_FRACTION = 0;
 /** Hours/day persisted for a blocks-mode allocation: the block's load fraction of
  * the assignee's working day. At fraction 0 this is 0h, so a block never counts
  * toward utilisation or over-capacity. */
-export function blockHoursPerDay(workingHoursPerDay: number): number {
+export function resolveBlockHoursPerDay(workingHoursPerDay: number): number {
   return workingHoursPerDay * BLOCK_LOAD_FRACTION;
 }

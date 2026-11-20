@@ -1,7 +1,7 @@
 import type { ISOTimestamp, Resource } from '../../types/entities.js';
 import { parseISOTimestamp } from '../../lib/isoDates.js';
-import { shortIdTag } from '../privateNames.js';
-import { lifecycleStatus, isValidTombstone } from './types.js';
+import { buildShortIdTag } from '../privateNames.js';
+import { resolveLifecycleStatus, isValidTombstone } from './types.js';
 import type { LifecycleFields } from './types.js';
 
 /**
@@ -11,10 +11,10 @@ import type { LifecycleFields } from './types.js';
  * disagree (mirrors access.ts's `can*` predicates).
  *
  * @param entity - the entity to test.
- * @returns `true` iff {@link lifecycleStatus} is `'active'`.
+ * @returns `true` iff {@link resolveLifecycleStatus} is `'active'`.
  */
 export function canArchive(entity: LifecycleFields): boolean {
-  return lifecycleStatus(entity) === 'active';
+  return resolveLifecycleStatus(entity) === 'active';
 }
 
 /**
@@ -24,10 +24,10 @@ export function canArchive(entity: LifecycleFields): boolean {
  * to undo.
  *
  * @param entity - the entity to test.
- * @returns `true` iff {@link lifecycleStatus} is `'archived'`.
+ * @returns `true` iff {@link resolveLifecycleStatus} is `'archived'`.
  */
 export function canUnarchive(entity: LifecycleFields): boolean {
-  return lifecycleStatus(entity) === 'archived';
+  return resolveLifecycleStatus(entity) === 'archived';
 }
 
 /** Why a lifecycle transition was refused. */
@@ -60,7 +60,7 @@ export class LifecycleTransitionError extends Error {
  */
 export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimestamp): T {
   if (!canArchive(entity)) {
-    const status = lifecycleStatus(entity);
+    const status = resolveLifecycleStatus(entity);
     throw new LifecycleTransitionError(
       status === 'archived' ? 'already_inactive' : 'invalid_transition',
       `Cannot archive: entity is already ${status}.`,
@@ -86,12 +86,12 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
   if (!canUnarchive(entity)) {
     throw new LifecycleTransitionError(
       'invalid_transition',
-      `Cannot unarchive: entity is ${lifecycleStatus(entity)}, not archived.`,
+      `Cannot unarchive: entity is ${resolveLifecycleStatus(entity)}, not archived.`,
     );
   }
   // Remove archivedAt to represent the active state by absence.
   const next = Object.assign({ ...entity }, { archivedAt: null });
-  // A malformed deletedAt is ignored by lifecycleStatus so the nearest valid state is archived;
+  // A malformed deletedAt is ignored by resolveLifecycleStatus so the nearest valid state is archived;
   // remove that stale corruption while completing the recovery transition to active.
   if (!isValidTombstone(next.deletedAt)) Object.assign(next, { deletedAt: null });
   return next;
@@ -99,7 +99,7 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
 
 /**
  * Scrub a Resource's name and role for anonymisation, preserving all other fields.
- * Returns a new Resource with a deterministic token from {@link shortIdTag}, for every resource kind.
+ * Returns a new Resource with a deterministic token from {@link buildShortIdTag}, for every resource kind.
  * This standalone transform sets no tombstones; callers scrub dependent notes and avatars.
  * Extend this scrub if Resource gains personal fields such as an email address. Authentication-member
  * erasure remains a separate server concern because those fields do not exist on a Resource.
@@ -107,7 +107,7 @@ export function unarchive<T extends LifecycleFields>(entity: T): T {
 export function obfuscateResource(resource: Resource): Resource {
   return {
     ...resource,
-    name: `Removed person #${shortIdTag(resource.id)}`,
+    name: `Removed person #${buildShortIdTag(resource.id)}`,
     role: 'Removed resource',
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { internalClientFor } from '@capacitylens/shared/data/internalClient';
+import { getInternalClient } from '@capacitylens/shared/data/internalClient';
 import type { Activity } from '@capacitylens/shared/types/entities';
 import { makeActivity, makeAllocation, makeClient, makeProject } from '@/test/fixtures';
 import { buildAllocationAttribution } from './buildAllocationAttribution';
@@ -64,7 +64,7 @@ describe('buildAllocationAttribution', () => {
         activitiesById,
         projectsById,
         clientsById,
-        internalClient: internalClientFor([...clientsById.values()], 'a1'),
+        internalClient: getInternalClient([...clientsById.values()], 'a1'),
       }),
     ).toEqual({ projectId: undefined, project: undefined, client: internal });
     expect(

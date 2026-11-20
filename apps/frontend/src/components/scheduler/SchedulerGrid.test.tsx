@@ -15,7 +15,7 @@ import {
 import { schedulerDataset } from '@/test/schedulerTestKit';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { capacityOver } from '@/test/capacityFixtures';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { LAYOUT, laneLayout, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { resolveRowHeightForLanes } from '@/lib/lanePacking';
 import { buildVisibleSpanInsets } from './visibleSpanInsets';
@@ -363,7 +363,7 @@ describe('SchedulerGrid visible-window utilisation', () => {
   const capacity = capacityOver(span, {
     'r-diana': {
       byDate: Object.fromEntries(
-        eachDayISO(span.from, span.to).map((date, index) => [
+        listDaysISO(span.from, span.to).map((date, index) => [
           date,
           index % 7 >= 5 ? { available: 0 } : { allocated: date <= '2026-06-05' ? 8 : 0 },
         ]),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { eachDayISO } from '@capacitylens/shared/lib/dateMath';
+import { listDaysISO } from '@capacitylens/shared/lib/dateMath';
 import type { Weekday } from '@capacitylens/shared/types/entities';
 import type { DragMode } from '@/lib/gestureMath';
 import { makeAllocation, makeBar } from '@/test/fixtures';
@@ -44,7 +44,7 @@ function previewPixels(input: PreviewInput): { left: number; width: number } {
 }
 
 describe('gesture preview geometry', () => {
-  const geom = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 20, {
+  const geom = buildColumnGeometry(listDaysISO('2026-06-01', '2026-06-30'), 20, {
     minimiseWeekends: false,
     weekendWidth: 12,
   });
@@ -82,7 +82,7 @@ describe('gesture preview geometry', () => {
 
   it('keeps the preview pixel-identical to the committed range across a narrow weekend', () => {
     // Narrow-weekend geometry must measure each real column so a range crossing the weekend cannot use uniform day widths.
-    const narrow = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 20, {
+    const narrow = buildColumnGeometry(listDaysISO('2026-06-01', '2026-06-30'), 20, {
       minimiseWeekends: true,
       weekendWidth: 8,
     });

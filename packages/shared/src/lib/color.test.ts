@@ -3,8 +3,8 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveBarColor,
   resolveProjectColor,
-  contrastRatio,
-  readableTextColor,
+  calculateContrastRatio,
+  resolveReadableTextColor,
   ensureBarColors,
   resolveAccessibleBarColors,
   isPresetColor,
@@ -213,57 +213,57 @@ describe('resolveBarColor fallbacks', () => {
   });
 });
 
-describe('contrastRatio', () => {
+describe('calculateContrastRatio', () => {
   it('linearises a near-black channel via the low-s division branch, not the gamma curve', () => {
     // s = 1/255 <= 0.03928, so normalizeLinearChannel must take the s/12.92 branch. Using the
     // gamma (pow) branch instead, or multiplying instead of dividing, gives a very
     // different luminance and thus ratio.
-    expect(contrastRatio('#010101', '#000000')).toBeCloseTo(1.0060705396709768, 9);
+    expect(calculateContrastRatio('#010101', '#000000')).toBeCloseTo(1.0060705396709768, 9);
   });
 
   it('linearises a mid-tone channel via the gamma curve division, not multiplication', () => {
     // s = 128/255 > 0.03928, so this exercises the pow((s+0.055)/1.055, 2.4) branch.
-    expect(contrastRatio('#808080', '#ffffff')).toBeCloseTo(3.9494396480491156, 9);
+    expect(calculateContrastRatio('#808080', '#ffffff')).toBeCloseTo(3.9494396480491156, 9);
   });
 
   it('falls back to a ratio of 1 when only one channel of a hex is unparseable', () => {
     // Only the r channel is invalid here, so a mutated some->every (or an emptied
     // array) would miss it and let NaN leak into the luminance math instead of
     // short-circuiting to the documented "no contrast info" fallback of 1.
-    expect(contrastRatio('#zz0000', '#123456')).toBe(1);
+    expect(calculateContrastRatio('#zz0000', '#123456')).toBe(1);
   });
 
   it('falls back to a ratio of 1 when the SECOND hex is unparseable', () => {
     // hexA is valid and non-black, so only checking hexA for null (dropping the
     // `|| lb === null` half of the guard) would let a null lb fall through into
     // the luminance arithmetic instead of short-circuiting to 1.
-    expect(contrastRatio('#ffffff', '#zzzzzz')).toBe(1);
+    expect(calculateContrastRatio('#ffffff', '#zzzzzz')).toBe(1);
   });
 
   it('rejects a non-hex trailing nibble in every colour byte', () => {
-    expect(contrastRatio('#1z2z3z', '#ffffff')).toBe(1);
+    expect(calculateContrastRatio('#1z2z3z', '#ffffff')).toBe(1);
   });
 });
 
-describe('readableTextColor', () => {
+describe('resolveReadableTextColor', () => {
   it('accounts for the real (non-zero) luminance of DARK_INK, not a zeroed-out fallback', () => {
     // At this exact background luminance, using DARK_INK's true luminance picks
     // white ink; treating it as 0 (e.g. a ?? -> && slip, which returns 0 because
     // the left side is truthy) flips the decision to dark ink.
-    expect(readableTextColor('#767676')).toBe('#ffffff');
+    expect(resolveReadableTextColor('#767676')).toBe('#ffffff');
   });
 
   it('uses the correct white-luminance numerator (1 + 0.05) when picking ink', () => {
     // At this background luminance, the real numerator picks white ink; the
     // mutated numerator (1 - 0.05) undershoots and flips the decision to dark ink.
-    expect(readableTextColor('#7c7c7c')).toBe('#ffffff');
+    expect(resolveReadableTextColor('#7c7c7c')).toBe('#ffffff');
   });
 
   it('returns the dark-ink guard value directly for an unparseable hex', () => {
     // calculateRelativeLuminance(hex) is null here, so the load-bearing guard must return DARK_INK
-    // itself: not fall through into contrastRatio, where both sides would tie at the
+    // itself: not fall through into calculateContrastRatio, where both sides would tie at the
     // "no contrast info" value of 1 and hand the answer to white ink instead.
-    expect(readableTextColor('#zzzzzz')).toBe('#1c2230');
+    expect(resolveReadableTextColor('#zzzzzz')).toBe('#1c2230');
   });
 });
 

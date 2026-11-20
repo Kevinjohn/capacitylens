@@ -7,14 +7,18 @@
 // without catching transition errors.
 
 export type { LifecycleState, LifecycleFields, LifecycleEntityKey } from './lifecycle/types.js';
-export { LIFECYCLE_ENTITY_KEYS, isLifecycleEntityKey, lifecycleStatus } from './lifecycle/types.js';
+export {
+  LIFECYCLE_ENTITY_KEYS,
+  isLifecycleEntityKey,
+  resolveLifecycleStatus,
+} from './lifecycle/types.js';
 export type {
   LifecycleAncestryRow,
   LifecycleAncestryLookup,
   LifecycleAncestryResult,
 } from './lifecycle/ancestry.js';
 export { inspectLifecycleAncestry } from './lifecycle/ancestry.js';
-export { activeOnly } from './lifecycle/projection.js';
+export { buildActiveData } from './lifecycle/projection.js';
 export type { ArchiveImpact } from './lifecycle/impact.js';
 export { archiveImpact } from './lifecycle/impact.js';
 export type { LifecycleTransitionErrorCode } from './lifecycle/transitions.js';

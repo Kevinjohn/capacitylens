@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { carriesHourlyLoad } from '@capacitylens/shared/types/entities';
+import { hasHourlyLoad } from '@capacitylens/shared/types/entities';
 import type { ID } from '@capacitylens/shared/types/entities';
 import type { Weekday } from '@capacitylens/shared/types/entities';
 import { resolveSchedulingMode } from '@/store/selectors';
@@ -99,7 +99,7 @@ export function useAllocationGesture({
     resolveSchedulingMode(state.data, state.activeCompanyId),
   );
   const isDays = schedulingMode === 'days';
-  const isBlocks = !carriesHourlyLoad(schedulingMode);
+  const isBlocks = !hasHourlyLoad(schedulingMode);
   const runtime = useGestureRuntime(bar.allocation.id);
   const { preview, onPointerDown, nudge } = useAllocationGestureController(
     { bar, indexAtClientX, isDays, isBlocks, ...(onEdit ? { onEdit } : {}) },

@@ -1,6 +1,6 @@
 import type { AppData } from '../types/entities.js';
 import { INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from './internalClient.js';
-import { effectiveProjectId, validateAllocationAssignment } from '../lib/integrity.js';
+import { resolveEffectiveProjectId, validateAllocationAssignment } from '../lib/integrity.js';
 import { assert } from './companyDocument.errors.js';
 
 /**
@@ -112,7 +112,7 @@ export function assertCompanyReferences(data: AppData): void {
         'references a missing project',
       );
     }
-    const effective = effectiveProjectId(row, activity);
+    const effective = resolveEffectiveProjectId(row, activity);
     const assignment = validateAllocationAssignment(resource, effective);
     assert(assignment.ok, `data.allocations[${index}].projectId`, assignment.errors.join(' '));
   }

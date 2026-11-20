@@ -3,10 +3,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Toggle } from "@/components/ui/toggle";
 import { useStore } from "@/store/useStore";
-import { emptyAppData } from "@capacitylens/shared/types/entities";
+import { createEmptyAppData } from "@capacitylens/shared/types/entities";
 
 beforeEach(() => {
-  loadPlanningData(emptyAppData());
+  loadPlanningData(createEmptyAppData());
   useStore.getState().clearFilters();
   useStore.getState().setDirtyForm(false);
 });

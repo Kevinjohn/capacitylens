@@ -2,7 +2,7 @@ import { APP_DATA_KEYS, SCOPED_KEYS } from '../types/entityKeys.js';
 import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
-import { assert, fail, isId, isOneOf, own } from './companyDocument.errors.js';
+import { assert, fail, isId, isOneOf, hasOwn } from './companyDocument.errors.js';
 import { FIELDS } from './companyDocument.fields.js';
 import { projectCompanyData } from './companyDocument.projection.js';
 import { assertRow } from './companyDocument.validation.js';
@@ -48,7 +48,7 @@ function renameScope(data: unknown, from: string, to: string): unknown {
     const rows = data[key];
     if (!Array.isArray(rows)) continue;
     renamed[key] = rows.map((row: unknown) => {
-      if (!isRecord(row) || !own(row, from)) return row;
+      if (!isRecord(row) || !hasOwn(row, from)) return row;
       const { [from]: companyId, ...rest } = row;
       return { ...rest, [to]: companyId };
     });
@@ -86,7 +86,7 @@ function assertDocument(value: unknown): CompanyExportDocument {
   assert(isRecord(value.data), 'data', 'must be an object');
   for (const key of APP_DATA_KEYS) {
     assert(
-      own(value.data, key) && Array.isArray(value.data[key]),
+      hasOwn(value.data, key) && Array.isArray(value.data[key]),
       `data.${key}`,
       'table is required and must be a list',
     );
@@ -105,7 +105,7 @@ function assertDocument(value: unknown): CompanyExportDocument {
     (data as unknown as Record<string, unknown>)[key] = rows.map((row) =>
       Object.fromEntries(
         (FIELDS[key] as readonly string[])
-          .filter((field) => own(row, field))
+          .filter((field) => hasOwn(row, field))
           .map((field) => {
             const fieldValue = row[field];
             return [

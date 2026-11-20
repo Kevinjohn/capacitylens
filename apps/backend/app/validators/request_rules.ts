@@ -1,8 +1,8 @@
 import vine from '@vinejs/vine';
 import type { FieldContext, MessagesProviderContact } from '@vinejs/vine/types';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
-import { passwordLengthFailure } from '@capacitylens/shared/domain/password';
-import { MAX_NAME_LENGTH, unicodeCharacterCount } from '@capacitylens/shared/lib/strings';
+import { getPasswordLengthFailure } from '@capacitylens/shared/domain/password';
+import { MAX_NAME_LENGTH, countUnicodeCharacters } from '@capacitylens/shared/lib/strings';
 
 /** Refuses a body that carries a key outside `fields`, reporting the route's own sentence. */
 export const allowedFields = vine.createRule(
@@ -47,7 +47,7 @@ export const accountEmail = vine.createRule((value, _options, field) => {
 });
 
 export const passwordLength = vine.createRule((value, _options, field) => {
-  if (typeof value === 'string' && passwordLengthFailure(value)) {
+  if (typeof value === 'string' && getPasswordLengthFailure(value)) {
     field.report('Invalid password.', 'passwordLength', field);
   }
 });
@@ -55,7 +55,7 @@ export const passwordLength = vine.createRule((value, _options, field) => {
 export const displayName = vine.createRule((value, _options, field) => {
   if (
     typeof value === 'string' &&
-    (!value.trim() || unicodeCharacterCount(value.trim()) > MAX_NAME_LENGTH)
+    (!value.trim() || countUnicodeCharacters(value.trim()) > MAX_NAME_LENGTH)
   ) {
     field.report('Invalid name.', 'displayName', field);
   }

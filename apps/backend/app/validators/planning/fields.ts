@@ -12,7 +12,7 @@ import {
   MAX_NAME_LENGTH,
   MAX_NOTE_LENGTH,
   normalizeUserText,
-  unicodeCharacterCount,
+  countUnicodeCharacters,
 } from '@capacitylens/shared/lib/strings';
 
 // Field rules, Vine field builders and intent-matching helpers shared by every planning validator
@@ -24,7 +24,7 @@ export function findTextProblem(value: string, multiline: boolean) {
   const canonical = value.normalize('NFC');
   if (hasDisallowedChars(canonical, { multiline })) return 'unsupported';
   const maximum = multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH;
-  const length = unicodeCharacterCount(normalizeUserText(canonical, { multiline }));
+  const length = countUnicodeCharacters(normalizeUserText(canonical, { multiline }));
   return length > maximum ? 'tooLong' : undefined;
 }
 

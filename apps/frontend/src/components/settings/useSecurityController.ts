@@ -3,7 +3,7 @@ import {
   MAX_PASSWORD_INPUT_CODE_UNITS,
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
-  passwordLengthFailure,
+  getPasswordLengthFailure,
 } from '@capacitylens/shared/domain/password';
 import { authClient } from '@/auth/authClient';
 import { useFieldError } from '@/hooks/useFieldError';
@@ -40,7 +40,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
       fail('current', m.login_password_input_too_long());
       return;
     }
-    if (passwordLengthFailure(newPassword)) {
+    if (getPasswordLengthFailure(newPassword)) {
       fail(
         'new',
         m.settings_security_err_password_length({
@@ -50,7 +50,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
       );
       return;
     }
-    if (passwordLengthFailure(confirmPassword) === 'too-long') {
+    if (getPasswordLengthFailure(confirmPassword) === 'too-long') {
       fail(
         'confirm',
         m.settings_security_err_password_length({

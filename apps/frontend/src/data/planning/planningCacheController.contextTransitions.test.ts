@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningSnapshot } from './planningCacheTypes';
 import {
   context,
@@ -44,7 +44,7 @@ describe('planning context transitions', () => {
       revision: null,
       context: null,
     });
-    expect(h.state().data).toEqual(emptyAppData());
+    expect(h.state().data).toEqual(createEmptyAppData());
   });
 
   it('returns false without a read while no client context is installed', async () => {

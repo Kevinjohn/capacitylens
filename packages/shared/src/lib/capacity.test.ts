@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { applyCapacityMode, isOnTimeOff, resolveUtilisationFromCapacity } from './capacity.js';
-import { eachDayISO } from './dateMath.js';
+import { listDaysISO } from './dateMath.js';
 import type { Allocation, ISODate, Resource, Weekday } from '../types/entities.js';
 
 import {
-  valueAt,
+  requireValueAt,
   scheduledHoursOnDay,
   availableHoursOnDay,
   allocatedHoursOnDay,
@@ -388,7 +388,7 @@ describe('dayCapacity over-allocation', () => {
     const resource = makeResource({ workingHoursPerDay: 7.5 });
 
     for (const order of orders) {
-      const ordered = order.map((index) => valueAt(allocations, index));
+      const ordered = order.map((index) => requireValueAt(allocations, index));
       expect(
         dayCapacity({ resource, date: '2026-06-01', allocations: ordered, timeOff: [] }).over,
       ).toBe(false);
@@ -515,7 +515,7 @@ describe('utilisation', () => {
       start: '2026-06-01',
       end: '2026-06-07',
     });
-    expect(days.map((d) => d.date)).toEqual(eachDayISO('2026-06-01', '2026-06-07'));
+    expect(days.map((d) => d.date)).toEqual(listDaysISO('2026-06-01', '2026-06-07'));
     expect(days.map((d) => d.allocated)).toEqual([4, 4, 4, 4, 4, 0, 0]);
   });
 

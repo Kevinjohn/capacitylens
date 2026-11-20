@@ -1,14 +1,14 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { addDaysISO, daysInclusive, weekdayOf } from './dateMath.js';
+import { addDaysISO, countDaysInclusive, getWeekday } from './dateMath.js';
 import {
   GENERATED_ALLOCATION_LIMIT,
   TIME_OFF_REPEAT_POLICY,
-  defaultRepeatUntilDate,
+  resolveDefaultRepeatUntilDate,
   calculateDefaultTimeOffRepeatUntilDate,
   generateRepeatingStartDates,
-  maximumRepeatUntilDate,
-  maximumTimeOffRepeatUntilDate,
+  resolveMaximumRepeatUntilDate,
+  resolveMaximumTimeOffRepeatUntilDate,
   RepeatingDateError,
 } from './repeatingDates.js';
 
@@ -66,22 +66,22 @@ function assertWeeklyRepeatCadence({
   const startDate =
     `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}` as const;
   const repeatUntil = addDaysISO(startDate, interval * 7 + extraDays);
-  fc.pre(repeatUntil <= maximumRepeatUntilDate(startDate));
+  fc.pre(repeatUntil <= resolveMaximumRepeatUntilDate(startDate));
 
   const result = generateRepeatingStartDates(startDate, repeatUntil, { kind: 'weeks', interval });
 
   expect(result.startDates[0]).toBe(startDate);
   expect(result.startDates.every((date) => date <= repeatUntil)).toBe(true);
-  expect(result.startDates.every((date) => weekdayOf(date) === weekdayOf(startDate))).toBe(true);
+  expect(result.startDates.every((date) => getWeekday(date) === getWeekday(startDate))).toBe(true);
   expect(
     result.startDates.every((date, index, dates) => {
       const previous = dates[index - 1];
-      return previous === undefined || daysInclusive(previous, date) === interval * 7 + 1;
+      return previous === undefined || countDaysInclusive(previous, date) === interval * 7 + 1;
     }),
   ).toBe(true);
 }
 
-describe('defaultRepeatUntilDate', () => {
+describe('resolveDefaultRepeatUntilDate', () => {
   it.each([
     ['2026-08-14', '2026-10-31'],
     ['2026-09-30', '2026-11-30'],
@@ -90,20 +90,22 @@ describe('defaultRepeatUntilDate', () => {
   ] as const)(
     'defaults %s to the bounded end of its third calendar month',
     (startDate, expected) => {
-      expect(defaultRepeatUntilDate(startDate)).toBe(expected);
-      expect(defaultRepeatUntilDate(startDate) <= maximumRepeatUntilDate(startDate)).toBe(true);
+      expect(resolveDefaultRepeatUntilDate(startDate)).toBe(expected);
+      expect(
+        resolveDefaultRepeatUntilDate(startDate) <= resolveMaximumRepeatUntilDate(startDate),
+      ).toBe(true);
     },
   );
 
   it('accepts the first supported ISO year without shifting its calendar result', () => {
-    expect(defaultRepeatUntilDate('0001-01-01')).toBe('0001-03-31');
-    expect(maximumRepeatUntilDate('0001-01-01')).toBe('0001-07-01');
+    expect(resolveDefaultRepeatUntilDate('0001-01-01')).toBe('0001-03-31');
+    expect(resolveMaximumRepeatUntilDate('0001-01-01')).toBe('0001-07-01');
   });
 
   it.each(['0000-01-01', '2026-00-01', '2026-13-01', '2026-02-29', '2026-01-32'])(
     'rejects the malformed or out-of-domain date %s before calculating a default',
     (startDate) => {
-      expect(() => defaultRepeatUntilDate(startDate as never)).toThrowError(
+      expect(() => resolveDefaultRepeatUntilDate(startDate as never)).toThrowError(
         expect.objectContaining({
           name: 'RepeatingDateError',
           code: 'invalid-date',
@@ -141,7 +143,7 @@ describe('generateRepeatingStartDates weekly', () => {
     expect(result.repeatUntil).toBe('2026-07-01');
     expect(result.startDates).toHaveLength(count);
     expect(result.startDates[0]).toBe('2026-04-01');
-    expect(result.startDates.every((date) => weekdayOf(date) === weekdayOf('2026-04-01'))).toBe(
+    expect(result.startDates.every((date) => getWeekday(date) === getWeekday('2026-04-01'))).toBe(
       true,
     );
     expect(
@@ -172,7 +174,9 @@ describe('generateRepeatingStartDates weekly', () => {
     });
     expect(year.startDates).toContain('2027-01-11');
     expect(leap.repeatUntil).toBe('2028-05-29');
-    expect(leap.startDates.every((date) => weekdayOf(date) === weekdayOf('2028-02-29'))).toBe(true);
+    expect(leap.startDates.every((date) => getWeekday(date) === getWeekday('2028-02-29'))).toBe(
+      true,
+    );
   });
 
   it('supports a weekly six-month cutoff below the defensive allocation limit', () => {
@@ -330,7 +334,7 @@ describe('time-off repeating date policy', () => {
     ['9999-01-30', '9999-12-31'],
     ['9999-12-31', '9999-12-31'],
   ] as const)('sets both the maximum and suggested cutoff for %s', (startDate, expected) => {
-    expect(maximumTimeOffRepeatUntilDate(startDate)).toBe(expected);
+    expect(resolveMaximumTimeOffRepeatUntilDate(startDate)).toBe(expected);
     expect(calculateDefaultTimeOffRepeatUntilDate(startDate)).toBe(expected);
   });
 
@@ -342,8 +346,8 @@ describe('time-off repeating date policy', () => {
       TIME_OFF_REPEAT_POLICY,
     );
     expect(result.startDates).toHaveLength(53);
-    expect(maximumRepeatUntilDate('2026-01-01')).toBe('2026-07-01');
-    expect(defaultRepeatUntilDate('2026-01-01')).toBe('2026-03-31');
+    expect(resolveMaximumRepeatUntilDate('2026-01-01')).toBe('2026-07-01');
+    expect(resolveDefaultRepeatUntilDate('2026-01-01')).toBe('2026-03-31');
   });
 
   it('retains the original monthly numeric day across the extended horizon', () => {
@@ -423,7 +427,7 @@ describe('generateRepeatingStartDates monthly boundaries', () => {
       repeatUntil: '9999-12-30',
       startDates: ['9999-09-30', '9999-10-30', '9999-11-30', '9999-12-30'],
     });
-    expect(maximumRepeatUntilDate('9999-10-01')).toBe('9999-12-31');
+    expect(resolveMaximumRepeatUntilDate('9999-10-01')).toBe('9999-12-31');
     expect(
       generateRepeatingStartDates('9999-10-01', '9999-11-01', { kind: 'monthly-date' }).startDates,
     ).toEqual(['9999-10-01', '9999-11-01']);
@@ -471,7 +475,7 @@ describe('generateRepeatingStartDates validation', () => {
   });
 
   it('enforces the start, six-month and at-least-one-repeat cutoff boundaries with stable codes', () => {
-    expect(maximumRepeatUntilDate('2026-01-31')).toBe('2026-07-31');
+    expect(resolveMaximumRepeatUntilDate('2026-01-31')).toBe('2026-07-31');
     for (const [cutoff, code, message] of [
       ['2026-01-30', 'cutoff-before-start', 'Repeat until cannot be before the first start.'],
       [

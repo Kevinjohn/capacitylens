@@ -1,4 +1,4 @@
-import { canonicalWeekdaySet } from './companyWorkingDays.js';
+import { normalizeWeekdays } from './companyWorkingDays.js';
 import { hasPersonalWorkingPattern } from '../types/entities.js';
 import type { Resource, Weekday } from '../types/entities.js';
 
@@ -8,7 +8,7 @@ export type EffectiveWorkingWeek = { kind: 'none' } | { kind: 'days'; days: Week
 
 /** The membership test for an effective week: false for `none`, so every consumer that asks
  * "is this weekday effective?" shares one definition instead of re-deriving the discriminant. */
-export function effectiveWeekIncludes(
+export function hasEffectiveWeekDay(
   effectiveWeek: EffectiveWorkingWeek,
   weekday: Weekday,
 ): boolean {
@@ -24,13 +24,13 @@ export function isStartOnNonEffectiveWeekday(
   ignoreWorkingDays: boolean | undefined,
   weekday: Weekday,
 ): boolean {
-  return !ignoreWorkingDays && !effectiveWeekIncludes(effectiveWeek, weekday);
+  return !ignoreWorkingDays && !hasEffectiveWeekDay(effectiveWeek, weekday);
 }
 
 /** The one predicate for a normal allocation that cannot use working-span math, because feeding
  * `none` into date math means calendar-day semantics or a 9999-12-31 end date. An ignored
  * allocation always spans calendar days, so it is exempt. */
-export function lacksEffectiveWorkingDays(
+export function hasNoEffectiveWorkingDays(
   effectiveWeek: EffectiveWorkingWeek | null | undefined,
   ignoreWorkingDays: boolean | undefined,
 ): boolean {
@@ -39,11 +39,11 @@ export function lacksEffectiveWorkingDays(
 
 /** Derives the company/personal calendar intersection for people. Placeholders and externals have
  * no personal capacity pattern, so their effective calendar is the complete company set. */
-export function effectiveWorkingWeek(
+export function resolveEffectiveWorkingWeek(
   resource: Pick<Resource, 'kind' | 'workingDays'>,
   companyWorkingDays: Weekday[],
 ): EffectiveWorkingWeek {
-  const canonicalCompanyDays = canonicalWeekdaySet(companyWorkingDays);
+  const canonicalCompanyDays = normalizeWeekdays(companyWorkingDays);
   let days = canonicalCompanyDays;
   if (hasPersonalWorkingPattern(resource)) {
     const personalWorkingDays = new Set(resource.workingDays);

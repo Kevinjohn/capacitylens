@@ -4,7 +4,7 @@ import {
   resolveGesture,
   reconcileReassignedHours as reconcileReassignedHoursWithWeek,
 } from './allocationDrag';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { DateRange } from '@/lib/gestureMath';
 import type { Resource, Weekday } from '@capacitylens/shared/types/entities';
 import { makeResource } from '@/test/fixtures';
@@ -31,7 +31,7 @@ const reconcileReassignedHours = ({
     target,
     zeroLoadMode,
     startDate,
-    effectiveWeek: effectiveWorkingWeek(target, [1, 2, 3, 4, 5]),
+    effectiveWeek: resolveEffectiveWorkingWeek(target, [1, 2, 3, 4, 5]),
   });
 
 describe('volumePreservingHoursClamped', () => {

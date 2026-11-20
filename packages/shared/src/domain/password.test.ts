@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_PASSWORD_INPUT_CODE_UNITS,
   countPasswordCharacters,
-  passwordLengthFailure,
+  getPasswordLengthFailure,
 } from './password.js';
 
 describe('password length policy', () => {
@@ -13,9 +13,9 @@ describe('password length policy', () => {
   });
 
   it('enforces the 15–128 bounds in Unicode code points', () => {
-    expect(passwordLengthFailure('🔐'.repeat(14))).toBe('too-short');
-    expect(passwordLengthFailure('🔐'.repeat(15))).toBeNull();
-    expect(passwordLengthFailure('🔐'.repeat(128))).toBeNull();
-    expect(passwordLengthFailure('🔐'.repeat(129))).toBe('too-long');
+    expect(getPasswordLengthFailure('🔐'.repeat(14))).toBe('too-short');
+    expect(getPasswordLengthFailure('🔐'.repeat(15))).toBeNull();
+    expect(getPasswordLengthFailure('🔐'.repeat(128))).toBeNull();
+    expect(getPasswordLengthFailure('🔐'.repeat(129))).toBe('too-long');
   });
 });

@@ -4,17 +4,17 @@ import type { Activity, AppData } from '../../types/entities.js';
 import { assertAllocationRefs, assertScopedRefs, getOwned } from './refs.js';
 import {
   TS,
-  client,
+  makeClient,
   project,
-  phase,
-  activity,
+  makePhase,
+  makeActivity,
   makePerson,
   makeDiscipline,
   makePlaceholder,
   makeExternal,
   A1,
   A2,
-  base,
+  makeBaseData,
 } from './assertionMessagesTestSupport.js';
 
 // These specs check each rule's rejection message without the store or React. The server uses
@@ -22,23 +22,23 @@ import {
 
 describe('getOwned', () => {
   it('returns the row when it belongs to the active account', () => {
-    const data = { ...base(), clients: [client('c1', A1)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
     expect(getOwned(data, A1, 'clients', 'c1')?.id).toBe('c1');
   });
 
   it('returns null for an absent id (stale-id no-op contract)', () => {
-    expect(getOwned(base(), A1, 'clients', 'missing')).toBeNull();
+    expect(getOwned(makeBaseData(), A1, 'clients', 'missing')).toBeNull();
   });
 
   it('throws when the row belongs to another account', () => {
-    const data = { ...base(), clients: [client('c1', A2)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A2)] };
     expect(() => getOwned(data, A1, 'clients', 'c1')).toThrow(
       'That record does not belong to the active company.',
     );
   });
 
   it('carries a stable code independently from its display message', () => {
-    const data = { ...base(), clients: [client('c1', A2)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A2)] };
     let error: unknown;
     try {
       getOwned(data, A1, 'clients', 'c1');
@@ -55,31 +55,31 @@ describe('assertScopedRefs', () => {
   it.each(['clients', 'disciplines', 'allocations', 'timeOff'] as const)(
     'leaves %s validation to its dedicated boundary',
     (table) => {
-      expect(() => assertScopedRefs(base(), A1, table, {})).not.toThrow();
+      expect(() => assertScopedRefs(makeBaseData(), A1, table, {})).not.toThrow();
     },
   );
 
   it('passes when a project references a client in the same account', () => {
-    const data = { ...base(), clients: [client('c1', A1)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).not.toThrow();
   });
 
   it('throws when a project references a client in another account', () => {
-    const data = { ...base(), clients: [client('c1', A2)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A2)] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).toThrow(
       'Project must reference a client in this company.',
     );
   });
 
   it('rejects a non-string reference id', () => {
-    const data = { ...base(), clients: [client('c1', A1)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 1 })).toThrow(
       'Project must reference a client in this company.',
     );
   });
   it('rejects a new reference to an archived parent at the generic scoped write boundary', () => {
-    const archivedClient = { ...client('c1', A1), archivedAt: TS };
-    const data = { ...base(), clients: [archivedClient] };
+    const archivedClient = { ...makeClient('c1', A1), archivedAt: TS };
+    const data = { ...makeBaseData(), clients: [archivedClient] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).toThrow(
       'Project must reference a client in this company.',
     );
@@ -91,10 +91,10 @@ describe('assertScopedRefs', () => {
   ] as const)(
     'rejects new descendants beneath an active project with an %s client ancestor',
     (_state, lifecycle) => {
-      const existingPhase = phase('ph-existing', A1, 'p1');
+      const existingPhase = makePhase('ph-existing', A1, 'p1');
       const data: AppData = {
-        ...base(),
-        clients: [{ ...client('c1', A1), ...lifecycle }],
+        ...makeBaseData(),
+        clients: [{ ...makeClient('c1', A1), ...lifecycle }],
         projects: [project('p1', A1, 'c1')],
         phases: [existingPhase],
       };
@@ -128,16 +128,16 @@ describe('assertScopedRefs', () => {
     // A patch with no clientId must not be rejected for omitting it.
     const existing = project('p1', A1, 'c1');
     expect(() =>
-      assertScopedRefs(base(), A1, 'projects', { name: 'Renamed' }, existing),
+      assertScopedRefs(makeBaseData(), A1, 'projects', { name: 'Renamed' }, existing),
     ).not.toThrow();
   });
 
   it('throws when an activity phase belongs to another account', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
-      phases: [phase('ph1', A2, 'p1')],
+      phases: [makePhase('ph1', A2, 'p1')],
     };
     expect(() =>
       assertScopedRefs(data, A1, 'activities', {
@@ -149,10 +149,10 @@ describe('assertScopedRefs', () => {
 
   it('throws when an activity phase belongs to a DIFFERENT project than the activity', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
-      phases: [phase('ph1', A1, 'p1')],
+      phases: [makePhase('ph1', A1, 'p1')],
     };
     // Activity is bound to p2 but references p1's phase, double-bound to two projects.
     expect(() =>
@@ -164,10 +164,10 @@ describe('assertScopedRefs', () => {
   });
   it('throws when an activity carries a phase but no project', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
-      phases: [phase('ph1', A1, 'p1')],
+      phases: [makePhase('ph1', A1, 'p1')],
     };
     expect(() => assertScopedRefs(data, A1, 'activities', { phaseId: 'ph1' })).toThrow(
       'An activity with a phase must also belong to that phase’s project.',
@@ -176,10 +176,10 @@ describe('assertScopedRefs', () => {
 
   it('passes when an activity phase belongs to the activity’s own project', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
-      phases: [phase('ph1', A1, 'p1')],
+      phases: [makePhase('ph1', A1, 'p1')],
     };
     expect(() =>
       assertScopedRefs(data, A1, 'activities', {
@@ -191,8 +191,8 @@ describe('assertScopedRefs', () => {
 
   it('throws when a project activity carries no project (kind coherence)', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
     };
     expect(() => assertScopedRefs(data, A1, 'activities', { kind: 'project', name: 'T' })).toThrow(
@@ -201,10 +201,10 @@ describe('assertScopedRefs', () => {
   });
   it('throws when an internal/repeatable activity carries a project or phase (kind coherence)', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
-      phases: [phase('ph1', A1, 'p1')],
+      phases: [makePhase('ph1', A1, 'p1')],
     };
     expect(() =>
       assertScopedRefs(data, A1, 'activities', {
@@ -222,7 +222,7 @@ describe('assertScopedRefs', () => {
 
   it('passes for a valid project-less internal activity', () => {
     expect(() =>
-      assertScopedRefs(base(), A1, 'activities', {
+      assertScopedRefs(makeBaseData(), A1, 'activities', {
         kind: 'internal',
         name: 'Admin',
       }),
@@ -231,8 +231,8 @@ describe('assertScopedRefs', () => {
 
   it('throws when a placeholder is bound to a project in another account', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A2)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A2)],
       projects: [project('p1', A2, 'c1')],
     };
     expect(() => assertScopedRefs(data, A1, 'resources', { projectId: 'p1' })).toThrow(
@@ -241,8 +241,8 @@ describe('assertScopedRefs', () => {
   });
   it('rejects project bindings on people and externals at the shared write boundary', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
     };
 
@@ -256,8 +256,8 @@ describe('assertScopedRefs', () => {
 
   it('rejects converting a bound placeholder without clearing its project', () => {
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
     };
     const existing = makePlaceholder('r1', A1, 'p1');
@@ -273,60 +273,66 @@ describe('assertScopedRefs', () => {
   it('does not make an unrelated edit fail solely because of a legacy non-placeholder binding', () => {
     const existing = { ...makePerson('r1', A1), projectId: 'legacy-project' };
     expect(() =>
-      assertScopedRefs(base(), A1, 'resources', { name: 'Renamed' }, existing),
+      assertScopedRefs(makeBaseData(), A1, 'resources', { name: 'Renamed' }, existing),
     ).not.toThrow();
   });
   it('rejects absent or null required parents on project and phase creates', () => {
-    expect(() => assertScopedRefs(base(), A1, 'projects', { name: 'No parent' })).toThrow(
+    expect(() => assertScopedRefs(makeBaseData(), A1, 'projects', { name: 'No parent' })).toThrow(
       'Project must reference a client in this company.',
     );
-    expect(() => assertScopedRefs(base(), A1, 'projects', { clientId: null })).toThrow(
+    expect(() => assertScopedRefs(makeBaseData(), A1, 'projects', { clientId: null })).toThrow(
       'Project must reference a client in this company.',
     );
-    expect(() => assertScopedRefs(base(), A1, 'phases', { name: 'No parent' })).toThrow(
+    expect(() => assertScopedRefs(makeBaseData(), A1, 'phases', { name: 'No parent' })).toThrow(
       'Phase must reference a project in this company.',
     );
-    expect(() => assertScopedRefs(base(), A1, 'phases', { projectId: null })).toThrow(
+    expect(() => assertScopedRefs(makeBaseData(), A1, 'phases', { projectId: null })).toThrow(
       'Phase must reference a project in this company.',
     );
   });
 
   it('rejects an explicitly cleared required parent on a partial patch', () => {
     expect(() =>
-      assertScopedRefs(base(), A1, 'projects', { clientId: null }, project('p1', A1, 'c1')),
+      assertScopedRefs(makeBaseData(), A1, 'projects', { clientId: null }, project('p1', A1, 'c1')),
     ).toThrow('Project must reference a client in this company.');
     expect(() =>
-      assertScopedRefs(base(), A1, 'phases', { projectId: undefined }, phase('ph1', A1, 'p1')),
+      assertScopedRefs(
+        makeBaseData(),
+        A1,
+        'phases',
+        { projectId: undefined },
+        makePhase('ph1', A1, 'p1'),
+      ),
     ).toThrow('Phase must reference a project in this company.');
   });
 
   it('rejects a project whose client id is ABSENT even though ANOTHER client belongs to the account', () => {
     // The in-company check must match the referenced id, not merely "does any row belong here": with a
     // valid A1 client present but a dangling reference, the FK is still unsatisfied and must throw.
-    const data = { ...base(), clients: [client('c1', A1)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'ghost' })).toThrow(
       'Project must reference a client in this company.',
     );
   });
   it('validates a phase’s projectId FK (throws cross-account, passes in-account)', () => {
     const cross = {
-      ...base(),
-      clients: [client('c1', A2)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A2)],
       projects: [project('p1', A2, 'c1')],
     };
     expect(() => assertScopedRefs(cross, A1, 'phases', { projectId: 'p1' })).toThrow(
       'Phase must reference a project in this company.',
     );
     const ok = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
     };
     expect(() => assertScopedRefs(ok, A1, 'phases', { projectId: 'p1' })).not.toThrow();
   });
 
   it('validates an activity’s projectId FK with its OWN message when a dangling project is referenced', () => {
-    const data = { ...base(), clients: [client('c1', A1)] };
+    const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
     expect(() => assertScopedRefs(data, A1, 'activities', { projectId: 'ghost' })).toThrow(
       'Activity must reference a project in this company.',
     );
@@ -336,10 +342,10 @@ describe('assertScopedRefs', () => {
     // The phase lookup must match the referenced id, not "any company phase": a dangling phaseId must
     // fail with the belong-to-company message even when a real phase exists in the company.
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
-      phases: [phase('ph1', A1, 'p1')],
+      phases: [makePhase('ph1', A1, 'p1')],
     };
     expect(() =>
       assertScopedRefs(data, A1, 'activities', {
@@ -352,8 +358,8 @@ describe('assertScopedRefs', () => {
     // assertScopedRefs checks refs + coherence for the known kinds only; it does not police the kind
     // enum itself (the write validator does). An unknown kind carrying a valid project must pass the ref checks.
     const data = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1')],
     };
     expect(() =>
@@ -365,7 +371,7 @@ describe('assertScopedRefs', () => {
   });
 
   it('validates a resource’s disciplineId FK with its own message (dangling discipline throws)', () => {
-    const data = { ...base(), disciplines: [makeDiscipline('d1', A2)] };
+    const data = { ...makeBaseData(), disciplines: [makeDiscipline('d1', A2)] };
     expect(() => assertScopedRefs(data, A1, 'resources', { disciplineId: 'd1' })).toThrow(
       'Resource discipline must belong to this company.',
     );
@@ -380,7 +386,7 @@ describe('assertScopedRefs', () => {
       // No clients at all. The archived parent was stripped from the slice.
       expect(() =>
         assertScopedRefs(
-          base(),
+          makeBaseData(),
           A1,
           'projects',
           { name: 'Renamed', clientId: 'c-archived' },
@@ -391,8 +397,8 @@ describe('assertScopedRefs', () => {
     it('rejects an unchanged legacy reference when the resolved parent belongs to another account', () => {
       const existing = project('p1', A1, 'cross-account-client');
       const data: AppData = {
-        ...base(),
-        clients: [client('cross-account-client', A2)],
+        ...makeBaseData(),
+        clients: [makeClient('cross-account-client', A2)],
         projects: [existing],
       };
 
@@ -409,30 +415,32 @@ describe('assertScopedRefs', () => {
     it('still rejects a CHANGED clientId that is absent from data', () => {
       const existing = project('p1', A1, 'c-archived');
       expect(() =>
-        assertScopedRefs(base(), A1, 'projects', { clientId: 'c-other' }, existing),
+        assertScopedRefs(makeBaseData(), A1, 'projects', { clientId: 'c-other' }, existing),
       ).toThrow('Project must reference a client in this company.');
     });
     it('passes an UNCHANGED projectId+phaseId pair even when both are absent from data', () => {
-      const existing = activity({
+      const existing = makeActivity({
         id: 't1',
         companyId: A1,
         projectId: 'p-archived',
         phaseId: 'ph-archived',
       });
       const merged = { ...existing, name: 'Renamed' };
-      expect(() => assertScopedRefs(base(), A1, 'activities', merged, existing)).not.toThrow();
+      expect(() =>
+        assertScopedRefs(makeBaseData(), A1, 'activities', merged, existing),
+      ).not.toThrow();
     });
     it('rejects an unchanged phaseId when the resolved legacy phase belongs to another account', () => {
-      const existing = activity({
+      const existing = makeActivity({
         id: 't1',
         companyId: A1,
         projectId: 'p1',
         phaseId: 'cross-account-phase',
       });
       const data: AppData = {
-        ...base(),
+        ...makeBaseData(),
         projects: [project('p1', A1, 'c1')],
-        phases: [phase('cross-account-phase', A2, 'p2')],
+        phases: [makePhase('cross-account-phase', A2, 'p2')],
         activities: [existing],
       };
 
@@ -448,11 +456,16 @@ describe('assertScopedRefs', () => {
     });
     it('re-runs the full phase coherence check when the phaseId CHANGES', () => {
       const data = {
-        ...base(),
-        clients: [client('c1', A1)],
+        ...makeBaseData(),
+        clients: [makeClient('c1', A1)],
         projects: [project('p1', A1, 'c1')],
       };
-      const existing = activity({ id: 't1', companyId: A1, projectId: 'p1', phaseId: 'ph-old' });
+      const existing = makeActivity({
+        id: 't1',
+        companyId: A1,
+        projectId: 'p1',
+        phaseId: 'ph-old',
+      });
       const merged = { ...existing, phaseId: 'ph-new' };
       expect(() => assertScopedRefs(data, A1, 'activities', merged, existing)).toThrow(
         'Activity phase must belong to this company.',
@@ -462,7 +475,7 @@ describe('assertScopedRefs', () => {
       const existing = makePlaceholder('r1', A1, 'p-archived');
       expect(() =>
         assertScopedRefs(
-          base(),
+          makeBaseData(),
           A1,
           'resources',
           { name: 'Renamed', projectId: 'p-archived' },
@@ -471,19 +484,19 @@ describe('assertScopedRefs', () => {
       ).not.toThrow();
     });
     it('without `existing` (an ADD) the check stays strict', () => {
-      expect(() => assertScopedRefs(base(), A1, 'projects', { clientId: 'c-archived' })).toThrow(
-        'Project must reference a client in this company.',
-      );
+      expect(() =>
+        assertScopedRefs(makeBaseData(), A1, 'projects', { clientId: 'c-archived' }),
+      ).toThrow('Project must reference a client in this company.');
     });
   });
 });
 
 describe('assertAllocationRefs', () => {
   const world = (): AppData => ({
-    ...base(),
-    clients: [client('c1', A1)],
+    ...makeBaseData(),
+    clients: [makeClient('c1', A1)],
     projects: [project('p1', A1, 'c1')],
-    activities: [activity({ id: 't1', companyId: A1, projectId: 'p1' })],
+    activities: [makeActivity({ id: 't1', companyId: A1, projectId: 'p1' })],
     resources: [makePerson('r1', A1)],
   });
   it('passes for a real resource + activity in the account', () => {
@@ -521,7 +534,7 @@ describe('assertAllocationRefs', () => {
     (_state, lifecycle) => {
       const data: AppData = {
         ...world(),
-        clients: [{ ...client('c1', A1), ...lifecycle }],
+        clients: [{ ...makeClient('c1', A1), ...lifecycle }],
       };
 
       expect(() => assertAllocationRefs(data, A1, 'r1', 't1', 8)).toThrow(
@@ -555,8 +568,8 @@ describe('assertAllocationRefs', () => {
       ...world(),
       projects: [project('p1', A1, 'c1'), { ...project('p2', A1, 'c1'), archivedAt: TS }],
       activities: [
-        activity({ id: 't1', companyId: A1, projectId: 'p1' }),
-        activity({ id: 't2', companyId: A1, projectId: 'p2' }),
+        makeActivity({ id: 't1', companyId: A1, projectId: 'p1' }),
+        makeActivity({ id: 't2', companyId: A1, projectId: 'p2' }),
       ],
       resources: [makePerson('r1', A1), { ...makePerson('r2', A1), archivedAt: TS }],
     };
@@ -582,10 +595,10 @@ describe('assertAllocationRefs', () => {
   });
   it('throws when a placeholder is assigned outside its bound project', () => {
     const data: AppData = {
-      ...base(),
-      clients: [client('c1', A1)],
+      ...makeBaseData(),
+      clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
-      activities: [activity({ id: 't2', companyId: A1, projectId: 'p2' })],
+      activities: [makeActivity({ id: 't2', companyId: A1, projectId: 'p2' })],
       resources: [makePlaceholder('ph', A1, 'p1')],
     };
     expect(() => assertAllocationRefs(data, A1, 'ph', 't2', 8)).toThrow(
@@ -608,7 +621,7 @@ describe('assertAllocationRefs', () => {
   });
   it('enforces repeatable-only attribution, project ownership/liveness and placeholder scope', () => {
     const repeatable: Activity = {
-      ...activity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
+      ...makeActivity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
       kind: 'repeatable' as const,
     };
     repeatable.projectId = null;
@@ -648,7 +661,7 @@ describe('assertAllocationRefs', () => {
 
   it('allows an unchanged archived allocation attribution but rejects changing to it', () => {
     const repeatable: Activity = {
-      ...activity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
+      ...makeActivity({ id: 'repeatable', companyId: A1, projectId: 'p1' }),
       kind: 'repeatable' as const,
     };
     repeatable.projectId = null;

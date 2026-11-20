@@ -1,5 +1,5 @@
-import { eachDayISO, weekdayOf } from '../lib/dateMath.js';
-import { effectiveWorkingWeek, effectiveWeekIncludes } from '../lib/effectiveWorkingWeek.js';
+import { listDaysISO, getWeekday } from '../lib/dateMath.js';
+import { resolveEffectiveWorkingWeek, hasEffectiveWeekDay } from '../lib/effectiveWorkingWeek.js';
 import { isValidISODate } from '../lib/isoDates.js';
 import type { ValidationResult } from '../lib/integrity.js';
 import { isExternalResource, isPlaceholderResource } from '../types/entities.js';
@@ -30,11 +30,10 @@ export function assertAllocationWithinResourceAvailability({
   const first = resource.firstAvailableDate;
   const last = resource.lastAvailableDate;
   if (first == null && last == null) return;
-  const effectiveWeek = effectiveWorkingWeek(resource, companyWorkingDays);
-  const scheduledDates = eachDayISO(allocation.startDate, allocation.endDate).filter(
+  const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
+  const scheduledDates = listDaysISO(allocation.startDate, allocation.endDate).filter(
     (date) =>
-      allocation.ignoreWorkingDays === true ||
-      effectiveWeekIncludes(effectiveWeek, weekdayOf(date)),
+      allocation.ignoreWorkingDays === true || hasEffectiveWeekDay(effectiveWeek, getWeekday(date)),
   );
   for (const date of scheduledDates) {
     if (first != null && date < first) {

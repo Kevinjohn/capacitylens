@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import { buildDayCapacity } from '@capacitylens/shared/lib/capacity';
-import { effectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { Allocation, Resource } from '@capacitylens/shared/types/entities';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 
@@ -44,7 +44,7 @@ test.group('shared capacity under Node', () => {
         date: '2026-06-01',
         allocations: [allocation],
         timeOff: [],
-        effectiveWeek: effectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
+        effectiveWeek: resolveEffectiveWorkingWeek(resource, [1, 2, 3, 4, 5]),
         closures: [],
       }),
       { date: '2026-06-01', allocated: 9, available: 8, over: true }

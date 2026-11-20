@@ -5,7 +5,7 @@ import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelle
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import {
   createPlanningCacheController,
   createPlanningCacheState,
@@ -42,7 +42,7 @@ function publishPlanning(
   if (!next.data) return { planning };
   if (planning.context === null) {
     return {
-      data: emptyAppData(),
+      data: createEmptyAppData(),
       planning,
       activeCompanyId: null,
       companySummaries: [],
@@ -52,7 +52,7 @@ function publishPlanning(
   }
   // A new context publishes nothing yet: its first canonical read replaces its scoped rows.
   if (state.planning.context?.companyId !== planning.context.companyId) {
-    return { planning, data: emptyAppData() };
+    return { planning, data: createEmptyAppData() };
   }
   // The controller publishes only a read accepted for this company, so the rows need no filter.
   const companyId = planning.context.companyId;
@@ -117,7 +117,7 @@ export function createPlanningSessionSlice(
     const clearPrivatePlanning = (authLost = false) => {
       syncContext(null);
       set((state) => ({
-        data: emptyAppData(),
+        data: createEmptyAppData(),
         activeCompanyId: null,
         companySummaries: [],
         companySummariesComplete: false,

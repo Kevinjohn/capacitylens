@@ -3,7 +3,7 @@ import { resolveResourceDisplayName } from '@/lib/metadata';
 import { isResourceKindEnabled } from '@/lib/resourceGrouping';
 import { hasLensFilter } from '@/store/useStore';
 import type { Filters } from '@/store/useStore';
-import { internalClientFor } from '@capacitylens/shared/data/internalClient';
+import { getInternalClient } from '@capacitylens/shared/data/internalClient';
 import type { Allocation, AppData, Resource } from '@capacitylens/shared/types/entities';
 import type { SchedulerModelOptions } from './schedulerModelTypes';
 import { buildAllocationAttribution } from '@/lib/buildAllocationAttribution';
@@ -98,7 +98,7 @@ export function createAllocationFilters(
   // Project-less internal work derives its client from the scoped account's built-in Internal row. Do not persist that derived attribution; if the row is missing, leave the client absent.
   const scopedCompanyId = data.clients[0]?.companyId;
   const internalClient = scopedCompanyId
-    ? internalClientFor(data.clients, scopedCompanyId)
+    ? getInternalClient(data.clients, scopedCompanyId)
     : undefined;
   const resolveProjectClient = (allocation: Allocation) =>
     buildAllocationAttribution({

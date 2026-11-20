@@ -1,4 +1,7 @@
-import { inspectLifecycleAncestry, lifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
+import {
+  inspectLifecycleAncestry,
+  resolveLifecycleStatus,
+} from '@capacitylens/shared/domain/lifecycle';
 import type { LifecycleAncestryRow } from '@capacitylens/shared/domain/lifecycle';
 import type {
   Activity,
@@ -108,9 +111,9 @@ export function buildArchivedRows(data: AppData, entity: ArchivedEntity): Archiv
   }
   return entityConfig[entity]
     .list(data)
-    .filter((row) => lifecycleStatus(row) !== 'deleted')
+    .filter((row) => resolveLifecycleStatus(row) !== 'deleted')
     .map((row) => ({ row, ancestor: getArchivedAncestor(indexes, entity, row) }))
-    .filter(({ row, ancestor }) => lifecycleStatus(row) === 'archived' || ancestor !== null)
+    .filter(({ row, ancestor }) => resolveLifecycleStatus(row) === 'archived' || ancestor !== null)
     .toSorted(
       (left, right) =>
         resolveRowName(left.row).localeCompare(resolveRowName(right.row), undefined, {

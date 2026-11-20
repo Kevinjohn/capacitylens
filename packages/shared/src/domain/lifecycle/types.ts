@@ -47,7 +47,7 @@ export function isValidTombstone(value: ISOTimestamp | null | undefined): value 
 /** Derive lifecycle state from valid tombstones without reading the clock. Pure.
  * A valid deletedAt wins; otherwise a valid archivedAt means archived, and neither means active.
  * Malformed tombstones are ignored so a later valid transition can repair the row. */
-export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
+export function resolveLifecycleStatus(entity: LifecycleFields): LifecycleState {
   if (isValidTombstone(entity.deletedAt)) return 'deleted';
   if (isValidTombstone(entity.archivedAt)) return 'archived';
   return 'active';

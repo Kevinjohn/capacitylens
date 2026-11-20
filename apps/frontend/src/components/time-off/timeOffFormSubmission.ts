@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
-  maximumTimeOffRepeatUntilDate,
+  resolveMaximumTimeOffRepeatUntilDate,
   RepeatingDateError,
 } from '@capacitylens/shared/lib/repeatingDates';
 import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
@@ -106,7 +106,7 @@ function acceptRepeat(
     options.fail('repeatUntil', m.form_time_off_err_repeat_until_required());
     return null;
   }
-  const maximum = maximumTimeOffRepeatUntilDate(baseDraft.startDate);
+  const maximum = resolveMaximumTimeOffRepeatUntilDate(baseDraft.startDate);
   if (options.repeatUntil > maximum) {
     options.fail('repeatUntil', m.form_time_off_err_repeat_until_after_max({ max: maximum }));
     return null;

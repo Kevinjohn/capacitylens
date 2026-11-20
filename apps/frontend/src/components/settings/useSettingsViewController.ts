@@ -1,5 +1,5 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
-import { orderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
+import { listOrderedWeekdays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { useId } from 'react';
 import { useCanEdit, useRole } from '@/auth/permissionContext';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -40,7 +40,7 @@ function readSchedulingSettings(
     schedulingMode: resolveSchedulingMode(data, companyId),
     weekStartsOn,
     workingDays: listCompanyWorkingDays(data, companyId),
-    workingDayOrder: orderedWeekdays(weekStartsOn),
+    workingDayOrder: listOrderedWeekdays(weekStartsOn),
     timezone: resolveTimeZone(data, companyId),
     disciplinesEnabled: hasDisciplinesEnabled(data, companyId),
     placeholdersEnabled: hasPlaceholdersEnabled(data, companyId),

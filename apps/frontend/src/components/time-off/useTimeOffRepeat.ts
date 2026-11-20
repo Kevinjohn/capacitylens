@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import {
   calculateDefaultTimeOffRepeatUntilDate,
-  maximumTimeOffRepeatUntilDate,
+  resolveMaximumTimeOffRepeatUntilDate,
   RepeatingDateError,
 } from '@capacitylens/shared/lib/repeatingDates';
 import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
@@ -29,7 +29,7 @@ export function useTimeOffRepeat(input: TimeOffRepeatDraftInput) {
     useRepeatUntil<TimeOffRepeatSelection>(input.startDate, calculateDefaultTimeOffRepeatUntilDate);
 
   const maximum = isValidISODate(input.startDate)
-    ? maximumTimeOffRepeatUntilDate(input.startDate)
+    ? resolveMaximumTimeOffRepeatUntilDate(input.startDate)
     : undefined;
   const preview = useMemo(() => {
     if (

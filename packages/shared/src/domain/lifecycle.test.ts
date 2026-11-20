@@ -1,7 +1,7 @@
 import { NULLABLE_FIELDS } from '../types/nullableFields.js';
 import { describe, it, expect } from 'vitest';
 import {
-  lifecycleStatus,
+  resolveLifecycleStatus,
   canArchive,
   canUnarchive,
   archive,
@@ -61,30 +61,32 @@ const expectLifecycleError = (
   }
 };
 
-describe('lifecycleStatus — derive state from tombstones (deletedAt wins)', () => {
+describe('resolveLifecycleStatus — derive state from tombstones (deletedAt wins)', () => {
   it("active ({}) → 'active'", () => {
-    expect(lifecycleStatus(makeActive())).toBe<LifecycleState>('active');
+    expect(resolveLifecycleStatus(makeActive())).toBe<LifecycleState>('active');
   });
   it("archived ({archivedAt}) → 'archived'", () => {
-    expect(lifecycleStatus(makeArchived())).toBe<LifecycleState>('archived');
+    expect(resolveLifecycleStatus(makeArchived())).toBe<LifecycleState>('archived');
   });
   it("deleted ({archivedAt, deletedAt}) → 'deleted' (deletedAt wins over archivedAt)", () => {
-    expect(lifecycleStatus(makeDeleted())).toBe<LifecycleState>('deleted');
+    expect(resolveLifecycleStatus(makeDeleted())).toBe<LifecycleState>('deleted');
   });
   it("standalone deletedAt with NO archivedAt → 'deleted' (deletedAt wins on its own)", () => {
-    expect(lifecycleStatus({ deletedAt: T_DEL })).toBe<LifecycleState>('deleted');
+    expect(resolveLifecycleStatus({ deletedAt: T_DEL })).toBe<LifecycleState>('deleted');
   });
   it('treats null tombstones as absent (SQLite/JSON round-trip)', () => {
     expect(
-      lifecycleStatus({
+      resolveLifecycleStatus({
         archivedAt: null as unknown as string,
         deletedAt: null as unknown as string,
       }),
     ).toBe('active');
   });
   it('derives the nearest valid state from malformed legacy tombstones', () => {
-    expect(lifecycleStatus({ archivedAt: T_ARCH, deletedAt: 'not-a-date' })).toBe('archived');
-    expect(lifecycleStatus({ archivedAt: '', deletedAt: 'not-a-date' })).toBe('active');
+    expect(resolveLifecycleStatus({ archivedAt: T_ARCH, deletedAt: 'not-a-date' })).toBe(
+      'archived',
+    );
+    expect(resolveLifecycleStatus({ archivedAt: '', deletedAt: 'not-a-date' })).toBe('active');
   });
 });
 
@@ -124,7 +126,7 @@ describe('archive — active → archived (immutable, fail-loud)', () => {
     const input = makeActive();
     const result = archive(input, NOW);
     expect(result.archivedAt).toBe(NOW);
-    expect(lifecycleStatus(result)).toBe('archived');
+    expect(resolveLifecycleStatus(result)).toBe('archived');
     expect(result.id).toBe('r1');
     expect(result.name).toBe('x');
   });
@@ -132,13 +134,13 @@ describe('archive — active → archived (immutable, fail-loud)', () => {
     const input = makeActive();
     archive(input, NOW);
     expect(input.archivedAt).toBeUndefined();
-    expect(lifecycleStatus(input)).toBe('active');
+    expect(resolveLifecycleStatus(input)).toBe('active');
   });
   it('replaces malformed legacy tombstones when archiving the recovered active state', () => {
     const result = archive({ ...makeActive(), archivedAt: '', deletedAt: 'not-a-date' }, NOW);
     expect(result.archivedAt).toBe(NOW);
     expect(result.deletedAt).toBeNull();
-    expect(lifecycleStatus(result)).toBe('archived');
+    expect(resolveLifecycleStatus(result)).toBe('archived');
   });
   it('from archived: throws (no re-archive)', () => {
     expectLifecycleError(
@@ -166,7 +168,7 @@ describe('unarchive — archived → active (clears archivedAt to null, immutabl
     const result = unarchive(input);
     expect(result.archivedAt).toBeNull();
     expect(result.deletedAt).toBeNull();
-    expect(lifecycleStatus(result)).toBe('active');
+    expect(resolveLifecycleStatus(result)).toBe('active');
     expect(result.id).toBe('r1');
     expect(result.name).toBe('x');
   });
@@ -174,7 +176,7 @@ describe('unarchive — archived → active (clears archivedAt to null, immutabl
     const input = makeArchived();
     unarchive(input);
     expect(input.archivedAt).toBe(T_ARCH);
-    expect(lifecycleStatus(input)).toBe('archived');
+    expect(resolveLifecycleStatus(input)).toBe('archived');
   });
   it('from active: throws', () => {
     expect(() => unarchive(makeActive())).toThrow(/not archived/);
@@ -186,7 +188,7 @@ describe('unarchive — archived → active (clears archivedAt to null, immutabl
     const result = unarchive({ ...makeArchived(), deletedAt: 'not-a-date' });
     expect(result.archivedAt).toBeNull();
     expect(result.deletedAt).toBeNull();
-    expect(lifecycleStatus(result)).toBe('active');
+    expect(resolveLifecycleStatus(result)).toBe('active');
   });
 });
 
@@ -317,7 +319,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(tag?.length).toBeGreaterThan(0);
   });
 
-  // SHORT_ID_FALLBACK_TAG branch of shortIdTag(id): when the id yields no alphanumerics to
+  // SHORT_ID_FALLBACK_TAG branch of buildShortIdTag(id): when the id yields no alphanumerics to
   // derive a tag from, the token falls back to the documented '0000' rather than leaving a bare
   // 'Removed person #'. Both an empty id and an all-punctuation id must hit that same fallback.
   it("empty id ⇒ fallback tag '0000' (no alphanumerics to derive from)", () => {

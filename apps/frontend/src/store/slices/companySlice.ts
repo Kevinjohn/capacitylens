@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { m } from '@/i18n';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { ID } from '@capacitylens/shared/types/entities';
 import { buildClearedSession, resetSchedulerView } from '@/store/storeConstants';
 import { readCurrentWeekAnchor } from './schedulerSlice';
@@ -102,7 +102,7 @@ function createSetCompanySummariesAction(
 export function createCompanySlice(): StateCreator<StoreState, [], [], CompanySlice> {
   return (set, get) => {
     return {
-      data: emptyAppData(),
+      data: createEmptyAppData(),
       activeCompanyId: null,
       companySummaries: [],
       companySummariesComplete: false,

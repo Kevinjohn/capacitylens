@@ -5,7 +5,7 @@ import {
   MAX_NAME_LENGTH,
   MAX_NOTE_LENGTH,
   normalizeUserText,
-  unicodeCharacterCount,
+  countUnicodeCharacters,
 } from '@capacitylens/shared/lib/strings';
 import { m } from '@/i18n';
 
@@ -52,7 +52,7 @@ export function parseText(value: string, fail: Fail, options: TextOptions = {}):
     }
     return '';
   }
-  if (unicodeCharacterCount(trimmed) > maxLength) {
+  if (countUnicodeCharacters(trimmed) > maxLength) {
     fail(field, m.validation_text_too_long());
     return null;
   }

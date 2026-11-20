@@ -2,7 +2,7 @@ import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { AppData, Resource } from '@capacitylens/shared/types/entities';
 import type { CapacityDisplayMode } from './capacityOverviewBar';
 import { buildCapacityOverviewModel } from './capacityOverviewModel';
@@ -63,7 +63,7 @@ const placeholderSlot = resource('slot', 'placeholder');
 
 // Real (if minimal) AppData, matched by id to the model's rows above, so the person schedule
 // trigger resolves the real per-resource title instead of the fallback an empty dataset produces.
-const data: AppData = { ...emptyAppData(), resources: [clarkKent, placeholderSlot] };
+const data: AppData = { ...createEmptyAppData(), resources: [clarkKent, placeholderSlot] };
 
 const model: CapacityOverviewModel = {
   measured: true,
@@ -220,7 +220,7 @@ describe('CapacityOverviewTable content', () => {
 
   it('derives an empty table span from the displayed week count', () => {
     const twelveWeekModel = buildCapacityOverviewModel({
-      data: { ...emptyAppData(), resources: [] },
+      data: { ...createEmptyAppData(), resources: [] },
       today: '2026-06-03',
       horizon: '12-weeks',
       capacity: null,
