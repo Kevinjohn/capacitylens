@@ -19,7 +19,8 @@ export function useInactiveCompanyData(): {
   mayViewInactive: boolean;
   reload: () => void;
 } {
-  const mayViewInactive = useCan('resources:anonymise');
+  // The server serves inactive rows only to `members:manage` (exports_controller.ts).
+  const mayViewInactive = useCan('members:manage');
   const role = useRole();
   const { user } = useAuth();
   const planning = useStore((state) => state.planning);

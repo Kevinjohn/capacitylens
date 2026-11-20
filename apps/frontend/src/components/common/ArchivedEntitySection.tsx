@@ -248,9 +248,9 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
 
 /** Keeps the full inactive browser privileged while Editors receive recovery identities only. */
 export function ArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
-  const mayAnonymise = useCan('resources:anonymise');
+  const mayViewInactive = useCan('members:manage');
   const mayWrite = useCan('planning:write');
-  if (mayAnonymise) return <PrivilegedArchivedEntitySection entity={entity} />;
+  if (mayViewInactive) return <PrivilegedArchivedEntitySection entity={entity} />;
   if (mayWrite) return <ArchiveRecoverySection entity={entity} />;
   return null;
 }
