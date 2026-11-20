@@ -43,7 +43,7 @@ export const useStore = create<StoreState>()((set, get, store) => {
     ...createCompanySlice()(set, get, store),
     ...createRuntimeSlice(set, get, store),
     ...createSchedulerSlice(buildEmptyFilters)(set, get, store),
-    ...createPlanningSessionSlice(internals.blockedByViewer, createStorePlanningTransport())(
+    ...createPlanningSessionSlice(internals.isBlockedByViewer, createStorePlanningTransport())(
       set,
       get,
       store,

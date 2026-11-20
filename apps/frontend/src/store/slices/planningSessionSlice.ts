@@ -79,7 +79,7 @@ function publishPlanning(
  * suspension, replacement readiness, undo/redo and the one write path every entity uses.
  */
 export function createPlanningSessionSlice(
-  blockedByViewer: StoreInternals['blockedByViewer'],
+  isBlockedByViewer: StoreInternals['isBlockedByViewer'],
   transport: PlanningTransport,
 ): StateCreator<StoreState, [], [], PlanningSessionSlice> {
   return (set, get) => {
@@ -140,7 +140,7 @@ export function createPlanningSessionSlice(
       );
     };
     const send = async (command: PlanningCommand): Promise<PlanningMutationSuccess | undefined> => {
-      if (blockedByViewer()) return;
+      if (isBlockedByViewer()) return;
       if (checkCommandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
@@ -199,9 +199,13 @@ export function createPlanningSessionSlice(
       },
       planningReadyForReplacement: () => isReplacementReady(),
       undoPlanning: () =>
-        blockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : controller.undo(),
+        isBlockedByViewer() || checkCommandsSuspended()
+          ? Promise.resolve(false)
+          : controller.undo(),
       redoPlanning: () =>
-        blockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : controller.redo(),
+        isBlockedByViewer() || checkCommandsSuspended()
+          ? Promise.resolve(false)
+          : controller.redo(),
     };
   };
 }

@@ -33,7 +33,7 @@ type AllocationSlice = Pick<
 /** Store capabilities used by allocation actions. */
 export type AllocationSliceInternals = Pick<
   StoreInternals,
-  'requireCompany' | 'blockedByViewer' | 'assertAllocation' | 'resolveOwnedRow' | 'applyPatch'
+  'requireCompany' | 'isBlockedByViewer' | 'assertAllocation' | 'resolveOwnedRow' | 'applyPatch'
 >;
 
 function assertSuppliedHours(hours: number): void {
@@ -118,13 +118,13 @@ export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
-    const { requireCompany, blockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } =
+    const { requireCompany, isBlockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } =
       internals;
     const send = (command: PlanningCommand) => get().sendPlanningCommand(command);
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
       if (inputs.length === 0) throw new Error('At least one allocation is required.');
       const companyId = requireCompany();
-      if (blockedByViewer()) return null;
+      if (isBlockedByViewer()) return null;
       const data = get().data;
       for (const input of inputs) assertSuppliedHours(input.hoursPerDay);
       assertNewAllocations(internals, data, companyId, inputs);
@@ -194,7 +194,7 @@ export function createAllocationSlice(
       updateAllocation: async (id, patch) => {
         const data = get().data;
         const existing = resolveOwnedRow(data, 'allocations', id);
-        if (!existing || blockedByViewer()) return false;
+        if (!existing || isBlockedByViewer()) return false;
         const effective = applyPatch(existing, patch);
         assertSuppliedHours(effective.hoursPerDay);
         // Validate the merged row so unrelated edits cannot preserve invalid external-resource
@@ -220,11 +220,11 @@ export function createAllocationSlice(
         return readSaveAdvisory(await send(command));
       },
       deleteAllocation: async (id) => {
-        if (blockedByViewer() || !resolveOwnedRow(get().data, 'allocations', id)) return;
+        if (isBlockedByViewer() || !resolveOwnedRow(get().data, 'allocations', id)) return;
         await send({ intent: { operation: 'allocation.delete', id } });
       },
       deleteAllocationSeriesFrom: async (id) => {
-        if (blockedByViewer()) return;
+        if (isBlockedByViewer()) return;
         const target = resolveOwnedRow(get().data, 'allocations', id);
         if (!target) return;
         if (!target.seriesId) throw new Error('This allocation is not part of a repeat series.');

@@ -18,7 +18,7 @@ describe('store slice composition', () => {
       createCompanySlice()(set, get, useStore),
       createRuntimeSlice(set, get, useStore),
       createSchedulerSlice(buildEmptyFilters)(set, get, useStore),
-      createPlanningSessionSlice(internals.blockedByViewer, createTestPlanningTransport())(
+      createPlanningSessionSlice(internals.isBlockedByViewer, createTestPlanningTransport())(
         set,
         get,
         useStore,

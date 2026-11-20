@@ -40,9 +40,12 @@ function requireCreatedId(value: unknown): string {
 /** The remaining planning writers share the allocation controller and await its reconciliation. */
 export function createTypedPlanningActions(
   get: () => Pick<StoreState, 'data' | 'planning' | 'masquerade' | 'sendPlanningCommand'>,
-  { requireCompany, blockedByViewer }: Pick<StoreInternals, 'requireCompany' | 'blockedByViewer'>,
+  {
+    requireCompany,
+    isBlockedByViewer,
+  }: Pick<StoreInternals, 'requireCompany' | 'isBlockedByViewer'>,
 ) {
-  const blocked = blockedByViewer;
+  const blocked = isBlockedByViewer;
   // After a failed first read the company row was never published, so a create reports that, as it
   // did before the authority gate existed, instead of the gate's role-unavailable notice.
   const requireCreateAccount = () => {
