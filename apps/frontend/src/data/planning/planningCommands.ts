@@ -193,8 +193,9 @@ export function buildAllocationUpdate(
     const activity = data.activities.find(
       (row) => row.companyId === companyId && row.id === activityId,
     );
-    if (!activity) return null;
+    // An activity missing from this cache is still sent, so the server's refusal stays visible.
     if (
+      activity &&
       !isAllocationAttributionAllowed(activity.kind) &&
       (changes.projectId ?? current.projectId) !== null
     ) {
