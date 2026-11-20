@@ -47,15 +47,15 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return true;
   };
 
-  return buildGuards({ requireCompany, blockedByViewer: isBlockedByViewer });
+  return buildGuards({ requireCompany, isBlockedByViewer });
 }
 
 interface BuildGuardsInput {
   requireCompany: () => ID;
-  blockedByViewer: () => boolean;
+  isBlockedByViewer: () => boolean;
 }
 
-function buildGuards({ requireCompany, blockedByViewer }: BuildGuardsInput) {
+function buildGuards({ requireCompany, isBlockedByViewer }: BuildGuardsInput) {
   const resolveOwnedRow = <K extends ScopedEntityKey>(
     data: AppData,
     key: K,
@@ -65,7 +65,7 @@ function buildGuards({ requireCompany, blockedByViewer }: BuildGuardsInput) {
 
   return {
     requireCompany,
-    blockedByViewer,
+    isBlockedByViewer,
     resolveOwnedRow,
     assertAllocation,
   };
