@@ -1,26 +1,26 @@
 import router from '@adonisjs/core/services/router';
 import { asPlanningMember } from '#start/route_guards';
 import { sensitive } from '@kevinjohn/adonisjs-masquerade/http';
-const PlanningController = () => import('#controllers/planning_controller');
+import { controllers } from '#generated/controllers';
 
 // Every planning route runs as the viewed-as member; the archive read is refused in view-as.
 router
   .group(() => {
     router
-      .get('/api/companies/:companyId/planning', [PlanningController, 'show'])
+      .get('/api/companies/:companyId/planning', [controllers.Planning, 'show'])
       .as('api.planning.show');
     router
-      .get('/api/companies/:companyId/planning/archive', [PlanningController, 'archive'])
+      .get('/api/companies/:companyId/planning/archive', [controllers.Planning, 'archive'])
       .as('api.planning.archive')
       .use(sensitive());
     router
-      .post('/api/companies/:companyId/planning/mutations', [PlanningController, 'mutate'])
+      .post('/api/companies/:companyId/planning/mutations', [controllers.Planning, 'mutate'])
       .as('api.planning.mutate');
     router
-      .post('/api/companies/:companyId/planning/undo', [PlanningController, 'undo'])
+      .post('/api/companies/:companyId/planning/undo', [controllers.Planning, 'undo'])
       .as('api.planning.undo');
     router
-      .post('/api/companies/:companyId/planning/redo', [PlanningController, 'redo'])
+      .post('/api/companies/:companyId/planning/redo', [controllers.Planning, 'redo'])
       .as('api.planning.redo');
   })
   .use(asPlanningMember());
