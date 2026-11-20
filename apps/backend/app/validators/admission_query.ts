@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine';
 
 /** Unknown query fields remain ignored; cursor is opaque and may be empty. */
-export const admissionQueryValidator = vine.compile(
+export const admissionQueryValidator = vine.create(
   vine.object({
     status: vine.enum(['pending', 'approved', 'rejected', 'revoked']).optional(),
     cursor: vine

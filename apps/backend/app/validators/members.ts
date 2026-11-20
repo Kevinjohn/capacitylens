@@ -3,7 +3,7 @@ import { ROLES, MEMBERSHIP_STATUSES } from '@capacitylens/shared/account/types';
 import { allowedFields, fixedMessage } from '#validators/request_rules';
 
 const trackingMessage = 'enabled must be a Boolean.';
-export const trackingValidator = vine.compile(
+export const trackingValidator = vine.create(
   vine
     .object({ enabled: vine.boolean({ strict: true }) })
     .use(allowedFields({ fields: ['enabled'], message: trackingMessage }))
@@ -11,7 +11,7 @@ export const trackingValidator = vine.compile(
 trackingValidator.messagesProvider = fixedMessage(trackingMessage);
 
 const changeRoleMessage = 'Invalid member role.';
-export const changeRoleValidator = vine.compile(
+export const changeRoleValidator = vine.create(
   vine
     .object({ role: vine.enum(ROLES) })
     .use(allowedFields({ fields: ['role'], message: changeRoleMessage }))
@@ -19,7 +19,7 @@ export const changeRoleValidator = vine.compile(
 changeRoleValidator.messagesProvider = fixedMessage(changeRoleMessage);
 
 const changeStatusMessage = 'Invalid member status.';
-export const changeStatusValidator = vine.compile(
+export const changeStatusValidator = vine.create(
   vine
     .object({ status: vine.enum(MEMBERSHIP_STATUSES) })
     .use(allowedFields({ fields: ['status'], message: changeStatusMessage }))

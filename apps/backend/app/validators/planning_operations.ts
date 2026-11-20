@@ -32,11 +32,11 @@ const planningIntent = vine.union([
  * resize and reassignment in one patch. Vine strips unknown/server-owned fields. This is input
  * validation only; the write transaction owns authorization and integrity.
  */
-export const planningMutationValidator = vine.compile(
+export const planningMutationValidator = vine.create(
   vine.object({ ...meta(), intent: planningIntent })
 );
 
 /** One undo or redo: the server holds the intent, so the body names only the page's history. */
-export const planningHistoryStepValidator = vine.compile(
+export const planningHistoryStepValidator = vine.create(
   vine.object({ mutationId: uuid(), baseRevision: revision(), historyId: uuid() })
 );

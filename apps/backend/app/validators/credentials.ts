@@ -11,21 +11,21 @@ import {
 const recoveryMessage = 'Invalid recovery request.';
 const credentialMessage = 'Invalid credential request.';
 
-export const requestResetValidator = vine.compile(
+export const requestResetValidator = vine.create(
   vine
     .object({ email: vine.string().use(accountEmail()).transform(normalizeAccountEmail) })
     .use(allowedFields({ fields: ['email'], message: recoveryMessage }))
 );
 requestResetValidator.messagesProvider = fixedMessage(recoveryMessage);
 
-export const inspectResetValidator = vine.compile(
+export const inspectResetValidator = vine.create(
   vine
     .object({ token: vine.string().use(bearerToken()) })
     .use(allowedFields({ fields: ['token'], message: recoveryMessage }))
 );
 inspectResetValidator.messagesProvider = fixedMessage(recoveryMessage);
 
-export const resetPasswordValidator = vine.compile(
+export const resetPasswordValidator = vine.create(
   vine
     .object({
       token: vine.string().use(bearerToken()),
@@ -35,7 +35,7 @@ export const resetPasswordValidator = vine.compile(
 );
 resetPasswordValidator.messagesProvider = fixedMessage(recoveryMessage);
 
-export const changePasswordValidator = vine.compile(
+export const changePasswordValidator = vine.create(
   vine
     .object({
       currentPassword: vine.string(),
@@ -45,7 +45,7 @@ export const changePasswordValidator = vine.compile(
 );
 changePasswordValidator.messagesProvider = fixedMessage(credentialMessage);
 
-export const deleteAccountValidator = vine.compile(
+export const deleteAccountValidator = vine.create(
   vine
     .object({ currentPassword: vine.string() })
     .use(allowedFields({ fields: ['currentPassword'], message: credentialMessage }))

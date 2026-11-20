@@ -10,7 +10,7 @@ import {
 const message = 'Unsupported authentication field.';
 
 /** Retains the product's email shape, normalization and strict authentication field policy. */
-export const signInValidator = vine.compile(
+export const signInValidator = vine.create(
   vine
     .object({
       email: vine.string().use(accountEmail()).transform(normalizeAccountEmail),
@@ -20,7 +20,7 @@ export const signInValidator = vine.compile(
 );
 
 /** Counts password code points and display-name code points, matching the established boundaries. */
-export const signUpValidator = vine.compile(
+export const signUpValidator = vine.create(
   vine
     .object({
       email: vine.string().use(accountEmail()).transform(normalizeAccountEmail),
