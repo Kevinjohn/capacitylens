@@ -85,7 +85,12 @@ export const allocationIntent = vine
     ),
     vine.union.if(
       (value) => hasOperation(value, 'allocation.delete'),
-      vine.object({ operation: vine.literal('allocation.delete'), id: entityId() })
+      vine.object({
+        operation: vine.literal('allocation.delete'),
+        id: entityId(),
+        // `future` deletes this occurrence and every later one in its repeat series.
+        scope: vine.literal('future').optional(),
+      })
     ),
     vine.union.if(
       (value) => hasOperation(value, 'allocation.deleteGroup'),
