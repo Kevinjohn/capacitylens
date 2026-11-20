@@ -13,8 +13,22 @@ import type {
   PlanningMutationSuccess,
 } from '@/api/planningContracts';
 import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
-import { APP_DATA_KEYS, createEmptyAppData } from '@capacitylens/shared/types/entities';
-import type { AppData, AppDataKey, ISODate } from '@capacitylens/shared/types/entities';
+import {
+  APP_DATA_KEYS,
+  createEmptyAppData,
+  hasHourlyLoad,
+} from '@capacitylens/shared/types/entities';
+import type {
+  Allocation,
+  AppData,
+  AppDataKey,
+  Company,
+  ISODate,
+  Resource,
+} from '@capacitylens/shared/types/entities';
+import { reconcileReassignedHours } from '@capacitylens/shared/domain/placement';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -413,6 +427,31 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'allocation.update':
         update('allocations', intent.id, intent.changes);
         break;
+      case 'allocation.reassign': {
+        // Mirrors the server: the target and company decide the load the row carries.
+        const { id, resourceId, startDate, endDate } = intent;
+        const existing = this.rows('allocations').find((row) => row.id === id) as
+          Allocation | undefined;
+        const target = this.rows('resources').find((row) => row.id === resourceId) as
+          Resource | undefined;
+        const company = this.rows('accounts').find((row) => row.id === companyId) as
+          Company | undefined;
+        if (!existing || !target || !company) {
+          throw new Error('stub: load the allocation, target and company before reassigning');
+        }
+        const hoursPerDay = reconcileReassignedHours({
+          current: existing.hoursPerDay,
+          target,
+          zeroLoadMode: !hasHourlyLoad(company.schedulingMode ?? 'hourly'),
+          startDate,
+          effectiveWeek: resolveEffectiveWorkingWeek(
+            target,
+            normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1),
+          ),
+        });
+        update('allocations', id, { resourceId, startDate, endDate, hoursPerDay });
+        break;
+      }
       case 'allocation.delete':
         return remove('allocations', intent.id);
       case 'catalogue.create':

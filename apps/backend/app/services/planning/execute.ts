@@ -9,6 +9,10 @@ import {
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey, Client } from '@capacitylens/shared/types/entities';
+import { hasHourlyLoad } from '@capacitylens/shared/types/entities';
+import { reconcileReassignedHours } from '@capacitylens/shared/domain/placement';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
@@ -192,6 +196,35 @@ async function applyIntent(
           mode: 'update',
         });
         return unchanged;
+      case 'allocation.reassign': {
+        const { id, resourceId, startDate, endDate } = intent;
+        const existing = requireExistingRow(data, 'allocations', id);
+        const target = requireExistingRow(data, 'resources', resourceId);
+        const company = requireExistingRow(data, 'accounts', companyId);
+        const hoursPerDay = reconcileReassignedHours({
+          current: existing.hoursPerDay,
+          target,
+          zeroLoadMode: !hasHourlyLoad(company.schedulingMode ?? 'hourly'),
+          startDate,
+          effectiveWeek: resolveEffectiveWorkingWeek(
+            target,
+            normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1)
+          ),
+        });
+        await writeEntity({
+          ...writeOptions,
+          table: 'allocations',
+          id,
+          fields: {
+            resourceId,
+            startDate,
+            endDate,
+            ...(hoursPerDay === existing.hoursPerDay ? {} : { hoursPerDay }),
+          },
+          mode: 'update',
+        });
+        return unchanged;
+      }
       case 'allocation.duplicate': {
         const source = requireExistingRow(data, 'allocations', intent.sourceAllocationId);
         const { occurrence } = intent;

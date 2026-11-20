@@ -14,6 +14,7 @@ import {
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
   barFor,
   getStoredAllocation,
@@ -511,6 +512,14 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
     );
     await settlePlanning();
 
+    // The drop names only the target and dates; the server decides the load it carries.
+    expect(getStubPlanningTransport().calls.at(-1)).toEqual({
+      operation: 'allocation.reassign',
+      id: allocation.id,
+      resourceId: person.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+    });
     expect(
       useStore.getState().data.allocations.find((row) => row.id === allocation.id),
     ).toMatchObject({
