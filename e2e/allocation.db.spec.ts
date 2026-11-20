@@ -190,13 +190,16 @@ test.describe('Allocation editor', () => {
         repeatedDelete.getByRole('button', { name: 'Delete this occurrence' }),
       ).toBeVisible();
       const tailDeleteCommitted = page.waitForResponse((response) =>
-        isPlanningMutation(response.request(), 'allocation.deleteGroup'),
+        isPlanningMutation(response.request(), 'allocation.delete'),
       );
       await repeatedDelete
         .getByRole('button', { name: 'Delete this and future occurrences' })
         .click();
       const tailDeleteResponse = await tailDeleteCommitted;
       expect(tailDeleteResponse.status()).toBe(200);
+      expect(tailDeleteResponse.request().postDataJSON()).toMatchObject({
+        intent: { operation: 'allocation.delete', scope: 'future' },
+      });
       const tailDeleteReceipt = await tailDeleteResponse.json();
       expect(tailDeleteReceipt.status).toBe('committed');
       await expect(editor).toBeHidden();

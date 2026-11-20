@@ -228,17 +228,9 @@ export function createAllocationSlice(
         const target = resolveOwnedRow(get().data, 'allocations', id);
         if (!target) return;
         if (!target.seriesId) throw new Error('This allocation is not part of a repeat series.');
-        const { companyId, seriesId, startDate } = target;
-        // One typed write deletes the whole tail, so a single Undo restores it.
-        const ids = get()
-          .data.allocations.filter(
-            (allocation) =>
-              allocation.companyId === companyId &&
-              allocation.seriesId === seriesId &&
-              allocation.startDate >= startDate,
-          )
-          .map((allocation) => allocation.id);
-        await send({ intent: { operation: 'allocation.deleteGroup', ids } });
+        // The server resolves the tail from its own rows, so a stale cache cannot pick the set; one
+        // typed write deletes it, so a single Undo restores it.
+        await send({ intent: { operation: 'allocation.delete', id, scope: 'future' } });
       },
     };
   };

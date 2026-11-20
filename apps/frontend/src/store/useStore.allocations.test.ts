@@ -427,6 +427,11 @@ describe('repeat-series allocation mutations', () => {
     queueAllocationDeleteGroupResponse([selected.id, later.id], 'group-delete-series');
     await state().deleteAllocationSeriesFrom(selected.id);
 
+    expect(getStubPlanningTransport().calls.at(-1)).toEqual({
+      operation: 'allocation.delete',
+      id: selected.id,
+      scope: 'future',
+    });
     expect(state().data.allocations.map(({ id }) => id)).toEqual([earlier.id, unrelated.id]);
     expect(typedHistory().canUndo).toBe(true);
     expect(await state().undoPlanning()).toBe(true);

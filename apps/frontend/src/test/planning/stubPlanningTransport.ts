@@ -414,6 +414,9 @@ export class StubPlanningTransport implements PlanningTransport {
         update('allocations', intent.id, intent.changes);
         break;
       case 'allocation.delete':
+        if (intent.scope === 'future') {
+          throw new Error('stub: queue a response for a series-tail allocation.delete');
+        }
         return remove('allocations', intent.id);
       case 'catalogue.create':
         create(

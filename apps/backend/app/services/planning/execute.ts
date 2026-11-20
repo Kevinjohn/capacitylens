@@ -44,6 +44,22 @@ function assertOccurrenceIdsMatch(occurrenceIds: readonly string[], later: reado
   }
 }
 
+/** The occurrence and every later one in its repeat series, read from the server's snapshot. */
+function resolveSeriesFrom(data: AppData, id: string): string[] {
+  const target = requireExistingRow(data, 'allocations', id);
+  const { seriesId, startDate } = target;
+  if (!seriesId) {
+    throw new PlanningOperationError(
+      400,
+      'VALIDATION_ERROR',
+      'This allocation is not part of a repeat series.'
+    );
+  }
+  return data.allocations
+    .filter((row) => row.seriesId === seriesId && row.startDate >= startDate)
+    .map((row) => row.id);
+}
+
 async function transitionLifecycle(
   trx: TransactionClientContract,
   data: AppData,
@@ -371,7 +387,12 @@ async function applyIntent(
         return unchanged;
       case 'allocation.delete':
       case 'allocation.deleteGroup': {
-        const ids = intent.operation === 'allocation.delete' ? [intent.id] : intent.ids;
+        const ids =
+          intent.operation === 'allocation.deleteGroup'
+            ? intent.ids
+            : intent.scope === 'future'
+              ? resolveSeriesFrom(data, intent.id)
+              : [intent.id];
         const groupId = await deleteAllocations(trx, data, companyId, ids, identity, written);
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
