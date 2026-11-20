@@ -221,13 +221,16 @@ export function isPlanningMutation(request: Request, operation?: string, entity?
   return (intent?.entity as { entity?: string } | undefined)?.entity === entity;
 }
 
-/** Wait for a settings receipt and its canonical read before starting another planning change. */
-export async function changeCompanySetting(
+/** Wait for a planning mutation's receipt and the canonical read that follows it. Until that read
+ * lands, the scheduler is still settling the write, so a pointer resting on a bar may not open its
+ * popover. */
+export async function commitPlanningChange(
   page: Page,
+  operation: string,
   action: () => Promise<unknown>,
 ): Promise<void> {
   const written = page
-    .waitForResponse((response) => isPlanningMutation(response.request(), 'settings.update'))
+    .waitForResponse((response) => isPlanningMutation(response.request(), operation))
     .then(async (response) => {
       expect(response.ok(), await response.text()).toBe(true);
       const receipt = await response.json();
@@ -246,6 +249,14 @@ export async function changeCompanySetting(
     return snapshot.revision >= receipt.revision;
   });
   await Promise.all([action(), written, canonical]);
+}
+
+/** Wait for a settings receipt and its canonical read before starting another planning change. */
+export async function changeCompanySetting(
+  page: Page,
+  action: () => Promise<unknown>,
+): Promise<void> {
+  await commitPlanningChange(page, 'settings.update', action);
 }
 
 /** Turn on workspace inline activity creation from Settings for flows that exercise the opt-in UI. */
