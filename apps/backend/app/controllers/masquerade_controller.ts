@@ -1,14 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
-import { currentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
+import { readCurrentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
 import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { getSignedInSession } from '#services/auth/current_actor';
 import { endValidator, startValidator } from '#validators/masquerade';
 
 /** Package refusals reach the global handler's single mapping; only the authority refusal is reworded. */
-async function respond<T>(ctx: HttpContext, work: () => Promise<T>) {
+async function runWithAuthorityRefusal<T>(ctx: HttpContext, work: () => Promise<T>) {
   try {
     return await work();
   } catch (error) {
@@ -29,7 +29,7 @@ export default class MasqueradeController {
       return ctx.response.badRequest({ error: 'Target member is required.' });
     }
     const body = await ctx.request.validateUsing(startValidator, { data: ctx.request.body() });
-    return respond(ctx, async () => {
+    return runWithAuthorityRefusal(ctx, async () => {
       const started = await startMasquerade(
         ctx,
         body.targetUserId,
@@ -37,28 +37,28 @@ export default class MasqueradeController {
       );
       if (!started.isMasquerading) throw new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
       return ctx.response.ok({
-        ...(await currentMasquerade(ctx, db.connection(), companyId)),
+        ...(await readCurrentMasquerade(ctx, db.connection(), companyId)),
         companyId,
       });
     });
   }
 
   async status(ctx: HttpContext) {
-    return respond(ctx, async () => {
+    return runWithAuthorityRefusal(ctx, async () => {
       try {
         const signIn = await getSignedInSession(ctx);
         if (!signIn) return ctx.response.ok({ active: false, contextToken: null });
         const input: unknown = ctx.request.input('companyId');
         const companyId = typeof input === 'string' && input ? input : undefined;
         if (companyId) {
-          const mode = await currentMasquerade(ctx, db.connection(), companyId);
+          const mode = await readCurrentMasquerade(ctx, db.connection(), companyId);
           if (mode.active) return ctx.response.ok(mode);
           if (!(await getActiveCompanyRole(signIn.userId, companyId, undefined))) {
             throw new IdentityAuthorityError('Company membership is unavailable.');
           }
           return ctx.response.ok({ ...mode, companyId });
         }
-        return ctx.response.ok(await currentMasquerade(ctx, db.connection(), undefined));
+        return ctx.response.ok(await readCurrentMasquerade(ctx, db.connection(), undefined));
       } catch (error) {
         // Does work: no session is the inactive status, not a refusal.
         if (error instanceof InvalidSessionError) {
@@ -71,7 +71,7 @@ export default class MasqueradeController {
 
   async end(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(endValidator, { data: ctx.request.body() });
-    return respond(ctx, async () => {
+    return runWithAuthorityRefusal(ctx, async () => {
       const header = ctx.request.header('X-Masquerade-Context');
       if (typeof header !== 'string' || !header) {
         throw new MasqueradeError('E_MASQUERADE_CONTEXT_REQUIRED');

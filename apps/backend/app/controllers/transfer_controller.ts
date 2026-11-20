@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { withActor, kitContextIn } from '#services/auth/current_actor';
-import { passwordConfirmationActor } from '#services/auth/password_confirmation';
+import { withActor, requireKitContext } from '#services/auth/current_actor';
+import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import {
   applyCompanyImport,
@@ -17,7 +17,7 @@ export default class TransferController {
     // The preview names why a document is refused, so the browser never validates it itself.
     const document = readRequestDocument(body.document);
     const result = await withActor(ctx, async (_actor, trx) => {
-      await passwordConfirmationActor(companyId, trx, 'import');
+      await requirePasswordConfirmationActor(companyId, trx, 'import');
       return previewCompanyImport(trx, companyId, document);
     });
     return ctx.response.ok(result);
@@ -29,8 +29,8 @@ export default class TransferController {
     const document = parseRequestDocument(body.document);
     if (!document) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });
     const result = await withActor(ctx, async (_actor, trx) => {
-      const actor = await passwordConfirmationActor(companyId, trx, 'import');
-      await passwordConfirmations.consume(kitContextIn(trx), {
+      const actor = await requirePasswordConfirmationActor(companyId, trx, 'import');
+      await passwordConfirmations.consume(requireKitContext(trx), {
         confirmationId,
         action: 'import',
         scope: companyId,

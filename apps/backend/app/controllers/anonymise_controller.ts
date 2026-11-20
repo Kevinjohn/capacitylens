@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import { withActor, kitContextIn } from '#services/auth/current_actor';
+import { withActor, requireKitContext } from '#services/auth/current_actor';
 import { anonymiseResources } from '#services/anonymise';
-import { passwordConfirmationActor } from '#services/auth/password_confirmation';
+import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { companyValidator, resourceValidator } from '#validators/anonymise';
 import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
@@ -30,8 +30,8 @@ export default class AnonymiseController {
     const body = await ctx.request.validateUsing(companyValidator, { data: ctx.request.body() });
     const { companyId } = ctx.params;
     await withActor(ctx, async (_actor, trx) => {
-      const actor = await passwordConfirmationActor(companyId, trx, 'anonymise');
-      await passwordConfirmations.consume(kitContextIn(trx), {
+      const actor = await requirePasswordConfirmationActor(companyId, trx, 'anonymise');
+      await passwordConfirmations.consume(requireKitContext(trx), {
         confirmationId: body.confirmationId,
         action: 'anonymise',
         scope: companyId,

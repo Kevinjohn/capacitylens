@@ -2,7 +2,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { refuseConflictingAdmission } from '#services/admission/errors';
 import access from '#config/access_control';
 import { getActiveMembership } from '#services/auth/authorization';
-import { affectedRows } from '#services/affected_rows';
+import { parseAffectedRows } from '#services/affected_rows';
 import { advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 
@@ -116,7 +116,7 @@ export async function clearMemberResourceLink(
     .from('account_member_resources')
     .where({ company_id: companyId, user_id: userId, revision: expectedRevision })
     .delete();
-  if (affectedRows(changed) !== 1) {
+  if (parseAffectedRows(changed) !== 1) {
     refuseConflictingAdmission('The member resource link changed. Refresh and retry.');
   }
   await advancePlanningRevision(trx, companyId);

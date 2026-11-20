@@ -30,7 +30,7 @@ export function asRecord(row: object): Record<string, unknown> {
 }
 
 /** Resolves a stored row of the named table from the complete company snapshot, refusing missing targets. */
-export function existingRow<K extends AppDataKey>(
+export function requireExistingRow<K extends AppDataKey>(
   data: AppData,
   table: K,
   id: string
@@ -99,7 +99,7 @@ export async function updateSettings(
       'This setting requires an administrator.'
     );
   }
-  const existing = existingRow(data, 'accounts', companyId);
+  const existing = requireExistingRow(data, 'accounts', companyId);
   const candidate = { ...existing, ...changes };
   try {
     assertFrozenCompanyFields(changes, candidate, existing);

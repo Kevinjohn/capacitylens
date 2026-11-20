@@ -1,7 +1,7 @@
 import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { Role } from '@capacitylens/shared/account/types';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
-import { displayNameOf, projectForReader } from '#services/planning/restricted_fields';
+import { resolveDisplayName, projectForReader } from '#services/planning/restricted_fields';
 
 export function transformState(data: AppData, companyId: string | undefined, role: Role): AppData {
   const capabilities = {
@@ -14,7 +14,7 @@ export function transformState(data: AppData, companyId: string | undefined, rol
     ) as AppData[K];
   // Each client and project carries the label its reader orders by, decided here once.
   const named = <K extends 'clients' | 'projects'>(table: K) =>
-    scoped(table).map((row) => ({ ...row, displayName: displayNameOf(row) })) as AppData[K];
+    scoped(table).map((row) => ({ ...row, displayName: resolveDisplayName(row) })) as AppData[K];
   return {
     accounts: companyId ? data.accounts.filter((row) => row.id === companyId) : data.accounts,
     clients: named('clients'),

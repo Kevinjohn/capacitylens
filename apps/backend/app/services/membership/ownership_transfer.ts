@@ -3,7 +3,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
 import { refuseWhileViewing } from '#services/auth/password_confirmation';
-import { kitContextIn, type CurrentActor } from '#services/auth/current_actor';
+import { requireKitContext, type CurrentActor } from '#services/auth/current_actor';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { runAccountCommand, type AccountCommandIdentity } from '#services/account_commands';
 import access from '#config/access_control';
@@ -72,7 +72,7 @@ export async function transferOwnership({
         .count('* as count')
         .first();
       if (Number(owners?.count) !== 1) throw new Error('Company Owner invariant failed.');
-      await passwordConfirmations.consume(kitContextIn(trx), {
+      await passwordConfirmations.consume(requireKitContext(trx), {
         confirmationId: authorization,
         action: 'transfer-ownership',
         scope: companyId,

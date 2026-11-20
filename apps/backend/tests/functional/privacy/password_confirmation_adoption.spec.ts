@@ -9,7 +9,12 @@ import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/ma
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
-import { admissionDecision, actorIn, kitContextIn, withActor } from '#services/auth/current_actor';
+import {
+  requireAdmissionDecision,
+  requireActor,
+  requireKitContext,
+  withActor,
+} from '#services/auth/current_actor';
 import { withTransaction } from '#services/with_transaction';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
@@ -69,7 +74,7 @@ test.group('package proof adoption boundaries', (group) => {
         expected = {
           error: 'Your access to this company is waiting on admission.',
           code: 'ADMISSION_REQUIRED',
-          decision: await withTransaction((trx) => admissionDecision(userId, trx)),
+          decision: await withTransaction((trx) => requireAdmissionDecision(userId, trx)),
         };
       }
       const prove = proofs.confirmPassword;
@@ -184,7 +189,7 @@ test.group('package proof adoption boundaries', (group) => {
     await checking.promise;
     const admission = await app.container.make(AccountAdmission);
     await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
-    const decision = await withTransaction((trx) => admissionDecision(userId, trx));
+    const decision = await withTransaction((trx) => requireAdmissionDecision(userId, trx));
     pending.resolve();
     const response = await request;
     response.assertStatus(403);
@@ -240,17 +245,17 @@ test.group('package proof adoption boundaries', (group) => {
         try {
           await withActor(ctx, async (actor, trx) => {
             captured = trx;
-            assert.equal(String(kitContextIn(trx).account.id), actor.userId);
-            assert.equal(kitContextIn(trx).signInId, actor.sessionId);
-            assert.strictEqual(kitContextIn(trx).trx, trx);
+            assert.equal(String(requireKitContext(trx).account.id), actor.userId);
+            assert.equal(requireKitContext(trx).signInId, actor.sessionId);
+            assert.strictEqual(requireKitContext(trx).trx, trx);
             if (interrupted) throw sentinel;
           });
         } catch (error) {
           if (error !== sentinel) throw error;
         }
         assert.isDefined(captured);
-        assert.throws(() => kitContextIn(captured!), /inside withActor/);
-        assert.throws(() => actorIn(captured!), /inside withActor/);
+        assert.throws(() => requireKitContext(captured!), /inside withActor/);
+        assert.throws(() => requireActor(captured!), /inside withActor/);
         checked++;
       }
       return original.call(this, ctx);

@@ -4,7 +4,7 @@ import type { Membership } from '@kevinjohn/adonisjs-access-control/types';
 import { isRole, type Role } from '@capacitylens/shared/account/types';
 import type { PermissionKey } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
-import { actorIn } from '#services/auth/current_actor';
+import { requireActor } from '#services/auth/current_actor';
 
 /** A transaction, or none where a caller has none; reads then use the default connection. */
 type Reader = TransactionClientContract | undefined;
@@ -44,7 +44,7 @@ export async function assertCompanyAction(
   key: PermissionKey,
   trx: TransactionClientContract
 ): Promise<{ actorId: string; role: Role }> {
-  const actor = actorIn(trx);
+  const actor = requireActor(trx);
   try {
     const membership = await access.memberships.authorize({
       scopeId: companyId,

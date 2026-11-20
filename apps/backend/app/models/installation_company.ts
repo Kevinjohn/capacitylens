@@ -21,7 +21,7 @@ export async function hasNoCompany(reader: CompanyReader): Promise<boolean> {
  * The installation's single company, or null before first setup.
  * @throws AdmissionError 409 `MULTIPLE_COMPANIES` when a second company exists.
  */
-export async function installationCompanyId(reader: CompanyReader): Promise<string | null> {
+export async function getInstallationCompanyId(reader: CompanyReader): Promise<string | null> {
   const rows = await reader.from('accounts').select('id').limit(2);
   // Only seeded development data holds two companies; say so rather than fail with a 500.
   if (rows.length > 1) {
@@ -36,7 +36,7 @@ export async function installationCompanyId(reader: CompanyReader): Promise<stri
 
 /** The installation's single company and its name, both null before first setup. */
 export async function getInstallationCompany(reader: CompanyReader) {
-  const companyId = await installationCompanyId(reader);
+  const companyId = await getInstallationCompanyId(reader);
   const company = companyId
     ? await reader.from('accounts').where('id', companyId).select('name').first()
     : null;
