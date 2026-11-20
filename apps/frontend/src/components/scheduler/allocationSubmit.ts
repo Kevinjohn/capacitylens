@@ -1,6 +1,5 @@
 import { m } from '@/i18n';
 import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity';
-import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings';
 import { resolveDomainErrorMessage, resolveErrorMessage } from '@/lib/errorMessage';
 import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
@@ -188,10 +187,9 @@ async function saveDraft(
     return result.kind === 'created' ? result : null;
   }
   const repeat = { pattern: resolveRepeatPattern(input.repeat), until: input.repeatUntil };
-  // The count tells the store how many ids to mint; the server places each occurrence.
-  const { startDates } = generateRepeatingStartDates(draft.startDate, repeat.until, repeat.pattern);
-  // One typed group write creates the repeated set; the server assigns its series id.
-  const result = await input.addRepeatedAllocation(draft, repeat, startDates.length);
+  // One typed group write creates the repeated set; the server places each occurrence and assigns
+  // its ids and series id.
+  const result = await input.addRepeatedAllocation(draft, repeat);
   return result.kind === 'created' ? result : null;
 }
 

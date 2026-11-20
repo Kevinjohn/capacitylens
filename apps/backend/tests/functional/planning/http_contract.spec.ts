@@ -471,7 +471,6 @@ test.group('authenticated typed planning transactions', (group) => {
           endDate: '2026-11-23',
         },
         repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-30' },
-        occurrenceIds: [randomUUID()],
       }),
       () => ({ operation: 'allocation.delete', id: ids.duplicate }),
       () => ({ operation: 'planning.restoreGroup', restorationGroupId }),

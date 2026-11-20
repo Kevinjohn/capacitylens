@@ -76,12 +76,11 @@ export interface StoreEntityActions {
 
   /** Create one allocation as one typed planning write; it resolves once the server acknowledges it. */
   addAllocation: (input: Draft<Allocation>) => Promise<AllocationCreateResult<Allocation>>;
-  /** Create a repeated set as one typed planning write and one Undo step. The server places the
-   * `count` occurrences from the first one and the repeat; a mismatched count or a refusal rejects. */
+  /** Create a repeated set as one typed planning write and one Undo step. The server expands the
+   * repeat from the first occurrence and mints the later ids; a refusal rejects. */
   addRepeatedAllocation: (
     input: Draft<Allocation>,
     repeat: RepeatRange,
-    count: number,
   ) => Promise<AllocationCreateResult<Allocation[]>>;
   /** Copy an allocation as one typed planning write, reusing the source when nothing else changed. */
   duplicateAllocation: (

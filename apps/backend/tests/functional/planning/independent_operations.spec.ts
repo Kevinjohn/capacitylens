@@ -1,9 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import {
-  GENERATED_ALLOCATION_LIMIT,
-  TIME_OFF_REPEAT_POLICY,
-} from '@capacitylens/shared/lib/repeatingDates';
+import { TIME_OFF_REPEAT_POLICY } from '@capacitylens/shared/lib/repeatingDates';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
@@ -50,14 +47,12 @@ test.group('independent typed planning operations', (group) => {
     const { cookie } = await signIn(client);
     // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
     const first = { ...newAllocation(data), startDate: '2026-10-01', endDate: '2026-10-01' };
-    const laterId = randomUUID();
     const committed = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
           operation: 'allocation.createGroup',
           allocation: first,
           repeat: { pattern: { kind: 'monthly-date' }, until: '2026-11-01' },
-          occurrenceIds: [laterId],
         })
       )
       .send();
@@ -65,68 +60,18 @@ test.group('independent typed planning operations', (group) => {
     committed.assertStatus(200);
     assert.equal(body(committed).revision, 1);
     const saved = await readState(companyId, true);
-    const created = [first.id, laterId].map((id) => saved.allocations.find((row) => row.id === id));
+    const firstRow = saved.allocations.find((row) => row.id === first.id);
+    // The server minted the later occurrence's id.
+    const created = [
+      firstRow,
+      saved.allocations.find((row) => row.seriesId === firstRow?.seriesId && row !== firstRow),
+    ];
     assert.isDefined(created[0]);
     assert.isDefined(created[1]);
     assert.isNotEmpty(created[0]!.seriesId);
     assert.equal(created[1]!.seriesId, created[0]!.seriesId);
     assert.equal(created[1]!.startDate, '2026-11-01');
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
-  });
-
-  test('refuses more occurrence ids than the shared ceiling allows', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup);
-    const { cookie } = await signIn(client);
-    const before = await readState(companyId, true);
-    const refused = await session(client.post(route('planning/mutations')), cookie)
-      .json(
-        input(0, {
-          operation: 'allocation.createGroup',
-          allocation: newAllocation(before),
-          repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2027-05-02' },
-          occurrenceIds: Array.from({ length: GENERATED_ALLOCATION_LIMIT }, () => randomUUID()),
-        })
-      )
-      .send();
-
-    refused.assertStatus(400);
-    assert.equal(body(refused).code, 'VALIDATION_ERROR');
-    assert.include(body(refused).error, 'occurrenceIds');
-    assert.deepEqual(await readState(companyId, true), before);
-  });
-
-  test('refuses a repeated occurrence id or one that reuses the first id', async ({
-    client,
-    assert,
-    cleanup,
-  }) => {
-    configureAuth(cleanup);
-    const { cookie } = await signIn(client);
-    const before = await readState(companyId, true);
-    const allocation = newAllocation(before);
-    const repeated = randomUUID();
-    for (const occurrenceIds of [
-      [repeated, repeated],
-      [allocation.id, randomUUID()],
-    ]) {
-      const refused = await session(client.post(route('planning/mutations')), cookie)
-        .json(
-          input(0, {
-            operation: 'allocation.createGroup',
-            allocation,
-            repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
-            occurrenceIds,
-          })
-        )
-        .send();
-      refused.assertStatus(400);
-      assert.equal(body(refused).error, 'Entity IDs must be unique.');
-    }
-    assert.deepEqual(await readState(companyId, true), before);
   });
 
   test('refuses time-off occurrence ids past the ceiling, repeated, or reusing the first id', async ({
@@ -170,7 +115,7 @@ test.group('independent typed planning operations', (group) => {
     assert.deepEqual(await readState(companyId, true), before);
   });
 
-  test('refuses occurrence ids that do not match the repeat before persisting any occurrence', async ({
+  test('refuses a repeat that yields a single occurrence before persisting it', async ({
     client,
     assert,
     cleanup,
@@ -180,23 +125,22 @@ test.group('independent typed planning operations', (group) => {
     const { cookie } = await signIn(client);
     const first = newAllocation(data);
     const before = await readState(companyId, true);
-    // Weekly from 2 November to 16 November makes three occurrences, so two later ids.
-    for (const count of [1, 3]) {
-      const refused = await session(client.post(route('planning/mutations')), cookie)
-        .json(
-          input(0, {
-            operation: 'allocation.createGroup',
-            allocation: first,
-            repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
-            occurrenceIds: Array.from({ length: count }, () => randomUUID()),
-          })
-        )
-        .send();
+    const refused = await session(client.post(route('planning/mutations')), cookie)
+      .json(
+        input(0, {
+          operation: 'allocation.createGroup',
+          allocation: first,
+          repeat: { pattern: { kind: 'weeks', interval: 1 }, until: first.startDate },
+        })
+      )
+      .send();
 
-      refused.assertStatus(400);
-      assert.equal(body(refused).code, 'VALIDATION_ERROR');
-      assert.equal(body(refused).error, 'The occurrence identities do not match the repeat.');
-    }
+    refused.assertStatus(400);
+    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+    assert.equal(
+      body(refused).error,
+      'Repeat until must include at least one repeated occurrence.'
+    );
     assert.deepEqual(await readState(companyId, true), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
     assert.equal(snapshot.body().revision, 0);

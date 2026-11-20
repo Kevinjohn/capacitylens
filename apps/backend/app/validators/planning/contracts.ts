@@ -24,7 +24,15 @@ import type {
 // Planning wire contracts: inferred input types, receipts, refusal codes and the failure body.
 
 export type PlanningMutationInput = Infer<typeof planningMutationValidator>;
-export type PlanningIntent = PlanningMutationInput['intent'];
+type SuppliedIntent = PlanningMutationInput['intent'];
+type SuppliedAllocationRepeat = Extract<SuppliedIntent, { operation: 'allocation.createGroup' }>;
+/**
+ * An intent as executed and kept in history. A repeat a client sends names only its pattern; once
+ * committed it also names the occurrence ids the server minted, so undo and redo address them.
+ */
+export type PlanningIntent =
+  | Exclude<SuppliedIntent, SuppliedAllocationRepeat>
+  | (SuppliedAllocationRepeat & { occurrenceIds?: string[] });
 export type PlanningHistoryStepInput = Infer<typeof planningHistoryStepValidator>;
 
 /** Whether the page that sent the request can step back or forward through its own changes. */

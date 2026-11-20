@@ -421,14 +421,13 @@ describe('createAllocationCommands new placement', () => {
 describe('createAllocationCommands repeats', () => {
   const weekly = { repeat: 'weekly', repeatUntil: '2027-01-25' } as const;
 
-  it('sends the first occurrence, the pattern and the occurrence count in one group write and closes', async () => {
+  it('sends the first occurrence and the pattern in one group write and closes', async () => {
     const input = validInput(weekly);
     await submit(input);
     expect(input.addAllocation).not.toHaveBeenCalled();
     expect(input.addRepeatedAllocation).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ startDate: '2027-01-04' }),
       { pattern: { kind: 'weeks', interval: 1 }, until: '2027-01-25' },
-      4,
     );
     expect(input.onClose).toHaveBeenCalledOnce();
   });

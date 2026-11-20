@@ -149,7 +149,6 @@ test.group('typed resource availability', (group) => {
           operation: 'allocation.createGroup',
           allocation: inside,
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-08' },
-          occurrenceIds: [randomUUID()],
         })
       )
       .send();

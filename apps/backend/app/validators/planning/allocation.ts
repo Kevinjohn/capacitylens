@@ -1,7 +1,6 @@
 import vine from '@vinejs/vine';
 import { writableFields } from '@capacitylens/shared/types/entityFields';
 import { ALLOCATION_STATUSES } from '@capacitylens/shared/types/entities';
-import { GENERATED_ALLOCATION_LIMIT } from '@capacitylens/shared/lib/repeatingDates';
 import {
   boolean,
   calendarDate,
@@ -10,7 +9,6 @@ import {
   hours,
   nullableId,
   nullableUserText,
-  occurrenceIdsExcludeFirst,
   hasOperation,
   repeatRange,
   requireChanges,
@@ -116,18 +114,12 @@ export const allocationIntent = vine
     ),
     vine.union.if(
       (value) => hasOperation(value, 'allocation.createGroup'),
-      vine
-        .object({
-          operation: vine.literal('allocation.createGroup'),
-          allocation: allocationCreate,
-          repeat: repeatRange(),
-          occurrenceIds: vine
-            .array(uuid())
-            .minLength(1)
-            .maxLength(GENERATED_ALLOCATION_LIMIT - 1),
-        })
-        .use(uniqueArrayIds('occurrenceIds'))
-        .use(occurrenceIdsExcludeFirst('allocation'))
+      // The server expands the pattern and mints the later occurrences' ids.
+      vine.object({
+        operation: vine.literal('allocation.createGroup'),
+        allocation: allocationCreate,
+        repeat: repeatRange(),
+      })
     ),
     vine.union.if(
       (value) => hasOperation(value, 'allocation.duplicate'),
