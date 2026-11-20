@@ -33,7 +33,7 @@ export function buildInverseIntent(
     case 'allocation.createGroup':
       return {
         operation: 'allocation.deleteGroup',
-        ids: [intent.allocation.id, ...intent.occurrenceIds],
+        ids: [intent.allocation.id, ...(intent.occurrenceIds ?? [])],
       };
     case 'allocation.duplicate':
       return { operation: 'allocation.delete', id: intent.occurrence.id };

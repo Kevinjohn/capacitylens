@@ -226,18 +226,18 @@ async function commit({
         };
   const current = owner ? await readHistory(trx, owner, input.baseRevision) : null;
   const entry = step === 'undo' ? current?.past.at(-1) : current?.future.at(-1);
-  const intent = supplied ?? (step === 'undo' ? entry?.inverse : entry?.forward);
-  if (!intent) {
+  const requested = supplied ?? (step === 'undo' ? entry?.inverse : entry?.forward);
+  if (!requested) {
     throw new EmptyHistoryError(
       step === 'undo' ? 'There is nothing to undo.' : 'There is nothing to redo.'
     );
   }
   const before = await readStateWithClient(trx, companyId, true);
   const working = structuredClone(before);
-  const { restoration, written } = await executePlanningIntent({
+  const execution = await executePlanningIntent({
     trx,
     companyId,
-    intent,
+    intent: requested,
     capabilities,
     data: working,
     identity: {
@@ -247,6 +247,7 @@ async function commit({
     },
     expectedUpdatedAt: input.expectedUpdatedAt,
   });
+  const { restoration, written, intent } = execution;
   // archiveImpact measures the active projection itself. Passing the full state keeps an active row
   // whose parent is already archived measurable: it hides nothing more, so every count is zero.
   const archived =

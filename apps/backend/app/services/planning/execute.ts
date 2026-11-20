@@ -111,6 +111,8 @@ export interface ExecutePlanningIntentOptions {
 export interface PlanningExecution {
   restoration: PlanningMutationSuccess['restoration'];
   written: WrittenRow[];
+  /** The intent as committed: a repeat also names the occurrence ids the server minted. */
+  intent: PlanningIntent;
 }
 
 /**
@@ -122,8 +124,9 @@ export async function executePlanningIntent(
   options: ExecutePlanningIntentOptions
 ): Promise<PlanningExecution> {
   const written: WrittenRow[] = [];
-  const restoration = await applyIntent(options, written);
-  return { restoration, written };
+  const committed = { intent: options.intent };
+  const restoration = await applyIntent(options, written, committed);
+  return { restoration, written, intent: committed.intent };
 }
 
 async function applyIntent(
@@ -136,7 +139,8 @@ async function applyIntent(
     identity,
     expectedUpdatedAt,
   }: ExecutePlanningIntentOptions,
-  written: WrittenRow[]
+  written: WrittenRow[],
+  committed: { intent: PlanningIntent }
 ): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
   if (!capabilities.canWrite) {
@@ -158,7 +162,7 @@ async function applyIntent(
         });
         return unchanged;
       case 'allocation.createGroup': {
-        const { allocation, repeat, occurrenceIds } = intent;
+        const { allocation, repeat } = intent;
         const seriesId = crypto.randomUUID();
         // The first occurrence is the allocation as sent, so its write refuses what a create refuses.
         await writeEntity({
@@ -169,7 +173,10 @@ async function applyIntent(
           mode: 'create',
         });
         const later = buildAllocationOccurrences(data, companyId, allocation, repeat).slice(1);
+        // A redo replays the ids minted when the repeat was first committed.
+        const occurrenceIds = intent.occurrenceIds ?? later.map(() => crypto.randomUUID());
         assertOccurrenceIdsMatch(occurrenceIds, later);
+        committed.intent = { ...intent, occurrenceIds };
         for (const [index, { startDate, endDate }] of later.entries()) {
           const id = occurrenceIds[index] as string;
           await writeEntity({

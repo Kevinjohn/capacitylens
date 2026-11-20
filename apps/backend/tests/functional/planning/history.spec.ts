@@ -15,7 +15,12 @@ import {
   signIn,
   signInAgain,
 } from './helpers.js';
-import { mutationsUrl, planningAudit, stored } from './restoration_helpers.js';
+import {
+  listCreatedAllocationIds,
+  mutationsUrl,
+  planningAudit,
+  stored,
+} from './restoration_helpers.js';
 
 interface Reply {
   revision: number;
@@ -384,5 +389,32 @@ test.group('server-held undo and redo', (suite) => {
     }
     const [row] = await histories();
     assert.include(row.entries_json, 'Batcave audit');
+  });
+
+  test('undo and redo of a repeat address the occurrence ids the server minted', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const page = new Page(client, await cookieFor(client));
+    const allocation = newAllocation(await readState(companyId, true));
+    const reply = await page.write(mutationsUrl, {
+      operation: 'allocation.createGroup',
+      allocation,
+      repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-16' },
+    });
+    assert.equal(reply.status, 200);
+    const ids = listCreatedAllocationIds(reply);
+    assert.lengthOf(ids, 3);
+    const present = async () => {
+      const state = await readState(companyId, true);
+      return ids.map((id) => state.allocations.some((row) => row.id === id));
+    };
+
+    assert.equal(await statusOf(page.undo()), 200);
+    assert.deepEqual(await present(), [false, false, false]);
+    assert.equal(await statusOf(page.redo()), 200);
+    assert.deepEqual(await present(), [true, true, true]);
   });
 });

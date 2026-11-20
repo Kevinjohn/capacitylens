@@ -84,7 +84,6 @@ export const restore = (
 export async function createAllocations(client: ApiClient, cookie: string, count: number) {
   const data = await readState(companyId, true);
   const allocation = { ...newAllocation(data), note, task: 'Watchtower rota' };
-  const occurrenceIds = Array.from({ length: count - 1 }, () => randomUUID());
   const created =
     count === 1
       ? await send(client, cookie, mutationsUrl, 0, {
@@ -98,10 +97,9 @@ export async function createAllocations(client: ApiClient, cookie: string, count
             pattern: { kind: 'weeks', interval: 1 },
             until: addDaysISO(allocation.startDate, 7 * (count - 1)),
           },
-          occurrenceIds,
         });
   created.assertStatus(200);
-  return [allocation.id, ...occurrenceIds];
+  return count === 1 ? [allocation.id] : listCreatedAllocationIds(created.body());
 }
 
 export async function stored(id: string) {
@@ -135,4 +133,16 @@ export const group = (groupId: string) =>
 export async function consumedAt(groupId: string) {
   const row = await group(groupId);
   return row?.consumed_at;
+}
+
+/** The allocation ids a receipt created, earliest start first; the server mints a repeat's later ids. */
+export function listCreatedAllocationIds(receipt: unknown): string[] {
+  const { changes } = receipt as {
+    changes: { upserts: Array<{ entity: string; row: { id: string; startDate: string } }> };
+  };
+  return changes.upserts
+    .filter((change) => change.entity === 'allocations')
+    .map((change) => change.row)
+    .sort((left, right) => left.startDate.localeCompare(right.startDate))
+    .map((row) => row.id);
 }

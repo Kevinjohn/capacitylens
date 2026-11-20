@@ -314,7 +314,6 @@ describe('AllocationModal edit', () => {
           status: 'confirmed',
         },
         { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-15' },
-        2,
       ),
     );
     expect(selected).toBeDefined();

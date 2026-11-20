@@ -1,5 +1,6 @@
 import { buildRepeatedTimeOffDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
+import { createId } from '@capacitylens/shared/lib/id';
 import type { Allocation, ID, TimeOff } from '@capacitylens/shared/types/entities';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { DEFAULT_COMPANY_ID } from '@/test/fixtures';
@@ -17,11 +18,9 @@ export function queueAllocationGroupResponse(
       if (intent.operation !== 'allocation.createGroup') {
         throw new Error(`Expected allocation.createGroup, received ${intent.operation}.`);
       }
-      const { allocation, occurrenceIds } = intent;
-      const ids = [allocation.id, ...occurrenceIds];
-      if (dates.length !== ids.length) {
-        throw new Error('The supplied allocation dates do not match the occurrence identities.');
-      }
+      const { allocation } = intent;
+      // Like the server, the stub mints the later occurrences' ids.
+      const ids = [allocation.id, ...dates.slice(1).map(() => createId())];
       const createdAt = new Date().toISOString();
       return {
         removed: [],

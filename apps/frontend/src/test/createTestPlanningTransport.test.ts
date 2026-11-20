@@ -101,7 +101,6 @@ it('throws a queued refusal, records the intent, and requires responses for comp
       status: 'confirmed',
     },
     repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-06-08' },
-    occurrenceIds: ['a-2'],
   };
   const refusal = Object.assign(new Error('Server rejected the group'), { status: 400 });
   stub.failNext(refusal);

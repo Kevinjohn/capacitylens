@@ -144,10 +144,7 @@ export function createAllocationSlice(
         if (!created) throw new Error('Allocation creation produced no row.');
         return { kind: 'created', value: created, ...readSaveAdvisory(receipt) };
       },
-      addRepeatedAllocation: async (input, repeat, count) => {
-        if (!Number.isSafeInteger(count) || count < 2) {
-          throw new Error('A repeat needs at least two occurrences.');
-        }
+      addRepeatedAllocation: async (input, repeat) => {
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: 'blocked' };
         const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
@@ -155,20 +152,21 @@ export function createAllocationSlice(
         if (command.intent.operation !== 'allocation.create') {
           throw new Error('Unexpected allocation command.');
         }
-        // Later occurrence ids are minted here too, so every created row can be returned by id.
-        const occurrenceIds = Array.from({ length: count - 1 }, () => createId());
-        const ids = [draft.id, ...occurrenceIds];
+        // The server expands the pattern and mints the later ids; its receipt names every row.
         const receipt = await send({
           intent: {
             operation: 'allocation.createGroup',
             allocation: command.intent.allocation,
             repeat,
-            occurrenceIds,
           },
         });
+        const later = (receipt?.changes.upserts ?? [])
+          .flatMap((change) => (change.entity === 'allocations' ? [change.row] : []))
+          .filter((row) => row.id !== draft.id)
+          .sort((left, right) => left.startDate.localeCompare(right.startDate));
         return {
           kind: 'created',
-          value: requireCreatedRows(get, ids),
+          value: requireCreatedRows(get, [draft.id, ...later.map((row) => row.id)]),
           ...readSaveAdvisory(receipt),
         };
       },

@@ -84,7 +84,6 @@ const cases: Array<{ intent: PlanningIntent; restoration?: Restoration }> = [
       operation: 'allocation.createGroup',
       allocation,
       repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-02' },
-      occurrenceIds: ['occurrence-2'],
     },
   },
   {

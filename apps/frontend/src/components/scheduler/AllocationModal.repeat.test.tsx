@@ -182,7 +182,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     // The browser sends the first occurrence and the pattern; the server places the rest.
     expect(intent.allocation).toMatchObject({ startDate: '2099-06-01', endDate: '2099-06-03' });
     expect(intent.repeat).toEqual({ pattern: { kind: 'weeks', interval: 1 }, until: '2099-06-15' });
-    expect(intent.occurrenceIds).toHaveLength(2);
+    expect(intent).not.toHaveProperty('occurrenceIds');
     expect(intent).not.toHaveProperty('allocations');
     // The typed group write assigns one series id to every stored occurrence.
     expect('seriesId' in intent.allocation).toBe(false);
@@ -225,7 +225,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       if (intent?.operation !== 'allocation.createGroup') {
         throw new Error('Expected a typed repeated allocation group intent.');
       }
-      expect(intent.occurrenceIds.length).toBeGreaterThan(0);
+      expect(intent).not.toHaveProperty('occurrenceIds');
       expect(intent.allocation).toHaveProperty('projectId', projectId ?? null);
     },
   );
@@ -271,7 +271,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     }
     expect(intent.allocation).toMatchObject({ startDate: '2099-01-31', endDate: '2099-02-02' });
     expect(intent.repeat).toEqual({ pattern: { kind: 'monthly-date' }, until: '2099-04-30' });
-    expect(intent.occurrenceIds).toHaveLength(3);
+    expect(intent).not.toHaveProperty('occurrenceIds');
   });
 
   it.each(['days', 'blocks'] as const)(

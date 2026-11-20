@@ -13,6 +13,7 @@ import {
   session,
   signIn,
 } from './helpers.js';
+import { listCreatedAllocationIds } from './restoration_helpers.js';
 
 const body = (response: { body(): unknown }) =>
   response.body() as {
@@ -412,7 +413,7 @@ test.group('authenticated planning operations', (group) => {
       return next as unknown as AppData;
     };
     const allocation = newAllocation(data);
-    const groupIds = [randomUUID(), randomUUID()];
+    let groupIds: string[] = [randomUUID()];
     const writes: Array<
       [string, (revision: number) => Promise<{ body(): unknown; status(): number }>]
     > = [
@@ -445,17 +446,20 @@ test.group('authenticated planning operations', (group) => {
       ],
       [
         'group create',
-        (revision) =>
-          session(client.post(route('planning/mutations')), cookie)
+        async (revision) => {
+          const reply = await session(client.post(route('planning/mutations')), cookie)
             .json(
               input(revision, {
                 operation: 'allocation.createGroup',
                 allocation: { ...allocation, id: groupIds[0] },
                 repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-09' },
-                occurrenceIds: groupIds.slice(1),
               })
             )
-            .send(),
+            .send();
+          // The server minted the later occurrence; the group delete below names it.
+          groupIds = listCreatedAllocationIds(reply.body());
+          return reply;
+        },
       ],
       [
         'group delete',
@@ -486,26 +490,28 @@ test.group('authenticated planning operations', (group) => {
     const data = await readState(companyId, true);
     const { cookie } = await signIn(client);
     const allocation = newAllocation(data);
-    const repeatGroup = (until: string, occurrenceIds: string[]) =>
+    const repeatGroup = (until: string) =>
       session(client.post(route('planning/mutations')), cookie)
         .json(
           input(0, {
             operation: 'allocation.createGroup',
             allocation,
             repeat: { pattern: { kind: 'weeks', interval: 1 }, until },
-            occurrenceIds,
           })
         )
         .send();
 
     // Six calendar months after 2 November is 2 May.
-    const tooLate = await repeatGroup('2027-05-03', [randomUUID()]);
+    const tooLate = await repeatGroup('2027-05-03');
     tooLate.assertStatus(400);
     assert.equal(body(tooLate).code, 'VALIDATION_ERROR');
 
-    const ids = [allocation.id, randomUUID(), randomUUID(), randomUUID()];
-    const created = await repeatGroup('2026-11-23', ids.slice(1));
+    // The client sends the first occurrence and the pattern; the server mints the later ids.
+    const created = await repeatGroup('2026-11-23');
     created.assertStatus(200);
+    const ids = listCreatedAllocationIds(created.body());
+    assert.lengthOf(ids, 4);
+    assert.equal(ids[0], allocation.id);
     const rows = () =>
       readState(companyId, true).then((state) =>
         ids.map((id) => state.allocations.find((row) => row.id === id))
@@ -674,7 +680,6 @@ test.group('authenticated planning operations', (group) => {
             hoursPerDay: 1,
           },
           repeat: { pattern: { kind: 'monthly-date' }, until: '2027-02-02' },
-          occurrenceIds: [randomUUID(), randomUUID(), randomUUID()],
         })
       )
       .send();

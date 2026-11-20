@@ -74,40 +74,38 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       );
     })!;
     const firstId = randomUUID();
-    const secondId = randomUUID();
 
     // Thursday 1 October repeats on the first of each month; 1 November is a Sunday.
     await execute({
       operation: 'allocation.createGroup',
       allocation: makeAllocation(source, firstId, '2026-10-01'),
       repeat: { pattern: { kind: 'monthly-date' }, until: '2026-11-01' },
-      occurrenceIds: [secondId],
     });
 
     const after = await readState('a-studio', true);
     const first = after.allocations.find((row) => row.id === firstId)!;
-    const second = after.allocations.find((row) => row.id === secondId)!;
+    // The server minted the later occurrence's id.
+    const second = after.allocations.find(
+      (row) => row.seriesId === first.seriesId && row.id !== firstId
+    )!;
     assert.isString(first.seriesId);
     assert.equal(first.seriesId, second.seriesId);
     assert.notEqual(first.seriesId, source.seriesId);
     assert.equal(second.startDate, '2026-11-01');
 
     const refusedFirstId = randomUUID();
-    const refusedLaterId = randomUUID();
     await assert.rejects(
       () =>
         execute({
           operation: 'allocation.createGroup',
           allocation: makeAllocation(source, refusedFirstId, '2026-10-25'),
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-01' },
-          occurrenceIds: [refusedLaterId],
         }),
       PlanningOperationError
     );
     const unchanged = await readState('a-studio', true);
-    assert.isFalse(
-      unchanged.allocations.some((row) => row.id === refusedFirstId || row.id === refusedLaterId)
-    );
+    assert.isFalse(unchanged.allocations.some((row) => row.id === refusedFirstId));
+    assert.lengthOf(unchanged.allocations, after.allocations.length);
   });
 
   test('archives and unarchives catalogue and resource rows through shared lifecycle rules', async ({

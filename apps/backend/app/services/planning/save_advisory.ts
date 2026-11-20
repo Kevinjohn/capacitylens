@@ -16,7 +16,7 @@ export type SaveAdvisory = Pick<PlanningMutationSuccess, 'advisory' | 'repeatAdv
 function listWrittenAllocationIds(intent: PlanningIntent): string[] {
   if (intent.operation === 'allocation.create') return [intent.allocation.id];
   if (intent.operation === 'allocation.createGroup') {
-    return [intent.allocation.id, ...intent.occurrenceIds];
+    return [intent.allocation.id, ...(intent.occurrenceIds ?? [])];
   }
   if (intent.operation === 'allocation.update') return [intent.id];
   if (intent.operation === 'allocation.duplicate') return [intent.occurrence.id];
