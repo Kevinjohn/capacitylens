@@ -224,20 +224,8 @@ export function createAllocationSlice(
         const data = get().data;
         const existing = resolveOwnedRow(data, 'allocations', id);
         if (!existing || isBlockedByViewer()) return false;
-        const effective = { ...existing, ...placement };
-        // The server decides the target's hours, so only placement and attribution are checked
-        // here; zero load passes the external-hours rule that the server's value will meet.
-        assertAllocation(
-          data,
-          existing.companyId,
-          effective.resourceId,
-          effective.activityId,
-          0,
-          effective.projectId,
-          existing,
-        );
-        assertDateRange(effective.startDate, effective.endDate);
-        assertAvailabilityAfterPlacementChange(data, effective, existing);
+        // The server decides the target's hours and refuses a placement the target cannot take.
+        assertDateRange(placement.startDate, placement.endDate);
         return readSaveAdvisory(
           await send({ intent: { operation: 'allocation.reassign', id, ...placement } }),
         );
