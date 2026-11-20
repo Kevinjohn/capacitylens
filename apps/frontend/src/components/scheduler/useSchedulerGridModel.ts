@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
 import { hasActiveFilters, useStore } from '@/store/useStore';
 import { useActiveScopedData } from '@/store/useScopedData';
-import { hasHourlyLoad, createEmptyAppData } from '@capacitylens/shared/types/entities';
+import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import { useCompanyToday } from '@/hooks/useCompanyToday';
@@ -12,7 +12,6 @@ import {
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
-  resolveSchedulingMode,
   resolveWeekStart,
 } from '@/store/selectors';
 import {
@@ -97,7 +96,6 @@ function buildModelPreferences(
     placeholdersEnabled: companyPrefs.placeholdersEnabled,
     externalEnabled: companyPrefs.externalEnabled,
     companyWorkingDays,
-    blocksMode: companyPrefs.blocksMode,
   };
 }
 
@@ -159,7 +157,6 @@ export function useSchedulerGridPreferences() {
       externalEnabled: hasExternalResourcesEnabled(view, id),
 
       disciplinesEnabled: hasDisciplinesEnabled(view, id),
-      blocksMode: !hasHourlyLoad(resolveSchedulingMode(view, id)),
       calendarWeekStartsOn: resolveWeekStart(view, id),
     };
   }, [activeCompany]);

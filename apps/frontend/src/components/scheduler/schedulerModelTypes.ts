@@ -108,7 +108,6 @@ export interface SchedulerModelOptions {
     externalEnabled: boolean;
     /** Account-wide hard boundary for the start of a schedule creation gesture. */
     companyWorkingDays?: Weekday[];
-    blocksMode?: boolean;
   };
   // Lane geometry controls both bar positions and row heights. The grid supplies its density projection; callers omitting it receive the base layout.
   laneLayout?: LaneLayout;
@@ -121,8 +120,10 @@ export interface CapacitySource {
   listTimeOffOn: (date: ISODate) => TimeOff[];
   /** The server's figures for one date; undefined when the read did not cover it. */
   resolveCapacityOnDay: (date: ISODate) => DayCapacity | undefined;
-  countAllocationsOn: (date: ISODate) => number;
   countTimeOffOn: (date: ISODate) => number;
+  /** The server's flag for time off or a closure on an over-capacity day, or in Blocks mode on any
+   * booked day; false when the read did not cover the date. */
+  hasTimeOffConflictOn: (date: ISODate) => boolean;
   resolveUtilisationOver: (dates: ISODate[]) => number;
   /** The server's flag for an over-capacity day from today to today + 13. */
   overSoon: boolean;
