@@ -12,9 +12,9 @@ import {
   setPlanningAuthority,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import type { Draft } from './useStore';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
 import {
   queueAllocationDeleteGroupResponse,
   queueAllocationGroupResponse,
