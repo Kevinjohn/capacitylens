@@ -322,7 +322,8 @@ framework defaults; any other departure needs a decision recorded here first.
 3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
-4. Columns are snake_case; transformers own the camelCase wire format. Calendar dates are date-only
+4. Columns are snake_case. Lucid model serialisation produces the camelCase wire format and
+   the state transformer projects it for the reader's role. Calendar dates are date-only
    strings; instants may use Lucid date-time columns and serialise to ISO.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
@@ -333,6 +334,27 @@ framework defaults; any other departure needs a decision recorded here first.
 8. CSRF is the Origin / Sec-Fetch-Site check, not Shield's XSRF token.
 9. The TanStack Query cache is used for account and admin reads only; planning data lives in the
    planning slice (see Browser data).
+10. Product services are modules of exported functions and do not use `@inject`. A mutating
+    service receives its transaction as an argument; package services are resolved with
+    `app.container.make` where they are used.
+11. A company permission is authorised inside the product transaction through the Access
+    Control package, after the route middleware has checked membership. Controllers do not
+    call Bouncer and the product has no policies or abilities of its own.
+12. Planning rows are read through company-scoped models. Writes, bulk operations, existence
+    checks and tables without a model use the query builder on the caller's connection.
+    Account Kit creates identities through the `User` model.
+13. Ordinary planning edits go through one mutation route whose validated intent names the
+    operation, plus undo and redo. Import, anonymisation and example data have their own
+    routes. There are no per-entity resource routes.
+14. Planning entities, companies and users have string primary keys. Bookkeeping and
+    package-owned tables keep their own keys.
+15. The Node server is created by `bin/server.ts` with fixed connection limits, and a
+    client-supplied request id is discarded (`start/resource_limits.ts`).
+16. The backend's runtime framework packages are pinned to exact versions; it is not published.
+17. Test groups and suites rebuild the database by wipe and migrate. A global test
+    transaction is not used: Account Kit refuses to run on a connection that is already in a
+    transaction.
+18. Routes are registered from one file per area in `start/`. Prettier keeps semicolons.
 
 ## Installation
 
