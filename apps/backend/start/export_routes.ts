@@ -1,13 +1,12 @@
 import router from '@adonisjs/core/services/router';
 import { asMember, asPlanningMember } from '#start/route_guards';
-
-const ExportsController = () => import('#controllers/exports_controller');
+import { controllers } from '#generated/controllers';
 
 /** Registers the export controller endpoints. */
 export function registerExportRoutes() {
-  router.get('/api/state', [ExportsController, 'show']).as('api.state').use(asMember());
+  router.get('/api/state', [controllers.Exports, 'show']).as('api.state').use(asMember());
   router
-    .get('/api/companies/:companyId/export', [ExportsController, 'download'])
+    .get('/api/companies/:companyId/export', [controllers.Exports, 'download'])
     .as('api.export')
     .use(asPlanningMember());
 }

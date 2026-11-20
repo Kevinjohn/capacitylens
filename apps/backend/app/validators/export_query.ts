@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine';
 
 /** Validates the export query without coercing values or silently dropping fields. */
-export const exportQueryValidator = vine.compile(
+export const exportQueryValidator = vine.create(
   vine
     .object({
       companyId: vine.string().regex(/\S/),

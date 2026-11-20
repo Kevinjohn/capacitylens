@@ -1,12 +1,11 @@
 import router from '@adonisjs/core/services/router';
 import { asMemberOnly } from '#start/route_guards';
-
-const DiagnosticsController = () => import('#controllers/diagnostics_controller');
+import { controllers } from '#generated/controllers';
 
 /** Registers the diagnostics controller endpoint. */
 export function registerDiagnosticsRoutes() {
   router
-    .get('/api/diagnostics', [DiagnosticsController, 'show'])
+    .get('/api/diagnostics', [controllers.Diagnostics, 'show'])
     .as('api.diagnostics')
     .use(asMemberOnly());
 }

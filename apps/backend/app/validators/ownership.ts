@@ -4,7 +4,7 @@ import { allowedFields, fixedMessage, isSupplied } from '#validators/request_rul
 
 const message = 'An eligible target user is required.';
 
-export const transferValidator = vine.compile(
+export const transferValidator = vine.create(
   vine
     .object({
       toUserId: vine.string().regex(USER_ID_PATTERN),

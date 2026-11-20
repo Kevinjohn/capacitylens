@@ -16,7 +16,7 @@ const signUpMessage = 'Invalid sign-up details.';
  * Fields are checked in the order the controller reports them: a role or body-shape failure
  * answers the generic sentence before an email failure does.
  */
-export const createValidator = vine.compile(
+export const createValidator = vine.create(
   vine
     .object({
       role: vine.enum(INVITABLE_ROLES),
@@ -31,7 +31,7 @@ createValidator.messagesProvider = {
 };
 
 /** The body shape answers the generic sentence; a bad name or password names the sign-up details. */
-export const signUpValidator = vine.compile(
+export const signUpValidator = vine.create(
   vine
     .object({
       name: vine

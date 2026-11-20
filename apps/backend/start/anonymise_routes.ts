@@ -1,16 +1,15 @@
 import router from '@adonisjs/core/services/router';
 import { asCompanyMember } from '#start/route_guards';
-
-const AnonymiseController = () => import('#controllers/anonymise_controller');
+import { controllers } from '#generated/controllers';
 
 /** Registers the anonymise controller endpoints. */
 export function registerAnonymiseRoutes() {
   router
-    .post('/api/companies/:companyId/anonymise', [AnonymiseController, 'company'])
+    .post('/api/companies/:companyId/anonymise', [controllers.Anonymise, 'company'])
     .as('api.companies.anonymise')
     .use(asCompanyMember());
   router
-    .post('/api/companies/:companyId/resources/:id/anonymise', [AnonymiseController, 'resource'])
+    .post('/api/companies/:companyId/resources/:id/anonymise', [controllers.Anonymise, 'resource'])
     .as('api.resources.anonymise')
     .use(asCompanyMember());
 }

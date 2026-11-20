@@ -11,7 +11,7 @@ const rowField = vine.createRule<{ field: string; spec: FieldSpec; context: RowR
   { name: 'entityField', implicit: true }
 );
 
-const validators = new Map<string, ReturnType<typeof vine.compile>>();
+const validators = new Map<string, ReturnType<typeof vine.create>>();
 
 /**
  * Checks one complete stored row against its table's field specs without coercing supplied scalar
@@ -38,7 +38,7 @@ export async function validateRow<K extends AppDataKey>(
         vine.any().optional().use(rowField({ field, spec, context })),
       ])
     );
-    validator = vine.compile(vine.object(properties));
+    validator = vine.create(vine.object(properties));
     validators.set(cacheKey, validator);
   }
   // The row was just validated against this table's field specs, which the compiler holds equal
