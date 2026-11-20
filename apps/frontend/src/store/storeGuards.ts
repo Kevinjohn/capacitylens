@@ -1,8 +1,5 @@
 import type { StoreApi } from 'zustand';
-import {
-  assertAllocationRefs,
-  getOwned as findOwnedIn,
-} from '@capacitylens/shared/domain/mutations';
+import { getOwned as findOwnedIn } from '@capacitylens/shared/domain/mutations';
 import { m } from '@/i18n';
 import { canWritePlanning } from '@/data/planning/planningAuthority';
 import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
@@ -61,12 +58,6 @@ function buildGuards({ requireCompany, isBlockedByViewer }: BuildGuardsInput) {
     key: K,
     id: ID,
   ): AppData[K][number] | null => findOwnedIn(data, requireCompany(), key, id);
-  const assertAllocation = assertAllocationRefs;
 
-  return {
-    requireCompany,
-    isBlockedByViewer,
-    resolveOwnedRow,
-    assertAllocation,
-  };
+  return { requireCompany, isBlockedByViewer, resolveOwnedRow };
 }

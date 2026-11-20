@@ -6,6 +6,7 @@ import { m } from '@/i18n';
 import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { OwnerPermissions } from '@/test/ownerPermissions';
@@ -362,6 +363,14 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
       />,
     );
 
+    // The server owns availability and attribution; the browser surfaces its refusal.
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'The allocation ends after this person is available.',
+        'VALIDATION_ERROR',
+        400,
+      ),
+    );
     fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' });
     await settlePlanning();
 

@@ -1,3 +1,5 @@
+import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
@@ -33,6 +35,14 @@ describe('AllocationModal days mode', () => {
 
     await chooseOption(user, 'Project', 'Ferris / Lightning');
     await chooseOption(user, 'Activity', 'Wireframes');
+    // The server owns availability and attribution; the browser surfaces its refusal.
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'Allocation must reference an existing resource and activity in this company.',
+        'VALIDATION_ERROR',
+        400,
+      ),
+    );
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByRole('alert')).not.toHaveTextContent(

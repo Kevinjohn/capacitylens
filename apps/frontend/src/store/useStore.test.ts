@@ -10,7 +10,6 @@ import {
   makeResourceDraft,
   requireValue,
   updatePlanningFixtureSource,
-  WORKDAYS,
 } from '@/test/fixtures';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
@@ -47,47 +46,6 @@ describe('store CRUD', () => {
     if (!updated) throw new Error('Expected updated resource');
     expect(updated.name).toBe('Tyler');
     expect(updated.id).toBe(r.id);
-  });
-
-  it('rejects assigning a placeholder to an activity outside its bound project', async () => {
-    const client = await requireCreated(s().addClient({ name: 'Ferris', color: '#1' }));
-    const p1 = await requireCreated(
-      s().addProject({ name: 'P1', clientId: client.id, color: '#2' }),
-    );
-    const p2 = await requireCreated(
-      s().addProject({ name: 'P2', clientId: client.id, color: '#3' }),
-    );
-    const activityP2 = await requireCreated(
-      s().addActivity({
-        name: 'T2',
-        kind: 'project',
-        projectId: p2.id,
-      }),
-    );
-    const ph = await requireCreated(
-      s().addResource({
-        kind: 'placeholder',
-        role: 'Designer',
-        employmentType: 'permanent',
-        engagement: 'studio' as const,
-        workingHoursPerDay: 8,
-        workingDays: WORKDAYS,
-        halfDays: [],
-        color: '#1',
-        projectId: p1.id,
-      }),
-    );
-    await expect(
-      s().addAllocation({
-        resourceId: ph.id,
-        activityId: activityP2.id,
-        startDate: '2026-06-01',
-        endDate: '2026-06-02',
-        hoursPerDay: 8,
-        status: 'confirmed',
-      }),
-    ).rejects.toThrow(/placeholder.*bound project/i);
-    expect(s().data.allocations).toHaveLength(0);
   });
 });
 

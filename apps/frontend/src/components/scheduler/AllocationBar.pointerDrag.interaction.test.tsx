@@ -1,3 +1,5 @@
+import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
@@ -248,6 +250,14 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
     screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50);
     screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
 
+    // The server owns availability and attribution; the browser surfaces its refusal.
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'A placeholder bound to a project can only take activities from that project.',
+        'VALIDATION_ERROR',
+        400,
+      ),
+    );
     const bar = screen.getByTestId('allocation-bar');
     fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
     // Cross both a row and a date boundary: rejecting the target must reject the complete gesture,
