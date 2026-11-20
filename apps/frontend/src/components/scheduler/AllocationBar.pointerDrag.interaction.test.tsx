@@ -1,4 +1,5 @@
 import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
@@ -15,7 +16,6 @@ import {
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
-import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
   barFor,
   getStoredAllocation,
