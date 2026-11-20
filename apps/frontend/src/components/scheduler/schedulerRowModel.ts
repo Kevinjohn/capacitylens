@@ -28,7 +28,6 @@ import type {
 interface CreateRowBuilderInput {
   model: Pick<SchedulerModelOptions, 'geom' | 'days'>;
   companyWorkingDays: NonNullable<SchedulerModelOptions['preferences']['companyWorkingDays']>;
-  blocksMode: boolean;
   laneLayout: NonNullable<SchedulerModelOptions['laneLayout']>;
   allocationsByResource: Map<ID, Allocation[]>;
   timeOffByResource: Map<ID, TimeOff[]>;
@@ -111,7 +110,6 @@ function buildBars(input: {
 function buildDayStates(input: {
   resource: Resource;
   days: ISODate[];
-  blocksMode: boolean;
   closures: CreateRowBuilderInput['closures'];
   effectiveWeek: ReturnType<typeof resolveEffectiveWorkingWeek>;
   capacity: CapacitySource;
@@ -134,8 +132,7 @@ function buildDayStates(input: {
     const partialCapacity =
       input.capacity.tracked && !unavailable && isHalfDay(input.resource, getWeekday(date));
     const hasTimeOff = input.capacity.countTimeOffOn(date) > 0;
-    const timeOffConflict =
-      hasTimeOff && (input.blocksMode ? input.capacity.countAllocationsOn(date) > 0 : over);
+    const timeOffConflict = input.capacity.hasTimeOffConflictOn(date);
     if (over || timeOffConflict) conflictDayCount++;
     if (partialCapacity) partialCapacityDayCount++;
     dayStates.push({
@@ -154,7 +151,6 @@ function buildDayStates(input: {
 export function createRowBuilder({
   model: { geom: geometry, days },
   companyWorkingDays,
-  blocksMode,
   laneLayout,
   allocationsByResource,
   timeOffByResource,
@@ -193,15 +189,10 @@ export function createRowBuilder({
       filters: allocationFilters,
       external: isExternal,
     });
-    const capacity = capacitySourceFor({
-      resource,
-      allocations: allAllocations,
-      resourceTimeOff,
-    });
+    const capacity = capacitySourceFor({ resource, resourceTimeOff });
     const daySummary = buildDayStates({
       resource,
       days,
-      blocksMode,
       closures,
       effectiveWeek,
       capacity,

@@ -217,6 +217,14 @@ describe('SchedulerGrid', () => {
       type: 'holiday',
     });
     useStore.getState().setUtilisationPref({ key: 'showPersonal', value: true });
+    // The server flags the booked block on that holiday as a time-off conflict.
+    getStubPlanningTransport().setCapacity(
+      capacityOver(
+        { from: '2026-06-01', to: '2026-06-07' },
+        { r1: { byDate: { '2026-06-01': { timeOffConflict: true } } } },
+      ),
+    );
+    await act(() => useStore.getState().refreshPlanning({ fresh: true }));
 
     renderGrid();
 

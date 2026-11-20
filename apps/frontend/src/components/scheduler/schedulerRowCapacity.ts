@@ -6,13 +6,7 @@ import {
   listDaysISO,
 } from '@capacitylens/shared/lib/dateMath';
 import { isExternalResource } from '@capacitylens/shared/types/entities';
-import type {
-  Allocation,
-  Closure,
-  ISODate,
-  Resource,
-  TimeOff,
-} from '@capacitylens/shared/types/entities';
+import type { Closure, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities';
 import { NO_TIME_OFF } from './schedulerModelIndexing';
 import type { CapacitySource, SchedulerModelOptions } from './schedulerModelTypes';
 
@@ -25,7 +19,6 @@ interface CreateCapacitySourceInput {
 
 interface ResourceCapacitySourceInput {
   resource: Resource;
-  allocations: Allocation[];
   resourceTimeOff: TimeOff[];
 }
 
@@ -52,6 +45,18 @@ export function readServerDayCapacity(
   return { date, allocated, available, over };
 }
 
+/** One of the server's per-day flags for a resource; undefined when the read did not cover the date. */
+function readServerDayFlag(
+  capacity: CapacitySection | null,
+  resourceId: string,
+  date: ISODate,
+  flag: 'timeOffConflict',
+): boolean | undefined {
+  const days = capacity?.resources[resourceId]?.window;
+  if (!capacity || !days) return undefined;
+  return days[flag][calculateDayIndex(date, capacity.window.from)];
+}
+
 /** Visible utilisation summed from the server's figures; dates the read did not cover are left out. */
 export function resolveServerUtilisation(
   capacity: CapacitySection | null,
@@ -68,26 +73,26 @@ function createUntrackedCapacitySource(): CapacitySource {
     tracked: false,
     listTimeOffOn: () => NO_TIME_OFF,
     resolveCapacityOnDay: () => undefined,
-    countAllocationsOn: () => 0,
     countTimeOffOn: () => 0,
+    hasTimeOffConflictOn: () => false,
     resolveUtilisationOver: () => 0,
     overSoon: false,
   };
 }
 
 function createTrackedCapacitySource(
-  { resource, allocations, resourceTimeOff }: ResourceCapacitySourceInput,
+  { resource, resourceTimeOff }: ResourceCapacitySourceInput,
   { days, capacity, closuresByDate }: CapacityContext,
 ): CapacitySource {
-  const allocationsByDate = bucketByCoveredDate(allocations, days);
   const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, days);
   const listTimeOffOn = (date: ISODate) => personalTimeOffByDate.get(date) ?? NO_TIME_OFF;
   return {
     tracked: true,
     listTimeOffOn,
     resolveCapacityOnDay: (date) => readServerDayCapacity(capacity, resource.id, date),
-    countAllocationsOn: (date) => allocationsByDate.get(date)?.length ?? 0,
     countTimeOffOn: (date) => listTimeOffOn(date).length + (closuresByDate.get(date)?.length ?? 0),
+    hasTimeOffConflictOn: (date) =>
+      readServerDayFlag(capacity, resource.id, date, 'timeOffConflict') ?? false,
     resolveUtilisationOver: (dates) => resolveServerUtilisation(capacity, resource.id, dates),
     overSoon: capacity?.resources[resource.id]?.overSoon ?? false,
   };

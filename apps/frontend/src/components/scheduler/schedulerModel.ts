@@ -46,7 +46,6 @@ interface BuildResourceGroupsInput {
 interface CreateSchedulerRowBuilderInput {
   options: SchedulerModelOptions;
   companyWorkingDays: Weekday[];
-  blocksMode: boolean;
 }
 
 export type {
@@ -174,7 +173,6 @@ function buildResourceGroups({
 function createSchedulerRowBuilder({
   options,
   companyWorkingDays,
-  blocksMode,
 }: CreateSchedulerRowBuilderInput) {
   const { data, geom, days, visibleWindow, capacity, filters, preferences } = options;
   const allocationFilters = createAllocationFilters(filters, preferences, data);
@@ -194,7 +192,6 @@ function createSchedulerRowBuilder({
     buildRow: createRowBuilder({
       model: { geom, days },
       companyWorkingDays,
-      blocksMode,
       laneLayout: options.laneLayout ?? compactLaneLayout,
       allocationsByResource,
       timeOffByResource: groupByResourceId(data.timeOff.filter(includeRenderableDateRange)),
@@ -210,19 +207,11 @@ function createSchedulerRowBuilder({
 /** Projects scoped scheduling data into grouped resource rows and visible bars. */
 export function buildSchedulerModel(options: SchedulerModelOptions): GroupModel[] {
   const { data, filters, preferences } = options;
-  const {
-    disciplinesEnabled,
-    companyWorkingDays = [1, 2, 3, 4, 5],
-    blocksMode = false,
-  } = preferences;
+  const { disciplinesEnabled, companyWorkingDays = [1, 2, 3, 4, 5] } = preferences;
 
   const groupByEngagement = hasSupplementaryResources(data.resources);
   const byResourceOrder = createResourceComparator(groupByEngagement);
-  const { buildRow, resourceVisible } = createSchedulerRowBuilder({
-    options,
-    companyWorkingDays,
-    blocksMode,
-  });
+  const { buildRow, resourceVisible } = createSchedulerRowBuilder({ options, companyWorkingDays });
 
   const groups = buildResourceGroups({ data, disciplinesEnabled, groupByEngagement });
   return groups

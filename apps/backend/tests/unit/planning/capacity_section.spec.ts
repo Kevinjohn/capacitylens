@@ -1,6 +1,7 @@
 import { test } from '@japa/runner';
 import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import { buildCapacityWindow } from '@capacitylens/shared/lib/capacity';
+import type { CapacityDays } from '@capacitylens/shared/lib/capacity';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { isCapacityTracked } from '@capacitylens/shared/types/entities';
@@ -189,6 +190,27 @@ test.group('capacity section', () => {
     assert.deepEqual(resources['r-slot']!.window.available.slice(4, 10), [0, 0, 0, 0, 8, 8]);
   });
 
+  test('time off clashes with an over day, or in Blocks mode with any booking', ({ assert }) => {
+    const rows = {
+      // Monday and Tuesday off, Thursday a closure.
+      timeOff: [timeOff('2026-06-01', '2026-06-02')],
+      closures: [closure('2026-06-04', '2026-06-04')],
+      allocations: [
+        allocation({ startDate: '2026-06-01', hoursPerDay: 4 }),
+        allocation({ startDate: '2026-06-02', hoursPerDay: 0 }),
+        allocation({ startDate: '2026-06-03', hoursPerDay: 4 }),
+        allocation({ startDate: '2026-06-04', hoursPerDay: 4 }),
+      ],
+    };
+    const hourly = section(rows).resources['r-diana']!.window;
+    const blocks = section(rows, { company: companyRow({ schedulingMode: 'blocks' }) }).resources[
+      'r-diana'
+    ]!.window;
+    // A zero-hour booking on time off is over nothing, but a Block on time off still clashes.
+    assert.deepEqual(hourly.timeOffConflict.slice(0, 5), [true, false, false, true, false]);
+    assert.deepEqual(blocks.timeOffConflict.slice(0, 5), [true, true, false, true, false]);
+  });
+
   test('changing the company working days recalculates capacity without moving rows', ({
     assert,
   }) => {
@@ -320,8 +342,13 @@ test.group('capacity section on the sample company', (group) => {
       };
       const window = expected(result.window);
       const actual = result.resources[row.id]!;
-      assert.deepEqual(actual.window, window, row.id);
-      assert.deepEqual(actual.horizon, expected(result.horizon), row.id);
+      // The straight-line figures carry no time-off conflict; its rule has its own case above.
+      const figures = ({ timeOffConflict, ...days }: CapacityDays) => {
+        assert.lengthOf(timeOffConflict, days.over.length);
+        return days;
+      };
+      assert.deepEqual(figures(actual.window), window, row.id);
+      assert.deepEqual(figures(actual.horizon), expected(result.horizon), row.id);
       overDays += window.over.filter(Boolean).length;
     }
     // The sample company books tentative work, so the confirmed comparison is not all hours again.

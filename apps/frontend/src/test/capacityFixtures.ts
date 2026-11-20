@@ -12,6 +12,7 @@ export interface ServerDayFigures {
   confirmedAllocated?: number;
   available?: number;
   over?: boolean;
+  timeOffConflict?: boolean;
 }
 
 /** Server-shaped figures for every date of `range`: each date takes `fill`, then the dates named
@@ -21,13 +22,20 @@ export function capacityDays(
   fill: ServerDayFigures = {},
   byDate: Record<string, ServerDayFigures> = {},
 ): CapacityDays {
-  const days: CapacityDays = { allocated: [], confirmedAllocated: [], available: [], over: [] };
+  const days: CapacityDays = {
+    allocated: [],
+    confirmedAllocated: [],
+    available: [],
+    over: [],
+    timeOffConflict: [],
+  };
   const length = countDaysInclusive(range.from, range.to);
   for (let index = 0; index < length; index++) {
     days.allocated.push(fill.allocated ?? 0);
     days.confirmedAllocated.push(fill.confirmedAllocated ?? fill.allocated ?? 0);
     days.available.push(fill.available ?? 8);
     days.over.push(fill.over ?? false);
+    days.timeOffConflict.push(fill.timeOffConflict ?? false);
   }
   for (const [date, figures] of Object.entries(byDate)) {
     const index = countDaysInclusive(range.from, date) - 1;
@@ -36,6 +44,7 @@ export function capacityDays(
     days.confirmedAllocated[index] = figures.confirmedAllocated ?? figures.allocated ?? 0;
     days.available[index] = figures.available ?? 8;
     days.over[index] = figures.over ?? false;
+    days.timeOffConflict[index] = figures.timeOffConflict ?? false;
   }
   return days;
 }
