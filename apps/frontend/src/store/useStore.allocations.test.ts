@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Allocation } from '@capacitylens/shared/types/entities';
 import {
   DEFAULT_COMPANY_ID,
-  makeActivity,
-  makeResource,
   makeResourceDraft,
   requireValue,
   resetStoreWithCompany,
@@ -135,71 +133,6 @@ describe('atomic allocation creation', () => {
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory()).toEqual(historyBefore);
   });
-  it('rejects foreign references and a placeholder/project mismatch atomically', async () => {
-    const first = await allocationSetup();
-    const otherResource = makeResource({ id: 'other-resource', companyId: 'other-company' });
-    const otherActivity = makeActivity({
-      id: 'other-activity',
-      companyId: 'other-company',
-      kind: 'repeatable',
-      projectId: null,
-    });
-    useStore.setState((current) => ({
-      data: {
-        ...current.data,
-        resources: [...current.data.resources, otherResource],
-        activities: [...current.data.activities, otherActivity],
-      },
-    }));
-    const historyBeforeCrossCompanyRejection = typedHistory();
-    await expect(
-      state().addRepeatedAllocation(
-        first.draft({ resourceId: otherResource.id, activityId: otherActivity.id }),
-        weekly('2026-06-08'),
-        2,
-      ),
-    ).rejects.toThrow(/active company|existing resource and activity/i);
-    expect(state().data.allocations).toHaveLength(0);
-    expect(typedHistory()).toEqual(historyBeforeCrossCompanyRejection);
-
-    const client = await requireCreated(state().addClient({ name: 'Client', color: '#111111' }));
-    const boundProject = await requireCreated(
-      state().addProject({ name: 'Bound', clientId: client.id, color: '#222222' }),
-    );
-    const otherProject = await requireCreated(
-      state().addProject({ name: 'Other', clientId: client.id, color: '#333333' }),
-    );
-    const placeholder = await requireCreated(
-      state().addResource({
-        kind: 'placeholder',
-        role: 'Designer',
-        employmentType: 'permanent',
-        engagement: 'studio' as const,
-        workingHoursPerDay: 8,
-        workingDays: WORKDAYS,
-        halfDays: [],
-        color: '#444444',
-        projectId: boundProject.id,
-      }),
-    );
-    const mismatchedActivity = await requireCreated(
-      state().addActivity({
-        name: 'Wrong project',
-        kind: 'project',
-        projectId: otherProject.id,
-      }),
-    );
-    const historyBeforePlaceholderRejection = typedHistory();
-    await expect(
-      state().addRepeatedAllocation(
-        first.draft({ resourceId: placeholder.id, activityId: mismatchedActivity.id }),
-        weekly('2026-06-08'),
-        2,
-      ),
-    ).rejects.toThrow(/placeholder.*bound project/i);
-    expect(state().data.allocations).toHaveLength(0);
-    expect(typedHistory()).toEqual(historyBeforePlaceholderRejection);
-  });
   it('creates one typed Undo/Redo unit for the complete batch', async () => {
     const { draft } = await allocationSetup();
     queueAllocationGroupResponse(threeWeeklyDates);
@@ -303,113 +236,47 @@ describe('allocation save advisory', () => {
   });
 });
 
-describe('resource availability boundaries', () => {
-  it('rejects a repeat whose first occurrence starts before availability', async () => {
-    const { resource, draft } = await allocationSetup();
-    await state().updateResource(resource.id, {
-      firstAvailableDate: '2026-06-08',
-      lastAvailableDate: '2026-06-30',
-    });
-    const historyBefore = typedHistory();
-
-    await expect(state().addRepeatedAllocation(draft(), weekly('2026-06-08'), 2)).rejects.toThrow(
-      /before.*available/i,
+describe('server-owned allocation rules', () => {
+  // References, attribution, external load and availability are checked by the server alone; the
+  // browser sends the write and surfaces the refusal.
+  const refuseNext = () =>
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'Allocation must reference an existing resource and activity in this company.',
+        'VALIDATION_ERROR',
+        400,
+      ),
     );
+
+  it('sends a create the server refuses and publishes nothing', async () => {
+    const { draft } = await allocationSetup();
+    const historyBefore = typedHistory();
+    refuseNext();
+
+    await expect(
+      state().addAllocation(draft({ resourceId: 'other-resource' })),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'allocation.create',
+      allocation: { resourceId: 'other-resource' },
+    });
     expect(state().data.allocations).toHaveLength(0);
     expect(typedHistory()).toEqual(historyBefore);
   });
 
-  it('checks normal spans on scheduled working days while ignore working days checks every day', async () => {
-    const { resource, draft } = await allocationSetup();
-    await state().updateResource(resource.id, {
-      workingDays: [2, 3, 4, 5],
-      firstAvailableDate: '2026-06-02',
-    });
-
-    await expect(
-      state().addAllocation(draft({ startDate: '2026-06-01', endDate: '2026-06-02' })),
-    ).resolves.toMatchObject({ kind: 'created' });
-    await expect(
-      state().addAllocation(
-        draft({ startDate: '2026-06-01', endDate: '2026-06-02', ignoreWorkingDays: true }),
-      ),
-    ).rejects.toThrow(/before.*available/i);
-  });
-
-  it('uses the company and person working-day intersection for boundary checks', async () => {
-    const { resource, draft } = await allocationSetup();
-    await state().updateCompany(DEFAULT_COMPANY_ID, { workingDays: [1, 2, 3, 4] });
-    await state().updateResource(resource.id, {
-      workingDays: [1, 2, 3, 4, 5],
-      lastAvailableDate: '2026-06-04',
-    });
-
-    await expect(
-      state().addAllocation(draft({ startDate: '2026-06-04', endDate: '2026-06-05' })),
-    ).resolves.toMatchObject({ kind: 'created' });
-    await expect(
-      state().addAllocation(
-        draft({ startDate: '2026-06-04', endDate: '2026-06-05', ignoreWorkingDays: true }),
-      ),
-    ).rejects.toThrow(/after.*available/i);
-  });
-  it('retains conflicts after boundary changes and allows metadata-only edits', async () => {
-    const { resource, draft } = await allocationSetup();
+  it('sends an update the server refuses and keeps the stored row', async () => {
+    const { draft } = await allocationSetup();
     const allocation = requireCreated(await state().addAllocation(draft()));
+    refuseNext();
 
-    await state().updateResource(resource.id, { firstAvailableDate: '2026-06-08' });
-    expect(state().data.allocations).toContainEqual(allocation);
-    await expect(
-      state().updateAllocation(allocation.id, { note: 'Retained conflict' }),
-    ).resolves.toEqual({});
-    await expect(
-      state().updateAllocation(allocation.id, {
-        resourceId: allocation.resourceId,
-        startDate: allocation.startDate,
-        endDate: allocation.endDate,
-        ignoreWorkingDays: allocation.ignoreWorkingDays,
-        status: 'tentative',
-        task: 'Prepare retained work',
-      }),
-    ).resolves.toEqual({});
     await expect(
       state().updateAllocation(allocation.id, { endDate: '2026-06-04' }),
-    ).rejects.toThrow(/before.*available/i);
-    expect(state().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
-      note: 'Retained conflict',
-      task: 'Prepare retained work',
-      status: 'tentative',
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+    expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+      operation: 'allocation.update',
+      id: allocation.id,
     });
-  });
-
-  it('rejects moving an allocation after the last date and reassigning into a bounded person', async () => {
-    const { resource, draft } = await allocationSetup();
-    const bounded = await requireCreated(
-      state().addResource(
-        makeResourceDraft({
-          name: 'Victor Stone',
-          firstAvailableDate: '2026-06-01',
-          lastAvailableDate: '2026-06-03',
-        }),
-      ),
-    );
-    const allocation = requireCreated(
-      await state().addAllocation(draft({ resourceId: bounded.id })),
-    );
-
-    await expect(
-      state().updateAllocation(allocation.id, { startDate: '2026-06-08', endDate: '2026-06-08' }),
-    ).rejects.toThrow(/after.*available/i);
-    await expect(
-      state().updateAllocation(allocation.id, { resourceId: resource.id }),
-    ).resolves.toEqual({});
-    await state().updateResource(bounded.id, {
-      firstAvailableDate: '2026-07-01',
-      lastAvailableDate: null,
-    });
-    await expect(
-      state().updateAllocation(allocation.id, { resourceId: bounded.id }),
-    ).rejects.toThrow(/before.*available/i);
+    expect(state().data.allocations).toContainEqual(allocation);
   });
 });
 
@@ -492,27 +359,6 @@ describe('updateAllocation input validation', () => {
       hoursPerDay: 8,
     });
     expect(state().notice).toBeNull();
-  });
-
-  it('still rejects a non-zero-hours write onto an external resource with valid supplied hours', async () => {
-    const { draft } = await allocationSetup();
-    const allocation = requireCreated(await state().addAllocation(draft({})));
-
-    useStore.setState((s) => ({
-      data: {
-        ...s.data,
-        resources: s.data.resources.map((r) =>
-          r.id === allocation.resourceId ? { ...r, kind: 'external' as const } : r,
-        ),
-      },
-    }));
-
-    await expect(state().updateAllocation(allocation.id, { hoursPerDay: 8 })).rejects.toThrow(
-      /external/,
-    );
-
-    const row = state().data.allocations.find(({ id }) => id === allocation.id);
-    expect(row?.hoursPerDay).not.toBe(0);
   });
 });
 

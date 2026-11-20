@@ -460,6 +460,8 @@ test.group('planning request rule boundaries', (group) => {
       { ...baseAllocation, startDate: '2026-11-06', endDate: '2026-11-02' },
       { ...baseAllocation, startDate: '', endDate: '' },
       { ...baseAllocation, resourceId: external.id },
+      { ...baseAllocation, resourceId: randomUUID() },
+      { ...baseAllocation, activityId: randomUUID() },
       {
         ...baseAllocation,
         resourceId: placeholder.id,
