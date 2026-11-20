@@ -238,7 +238,7 @@ describe('ResourceList display', () => {
 
   it('omits missing and dangling disciplines without losing valid role or discipline metadata', async () => {
     const discipline = await requireCreated(
-      useStore.getState().addDiscipline({ name: 'Design', color: '#1b4f98', sortOrder: 0 }),
+      useStore.getState().addDiscipline({ name: 'Design', color: '#1b4f98' }),
     );
     await useStore.getState().addResource(personDraft('Role only'));
     await useStore

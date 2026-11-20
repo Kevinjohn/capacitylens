@@ -38,7 +38,7 @@ export type AllocationCreateResult<T> =
  * has changed since. */
 export interface StoreEntityActions {
   /** Create a discipline in the active account. */
-  addDiscipline: (input: Draft<Discipline>) => Promise<CreateResult<Discipline>>;
+  addDiscipline: (input: Omit<Draft<Discipline>, 'sortOrder'>) => Promise<CreateResult<Discipline>>;
   /** Patch a discipline in the active account. */
   updateDiscipline: (id: ID, patch: Patch<Discipline>, expectedUpdatedAt?: string) => Promise<void>;
   /** Delete a discipline from the active account; dependent rows follow the shared cascade rules. */

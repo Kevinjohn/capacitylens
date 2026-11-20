@@ -27,9 +27,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["DisciplineList sorts management rows with byName"] --> B["Alphabetical list renders"]
-  C["DisciplineForm nextSortOrder uses max stored order plus one"] --> D["DisciplineForm.submit saves added discipline"]
+  C["DisciplineForm.submit sends name and colour"] --> D["Server entity_write appends after the highest stored order"]
   E["selectors.byDisciplineOrder / buildDisciplineGroups sort schedule bands"]
   D --> E
 ```
 
-**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx) · [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [DisciplineForm.tsx](../../apps/frontend/src/components/disciplines/DisciplineForm.tsx) · [entity_write.ts](../../apps/backend/app/services/planning/entity_write.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts)
