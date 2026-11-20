@@ -157,7 +157,7 @@ function useViewportAlignment(input: ViewportAlignmentInput) {
   const { scrollRef, didScrollRef, scrollRafRef, snapTimerRef } = input;
   const { geometry, days, ui } = input;
   const { calendarWeekStartsOn, timelineWidth } = input;
-  const focusX = geometry.xForDateInGeom(ui.focusDate);
+  const focusX = geometry.getDateX(ui.focusDate);
   const focusXRef = useRef(focusX);
   const previousScrollLeftRef = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -196,7 +196,7 @@ function useViewportAlignment(input: ViewportAlignmentInput) {
     const targetDate = navigationChanged
       ? startOfWeekISO(leftDate, calendarWeekStartsOn)
       : leftDate;
-    setScrollLeft(element, Math.max(0, geometry.xForDateInGeom(targetDate)));
+    setScrollLeft(element, Math.max(0, geometry.getDateX(targetDate)));
   }, [
     geometry,
     days,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, harness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
 import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
@@ -14,7 +14,7 @@ beforeEach(async () => {
 describe('MasqueradeController', () => {
   it('invalidates a captured reconciliation when its company or identity changes', async () => {
     await resetStoreWithCompany('a-studio');
-    const { controller } = harness({
+    const { controller } = createHarness({
       switchCompany: vi.fn(async (companyId: string | null) => {
         useStore.getState().setActiveCompany(companyId);
         return { kind: 'reloaded' as const };
@@ -39,7 +39,7 @@ describe('MasqueradeController', () => {
     useStore.setState((current) => ({
       planning: { ...current.planning, phase: { kind: 'loading', lastWrite: null } },
     }));
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       reproject: vi.fn(() => freshRead.promise),
     });
@@ -73,7 +73,7 @@ describe('MasqueradeController', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
         start: vi.fn(() => oldStart.promise),
@@ -99,7 +99,7 @@ describe('MasqueradeController', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: true, ...remote })),
         start: vi.fn(async () => state),
@@ -120,7 +120,7 @@ describe('MasqueradeController', () => {
 
 describe('MasqueradeController shared-session reconciliation', () => {
   it('restores the real projection when another tab has ended the shared session masquerade', async () => {
-    const { controller, dependencies, resume } = harness();
+    const { controller, dependencies, resume } = createHarness();
     await controller.adoptStatus({ active: true, ...state });
 
     await controller.adoptStatus(inactiveStatus);
@@ -131,7 +131,7 @@ describe('MasqueradeController shared-session reconciliation', () => {
   });
 
   it('keeps the real projection suspended until its reload succeeds', async () => {
-    const { controller, resume } = harness({ reproject: vi.fn(async () => false) });
+    const { controller, resume } = createHarness({ reproject: vi.fn(async () => false) });
     await controller.adoptStatus({ active: true, ...state });
 
     controller.restoreServerEndedProjection();

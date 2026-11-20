@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  apiFetch: vi
+  fetchApi: vi
     .fn<(url: string, init?: RequestInit) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
 vi.mock('@/data/requestTimeout', () => ({
-  apiFetch: mocks.apiFetch,
+  fetchApi: mocks.fetchApi,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
 }));
@@ -20,7 +20,7 @@ import { invitationRequests } from './invitationRequests';
 describe('browser account client', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
@@ -34,7 +34,7 @@ describe('browser account client', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000021')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000022');
-    mocks.apiFetch.mockResolvedValue(new Response(null, { status: 503 }));
+    mocks.fetchApi.mockResolvedValue(new Response(null, { status: 503 }));
 
     await invitationRequests.createInvitation({
       companyId: 'a-studio',
@@ -47,7 +47,7 @@ describe('browser account client', () => {
       companyId: 'a-studio',
     });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([

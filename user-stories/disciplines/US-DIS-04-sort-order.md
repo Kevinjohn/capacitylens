@@ -28,7 +28,7 @@ flowchart TD
 flowchart TD
   A["DisciplineList sorts management rows with byName"] --> B["Alphabetical list renders"]
   C["DisciplineForm.submit sends name and colour"] --> D["Server entity_write appends after the highest stored order"]
-  E["selectors.byDisciplineOrder / buildDisciplineGroups sort schedule bands"]
+  E["selectors.compareByDisciplineOrder / buildDisciplineGroups sort schedule bands"]
   D --> E
 ```
 

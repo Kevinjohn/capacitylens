@@ -68,8 +68,8 @@ export function buildGesturePreviewGeometry(
     if (preview.mode === 'move') translateY = preview.deltaY;
     // Measure the settled preview range through the shared geometry, including zero-column reassignments whose destination calendar changes the span.
     if (preview.dates) {
-      left = geometry.xForDateInGeom(preview.dates.startDate);
-      width = geometry.widthForDates(preview.dates.startDate, preview.dates.endDate);
+      left = geometry.getDateX(preview.dates.startDate);
+      width = geometry.getDatesWidth(preview.dates.startDate, preview.dates.endDate);
     }
   }
 

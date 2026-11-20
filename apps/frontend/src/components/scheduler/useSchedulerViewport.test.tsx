@@ -26,7 +26,7 @@ function Harness({
     <div ref={scrollRef} data-testid="scroll" onScroll={onScroll} style={{ overflow: 'auto' }}>
       <div data-testid="left-edge-idx">{leftEdgeIdx}</div>
       <div data-testid="visible-start">{visibleStartDate()}</div>
-      <div data-testid="focus-x">{geom.xForDateInGeom(ui.focusDate)}</div>
+      <div data-testid="focus-x">{geom.getDateX(ui.focusDate)}</div>
       <div data-testid="boundary-2">{geom.x(2)}</div>
       <div data-testid="boundary-3">{geom.x(3)}</div>
     </div>

@@ -2,7 +2,7 @@ import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { freshProvider, me } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
 import { SessionProbe } from '@/test/SessionProbe';
 import { createDeferred } from '@/test/createDeferred';
 
@@ -49,13 +49,13 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, {}));
+      .mockResolvedValue(makeMeResponse(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useStore } = await freshProvider();
+    const { AuthProvider, useStore } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -74,13 +74,13 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
-      .mockResolvedValue(me(401, {}));
+      .mockResolvedValue(makeMeResponse(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useStore, resetStoreWithCompany } = await freshProvider();
+    const { AuthProvider, useStore, resetStoreWithCompany } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -113,13 +113,13 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
       .mockRejectedValue(new Error('ECONNREFUSED'));
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useStore, useAuth } = await freshProvider();
+    const { AuthProvider, useStore, useAuth } = await renderFreshProvider();
     render(
       <AuthProvider>
         <SessionProbe useAuth={useAuth} />
@@ -146,14 +146,14 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'u1', email: 'a@b.test' },
         }),
       )
       .mockImplementationOnce(() => slow.promise)
-      .mockResolvedValue(me(401, {}));
+      .mockResolvedValue(makeMeResponse(401, {}));
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useStore, useAuth } = await freshProvider();
+    const { AuthProvider, useStore, useAuth } = await renderFreshProvider();
     render(
       <AuthProvider>
         <RefreshProbe useAuth={useAuth} />
@@ -172,7 +172,7 @@ describe('AuthProvider — server mode', () => {
 
     await act(async () => {
       slow.resolve(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'u1', email: 'a@b.test' },
         }),
       );
@@ -190,17 +190,17 @@ describe('AuthProvider auth state', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'setup-owner', email: 'owner@example.test' },
         }),
       )
       .mockResolvedValue(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'setup-owner', email: 'owner@example.test' },
         }),
       );
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useAuth } = await freshProvider();
+    const { AuthProvider, useAuth } = await renderFreshProvider();
     render(
       <AuthProvider>
         <RefreshProbe useAuth={useAuth} />
@@ -217,13 +217,13 @@ describe('AuthProvider auth state', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
-        me(200, {
+        makeMeResponse(200, {
           user: { id: 'setup-owner', email: 'owner@example.test' },
         }),
       )
       .mockRejectedValue(new Error('ECONNREFUSED'));
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useAuth } = await freshProvider();
+    const { AuthProvider, useAuth } = await renderFreshProvider();
     render(
       <AuthProvider>
         <RefreshProbe useAuth={useAuth} />

@@ -6,10 +6,10 @@ import { readPlanningProblem } from './planningNotices';
 import {
   context,
   intent,
-  canonicalData,
+  makeCanonicalData,
   companyToday,
   makeReceipt,
-  harness,
+  createHarness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
@@ -35,7 +35,7 @@ const lostReplies: Array<{ name: string; lose: (execute: Execute) => void }> = [
   },
 ];
 
-const serverData = canonicalData({ name: 'Wayne Enterprises' });
+const serverData = makeCanonicalData({ name: 'Wayne Enterprises' });
 const serverSnapshot: PlanningSnapshot = {
   revision: 3,
   authority: makePlanningAuthority(),
@@ -53,12 +53,12 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
   const execute = vi
     .fn<PlanningTransport['execute']>()
     .mockImplementationOnce(async (_context, execution) => makeReceipt(execution.mutationId, 2));
-  const h = harness({ execute, read });
+  const h = createHarness({ execute, read });
   h.controller.setContext(context);
   await h.readSnapshot({
     revision: 1,
     authority: makePlanningAuthority(),
-    data: canonicalData(),
+    data: makeCanonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
   });
@@ -110,7 +110,7 @@ describe('planning write whose reply was lost', () => {
         read.mockResolvedValueOnce({
           revision: 2,
           authority: makePlanningAuthority(),
-          data: canonicalData(),
+          data: makeCanonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),
         }),

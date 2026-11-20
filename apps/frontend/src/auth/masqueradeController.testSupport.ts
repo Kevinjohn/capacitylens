@@ -19,7 +19,7 @@ export const state: MasqueradeState & { contextToken: string } = {
 };
 export const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
-export function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
+export function createHarness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   const resume = vi.fn();
   const dependencies: MasqueradeControllerDependencies = {
     flush: vi.fn(async () => ({ kind: 'clean' as const })),

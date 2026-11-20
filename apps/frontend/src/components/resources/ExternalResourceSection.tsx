@@ -12,7 +12,7 @@ import {
 } from '@/components/common/ui';
 import { Separator } from '@/components/ui/separator';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
-import { externalExplainer } from '@/lib/externalCopy';
+import { getExternalExplainer } from '@/lib/externalCopy';
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { FavouriteButton } from './FavouriteButton';
 
@@ -40,7 +40,7 @@ export function ExternalResourceSection({
             {m.list_resources_external_heading()}
           </h2>
           <SectionHelp title={m.list_resources_external_heading()}>
-            {externalExplainer()}
+            {getExternalExplainer()}
           </SectionHelp>
         </div>
         <AddButton label={m.list_resources_add_external()} onClick={onAdd} />

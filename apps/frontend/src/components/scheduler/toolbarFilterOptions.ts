@@ -1,6 +1,6 @@
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { byName, createClientProjectDisplayNameComparator } from '@/lib/displayOrder';
-import { byDisciplineOrder } from '@/store/selectors';
+import { compareByDisciplineOrder } from '@/store/selectors';
 import { formatProjectLabel } from '@/components/common/projectOptions';
 
 /** One entity option in a {@link FilterSelect}, the stored id and the text the menu shows. */
@@ -24,7 +24,7 @@ export function buildFilterOptions(
   const clientNames = new Map(clients.map((client) => [client.id, client.name]));
   return {
     disciplineOptions: [...data.disciplines]
-      .sort(byDisciplineOrder)
+      .sort(compareByDisciplineOrder)
       .map((discipline) => ({ id: discipline.id, label: discipline.name })),
     clientOptions: clients.map((client) => ({ id: client.id, label: client.name })),
     projectOptions: [...data.projects]

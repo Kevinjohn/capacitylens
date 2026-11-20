@@ -3,8 +3,8 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import { apiFetch } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import {
   MAX_NAME_LENGTH,
@@ -51,7 +51,7 @@ export function CompanySetup({
     setBusy(true);
     setError(null);
     try {
-      const response = await apiFetch(apiRouteUrl('api.installation.company', {}), {
+      const response = await fetchApi(buildApiRouteUrl('api.installation.company', {}), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

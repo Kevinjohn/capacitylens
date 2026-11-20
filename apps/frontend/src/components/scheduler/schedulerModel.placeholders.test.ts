@@ -6,8 +6,8 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import { makeResource, requireValue } from '@/test/fixtures';
 import { capacityOver } from '@/test/capacityFixtures';
 import {
-  allBars,
-  dataset as buildDataset,
+  listAllBars,
+  makeDataset,
   days,
   end,
   geom,
@@ -15,7 +15,7 @@ import {
   start,
 } from './schedulerModel.testSupport';
 
-const dataset = () => buildDataset(makeDisciplines());
+const dataset = () => makeDataset(makeDisciplines());
 
 function buildPlaceholderData(): AppData {
   const d = dataset();
@@ -99,7 +99,7 @@ describe('buildSchedulerModel', () => {
     const ids = off.flatMap((g) => g.rows).map((r) => r.resource.id);
     expect(ids).not.toContain('ph');
 
-    expect(allBars(off).map((b) => b.allocation.id)).not.toContain('a-ph');
+    expect(listAllBars(off).map((b) => b.allocation.id)).not.toContain('a-ph');
   });
 
   it('placeholdersEnabled ON shows the placeholder row with its bar', () => {
@@ -118,7 +118,7 @@ describe('buildSchedulerModel', () => {
     });
     const ids = on.flatMap((g) => g.rows).map((r) => r.resource.id);
     expect(ids).toContain('ph');
-    expect(allBars(on).map((b) => b.allocation.id)).toContain('a-ph');
+    expect(listAllBars(on).map((b) => b.allocation.id)).toContain('a-ph');
   });
 
   it('placeholdersEnabled OFF excludes placeholders from per-discipline utilisation', () => {

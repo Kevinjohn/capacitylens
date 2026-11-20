@@ -172,12 +172,11 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
 
   // Use the production geometry owner because rendered bars are inset within their column span.
   const renderedWidth = (from: string, to: string) => {
-    return buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to))
-      .insetWidth;
+    return buildAllocationBarInset(GEOM.getDateX(from), GEOM.getDatesWidth(from, to)).insetWidth;
   };
 
   const renderedLeft = (from: string, to: string) =>
-    buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetLeft;
+    buildAllocationBarInset(GEOM.getDateX(from), GEOM.getDatesWidth(from, to)).insetLeft;
 
   async function seedCrossWeekPair() {
     const st = useStore.getState();
@@ -219,8 +218,8 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
         <AllocationBar
           bar={{
             allocation: a,
-            x: GEOM.xForDateInGeom('2026-06-04'),
-            width: GEOM.widthForDates('2026-06-04', '2026-06-09'),
+            x: GEOM.getDateX('2026-06-04'),
+            width: GEOM.getDatesWidth('2026-06-04', '2026-06-09'),
             top: 0,
             color: '#3b82f6',
             label: 'Wires',
@@ -236,7 +235,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
 
     const bar = screen.getByTestId('allocation-bar');
-    const startX = GEOM.xForDateInGeom('2026-06-04') + 10;
+    const startX = GEOM.getDateX('2026-06-04') + 10;
     fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
     act(() => {
       document.dispatchEvent(
@@ -293,7 +292,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
         status: 'confirmed',
       }),
     );
-    const barWidth = GEOM.widthForDates('2026-06-08', '2026-06-12');
+    const barWidth = GEOM.getDatesWidth('2026-06-08', '2026-06-12');
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -301,7 +300,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
         <AllocationBar
           bar={{
             allocation: a,
-            x: GEOM.xForDateInGeom('2026-06-08'),
+            x: GEOM.getDateX('2026-06-08'),
             width: barWidth,
             top: 0,
             color: '#3b82f6',
@@ -318,7 +317,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
 
     const bar = screen.getByTestId('allocation-bar');
-    const startX = GEOM.xForDateInGeom('2026-06-08') + 10;
+    const startX = GEOM.getDateX('2026-06-08') + 10;
     fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
     act(() => {
       document.dispatchEvent(
@@ -380,8 +379,8 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
         <AllocationBar
           bar={{
             allocation: a,
-            x: GEOM.xForDateInGeom('2026-06-08'),
-            width: GEOM.widthForDates('2026-06-08', '2026-06-12'),
+            x: GEOM.getDateX('2026-06-08'),
+            width: GEOM.getDatesWidth('2026-06-08', '2026-06-12'),
             top: 0,
             color: '#3b82f6',
             label: 'Wires',
@@ -397,9 +396,9 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150);
 
     const bar = screen.getByTestId('allocation-bar');
-    const startX = GEOM.xForDateInGeom('2026-06-08') + 10;
+    const startX = GEOM.getDateX('2026-06-08') + 10;
 
-    const movedX = GEOM.xForDateInGeom('2026-06-15') + 10;
+    const movedX = GEOM.getDateX('2026-06-15') + 10;
     fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
     act(() => {
       document.dispatchEvent(
@@ -460,8 +459,8 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
         <AllocationBar
           bar={{
             allocation: a,
-            x: GEOM.xForDateInGeom(a.startDate),
-            width: GEOM.widthForDates(a.startDate, a.endDate),
+            x: GEOM.getDateX(a.startDate),
+            width: GEOM.getDatesWidth(a.startDate, a.endDate),
             top: 0,
             color: '#3b82f6',
             label: 'Wires',
@@ -478,7 +477,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
 
     const bar = screen.getByTestId('allocation-bar');
     fireEvent.pointerDown(bar, {
-      clientX: GEOM.xForDateInGeom(a.startDate) + 10,
+      clientX: GEOM.getDateX(a.startDate) + 10,
       clientY: 25,
       button: 0,
     });
@@ -493,7 +492,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     act(() => {
       document.dispatchEvent(
         new MouseEvent('pointermove', {
-          clientX: GEOM.xForDateInGeom(a.startDate) + 10,
+          clientX: GEOM.getDateX(a.startDate) + 10,
           clientY: 125,
           bubbles: true,
         }),
@@ -507,7 +506,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     act(() => {
       document.dispatchEvent(
         new MouseEvent('pointerup', {
-          clientX: GEOM.xForDateInGeom(a.startDate) + 10,
+          clientX: GEOM.getDateX(a.startDate) + 10,
           clientY: 125,
           bubbles: true,
         }),
@@ -545,14 +544,14 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
         status: 'confirmed',
       }),
     );
-    const barWidth = GEOM.widthForDates('2026-06-04', '2026-06-07');
+    const barWidth = GEOM.getDatesWidth('2026-06-04', '2026-06-07');
     render(
       <>
         <div data-resource-id={r.id} data-testid="lane-only" />
         <AllocationBar
           bar={{
             allocation: a,
-            x: GEOM.xForDateInGeom('2026-06-04'),
+            x: GEOM.getDateX('2026-06-04'),
             width: barWidth,
             top: 0,
             color: '#3b82f6',
@@ -568,7 +567,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     screen.getByTestId('lane-only').getBoundingClientRect = () => rect(0, 150);
 
     const bar = screen.getByTestId('allocation-bar');
-    const startX = GEOM.xForDateInGeom('2026-06-04') + 10;
+    const startX = GEOM.getDateX('2026-06-04') + 10;
     fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
     act(() => {
       document.dispatchEvent(

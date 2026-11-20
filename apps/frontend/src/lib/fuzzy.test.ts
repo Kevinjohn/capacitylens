@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { foldForSearch, fuzzyFilter } from './fuzzy';
+import { foldForSearch, filterFuzzy } from './fuzzy';
 
 const resources = [
   { id: 'r-tyler', name: 'Bruce Wayne' },
@@ -23,40 +23,40 @@ describe('foldForSearch', () => {
 
 describe('fuzzyFilter — ranking', () => {
   it('returns all items for empty query', () => {
-    expect(fuzzyFilter(resources, '', getText)).toHaveLength(4);
+    expect(filterFuzzy(resources, '', getText)).toHaveLength(4);
   });
 
   it('filters out non-matches', () => {
-    const result = fuzzyFilter(resources, 'zzz', getText);
+    const result = filterFuzzy(resources, 'zzz', getText);
     expect(result).toHaveLength(0);
   });
 
   it('ranks prefix match before subsequence match', () => {
     // "bru" is a tier-0 prefix of "Bruce Wayne"; none of the other seeded names contain a
     // "u" at all, so it's the only match.
-    const result = fuzzyFilter(resources, 'bru', getText);
+    const result = filterFuzzy(resources, 'bru', getText);
     expect(result[0]?.id).toBe('r-tyler');
   });
 
   it('ranks a contiguous match before a scattered subsequence match', () => {
-    const result = fuzzyFilter(resources, 'ay', getText);
+    const result = filterFuzzy(resources, 'ay', getText);
     expect(result.map((r) => r.id)).toEqual(['r-tyler', 'r-alex']);
   });
 
   it('sorts tier-0 before tier-1 before tier-3', () => {
-    const result = fuzzyFilter(resources, 'barry', getText);
+    const result = filterFuzzy(resources, 'barry', getText);
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe('r-alex');
   });
 
   it('stable tie-break: within same tier, shorter name first then alpha', () => {
-    const result = fuzzyFilter(resources, 'b', getText);
+    const result = filterFuzzy(resources, 'b', getText);
     expect(result[0]?.id).toBe('r-alex');
   });
 
   it('is case-insensitive in matching', () => {
-    expect(fuzzyFilter(resources, 'BRUCE', getText)).toHaveLength(1);
-    expect(fuzzyFilter(resources, 'BRUCE', getText)[0]?.id).toBe('r-tyler');
+    expect(filterFuzzy(resources, 'BRUCE', getText)).toHaveLength(1);
+    expect(filterFuzzy(resources, 'BRUCE', getText)[0]?.id).toBe('r-tyler');
   });
 
   it('finds accented names from an unaccented query', () => {
@@ -65,19 +65,19 @@ describe('fuzzyFilter — ranking', () => {
       { id: 'r-jose', name: 'José Alvarez' },
       { id: 'r-muller', name: 'Greta Müller' },
     ];
-    expect(fuzzyFilter(people, 'jose', getText).map((person) => person.id)).toEqual(['r-jose']);
-    expect(fuzzyFilter(people, 'muller', getText).map((person) => person.id)).toEqual(['r-muller']);
+    expect(filterFuzzy(people, 'jose', getText).map((person) => person.id)).toEqual(['r-jose']);
+    expect(filterFuzzy(people, 'muller', getText).map((person) => person.id)).toEqual(['r-muller']);
   });
 });
 
 describe('fuzzyFilter — query and tie behavior', () => {
   it('returns items in original (unsorted) order for an empty or whitespace-only query', () => {
-    expect(fuzzyFilter(resources, '', getText)).toEqual(resources);
-    expect(fuzzyFilter(resources, '   ', getText)).toEqual(resources);
+    expect(filterFuzzy(resources, '', getText)).toEqual(resources);
+    expect(filterFuzzy(resources, '   ', getText)).toEqual(resources);
   });
 
   it('trims the query before scoring, so surrounding whitespace does not defeat an exact match', () => {
-    const result = fuzzyFilter(resources, ' bruce', getText);
+    const result = filterFuzzy(resources, ' bruce', getText);
     expect(result.map((r) => r.id)).toContain('r-tyler');
   });
 
@@ -86,7 +86,7 @@ describe('fuzzyFilter — query and tie behavior', () => {
       { id: 't0', name: 'alphabetsoup' },
       { id: 't2', name: 'zzalz' },
     ];
-    expect(fuzzyFilter(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['t0', 't2']);
+    expect(filterFuzzy(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['t0', 't2']);
   });
 
   it('does not skip the tier compare on equal tiers (falls through to the length tie-break)', () => {
@@ -94,7 +94,7 @@ describe('fuzzyFilter — query and tie behavior', () => {
       { id: 'long', name: 'alphabet' },
       { id: 'short', name: 'al' },
     ];
-    expect(fuzzyFilter(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long']);
+    expect(filterFuzzy(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long']);
   });
 
   it('breaks a same-tier tie by length even when alpha order disagrees', () => {
@@ -103,7 +103,7 @@ describe('fuzzyFilter — query and tie behavior', () => {
       { id: 'long', name: 'qaaaaa' },
     ];
 
-    expect(fuzzyFilter(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long']);
+    expect(filterFuzzy(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long']);
   });
 
   it('breaks a same-tier, same-length tie alphabetically', () => {
@@ -111,6 +111,6 @@ describe('fuzzyFilter — query and tie behavior', () => {
       { id: 'b', name: 'qb' },
       { id: 'a', name: 'qa' },
     ];
-    expect(fuzzyFilter(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['a', 'b']);
+    expect(filterFuzzy(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['a', 'b']);
   });
 });

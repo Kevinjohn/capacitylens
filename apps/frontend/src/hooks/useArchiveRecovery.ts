@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ArchiveRecovery } from '@capacitylens/shared/domain/lifecycle';
-import { client, scopeQueryKey } from '@/api/queryClient';
+import { client, buildScopeQueryKey } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
@@ -63,7 +63,7 @@ export function useArchiveRecovery() {
   const instance = useId();
   const contextToken = getMasqueradeContextToken();
   const query = useQuery<ArchiveRecovery>({
-    queryKey: scopeQueryKey(scope, [
+    queryKey: buildScopeQueryKey(scope, [
       'archive-recovery',
       instance,
       epoch,

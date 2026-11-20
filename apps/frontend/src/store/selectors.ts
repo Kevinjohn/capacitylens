@@ -107,10 +107,10 @@ export const listCompanyWorkingDays = (data: AppData, activeCompanyId: ID | null
 // These helpers search only the supplied company-scoped data and can miss stale IDs. Callers must
 // narrow the result before dereferencing it.
 /** Find an activity by its stable ID. */
-export const activityById = (data: AppData, id: ID) =>
+export const getActivityById = (data: AppData, id: ID) =>
   data.activities.find((activity) => activity.id === id);
 /** Find a resource by its stable ID. */
-export const resourceById = (data: AppData, id: ID) =>
+export const getResourceById = (data: AppData, id: ID) =>
   data.resources.find((resource) => resource.id === id);
 
 /** A discipline row and the resources displayed within its scheduler group. */
@@ -126,7 +126,7 @@ export interface DisciplineGroup {
 /** Orders scheduler disciplines by sortOrder, then display name and stable ID.
  * Management lists use alphabetical order for scanning instead.
  */
-export const byDisciplineOrder = (a: Discipline, b: Discipline): number => {
+export const compareByDisciplineOrder = (a: Discipline, b: Discipline): number => {
   const orderDifference = a.sortOrder - b.sortOrder;
   if (orderDifference !== 0) return orderDifference;
   if (a.name !== b.name) return a.name < b.name ? -1 : 1;
@@ -159,7 +159,7 @@ export function buildDisciplineGroups(data: AppData): DisciplineGroup[] {
       : undefined;
     (bucket ?? ungrouped).push(resource);
   }
-  const sorted = [...data.disciplines].sort(byDisciplineOrder);
+  const sorted = [...data.disciplines].sort(compareByDisciplineOrder);
   const groups: DisciplineGroup[] = sorted.map((discipline) => ({
     discipline,
     resources: resourcesByDisciplineId.get(discipline.id) ?? [],

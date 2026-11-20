@@ -6,9 +6,9 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import { requireValue } from '@/test/fixtures';
 import { capacityOver } from '@/test/capacityFixtures';
 import {
-  barIds,
+  listBarIds,
   build,
-  dataset as buildDataset,
+  makeDataset,
   days,
   end,
   geom,
@@ -16,7 +16,7 @@ import {
   start,
 } from './schedulerModel.testSupport';
 
-const dataset = () => buildDataset(makeDisciplines());
+const dataset = () => makeDataset(makeDisciplines());
 
 function buildLensActivitiesData(): AppData {
   const d = dataset();
@@ -90,7 +90,7 @@ describe('buildSchedulerModel', () => {
       { r1: { byDate: { '2026-06-03': { allocated: 8 }, '2026-06-04': { allocated: 16 } } } },
     );
     const model = build({ filters: { ...buildEmptyFilters(), hideTentative: true }, capacity });
-    expect(barIds(model)).toEqual(['a1', 'a3']);
+    expect(listBarIds(model)).toEqual(['a1', 'a3']);
     const r1 = requireValue(
       model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1'),
       'r1 scheduler row',
@@ -100,7 +100,7 @@ describe('buildSchedulerModel', () => {
   });
 
   it('project filter limits bars to that project (resources still listed)', () => {
-    expect(barIds(build({ filters: { ...buildEmptyFilters(), projectId: 'p2' } }))).toEqual([
+    expect(listBarIds(build({ filters: { ...buildEmptyFilters(), projectId: 'p2' } }))).toEqual([
       'a2',
       'a3',
     ]);
@@ -248,7 +248,7 @@ describe('buildSchedulerModel', () => {
   it('discipline filter drops other groups', () => {
     const model = build({ filters: { ...buildEmptyFilters(), disciplineId: 'd-dev' } });
     expect(model.map((g) => g.title)).toEqual(['Development']);
-    expect(barIds(model)).toEqual(['a3']);
+    expect(listBarIds(model)).toEqual(['a3']);
   });
 
   it('search narrows to matching resources and drops now-empty groups', () => {

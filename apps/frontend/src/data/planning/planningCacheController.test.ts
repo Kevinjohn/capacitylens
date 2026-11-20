@@ -6,10 +6,10 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  canonicalData,
+  makeCanonicalData,
   companyToday,
   makeReceipt,
-  harness,
+  createHarness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
@@ -24,16 +24,16 @@ describe('planning cache controller', () => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 4,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const h = harness({ execute, read });
+    const h = createHarness({ execute, read });
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 3,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -41,7 +41,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 4,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -58,12 +58,12 @@ describe('planning cache controller', () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
       .mockRejectedValue({ status: 409, code: 'STALE_REVISION' });
-    const h = harness({
+    const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>().mockResolvedValue({
         revision: 2,
         authority: makePlanningAuthority(),
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
       }),
@@ -72,7 +72,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -80,7 +80,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 2,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -100,7 +100,7 @@ describe('planning cache controller', () => {
       .mockResolvedValueOnce({
         revision: 1,
         authority: makePlanningAuthority(),
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
       })
@@ -108,7 +108,7 @@ describe('planning cache controller', () => {
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
       Promise.resolve(makeReceipt(execution.mutationId, 2)),
     );
-    const h = harness({ execute, read });
+    const h = createHarness({ execute, read });
     h.controller.setContext(context);
     await h.controller.refresh();
     const draft = h.controller.begin();

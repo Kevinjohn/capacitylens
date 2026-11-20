@@ -1,5 +1,5 @@
-import { apiRouteUrl } from '@/api/queryClient';
-import { apiFetch } from '@/data/requestTimeout';
+import { buildApiRouteUrl } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
 
 /** One server diagnostics read: the decoded body, or null when it was unreadable, and when it ran. */
 export interface ServerDiagnosticsObservation {
@@ -16,7 +16,7 @@ export interface ServerDiagnosticsObservation {
 export async function readServerDiagnostics(
   signal?: AbortSignal,
 ): Promise<ServerDiagnosticsObservation> {
-  const response = await apiFetch(apiRouteUrl('api.diagnostics', {}), {
+  const response = await fetchApi(buildApiRouteUrl('api.diagnostics', {}), {
     credentials: 'include',
     ...(signal ? { signal } : {}),
   });

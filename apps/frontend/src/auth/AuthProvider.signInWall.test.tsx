@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { freshProvider, me } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -27,9 +27,9 @@ describe('AuthProvider — server mode', () => {
   it('a 401 replaces the app with the login screen (password form)', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, {})),
+      vi.fn(async () => makeMeResponse(401, {})),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -49,9 +49,9 @@ describe('AuthProvider — server mode', () => {
     // A 401 always offers a way in, never a terminal 'invalid configuration' screen.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, {})),
+      vi.fn(async () => makeMeResponse(401, {})),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -75,7 +75,7 @@ describe('AuthProvider — server mode', () => {
       'fetch',
       vi.fn(async () => new Response('<html>401</html>', { status: 401 })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -92,9 +92,9 @@ describe('AuthProvider — server mode', () => {
     try {
       vi.stubGlobal(
         'fetch',
-        vi.fn(async () => me(401, {})),
+        vi.fn(async () => makeMeResponse(401, {})),
       );
-      const { AuthProvider } = await freshProvider();
+      const { AuthProvider } = await renderFreshProvider();
       render(
         <AuthProvider>
           <div>invite-page</div>
@@ -111,9 +111,9 @@ describe('AuthProvider — server mode', () => {
     try {
       vi.stubGlobal(
         'fetch',
-        vi.fn(async () => me(401, {})),
+        vi.fn(async () => makeMeResponse(401, {})),
       );
-      const { AuthProvider } = await freshProvider();
+      const { AuthProvider } = await renderFreshProvider();
       render(
         <AuthProvider>
           <div>invite-page</div>
@@ -128,9 +128,9 @@ describe('AuthProvider — server mode', () => {
   it('a 401 with needsSetup:true explains the setup link above the sign-in form', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, { needsSetup: true })),
+      vi.fn(async () => makeMeResponse(401, { needsSetup: true })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -145,9 +145,9 @@ describe('AuthProvider — server mode', () => {
     // instance: only a literal `true` counts.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(401, { needsSetup: 'yes' })),
+      vi.fn(async () => makeMeResponse(401, { needsSetup: 'yes' })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>

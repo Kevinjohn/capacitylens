@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, harness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
 import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
@@ -13,7 +13,7 @@ beforeEach(async () => {
 describe('MasqueradeController', () => {
   it('discards a cold failed projection when validated server status says the masquerade ended', async () => {
     useStore.getState().clearPlanning();
-    const { controller } = harness({ readBootstrapCompany: vi.fn(async () => null) });
+    const { controller } = createHarness({ readBootstrapCompany: vi.fn(async () => null) });
     await controller.adoptStatus({ active: true, ...state });
     expect(useStore.getState().masquerade.kind).toBe('starting');
     await controller.adoptStatus(inactiveStatus);
@@ -24,7 +24,7 @@ describe('MasqueradeController', () => {
   it('loads a cold validated member view from canonical account data before selecting it', async () => {
     useStore.getState().clearPlanning();
     const read = createDeferred<string | null>();
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       readBootstrapCompany: vi.fn(() => read.promise),
       reproject: vi.fn(async () => {
         useStore.setState({
@@ -48,7 +48,7 @@ describe('MasqueradeController', () => {
 
   it('keeps a failed cold read gated and lets retry load the canonical company', async () => {
     useStore.getState().clearPlanning();
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       readBootstrapCompany: vi
         .fn()
         .mockResolvedValueOnce(null)
@@ -65,7 +65,7 @@ describe('MasqueradeController', () => {
   it('invalidates a deferred cold read on auth loss without republishing private state', async () => {
     useStore.getState().clearPlanning();
     const read = createDeferred<string | null>();
-    const { controller } = harness({ readBootstrapCompany: vi.fn(() => read.promise) });
+    const { controller } = createHarness({ readBootstrapCompany: vi.fn(() => read.promise) });
     const adoption = controller.adoptStatus({ active: true, ...state });
     controller.invalidate();
     read.resolve('Wayne Enterprises');

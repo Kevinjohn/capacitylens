@@ -1,5 +1,5 @@
-import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { InvitationSignupBody } from './accountRequestTypes';
 
 /**
@@ -8,13 +8,13 @@ import type { InvitationSignupBody } from './accountRequestTypes';
  */
 export const invitationSignupRequests = {
   previewInvitation(token: string): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.invites.preview', { params: { token } }), {
+    return fetchApi(buildApiRouteUrl('api.invites.preview', { params: { token } }), {
       credentials: 'include',
     });
   },
 
   signupWithInvitation(token: string, body: InvitationSignupBody): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.invites.sign-up', { params: { token } }), {
+    return fetchApi(buildApiRouteUrl('api.invites.sign-up', { params: { token } }), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

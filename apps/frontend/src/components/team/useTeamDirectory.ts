@@ -10,7 +10,7 @@ import type {
   TeamMember,
 } from '@/account/teamAccessClient';
 import type { FieldError } from '@/hooks/useFieldError';
-import { api, scopeQueryKey } from '@/api/queryClient';
+import { api, buildScopeQueryKey } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
 import { useStore } from '@/store/useStore';
@@ -56,7 +56,7 @@ async function readOk<T>(read: Promise<TeamAccessResult<T>>): Promise<T> {
 
 /** The one members query key for a scope and company; every reader of the members list shares it. */
 export function teamMembersQueryKey(scope: ApiQueryScope, companyId: string | null) {
-  return scopeQueryKey(scope, [
+  return buildScopeQueryKey(scope, [
     'team-members',
     ...api.api.members.index.queryKey({ params: { companyId: companyId ?? '' } }),
   ]);
@@ -120,7 +120,7 @@ function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope
     const keyScope = { principalId, companyId: activeCompanyId, masqueradeGeneration };
     return {
       membersKey: teamMembersQueryKey(keyScope, activeCompanyId),
-      invitesKey: scopeQueryKey(keyScope, [
+      invitesKey: buildScopeQueryKey(keyScope, [
         'team-invitations',
         ...api.api.invites.index.queryKey({ params: { companyId } }),
       ]),

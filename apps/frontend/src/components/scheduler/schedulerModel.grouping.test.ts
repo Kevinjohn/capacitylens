@@ -4,18 +4,18 @@ import { buildEmptyFilters } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { requireValue } from '@/test/fixtures';
 import {
-  barIds,
+  listBarIds,
   build,
-  dataset as buildDataset,
+  makeDataset,
   days,
   end,
   geom,
   makeDisciplines,
   start,
-  withExternal,
+  makeDatasetWithExternal,
 } from './schedulerModel.testSupport';
 
-const dataset = () => buildDataset(makeDisciplines());
+const dataset = () => makeDataset(makeDisciplines());
 
 function makeEngagementOrderingData(): AppData {
   const data = dataset();
@@ -108,7 +108,7 @@ describe('buildSchedulerModel', () => {
     expect(model[0]).toMatchObject({ key: 'resources', title: 'Resources' });
     expect(model[0]?.rows.map((r) => r.resource.id).sort()).toEqual(['r1', 'r2']);
     expect(model[0]).not.toHaveProperty('color');
-    expect(barIds(model)).toEqual(['a1', 'a2', 'a3']);
+    expect(listBarIds(model)).toEqual(['a1', 'a2', 'a3']);
   });
 
   it('disciplines off → one Supplementary person splits the company into Studio then Supplementary', () => {
@@ -158,7 +158,7 @@ describe('external / 3rd-party band', () => {
     externalEnabled = true,
   }: BuildExtOptions = {}) =>
     buildSchedulerModel({
-      data: withExternal(),
+      data: makeDatasetWithExternal(),
       geom,
       days,
       visibleWindow: { start, end },

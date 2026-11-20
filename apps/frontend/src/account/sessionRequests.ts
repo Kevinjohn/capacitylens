@@ -1,5 +1,5 @@
-import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
+import { buildApiRouteUrl } from '@/api/queryClient';
 
 /**
  * Session and company-directory requests. Their typed readers are `fetchAuthStatus` and
@@ -7,14 +7,14 @@ import { apiRouteUrl } from '@/api/queryClient';
  */
 export const sessionRequests = {
   me(signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.auth.me', {}), {
+    return fetchApi(buildApiRouteUrl('api.auth.me', {}), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
   },
 
   listCompanies(signal?: AbortSignal): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.companies.index', {}), {
+    return fetchApi(buildApiRouteUrl('api.companies.index', {}), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });

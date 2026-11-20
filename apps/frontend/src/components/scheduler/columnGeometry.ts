@@ -38,9 +38,9 @@ export interface ColumnGeometry {
    * previous column, which under minimised weekends is much narrower. */
   indexAtScroll(scrollLeft: number): number;
   /** Returns a date's pixel edge, extrapolating full-width columns outside the visible window and returning zero for invalid dates. */
-  xForDateInGeom(date: ISODate): number;
+  getDateX(date: ISODate): number;
   /** Px width of the inclusive date range [start, end] (≥ 0; 0 when reversed or unparseable). */
-  widthForDates(start: ISODate, end: ISODate): number;
+  getDatesWidth(start: ISODate, end: ISODate): number;
 }
 
 /** Weekend-width preference used when building date column offsets. */
@@ -149,7 +149,7 @@ function createGeometryAccessors(
   input: GeometryAccessorsInput,
 ): Pick<
   ColumnGeometry,
-  'indexAt' | 'indexAtScroll' | 'spanWidth' | 'widthForDates' | 'widthOf' | 'x' | 'xForDateInGeom'
+  'indexAt' | 'indexAtScroll' | 'spanWidth' | 'getDatesWidth' | 'widthOf' | 'x' | 'getDateX'
 > {
   const clampEdge = (index: number): number => {
     if (index < 0) return 0;
@@ -181,12 +181,12 @@ function createGeometryAccessors(
     }
     return lowerIndex;
   };
-  const xForDateInGeom = (date: ISODate): number => {
+  const getDateX = (date: ISODate): number => {
     if (!input.origin) return 0;
     const index = calculateDayIndex(date, input.origin);
     return Number.isFinite(index) ? calculateDayIndexX(index) : 0;
   };
-  const widthForDates = (start: ISODate, end: ISODate): number => {
+  const getDatesWidth = (start: ISODate, end: ISODate): number => {
     if (!input.origin) return 0;
     const startIndex = calculateDayIndex(start, input.origin);
     const endIndex = calculateDayIndex(end, input.origin);
@@ -221,8 +221,8 @@ function createGeometryAccessors(
       ),
     indexAt,
     indexAtScroll: (scrollLeft) => indexAt(Math.round(scrollLeft)),
-    xForDateInGeom,
-    widthForDates,
+    getDateX,
+    getDatesWidth,
   };
 }
 

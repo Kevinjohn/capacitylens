@@ -3,7 +3,7 @@ import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/dom
 import { loadPlanningData, makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { FlushPendingWritesResult } from './masqueradeController';
-import { state, inactiveStatus, harness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
 import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
@@ -14,14 +14,14 @@ beforeEach(async () => {
 
 describe('MasqueradeController', () => {
   it('does not dispatch a start while another replacement owns the planning lock', async () => {
-    const { controller, dependencies } = harness({ suspend: vi.fn(() => null) });
+    const { controller, dependencies } = createHarness({ suspend: vi.fn(() => null) });
     await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(false);
     expect(dependencies.api.start).not.toHaveBeenCalled();
     expect(useStore.getState().masquerade.kind).toBe('inactive');
   });
 
   it('acquires one suspension across start and end, then releases it once after the real reload', async () => {
-    const { controller, dependencies, resume } = harness();
+    const { controller, dependencies, resume } = createHarness();
     const navigate = vi.fn(() => {
       expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
     });
@@ -44,7 +44,7 @@ describe('MasqueradeController', () => {
     );
     useStore.getState().setActiveCompany('a-studio');
     await useStore.getState().refreshPlanning();
-    const { controller } = harness();
+    const { controller } = createHarness();
 
     await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(true);
 
@@ -57,7 +57,7 @@ describe('MasqueradeController', () => {
     useStore.getState().setCompanySummaries({
       list: [{ id: 'old-company', name: 'Stark Industries', role: 'owner' }],
     });
-    const { controller } = harness();
+    const { controller } = createHarness();
 
     await controller.adoptStatus({ active: true, ...state });
 
@@ -66,7 +66,7 @@ describe('MasqueradeController', () => {
   });
 
   it('aborts before suspension when pending writes cannot be flushed', async () => {
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       flush: vi.fn(async () => ({ kind: 'blocked' as const })),
     });
     await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(false);
@@ -75,7 +75,7 @@ describe('MasqueradeController', () => {
   });
 
   it('releases without dropping edits when the start request fails', async () => {
-    const { controller, resume } = harness({
+    const { controller, resume } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
         start: vi.fn(async () => {
@@ -90,7 +90,7 @@ describe('MasqueradeController', () => {
   });
 
   it('stays suspended and starting when projection fails after a successful start', async () => {
-    const { controller, resume } = harness({ reproject: vi.fn(async () => false) });
+    const { controller, resume } = createHarness({ reproject: vi.fn(async () => false) });
     await expect(controller.start(state.companyId, state.targetUserId)).resolves.toBe(false);
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'starting', state });
     expect(resume).not.toHaveBeenCalled();
@@ -100,7 +100,9 @@ describe('MasqueradeController', () => {
 describe('MasqueradeController transitions', () => {
   it('cancels a pending member-view start when switching companies before flush completes', async () => {
     const flush = createDeferred<FlushPendingWritesResult>();
-    const { controller, dependencies, resume } = harness({ flush: vi.fn(() => flush.promise) });
+    const { controller, dependencies, resume } = createHarness({
+      flush: vi.fn(() => flush.promise),
+    });
 
     const starting = controller.start(state.companyId, state.targetUserId);
     await expect(controller.transitionCompany('a-loft')).resolves.toBe(true);
@@ -116,7 +118,7 @@ describe('MasqueradeController transitions', () => {
 
   it('allows only one start to cross a pending flush', async () => {
     const flush = createDeferred<FlushPendingWritesResult>();
-    const { controller, dependencies } = harness({ flush: vi.fn(() => flush.promise) });
+    const { controller, dependencies } = createHarness({ flush: vi.fn(() => flush.promise) });
 
     const first = controller.start(state.companyId, state.targetUserId);
     const second = controller.start(state.companyId, 'u-editor');
@@ -139,7 +141,7 @@ describe('MasqueradeController transitions', () => {
     const startResponse = new Promise<MasqueradeState>((resolve) => {
       resolveStart = resolve;
     });
-    const { controller, dependencies } = harness({
+    const { controller, dependencies } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
         start: vi.fn(() => startResponse),
@@ -163,7 +165,7 @@ describe('MasqueradeController transitions', () => {
   });
 
   it('keeps a failed projection retry contained and suspended', async () => {
-    const { controller, resume } = harness({
+    const { controller, resume } = createHarness({
       reproject: vi.fn().mockResolvedValueOnce(false).mockRejectedValueOnce(new Error('offline')),
     });
     await controller.start(state.companyId, state.targetUserId);

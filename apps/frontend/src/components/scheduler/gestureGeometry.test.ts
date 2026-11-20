@@ -87,8 +87,8 @@ describe('gesture preview geometry', () => {
       weekendWidth: 8,
     });
     const committed = {
-      left: narrow.xForDateInGeom('2026-06-05'),
-      width: narrow.widthForDates('2026-06-05', '2026-06-08'),
+      left: narrow.getDateX('2026-06-05'),
+      width: narrow.getDatesWidth('2026-06-05', '2026-06-08'),
     };
 
     const preview = previewPixels({

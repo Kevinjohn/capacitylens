@@ -23,7 +23,7 @@ export const intent = {
 const makeState = (): PlanningCacheState => createPlanningCacheState();
 /** The company date every canonical read in these tests carries. */
 export const companyToday: ISODate = '2026-06-03';
-export const canonicalData = (companyOverrides: Partial<Company> = {}): AppData => ({
+export const makeCanonicalData = (companyOverrides: Partial<Company> = {}): AppData => ({
   ...createEmptyAppData(),
   accounts: [makeCompany({ id: context.companyId, ...companyOverrides })],
 });
@@ -33,7 +33,7 @@ export const canonicalData = (companyOverrides: Partial<Company> = {}): AppData 
  * latest known server state; each carries the history the server model reports for the reading page
  * unless the snapshot names its own. Undo and Redo default to that model when the transport has none.
  */
-export function harness(
+export function createHarness(
   transport: Pick<PlanningTransport, 'read' | 'execute'> &
     Partial<Pick<PlanningTransport, 'undo' | 'redo'>>,
 ) {
@@ -42,7 +42,7 @@ export function harness(
   let serverSnapshot: PlanningSnapshot = {
     revision: 0,
     authority: makePlanningAuthority(),
-    data: canonicalData(),
+    data: makeCanonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
   };

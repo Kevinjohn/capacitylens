@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { freshProvider, me } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -29,10 +29,10 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
-      return me(200, { user: { id: 'demo', name: 'Demo' } });
+      return makeMeResponse(200, { user: { id: 'demo', name: 'Demo' } });
     });
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -54,10 +54,10 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
-      return me(200, { user: null });
+      return makeMeResponse(200, { user: null });
     });
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -79,9 +79,9 @@ describe('AuthProvider — server mode', () => {
     // The lenient 401 handling is scoped to 401 only. A genuinely unexpected status stays fail-closed.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(500, { error: 'boom' })),
+      vi.fn(async () => makeMeResponse(500, { error: 'boom' })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -97,9 +97,9 @@ describe('AuthProvider — server mode', () => {
   it("surfaces the authentication service's temporary-unavailability message", async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(503, { error: 'Sign-in is temporarily unavailable.' })),
+      vi.fn(async () => makeMeResponse(503, { error: 'Sign-in is temporarily unavailable.' })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -112,7 +112,7 @@ describe('AuthProvider — server mode', () => {
       'fetch',
       vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -137,7 +137,7 @@ describe('AuthProvider — server mode', () => {
       vi.fn().mockRejectedValue(new DOMException('signal timed out', 'TimeoutError')),
     );
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     const onTenantAccessReady = vi.fn();
 
     render(
@@ -169,9 +169,9 @@ describe('AuthProvider — server mode', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(200, { user })),
+      vi.fn(async () => makeMeResponse(200, { user })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -188,7 +188,7 @@ describe('AuthProvider — server mode', () => {
       'fetch',
       vi.fn(async () => new Response('<html>', { status: 200 })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -211,7 +211,7 @@ describe('AuthProvider auth state', () => {
       'fetch',
       vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>
@@ -229,9 +229,9 @@ describe('AuthProvider auth state', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => me(200, { privateValue: 'SENTINEL_AUTH_PAYLOAD' })),
+      vi.fn(async () => makeMeResponse(200, { privateValue: 'SENTINEL_AUTH_PAYLOAD' })),
     );
-    const { AuthProvider } = await freshProvider();
+    const { AuthProvider } = await renderFreshProvider();
     render(
       <AuthProvider>
         <div>app-content</div>

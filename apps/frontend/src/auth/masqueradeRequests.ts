@@ -1,5 +1,5 @@
-import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type {
   EndMasqueradePayload,
   StartMasqueradePayload,
@@ -11,7 +11,7 @@ import type {
  */
 export const masqueradeRequests = {
   startMasquerade(companyId: string, body: StartMasqueradePayload): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.masquerade.start', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.masquerade.start', { params: { companyId } }), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -20,15 +20,15 @@ export const masqueradeRequests = {
   },
 
   masqueradeStatus(companyId?: string): Promise<Response> {
-    const route = apiRouteUrl('api.masquerade.status', {});
+    const route = buildApiRouteUrl('api.masquerade.status', {});
     const url = companyId
       ? `${route}${route.includes('?') ? '&' : '?'}companyId=${encodeURIComponent(companyId)}`
       : route;
-    return apiFetch(url, { credentials: 'include' });
+    return fetchApi(url, { credentials: 'include' });
   },
 
   endMasquerade(body: EndMasqueradePayload): Promise<Response> {
-    return apiFetch(apiRouteUrl('api.masquerade.end', {}), {
+    return fetchApi(buildApiRouteUrl('api.masquerade.end', {}), {
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

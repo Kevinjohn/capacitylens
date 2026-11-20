@@ -15,7 +15,7 @@ import type {
   PlanningWriteResult,
 } from './planningCacheTypes';
 import { buildAuthorityKey, canWritePlanning } from './planningAuthority';
-import { errorDetails, PlanningControllerError } from './planningErrors';
+import { getErrorDetails, PlanningControllerError } from './planningErrors';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
 import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './planningReceipts';
 import { applyReceiptChanges } from './planningReceiptChanges';
@@ -82,7 +82,7 @@ function isSameContext(
 // K2: only an ended session loses scope. Every 403, membership loss included, is a refusal that
 // keeps the readable rows and history.
 function isScopeLoss(error: unknown): boolean {
-  const details = errorDetails(error);
+  const details = getErrorDetails(error);
   return details.status === 401;
 }
 
@@ -557,7 +557,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
 
   /** Records a failed send in planning state and rethrows it as a controller error. */
   async function settleFailure(owner: NonNullable<typeof attempt>, error: unknown): Promise<never> {
-    const details = errorDetails(error);
+    const details = getErrorDetails(error);
     if (error instanceof PlanningControllerError && error.uncertain) throw error;
     if (isScopeLoss(error)) {
       if (isAttemptOwner(owner)) loseScope();

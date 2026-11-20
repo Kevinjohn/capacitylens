@@ -8,7 +8,7 @@ import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/
 import { useStore } from '@/store/useStore';
 import { MembersSection } from './MembersSection';
 import { useTeamDirectory } from './useTeamDirectory';
-import { authValue, mockApi, rawMember, renderSection } from './MembersSection.testSupport';
+import { makeAuthValue, mockApi, makeRawMember, renderSection } from './MembersSection.testSupport';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const companyTransitionMocks = vi.hoisted(() => ({
@@ -40,7 +40,7 @@ describe('MembersSection — self-gate', () => {
       if (target.endsWith(`/${DEFAULT_COMPANY_ID}/members`) && isRead) {
         return jsonResponse({
           members: [
-            rawMember({
+            makeRawMember({
               userId: 'first-owner',
               role: 'owner',
               email: 'first@example.test',
@@ -70,7 +70,7 @@ describe('MembersSection — self-gate', () => {
       resolveNextMembers?.(
         jsonResponse({
           members: [
-            rawMember({
+            makeRawMember({
               userId: 'second-owner',
               role: 'owner',
               email: 'second@example.test',
@@ -97,7 +97,7 @@ describe('MembersSection — self-gate', () => {
     vi.stubGlobal('fetch', mockApi([]));
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
-        <AuthContext.Provider value={authValue({ user: null })}>
+        <AuthContext.Provider value={makeAuthValue({ user: null })}>
           <MembersSection />
         </AuthContext.Provider>
       </QueryClientProvider>,
@@ -175,7 +175,7 @@ describe('MembersSection — directory error retention', () => {
       {
         wrapper: ({ children }) => (
           <QueryClientProvider client={queryClient}>
-            <AuthContext.Provider value={authValue()}>{children}</AuthContext.Provider>
+            <AuthContext.Provider value={makeAuthValue()}>{children}</AuthContext.Provider>
           </QueryClientProvider>
         ),
       },
@@ -197,7 +197,7 @@ describe('MembersSection — directory error retention', () => {
           if (memberReads > 1) return new Promise<Response>(() => {});
           return jsonResponse({
             signInTrackingEnabled: false,
-            members: members.map((member) => rawMember(member)),
+            members: members.map((member) => makeRawMember(member)),
           });
         }
         if (url.endsWith('/invites')) return jsonResponse({ invites: [] });
@@ -209,7 +209,7 @@ describe('MembersSection — directory error retention', () => {
     let principalId = 'first-principal';
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
-        <AuthContext.Provider value={authValue({ user: { id: principalId } })}>
+        <AuthContext.Provider value={makeAuthValue({ user: { id: principalId } })}>
           {children}
         </AuthContext.Provider>
       </QueryClientProvider>
@@ -243,7 +243,7 @@ describe('MembersSection — directory error retention', () => {
           return memberReads === 1
             ? jsonResponse({
                 signInTrackingEnabled: false,
-                members: members.map((member) => rawMember(member)),
+                members: members.map((member) => makeRawMember(member)),
               })
             : jsonResponse({ error: 'Forbidden' }, 403);
         },
@@ -291,7 +291,7 @@ describe('MembersSection — transient directory state', () => {
           return memberReads === 1
             ? jsonResponse({
                 signInTrackingEnabled: false,
-                members: members.map((member) => rawMember(member)),
+                members: members.map((member) => makeRawMember(member)),
               })
             : jsonResponse({ error: 'Unavailable' }, 503);
         },

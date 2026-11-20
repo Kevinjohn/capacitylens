@@ -48,8 +48,8 @@ function buildTimeOffBlock(
 ): TimeOffBlock {
   return {
     id: timeOffEntry.id,
-    x: geometry.xForDateInGeom(timeOffEntry.startDate),
-    width: geometry.widthForDates(timeOffEntry.startDate, timeOffEntry.endDate),
+    x: geometry.getDateX(timeOffEntry.startDate),
+    width: geometry.getDatesWidth(timeOffEntry.startDate, timeOffEntry.endDate),
     label: resolveTimeOffTypeLabel(timeOffEntry.type),
     ...(timeOffEntry.note ? { note: timeOffEntry.note } : {}),
   };
@@ -94,8 +94,8 @@ function buildBars(input: {
       : undefined;
     return {
       allocation,
-      x: input.geometry.xForDateInGeom(allocation.startDate),
-      width: input.geometry.widthForDates(allocation.startDate, allocation.endDate),
+      x: input.geometry.getDateX(allocation.startDate),
+      width: input.geometry.getDatesWidth(allocation.startDate, allocation.endDate),
       top: resolveLaneTop(laneIndicesByAllocationId.get(allocation.id) ?? 0, input.laneLayout),
       color: resolveBarColor(allocation, input.filters.colorMaps),
       label: input.filters.activityById.get(allocation.activityId)?.name ?? 'Activity',

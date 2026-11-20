@@ -5,10 +5,10 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import {
   context,
   intent,
-  canonicalData,
+  makeCanonicalData,
   companyToday,
   makeReceipt,
-  harness,
+  createHarness,
 } from './planningCacheController.testSupport';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
@@ -21,7 +21,7 @@ describe('planning cache controller', () => {
       .fn()
       .mockRejectedValueOnce({ status: 403, code: 'AUTHORIZATION_DENIED' })
       .mockRejectedValueOnce({ status: 403, code: 'ACCOUNT_MEMBERSHIP_LOST' });
-    const h = harness({
+    const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
@@ -29,7 +29,7 @@ describe('planning cache controller', () => {
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -53,14 +53,14 @@ describe('planning cache controller', () => {
     const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
       Promise.resolve(makeReceipt(execution.mutationId, execution.baseRevision + 1)),
     );
-    const h = harness({
+    const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
       authority: makePlanningAuthority(),
@@ -71,7 +71,7 @@ describe('planning cache controller', () => {
     await expect(
       h.readSnapshot({
         revision: 2,
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
         authority: makePlanningAuthority({ role: 'editor' }),
@@ -83,12 +83,12 @@ describe('planning cache controller', () => {
   });
 
   it('drops the previous projection if an access change arrives with an older snapshot', async () => {
-    const h = harness({
+    const h = createHarness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read: vi.fn<PlanningTransport['read']>(),
     });
     h.controller.setContext(context);
-    const cached = canonicalData();
+    const cached = makeCanonicalData();
     await expect(
       h.readSnapshot({
         revision: 4,
@@ -102,7 +102,7 @@ describe('planning cache controller', () => {
     await expect(
       h.readSnapshot({
         revision: 3,
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
         authority: makePlanningAuthority({ role: 'viewer' }),
@@ -119,13 +119,13 @@ describe('planning cache controller', () => {
       .mockResolvedValueOnce({
         revision: 1,
         authority: makePlanningAuthority(),
-        data: canonicalData(),
+        data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
       })
       .mockRejectedValueOnce({ status: 403, code: 'AUTHORIZATION_DENIED' })
       .mockRejectedValueOnce({ status: 403, code: 'ACCOUNT_MEMBERSHIP_LOST' });
-    const h = harness({
+    const h = createHarness({
       execute: vi.fn<PlanningTransport['execute']>(),
       read,
     });
@@ -146,7 +146,7 @@ describe('canonical planning write capability', () => {
       .mockImplementation(async (_context, execution) =>
         makeReceipt(execution.mutationId, execution.baseRevision + 1),
       );
-    const h = harness({
+    const h = createHarness({
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
@@ -154,7 +154,7 @@ describe('canonical planning write capability', () => {
     await h.readSnapshot({
       revision: 0,
       authority: makePlanningAuthority(),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });
@@ -164,7 +164,7 @@ describe('canonical planning write capability', () => {
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority({ canWrite: false }),
-      data: canonicalData(),
+      data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
     });

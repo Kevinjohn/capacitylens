@@ -6,9 +6,9 @@ import { buildEmptyFilters } from '@/store/useStore';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { makeActivity, makeAllocation, makeClient, makeProject } from '@/test/fixtures';
 import {
-  allBars,
-  barIds,
-  dataset as buildDataset,
+  listAllBars,
+  listBarIds,
+  makeDataset,
   days,
   end,
   geom,
@@ -16,7 +16,7 @@ import {
   start,
 } from './schedulerModel.testSupport';
 
-const dataset = () => buildDataset(makeDisciplines());
+const dataset = () => makeDataset(makeDisciplines());
 
 // The Internal client filter includes both its own project activities and project-less internal work, whose client identity is derived.
 function withInternal(): AppData {
@@ -134,7 +134,7 @@ describe('repeatable allocation effective project', () => {
     });
 
   it('labels and colours attributed work by its project while preserving the unattributed fallback', () => {
-    const bars = allBars(buildAttributed());
+    const bars = listAllBars(buildAttributed());
     expect(bars.find((bar) => bar.allocation.id === 'aRepAttributed')).toMatchObject({
       project: 'P1',
       client: 'Ferris',
@@ -150,9 +150,11 @@ describe('repeatable allocation effective project', () => {
   });
 
   it('matches attributed work through either project/client lenses or its activity lens', () => {
-    const projectBars = barIds(buildAttributed({ ...buildEmptyFilters(), projectId: 'p1' }));
-    const clientBars = barIds(buildAttributed({ ...buildEmptyFilters(), clientId: 'c1' }));
-    const activityBars = barIds(buildAttributed({ ...buildEmptyFilters(), activityId: 'tRep' }));
+    const projectBars = listBarIds(buildAttributed({ ...buildEmptyFilters(), projectId: 'p1' }));
+    const clientBars = listBarIds(buildAttributed({ ...buildEmptyFilters(), clientId: 'c1' }));
+    const activityBars = listBarIds(
+      buildAttributed({ ...buildEmptyFilters(), activityId: 'tRep' }),
+    );
 
     expect(projectBars).toContain('aRepAttributed');
     expect(clientBars).toContain('aRepAttributed');
@@ -264,22 +266,22 @@ describe('built-in Internal client bucketing + filter', () => {
       });
 
     expect(
-      barIds(buildDangling({ filters: { ...buildEmptyFilters(), clientId: internalId } })),
+      listBarIds(buildDangling({ filters: { ...buildEmptyFilters(), clientId: internalId } })),
     ).not.toContain('dangling-unattributed');
     expect(
-      barIds(buildDangling({ filters: { ...buildEmptyFilters(), clientId: 'c1' } })),
+      listBarIds(buildDangling({ filters: { ...buildEmptyFilters(), clientId: 'c1' } })),
     ).not.toContain('dangling-unattributed');
     expect(
-      barIds(buildDangling({ filters: { ...buildEmptyFilters(), projectId: 'p1' } })),
+      listBarIds(buildDangling({ filters: { ...buildEmptyFilters(), projectId: 'p1' } })),
     ).not.toContain('dangling-unattributed');
-    expect(barIds(buildDangling({ filters: buildEmptyFilters() }))).toContain(
+    expect(listBarIds(buildDangling({ filters: buildEmptyFilters() }))).toContain(
       'dangling-unattributed',
     );
     expect(
-      barIds(buildDangling({ filters: { ...buildEmptyFilters(), clientId: 'c1' } })),
+      listBarIds(buildDangling({ filters: { ...buildEmptyFilters(), clientId: 'c1' } })),
     ).toContain('dangling-attributed');
     expect(
-      barIds(buildDangling({ filters: { ...buildEmptyFilters(), projectId: 'p1' } })),
+      listBarIds(buildDangling({ filters: { ...buildEmptyFilters(), projectId: 'p1' } })),
     ).toContain('dangling-attributed');
   });
 });
@@ -329,7 +331,7 @@ function buildInternalAndRepeatableData(): AppData {
 
 describe('internal-work bars', () => {
   it('shows every internal and all-projects bar alongside ordinary work', () => {
-    const ids = barIds(
+    const ids = listBarIds(
       buildSchedulerModel({
         data: buildInternalAndRepeatableData(),
         geom,

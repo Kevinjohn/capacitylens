@@ -7,7 +7,10 @@ import { buildEmptyFilters, useStore } from '@/store/useStore';
 import { makeActivity, makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import { buildColumnGeometry } from './columnGeometry';
 import { applyVisibleUtilisation, buildSchedulerModel } from './schedulerModel';
-import { partiallyExposesNextColumn, usePartiallyExposedNextColumn } from './useSchedulerGridModel';
+import {
+  isNextColumnPartiallyExposed,
+  usePartiallyExposedNextColumn,
+} from './useSchedulerGridModel';
 
 type ProjectWindowOptions = { partiallyExposesNextColumn: boolean };
 describe('visible-window lane projection', () => {
@@ -23,10 +26,10 @@ describe('visible-window lane projection', () => {
       const timelineWidth = 256 + geometry.x(7);
 
       expect(
-        partiallyExposesNextColumn({ geometry, days, scrollLeft: 0, timelineWidth, zoom: 1 }),
+        isNextColumnPartiallyExposed({ geometry, days, scrollLeft: 0, timelineWidth, zoom: 1 }),
       ).toBe(false);
       expect(
-        partiallyExposesNextColumn({ geometry, days, scrollLeft: 1, timelineWidth, zoom: 1 }),
+        isNextColumnPartiallyExposed({ geometry, days, scrollLeft: 1, timelineWidth, zoom: 1 }),
       ).toBe(true);
     },
   );

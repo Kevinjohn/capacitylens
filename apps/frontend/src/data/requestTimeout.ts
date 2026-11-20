@@ -61,7 +61,7 @@ export async function readMasqueradeErrorCode(
 }
 
 /** Fetches an API response with a caller signal and the selected deadline. */
-export async function apiFetch(
+export async function fetchApi(
   input: RequestInfo | URL,
   requestOptions: RequestInit = {},
   timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { freshProvider, me } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
 import { SessionProbe } from '@/test/SessionProbe';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
@@ -42,7 +42,7 @@ describe('AuthProvider — server mode', () => {
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
-    const { AuthProvider, useAuth, useStore, resetStoreWithCompany } = await freshProvider();
+    const { AuthProvider, useAuth, useStore, resetStoreWithCompany } = await renderFreshProvider();
     await resetStoreWithCompany('a-studio');
 
     render(
@@ -76,14 +76,14 @@ describe('AuthProvider — server mode', () => {
       return { createStorePlanningTransport: () => createPlanningTransport() };
     });
     try {
-      const { AuthProvider, useStore } = await freshProvider('server');
+      const { AuthProvider, useStore } = await renderFreshProvider('server');
       const { makeCompany, makeAppData } = await import('@/test/fixtures');
       const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
         const url = input instanceof Request ? input.url : String(input);
         if (!url.includes('/api/companies/a-studio/planning')) {
           throw new Error(`Unexpected read: ${url}`);
         }
-        return me(200, {
+        return makeMeResponse(200, {
           companyId: 'a-studio',
           revision: 1,
           authority: {

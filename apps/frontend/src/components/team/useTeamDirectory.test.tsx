@@ -7,7 +7,7 @@ import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { AuthContext } from '@/auth/authContext';
 import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
-import { authValue } from './MembersSection.testSupport';
+import { makeAuthValue } from './MembersSection.testSupport';
 import { useTeamDirectory } from './useTeamDirectory';
 
 type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;
@@ -56,7 +56,7 @@ function renderDirectory(
   const fail = vi.fn();
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={authValue()}>{children}</AuthContext.Provider>
+      <AuthContext.Provider value={makeAuthValue()}>{children}</AuthContext.Provider>
     </QueryClientProvider>
   );
   return renderHook(

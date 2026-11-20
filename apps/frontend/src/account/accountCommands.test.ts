@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  apiFetch: vi
+  fetchApi: vi
     .fn<(url: string, init?: RequestInit) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
   requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
 vi.mock('@/data/requestTimeout', () => ({
-  apiFetch: mocks.apiFetch,
+  fetchApi: mocks.fetchApi,
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: mocks.requestSignal,
 }));
@@ -23,7 +23,7 @@ import { transferOwner } from './accountCommands.testSupport';
 describe('browser account client', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
-    mocks.apiFetch
+    mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
     mocks.requestSignal.mockClear();
@@ -58,7 +58,7 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000052')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000053')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000054');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -67,7 +67,7 @@ describe('browser account client', () => {
     await transferOwner({ name: 'Studio' });
     await transferOwner({ name: 'Studio' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -82,7 +82,7 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000062')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000063')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000064');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     sessionStorage.setItem('capacitylens.unrelated-preference', 'keep');
@@ -91,7 +91,7 @@ describe('browser account client', () => {
     clearStoredAccountCommands();
     await transferOwner({ name: 'Shared browser' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -109,7 +109,7 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000082')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000083')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000084');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
@@ -121,7 +121,7 @@ describe('browser account client', () => {
     bindStoredAccountCommandsToIdentity('user-two');
     await transferOwner({ name: 'Shared browser' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([
@@ -137,7 +137,7 @@ describe('browser account client', () => {
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000092')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000093')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000094');
-    mocks.apiFetch
+    mocks.fetchApi
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
@@ -149,7 +149,7 @@ describe('browser account client', () => {
     bindStoredAccountCommandsToIdentity('user-two');
     await transferOwner({ name: 'Shared browser' });
 
-    const commandIds = mocks.apiFetch.mock.calls.map(([, init]) =>
+    const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
       new Headers(init?.headers).get('x-account-command-id'),
     );
     expect(commandIds).toEqual([

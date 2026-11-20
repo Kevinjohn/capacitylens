@@ -1,11 +1,11 @@
-import { apiFetch } from '@/data/requestTimeout';
-import { apiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { fetchApi } from '@/data/requestTimeout';
+import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { BrowserAccountCommand } from './accountCommands';
 import { buildCommandRequestInit, runCommand } from './commandRequest';
 
 /** Build the account-owned URL for one member/person association. */
 export function buildMemberResourceLinkUrl(companyId: string, principalId: string): string {
-  return apiRouteUrl('api.member-resources.set', {
+  return buildApiRouteUrl('api.member-resources.set', {
     params: { companyId, userId: principalId },
   });
 }
@@ -30,7 +30,7 @@ export function setMemberResourceLink(
     explicit: command,
     request: (resolved) => {
       const [url, init] = buildMemberResourceLinkRequest(input);
-      return apiFetch(url, buildCommandRequestInit(init, resolved));
+      return fetchApi(url, buildCommandRequestInit(init, resolved));
     },
     ambiguousStatus: 409,
   });
@@ -85,7 +85,7 @@ export function clearMemberResourceLink(
         input.principalId,
         input.expectedRevision,
       );
-      return apiFetch(url, buildCommandRequestInit(init, resolved));
+      return fetchApi(url, buildCommandRequestInit(init, resolved));
     },
     ambiguousStatus: 409,
   });
