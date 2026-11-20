@@ -1,5 +1,6 @@
 import { test, expect } from './dbFixtures';
 import {
+  commitPlanningChange,
   expectEditableBar,
   goToSeedWeek,
   isPlanningMutation,
@@ -115,7 +116,9 @@ test.describe('Allocation editor', () => {
     expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(viewport!.height);
     await dialog.getByRole('button', { name: 'Save' }).scrollIntoViewIfNeeded();
     await expect(dialog.getByRole('button', { name: 'Save' })).toBeInViewport();
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await commitPlanningChange(page, 'allocation.createGroup', () =>
+      dialog.getByRole('button', { name: 'Save' }).click(),
+    );
     await expect(page.getByTestId('allocation-bar')).toHaveCount(20);
     const linkedBar = page
       .locator('[data-testid="allocation-bar"][aria-label*="series through 11 Sep"]')
@@ -187,13 +190,16 @@ test.describe('Allocation editor', () => {
         repeatedDelete.getByRole('button', { name: 'Delete this occurrence' }),
       ).toBeVisible();
       const tailDeleteCommitted = page.waitForResponse((response) =>
-        isPlanningMutation(response.request(), 'allocation.deleteGroup'),
+        isPlanningMutation(response.request(), 'allocation.delete'),
       );
       await repeatedDelete
         .getByRole('button', { name: 'Delete this and future occurrences' })
         .click();
       const tailDeleteResponse = await tailDeleteCommitted;
       expect(tailDeleteResponse.status()).toBe(200);
+      expect(tailDeleteResponse.request().postDataJSON()).toMatchObject({
+        intent: { operation: 'allocation.delete', scope: 'future' },
+      });
       const tailDeleteReceipt = await tailDeleteResponse.json();
       expect(tailDeleteReceipt.status).toBe('committed');
       await expect(editor).toBeHidden();

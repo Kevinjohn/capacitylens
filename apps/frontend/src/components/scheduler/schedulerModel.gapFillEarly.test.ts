@@ -54,7 +54,11 @@ function buildBlockTimeOffRows() {
     geom,
     days,
     visibleWindow: { start, end },
-    capacity: null,
+    // The server flags Tuesday's block over r1's holiday as a time-off conflict.
+    capacity: capacityOver(
+      { from: start, to: end },
+      { r1: { byDate: { '2026-06-02': { timeOffConflict: true } } }, r2: {} },
+    ),
     filters: buildEmptyFilters(),
     preferences: {
       disciplinesEnabled: true,
@@ -62,7 +66,6 @@ function buildBlockTimeOffRows() {
       externalEnabled: true,
 
       companyWorkingDays: [1, 2, 3, 4],
-      blocksMode: true,
     },
   });
   const rows = model.flatMap((group) => group.rows);
@@ -393,7 +396,11 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       capacity: capacityOver(
         { from: start, to: end },
         {
-          r1: { byDate: { '2026-06-02': { allocated: 4, available: 0, over: true } } },
+          r1: {
+            byDate: {
+              '2026-06-02': { allocated: 4, available: 0, over: true, timeOffConflict: true },
+            },
+          },
           r2: { byDate: { '2026-06-03': { available: 0 } } },
         },
       ),
@@ -435,7 +442,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
       timeOffConflict: false,
     });
   });
-  it('marks only block/time-off overlaps without adding load or treating non-working days as conflicts', () => {
+  it('draws the server-flagged block/time-off conflict without adding load or treating non-working days as conflicts', () => {
     const { r1, r2 } = buildBlockTimeOffRows();
 
     expect(r1.dayStates.map((state) => state.over)).toEqual([

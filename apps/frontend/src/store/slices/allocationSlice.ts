@@ -1,15 +1,9 @@
 import type { StateCreator, StoreApi } from 'zustand';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
-import {
-  assertAllocationWithinResourceAvailability,
-  assertDateRange,
-} from '@capacitylens/shared/domain/mutations';
-import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
+import { assertDateRange } from '@capacitylens/shared/domain/mutations';
 import { createId } from '@capacitylens/shared/lib/id';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
-import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
-import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import type { Allocation, AppData, ID } from '@capacitylens/shared/types/entities';
+import type { Allocation, ID } from '@capacitylens/shared/types/entities';
 import {
   buildAllocationCreate,
   buildAllocationDuplicate,
@@ -26,6 +20,7 @@ type AllocationSlice = Pick<
   | 'addRepeatedAllocation'
   | 'duplicateAllocation'
   | 'updateAllocation'
+  | 'reassignAllocation'
   | 'deleteAllocation'
   | 'deleteAllocationSeriesFrom'
 >;
@@ -33,62 +28,12 @@ type AllocationSlice = Pick<
 /** Store capabilities used by allocation actions. */
 export type AllocationSliceInternals = Pick<
   StoreInternals,
-  'requireCompany' | 'isBlockedByViewer' | 'assertAllocation' | 'resolveOwnedRow' | 'applyPatch'
+  'requireCompany' | 'isBlockedByViewer' | 'resolveOwnedRow' | 'applyPatch'
 >;
 
 function assertSuppliedHours(hours: number): void {
   if (!Number.isFinite(hours) || hours < 0 || hours > MAX_HOURS_PER_DAY) {
     throw new Error(`Hours per day must be a finite number between 0 and ${MAX_HOURS_PER_DAY}.`);
-  }
-}
-
-function assertNewAllocations(
-  internals: AllocationSliceInternals,
-  data: AppData,
-  companyId: ID,
-  inputs: readonly Draft<Allocation>[],
-): void {
-  const company = data.accounts.find((candidate) => candidate.id === companyId);
-  const companyWorkingDays = normalizeCompanyWorkingDays(
-    company?.workingDays,
-    company?.weekStartsOn ?? 1,
-  );
-  for (const input of inputs) {
-    const allocation = { ...NULLABLE_FIELDS.allocations, ...input, companyId };
-    internals.assertAllocation(
-      data,
-      companyId,
-      allocation.resourceId,
-      allocation.activityId,
-      allocation.hoursPerDay,
-      allocation.projectId,
-    );
-    assertDateRange(allocation.startDate, allocation.endDate);
-    const resource = data.resources.find(
-      (candidate) => candidate.companyId === companyId && candidate.id === allocation.resourceId,
-    );
-    if (resource) {
-      assertAllocationWithinResourceAvailability({ allocation, resource, companyWorkingDays });
-    }
-  }
-}
-
-function assertAvailabilityAfterPlacementChange(
-  data: AppData,
-  effective: Allocation,
-  existing: Allocation,
-): void {
-  const resource = data.resources.find(
-    (candidate) =>
-      candidate.companyId === existing.companyId && candidate.id === effective.resourceId,
-  );
-  const company = data.accounts.find((candidate) => candidate.id === existing.companyId);
-  const companyWorkingDays = normalizeCompanyWorkingDays(
-    company?.workingDays,
-    company?.weekStartsOn ?? 1,
-  );
-  if (resource) {
-    assertAllocationPlacement({ allocation: effective, existing, resource, companyWorkingDays });
   }
 }
 
@@ -118,8 +63,7 @@ export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
-    const { requireCompany, isBlockedByViewer, assertAllocation, resolveOwnedRow, applyPatch } =
-      internals;
+    const { requireCompany, isBlockedByViewer, resolveOwnedRow, applyPatch } = internals;
     const send = (command: PlanningCommand) => get().sendPlanningCommand(command);
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
       if (inputs.length === 0) throw new Error('At least one allocation is required.');
@@ -127,7 +71,7 @@ export function createAllocationSlice(
       if (isBlockedByViewer()) return null;
       const data = get().data;
       for (const input of inputs) assertSuppliedHours(input.hoursPerDay);
-      assertNewAllocations(internals, data, companyId, inputs);
+      for (const input of inputs) assertDateRange(input.startDate, input.endDate);
       // Row ids are minted here, on the typed command path; the server assigns any series id.
       return { companyId, data, drafts: inputs.map((fields) => ({ id: createId(), fields })) };
     };
@@ -195,19 +139,7 @@ export function createAllocationSlice(
         if (!existing || isBlockedByViewer()) return false;
         const effective = applyPatch(existing, patch);
         assertSuppliedHours(effective.hoursPerDay);
-        // Validate the merged row so unrelated edits cannot preserve invalid external-resource
-        // load that the server would reject.
-        assertAllocation(
-          data,
-          existing.companyId,
-          effective.resourceId,
-          effective.activityId,
-          effective.hoursPerDay,
-          effective.projectId,
-          existing,
-        );
         assertDateRange(effective.startDate, effective.endDate);
-        assertAvailabilityAfterPlacementChange(data, effective, existing);
         const command = buildAllocationUpdate({
           data,
           companyId: existing.companyId,
@@ -216,6 +148,16 @@ export function createAllocationSlice(
         });
         if (!command) return false;
         return readSaveAdvisory(await send(command));
+      },
+      reassignAllocation: async (id, placement) => {
+        const data = get().data;
+        const existing = resolveOwnedRow(data, 'allocations', id);
+        if (!existing || isBlockedByViewer()) return false;
+        // The server decides the target's hours and refuses a placement the target cannot take.
+        assertDateRange(placement.startDate, placement.endDate);
+        return readSaveAdvisory(
+          await send({ intent: { operation: 'allocation.reassign', id, ...placement } }),
+        );
       },
       deleteAllocation: async (id) => {
         if (isBlockedByViewer() || !resolveOwnedRow(get().data, 'allocations', id)) return;
@@ -226,17 +168,9 @@ export function createAllocationSlice(
         const target = resolveOwnedRow(get().data, 'allocations', id);
         if (!target) return;
         if (!target.seriesId) throw new Error('This allocation is not part of a repeat series.');
-        const { companyId, seriesId, startDate } = target;
-        // One typed write deletes the whole tail, so a single Undo restores it.
-        const ids = get()
-          .data.allocations.filter(
-            (allocation) =>
-              allocation.companyId === companyId &&
-              allocation.seriesId === seriesId &&
-              allocation.startDate >= startDate,
-          )
-          .map((allocation) => allocation.id);
-        await send({ intent: { operation: 'allocation.deleteGroup', ids } });
+        // The server resolves the tail from its own rows, so a stale cache cannot pick the set; one
+        // typed write deletes it, so a single Undo restores it.
+        await send({ intent: { operation: 'allocation.delete', id, scope: 'future' } });
       },
     };
   };

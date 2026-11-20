@@ -173,12 +173,14 @@ function buildCompanyClosureModel({ blocksMode = false }: BuildCompanyClosureMod
       {
         r1: {
           overSoon: true,
-          byDate: { '2026-06-03': { allocated: 8, available: 0, over: !blocksMode } },
+          byDate: {
+            '2026-06-03': { allocated: 8, available: 0, over: !blocksMode, timeOffConflict: true },
+          },
         },
         r2: {
           byDate: {
             '2026-06-03': { available: 0 },
-            '2026-06-06': { allocated: 4, available: 0, over: true },
+            '2026-06-06': { allocated: 4, available: 0, over: true, timeOffConflict: true },
           },
         },
         'placeholder-1': { byDate: { '2026-06-03': { available: 0 } } },
@@ -189,7 +191,6 @@ function buildCompanyClosureModel({ blocksMode = false }: BuildCompanyClosureMod
       disciplinesEnabled: true,
       placeholdersEnabled: true,
       externalEnabled: true,
-      blocksMode,
     },
   });
 }

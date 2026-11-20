@@ -9,6 +9,10 @@ import {
   unarchive,
 } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey, Client } from '@capacitylens/shared/types/entities';
+import { hasHourlyLoad } from '@capacitylens/shared/types/entities';
+import { reconcileReassignedHours } from '@capacitylens/shared/domain/placement';
+import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
+import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
@@ -42,6 +46,22 @@ function assertOccurrenceIdsMatch(occurrenceIds: readonly string[], later: reado
       'The occurrence identities do not match the repeat.'
     );
   }
+}
+
+/** The occurrence and every later one in its repeat series, read from the server's snapshot. */
+function resolveSeriesFrom(data: AppData, id: string): string[] {
+  const target = requireExistingRow(data, 'allocations', id);
+  const { seriesId, startDate } = target;
+  if (!seriesId) {
+    throw new PlanningOperationError(
+      400,
+      'VALIDATION_ERROR',
+      'This allocation is not part of a repeat series.'
+    );
+  }
+  return data.allocations
+    .filter((row) => row.seriesId === seriesId && row.startDate >= startDate)
+    .map((row) => row.id);
 }
 
 async function transitionLifecycle(
@@ -199,6 +219,35 @@ async function applyIntent(
           mode: 'update',
         });
         return unchanged;
+      case 'allocation.reassign': {
+        const { id, resourceId, startDate, endDate } = intent;
+        const existing = requireExistingRow(data, 'allocations', id);
+        const target = requireExistingRow(data, 'resources', resourceId);
+        const company = requireExistingRow(data, 'accounts', companyId);
+        const hoursPerDay = reconcileReassignedHours({
+          current: existing.hoursPerDay,
+          target,
+          zeroLoadMode: !hasHourlyLoad(company.schedulingMode ?? 'hourly'),
+          startDate,
+          effectiveWeek: resolveEffectiveWorkingWeek(
+            target,
+            normalizeCompanyWorkingDays(company.workingDays, company.weekStartsOn === 0 ? 0 : 1)
+          ),
+        });
+        await writeEntity({
+          ...writeOptions,
+          table: 'allocations',
+          id,
+          fields: {
+            resourceId,
+            startDate,
+            endDate,
+            ...(hoursPerDay === existing.hoursPerDay ? {} : { hoursPerDay }),
+          },
+          mode: 'update',
+        });
+        return unchanged;
+      }
       case 'allocation.duplicate': {
         const source = requireExistingRow(data, 'allocations', intent.sourceAllocationId);
         const { occurrence } = intent;
@@ -378,7 +427,12 @@ async function applyIntent(
         return unchanged;
       case 'allocation.delete':
       case 'allocation.deleteGroup': {
-        const ids = intent.operation === 'allocation.delete' ? [intent.id] : intent.ids;
+        const ids =
+          intent.operation === 'allocation.deleteGroup'
+            ? intent.ids
+            : intent.scope === 'future'
+              ? resolveSeriesFrom(data, intent.id)
+              : [intent.id];
         const groupId = await deleteAllocations(trx, data, companyId, ids, identity, written);
         return { consumedGroupId: null, replacementGroupId: groupId };
       }

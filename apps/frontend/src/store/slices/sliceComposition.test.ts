@@ -80,6 +80,7 @@ describe('store slice composition', () => {
         'addAllocation',
         'addRepeatedAllocation',
         'updateAllocation',
+        'reassignAllocation',
         'deleteAllocation',
         'deleteAllocationSeriesFrom',
         'addTimeOff',

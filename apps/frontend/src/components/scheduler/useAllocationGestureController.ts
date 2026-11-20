@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { m } from '@/i18n';
-import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { hasRangeOverlap } from '@capacitylens/shared/lib/dateMath';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import type { Allocation, ID, Weekday } from '@capacitylens/shared/types/entities';
@@ -14,11 +13,7 @@ import type { DateRange, DragMode } from '@/lib/gestureMath';
 import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
 import { buildVisibleRange, listCompanyWorkingDays } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
-import {
-  reconcileReassignedHours,
-  resolveGesture,
-  resolveVolumePreservingHours,
-} from './allocationDrag';
+import { resolveGesture, resolveVolumePreservingHours } from './allocationDrag';
 import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
 import { buildCapacityAnnouncement } from './gestureAnnouncements';
 import { buildGesturePreviewDates } from './gestureGeometry';
@@ -49,7 +44,6 @@ interface ControllerOptions {
   bar: BarLayout;
   indexAtClientX: (clientX: number) => number;
   isDays: boolean;
-  isBlocks: boolean;
   onEdit?: (id: ID) => void;
 }
 
@@ -197,30 +191,6 @@ function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCom
   });
 }
 
-interface ReconcileCommitInput {
-  options: ControllerOptions;
-  targetResourceId: ID | null;
-  dates: DateRange;
-  hours: number;
-}
-
-function reconcileCommitHours({ options, targetResourceId, dates, hours }: ReconcileCommitInput) {
-  if (!targetResourceId) return hours;
-  const state = useStore.getState();
-  const target = state.data.resources.find((resource) => resource.id === targetResourceId);
-  if (!target) return hours;
-  return reconcileReassignedHours({
-    current: hours,
-    target,
-    zeroLoadMode: options.isBlocks,
-    startDate: dates.startDate,
-    effectiveWeek: resolveEffectiveWorkingWeek(
-      target,
-      listCompanyWorkingDays(state.data, state.activeCompanyId),
-    ),
-  });
-}
-
 interface SavePointerCommitInput {
   options: ControllerOptions;
   targetResourceId: ID | null;
@@ -229,20 +199,18 @@ interface SavePointerCommitInput {
 
 async function savePointerCommit({ options, targetResourceId, result }: SavePointerCommitInput) {
   const { bar } = options;
-  const { setNotice, updateAllocation } = useStore.getState();
-  const reconciledHours = reconcileCommitHours({
-    options,
-    targetResourceId,
-    dates: result.dates,
-    hours: result.hours,
-  });
+  const { setNotice, reassignAllocation, updateAllocation } = useStore.getState();
   let updated: Awaited<ReturnType<typeof updateAllocation>>;
   try {
-    updated = await updateAllocation(bar.allocation.id, {
-      ...result.dates,
-      ...(reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null),
-      ...(targetResourceId ? { resourceId: targetResourceId } : {}),
-    });
+    updated = targetResourceId
+      ? await reassignAllocation(bar.allocation.id, {
+          ...result.dates,
+          resourceId: targetResourceId,
+        })
+      : await updateAllocation(bar.allocation.id, {
+          ...result.dates,
+          ...(result.hours === bar.allocation.hoursPerDay ? null : { hoursPerDay: result.hours }),
+        });
     if (!updated) return;
   } catch (error) {
     // A diagonal drag is one transaction. A rejected reassignment must not commit its horizontal

@@ -13,6 +13,9 @@ export interface CapacityDays {
   confirmedAllocated: number[];
   available: number[];
   over: boolean[];
+  /** Time off or a company closure on a day that is over capacity or, in Blocks mode, carries any
+   * allocation. */
+  timeOffConflict: boolean[];
 }
 
 /** One capacity-tracked resource's figures. */

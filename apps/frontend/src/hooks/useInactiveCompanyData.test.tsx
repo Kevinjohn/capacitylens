@@ -35,7 +35,11 @@ function Probe() {
   return <div>{data?.clients.map((client) => client.name).join(',') ?? 'hidden'}</div>;
 }
 
-function view(role: 'owner' | 'admin' | 'editor', principalId = 'bruce') {
+function view(
+  role: 'owner' | 'admin' | 'editor',
+  principalId = 'bruce',
+  permissions = permissionValue(role, 'resolved'),
+) {
   return (
     <AuthContext.Provider
       value={{
@@ -44,7 +48,7 @@ function view(role: 'owner' | 'admin' | 'editor', principalId = 'bruce') {
         signOut: async () => {},
       }}
     >
-      <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
+      <PermissionContext.Provider value={permissions}>
         <Probe />
       </PermissionContext.Provider>
     </AuthContext.Provider>
@@ -58,6 +62,23 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('useInactiveCompanyData', () => {
+  it('reads inactive rows under the key the server checks, not the anonymise key', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, status: 200, json: async () => payload('a1', 'Gotham') });
+    vi.stubGlobal('fetch', fetchMock);
+    const admin = permissionValue('admin', 'resolved');
+    const permissions = {
+      ...admin,
+      grant: {
+        ...admin.grant,
+        permissions: admin.grant.permissions.filter((key) => key !== 'resources:anonymise'),
+      },
+    };
+    render(view('admin', 'bruce', permissions));
+    expect(await screen.findByText(/Gotham/)).toBeInTheDocument();
+  });
+
   it('invalidates its private server slice after a lifecycle mutation', async () => {
     const fetchMock = vi
       .fn()

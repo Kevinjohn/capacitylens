@@ -18,7 +18,9 @@ function listWrittenAllocationIds(intent: PlanningIntent): string[] {
   if (intent.operation === 'allocation.createGroup') {
     return [intent.allocation.id, ...(intent.occurrenceIds ?? [])];
   }
-  if (intent.operation === 'allocation.update') return [intent.id];
+  if (intent.operation === 'allocation.update' || intent.operation === 'allocation.reassign') {
+    return [intent.id];
+  }
   if (intent.operation === 'allocation.duplicate') return [intent.occurrence.id];
   return [];
 }

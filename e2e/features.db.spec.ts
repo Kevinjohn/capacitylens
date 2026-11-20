@@ -181,7 +181,7 @@ test.describe('Feature flows', () => {
       await page.mouse.move(ignoredBarBox.x + ignoredBarBox.width / 2, targetY, { steps: 10 });
       await expect(barryLane).toHaveAttribute('data-droptarget', '');
       const committed = page.waitForResponse((response) =>
-        isPlanningMutation(response.request(), 'allocation.update'),
+        isPlanningMutation(response.request(), 'allocation.reassign'),
       );
       await page.mouse.up();
       const receipt = await committed;

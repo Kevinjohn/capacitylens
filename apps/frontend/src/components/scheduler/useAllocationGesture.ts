@@ -102,7 +102,7 @@ export function useAllocationGesture({
   const isBlocks = !hasHourlyLoad(schedulingMode);
   const runtime = useGestureRuntime(bar.allocation.id);
   const { preview, onPointerDown, nudge } = useAllocationGestureController(
-    { bar, indexAtClientX, isDays, isBlocks, ...(onEdit ? { onEdit } : {}) },
+    { bar, indexAtClientX, isDays, ...(onEdit ? { onEdit } : {}) },
     runtime,
   );
 

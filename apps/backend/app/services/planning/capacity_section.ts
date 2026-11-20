@@ -105,16 +105,24 @@ export function buildCapacitySection({
     );
     const timeOffByDate = bucketByCoveredDate(timeOffByResource.get(resource.id) ?? [], dates);
     const effectiveWeek = resolveEffectiveWorkingWeek(resource, companyWorkingDays);
-    const all: CapacityDays = { allocated: [], confirmedAllocated: [], available: [], over: [] };
+    const all: CapacityDays = {
+      allocated: [],
+      confirmedAllocated: [],
+      available: [],
+      over: [],
+      timeOffConflict: [],
+    };
     for (const date of dates) {
       const allocations = allocationsByDate.get(date) ?? [];
+      const timeOff = timeOffByDate.get(date) ?? [];
+      const closures = closuresByDate.get(date) ?? [];
       const day = buildDayCapacity({
         resource,
         date,
         allocations,
-        timeOff: timeOffByDate.get(date) ?? [],
+        timeOff,
         effectiveWeek,
-        closures: closuresByDate.get(date) ?? [],
+        closures,
       });
       // Availability does not depend on status, so only the confirmed load is summed again.
       const confirmed = allocations.some((allocation) => allocation.status === 'tentative')
@@ -130,12 +138,16 @@ export function buildCapacitySection({
       all.confirmedAllocated.push(confirmed);
       all.available.push(day.available);
       all.over.push(day.over);
+      all.timeOffConflict.push(
+        timeOff.length + closures.length > 0 && (blocksMode ? allocations.length > 0 : day.over)
+      );
     }
     const sliceDays = ([start, end]: readonly [number, number]): CapacityDays => ({
       allocated: all.allocated.slice(start, end),
       confirmedAllocated: all.confirmedAllocated.slice(start, end),
       available: all.available.slice(start, end),
       over: all.over.slice(start, end),
+      timeOffConflict: all.timeOffConflict.slice(start, end),
     });
     resources[resource.id] = {
       overSoon: all.over.slice(...overSoonBounds).some(Boolean),

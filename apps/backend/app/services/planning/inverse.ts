@@ -37,6 +37,18 @@ export function buildInverseIntent(
       };
     case 'allocation.duplicate':
       return { operation: 'allocation.delete', id: intent.occurrence.id };
+    case 'allocation.reassign': {
+      const row = before.allocations.find((item) => item.id === intent.id);
+      const changes = buildEarlierValues(row, {
+        resourceId: intent.resourceId,
+        startDate: intent.startDate,
+        endDate: intent.endDate,
+        hoursPerDay: row?.hoursPerDay,
+      });
+      return (
+        changes && ({ operation: 'allocation.update', id: intent.id, changes } as PlanningIntent)
+      );
+    }
     case 'allocation.update': {
       const changes = buildEarlierValues(
         before.allocations.find((row) => row.id === intent.id),

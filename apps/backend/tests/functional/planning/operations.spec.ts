@@ -539,6 +539,54 @@ test.group('authenticated planning operations', (group) => {
     assert.deepEqual(await rows(), saved);
   });
 
+  test('a series-tail delete resolves the selected and later occurrences on the server', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const data = await readState(companyId, true);
+    const { cookie } = await signIn(client);
+    const allocation = newAllocation(data);
+    const mutate = (revision: number, intent: Record<string, unknown>) =>
+      session(client.post(route('planning/mutations')), cookie)
+        .json(input(revision, intent))
+        .send();
+    const created = await mutate(0, {
+      operation: 'allocation.createGroup',
+      allocation,
+      repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-23' },
+    });
+    created.assertStatus(200);
+    const ids = listCreatedAllocationIds(created.body());
+    assert.lengthOf(ids, 4);
+    const oneOff = { ...newAllocation(data), startDate: '2026-11-17', endDate: '2026-11-17' };
+    const single = await mutate(1, { operation: 'allocation.create', allocation: oneOff });
+    single.assertStatus(200);
+    const present = () =>
+      readState(companyId, true).then((state) =>
+        [...ids, oneOff.id].map((id) => state.allocations.some((row) => row.id === id))
+      );
+
+    const refused = await mutate(2, {
+      operation: 'allocation.delete',
+      id: oneOff.id,
+      scope: 'future',
+    });
+    refused.assertStatus(400);
+    assert.equal(body(refused).code, 'VALIDATION_ERROR');
+
+    // Only the selected id is sent; the server finds the later occurrences itself.
+    const tail = await mutate(2, { operation: 'allocation.delete', id: ids[1], scope: 'future' });
+    tail.assertStatus(200);
+    assert.deepEqual(await present(), [true, false, false, false, true]);
+    const restorationGroupId = (tail.body() as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
+    const restored = await mutate(3, { operation: 'planning.restoreGroup', restorationGroupId });
+    restored.assertStatus(200);
+    assert.deepEqual(await present(), [true, true, true, true, true]);
+  });
+
   test('a repeated time off commits its pattern and deletes and restores as a group', async ({
     client,
     assert,

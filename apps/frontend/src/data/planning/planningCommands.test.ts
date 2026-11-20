@@ -148,6 +148,24 @@ describe('planning command builders', () => {
     ).toBeNull();
   });
 
+  it('sends an activity change the cache cannot resolve, so the server decides', () => {
+    const allocation = makeAllocation({ id: 'allocation-1', companyId });
+    expect(
+      buildAllocationUpdate({
+        data: makeAppData({ allocations: [allocation] }),
+        companyId,
+        original: allocation,
+        args: { id: allocation.id, changes: { activityId: 'activity-gone' } },
+      }),
+    ).toEqual({
+      intent: {
+        operation: 'allocation.update',
+        id: allocation.id,
+        changes: { activityId: 'activity-gone' },
+      },
+    });
+  });
+
   it('keeps a draft change when a refresh has made that value current', () => {
     const original = makeAllocation({ id: 'allocation-1', companyId, note: 'before' });
     const refreshed = { ...original, note: 'after' };

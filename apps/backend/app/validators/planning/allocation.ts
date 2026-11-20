@@ -82,8 +82,26 @@ export const allocationIntent = vine
       })
     ),
     vine.union.if(
+      (value) => hasOperation(value, 'allocation.reassign'),
+      // A drag onto another row names only the target and dates; the server decides the load.
+      vine
+        .object({
+          operation: vine.literal('allocation.reassign'),
+          id: entityId(),
+          resourceId: entityId(),
+          startDate: calendarDate(),
+          endDate: calendarDate(),
+        })
+        .use(dateRange())
+    ),
+    vine.union.if(
       (value) => hasOperation(value, 'allocation.delete'),
-      vine.object({ operation: vine.literal('allocation.delete'), id: entityId() })
+      vine.object({
+        operation: vine.literal('allocation.delete'),
+        id: entityId(),
+        // `future` deletes this occurrence and every later one in its repeat series.
+        scope: vine.literal('future').optional(),
+      })
     ),
     vine.union.if(
       (value) => hasOperation(value, 'allocation.deleteGroup'),

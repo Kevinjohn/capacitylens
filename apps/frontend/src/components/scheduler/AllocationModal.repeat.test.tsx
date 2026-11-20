@@ -594,6 +594,14 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const user = userEvent.setup();
     renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
+    // The server owns availability and attribution; the browser surfaces its refusal.
+    getStubPlanningTransport().failNext(
+      new PlanningControllerError(
+        'The allocation starts before this person is available.',
+        'VALIDATION_ERROR',
+        400,
+      ),
+    );
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(/before this person is available/i);
