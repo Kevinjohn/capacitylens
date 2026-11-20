@@ -12,6 +12,7 @@ import {
   setPlanningAuthority,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
+import { PlanningControllerError } from '@/data/planning/planningErrors';
 import type { Draft } from './useStore';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
@@ -538,3 +539,30 @@ it.each([0, 0.5, 24])(
     );
   },
 );
+
+it('leaves a reassignment before the target is available for the server to refuse, and surfaces the refusal', async () => {
+  const { draft } = await allocationSetup();
+  const target = await requireCreated(
+    state().addResource(makeResourceDraft({ name: 'Diana', firstAvailableDate: '2026-07-01' })),
+  );
+  const allocation = requireCreated(await state().addAllocation(draft()));
+  const refusal = 'Allocation includes a scheduled working day before this person is available.';
+  getStubPlanningTransport().failNext(
+    new PlanningControllerError(refusal, 'VALIDATION_ERROR', 400),
+  );
+  await expect(
+    state().reassignAllocation(allocation.id, {
+      resourceId: target.id,
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+    }),
+  ).rejects.toThrow(refusal);
+  expect(getStubPlanningTransport().calls.at(-1)).toMatchObject({
+    operation: 'allocation.reassign',
+    id: allocation.id,
+    resourceId: target.id,
+  });
+  expect(state().data.allocations.find(({ id }) => id === allocation.id)?.resourceId).toBe(
+    allocation.resourceId,
+  );
+});

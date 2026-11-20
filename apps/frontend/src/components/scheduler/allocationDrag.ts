@@ -1,22 +1,7 @@
 import { applyGesture } from '@/lib/gestureMath';
 import type { DateRange, DragMode, GestureOptions } from '@/lib/gestureMath';
-import { resolveScheduledHoursOnDay } from '@capacitylens/shared/lib/capacity';
-import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
-import {
-  FULL_DAY_HOURS,
-  isExternalResource,
-  MAX_HOURS_PER_DAY,
-} from '@capacitylens/shared/types/entities';
-import type { ISODate, Resource } from '@capacitylens/shared/types/entities';
-
-interface ReconcileReassignedHoursInput {
-  current: number;
-  target: Resource;
-  zeroLoadMode: boolean;
-  startDate: ISODate;
-  effectiveWeek: EffectiveWorkingWeek;
-}
+import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 
 interface ResolveVolumePreservingHoursInput {
   previousDate: DateRange;
@@ -35,23 +20,6 @@ interface ResolveGestureInput {
 }
 
 // Pure date and load policy belongs here; DOM hit testing and store commits remain at the gesture boundary. Unexpected computation errors must propagate rather than be swallowed.
-
-/** Hours/day an allocation should carry after being reassigned (dragged) to `target`. An external
- * / 3rd party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged off an
- * external is promoted to the target's working day because those forms require positive load.
- * Blocks mode deliberately permits and preserves zero; existing positive historical values are
- * also retained for a real→real reassign. A same-resource move never calls this. */
-export function reconcileReassignedHours({
-  current,
-  target,
-  zeroLoadMode,
-  startDate,
-  effectiveWeek,
-}: ReconcileReassignedHoursInput): number {
-  if (isExternalResource(target)) return 0;
-  if (current > 0 || zeroLoadMode) return current;
-  return resolveScheduledHoursOnDay(target, startDate, effectiveWeek) || FULL_DAY_HOURS;
-}
 
 /** Preserves days-mode work volume while resizing and reports when the hours cap truncates it. Unmeasurable source or destination spans preserve the stored hours without reporting a clamp. */
 export function resolveVolumePreservingHours({

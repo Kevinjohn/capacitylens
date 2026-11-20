@@ -385,4 +385,59 @@ test.group('server-held undo and redo', (suite) => {
     const [row] = await histories();
     assert.include(row.entries_json, 'Batcave audit');
   });
+
+  test('a reassign takes its hours from the target and undoes to the original row', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    configureAuth(cleanup);
+    const page = new Page(client, await cookieFor(client));
+    const data = await readState(companyId, true);
+    const external = data.resources.find(
+      (row) => row.companyId === companyId && row.kind === 'external' && !row.archivedAt
+    )!;
+    const { id, reply } = await createAllocation(page);
+    assert.equal(reply.status, 200);
+    const original = await stored(id);
+    assert.isAbove(original?.hoursPerDay ?? 0, 0);
+
+    // An external carries no load: the server sets zero hours, which the intent cannot name.
+    const moved = await page.write(mutationsUrl, {
+      operation: 'allocation.reassign',
+      id,
+      resourceId: external.id,
+      startDate: '2026-11-09',
+      endDate: '2026-11-10',
+    });
+    assert.equal(moved.status, 200);
+    assert.deepInclude(await stored(id), {
+      resourceId: external.id,
+      startDate: '2026-11-09',
+      endDate: '2026-11-10',
+      hoursPerDay: 0,
+    });
+
+    // Back on a person in hourly mode, a zero-hour booking takes the person's working day.
+    const person = data.resources.find((row) => row.id === original?.resourceId)!;
+    const back = await page.write(mutationsUrl, {
+      operation: 'allocation.reassign',
+      id,
+      resourceId: person.id,
+      startDate: '2026-11-09',
+      endDate: '2026-11-10',
+    });
+    assert.equal(back.status, 200);
+    const promoted = await stored(id);
+    assert.equal(promoted?.hoursPerDay, person.workingHoursPerDay);
+
+    assert.equal(await statusOf(page.undo()), 200);
+    assert.equal(await statusOf(page.undo()), 200);
+    assert.deepInclude(await stored(id), {
+      resourceId: original?.resourceId,
+      startDate: original?.startDate,
+      endDate: original?.endDate,
+      hoursPerDay: original?.hoursPerDay,
+    });
+  });
 });

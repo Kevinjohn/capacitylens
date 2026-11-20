@@ -146,6 +146,15 @@ test.group('allocation start availability', (group) => {
     });
     reassigned.assertStatus(400);
     assert.equal(body(reassigned).code, 'VALIDATION_ERROR');
+    const dragged = await mutate(client, cookie, 4, {
+      operation: 'allocation.reassign',
+      id: allocation.id,
+      resourceId: other.id,
+      startDate: allocation.startDate,
+      endDate: allocation.endDate,
+    });
+    dragged.assertStatus(400);
+    assert.equal(body(dragged).code, 'VALIDATION_ERROR');
     const after = await readState(companyId, true);
     const saved = after.allocations.find((row) => row.id === allocation.id)!;
     assert.equal(saved.resourceId, allocation.resourceId);

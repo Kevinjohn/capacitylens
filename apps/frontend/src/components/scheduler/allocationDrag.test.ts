@@ -1,38 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import {
-  resolveVolumePreservingHours,
-  resolveGesture,
-  reconcileReassignedHours as reconcileReassignedHoursWithWeek,
-} from './allocationDrag';
-import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
+import { resolveVolumePreservingHours, resolveGesture } from './allocationDrag';
 import type { DateRange } from '@/lib/gestureMath';
-import type { Resource, Weekday } from '@capacitylens/shared/types/entities';
-import { makeResource } from '@/test/fixtures';
-
-interface ReconcileReassignedHoursTestInput {
-  current: number;
-  target: Resource;
-  zeroLoadMode: boolean;
-  startDate: string;
-}
+import type { Weekday } from '@capacitylens/shared/types/entities';
 
 // The pure gesture suite covers invalid spans, clamping, no-op moves, and working-calendar placement independently of pointer events.
 
 const IGNORE = { ignoreWorkingDays: true };
 const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate });
-const reconcileReassignedHours = ({
-  current,
-  target,
-  zeroLoadMode,
-  startDate,
-}: ReconcileReassignedHoursTestInput) =>
-  reconcileReassignedHoursWithWeek({
-    current,
-    target,
-    zeroLoadMode,
-    startDate,
-    effectiveWeek: resolveEffectiveWorkingWeek(target, [1, 2, 3, 4, 5]),
-  });
 
 describe('volumePreservingHoursClamped', () => {
   it('rescales hours inversely with the span (volume held constant)', () => {
@@ -285,75 +259,5 @@ describe('computeGesture rescaling guards', () => {
     });
     expect(hours).toBe(30);
     expect(clamped).toBe(false);
-  });
-});
-
-describe('reconcileReassignedHours', () => {
-  const res = (kind: Resource['kind'], workingHoursPerDay = 8): Resource =>
-    makeResource({
-      id: 'r',
-      companyId: 'a',
-      kind,
-      role: 'R',
-      workingHoursPerDay,
-      color: '#000000',
-    });
-  it('forces 0 hours when reassigning onto an external (a capacity-free row carries no load)', () => {
-    expect(
-      reconcileReassignedHours({
-        current: 8,
-        target: res('external'),
-        zeroLoadMode: false,
-        startDate: '2026-06-01',
-      }),
-    ).toBe(0);
-    expect(
-      reconcileReassignedHours({
-        current: 8,
-        target: res('external'),
-        zeroLoadMode: true,
-        startDate: '2026-06-01',
-      }),
-    ).toBe(0);
-  });
-  it('keeps a real resource positive hours on a real-to-real reassign', () => {
-    expect(
-      reconcileReassignedHours({
-        current: 6,
-        target: res('person'),
-        zeroLoadMode: false,
-        startDate: '2026-06-01',
-      }),
-    ).toBe(6);
-  });
-  it('promotes a 0-hour booking (dragged off an external) to the target working day', () => {
-    expect(
-      reconcileReassignedHours({
-        current: 0,
-        target: res('person', 7),
-        zeroLoadMode: false,
-        startDate: '2026-06-01',
-      }),
-    ).toBe(8);
-  });
-  it('promotes a 0-hour booking to four hours on a target half day', () => {
-    expect(
-      reconcileReassignedHours({
-        current: 0,
-        target: { ...res('person', 7), halfDays: [2] },
-        zeroLoadMode: false,
-        startDate: '2026-06-02',
-      }),
-    ).toBe(4);
-  });
-  it('keeps a zero-hour block at zero when reassigning it off an external', () => {
-    expect(
-      reconcileReassignedHours({
-        current: 0,
-        target: res('person', 7),
-        zeroLoadMode: true,
-        startDate: '2026-06-01',
-      }),
-    ).toBe(0);
   });
 });

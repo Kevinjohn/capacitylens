@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { DomainError } from './errors.js';
-import type { Weekday } from '../types/entities.js';
-import { assertAllocationPlacement } from './placement.js';
+import type { Resource, Weekday } from '../types/entities.js';
+import { resolveEffectiveWorkingWeek } from '../lib/effectiveWorkingWeek.js';
+import { makeResource } from '../lib/capacity/capacity.test.support.js';
+import { assertAllocationPlacement, reconcileReassignedHours } from './placement.js';
+import type { ReconcileReassignedHoursInput } from './placement.js';
 
 const resource = (overrides: Record<string, unknown> = {}) => ({
   kind: 'person' as const,
@@ -92,4 +95,72 @@ describe('changed allocation placement', () => {
       );
     },
   );
+});
+
+describe('reconcileReassignedHours', () => {
+  const res = (kind: Resource['kind'], workingHoursPerDay = 8): Resource =>
+    makeResource({ kind, workingHoursPerDay });
+  const reconcile = (input: Omit<ReconcileReassignedHoursInput, 'effectiveWeek'>) =>
+    reconcileReassignedHours({
+      ...input,
+      effectiveWeek: resolveEffectiveWorkingWeek(input.target, [1, 2, 3, 4, 5]),
+    });
+  it('forces 0 hours when reassigning onto an external (a capacity-free row carries no load)', () => {
+    expect(
+      reconcile({
+        current: 8,
+        target: res('external'),
+        zeroLoadMode: false,
+        startDate: '2026-06-01',
+      }),
+    ).toBe(0);
+    expect(
+      reconcile({
+        current: 8,
+        target: res('external'),
+        zeroLoadMode: true,
+        startDate: '2026-06-01',
+      }),
+    ).toBe(0);
+  });
+  it('keeps a real resource positive hours on a real-to-real reassign', () => {
+    expect(
+      reconcile({
+        current: 6,
+        target: res('person'),
+        zeroLoadMode: false,
+        startDate: '2026-06-01',
+      }),
+    ).toBe(6);
+  });
+  it('promotes a 0-hour booking (dragged off an external) to the target working day', () => {
+    expect(
+      reconcile({
+        current: 0,
+        target: res('person', 7),
+        zeroLoadMode: false,
+        startDate: '2026-06-01',
+      }),
+    ).toBe(8);
+  });
+  it('promotes a 0-hour booking to four hours on a target half day', () => {
+    expect(
+      reconcile({
+        current: 0,
+        target: { ...res('person', 7), halfDays: [2] },
+        zeroLoadMode: false,
+        startDate: '2026-06-02',
+      }),
+    ).toBe(4);
+  });
+  it('keeps a zero-hour block at zero when reassigning it off an external', () => {
+    expect(
+      reconcile({
+        current: 0,
+        target: res('person', 7),
+        zeroLoadMode: true,
+        startDate: '2026-06-01',
+      }),
+    ).toBe(0);
+  });
 });
