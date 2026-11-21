@@ -9,9 +9,10 @@ import { clearLinkValidator, setLinkValidator } from '#validators/member_resourc
 /** Scoped member/person association. */
 export default class MemberResourcesController {
   async setLink(ctx: HttpContext) {
-    const body = await ctx.request
-      .validateUsing(setLinkValidator, { data: ctx.request.body() })
-      .catch(refuseInvalidAdmissionBody);
+    const [validationError, body] = await ctx.request.tryValidateUsing(setLinkValidator, {
+      data: ctx.request.body(),
+    });
+    if (validationError) refuseInvalidAdmissionBody(validationError);
     const command = parseAccountOperation(
       ctx.request.header('x-account-command-id'),
       ctx.request.header('idempotency-key')
@@ -45,9 +46,10 @@ export default class MemberResourcesController {
   }
 
   async clearLink(ctx: HttpContext) {
-    const body = await ctx.request
-      .validateUsing(clearLinkValidator, { data: ctx.request.body() })
-      .catch(refuseInvalidAdmissionBody);
+    const [validationError, body] = await ctx.request.tryValidateUsing(clearLinkValidator, {
+      data: ctx.request.body(),
+    });
+    if (validationError) refuseInvalidAdmissionBody(validationError);
     const command = parseAccountOperation(
       ctx.request.header('x-account-command-id'),
       ctx.request.header('idempotency-key')

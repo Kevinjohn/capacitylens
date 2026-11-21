@@ -45,7 +45,9 @@ test.group('expected input errors', () => {
         params: { companyId: 'a-studio' },
         request: {
           body: () => ({}),
-          validateUsing: async () => {
+          // Mirrors the framework: Vine failures are returned, anything else is re-thrown.
+          tryValidateUsing: async () => {
+            if (failure instanceof vineErrors.E_VALIDATION_ERROR) return [failure, null];
             throw failure;
           },
         },

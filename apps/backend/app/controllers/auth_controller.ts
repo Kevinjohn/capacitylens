@@ -72,12 +72,14 @@ export default class AuthController {
   }
 
   async signIn(ctx: HttpContext) {
-    let body;
-    try {
-      body = await ctx.request.validateUsing(signInValidator, { data: ctx.request.body() });
-    } catch (error) {
-      // Route wording: sign-in answers a Vine failure with its own sentence and no code.
-      return ctx.response.badRequest({ error: requireAuthRequestMessage(error, 'sign-in') });
+    const [validationError, body] = await ctx.request.tryValidateUsing(signInValidator, {
+      data: ctx.request.body(),
+    });
+    // Route wording: sign-in answers a Vine failure with its own sentence and no code.
+    if (validationError) {
+      return ctx.response.badRequest({
+        error: requireAuthRequestMessage(validationError, 'sign-in'),
+      });
     }
     const { email } = body;
     try {
@@ -102,12 +104,14 @@ export default class AuthController {
    * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
    */
   async signUp(ctx: HttpContext) {
-    let body;
-    try {
-      body = await ctx.request.validateUsing(signUpValidator, { data: ctx.request.body() });
-    } catch (error) {
-      // Route wording: sign-up answers a Vine failure with its own sentence and no code.
-      return ctx.response.badRequest({ error: requireAuthRequestMessage(error, 'sign-up') });
+    const [validationError, body] = await ctx.request.tryValidateUsing(signUpValidator, {
+      data: ctx.request.body(),
+    });
+    // Route wording: sign-up answers a Vine failure with its own sentence and no code.
+    if (validationError) {
+      return ctx.response.badRequest({
+        error: requireAuthRequestMessage(validationError, 'sign-up'),
+      });
     }
     const { email, name } = body;
     if (!capacitylens.allowOpenSignUp || (await hasNoCompany(db))) {

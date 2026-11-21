@@ -8,7 +8,7 @@ export function refuseInvalidAdmission(message = 'Invalid admission request.'): 
 
 /**
  * Turns a refused request body into the admission refusal, with the sentence the validator
- * reports first. Pass to `.catch` on `validateUsing`; any other failure is re-thrown.
+ * reports first. Call with the error `tryValidateUsing` returns; any other value is re-thrown.
  */
 export function refuseInvalidAdmissionBody(error: unknown): never {
   if (error instanceof vineErrors.E_VALIDATION_ERROR) {

@@ -5,7 +5,6 @@ import { readCurrentAccount, withActor } from '#services/auth/current_actor';
 import { completeMembership } from '#services/membership/admission_membership';
 
 import { admissionQueryValidator } from '#validators/admission_query';
-import { errors as vineErrors } from '@vinejs/vine';
 import { managedGuard } from '#services/auth/managed_guard';
 import { USER_ID_PATTERN } from '#services/request_helpers';
 
@@ -33,12 +32,11 @@ export default class AdmissionController {
   }
 
   async index(ctx: HttpContext) {
-    let query;
-    try {
-      query = await ctx.request.validateUsing(admissionQueryValidator, { data: ctx.request.qs() });
-    } catch (error) {
-      // Route wording: this list answers a Vine failure with its own sentence and no code.
-      if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
+    const [validationError, query] = await ctx.request.tryValidateUsing(admissionQueryValidator, {
+      data: ctx.request.qs(),
+    });
+    // Route wording: this list answers a Vine failure with its own sentence and no code.
+    if (validationError) {
       return ctx.response.badRequest({ error: 'Invalid admission list request.' });
     }
     const { status, cursor } = query;

@@ -1,6 +1,5 @@
 import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { HttpContext } from '@adonisjs/core/http';
-import { errors as vineErrors } from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyPermission } from '#services/auth/authorization';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
@@ -25,13 +24,11 @@ export default class GettingStartedController {
 
   async update(ctx: HttpContext) {
     const { params, request, response } = ctx;
-    try {
-      await request.validateUsing(updateGettingStartedValidator, { data: request.body() });
-    } catch (error) {
-      // Route wording: this route answers a Vine failure with its own sentence and no code.
-      if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;
-      return response.badRequest({ error: 'dismissed must be true.' });
-    }
+    const [validationError] = await request.tryValidateUsing(updateGettingStartedValidator, {
+      data: request.body(),
+    });
+    // Route wording: this route answers a Vine failure with its own sentence and no code.
+    if (validationError) return response.badRequest({ error: 'dismissed must be true.' });
     const now = new Date().toISOString();
     await withActor(ctx, async (_actor, trx) => {
       const { role } = await assertCompanyPermission(params.companyId, 'planning:write', trx);

@@ -66,9 +66,10 @@ export default class InvitationsController {
   }
 
   async create(ctx: HttpContext) {
-    const body = await ctx.request
-      .validateUsing(createInvitationValidator, { data: ctx.request.body() })
-      .catch(refuseInvalidAdmissionBody);
+    const [validationError, body] = await ctx.request.tryValidateUsing(createInvitationValidator, {
+      data: ctx.request.body(),
+    });
+    if (validationError) refuseInvalidAdmissionBody(validationError);
     const { email } = body;
     const actorId = await this.manager(ctx, body.companyId);
     if (!isMailConfigured()) return sendMailUnavailable(ctx);
@@ -152,9 +153,11 @@ export default class InvitationsController {
    */
   async signUp(ctx: HttpContext) {
     setProofHeaders(ctx);
-    const body = await ctx.request
-      .validateUsing(acceptInvitationSignUpValidator, { data: ctx.request.body() })
-      .catch(refuseInvalidAdmissionBody);
+    const [validationError, body] = await ctx.request.tryValidateUsing(
+      acceptInvitationSignUpValidator,
+      { data: ctx.request.body() }
+    );
+    if (validationError) refuseInvalidAdmissionBody(validationError);
     const { name } = body;
     let email: string;
     try {
