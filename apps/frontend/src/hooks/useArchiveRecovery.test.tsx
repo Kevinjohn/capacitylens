@@ -9,7 +9,7 @@ import { useStore } from '@/store/useStore';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { useArchiveRecovery } from './useArchiveRecovery';
 import { permissionValue } from '@/test/permissionGrants';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 import { createDeferred } from '@/test/createDeferred';
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -51,7 +51,7 @@ function company(companyId: string) {
       context: { identity: 'principal', companyId },
       phase: { kind: 'ready', lastWrite: null },
       revision: 0,
-      authority: makePlanningAuthority({
+      authority: makePlanningAccess({
         actorId: 'bruce',
         effectiveActorId: 'bruce',
         role: 'editor',
@@ -102,7 +102,7 @@ describe('archive recovery request boundaries', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
-        authority: makePlanningAuthority({ actorId: 'bruce', effectiveActorId: 'bruce' }),
+        authority: makePlanningAccess({ actorId: 'bruce', effectiveActorId: 'bruce' }),
       },
     }));
     const rendered = render(view(cache, 'owner'));
@@ -117,7 +117,7 @@ describe('archive recovery request boundaries', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
-        authority: makePlanningAuthority({
+        authority: makePlanningAccess({
           actorId: 'bruce',
           effectiveActorId: 'diana',
           role: 'editor',

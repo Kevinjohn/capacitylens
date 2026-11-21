@@ -5,7 +5,7 @@ import {
   makeResourceDraft,
   requireValue,
   resetStoreWithCompany,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
@@ -168,14 +168,14 @@ describe('store CRUD covers every entity', () => {
   it('resources: a viewer cannot change an account favourite', async () => {
     const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     await s().updateResource(resource.id, { isFavourite: true });
 
     expect(requireValue(s().data.resources[0], 'resource')).toHaveProperty('isFavourite', null);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
   it('blocks a write when the planning authority cannot write, whatever the role', async () => {
-    setPlanningAuthority({ role: 'owner', canWrite: false });
+    setPlanningAccess({ role: 'owner', canWrite: false });
 
     expect(await s().addClient({ name: 'Wayne Foundation', color: '#1' })).toEqual({
       kind: 'blocked',
@@ -268,18 +268,18 @@ describe('store UI + history extras', () => {
     const afterUndo = s().data;
     const historyAfterUndo = s().planning.history;
 
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     expect(await s().redoPlanning()).toBe(false);
     expect(s().data).toBe(afterUndo);
     expect(s().planning.history).toBe(historyAfterUndo);
     expect(s().notice).toMatchObject({ tone: 'error' });
 
-    setPlanningAuthority({ role: 'editor' });
+    setPlanningAccess({ role: 'editor' });
     await s().redoPlanning();
     const afterRedo = s().data;
     const historyAfterRedo = s().planning.history;
     s().setNotice(null);
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     expect(await s().undoPlanning()).toBe(false);
     expect(s().data).toBe(afterRedo);
     expect(s().planning.history).toBe(historyAfterRedo);
@@ -403,7 +403,7 @@ describe('store colour and role behavior', () => {
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe('#7adae3');
   });
   it('a viewer cannot add a client', async () => {
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     const returned = await s().addClient({ name: 'Ferris', color: '#2d75da' });
     expect(s().data.clients).toHaveLength(0);
     expect(s().notice).toMatchObject({ tone: 'error' });
@@ -411,7 +411,7 @@ describe('store colour and role behavior', () => {
   });
   it('a viewer cannot update a client colour', async () => {
     const client = await requireCreated(s().addClient({ name: 'Ferris', color: '#7adae3' }));
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     await s().updateClient(client.id, { color: '#e02727' });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe('#7adae3');
     expect(s().notice).toMatchObject({ tone: 'error' });

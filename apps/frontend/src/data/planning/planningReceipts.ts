@@ -6,7 +6,7 @@ import type { PlanningSnapshot } from './planningCacheTypes';
 
 // Shape and scope checks for server reads and receipts.
 
-function isValidAuthority(authority: unknown): boolean {
+function isValidAccess(authority: unknown): boolean {
   return (
     isRecord(authority) &&
     typeof authority.actorId === 'string' &&
@@ -38,7 +38,7 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
     typeof snapshot.revision === 'number' &&
     snapshot.revision >= 0 &&
     isValidSlice(snapshot) &&
-    isValidAuthority(snapshot.authority) &&
+    isValidAccess(snapshot.authority) &&
     isValidISODate(snapshot.today) &&
     (snapshot.history === undefined ||
       (isRecord(snapshot.history) &&

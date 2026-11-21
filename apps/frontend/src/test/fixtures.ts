@@ -24,8 +24,8 @@ import {
   updatePlanningFixtureSource as updatePlanningFixtureSourceHandle,
 } from '@/test/planningTransportHandle';
 import type { BarLayout } from '@/components/scheduler/schedulerModel';
-import type { PlanningAuthority } from '@/data/planning/planningCacheTypes';
-import { makePlanningAuthority } from './planning/planningAuthorityFixtures';
+import type { PlanningAccess } from '@/data/planning/planningCacheTypes';
+import { makePlanningAccess } from './planning/planningAccessFixtures';
 
 // Shared fixtures establish an active company so scoped store mutations have a valid tenant.
 
@@ -215,10 +215,10 @@ export function loadPlanningData(data: AppData): void {
 }
 
 /** Publish a planning authority as the last accepted read's, and have later reads return it. */
-export function setPlanningAuthority(overrides: Partial<PlanningAuthority>): void {
-  getStubPlanningTransport().setAuthority(overrides);
+export function setPlanningAccess(overrides: Partial<PlanningAccess>): void {
+  getStubPlanningTransport().setAccess(overrides);
   useStore.setState((state) => ({
-    planning: { ...state.planning, authority: makePlanningAuthority(overrides) },
+    planning: { ...state.planning, authority: makePlanningAccess(overrides) },
   }));
 }
 

@@ -14,7 +14,7 @@ import type {
   PlanningSnapshot,
   PlanningWriteResult,
 } from './planningCacheTypes';
-import { buildAuthorityKey, canWritePlanning } from './planningAuthority';
+import { buildAccessKey, canWritePlanning } from './planningAccess';
 import { getErrorDetails, PlanningCacheError } from './planningErrors';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
 import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './planningReceipts';
@@ -174,7 +174,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     }
     const accessChanged =
       current.planning.authority !== null &&
-      buildAuthorityKey(snapshot.authority) !== buildAuthorityKey(current.planning.authority);
+      buildAccessKey(snapshot.authority) !== buildAccessKey(current.planning.authority);
     if (
       snapshot.slice === 'unchanged' &&
       (accessChanged || snapshot.revision !== current.planning.revision)

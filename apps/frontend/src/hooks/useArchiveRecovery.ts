@@ -6,7 +6,7 @@ import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
-import { buildAuthorityKey } from '@/data/planning/planningAuthority';
+import { buildAccessKey } from '@/data/planning/planningAccess';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -29,7 +29,7 @@ export function useArchiveRecovery() {
       }),
     [reload],
   );
-  const authorityKey = buildAuthorityKey(planning.authority);
+  const accessKey = buildAccessKey(planning.authority);
   const enabled =
     mayWrite &&
     !!companyId &&
@@ -52,7 +52,7 @@ export function useArchiveRecovery() {
     role,
     permissionStatus,
     enabled,
-    authorityKey,
+    accessKey,
     planning.revision,
     reloadKey,
   ]);
@@ -68,7 +68,7 @@ export function useArchiveRecovery() {
       instance,
       epoch,
       role,
-      authorityKey,
+      accessKey,
       planning.revision,
       reloadKey,
     ]),

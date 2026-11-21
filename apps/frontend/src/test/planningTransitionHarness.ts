@@ -13,7 +13,7 @@ import type {
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makeReceipt } from '@/test/planning/makeReceipt';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 export { makeReceipt };
 
@@ -33,7 +33,7 @@ export function snapshot(
 ): FullPlanningSnapshot {
   return {
     revision,
-    authority: makePlanningAuthority(),
+    authority: makePlanningAccess(),
     data: makeAppData({
       accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],

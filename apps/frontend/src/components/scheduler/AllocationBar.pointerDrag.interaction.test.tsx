@@ -11,7 +11,7 @@ import {
   resetStoreWithCompany,
   DEFAULT_COMPANY_ID,
   makeResourceDraft,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
@@ -187,7 +187,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-    act(() => setPlanningAuthority({ role: 'viewer', canWrite: false }));
+    act(() => setPlanningAccess({ role: 'viewer', canWrite: false }));
     rerender(barUi('viewer'));
     document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
     await settlePlanning();

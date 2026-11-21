@@ -17,7 +17,7 @@ import { m } from '@/i18n';
 import { SettingsDataSection } from './SettingsDataSection';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { permissionValue } from '@/test/permissionGrants';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 const hold = vi.hoisted(() => ({
   promise: null as Promise<void> | null,
@@ -116,7 +116,7 @@ it.each(
       const canonicalSnapshot: PlanningSnapshot = {
         data: canonicalData,
         revision: revision + 1,
-        authority: makePlanningAuthority(),
+        authority: makePlanningAccess(),
         today: getStubPlanningTransport().todayFor(companyId),
         capacity: emptyCapacity(),
       };

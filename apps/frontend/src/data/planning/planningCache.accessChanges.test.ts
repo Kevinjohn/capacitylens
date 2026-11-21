@@ -11,7 +11,7 @@ import {
   createHarness,
 } from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -28,7 +28,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -63,7 +63,7 @@ describe('planning cache', () => {
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
     });
     await h.cache.execute(h.cache.begin(), intent);
     const draft = h.cache.begin();
@@ -74,7 +74,7 @@ describe('planning cache', () => {
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
-        authority: makePlanningAuthority({ role: 'editor' }),
+        authority: makePlanningAccess({ role: 'editor' }),
       }),
     ).resolves.toBe(true);
     expect(h.state().planning.history.canUndo).toBe(false);
@@ -95,7 +95,7 @@ describe('planning cache', () => {
         data: cached,
         today: companyToday,
         capacity: emptyCapacity(),
-        authority: makePlanningAuthority(),
+        authority: makePlanningAccess(),
       }),
     ).resolves.toBe(true);
     expect(h.state().data.accounts).toHaveLength(1);
@@ -105,7 +105,7 @@ describe('planning cache', () => {
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
-        authority: makePlanningAuthority({ role: 'viewer' }),
+        authority: makePlanningAccess({ role: 'viewer' }),
       }),
     ).resolves.toBe(false);
     expect(h.state().data).toEqual(createEmptyAppData());
@@ -118,7 +118,7 @@ describe('planning cache', () => {
       .fn()
       .mockResolvedValueOnce({
         revision: 1,
-        authority: makePlanningAuthority(),
+        authority: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -153,7 +153,7 @@ describe('canonical planning write capability', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 0,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -163,7 +163,7 @@ describe('canonical planning write capability', () => {
     const draft = h.cache.begin();
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAuthority({ canWrite: false }),
+      authority: makePlanningAccess({ canWrite: false }),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),

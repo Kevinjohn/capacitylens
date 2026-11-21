@@ -1,5 +1,5 @@
 import type {
-  PlanningAuthority,
+  PlanningAccess,
   PlanningClientContext,
   PlanningHistoryStep,
   PlanningReadRequest,
@@ -32,7 +32,7 @@ import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveW
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import type { CapacityRange, CapacitySection } from '@capacitylens/shared/lib/capacity';
 import { emptyCapacity } from '@/test/capacityFixtures';
-import { makePlanningAuthority } from './planningAuthorityFixtures';
+import { makePlanningAccess } from './planningAccessFixtures';
 import { makeReceipt } from './makeReceipt';
 import { createServerHistoryModel } from './serverHistoryModel';
 
@@ -88,7 +88,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Every undo and redo request, in order, including refused ones. */
   readonly historySteps: Array<'undo' | 'redo'> = [];
   private data = createEmptyAppData();
-  private authority = makePlanningAuthority();
+  private authority = makePlanningAccess();
   private today: ISODate | null = null;
   private capacity: CapacitySection | null = null;
   /** The capacity window each read asked for; undefined for a read that asked for the default. */
@@ -101,7 +101,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
     this.data = structuredClone(data);
-    this.authority = makePlanningAuthority();
+    this.authority = makePlanningAccess();
     this.today = null;
     this.capacity = null;
     this.readWindows.length = 0;
@@ -153,8 +153,8 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   /** Set the canonical authority returned by subsequent reads: an Owner who can write, with these overrides. */
-  setAuthority(overrides: Partial<PlanningAuthority>): void {
-    this.authority = makePlanningAuthority(overrides);
+  setAccess(overrides: Partial<PlanningAccess>): void {
+    this.authority = makePlanningAccess(overrides);
   }
 
   /** Set the company date returned by subsequent reads, in place of the one read from the clock. */

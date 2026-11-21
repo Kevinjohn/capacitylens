@@ -1,7 +1,7 @@
 import type { StoreApi } from 'zustand';
 import { getOwned as findOwnedIn } from '@capacitylens/shared/domain/mutations';
 import { m } from '@/i18n';
-import { canWritePlanning } from '@/data/planning/planningAuthority';
+import { canWritePlanning } from '@/data/planning/planningAccess';
 import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { StoreState } from './types';
 

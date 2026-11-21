@@ -13,7 +13,7 @@ import {
   createHarness,
 } from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
@@ -33,7 +33,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -42,7 +42,7 @@ describe('planning cache', () => {
     const write = h.cache.execute(draft, intent);
     await h.readSnapshot({
       revision: 2,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -53,7 +53,7 @@ describe('planning cache', () => {
     expect(h.state().planning.history.canUndo).toBe(true);
     await h.readSnapshot({
       revision: 3,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -65,7 +65,7 @@ describe('planning cache', () => {
     {},
     {
       revision: 2,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: { ...createEmptyAppData(), accounts: [{ id: 'other-company' }] },
       today: companyToday,
       capacity: emptyCapacity(),
@@ -78,14 +78,14 @@ describe('planning cache', () => {
     },
     {
       revision: 4,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: { ...makeCanonicalData(), accounts: [] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 5,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: {
         ...makeCanonicalData(),
         accounts: [...makeCanonicalData().accounts, ...makeCanonicalData().accounts],
@@ -95,11 +95,11 @@ describe('planning cache', () => {
     },
     {
       revision: 6,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: '2026-02-30',
     },
-    { revision: 7, authority: makePlanningAuthority(), data: makeCanonicalData() },
+    { revision: 7, authority: makePlanningAccess(), data: makeCanonicalData() },
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
     const h = createHarness({ execute: vi.fn(), read });

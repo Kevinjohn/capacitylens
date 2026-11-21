@@ -1,4 +1,4 @@
-import { canWritePlanning } from './planningAuthority';
+import { canWritePlanning } from './planningAccess';
 import type { PlanningCacheMetadata } from './planningCacheTypes';
 
 /** The one readiness rule: a writable, loaded context at a known revision with no unresolved write. */

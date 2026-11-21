@@ -19,7 +19,7 @@ import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { permissionValue } from '@/test/permissionGrants';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 const { archiveRequest } = vi.hoisted(() => ({ archiveRequest: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -64,7 +64,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
       ...state.planning,
       phase: { kind: 'ready', lastWrite: null },
       context: { identity: 'test-principal', companyId: DEFAULT_COMPANY_ID },
-      authority: makePlanningAuthority({ role }),
+      authority: makePlanningAccess({ role }),
     },
   }));
 }

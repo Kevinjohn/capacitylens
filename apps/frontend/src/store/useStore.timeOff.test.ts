@@ -7,7 +7,7 @@ import {
   makeResource,
   makeResourceDraft,
   resetStoreWithCompany,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import { PlanningCacheError } from '@/data/planning/planningErrors';
@@ -190,7 +190,7 @@ describe('atomic time-off creation: viewer guard', () => {
   it('applies the Viewer guard to the whole batch without data or history mutation', async () => {
     const { draft } = await timeOffSetup();
     const historyBefore = state().planning.history;
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     const returned = await state().addRepeatedTimeOff(draft(), weekly('2026-06-08'), 2);
 
     expect(returned).toEqual({ kind: 'blocked' });

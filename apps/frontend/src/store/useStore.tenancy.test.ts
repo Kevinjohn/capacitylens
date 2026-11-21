@@ -7,7 +7,7 @@ import {
   makeCompany,
   makeAppData,
   resetStoreWithData,
-  setPlanningAuthority,
+  setPlanningAccess,
   WORKDAYS,
 } from '@/test/fixtures';
 import {
@@ -119,7 +119,7 @@ describe('active-account replacement invariant', () => {
 
 describe('active-account permission publication', () => {
   it('atomically fail-closes a switched tenant before an imperative write can use the prior authority', async () => {
-    setPlanningAuthority({ role: 'editor' });
+    setPlanningAccess({ role: 'editor' });
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {
       if (state.activeCompanyId === B) {
@@ -127,7 +127,7 @@ describe('active-account permission publication', () => {
       }
     });
 
-    getStubPlanningTransport().setAuthority({ role: 'viewer', canWrite: false });
+    getStubPlanningTransport().setAccess({ role: 'viewer', canWrite: false });
     s().setActiveCompany(B);
     // B is known from the summaries before its rows load, so the write reaches the authority check,
     // which refuses it while B's planning read has not been accepted.
@@ -174,7 +174,7 @@ describe('active-account permission publication', () => {
 
   it('honors canonical read-only authority even when the role is owner', async () => {
     const transport = getStubPlanningTransport();
-    transport.setAuthority({ role: 'owner', canWrite: false });
+    transport.setAccess({ role: 'owner', canWrite: false });
     expect(await s().refreshPlanning({ fresh: true })).toBe(true);
 
     expect(s().planning.authority).toMatchObject({ role: 'owner', canWrite: false });

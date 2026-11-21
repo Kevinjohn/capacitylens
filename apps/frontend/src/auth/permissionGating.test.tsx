@@ -24,7 +24,7 @@ import {
   loadPlanningData,
   resetStoreWithCompany,
   makeResourceDraft,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { Allocation } from '@capacitylens/shared/types/entities';
@@ -173,20 +173,20 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
   beforeEach(() => resetStoreWithCompany());
 
   it('add*/update*/delete* NO-OP for a viewer and surface a read-only notice', async () => {
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
 
     const result = await useStore.getState().addResource(makeResourceDraft());
     expect(result).toEqual({ kind: 'blocked' });
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
-    setPlanningAuthority({ role: 'owner' });
+    setPlanningAccess({ role: 'owner' });
     const seeded = await requireCreated(
       useStore.getState().addResource(makeResourceDraft({ name: 'Seeded' })),
     );
     expect(useStore.getState().data.resources).toHaveLength(1);
 
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     await useStore.getState().updateResource(seeded.id, { name: 'Renamed' });
     expect(useStore.getState().data.resources[0]?.name).toBe('Seeded');
 
@@ -196,7 +196,7 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
   it.each(['editor', 'owner', 'admin'] as const)(
     'role %s permits the mutation outside masquerade',
     async (role) => {
-      setPlanningAuthority({ role });
+      setPlanningAccess({ role });
       const r = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
       expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);
     },

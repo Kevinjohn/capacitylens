@@ -13,7 +13,7 @@ import {
   createHarness,
 } from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 import { createDeferred } from '@/test/createDeferred';
 
 afterEach(() => setMasqueradeContextToken(null));
@@ -28,7 +28,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 3,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -47,7 +47,7 @@ describe('planning cache', () => {
   it('sends a canonical read with the proof current when the read is dispatched', async () => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 3,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -81,7 +81,7 @@ describe('planning cache', () => {
     h.cache.setContext(null);
     resolveRead({
       revision: 9,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: { ...createEmptyAppData(), accounts: [{ id: 'leak' } as never] },
       today: companyToday,
       capacity: emptyCapacity(),
@@ -109,7 +109,7 @@ describe('planning cache', () => {
     h.cache.setContext(anonymous);
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -119,7 +119,7 @@ describe('planning cache', () => {
     h.cache.setContext(anonymous);
     await h.readSnapshot({
       revision: 7,
-      authority: makePlanningAuthority(),
+      authority: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -159,7 +159,7 @@ describe('planning receipt completion context', () => {
           data: makeCanonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),
-          authority: makePlanningAuthority(),
+          authority: makePlanningAccess(),
         });
         await h.cache.execute(h.cache.begin(), intent);
         if (action === 'redo') await h.cache.undo();
@@ -182,7 +182,7 @@ describe('planning receipt completion context', () => {
         }
         delayed.resolve({
           revision,
-          authority: makePlanningAuthority({
+          authority: makePlanningAccess({
             role: change === 'authority change' ? 'editor' : 'owner',
           }),
           data: makeCanonicalData(),

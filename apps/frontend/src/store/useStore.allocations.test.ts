@@ -7,7 +7,7 @@ import {
   requireValue,
   resetStoreWithCompany,
   WORKDAYS,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
 import { PlanningCacheError } from '@/data/planning/planningErrors';
@@ -163,7 +163,7 @@ describe('atomic allocation creation', () => {
   it('applies the Viewer guard to the whole batch', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory();
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     const returned = await state().addRepeatedAllocation(draft(), weekly('2026-06-08'));
     expect(returned).toEqual({ kind: 'blocked' });
     expect(state().data.allocations).toHaveLength(0);

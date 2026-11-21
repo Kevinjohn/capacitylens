@@ -6,7 +6,7 @@ import { createPlanningCache, createPlanningCacheState } from './planningCache';
 import { PlanningCacheError } from './planningErrors';
 import type { PlanningCacheState, PlanningTransport } from './planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 const context = { identity: 'bruce', companyId: 'wayne' };
 const intent = {
@@ -43,7 +43,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
       redo: vi.fn(),
       read: async () => ({
         revision: 0,
-        authority: makePlanningAuthority(),
+        authority: makePlanningAccess(),
         data: {
           ...createPlanningCacheState().data,
           accounts: [makeCompany({ id: context.companyId })],

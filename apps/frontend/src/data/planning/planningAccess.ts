@@ -1,7 +1,7 @@
-import type { PlanningAuthority } from './planningCacheTypes';
+import type { PlanningAccess } from './planningCacheTypes';
 
 /** A stable string for comparing two authorities; never parsed. */
-export function buildAuthorityKey(authority: PlanningAuthority | null): string | null {
+export function buildAccessKey(authority: PlanningAccess | null): string | null {
   if (authority === null) return null;
   return JSON.stringify([
     authority.actorId,
@@ -14,6 +14,6 @@ export function buildAuthorityKey(authority: PlanningAuthority | null): string |
 }
 
 /** Whether the member behind this authority may write planning data. */
-export function canWritePlanning(authority: PlanningAuthority | null): boolean {
+export function canWritePlanning(authority: PlanningAccess | null): boolean {
   return authority?.canWrite === true;
 }

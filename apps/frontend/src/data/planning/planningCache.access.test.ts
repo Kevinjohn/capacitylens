@@ -7,7 +7,7 @@ import { createPlanningCache, createPlanningCacheState } from './planningCache';
 import { PlanningCacheError } from './planningErrors';
 import type { FullPlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 import { createDeferred } from '@/test/createDeferred';
 
 type RequestStage = 'read' | 'execute';
@@ -23,7 +23,7 @@ const update = {
 function snapshot(name: string, revision = 1): FullPlanningSnapshot {
   return {
     revision,
-    authority: makePlanningAuthority(),
+    authority: makePlanningAccess(),
     data: makeAppData({
       accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ companyId: 'wayne', name })],
@@ -120,7 +120,7 @@ describe('planning request access boundaries', () => {
       fixture.cache.setContext({ ...context, identity: 'diana-session-2' });
       fixture.read.mockResolvedValueOnce({
         ...snapshot('Gotham', 2),
-        authority: makePlanningAuthority({ role: 'editor' }),
+        authority: makePlanningAccess({ role: 'editor' }),
       });
       await fixture.cache.refresh();
       pending.reject(new PlanningCacheError('Previous session ended', undefined, 401));
@@ -142,7 +142,7 @@ describe('planning request access boundaries', () => {
     expect(execution).toBeDefined();
     fixture.read.mockResolvedValueOnce({
       ...snapshot('Gotham', 2),
-      authority: makePlanningAuthority({ role: 'editor' }),
+      authority: makePlanningAccess({ role: 'editor' }),
     });
     await fixture.cache.refresh();
     pending.resolve({
