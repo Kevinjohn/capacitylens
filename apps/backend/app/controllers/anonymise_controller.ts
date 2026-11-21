@@ -4,7 +4,8 @@ import { anonymiseResources } from '#services/anonymise';
 import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { companyValidator, resourceValidator } from '#validators/anonymise';
-import { assertCompanyPermission, IdentityAuthorityError } from '#services/auth/authorization';
+import { assertCompanyPermission } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 
 export default class AnonymiseController {
   async resource(ctx: HttpContext) {
@@ -16,7 +17,7 @@ export default class AnonymiseController {
         await assertCompanyPermission(companyId, 'resources:anonymise', trx);
       } catch (error) {
         // Route wording: this route refuses identity failures as a bare 'Forbidden.'.
-        if (error instanceof IdentityAuthorityError) return 'forbidden';
+        if (error instanceof IdentityAuthorizationException) return 'forbidden';
         throw error;
       }
       return anonymiseResources(trx, companyId, actor.userId, id);

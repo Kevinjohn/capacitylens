@@ -1,7 +1,8 @@
 import { OwnershipTransferException } from '#exceptions/ownership_transfer_exception';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
-import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
+import { getActiveCompanyRole } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { refuseWhileViewing } from '#services/auth/password_confirmation';
 import { requireKitContext, type CurrentActor } from '#services/auth/current_actor';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
@@ -37,7 +38,7 @@ export async function transferOwnership({
       // A membership proves its company exists, so an unknown company is refused like any other
       // company the caller does not belong to.
       currentRole = await getActiveCompanyRole(actor.userId, companyId, trx);
-      if (!currentRole) throw new IdentityAuthorityError('Forbidden.');
+      if (!currentRole) throw new IdentityAuthorizationException('Forbidden.');
     },
     authorizeReplay: (_context, receipt) => {
       if (receipt.fromUserId !== actor.userId || receipt.toUserId !== toUserId) {
@@ -48,7 +49,7 @@ export async function transferOwnership({
     parseAuthorization: (raw) => raw as string,
     authorizeExecute: async (_context, authorization) => {
       if (!currentRole || !access.can(currentRole, 'ownership:transfer')) {
-        throw new IdentityAuthorityError('Forbidden.');
+        throw new IdentityAuthorizationException('Forbidden.');
       }
       if (actor.userId === toUserId) {
         throw new OwnershipTransferException(

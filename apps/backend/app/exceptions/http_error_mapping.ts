@@ -21,7 +21,7 @@ import {
   PasswordConfirmationThrottledException,
   InvalidPasswordConfirmationRequestException,
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
-import { IdentityAuthorityError } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { RefusalException } from '#exceptions/refusal_exception';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
@@ -85,7 +85,7 @@ function buildAdmissionRequiredResponse(
  * other route sends the error's own message and code.
  */
 function buildIdentityAuthorizationResponse(
-  error: IdentityAuthorityError,
+  error: IdentityAuthorizationException,
   surface: RefusalSurface
 ): SharedRefusal {
   if (surface === 'planning') {
@@ -364,7 +364,7 @@ export function mapHttpError(
   if (error instanceof RefusalException) return { status: error.status, body: error.body() };
   const confirmation = buildConfirmationResponse(error);
   if (confirmation) return confirmation;
-  if (error instanceof IdentityAuthorityError) {
+  if (error instanceof IdentityAuthorizationException) {
     return buildIdentityAuthorizationResponse(error, surface);
   }
   if (error instanceof vineErrors.E_VALIDATION_ERROR) {

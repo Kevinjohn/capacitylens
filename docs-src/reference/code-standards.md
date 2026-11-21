@@ -189,7 +189,7 @@ export default class CompaniesController {
 /**
  * Authorizes one company permission from live membership inside the actor's verified transaction.
  *
- * @throws `IdentityAuthorityError`, mapped to 403 by the handler; nothing was read or written.
+ * @throws `IdentityAuthorizationException`, mapped to 403 by the handler; nothing was read or written.
  */
 export async function assertCompanyPermission(
 

@@ -2,7 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { readCurrentMasquerade, endMasquerade, startMasquerade } from '#services/auth/masquerade';
-import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
+import { getActiveCompanyRole } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { getSignedInSession } from '#services/auth/current_actor';
 import { endValidator, startValidator } from '#validators/masquerade';
@@ -13,7 +14,7 @@ async function runWithAuthorizationRefusal<T>(ctx: HttpContext, work: () => Prom
     return await work();
   } catch (error) {
     // Route wording: view-as controls refuse identity failures with their own sentence.
-    if (error instanceof IdentityAuthorityError) {
+    if (error instanceof IdentityAuthorizationException) {
       return ctx.response
         .status(error.status)
         .send({ error: 'This action is not allowed.', code: error.code });
@@ -54,7 +55,7 @@ export default class MasqueradeController {
           const mode = await readCurrentMasquerade(ctx, db.connection(), companyId);
           if (mode.active) return ctx.response.ok(mode);
           if (!(await getActiveCompanyRole(signIn.userId, companyId, undefined))) {
-            throw new IdentityAuthorityError('Company membership is unavailable.');
+            throw new IdentityAuthorizationException('Company membership is unavailable.');
           }
           return ctx.response.ok({ ...mode, companyId });
         }

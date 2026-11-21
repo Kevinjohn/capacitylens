@@ -1,7 +1,7 @@
 import app from '@adonisjs/core/services/app';
 import { InvalidSessionError, UnverifiedEmailError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
-import { IdentityAuthorityError } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { PasswordConfirmationException } from '#exceptions/password_confirmation_exception';
 import { test } from '@japa/runner';
 import { PasswordConfirmationRequiredException } from '@kevinjohn/adonisjs-confirm-action-with-password';
@@ -57,7 +57,7 @@ test('expected authentication and authorization refusals do not report server er
   for (const [error, status] of [
     [new InvalidSessionError(), 401],
     [new UnverifiedEmailError(), 403],
-    [new IdentityAuthorityError('PRIVATE_AUTHORITY'), 403],
+    [new IdentityAuthorizationException('PRIVATE_AUTHORITY'), 403],
     [new PasswordConfirmationException(), 403],
     [new PasswordConfirmationRequiredException(), 403],
   ] as const) {

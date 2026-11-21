@@ -17,11 +17,8 @@ import type {
   QueryClientContract,
   TransactionClientContract,
 } from '@adonisjs/lucid/types/database';
-import {
-  listActiveCompanyIds,
-  getActiveCompanyRole,
-  IdentityAuthorityError,
-} from '#services/auth/authorization';
+import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { canViewAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { buildAccessGrant } from '#services/auth/access_grant';
@@ -136,11 +133,13 @@ export async function resolveEffectiveReadUser(
   }
   if (context.isMasquerading) {
     // Without a company there is no rank to check, so a view never reads company-free.
-    if (!companyId) throw new IdentityAuthorityError('Masquerade company authority changed.');
+    if (!companyId) {
+      throw new IdentityAuthorizationException('Masquerade company authority changed.');
+    }
     const actorRole = await getActiveCompanyRole(actor.userId, companyId, trx);
     const targetRole = await getActiveCompanyRole(context.effectiveId, companyId, trx);
     if (!actorRole || !targetRole || !canViewAs(actorRole, targetRole)) {
-      throw new IdentityAuthorityError('Masquerade company authority changed.');
+      throw new IdentityAuthorizationException('Masquerade company authority changed.');
     }
   }
   return {

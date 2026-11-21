@@ -12,7 +12,7 @@ import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admissio
 import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
-import { IdentityAuthorityError } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 
 function context(error: unknown, routeName?: string) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
@@ -107,7 +107,7 @@ test.group('product error adapters', () => {
   test('identity and admission refusals keep the wording stated for each surface', async ({
     assert,
   }) => {
-    const identity = new IdentityAuthorityError('Invalid membership role.');
+    const identity = new IdentityAuthorizationException('Invalid membership role.');
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     const admission = new AdmissionRequiredError(decision);
     const viaHandler = async (error: unknown) => {
@@ -156,7 +156,7 @@ test.group('product error adapters', () => {
     const productAdmission = 'Your access to this company is waiting on admission.';
     const cases = [
       {
-        error: () => new IdentityAuthorityError('Invalid membership role.'),
+        error: () => new IdentityAuthorizationException('Invalid membership role.'),
         expected: {
           product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORITY_DENIED' },
           planning: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
@@ -203,7 +203,7 @@ test.group('product error adapters', () => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     const cases = [
       {
-        thrown: new IdentityAuthorityError('Masquerade company authority changed.'),
+        thrown: new IdentityAuthorizationException('Masquerade company authority changed.'),
         expected: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
       },
       {
@@ -226,7 +226,7 @@ test.group('product error adapters', () => {
       new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED'),
       new MasqueradeError('E_MASQUERADE_NOT_ALLOWED'),
       new AdmissionRequiredError({ admitted: false, requirements: { invitation: { met: false } } }),
-      new IdentityAuthorityError('Invalid membership role.'),
+      new IdentityAuthorizationException('Invalid membership role.'),
       Object.assign(new Error('Route not found'), { code: 'E_ROUTE_NOT_FOUND' }),
     ]) {
       const { ctx, diagnostics } = context(error);
