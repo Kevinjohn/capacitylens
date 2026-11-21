@@ -29,8 +29,8 @@ Three rules decide every case:
    cites it as "departure 10". A new difference needs a new item there first.
 3. **An existing difference is debt.** Code that differs without a departure is tracked in
    [#2334](https://github.com/Kevinjohn/capacitylens/issues/2334). It is not a pattern to copy.
-   Rules marked **Open** wait for a decision in that issue; until then, match the surrounding
-   code.
+   Where this page states a rule the code does not yet follow, the rule is the target and new code
+   follows it.
 
 The rules that apply to every AdonisJS repository, applications and packages alike, are in the
 [AdonisJS cookbook](./adonisjs-cookbook.md), and the
@@ -149,7 +149,7 @@ one class unless the table says otherwise.
 | Validator | `app/validators/<singular resource>.ts` | named `<verb><Resource>Validator` | `createMemberValidator` |
 | Transformer | `app/transformers/<singular>_transformer.ts` | `<Singular>Transformer` | `user_transformer.ts` |
 | Exception | `app/exceptions/<name>_exception.ts` | `<Name>Exception` | `stale_revision_exception.ts` |
-| Service | `app/services/<name>_service.ts` | `<Name>Service` | function modules here (departure 10); file name **Open:** #2334 item 6 |
+| Service | `app/services/<name>.ts` | named functions | `with_transaction.ts`; no `_service` suffix (departure 10) |
 | Provider | `providers/<name>_provider.ts` | `<Name>Provider` | `backup_provider.ts` |
 | Preload file | `start/<name>.ts` | none; imported for its effect | `start/validator.ts` |
 | Ace command | `commands/<namespace>_<action>.ts` | `<NamespaceAction>` | `app_reset.ts`, `app:reset` |
@@ -199,11 +199,13 @@ Source: the Configuration and Folder structure pages of the AdonisJS start guide
   when the import needs a booted application.
 - A config file that defines a named list (hash drivers, mailers, limiter stores, loggers, guards)
   also carries the `declare module` block that types it.
-- `adonisrc.ts` stays free of environment checks and application logic. `providers`, `preloads`
-  and `commands` are lazy imports, in the starter kit's order. **Open:** #2334 item 14.
+- `adonisrc.ts` stays free of environment checks and application logic, apart from the Account Kit
+  command filter and the environment variable that removes registry generation for browser-test
+  servers (departure 27). `providers`, `preloads` and `commands` are lazy imports, in the starter
+  kit's order.
 - Resolve paths with `app.makePath()`, `app.publicPath()` and `app.tmpPath()`.
-- `.env.example` lists every variable with a placeholder value. Values for tests belong in
-  `.env.test`. **Open:** #2334 item 12.
+- `.env.example` lists every variable with a placeholder value. Test values are set in
+  `bin/test.ts`; there is no `.env.test` (departure 26).
 - Product variables use the `CAPACITYLENS_` prefix (departure 5). Framework packages are pinned to
   exact versions (departure 16).
 
@@ -214,10 +216,11 @@ Source: [Routing](https://docs.adonisjs.com/guides/basics/routing) and
 
 - Routes only map: path, controller action, middleware and name.
 - A route points at a controller as `[controllers.Members, 'index']`.
-- A route with a controller is named by the framework as `controller.method`
-  (`members.index`). Name a route by hand only when it has no controller. **Open:** #2334 item 9.
+- An API route carries an explicit `.as()` name, rather than the framework's `controller.method`
+  name, because the frontend calls it by that name (departure 24).
 - Put a shared prefix, middleware or name prefix on a `router.group()` with `.prefix()`, `.use()`
-  and `.as()`. Do not repeat the prefix on every path.
+  and `.as()`. Do not repeat the prefix on every path. The shared `/api` prefix is a group prefix.
+- The API is not versioned in its path (departure 24).
 - Attach middleware with `.use(middleware.name(options))`, importing `middleware` from
   `#start/kernel`.
 - Use `router.resource()` for a resource with the standard actions, with `.apiOnly()` for an API.
@@ -243,9 +246,9 @@ Source: [Controllers](https://docs.adonisjs.com/guides/basics/controllers) and
 - An operation that is not one of those becomes its own controller, named for the thing it acts
   on and using a resourceful action (the starter kit's `NewAccountController.store`), or a single
   action controller with one `handle` method. Do not grow a controller into a list of verbs.
-  **Open:** #2334 item 4.
-- An action takes the HTTP context first and destructures only what it uses:
-  `async store({ request, response }: HttpContext)`. **Open:** #2334 item 4.
+  Existing action names stay (departure 21).
+- An action takes the whole `ctx: HttpContext`, because it hands the context to the actor and
+  transaction wrappers (departure 21).
 - A controller has no `private` or `protected` methods. A step two actions share moves to a
   service or a model.
 - A controller does not wrap its work in `try`/`catch` to build an error response. It lets the
@@ -285,10 +288,12 @@ Source: [Middleware](https://docs.adonisjs.com/guides/basics/middleware).
   - **router middleware** runs for every request that matches a route;
   - **named middleware**, exported as `middleware`, runs only on routes that ask for it.
 - Authentication and the membership check for a route are named middleware on that route or its
-  group. Router middleware does not decide what to do from the route's name. A company permission
-  is authorized inside the transaction (departure 11).
+  group. Router middleware does not decide what to do from the route's name, apart from the
+  account gate, which chooses its check by route name (departure 25). A company permission is
+  authorized inside the transaction (departure 11).
 - In the starter kit, body parsing, session, Shield and `initialize_auth` are router middleware.
-  **Open:** #2334 item 10.
+  Here session, Shield and `initialize_auth` are server middleware, so refusals that end the
+  request early still carry the security headers (departure 25).
 - A middleware is a class with `handle(ctx, next, options?)`. Code before `await next()` runs on
   the way in; code after it runs on the way out.
 - A middleware refuses by throwing an exception or by sending a response and not calling `next`.
@@ -304,18 +309,21 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
 - `app/exceptions/handler.ts` holds one `HttpExceptionHandler` that extends `ExceptionHandler`.
   It is registered with `server.errorHandler` in `start/kernel.ts`.
 - `handle` turns an exception into a response. `report` logs it and never sends a response.
-  Expected errors are kept out of the log with `ignoreCodes` and `ignoreStatuses`.
+  Expected errors are kept out of the log by their mapped status, not with `ignoreCodes` and
+  `ignoreStatuses` (departure 2).
 - Recognise a known error with `instanceof` on its package's `errors` export, such as
   `errors.E_VALIDATION_ERROR` from `@vinejs/vine`, never by its message.
-- A custom exception extends `Exception` from `@adonisjs/core/exceptions`, lives in
-  `app/exceptions/<name>_exception.ts`, and sets `static status` and `static code`. **Open:**
-  #2334 item 2.
-- Framework exception codes are `E_UPPER_SNAKE`. Product codes on the wire are stable identifiers
-  and keep their spelling.
-- The handler shows debug output in development only (departure 19). Every error leaves in the
-  flat error contract (departure 2). **Open:** #2334 item 3 widens that departure to the whole
-  handler.
-- A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers. **Open:** #2334 item 11.
+- Every class the exception handler renders extends `Exception` from
+  `@adonisjs/core/exceptions`, is named `<Name>Exception` and lives in
+  `app/exceptions/<name>_exception.ts`, one class per file as a default export. It sets
+  `static status` when it has one fixed status. Shared-package and frontend `Error` subclasses
+  keep the `Error` suffix.
+- Framework exception codes are `E_UPPER_SNAKE`. Product codes on the wire are bare UPPER_SNAKE
+  without the `E_` prefix and keep their spelling (departure 2).
+- The handler answers every error itself through one mapping module, and every error leaves in
+  the flat error contract (departure 2). It shows debug output in development only
+  (departure 19).
+- A 429 carries the limiter's `Retry-After` and `X-RateLimit-*` headers.
 
 ## Responses and transformers
 
@@ -327,8 +335,9 @@ Source: [Transformers](https://docs.adonisjs.com/guides/frontend/transformers).
 - A transformer shapes output. It is never used to describe input; that is a validator.
 - Never return a Lucid model from an action. Return a plain object or a transformer result.
 - The framework's API response is `serialize(Transformer.transform(model))`, which wraps the
-  result in `{ data }`, with `providers/api_provider.ts` supplying `serialize`. **Open:** #2334
-  item 5.
+  result in `{ data }`, with `providers/api_provider.ts` supplying `serialize`. CapacityLens
+  answers with its own wire contract, without `serialize` or `{ data }`, and model output still
+  goes through a transformer (departure 22).
 - Columns are `snake_case`; the row transformer produces the camelCase wire format and the state
   transformer projects it for the reader's role (departure 4).
 
@@ -347,7 +356,9 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
   plural `snake_case` name; set `static table` only when it is not.
 - A model extends its generated schema class, `class Project extends ProjectSchema`, imported from
   `#database/schema`. The model carries relationships, hooks, scopes and behaviour, not column
-  declarations. **Open:** #2334 item 13 covers the soft-delete mixin and the `accounts` table.
+  declarations. A mixin is applied through `compose`:
+  `class Project extends compose(ProjectSchema, SoftDeletes)`.
+- Product flags are JSON columns typed `boolean`, and timestamps are ISO strings (departure 4).
 - Change a generated type in `database/schema_rules.ts`. Redeclare a column on the model only for
   a one-model refinement or a custom `prepare` or `consume`.
 - Hide a column from output with `serializeAs: null`.
@@ -371,8 +382,9 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
   query builder on the caller's connection (departure 12).
 - Inside a transaction, give every model query the client: `Model.query({ client: trx })`. A
   model write passes `{ client: trx }` or calls `model.useTransaction(trx)`.
-- Prefer the managed form, `db.transaction(async (trx) => { ... })`, which commits on return and
-  rolls back on a throw.
+- A request's work runs in the transaction the actor wrapper opens (departure 21). Work outside a
+  request opens its transaction with `withTransaction`, which commits on return, rolls back on a
+  throw and keeps both errors when the rollback also fails (departure 29).
 - Pass one `trx` through the whole unit of work. A mutating service takes it as an argument
   (departure 10). Network, mail and password hashing stay outside it (departure 7).
 - Bind values in `db.rawQuery`. Never build SQL from input.
@@ -384,11 +396,13 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
 - A released migration is never edited. A fix is a new migration.
 - Put data changes in `this.defer()` and raw DDL in `this.schema.raw()`.
 - Declare a foreign key with `.references().inTable()` and an explicit `.onDelete()`.
-- Production never rolls back: set `disableRollbacksInProduction: true`. The single baseline
-  migration has no `down()`. **Open:** #2334 item 8.
+- Production never rolls back: `disableRollbacksInProduction: true` in `config/database.ts`.
+  Before the first release the schema is one baseline migration with no `down()`; from the first
+  release on, migrations follow the rules above (departure 23).
 - A seeder extends `BaseSeeder`, lives in `database/seeders`, uses `this.client`, and limits itself
   with `static environment`.
-- A model factory lives in `database/factories` and is made with `node ace make:factory`.
+- In the framework a model factory lives in `database/factories`. CapacityLens has none; test rows
+  come from fixture helpers (departure 28).
 
 ## Services, providers and the container
 
@@ -398,16 +412,18 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
 [application lifecycle](https://docs.adonisjs.com/guides/concepts/application-lifecycle).
 
 - Business logic lives in `app/services`. A service does not read the HTTP context; the
-  controller passes it the verified actor and the transaction.
+  controller passes it the verified actor and the transaction. The exception is a service that
+  hands the context to the actor and transaction wrappers (departure 21).
 - In the framework a service is a class the container constructs, taken with `@inject()` and
   replaced in a test with `container.swap`. CapacityLens services are modules of exported
   functions without `@inject`, and a package service is resolved with `app.container.make` where
-  it is used (departure 10). **Open:** #2334 item 6 settles the file name.
+  it is used. Their files carry no `_service` suffix (departure 10).
 - Write a provider only for container bindings, framework extensions, or work that must start and
   stop with the application. One-off setup is a preload file.
 - In a provider: `register` only binds and is synchronous; `boot` configures; `start` also runs
   during codegen, so anything that connects or spawns is guarded by `app.getMode()`; long-running
-  work starts in `ready` and stops in `shutdown`.
+  work starts in `ready` and stops in `shutdown`. The configuration provider reads the database in
+  `start`, outside code generation and console runs (departure 25).
 - A provider logs through the logger service, not `console`.
 - Private state in a class is a `#field`.
 - Attach event listeners in a `start/events.ts` preload file.
@@ -423,17 +439,17 @@ Source: [Authentication](https://docs.adonisjs.com/guides/auth/introduction),
 
 - Guards are defined in `config/auth.ts`. The session guard is named `web`.
 - Protect a route with the named `auth` middleware: `.use(middleware.auth({ guards: ['web'] }))`.
-  CapacityLens member routes use the `web_effective` guard (#2334 item 1).
+  CapacityLens member routes use `web_effective`, the default guard (departure 20).
 - In the framework, an action reads the user with `auth.getUserOrFail()` and the `User` model
   composes `withAuthFinder`. In CapacityLens, Account Kit owns sign-in, sessions and credential
-  checks, and an action receives the verified actor. **Open:** #2334 item 1 records this as a
-  departure.
+  checks, and an action receives the verified actor (departure 20).
 - Authorization in the framework is a Bouncer ability in `app/abilities/main.ts` or a policy in
   `app/policies`, called from the controller. CapacityLens authorizes a company permission inside
   the product transaction through the Access Control package (departure 11).
 - Hash with the `hash` service and encrypt with the `encryption` service. No custom hashing.
-- A rate limit is a named throttle defined in `start/limiter.ts` with `limiter.define` and
-  applied with `.use()`. **Open:** #2334 item 11.
+- In the framework a rate limit is a named throttle defined in `start/limiter.ts` with
+  `limiter.define` and applied with `.use()`. CapacityLens has one global limiter middleware and
+  no `start/limiter.ts` (departure 25).
 - `config/cors.ts` lists real origins. Never pair `credentials: true` with a wildcard origin.
 - `config/shield.ts` carries CSP, HSTS, frame and content-type settings. CSRF is the Origin and
   Sec-Fetch-Site check, not Shield's token (departure 8).
@@ -447,7 +463,11 @@ Source: [Logger](https://docs.adonisjs.com/guides/digging-deeper/logger),
 
 - Inside a request, log with `ctx.logger` so the line carries the request id. Use the logger
   service only outside a request.
-- Log an error under the `err` key. Hide sensitive values with the logger's `redact` option.
+- The handler logs a failure under `errorType` and `errorName`, not the error object, because the
+  `err` serializer emits a category only (departure 2). Hide sensitive values with the logger's
+  `redact` option.
+- `console` is a last-resort fallback, used only where the logger itself has failed or does not
+  exist yet.
 - The request id is always generated by the server (departure 15).
 - A mail is a class in `app/mails`. Account Kit sends every CapacityLens message, so the backend
   has none.
@@ -463,7 +483,8 @@ Source: [Creating commands](https://docs.adonisjs.com/guides/ace/creating-comman
 
 - A command is a default-exported class in `commands/` that extends `BaseCommand` and sets
   `static commandName` and `static description`.
-- The name is `namespace:action`.
+- The name is `namespace:action`. A nested namespace, as in `capacitylens:demo:prepare`, is
+  allowed.
 - A command that touches models or services sets `static options = { startApp: true }`.
 - Declare inputs with `@args` and `@flags`, each with a description.
 - A command that catches its own error sets `this.error` and `this.exitCode = 1`.
@@ -490,14 +511,19 @@ Source: [Testing](https://docs.adonisjs.com/guides/testing/introduction),
   place plugins are registered.
 - Tests use the real database and fake only what leaves the process, such as mail with
   `mail.fake()`.
-- Assert on rows with the `db` assertions the `dbAssertions` plugin adds: `db.assertHas`,
-  `db.assertMissing`, `db.assertCount`.
-- Test a command with `ace.create(Command, args)` and `command.assertSucceeded()`.
-- An API test calls a route by its name with `client.visit('members.index')`.
+- A new test asserts on rows with the `db` assertions the `dbAssertions` plugin adds:
+  `db.assertHas`, `db.assertMissing`, `db.assertCount`. Existing assertions are not converted in
+  bulk.
+- Test rows come from fixture helpers in `tests/helpers/`, not model factories (departure 28).
+- A command test runs the command in a child process and checks its exit code, rather than
+  `ace.create(Command, args)` (departure 28).
+- An API test calls the route's URL, such as `client.get('/api/auth/me')`, not its name
+  (departure 24).
 - Every database group starts from wipe and migrate, and only groups that send no HTTP request
   use the global transaction (departure 17).
-- Sign-in in a test goes through the real endpoint, because Account Kit owns the session.
-  **Open:** #2334 item 1.
+- Sign-in in a test goes through the real endpoint, because Account Kit owns the session
+  (departure 20).
+- The test environment is set in `bin/test.ts` (departure 26).
 
 ## The frontend API client
 
@@ -529,21 +555,23 @@ Source: [API client](https://docs.adonisjs.com/guides/frontend/api-client) and
 ## Stricter rules from AdonisJS Plus
 
 AdonisJS Plus publishes lint rules that state its author's view of application code more firmly
-than the documentation does. CapacityLens does not install them. This is where it stands on each.
+than the documentation does. CapacityLens does not install them. This is where it stands on each;
+the cookbook's decision D10 lists the binding ones.
 
 | Rule | What it asks | CapacityLens |
 | --- | --- | --- |
-| `no-private-controller-methods` | No `private` or `protected` method on a controller. | Adopted; see Controllers. |
-| `test-files-contain-tests` | A test file defines tests only; shared code is in `tests/helpers/`. | Adopted; see Tests. |
-| `no-shared-mutable-test-state` | No `let` or `var` outside a test callback. | Adopted; see Tests. |
+| `no-private-controller-methods` | No `private` or `protected` method on a controller. | Binding (CTL-5); see Controllers. |
+| `test-files-contain-tests` | A test file defines tests only; shared code is in `tests/helpers/`. | Binding (TST-11); see Tests. |
+| `no-shared-mutable-test-state` | No `let` or `var` outside a test callback. | Binding (TST-12); see Tests. |
 | `test-helpers-contain-runtime-code` | Types for test helpers live in `tests/helpers/types.ts`. | Adopted, with the types in the existing `tests/types/` folder. |
-| `playwright-locators-are-exact` | A text locator states `exact`. | Applies to `e2e/` specs. |
+| `playwright-locators-are-exact` | A text locator states `exact`. | Binding for new locators in `e2e/` specs (TST-13). |
 | `no-top-level-functions` | Behaviour is a class method, not a top-level function. | Not followed (departure 10). |
 | `exported-functions-are-factories` | An exported function only builds and returns a class instance. | Not followed (departure 10). |
-| `types-live-in-types-directory` | Types and interfaces live in a `types/` folder. | **Open:** #2334 item 7. |
+| `types-live-in-types-directory` | Types and interfaces live in a `types/` folder. | Not adopted. A type used by one file stays in it; a type shared across files goes in the feature's `types.ts`. |
 
-Its code style guide adds one rule this page adopts: return early. Check each condition that ends
-the work at the top of the function, and do not wrap the main logic in an `if`.
+Its code style guide adds one rule this page adopts and D10 makes binding (TOOL-7): return early.
+Check each condition that ends the work at the top of the function, and do not wrap the main logic
+in an `if`.
 
 ## Review checklist
 

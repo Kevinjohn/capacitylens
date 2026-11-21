@@ -22,8 +22,8 @@ rule id on each line is the same in both.
 5. Paste the summary block at the end into the pull request description.
 6. Code the diff did not touch is not in scope. A failure seen there gets an issue.
 
-Origin tags: **F** framework, **P** AdonisJS Plus, **H** house. Items tagged with a decision
-(D1 to D11) are provisional until that decision in the cookbook is agreed.
+Origin tags: **F** framework, **P** AdonisJS Plus, **H** house. An item tagged with a decision
+(D1 to D11) is read with that decision in the cookbook's Part 4.
 
 
 ---
@@ -285,8 +285,8 @@ Items:
 
 Mechanical checks:
 
-- [ ] `grep -rnE "^export (async )?function" app` prints nothing (subject to D2)
-- [ ] `grep -rnE "^\s*console\." app providers start` prints nothing
+- [ ] `grep -rnE "^export (async )?function" app` prints nothing, unless the repository records function-module services as a departure (decision D2)
+- [ ] `grep -rnE "^\s*console\." app providers start config` prints nothing but last-resort fallbacks, used only where the logger itself has failed or does not exist yet
 
 Items:
 
@@ -294,7 +294,7 @@ Items:
 - [ ] **SVC-2** (F) A service is taken through the constructor with `@inject()`. The container builds it; nothing calls `new` on it.
 - [ ] **SVC-3** (F) A service does not read the HTTP context unless it is injected with it. Prefer passing the values it needs.
 - [ ] **SVC-4** (F) Replace a service in a test with the test context's `swap(Service, fake)`, which restores itself.
-- [ ] **SVC-5** (P) Behaviour is a class method. A file does not export loose top-level functions; an exported function only builds and returns an instance. See decision D2.
+- [ ] **SVC-5** (P) In packages and new applications, behaviour is a class method. A file does not export loose top-level functions; an exported function only builds and returns an instance. An existing function-module application records a departure instead. See decision D2.
 - [ ] **SVC-6** (F) Write a provider only for container bindings, framework extensions (macros, `HttpContext` properties), or work that starts and stops with the application. One-off setup is a preload file.
 - [ ] **SVC-7** (F) In a provider: `register` only binds and is synchronous; `boot` configures. `register`, `boot` and `start` also run in console, test and tooling runs, and preload files are imported after `start`, so nothing there connects, listens or spawns. Long-running work starts in `ready` and stops in `shutdown`.
 - [ ] **SVC-8** (F) Application code logs through the logger, not `console`.
@@ -347,7 +347,7 @@ Mechanical checks:
 Items:
 
 - [ ] **CMD-1** (F) A command is a default-exported class in `commands/` that extends `BaseCommand` and sets `static commandName` and `static description`.
-- [ ] **CMD-2** (F) A grouped command is named `namespace:action`.
+- [ ] **CMD-2** (F) A grouped command is named `namespace:action`. A nested namespace, `namespace:group:action`, is allowed.
 - [ ] **CMD-3** (F) A command that touches models or services sets `static options = { startApp: true }`.
 - [ ] **CMD-4** (F) Inputs are declared with `@args` and `@flags`, each with a description.
 - [ ] **CMD-5** (F) Output goes through `this.logger` and `this.ui`, not `console`.
@@ -361,7 +361,7 @@ Items:
 
 Mechanical checks:
 
-- [ ] `grep -rnE "^(let|var) " tests` prints nothing
+- [ ] `grep -rnE "^(let|var) " tests` prints nothing. It finds file scope only: a `let` or `var` in a group callback that its tests share counts too, so read each group
 - [ ] `grep -rLE "\btest(\.group)?\(" tests --include='*.spec.ts'` prints nothing
 - [ ] `grep -rn "withGlobalTransaction" tests` prints nothing (deprecated name)
 
@@ -379,8 +379,8 @@ Items:
 - [ ] **TST-10** (F) A command is tested with `ace.create(Command, args)`, `command.exec()` and `command.assertSucceeded()`.
 - [ ] **TST-11** (P) A test file contains tests only. Reusable code is in `tests/helpers/`.
 - [ ] **TST-12** (P) No `let` or `var` is shared across tests at file scope. A test creates what it needs, or a group hook does.
-- [ ] **TST-13** (P) A Playwright text locator states `exact`.
-- [ ] **TST-14** (H) A test title is a lowercase sentence that says what happens. A group title is a noun phrase.
+- [ ] **TST-13** (P) A new Playwright text locator states `exact`.
+- [ ] **TST-14** (H) A test title is a lowercase sentence that says what happens; a proper noun, an acronym or a role name keeps its capital. A group title is a noun phrase.
 - [ ] **TST-15** (F) `.env.test` sets `SESSION_DRIVER=memory`, so `loginAs` and `withSession` work in API tests.
 
 ## The frontend API client

@@ -316,16 +316,23 @@ framework defaults; any other departure needs a decision recorded here first.
 
 1. The shared package is imported by the backend and the SPA. It contains pure domain rules and wire
    types, never backend code.
-2. Validation errors use the product's flat error contract, not Vine's default response. Empty
-   strings are not converted to null; empty optionals are `null` on the wire, in storage and in the
-   export.
+2. Every error, validation included, leaves in the product's flat error contract, not the
+   framework's or Vine's default response. The exception handler answers every error itself
+   through one mapping module (`app/exceptions/http_error_mapping.ts`), and product codes on the
+   wire are bare UPPER_SNAKE without the `E_` prefix. `report` decides what to log from the mapped
+   status instead of `ignoreCodes` and `ignoreStatuses`, and logs a failure under `errorType` and
+   `errorName`, because the logger's `err` serializer deliberately emits a category only and never
+   the message. Empty strings are not converted to null; empty optionals are `null` on the wire,
+   in storage and in the export.
 3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
 4. Columns are snake_case. The row transformer produces the camelCase wire format from each
    model's column serialisation and the state transformer projects it for the reader's role.
-   Calendar dates are date-only strings; instants may use Lucid date-time columns and serialise
-   to ISO.
+   Calendar dates are date-only strings and timestamps are ISO strings, not Luxon values; only the
+   soft-delete package's `deleted_at` is a Lucid date-time, stored and serialised as the same ISO
+   string. Product flags are JSON columns typed `boolean` in `database/schema_rules.ts` and
+   checked on read and write.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
 6. The backend serves the SPA with the product security headers and a history fallback rather than
@@ -337,7 +344,9 @@ framework defaults; any other departure needs a decision recorded here first.
    planning slice (see Browser data).
 10. Product services are modules of exported functions and do not use `@inject`. A mutating
     service receives its transaction as an argument; package services are resolved with
-    `app.container.make` where they are used.
+    `app.container.make` where they are used. Because a service is a module, not a class, its
+    file carries no `_service` suffix and the AdonisJS Plus rule against exported top-level
+    functions does not apply.
 11. A company permission is authorised inside the product transaction through the Access
     Control package, after the route middleware has checked membership. Controllers do not
     call Bouncer and the product has no policies or abilities of its own.
@@ -360,6 +369,50 @@ framework defaults; any other departure needs a decision recorded here first.
 18. Routes are registered from one file per area in `start/`. Prettier keeps semicolons.
 19. The exception handler shows debug output in development only (`debug = app.inDev`), so the
     test environment answers with the same error bodies as production.
+20. Account Kit owns authentication, so the application does not use `auth.user`,
+    `withAuthFinder`, `verifyCredentials` or `loginAs`. The default guard is `web_effective`, the
+    viewed-as member during view-as-member, and an action receives the actor Account Kit verified
+    in its own transaction. Tests sign in through the real sign-in endpoint, because sessions
+    always use the database store and the kit owns the session.
+21. Controller actions take the whole `ctx: HttpContext`, because they hand it to the actor and
+    transaction wrappers (`withActor(ctx, ...)`); a service that takes `ctx` does so for the same
+    reason. Existing action names stay. A new controller follows the framework: resourceful
+    actions on a noun controller, or a single action controller.
+22. Responses are the product's own wire contract, not `serialize(...)` with a `{ data }` wrapper,
+    because the planning slice depends on that shape. Model output still goes through a
+    transformer.
+23. Before the first release the schema is one squashed baseline migration
+    (`202610120001_create_capacitylens_baseline.ts`) with no `down()`, and its file name is kept.
+    There is no released schema to roll back to. From the first release on, each schema change is
+    a new reversible migration and a released migration is never edited.
+24. Routes carry explicit `.as()` names, because the names are the frontend's stable contract
+    through the generated registry and select the account gate's check, so they must survive a
+    controller refactor. Tests call URLs, not route names. The API is not versioned in its path,
+    because the SPA and the API ship together.
+25. Session, Shield and the security headers run in the server middleware stack ahead of the
+    origin check and the rate limiter, so a static file, an unmatched route and a refusal from
+    either check still carry the security headers; `initialize_auth` follows them in the same
+    stack. The account gate is router middleware that chooses its check by route name, with its
+    route lists pinned by tests. Rate limiting is one global limiter middleware for `/api/` paths
+    keyed by client address, with no `start/limiter.ts`. The configuration provider checks the
+    production posture in `boot`, reads the database in `start` outside code generation and
+    console runs, and runs hourly maintenance from `ready` until shutdown.
+26. The test environment is assembled in code in `bin/test.ts`; there is no `.env.test`. The test
+    HTTP port and the SQLite file are derived from the checkout's port lane, so parallel
+    checkouts do not share a server or a database, and setting them in code also overrides any
+    value left in the developer's shell.
+27. `adonisrc.ts` is not free of logic. It wraps Account Kit's command loader to leave out the
+    unaudited `account-kit:reset-link`, because operators use the audited
+    `owner:reset-password`. An environment variable removes registry generation from the `init`
+    hook, so the parallel browser-test API servers started from one checkout do not each rewrite
+    the committed registry.
+28. Test rows come from fixture helpers in `tests/helpers/`, not model factories; there is no
+    `database/factories`. Command tests run `node ace.js` in a child process against a scratch
+    database instead of `ace.create`, because they test the process exit code and how a command
+    behaves while another connection holds the database lock.
+29. Work outside a request opens its transaction through `withTransaction`
+    (`app/services/with_transaction.ts`), not `db.transaction(callback)`. When the work and the
+    rollback both fail, it throws an `AggregateError` carrying both errors, so neither is lost.
 
 ## Installation
 

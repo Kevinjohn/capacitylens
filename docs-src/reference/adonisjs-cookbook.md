@@ -18,7 +18,7 @@ framework puts it, named as the framework names it and called what the framework
 - **Part 1** applies to every repository.
 - **Part 2** applies to applications.
 - **Part 3** applies to packages.
-- **Part 4** lists the house decisions still to agree.
+- **Part 4** records the house decisions.
 - **Part 5** holds the two review checklists.
 
 Every rule has an id (`CTL-3`) so a review, an issue or a commit can cite it. Every rule carries
@@ -28,7 +28,7 @@ its origin:
 | --- | --- | --- |
 | **F** | The AdonisJS or Lucid documentation, an official starter kit, an official package, or the official lint and format presets. | Follow it. |
 | **P** | A lint rule or style note on the public pages of AdonisJS Plus. Stricter than the documentation. The rule sources are paid and were not read. | Follow it unless Part 4 says otherwise. |
-| **H** | A house rule: ours, where the framework is silent or we chose between two framework options. | Follow it; listed in Part 4 until agreed. |
+| **H** | A house rule: ours, where the framework is silent or we chose between two framework options. | Follow it. |
 
 Three rules decide every case:
 
@@ -680,8 +680,9 @@ export default class extends BaseSchema {
   passing the values it needs.
 - **SVC-4 (F)** Replace a service in a test with the test context's `swap(Service, fake)`, which
   restores itself.
-- **SVC-5 (P)** Behaviour is a class method. A file does not export loose top-level functions; an
-  exported function only builds and returns an instance. See decision D2.
+- **SVC-5 (P)** In packages and new applications, behaviour is a class method. A file does not
+  export loose top-level functions; an exported function only builds and returns an instance. An
+  existing function-module application records a departure instead. See decision D2.
 - **SVC-6 (F)** Write a provider only for container bindings, framework extensions (macros,
   `HttpContext` properties), or work that starts and stops with the application. One-off setup is
   a preload file.
@@ -844,7 +845,8 @@ export default class HealthChecksController {
 
 - **CMD-1 (F)** A command is a default-exported class in `commands/` that extends `BaseCommand` and
   sets `static commandName` and `static description`.
-- **CMD-2 (F)** A grouped command is named `namespace:action`.
+- **CMD-2 (F)** A grouped command is named `namespace:action`. A nested namespace,
+  `namespace:group:action`, is allowed.
 - **CMD-3 (F)** A command that touches models or services sets
   `static options = { startApp: true }`.
 - **CMD-4 (F)** Inputs are declared with `@args` and `@flags`, each with a description.
@@ -878,9 +880,9 @@ export default class HealthChecksController {
 - **TST-11 (P)** A test file contains tests only. Reusable code is in `tests/helpers/`.
 - **TST-12 (P)** No `let` or `var` is shared across tests at file scope. A test creates what it
   needs, or a group hook does.
-- **TST-13 (P)** A Playwright text locator states `exact`.
-- **TST-14 (H)** A test title is a lowercase sentence that says what happens. A group title is a
-  noun phrase.
+- **TST-13 (P)** A new Playwright text locator states `exact`.
+- **TST-14 (H)** A test title is a lowercase sentence that says what happens; a proper noun, an
+  acronym or a role name keeps its capital. A group title is a noun phrase.
 - **TST-15 (F)** `.env.test` sets `SESSION_DRIVER=memory`, so `loginAs` and `withSession` work in
   API tests.
 
@@ -1174,24 +1176,24 @@ export { limiter as default }
 
 ---
 
-# Part 4: decisions to agree
+# Part 4: house decisions
 
-The draft takes the framework's side by default. These are the places where we either already
-differ or must choose. Each has a recommendation.
+These are the places where the framework leaves a choice or where our repositories differ from it.
+Each is decided. A repository that differs from a decision records it in its own departures list.
 
-| Id | Question | Framework | Recommendation |
+| Id | Question | Framework | Decision |
 | --- | --- | --- | --- |
-| D1 | Semicolons | `@adonisjs/prettier-config` has `semi: false`. | CapacityLens kept semicolons (decided 2026-10-28). For one house style, either move everything to the preset or record "semicolons kept" here as the single format departure. Recommend the preset in packages now, since they are small; decide the application separately. |
-| D2 | Services: classes with `@inject`, or modules of functions | Classes built by the container; Plus forbids loose functions. | Classes in packages (already the official shape) and in new application code. An existing function-module codebase records a departure instead of converting. |
-| D3 | Where types live | Packages: `src/types.ts`. Applications: no rule in the documentation; Plus wants a `types/` folder. | Adopt for packages (PKG-11). In applications, types used by one file stay in it; types shared across files go in `app/types/` or the feature's `types.ts`. |
-| D4 | API response envelope | `serialize(...)` wraps in `{ data }`. | Adopt for new APIs (RES-4). An existing wire contract records a departure. |
-| D5 | Error body | Framework default handler output, per content negotiation. | Adopt the default. A product with a published error contract records a departure and still calls `super.report`. |
-| D6 | Dependency ranges | Starter kits use caret ranges; packages use caret peers. | Peers always caret (PKG-7). Applications may pin exact versions with a lockfile; say so in the application's departures. |
+| D1 | Semicolons | `@adonisjs/prettier-config` has `semi: false`. | Packages use the preset, without semicolons. CapacityLens keeps semicolons (its departure 18). |
+| D2 | Services: classes with `@inject`, or modules of functions | Classes built by the container; Plus forbids loose functions. | Classes in packages (already the official shape) and in new applications. An existing function-module codebase records a departure instead of converting; CapacityLens keeps function modules (its departure 10). |
+| D3 | Where types live | Packages: `src/types.ts`. Applications: no rule in the documentation; Plus wants a `types/` folder. | Packages keep public types in `src/types.ts` (PKG-11). In an application, a type used by one file stays in it and a type shared across files goes in the feature's `types.ts`. The Plus `types/` folder is not adopted for applications. |
+| D4 | API response envelope | `serialize(...)` wraps in `{ data }`. | Adopt for new APIs (RES-4). An existing wire contract records a departure (CapacityLens: departure 22). |
+| D5 | Error body | Framework default handler output, per content negotiation. | Adopt the default for new APIs. A product with a published error contract records a departure and still calls `super.report`. CapacityLens records its whole error contract, including its `report`, as departure 2. |
+| D6 | Dependency ranges | Starter kits use caret ranges; packages use caret peers. | Peers always caret (PKG-7). An application may pin exact versions with a lockfile and says so in its departures (CapacityLens: departure 16). |
 | D7 | Package manager | Kits ship npm scripts and work with any manager. | pnpm everywhere; scripts written so they do not name the manager. |
-| D8 | Authentication in applications that use Account Kit | `@adonisjs/auth` guards, `withAuthFinder`, `loginAs`. | Account Kit is itself an AdonisJS package, so it should expose the framework's surface (guards, `auth.user`, a `loginAs`-style test plugin) rather than each application recording a departure. Audit it against Part 3 first. |
-| D9 | Authorization in applications that use Access Control | Bouncer abilities and policies called from the controller. | Same as D8: the package should present Bouncer's vocabulary (`ability`, `policy`, `authorize`), and the application calls it from the controller. |
-| D10 | Which AdonisJS Plus rules are binding | Published as optional lint rules. | Binding: CTL-5, TST-11, TST-12, TST-13, TOOL-7. Subject to D2: SVC-5. Subject to D3: types directory. |
-| D11 | Migrations before a first release | Timestamped files with `up` and `down`. | Follow DB-6 from the first release on. One squashed baseline before any release is acceptable and is recorded. |
+| D8 | Authentication in applications that use Account Kit | `@adonisjs/auth` guards, `withAuthFinder`, `loginAs`. | Account Kit is itself an AdonisJS package, so it should expose the framework's surface (guards, `auth.user`, a `loginAs`-style test plugin). That work belongs to the Account Kit repository; until then CapacityLens records departure 20. |
+| D9 | Authorization in applications that use Access Control | Bouncer abilities and policies called from the controller. | The package should present Bouncer's vocabulary (`ability`, `policy`, `authorize`), called from the controller. That work belongs to the Access Control repository; until then CapacityLens records departure 11. |
+| D10 | Which AdonisJS Plus rules are binding | Published as optional lint rules. | Binding: CTL-5, TST-11, TST-12, TOOL-7, and TST-13 for new locators. SVC-5 follows D2; the `types/` folder follows D3. |
+| D11 | Migrations before a first release | Timestamped files with `up` and `down`. | Follow DB-6 from the first release on. One squashed baseline before any release is acceptable and is recorded (CapacityLens: departure 23). |
 
 ---
 
