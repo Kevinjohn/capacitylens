@@ -1,6 +1,6 @@
 import { BaseCheck, Result } from '@adonisjs/core/health';
 import type { HealthCheckResult } from '@adonisjs/core/types/health';
-import { classifyLogError } from '#services/logging_safety';
+import { classifyLogError } from '#config/logger';
 import { readSchemaIntegrity } from '#services/schema_integrity';
 import logger from '@adonisjs/core/services/logger';
 import db from '@adonisjs/lucid/services/db';

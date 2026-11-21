@@ -24,7 +24,7 @@ import {
 } from '#services/account_kit/membership_effects';
 import { onCredentialsChangedTransaction } from '#services/account_kit/admission_rules';
 import { requireRegistrationDisplayName, users } from '#services/account_kit/users';
-import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry';
+import { SESSION_IDLE_EXPIRY } from '#config/session';
 
 // Access Control decides who may invite, creates the invited membership and removes memberships
 // when an account is deleted; the product adds its audit and planning-revision records.
