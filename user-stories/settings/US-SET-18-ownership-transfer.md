@@ -39,8 +39,8 @@ flowchart TD
   dialog --> hook["useOwnershipTransfer calls teamAccessClient.transferOwnership"]
   hook --> route["ownership route dispatches OwnershipController.transfer"]
   route --> service["transferOwnership checks Owner, active Admin and confirmation"]
-  service --> transaction["runAccountCommand withActor transaction transfers membership, revision and audit"]
+  service --> transaction["runAccountOperation withActor transaction transfers membership, revision and audit"]
   transaction --> result["settleTransfer refreshes auth and reprojects access"]
 ```
 
-**Code references:** [OwnershipTransferCard.tsx](../../apps/frontend/src/components/team/OwnershipTransferCard.tsx), [useOwnershipTransfer.ts](../../apps/frontend/src/components/team/useOwnershipTransfer.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [ownership_routes.ts](../../apps/backend/start/ownership_routes.ts), [ownership_controller.ts](../../apps/backend/app/controllers/ownership_controller.ts), [ownership_transfer.ts](../../apps/backend/app/services/membership/ownership_transfer.ts), [account_commands.ts](../../apps/backend/app/services/account_commands.ts)
+**Code references:** [OwnershipTransferCard.tsx](../../apps/frontend/src/components/team/OwnershipTransferCard.tsx), [useOwnershipTransfer.ts](../../apps/frontend/src/components/team/useOwnershipTransfer.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [ownership_routes.ts](../../apps/backend/start/ownership_routes.ts), [ownership_controller.ts](../../apps/backend/app/controllers/ownership_controller.ts), [ownership_transfer.ts](../../apps/backend/app/services/membership/ownership_transfer.ts), [account_operations.ts](../../apps/backend/app/services/account_operations.ts)

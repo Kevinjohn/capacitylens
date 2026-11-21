@@ -3,7 +3,7 @@ import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import { pruneReceipts } from '@kevinjohn/adonisjs-duplicate-request-guard';
 
-/** Completed request receipts are kept this long; a client retries a command within seconds. */
+/** Completed request receipts are kept this long; a client retries an operation within seconds. */
 export const REQUEST_RECEIPT_RETENTION_MS = 24 * 60 * 60_000;
 
 /**

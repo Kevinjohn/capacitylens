@@ -93,5 +93,5 @@ export const planningMutationErrorCodes = [
 ] as const satisfies readonly ProductErrorCode[];
 export type PlanningMutationErrorCode = (typeof planningMutationErrorCodes)[number];
 
-/** Flat command failure body; conflicts use HTTP 409. */
+/** Flat mutation failure body; conflicts use HTTP 409. */
 export type PlanningMutationFailure = HttpErrorBody;

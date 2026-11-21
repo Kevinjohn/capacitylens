@@ -5,7 +5,7 @@ import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/aut
 import { refuseWhileViewing } from '#services/auth/password_confirmation';
 import { requireKitContext, type CurrentActor } from '#services/auth/current_actor';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import { runAccountCommand, type AccountCommandIdentity } from '#services/account_commands';
+import { runAccountOperation, type AccountOperationIdentity } from '#services/account_operations';
 import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
@@ -19,7 +19,7 @@ export interface OwnershipTransferInput {
   companyId: string;
   toUserId: string;
   confirmationId: string;
-  command: AccountCommandIdentity;
+  command: AccountOperationIdentity;
 }
 
 /** Exchanges Owner and Admin inside one product transaction, with exact semantic replay. */
@@ -32,7 +32,7 @@ export async function transferOwnership({
   command,
 }: OwnershipTransferInput): Promise<OwnershipTransferReceipt> {
   let currentRole: Awaited<ReturnType<typeof getActiveCompanyRole>>;
-  return runAccountCommand(trx, {
+  return runAccountOperation(trx, {
     name: 'transfer-ownership',
     authorizeAccess: async () => {
       refuseWhileViewing(actor);

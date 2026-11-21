@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { assertCompanyPermission } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
-import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
+import { runAccountOperation, parseAccountOperation } from '#services/account_operations';
 import { changeMemberRole, changeMemberStatus } from '#services/membership/member_mutations';
 import { changeMemberSignInTracking } from '#services/membership/sign_in_tracking';
 import { readMemberDirectory } from '#services/membership/member_directory';
@@ -22,13 +22,13 @@ interface SemanticMutationInput<T> {
 
 async function runMemberMutation<T>(ctx: HttpContext, input: SemanticMutationInput<T>) {
   const { companyId, operation, payload, work } = input;
-  const command = parseAccountCommand(
+  const command = parseAccountOperation(
     ctx.request.header('x-account-command-id'),
     ctx.request.header('idempotency-key')
   );
   return withActor(ctx, async (currentActor, trx) => {
     let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
-    return runAccountCommand(trx, {
+    return runAccountOperation(trx, {
       name: operation,
       authorizeAccess: async () => {
         actor = await assertCompanyPermission(companyId, 'members:manage', trx);
@@ -42,7 +42,7 @@ async function runMemberMutation<T>(ctx: HttpContext, input: SemanticMutationInp
   });
 }
 
-/** Lists company members and applies member commands under live management authority. */
+/** Lists company members and applies member operations under live management permission. */
 export default class MembersController {
   async index(ctx: HttpContext) {
     const companyId = readRouteParam(ctx.params.companyId);

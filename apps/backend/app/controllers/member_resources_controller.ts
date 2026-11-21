@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { assertCompanyPermission } from '#services/auth/authorization';
-import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
+import { runAccountOperation, parseAccountOperation } from '#services/account_operations';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
 import { refuseInvalidAdmissionBody } from '#services/admission/errors';
 import { clearLinkValidator, setLinkValidator } from '#validators/member_resources';
@@ -12,14 +12,14 @@ export default class MemberResourcesController {
     const body = await ctx.request
       .validateUsing(setLinkValidator, { data: ctx.request.body() })
       .catch(refuseInvalidAdmissionBody);
-    const command = parseAccountCommand(
+    const command = parseAccountOperation(
       ctx.request.header('x-account-command-id'),
       ctx.request.header('idempotency-key')
     );
     const { companyId, userId } = ctx.params;
     const result = await withActor(ctx, async (currentActor, trx) => {
       let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
-      return runAccountCommand(trx, {
+      return runAccountOperation(trx, {
         name: 'set-member-resource-link',
         authorizeAccess: async () => {
           actor = await assertCompanyPermission(companyId, 'members:manage', trx);
@@ -48,14 +48,14 @@ export default class MemberResourcesController {
     const body = await ctx.request
       .validateUsing(clearLinkValidator, { data: ctx.request.body() })
       .catch(refuseInvalidAdmissionBody);
-    const command = parseAccountCommand(
+    const command = parseAccountOperation(
       ctx.request.header('x-account-command-id'),
       ctx.request.header('idempotency-key')
     );
     const { companyId, userId } = ctx.params;
     await withActor(ctx, async (currentActor, trx) => {
       let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
-      return runAccountCommand(trx, {
+      return runAccountOperation(trx, {
         name: 'clear-member-resource-link',
         authorizeAccess: async () => {
           actor = await assertCompanyPermission(companyId, 'members:manage', trx);
