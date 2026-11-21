@@ -139,7 +139,7 @@ export async function bootstrapInvitation(email: string) {
   return linkToken(url);
 }
 
-/** Fakes mail delivery with a configured mail host and reads the links the Kit sends. */
+/** Stubs mail delivery with AdonisJS `mail.fake()` and reads the links the Kit sends. */
 export function captureMail(cleanup: (callback: () => void) => void) {
   const fake = mail.fake();
   const host = env.get('CAPACITYLENS_MAIL_HOST');
