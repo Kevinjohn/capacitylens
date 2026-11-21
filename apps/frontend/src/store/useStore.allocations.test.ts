@@ -16,7 +16,7 @@ import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
   queueAllocationDeleteGroupResponse,
   queueAllocationGroupResponse,
-} from '@/test/planning/queuePlanningFixtures';
+} from '@/test/planning/queuePlanningTestKit';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 

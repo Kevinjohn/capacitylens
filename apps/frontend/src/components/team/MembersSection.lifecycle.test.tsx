@@ -23,8 +23,8 @@ import {
   renderSection,
   requireCallback,
   requireValue,
-} from './MembersSection.testSupport';
-import type { RawMember } from './MembersSection.testSupport';
+} from './MembersSectionTestKit';
+import type { RawMember } from './MembersSectionTestKit';
 
 const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),

@@ -10,7 +10,7 @@ import {
   showPlaceholders,
   showScheduleFilters,
   waitForWeekSnap,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.describe('Feature flows', () => {
   test('filtering by project narrows the schedule to that project', async ({ page }) => {

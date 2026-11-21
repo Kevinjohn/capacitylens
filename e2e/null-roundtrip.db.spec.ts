@@ -1,6 +1,6 @@
 import { expect, test } from './dbFixtures';
 import type { APIRequestContext, Page } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 import { API } from './serverTestState';
 
 type Availability = {

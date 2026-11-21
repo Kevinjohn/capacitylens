@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { freezeBrowserDate, waitForAppLanding } from './browserTestSupport';
+import { freezeBrowserDate, waitForAppLanding } from './browserTestKit';
 import { resetServer } from './serverTestState';
 
 /** Opens first-install setup for the fixture's sole admitted identity. */

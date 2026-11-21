@@ -11,8 +11,8 @@ import {
   openInactiveGroup,
   renderSection,
   waitForMemberRow,
-} from './MembersSection.testSupport';
-import type { User } from './MembersSection.testSupport';
+} from './MembersSectionTestKit';
+import type { User } from './MembersSectionTestKit';
 
 type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;
 type LinkWrite = Awaited<ReturnType<typeof teamAccessClient.setMemberResourceLink>>;

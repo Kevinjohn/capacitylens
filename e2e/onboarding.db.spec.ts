@@ -1,9 +1,9 @@
 import { test, expect } from './dbFixtures';
 import { API, serverState, requireStateRows } from './serverTestState';
-import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestSupport';
-import { settledSchedulerLeftDate } from './browserTestSupport';
+import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestKit';
+import { settledSchedulerLeftDate } from './browserTestKit';
 import type { Page } from '@playwright/test';
-import { masqueradeContextHeaders } from './authTestSupport';
+import { masqueradeContextHeaders } from './authTestKit';
 
 async function visibleScheduleWeekday(page: Page): Promise<number> {
   await settledSchedulerLeftDate(page);

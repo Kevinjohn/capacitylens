@@ -9,7 +9,7 @@ import {
   validateProjectClient,
   removeAllocationAttribution,
 } from './integrity.js';
-import { makePlaceholder, makeUnboundPlaceholder, makePerson } from './integrity.test.support.js';
+import { makePlaceholder, makeUnboundPlaceholder, makePerson } from './integrityTestKit.js';
 
 describe('isAllocationAttributionAllowed', () => {
   it('allows allocation-level project attribution only for repeatable activities', () => {

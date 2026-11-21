@@ -1,11 +1,6 @@
 import { test, expect } from './dbFixtures';
 import type { Page } from './dbFixtures';
-import {
-  enableInlineActivityCreation,
-  openApp,
-  selectShadOption,
-  setZoom,
-} from './browserTestSupport';
+import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from './browserTestKit';
 
 // Covers US-SCH-09: the grid draws the server's per-day over-capacity flags. Which days are over is
 // the server's rule (apps/backend/tests/unit/planning/capacity_section.spec.ts); this spec checks

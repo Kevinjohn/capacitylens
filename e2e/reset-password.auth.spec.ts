@@ -4,7 +4,7 @@ import {
   AUTH_PASSWORD as PASSWORD,
   printFixtureResetLink,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

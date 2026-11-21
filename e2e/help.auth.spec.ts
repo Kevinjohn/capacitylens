@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures';
-import { AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+import { AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 const STAMP = Date.now();
 const COMPANY = `Wayne Enterprises ${STAMP}`;

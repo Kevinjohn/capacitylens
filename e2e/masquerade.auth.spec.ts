@@ -6,8 +6,8 @@ import {
   bootstrapOrg,
   seedFixtureMember,
   signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

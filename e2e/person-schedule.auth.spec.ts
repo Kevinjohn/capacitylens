@@ -7,8 +7,8 @@ import {
   seedFixtureMember,
   sendPlanningFixtureCommand,
   signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

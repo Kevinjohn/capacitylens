@@ -1,6 +1,6 @@
 import { expect, test } from './dbFixtures';
 import type { Locator, Page } from './dbFixtures';
-import { dismissLandscapeHint, openApp, selectShadOption } from './browserTestSupport';
+import { dismissLandscapeHint, openApp, selectShadOption } from './browserTestKit';
 
 const OWNER_DESCRIPTION =
   'Only account owners can see real names. Everyone else sees the code name.';

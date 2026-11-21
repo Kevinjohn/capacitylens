@@ -5,8 +5,8 @@ import {
   serializeCompanyExport,
 } from '@capacitylens/shared/data/companyDocument';
 import type { AppData } from '@capacitylens/shared/types/entities';
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

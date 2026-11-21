@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { useStore } from '@/store/useStore';
 import { DEFAULT_COMPANY_ID } from '@/test/fixtures';
-import { setUpAppShellTests, renderAppShell, renderAuthenticated } from './AppShell.testSupport';
+import { setUpAppShellTests, renderAppShell, renderAuthenticated } from './AppShellTestKit';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));

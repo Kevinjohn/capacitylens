@@ -12,7 +12,7 @@ import {
   setTheme,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

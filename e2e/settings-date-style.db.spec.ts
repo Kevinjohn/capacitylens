@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 import { serverState, requireStateRows } from './serverTestState';
 
 // Reload reads the committed company date convention from SQLite.

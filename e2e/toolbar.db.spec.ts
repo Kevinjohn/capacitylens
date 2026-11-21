@@ -6,7 +6,7 @@ import {
   resetSchedulerScroll,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.describe('Toolbar', () => {
   // Covers US-TBR-01..07 and the toolbar-owned week-snap cases from US-TBR-08; scheduler.spec.ts

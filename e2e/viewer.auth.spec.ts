@@ -9,14 +9,14 @@ import {
   masqueradeContextHeaders,
   seedFixtureMember,
   signUpUser as signUp,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // The password server on this run’s auth API lane must enforce the same viewer restrictions as the UI.
 
-// Shared auth setup comes from authTestSupport.
+// Shared auth setup comes from authTestKit.
 const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;

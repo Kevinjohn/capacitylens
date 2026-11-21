@@ -8,13 +8,13 @@ import {
   seedFixtureMember,
   sendPlanningFixtureCommand,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 import {
   freezeBrowserDate,
   isPlanningMutation,
   selectShadOption,
   waitForAppLanding,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

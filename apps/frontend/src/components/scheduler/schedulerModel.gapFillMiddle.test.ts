@@ -14,7 +14,7 @@ import {
   geom,
   start,
   makeDatasetWithExternal,
-} from './schedulerModel.testSupport';
+} from './schedulerModelTestKit';
 
 function buildDanglingActivityData() {
   const d = makeDataset();

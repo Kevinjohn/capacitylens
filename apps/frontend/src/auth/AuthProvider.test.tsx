@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { AUTH_INVALIDATION_STORAGE_KEY } from './signOut';
-import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 import { createDeferred } from '@/test/createDeferred';
 
 const authBootstrapMocks = vi.hoisted(() => ({

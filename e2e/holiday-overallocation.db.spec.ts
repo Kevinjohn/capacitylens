@@ -6,7 +6,7 @@ import {
   resetSchedulerScroll,
   selectShadOption,
   setZoom,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 async function addTimeOff(page: Page, resource: string, start: string, end = start) {
   await page.getByRole('button', { name: 'Add time off' }).click();

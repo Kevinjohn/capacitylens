@@ -16,7 +16,7 @@ vi.mock('@/data/requestTimeout', () => ({
 import { clearStoredAccountCommands } from './accountCommands';
 import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
-import { command, transferOwner, expectCommand } from './accountCommands.testSupport';
+import { command, transferOwner, expectCommand } from './accountCommandsTestKit';
 
 describe('browser account client', () => {
   beforeEach(() => {

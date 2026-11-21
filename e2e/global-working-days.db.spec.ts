@@ -1,6 +1,6 @@
 import { test, expect } from './dbFixtures';
 import type { Locator, Page } from './dbFixtures';
-import { changeCompanySetting, goToSeedWeek, openApp, setZoom } from './browserTestSupport';
+import { changeCompanySetting, goToSeedWeek, openApp, setZoom } from './browserTestKit';
 
 async function centre(locator: Locator): Promise<{ x: number; y: number }> {
   const box = await locator.boundingBox();

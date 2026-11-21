@@ -7,7 +7,7 @@ import { useStore } from '@/store/useStore';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { chooseOption } from '@/test/schedulerTestKit';
 import { requireValue } from '@/test/fixtures';
-import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
+import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningTestKit';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { PlanningControllerError } from '@/data/planning/planningErrors';

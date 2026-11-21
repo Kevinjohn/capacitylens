@@ -18,7 +18,7 @@ import {
   clearStoredAccountCommands,
   createBrowserAccountCommand,
 } from './accountCommands';
-import { transferOwner } from './accountCommands.testSupport';
+import { transferOwner } from './accountCommandsTestKit';
 
 describe('browser account client', () => {
   beforeEach(() => {

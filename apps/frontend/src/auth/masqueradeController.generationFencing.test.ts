@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeControllerTestKit';
 import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {

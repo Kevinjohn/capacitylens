@@ -7,7 +7,7 @@ import { useStore } from '@/store/useStore';
 import type { Activity, Weekday } from '@capacitylens/shared/types/entities';
 import { setExternalEnabled, setPlaceholdersEnabled } from '@/test/fixtures';
 import { chooseOption } from '@/test/schedulerTestKit';
-import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningFixtures';
+import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningTestKit';
 import {
   ACC,
   person,

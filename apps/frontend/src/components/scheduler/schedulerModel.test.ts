@@ -16,7 +16,7 @@ import {
   geom,
   makeDisciplines,
   start,
-} from './schedulerModel.testSupport';
+} from './schedulerModelTestKit';
 
 const dataset = () => makeDataset(makeDisciplines());
 

@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 
 // Real server actions update both the scheduler and active list.
 // Each action must update the scheduler and active list together.

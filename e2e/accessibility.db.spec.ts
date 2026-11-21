@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
+import { openApp, resetSchedulerScroll, setZoom } from './browserTestKit';
 
 test.describe('Keyboard & accessibility', { tag: '@engine' }, () => {
   // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)

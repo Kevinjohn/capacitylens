@@ -6,8 +6,8 @@ import {
   createFixturePerson,
   seedFixtureMember,
   signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 const suffix = Date.now();
 

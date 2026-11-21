@@ -8,7 +8,7 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-} from './planningCacheController.testSupport';
+} from './planningCacheControllerTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 

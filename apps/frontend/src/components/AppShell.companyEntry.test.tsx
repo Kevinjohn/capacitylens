@@ -3,7 +3,7 @@ import { screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, makeAppData, makeCompany, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import { setUpAppShellTests, companyDirectory, renderAppShell } from './AppShell.testSupport';
+import { setUpAppShellTests, companyDirectory, renderAppShell } from './AppShellTestKit';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({

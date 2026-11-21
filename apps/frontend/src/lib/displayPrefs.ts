@@ -207,7 +207,7 @@ export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createB
 // Week snap: after a free horizontal scroll settles, the schedule floors its left edge back to the
 // current week's first day, so a stray scroll can't leave the view on a mid-week day. Always on for
 // users, with no Settings control. The storage key remains only as a test override: browser tests
-// store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestSupport.ts).
+// store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestKit.ts).
 // Governs free scroll only; the navigation snap (zoom / Prev-Next / date-picker) is always on.
 /** Storage key for the browser-test week-snap override. */
 export const WEEK_SNAP_OVERRIDE_KEY = 'snapToWeekStart';

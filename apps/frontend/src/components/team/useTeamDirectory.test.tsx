@@ -7,7 +7,7 @@ import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
 import { AuthContext } from '@/auth/authContext';
 import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
-import { makeAuthValue } from './MembersSection.testSupport';
+import { makeAuthValue } from './MembersSectionTestKit';
 import { useTeamDirectory } from './useTeamDirectory';
 
 type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;

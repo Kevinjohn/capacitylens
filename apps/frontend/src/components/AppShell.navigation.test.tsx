@@ -3,7 +3,7 @@ import { screen, act, waitFor, within } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, makeAppData, makeCompany } from '@/test/fixtures';
 import { m } from '@/i18n';
-import { setUpAppShellTests, renderAppShell } from './AppShell.testSupport';
+import { setUpAppShellTests, renderAppShell } from './AppShellTestKit';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({

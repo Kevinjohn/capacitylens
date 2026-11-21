@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { isPlanningMutation, openApp } from './browserTestSupport';
+import { isPlanningMutation, openApp } from './browserTestKit';
 
 test.describe('CRUD and persistent company transfer', () => {
   test('a project cannot be saved without a client', async ({ page }) => {

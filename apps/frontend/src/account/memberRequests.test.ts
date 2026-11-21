@@ -19,7 +19,7 @@ import { invitationRequests } from './invitationRequests';
 import { invitationSignupRequests } from './invitationSignupRequests';
 import { masqueradeRequests } from '@/auth/masqueradeRequests';
 import { memberRequests } from './memberRequests';
-import { command, expectCommand } from './accountCommands.testSupport';
+import { command, expectCommand } from './accountCommandsTestKit';
 
 function requestInitAt(
   calls: ReadonlyArray<Parameters<typeof mocks.fetchApi>>,

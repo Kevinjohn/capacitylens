@@ -14,7 +14,7 @@ import {
   setZoom,
   settledSchedulerLeftDate,
   waitForWeekSnap,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 async function expectMonthLabelsVerticallyCentred(page: Page) {
   const dateHeader = page.getByRole('columnheader', { name: 'Dates' });

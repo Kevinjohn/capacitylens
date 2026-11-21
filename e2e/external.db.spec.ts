@@ -5,7 +5,7 @@ import {
   selectShadOption,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 // External visibility is an account preference that defaults off; toggling it must preserve the underlying bookings.
 

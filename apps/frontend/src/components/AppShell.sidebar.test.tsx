@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, act, fireEvent, within } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { stubMatchMedia } from '@/test/stubMatchMedia';
-import { setUpAppShellTests, renderAppShell } from './AppShell.testSupport';
+import { setUpAppShellTests, renderAppShell } from './AppShellTestKit';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({

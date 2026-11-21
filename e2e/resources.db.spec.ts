@@ -7,7 +7,7 @@ import {
   selectShadOption,
   setZoom,
   showPlaceholders,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 async function expectWorkingDaysGeometry(dialog: Locator) {
   const compactFields = dialog.locator('[data-product-layout="label-control"]');

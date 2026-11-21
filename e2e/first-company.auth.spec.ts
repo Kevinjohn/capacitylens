@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
-import { masqueradeContextHeaders } from './authTestSupport';
+import { masqueradeContextHeaders } from './authTestKit';
 
 // This journey needs an empty native installation, independently of the shared role fixtures.
 test('operator setup creates the first Owner, one company and its default client', async ({

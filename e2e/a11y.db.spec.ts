@@ -9,7 +9,7 @@ import {
   setTheme,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 

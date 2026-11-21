@@ -8,7 +8,7 @@ import { buildEmptyFilters } from '@/store/useStore';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
 import { capacityOver } from '@/test/capacityFixtures';
 import { makeActivity, makeClient, makeProject, makeResource, requireValue } from '@/test/fixtures';
-import { makeDataset, days, end, geom, makeDisciplines, start } from './schedulerModel.testSupport';
+import { makeDataset, days, end, geom, makeDisciplines, start } from './schedulerModelTestKit';
 
 const dataset = () => makeDataset(makeDisciplines());
 

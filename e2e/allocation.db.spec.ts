@@ -9,7 +9,7 @@ import {
   selectShadOption,
   setZoom,
   showPlaceholders,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.describe('Allocation editor', () => {
   // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by

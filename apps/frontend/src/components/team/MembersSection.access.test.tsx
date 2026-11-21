@@ -8,7 +8,7 @@ import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/
 import { useStore } from '@/store/useStore';
 import { MembersSection } from './MembersSection';
 import { useTeamDirectory } from './useTeamDirectory';
-import { makeAuthValue, mockApi, makeRawMember, renderSection } from './MembersSection.testSupport';
+import { makeAuthValue, mockApi, makeRawMember, renderSection } from './MembersSectionTestKit';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const companyTransitionMocks = vi.hoisted(() => ({

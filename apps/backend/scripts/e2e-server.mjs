@@ -43,7 +43,7 @@ const env = {
   APP_URL: `http://127.0.0.1:${port}`,
   CAPACITYLENS_DB: database,
   CAPACITYLENS_ALLOW_RESET: '1',
-  // Matches FIXED_NOW in e2e/browserTestSupport.ts, so the server's today is the browser's.
+  // Matches FIXED_NOW in e2e/browserTestKit.ts, so the server's today is the browser's.
   CAPACITYLENS_FIXED_TODAY: '2026-06-03',
   CAPACITYLENS_BACKUP_DIR: '',
   CAPACITYLENS_MAIL_HOST: '',

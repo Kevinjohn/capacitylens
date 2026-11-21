@@ -7,7 +7,7 @@ import {
   clearAuthE2ECompanies,
   readAuthE2EBaselineSnapshot,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 
 test('native company fixtures preserve baseline data and unrelated principals across cleanup cycles', async ({
   request,

@@ -10,7 +10,7 @@ import {
   setZoom,
   showPlaceholders,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 const attributedBar = (page: Page) =>
   page

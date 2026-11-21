@@ -10,7 +10,7 @@ import {
   sendPlanningFixtureCommand,
   signUpUser,
   masqueradeContextHeaders,
-} from './authTestSupport';
+} from './authTestKit';
 import {
   boundingBoxOrThrow,
   goToSeedWeek,
@@ -18,7 +18,7 @@ import {
   selectShadOption,
   setZoom,
   waitForAppLanding,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

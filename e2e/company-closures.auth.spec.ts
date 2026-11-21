@@ -8,7 +8,7 @@ import {
   seedFixtureMember,
   sendPlanningFixtureCommand,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
 import {
   computedStyles,
@@ -18,7 +18,7 @@ import {
   goToSeedWeek,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

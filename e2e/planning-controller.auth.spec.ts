@@ -1,8 +1,8 @@
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { expect, test } from './fixtures';
 import type { APIRequestContext, Page } from './fixtures';
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from './authTestSupport';
-import { isPlanningMutation, waitForAppLanding } from './browserTestSupport';
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from './authTestKit';
+import { isPlanningMutation, waitForAppLanding } from './browserTestKit';
 
 const MODULE_URL = '/src/test/planningServerHarness.ts';
 const STAMP = Date.now();

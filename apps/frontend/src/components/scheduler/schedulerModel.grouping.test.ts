@@ -13,7 +13,7 @@ import {
   makeDisciplines,
   start,
   makeDatasetWithExternal,
-} from './schedulerModel.testSupport';
+} from './schedulerModelTestKit';
 
 const dataset = () => makeDataset(makeDisciplines());
 

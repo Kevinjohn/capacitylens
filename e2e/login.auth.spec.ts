@@ -7,13 +7,13 @@ import {
   BOOTSTRAP_ADMIN,
   bootstrapOrg,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // This spec exercises the password-mode login wall; the core demo project uses cosmetic sign-in.
 
-// Shared auth helpers come from authTestSupport. A fresh user has no membership, so GET /api/companies
+// Shared auth helpers come from authTestKit. A fresh user has no membership, so GET /api/companies
 // returns no companies. The first-company route provisions a company for the signed-in owner.
 const EMAIL = 'tester@capacitylens.dev';
 const ORG_NAME = `Login Studio ${Date.now()}`;

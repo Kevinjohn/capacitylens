@@ -6,8 +6,8 @@ import {
   seedFixtureMember,
   sendPlanningFixtureCommand,
   signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 const STAMP = Date.now();
 const OWNER = `overview-owner-${STAMP}@capacitylens.dev`;

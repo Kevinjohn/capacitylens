@@ -1,6 +1,6 @@
 import { test, expect } from './dbFixtures';
 import type { Page } from '@playwright/test';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 import {
   buildCompanyExport,
   serializeCompanyExport,

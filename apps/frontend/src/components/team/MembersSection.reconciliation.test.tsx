@@ -14,7 +14,7 @@ import {
   makeRawMember,
   renderSection,
   saveRoleVia,
-} from './MembersSection.testSupport';
+} from './MembersSectionTestKit';
 
 interface RoleFailureCaseInput {
   status: number;

@@ -14,7 +14,7 @@ export const GUARDED_FILES = Object.freeze([
   'scripts/dev/dev-fullstack.mjs',
   'scripts/e2e/serve-dist.mjs',
   'docs-src/.vitepress/config.mts',
-  'e2e/authTestSupport.ts',
+  'e2e/authTestKit.ts',
   'e2e/serverTestState.ts',
   'e2e/workerServer.ts',
   'scripts/e2e/e2eWorkerRuntime.mjs',

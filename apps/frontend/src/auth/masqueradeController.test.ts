@@ -3,7 +3,7 @@ import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/dom
 import { loadPlanningData, makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import type { FlushPendingWritesResult } from './masqueradeController';
-import { state, inactiveStatus, createHarness } from './masqueradeController.testSupport';
+import { state, inactiveStatus, createHarness } from './masqueradeControllerTestKit';
 import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {

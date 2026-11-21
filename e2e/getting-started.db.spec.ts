@@ -1,7 +1,7 @@
 import { test, expect } from './dbFixtures';
 import type { Locator, Page } from './dbFixtures';
-import { waitForAppLanding, selectShadOption } from './browserTestSupport';
-import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestSupport';
+import { waitForAppLanding, selectShadOption } from './browserTestKit';
+import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestKit';
 import { TOUR_ANCHORS } from '../apps/frontend/src/lib/tourAnchors';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });

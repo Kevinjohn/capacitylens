@@ -2,7 +2,7 @@ import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 import { SessionProbe } from '@/test/SessionProbe';
 import { createDeferred } from '@/test/createDeferred';
 

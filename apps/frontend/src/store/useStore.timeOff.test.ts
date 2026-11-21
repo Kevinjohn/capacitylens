@@ -12,7 +12,7 @@ import {
 import { useStore } from './useStore';
 import { PlanningControllerError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningFixtures';
+import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningTestKit';
 
 const state = () => useStore.getState();
 

@@ -5,7 +5,7 @@ import {
   commitPlanningChange,
   openApp,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 async function moveDianaToSupplementary(page: Page) {
   await page

@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, selectShadOption, showScheduleFilters } from './browserTestSupport';
+import { openApp, selectShadOption, showScheduleFilters } from './browserTestKit';
 
 test.describe('Filters', () => {
   // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)

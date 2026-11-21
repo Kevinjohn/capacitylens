@@ -15,7 +15,7 @@ import {
   A1,
   A2,
   makeBaseData,
-} from './assertionMessagesTestSupport.js';
+} from './assertionMessagesTestKit.js';
 
 // These specs check each rule's rejection message without the store or React. The server uses
 // the same module, so these assertions pin the validation rules for both callers.

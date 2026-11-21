@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures';
-import { AUTH_API } from './authTestSupport';
+import { AUTH_API } from './authTestKit';
 
 test('sign-in preserves long Unicode credentials and normalizes a maximum-length email', async ({
   page,

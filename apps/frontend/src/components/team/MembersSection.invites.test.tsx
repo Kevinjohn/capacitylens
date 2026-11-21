@@ -11,7 +11,7 @@ import {
   ownerAndEditor,
   makeRawMember,
   renderSection,
-} from './MembersSection.testSupport';
+} from './MembersSectionTestKit';
 
 interface InviteFailureCaseInput {
   status: number;

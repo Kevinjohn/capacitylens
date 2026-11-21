@@ -4,15 +4,7 @@ import { buildEmptyFilters } from '@/store/useStore';
 import { makeAllocation, makeResource, requireValue } from '@/test/fixtures';
 import { capacityOver } from '@/test/capacityFixtures';
 import { buildSchedulerModel } from './schedulerModel';
-import {
-  listAllBars,
-  build,
-  makeDataset,
-  days,
-  end,
-  geom,
-  start,
-} from './schedulerModel.testSupport';
+import { listAllBars, build, makeDataset, days, end, geom, start } from './schedulerModelTestKit';
 
 function buildBlockTimeOffRows() {
   const d = makeDataset();

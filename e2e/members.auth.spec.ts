@@ -9,8 +9,8 @@ import {
   signUpUserWithId,
   seedFixtureMember,
   masqueradeContextHeaders,
-} from './authTestSupport';
-import { waitForAppLanding, selectShadOption } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding, selectShadOption } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
