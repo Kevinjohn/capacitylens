@@ -68,7 +68,7 @@ function markdownSlug(heading: string): string {
     .replace(/-+/g, '-');
 }
 
-test.group('M5 documentation and policy contracts', () => {
+test.group('documentation and repository rule contracts', () => {
   test('keeps the README install commands and success check in step with the guide', ({
     assert,
   }) => {

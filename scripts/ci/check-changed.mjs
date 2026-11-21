@@ -76,7 +76,7 @@ const applicationOnly =
   /^(?:apps\/backend\/(?:app|tests|database)\/|apps\/frontend\/(?:src|messages)\/(?!index\.css$)|packages\/shared\/src\/|user-stories\/)|\.md$/;
 // The documentation policy spec reads these files and checks that every path a user story links
 // still exists, so a deleted file or a change to them can fail it without touching backend code.
-const documentationPolicySpec = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
+const documentationPolicySpec = 'apps/backend/tests/functional/conventions/documentation.spec.ts';
 const documentationPolicyInput =
   /^(?:user-stories\/|docs-src\/|packaging\/|apps\/frontend\/messages\/|README\.md$)/;
 // A filter that matches nothing reports success; these markers turn it into a failure.

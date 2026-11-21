@@ -394,7 +394,7 @@ test('the built-site lightbox test runs through the docs steps, never as a front
 });
 
 test('deleted files and documentation policy inputs run the documentation policy spec', () => {
-  const policy = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
+  const policy = 'apps/backend/tests/functional/conventions/documentation.spec.ts';
   for (const [paths, exists] of [
     [['apps/frontend/src/components/a.test.tsx'], (path) => path === policy],
     [['user-stories/navigation/US-NAV-15.md'], everything],

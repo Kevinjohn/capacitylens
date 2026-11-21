@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import { publicOrigin } from '#config/public_origin';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '../helpers/fresh_database.js';
 import { resolveCorsOrigins, appendDevelopmentWebOrigins } from '#services/cors_origins';
 
 test('CORS uses finite development origins and no production cross-origin defaults', ({
