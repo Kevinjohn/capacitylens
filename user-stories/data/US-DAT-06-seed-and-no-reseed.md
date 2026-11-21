@@ -38,4 +38,4 @@ flowchart TD
   api --> web["Start Vite and print sign-in when ready"]
 ```
 
-**Code references:** [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs); [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts); [demo_seed.ts](../../apps/backend/commands/demo_seed.ts); [development_bootstrap.ts](../../apps/backend/app/services/development_bootstrap.ts); [initial_company_authority.ts](../../apps/backend/app/services/initial_company_authority.ts); [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts)
+**Code references:** [dev-fullstack.mjs](../../scripts/dev/dev-fullstack.mjs); [demo_prepare.ts](../../apps/backend/commands/demo_prepare.ts); [demo_seed.ts](../../apps/backend/commands/demo_seed.ts); [development_bootstrap.ts](../../apps/backend/app/services/development_bootstrap.ts); [initial_company_access.ts](../../apps/backend/app/services/initial_company_access.ts); [disposable_demo.spec.ts](../../apps/backend/tests/functional/auth/disposable_demo.spec.ts)

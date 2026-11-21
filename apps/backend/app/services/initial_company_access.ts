@@ -1,8 +1,8 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import access from '#config/access_control';
 
-/** Establishes authority and planning metadata inside the company graph transaction. */
-export async function establishInitialCompanyAuthority(
+/** Creates the first membership and planning metadata inside the company graph transaction. */
+export async function initializeCompanyAccess(
   trx: TransactionClientContract,
   input: { companyId: string; ownerId: string; actorId: string | null; now: string }
 ) {

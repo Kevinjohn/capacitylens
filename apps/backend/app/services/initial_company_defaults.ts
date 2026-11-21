@@ -4,7 +4,7 @@ import { buildDefaultCompanyWorkingDays } from '@capacitylens/shared/lib/company
 import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
-import { establishInitialCompanyAuthority } from '#services/initial_company_authority';
+import { initializeCompanyAccess } from '#services/initial_company_access';
 
 /** Writes the complete first company inside the caller's transaction. */
 export async function createInitialCompany(
@@ -47,7 +47,7 @@ export async function createInitialCompany(
         buildInternalClient(companyId, now) as unknown as Record<string, unknown>
       )
     );
-  await establishInitialCompanyAuthority(trx, {
+  await initializeCompanyAccess(trx, {
     companyId,
     ownerId: input.ownerId,
     actorId: input.actorId,

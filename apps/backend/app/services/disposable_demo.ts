@@ -5,13 +5,13 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { withTransaction } from '#services/with_transaction';
-import { establishInitialCompanyAuthority } from '#services/initial_company_authority';
+import { initializeCompanyAccess } from '#services/initial_company_access';
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
 import env from '#start/env';
 import { hasNoCompany } from '#models/installation_company';
 
-/** Insert the single disposable company graph and its authority in one transaction. */
+/** Insert the single disposable company graph and its first membership in one transaction. */
 async function insertDisposableDemoSeed(ownerId: string) {
   await withTransaction(async (trx) => {
     if (!(await hasNoCompany(trx))) {
@@ -38,7 +38,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
           );
       }
     }
-    await establishInitialCompanyAuthority(trx, {
+    await initializeCompanyAccess(trx, {
       companyId: company.id,
       ownerId,
       actorId: ownerId,
