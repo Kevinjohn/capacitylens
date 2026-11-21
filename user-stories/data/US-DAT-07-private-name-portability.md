@@ -28,7 +28,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  fetch["useExportAction fetches api.export"] --> role["ExportsController.download projects rows and sets completeness"]
+  fetch["useExportOperation fetches api.export"] --> role["ExportsController.download projects rows and sets completeness"]
   role --> project["transformState redacts private names for non-Owners"]
   project --> beta["buildCompanyExport validates and serializes portable data"]
   beta --> file["downloadTextFile saves the server's file"]
@@ -36,4 +36,4 @@ flowchart TD
   import --> replace["Transfer service replaces company rows only after preparation"]
 ```
 
-**Code references:** [useExportAction.ts](../../apps/frontend/src/components/import-export/useExportAction.ts), [exports_controller.ts](../../apps/backend/app/controllers/exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [exports_controller.ts](../../apps/backend/app/controllers/exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)

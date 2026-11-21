@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useCan, useRole } from '@/auth/permissionContext';
-import { useTourAction } from '@/hooks/useTourAction';
+import { useTourOperation } from '@/hooks/useTourOperation';
 import { gettingStartedApi } from '@/account/gettingStartedApi';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 import { useStore } from '@/store/useStore';
@@ -72,7 +72,7 @@ function GettingStartedForCompany({ companyId }: { companyId: string }) {
   const [openChoice, setOpenChoice] = useState<{ path: string; open: boolean } | null>(null);
   const open = openChoice?.path === pathname ? openChoice.open : isChecklistOpenByDefault(pathname);
   const setOpen = (value: boolean) => setOpenChoice({ path: pathname, open: value });
-  const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
+  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice);
   const {
     dismissed,
     steps,

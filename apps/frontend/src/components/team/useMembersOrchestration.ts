@@ -10,7 +10,7 @@ import { useFieldError } from '@/hooks/useFieldError';
 import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/types';
 import { useTeamDirectory } from './useTeamDirectory';
-import { useTeamActionLock } from './useTeamActionLock';
+import { useTeamOperationLock } from './useTeamOperationLock';
 import { useMemberInvites } from './useMemberInvites';
 import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
 import { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
@@ -118,7 +118,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     activeCompanyId: input.activeCompanyId,
     fail: input.fail,
   });
-  const actionLock = useTeamActionLock();
+  const operationLock = useTeamOperationLock();
   const authorizedDirectory = selectAuthorizedDirectory(directoryState.directory);
   const members = authorizedDirectory?.members ?? null;
   const invites = authorizedDirectory?.invites ?? NO_INVITES;
@@ -136,11 +136,11 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
     body: (companyId: string) => Promise<void>,
   ): Promise<void> => {
     const companyId = requestCompanyId();
-    if (!actionLock.beginAction(key)) return;
+    if (!operationLock.beginAction(key)) return;
     try {
       await body(companyId);
     } finally {
-      actionLock.endAction();
+      operationLock.endAction();
     }
   };
   const renderedAt = useDeadlineClock({
@@ -149,7 +149,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   });
   return {
     ...directoryState,
-    busyAction: actionLock.busyAction,
+    busyAction: operationLock.busyAction,
     members,
     resourceCandidates,
     renderedAt,

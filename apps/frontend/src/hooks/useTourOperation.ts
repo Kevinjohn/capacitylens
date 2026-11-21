@@ -5,7 +5,7 @@ import { m } from '@/i18n';
 import { startTour } from '@/lib/tour';
 
 /** Owns the permission-aware lifecycle for the role tour launcher. */
-export function useTourAction(setNotice: (message: string, tone: 'error') => void) {
+export function useTourOperation(setNotice: (message: string, tone: 'error') => void) {
   const navigate = useNavigate();
   const role = useRole();
   const permissionStatus = usePermissionStatus();

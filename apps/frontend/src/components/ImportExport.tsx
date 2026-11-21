@@ -9,7 +9,7 @@ import { reloadPage } from '@/lib/reloadPage';
 import { useServerImport } from './import-export/useServerImport';
 import { ImportPreview } from './import-export/ImportPreview';
 import { summarize } from './import-export/importExportMessages';
-import { useExportAction } from './import-export/useExportAction';
+import { useExportOperation } from './import-export/useExportOperation';
 import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
@@ -147,7 +147,7 @@ export function ImportExport() {
     busy: importBusy,
     requiresReload: importRequiresReload,
   } = useServerImport();
-  const { busy: exportBusy, exportData } = useExportAction();
+  const { busy: exportBusy, exportData } = useExportOperation();
   const [preview, setPreview] = useState<TransferPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [continued, setContinued] = useState(false);

@@ -1,6 +1,6 @@
 import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password';
 import { m } from '@/i18n';
-import { FormActions, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
+import { FormButtons, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { FieldError } from '@/components/ui/field';
 import { useSecurityViewModel } from './useSecurityViewModel';
@@ -79,7 +79,7 @@ function PasswordDialog({
         onSubmit={() => void password.submit()}
         warnOnDirty={false}
         footer={
-          <FormActions
+          <FormButtons
             onCancel={close}
             submitLabel={m.settings_security_change_password()}
             disabled={

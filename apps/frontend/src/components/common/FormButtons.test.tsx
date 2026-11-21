@@ -2,7 +2,7 @@ import { loadPlanningData } from '@/test/fixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { FormActions } from './ui';
+import { FormButtons } from './ui';
 import { useStore } from '@/store/useStore';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 
@@ -12,13 +12,13 @@ beforeEach(() => {
   useStore.getState().setDirtyForm(false);
 });
 
-describe('FormActions', () => {
+describe('FormButtons', () => {
   it('renders the standard actions and supports a submit-label override', async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
     render(
       <form>
-        <FormActions onCancel={onCancel} submitLabel="Create" />
+        <FormButtons onCancel={onCancel} submitLabel="Create" />
       </form>,
     );
 

@@ -1,11 +1,11 @@
 import { m } from '@/i18n';
 import { teamAccessApi } from '@/account/teamAccessApi';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import type { MemberActionDependencies } from './MemberActionDependencies';
+import type { MemberOperationDependencies } from './MemberOperationDependencies';
 import type { useTeamDirectory } from './useTeamDirectory';
 
 type MemberAccessDependencies = Pick<
-  MemberActionDependencies,
+  MemberOperationDependencies,
   'requestCompanyId' | 'isActiveCompany' | 'fail' | 'setNotice'
 > & {
   replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>['replaceAuthorizedDirectory'];

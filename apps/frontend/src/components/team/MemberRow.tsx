@@ -12,7 +12,7 @@ import type { MemberRoleEdit } from './MemberConfirmations';
 import { resolveMemberLabel } from './memberConfirmationCopy';
 import type { MemberConfirmationAction } from './memberConfirmationCopy';
 import { MemberResourceDialog, MemberResourceLink } from './MemberResourceLink';
-import { MemberActionsDialog } from './MemberActionsDialog';
+import { MemberMenuDialog } from './MemberMenuDialog';
 import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 // The server decides `manage` with the Access Control package and authorizes each operation again.
@@ -241,7 +241,7 @@ export function MemberRow({
           />
         }
         settingsMenu={
-          <MemberActionsDialog
+          <MemberMenuDialog
             memberLabel={memberLabel}
             hasExistingActions={affordances.hasMenu}
             busy={busy}
@@ -266,7 +266,7 @@ export function MemberRow({
                 chooseMemberAction={chooseMemberAction}
               />
             )}
-          </MemberActionsDialog>
+          </MemberMenuDialog>
         }
       />
     </tr>

@@ -5,7 +5,7 @@ import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
 import { useFieldError } from '@/hooks/useFieldError';
 import { m } from '@/i18n';
 import {
-  FormActions,
+  FormButtons,
   FormDialog,
   RequiredLegend,
   SegmentedField,
@@ -237,7 +237,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
       onSubmit={() => {
         submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
-      footer={<FormActions onCancel={onClose} disabled={submitting} />}
+      footer={<FormButtons onCancel={onClose} disabled={submitting} />}
     >
       <ResourceFormBody
         form={form}

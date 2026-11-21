@@ -7,7 +7,7 @@ import { useFieldError } from '@/hooks/useFieldError';
 import { parseName } from '@/lib/validation';
 import { m } from '@/i18n';
 import {
-  FormActions,
+  FormButtons,
   FormDialog,
   RequiredLegend,
   SegmentedField,
@@ -177,7 +177,7 @@ export function ActivityForm({
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <ActivityFields
         name={name}

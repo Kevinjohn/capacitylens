@@ -8,7 +8,7 @@ import { validatePresetColor, parseName } from '@/lib/validation';
 import { m } from '@/i18n';
 import {
   ColorField,
-  FormActions,
+  FormButtons,
   FormDialog,
   RequiredLegend,
   TextField,
@@ -56,7 +56,7 @@ export function DisciplineForm({
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <TextField

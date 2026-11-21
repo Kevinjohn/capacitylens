@@ -4,12 +4,12 @@ import { resolveLifecycleStatus } from '@capacitylens/shared/domain/lifecycle';
 import type { Resource } from '@capacitylens/shared/types/entities';
 import { Link } from 'react-router-dom';
 import { useInactiveCompanyData } from '@/hooks/useInactiveCompanyData';
-import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
 import { Button } from '@/components/ui/button';
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '@/components/ui/item';
 import { ConfirmDialog } from './dialogs';
 import { m } from '@/i18n';
-import { useExclusiveAction } from '@/hooks/useExclusiveAction';
+import { useExclusiveOperation } from '@/hooks/useExclusiveOperation';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { useCan } from '@/auth/permissionContext';
@@ -181,7 +181,7 @@ function ArchivedContent({
 /** Shows archived records only when the current role can view inactive data. */
 function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity }) {
   const { data, mayViewInactive } = useInactiveCompanyData();
-  const actions = useLifecycleActions();
+  const actions = useLifecycleOperations();
   const [anonymising, setAnonymising] = useState<{
     companyId: string | null;
     row: LifecycleRow;
@@ -189,7 +189,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
   const mayAnonymise = useCan('resources:anonymise');
   const setNotice = useStore((state) => state.setNotice);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const { busy, run, locked } = useExclusiveAction();
+  const { busy, run, locked } = useExclusiveOperation();
   const rows = useMemo(() => (data ? buildArchivedRows(data, entity) : []), [data, entity]);
   const groups = useMemo(
     () => (entity === 'resources' ? buildResourceArchivedGroups(rows) : []),

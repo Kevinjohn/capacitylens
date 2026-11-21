@@ -13,7 +13,7 @@ import { byName } from '@/lib/displayOrder';
 import { m } from '@/i18n';
 import {
   ColorField,
-  FormActions,
+  FormButtons,
   FormDialog,
   RequiredLegend,
   SelectField,
@@ -91,7 +91,7 @@ export function ProjectForm({
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <ProjectNameFields

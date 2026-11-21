@@ -13,12 +13,12 @@ import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy';
 type LifecycleVerb = 'archive' | 'unarchive' | 'anonymise';
 
 /**
- * The dispatch surface returned by {@link useLifecycleActions}. Each method runs one lifecycle
+ * The dispatch surface returned by {@link useLifecycleOperations}. Each method runs one lifecycle
  * transition for one entity row. Planning operations use the shared typed planning cache;
  * anonymisation uses the server. The promise never rejects. A failure is surfaced as a notice and the promise still
  * resolves, so a caller can `void` it without an unhandled rejection (the MembersSection idiom).
  */
-export interface LifecycleActions {
+export interface LifecycleOperations {
   archive: (entity: LifecycleEntity, id: string) => Promise<void>;
   unarchive: (entity: LifecycleEntity, id: string) => Promise<void>;
   anonymise: (id: string) => Promise<void>;
@@ -28,7 +28,7 @@ export interface LifecycleActions {
  * onReloaded fires after confirmed
  * server mutation and refresh so an independently loaded inactive list can refetch.
  */
-export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
+export function useLifecycleOperations(onReloaded?: () => void): LifecycleOperations {
   const mutationQueue = useRef<Promise<void>>(Promise.resolve());
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
@@ -95,7 +95,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
   );
 
   // Stabilize the returned surface so consumers do not rerender solely because its object identity changes.
-  return useMemo<LifecycleActions>(
+  return useMemo<LifecycleOperations>(
     () => ({
       archive: (entity, id) => run('archive', entity, id),
       unarchive: (entity, id) => run('unarchive', entity, id),

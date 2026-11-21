@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities';
 import { m } from '@/i18n';
 import { useEntityListState } from '@/hooks/useEntityListState';
-import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
 import { resolveResourceDisplayName } from '@/lib/metadata';
 import { ConfirmDialog, ListPage } from '@/components/common/ui';
 import { ExternalForm } from '@/components/external/ExternalForm';
@@ -14,7 +14,7 @@ import { ArchivedEntitySection } from '@/components/common/ArchivedEntitySection
 /** Shows scoped people and external resources using the resource list model. */
 export function ResourceList() {
   const model = useResourceListModel();
-  const { archive } = useLifecycleActions();
+  const { archive } = useLifecycleOperations();
   const { editing, setEditing, confirming, setConfirming } = useEntityListState<Resource>();
   const externalState = useEntityListState<Resource>();
   const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null);

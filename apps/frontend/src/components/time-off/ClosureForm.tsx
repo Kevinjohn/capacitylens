@@ -10,7 +10,7 @@ import { parseText } from '@/lib/validation';
 import { useStore } from '@/store/useStore';
 import {
   DateField,
-  FormActions,
+  FormButtons,
   FormDialog,
   RequiredLegend,
   TextField,
@@ -125,7 +125,7 @@ export function ClosureForm({
         void submit(prepareSave);
       }}
       onEdit={clear}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <ClosureFormFields

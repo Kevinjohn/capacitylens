@@ -8,7 +8,7 @@ import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
 
 /** Saves the export document the server builds for the active company, reporting a refusal as an error. */
-export function useExportAction() {
+export function useExportOperation() {
   const setNotice = useStore((state) => state.setNotice);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const [busy, setBusy] = useState(false);

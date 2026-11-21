@@ -4,12 +4,12 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi';
 import type { TeamMember as Member } from '@/account/teamAccessApi';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import type { MemberActionDependencies } from './MemberActionDependencies';
+import type { MemberOperationDependencies } from './MemberOperationDependencies';
 import type { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
 
 /** Authorized request and refresh callbacks needed for member changes. */
 export interface MemberMutationDependencies extends Pick<
-  MemberActionDependencies,
+  MemberOperationDependencies,
   'withMemberAction' | 'isActiveCompany' | 'fail' | 'setNotice'
 > {
   reconcileUnknownMutation: ReturnType<

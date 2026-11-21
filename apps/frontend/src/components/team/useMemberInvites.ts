@@ -7,10 +7,10 @@ import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi'
 import type { TeamInvitation } from '@/account/teamAccessApi';
 import type { FieldError } from '@/hooks/useFieldError';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import type { MemberActionDependencies } from './MemberActionDependencies';
+import type { MemberOperationDependencies } from './MemberOperationDependencies';
 import type { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
 
-interface MemberInviteDependencies extends MemberActionDependencies {
+interface MemberInviteDependencies extends MemberOperationDependencies {
   clear: FieldError['clear'];
   reloadInvites: () => Promise<void>;
   reconcileUnknownMutation: ReturnType<

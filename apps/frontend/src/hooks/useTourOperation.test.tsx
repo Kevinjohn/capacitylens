@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
-import { useTourAction } from './useTourAction';
+import { useTourOperation } from './useTourOperation';
 import { permissionValue } from '@/test/permissionGrants';
 
 const tourMock = vi.hoisted(() => ({
@@ -23,7 +23,7 @@ const setNotice = vi.fn();
 const actionRef = createRef<() => Promise<void>>();
 
 function Harness() {
-  const { canShowTour, tourBusy, showTour } = useTourAction(setNotice);
+  const { canShowTour, tourBusy, showTour } = useTourOperation(setNotice);
   useEffect(() => {
     actionRef.current = showTour;
   }, [showTour]);
@@ -63,7 +63,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-describe('useTourAction', () => {
+describe('useTourOperation', () => {
   it.each(['pending', 'unavailable'] as const)(
     'disables the launcher while permissions are %s',
     async (status) => {

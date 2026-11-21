@@ -7,7 +7,7 @@ import {
   makeCompany,
   resetStoreWithCompany,
 } from '@/test/fixtures';
-import { useLifecycleActions } from './useLifecycleActions';
+import { useLifecycleOperations } from './useLifecycleOperations';
 import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
@@ -31,7 +31,7 @@ describe('named lifecycle actions', () => {
     useStore.setState({ sendPlanningIntent: send });
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
-    const { result } = renderHook(() => useLifecycleActions());
+    const { result } = renderHook(() => useLifecycleOperations());
     await act(async () => {
       await result.current.archive('clients', 'c-1');
       await result.current.unarchive('clients', 'c-1');
@@ -62,7 +62,7 @@ describe('named lifecycle actions', () => {
       };
     });
     useStore.setState({ sendPlanningIntent: send });
-    const { result } = renderHook(() => useLifecycleActions());
+    const { result } = renderHook(() => useLifecycleOperations());
     await act(async () => result.current.archive('clients', 'c-1'));
     expect(useStore.getState().notice).toEqual({
       message:
@@ -78,7 +78,7 @@ describe('named lifecycle actions', () => {
       return new Response(null, { status: 204 });
     });
     vi.stubGlobal('fetch', fetch);
-    const { result } = renderHook(() => useLifecycleActions());
+    const { result } = renderHook(() => useLifecycleOperations());
     await act(async () => result.current.anonymise('r-1'));
     expect(fetch).toHaveBeenCalledOnce();
     const call = fetch.mock.calls[0];
@@ -93,7 +93,7 @@ describe('named lifecycle actions', () => {
     if (!release) throw new Error('The test planning context was not ready.');
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
-    const { result } = renderHook(() => useLifecycleActions());
+    const { result } = renderHook(() => useLifecycleOperations());
 
     await act(async () => result.current.anonymise('r-1'));
 
@@ -109,7 +109,7 @@ describe('named lifecycle actions', () => {
       return undefined;
     });
     useStore.setState({ sendPlanningIntent: send });
-    const { result } = renderHook(() => useLifecycleActions());
+    const { result } = renderHook(() => useLifecycleOperations());
     const queued = result.current.archive('clients', 'c-1');
     useStore.getState().setActiveCompany(null);
     await act(async () => queued);
@@ -126,10 +126,10 @@ describe('named lifecycle actions', () => {
     useStore.setState({ refreshPlanning: async () => false });
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
-    const first = renderHook(() => useLifecycleActions());
+    const first = renderHook(() => useLifecycleOperations());
     await act(async () => first.result.current.anonymise('r-one'));
     first.unmount();
-    const second = renderHook(() => useLifecycleActions());
+    const second = renderHook(() => useLifecycleOperations());
     await act(async () => second.result.current.anonymise('r-two'));
     expect(fetch).toHaveBeenCalledOnce();
     expect(useStore.getState().notice?.message).toMatch(
@@ -152,7 +152,7 @@ describe('named lifecycle actions', () => {
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     vi.stubGlobal('fetch', fetch);
     const onReloaded = vi.fn();
-    const { result } = renderHook(() => useLifecycleActions(onReloaded));
+    const { result } = renderHook(() => useLifecycleOperations(onReloaded));
     const operation = result.current.anonymise('r-one');
     await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce());
     act(() => useStore.setState({ activeCompanyId: 'a-loft' }));

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { useExclusiveAction } from './useExclusiveAction';
+import { useExclusiveOperation } from './useExclusiveOperation';
 import { createDeferred } from '@/test/createDeferred';
 
 // The load-bearing property is the same-render one: the ref must already refuse a second action
@@ -8,16 +8,16 @@ import { createDeferred } from '@/test/createDeferred';
 // chance to disable anything. A test that only asserts on `busy` would pass against a
 // state-flag-only implementation and miss exactly the double-click this hook exists to stop.
 
-describe('useExclusiveAction', () => {
+describe('useExclusiveOperation', () => {
   it('starts idle', () => {
-    const { result } = renderHook(() => useExclusiveAction());
+    const { result } = renderHook(() => useExclusiveOperation());
     expect(result.current.busy).toBe(false);
     expect(result.current.locked()).toBe(false);
   });
 
   it('locks synchronously, before React has committed the busy flag', () => {
     const pending = createDeferred();
-    const { result } = renderHook(() => useExclusiveAction());
+    const { result } = renderHook(() => useExclusiveOperation());
     const gate = result.current;
 
     act(() => {
@@ -32,7 +32,7 @@ describe('useExclusiveAction', () => {
   it('discards a second action started while one is in flight', async () => {
     const pending = createDeferred();
     const second = vi.fn(() => Promise.resolve());
-    const { result } = renderHook(() => useExclusiveAction());
+    const { result } = renderHook(() => useExclusiveOperation());
     const gate = result.current;
 
     act(() => {
@@ -51,7 +51,7 @@ describe('useExclusiveAction', () => {
 
   it('reopens the gate once the action settles', async () => {
     const pending = createDeferred();
-    const { result } = renderHook(() => useExclusiveAction());
+    const { result } = renderHook(() => useExclusiveOperation());
 
     act(() => result.current.run(() => pending.promise, vi.fn()));
     await act(async () => {
@@ -70,7 +70,7 @@ describe('useExclusiveAction', () => {
     const pending = createDeferred();
     const onError = vi.fn();
     const failure = new Error('the server refused');
-    const { result } = renderHook(() => useExclusiveAction());
+    const { result } = renderHook(() => useExclusiveOperation());
 
     act(() => result.current.run(() => pending.promise, onError));
     await act(async () => {
@@ -86,7 +86,7 @@ describe('useExclusiveAction', () => {
   it('surfaces a synchronous action throw and still reopens the gate', async () => {
     const onError = vi.fn();
     const failure = new Error('the action threw before returning a promise');
-    const { result } = renderHook(() => useExclusiveAction());
+    const { result } = renderHook(() => useExclusiveOperation());
 
     expect(() =>
       act(() =>
@@ -107,7 +107,7 @@ describe('useExclusiveAction', () => {
     const handlerFailure = new Error('the error surface failed');
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      const { result } = renderHook(() => useExclusiveAction());
+      const { result } = renderHook(() => useExclusiveOperation());
 
       act(() =>
         result.current.run(
@@ -131,7 +131,7 @@ describe('useExclusiveAction', () => {
   });
 
   it('keeps run and locked stable across renders so they are safe effect/callback dependencies', () => {
-    const { result, rerender } = renderHook(() => useExclusiveAction());
+    const { result, rerender } = renderHook(() => useExclusiveOperation());
     const { run, locked } = result.current;
 
     rerender();

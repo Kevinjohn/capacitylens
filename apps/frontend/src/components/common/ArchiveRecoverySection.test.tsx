@@ -6,7 +6,9 @@ import type { ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import { ArchiveRecoverySection } from './ArchiveRecoverySection';
 const { recovery, unarchive } = vi.hoisted(() => ({ recovery: vi.fn(), unarchive: vi.fn() }));
 vi.mock('@/hooks/useArchiveRecovery', () => ({ useArchiveRecovery: recovery }));
-vi.mock('@/hooks/useLifecycleActions', () => ({ useLifecycleActions: () => ({ unarchive }) }));
+vi.mock('@/hooks/useLifecycleOperations', () => ({
+  useLifecycleOperations: () => ({ unarchive }),
+}));
 const row: ArchiveRecoveryRow = {
   entity: 'projects',
   id: 'project',

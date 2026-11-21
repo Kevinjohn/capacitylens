@@ -6,7 +6,7 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
 import { m } from '@/i18n';
-import { FormActions, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
+import { FormButtons, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
@@ -100,7 +100,7 @@ export function ExternalForm({
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <ExternalFormFields

@@ -10,7 +10,7 @@ import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { m } from '@/i18n';
 import {
   DateField,
-  FormActions,
+  FormButtons,
   FormDialog,
   RequiredLegend,
   SelectField,
@@ -215,7 +215,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
         submit(prepareSave).catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
       onEdit={clear}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <TimeOffFields
