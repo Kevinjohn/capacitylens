@@ -51,7 +51,7 @@ export function operatorFixture() {
   };
 }
 
-export function seedOwner(database: DatabaseSync) {
+export function insertOwner(database: DatabaseSync) {
   const now = new Date().toISOString();
   database
     .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')

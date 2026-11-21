@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import {
   operatorFixture,
-  seedOwner,
+  insertOwner,
   withOperatorServer,
 } from '#tests/helpers/operator_command_helpers';
 
@@ -35,7 +35,7 @@ test('owner command prints an audited single-use link without changing the crede
     const init = f.command(['app:upgrade']);
     assert.equal(init.status, 0, init.output);
     const database = f.inspect();
-    seedOwner(database);
+    insertOwner(database);
     database.close();
     const first = f.command([
       'owner:reset-password',
@@ -72,7 +72,7 @@ test('owner command refuses missing stop intent, non-owner targets and concurren
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedOwner(database);
+    insertOwner(database);
     assert.notEqual(f.command(args.slice(0, -1)).status, 0);
     database.exec('BEGIN IMMEDIATE');
     const locked = f.command(args);
@@ -98,7 +98,7 @@ test('an audit failure never prints the issued link', ({ assert, test: t }) => {
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedOwner(database);
+    insertOwner(database);
     database.close();
     const first = f.command(args);
     assert.equal(first.status, 0, first.output);
@@ -127,7 +127,7 @@ test('a sole-owned company permits recovery even when another company has joint 
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedOwner(database);
+    insertOwner(database);
     const now = new Date().toISOString();
     database
       .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
@@ -167,7 +167,7 @@ test('a failure writing the second company audit rolls back every audit and prin
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedOwner(database);
+    insertOwner(database);
     const now = new Date().toISOString();
     database
       .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
@@ -201,7 +201,7 @@ test('the issued owner link redeems once through the normal HTTP flow and ends e
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedOwner(database);
+    insertOwner(database);
     database
       .prepare(
         'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
@@ -269,7 +269,7 @@ test('owner recovery refuses invalid configuration, addresses and non-disk paths
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedOwner(database);
+    insertOwner(database);
     database.close();
     for (const overrides of [
       { CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test/path' },

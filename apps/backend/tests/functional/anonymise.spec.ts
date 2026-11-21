@@ -63,7 +63,7 @@ async function restoreAllocation(client: ApiClient, cookie: string, groupId: str
     .send();
 }
 
-async function seedOtherCompanyRestoration(actorId: string) {
+async function insertOtherCompanyRestoration(actorId: string) {
   const groupId = randomUUID();
   const mutationId = randomUUID();
   const sessionId = await fixtureSession(actorId);
@@ -230,7 +230,7 @@ test.group('company anonymisation', (group) => {
     assert,
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client, true);
-    const foreignDelete = await seedOtherCompanyRestoration(userId);
+    const foreignDelete = await insertOtherCompanyRestoration(userId);
     const foreignProductBefore = await readState('a-loft', true);
     const resource = await db.from('resources').where('company_id', companyId).first();
     await db.table('account_member_resources').insert({

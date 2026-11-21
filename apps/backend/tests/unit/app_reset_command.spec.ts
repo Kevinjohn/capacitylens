@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import {
   operatorFixture,
   scratchBackendFilter,
-  seedOwner,
+  insertOwner,
 } from '#tests/helpers/operator_command_helpers';
 
 function tableCount(database: DatabaseSync, table: string) {
@@ -23,7 +23,7 @@ test('app reset archives all account and credential state and initializes a sepa
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const source = f.inspect();
-    seedOwner(source);
+    insertOwner(source);
     const now = new Date().toISOString();
     source
       .prepare(
@@ -142,7 +142,7 @@ test('a replacement upgrade failure preserves the verified recovery files and na
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const source = f.inspect();
-    seedOwner(source);
+    insertOwner(source);
     source.close();
     const scratch = join(f.root, 'backend');
     cpSync(process.cwd(), scratch, { recursive: true, filter: scratchBackendFilter });
@@ -187,7 +187,7 @@ test('a failed backup reports only completed recovery artifacts and leaves the s
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const source = f.inspect();
-    seedOwner(source);
+    insertOwner(source);
     source.exec('PRAGMA foreign_keys=OFF');
     source
       .prepare(
@@ -226,7 +226,7 @@ test('app reset refuses production even with disposable confirmation, preserving
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const source = f.inspect();
-    seedOwner(source);
+    insertOwner(source);
     source.close();
     const destination = join(f.root, 'fresh.db');
     const result = f.command(
@@ -257,7 +257,7 @@ test('app reset requires disposable confirmation before changing a populated sou
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const source = f.inspect();
-    seedOwner(source);
+    insertOwner(source);
     source.close();
     const destination = join(f.root, 'fresh.db');
     const result = f.command(['app:reset', destination, '--confirm-server-stopped']);
