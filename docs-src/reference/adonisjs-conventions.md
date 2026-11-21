@@ -32,6 +32,11 @@ Three rules decide every case:
    Rules marked **Open** wait for a decision in that issue; until then, match the surrounding
    code.
 
+The rules that apply to every AdonisJS repository, applications and packages alike, are in the
+[AdonisJS cookbook](./adonisjs-cookbook.md), and the
+[pre-PR checklist](./adonisjs-checklist.md) turns each one into a check. This page says how
+CapacityLens stands against them.
+
 Names, errors, comments and TSDoc inside a file are in [Code standards](./code-standards.md).
 Where each product capability lives is in [Architecture](./architecture.md).
 

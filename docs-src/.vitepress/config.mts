@@ -120,6 +120,8 @@ const referenceSidebar = [
       { text: "How it is tested", link: "/reference/how-it-is-tested" },
       { text: "Code standards", link: "/reference/code-standards" },
       { text: "AdonisJS conventions", link: "/reference/adonisjs-conventions" },
+      { text: "AdonisJS cookbook", link: "/reference/adonisjs-cookbook" },
+      { text: "AdonisJS pre-PR checklist", link: "/reference/adonisjs-checklist" },
       { text: "Philosophy", link: "/reference/philosophy" },
       { text: "Open source and contributing", link: "/open-source" },
     ],
