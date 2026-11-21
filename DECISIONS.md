@@ -355,6 +355,7 @@ framework defaults; any other departure needs a decision recorded here first.
     transaction is not used: Account Kit refuses to run on a connection that is already in a
     transaction.
 18. Routes are registered from one file per area in `start/`. Prettier keeps semicolons.
+19. The exception handler shows debug output in development only (`debug = app.inDev`), so the test environment answers with the same error bodies as production.
 
 ## Installation
 
