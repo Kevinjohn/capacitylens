@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router';
-import { asOwnAccount } from '#start/route_guards';
+import { asOwnAccount } from '#start/route_middleware';
 import { controllers } from '#generated/controllers';
 
 export function registerAuthRoutes() {

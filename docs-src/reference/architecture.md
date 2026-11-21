@@ -82,7 +82,7 @@ Three router middleware gates run, in this order, before the controller and can 
   session on the limited routes; public routes pass. Without a valid session the answer is 401
   `{ error: 'Sign-in required.' }` with no code.
 - P2. `apps/backend/app/middleware/masquerade_context_middleware.ts` runs the Masquerade
-  package's context middleware on routes using the effective guard (`start/route_guards.ts`). It
+  package's context middleware on routes using the effective guard (`start/route_middleware.ts`). It
   admits the view-as mode, requires the current context header on unsafe methods (428
   `MASQUERADE_CONTEXT_REQUIRED`), refuses a stale header on any method (409
   `MASQUERADE_CONTEXT_CHANGED`), and refuses every unsafe request, and reads marked

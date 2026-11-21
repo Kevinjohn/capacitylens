@@ -35,7 +35,7 @@ import {
 export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
 
 /**
- * Which routes a member is shown in navigation. Route guards and the server decide access
+ * Which routes a member is shown in navigation. Route gates and the server decide access
  * independently; hiding a route here never authorizes or refuses anything.
  */
 export type RouteVisibilityRule = 'everyone' | 'disciplines' | 'capacity-overview' | 'diagnostics';

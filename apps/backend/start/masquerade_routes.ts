@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router';
-import { asCompanySignedInPerson, asSignedInPerson } from '#start/route_guards';
+import { asCompanySignedInPerson, asSignedInPerson } from '#start/route_middleware';
 import { controllers } from '#generated/controllers';
 
 export function registerMasqueradeRoutes() {

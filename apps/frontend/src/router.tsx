@@ -109,7 +109,7 @@ export function CompanyDateRoute({ children }: { children: ReactNode }) {
 }
 
 // Disciplines is an optional feature (account.disciplinesEnabled). When off, the nav
-// entry is hidden, guard the route too so a direct URL / bookmark can't reach the page.
+// entry is hidden, gate the route too so a direct URL / bookmark can't reach the page.
 function DisciplineRoute() {
   const enabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeCompanyId));
   return enabled ? <DisciplineList /> : <Navigate to="/" replace />;

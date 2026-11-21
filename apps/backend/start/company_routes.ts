@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router';
-import { asMember, asMemberOnly } from '#start/route_guards';
+import { asMember, asMemberOnly } from '#start/route_middleware';
 import { controllers } from '#generated/controllers';
 
 /** Registers the company controller endpoints. */

@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router';
-import { asCompanyMember, asCompanyMemberOnly } from '#start/route_guards';
+import { asCompanyMember, asCompanyMemberOnly } from '#start/route_middleware';
 import { controllers } from '#generated/controllers';
 
 /** Registers company-scoped member administration and privacy routes. */

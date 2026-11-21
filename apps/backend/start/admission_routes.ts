@@ -5,7 +5,7 @@ import {
   asMember,
   asMemberOnly,
   asOwnAccount,
-} from '#start/route_guards';
+} from '#start/route_middleware';
 import { controllers } from '#generated/controllers';
 
 /** Registers invitation, admission and member resource routes. */
