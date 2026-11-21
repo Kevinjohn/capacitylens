@@ -76,7 +76,7 @@ await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 | `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance.ts`            |
 | `make`             | Test fixtures only.                                                                                  | `makeResource` in `apps/frontend/src/test/fixtures.ts`                            |
 | `use`              | A React hook.                                                                                        | `useScopedData` in `apps/frontend/src/store/useScopedData.ts`                     |
-| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withTransaction` in `apps/backend/app/services/with_transaction.ts`              |
+| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withActor` in `apps/backend/app/services/auth/current_actor.ts`                  |
 
 Functions that do something rather than answer something use a plain domain verb (`remove`,
 `revoke`, `send`, `record`, `transform`) and say which. Two verbs stay out: `find`, because `get`

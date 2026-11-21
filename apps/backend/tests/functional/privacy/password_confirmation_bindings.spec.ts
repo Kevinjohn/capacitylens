@@ -3,7 +3,6 @@ import db from '@adonisjs/lucid/services/db';
 import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
 import { getPlanningRevision } from '#services/planning_revision';
 import { readState } from '#tests/helpers/state_fixture';
-import { withTransaction } from '#services/with_transaction';
 import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { createIdentity, fixturePassword, signIn } from '../../helpers/identities.js';
@@ -12,7 +11,7 @@ import { asExportFile } from '#tests/helpers/export_file';
 const companyId = 'a-studio';
 
 async function revision() {
-  return withTransaction((trx) => getPlanningRevision(trx, companyId));
+  return db.transaction((trx) => getPlanningRevision(trx, companyId));
 }
 
 test.group('password confirmation bindings', (group) => {

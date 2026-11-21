@@ -11,7 +11,6 @@ import {
   session,
   signIn,
 } from './helpers.js';
-import { withTransaction } from '#services/with_transaction';
 import { countRestorableItems } from '#services/planning/restoration';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
@@ -180,7 +179,7 @@ test.group('retained restoration reads', (suite) => {
     assert.exists(restoredRowBeforeReuse);
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId);
 
-    assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 1);
+    assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 1);
     const reused = await session(
       client.post(`/api/companies/${companyId}/planning/mutations`),
       cookie
@@ -200,7 +199,7 @@ test.group('retained restoration reads', (suite) => {
     const ledgerAfterReuse = await db.from('deleted_rows').where('group_id', groupId).first();
     assert.deepEqual(JSON.parse(ledgerAfterReuse.payload_json), { kind: 'row' });
 
-    assert.equal(await withTransaction((trx) => countRestorableItems(trx, companyId)), 0);
+    assert.equal(await db.transaction((trx) => countRestorableItems(trx, companyId)), 0);
     const beforeRefusal = await readState(companyId, true);
     const refused = await session(
       client.post(`/api/companies/${companyId}/planning/mutations`),

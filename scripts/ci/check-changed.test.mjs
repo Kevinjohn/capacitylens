@@ -664,7 +664,6 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
     'apps/backend/app/middleware/company_scope_middleware.ts',
     'apps/backend/app/models/scoped_model.ts',
     'apps/backend/app/services/state_repository.ts',
-    'apps/backend/app/services/with_transaction.ts',
     'apps/backend/database/migrations/0001_baseline.ts',
     'apps/backend/start/routes.ts',
     'apps/backend/config/admission.ts',

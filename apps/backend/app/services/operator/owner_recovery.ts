@@ -3,7 +3,6 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
 import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
-import { withTransaction } from '#services/with_transaction';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
 
@@ -45,7 +44,7 @@ export async function recoverOwner(input: { email: string; confirmServerStopped:
     if (!issued.url || String(issued.user.id) !== userId) {
       throw new Error('Owner recovery failed; no recovery link was delivered');
     }
-    await withTransaction(async (trx) => {
+    await db.transaction(async (trx) => {
       const now = new Date().toISOString();
       for (const companyId of companyIds) {
         await trx.table('audit_entries').insert({

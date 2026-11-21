@@ -7,7 +7,6 @@ import {
 } from '@capacitylens/shared/data/companyDocument';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
-import { withTransaction } from '#services/with_transaction';
 import hash from '@adonisjs/core/services/hash';
 import { seed } from '@capacitylens/shared/data/seed';
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
@@ -29,7 +28,7 @@ async function document() {
 }
 
 async function revision() {
-  return withTransaction((trx) => getPlanningRevision(trx, companyId));
+  return db.transaction((trx) => getPlanningRevision(trx, companyId));
 }
 
 async function deleteForRestoration(
@@ -40,7 +39,7 @@ async function deleteForRestoration(
   const state = await readState(targetCompanyId, true);
   const allocation = state.allocations[0];
   if (!allocation) throw new Error('The restoration fixture has no allocation.');
-  const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, targetCompanyId));
+  const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, targetCompanyId));
   const mutationId = randomUUID();
   const response = await asDataOwner(
     client.post(`/api/companies/${targetCompanyId}/planning/mutations`),
@@ -420,7 +419,7 @@ test.group('beta transfer apply', (group) => {
     const before = await readState(companyId, true);
     const baseRevision = await revision();
     const staleProof = await proof(client, cookie, { baseRevision, document: asExportFile(full) });
-    await withTransaction((trx) =>
+    await db.transaction((trx) =>
       trx
         .table('company_planning_revisions')
         .insert({ company_id: companyId, revision: baseRevision + 1 })

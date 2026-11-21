@@ -65,7 +65,7 @@ const documentationOnly = /^(?:docs-src\/|docs\/|user-stories\/)|\.md$/;
 // migrations, configuration, test infrastructure and package files. Any change here runs the
 // whole suite.
 const backendSuiteInput =
-  /^apps\/backend\/(?:(?:database|config|start|providers|bin|commands|types|scripts)\/|app\/(?:middleware|exceptions|models)\/|app\/services\/(?:auth|account_kit|access_control|admission|membership)\/|app\/services\/(?:state_repository|with_transaction)\.ts$|tests\/(?!.+\.spec\.ts$)|[^/]+$)/;
+  /^apps\/backend\/(?:(?:database|config|start|providers|bin|commands|types|scripts)\/|app\/(?:middleware|exceptions|models)\/|app\/services\/(?:auth|account_kit|access_control|admission|membership)\/|app\/services\/state_repository\.ts$|tests\/(?!.+\.spec\.ts$)|[^/]+$)/;
 const backendPermissionFile =
   /^apps\/backend\/app\/services\/(?:planning\/(?:access_grant|entity_rules)|cors_origins)\.ts$/;
 const backendModule = /^apps\/backend\/app\/([^/]+)\/(.+)\.ts$/;

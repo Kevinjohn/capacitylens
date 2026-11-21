@@ -6,7 +6,6 @@ import db from '@adonisjs/lucid/services/db';
 import Allocation from '#models/allocation';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
-import { withTransaction } from '#services/with_transaction';
 import { deleteAllocations } from '#services/planning/restoration';
 import {
   companyId,
@@ -318,7 +317,7 @@ test.group('session-bound allocation restoration', (suite) => {
     // The delete removes its rows from `data` too, so count them first.
     const storedCount = data.allocations.length;
     const sessionId = await fixtureSession('u-bruce');
-    const groupId = await withTransaction((trx) =>
+    const groupId = await db.transaction((trx) =>
       deleteAllocations(trx, data, companyId, listed, {
         actorId: 'u-bruce',
         sessionId,

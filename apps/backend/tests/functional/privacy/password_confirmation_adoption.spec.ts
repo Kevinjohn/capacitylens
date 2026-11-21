@@ -15,7 +15,6 @@ import {
   requireKitContext,
   withActor,
 } from '#services/auth/current_actor';
-import { withTransaction } from '#services/with_transaction';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
 import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
@@ -74,7 +73,7 @@ test.group('package proof adoption boundaries', (group) => {
         expected = {
           error: 'Your access to this company is waiting on admission.',
           code: 'ADMISSION_REQUIRED',
-          decision: await withTransaction((trx) => requireAdmissionDecision(userId, trx)),
+          decision: await db.transaction((trx) => requireAdmissionDecision(userId, trx)),
         };
       }
       const prove = proofs.confirmPassword;
@@ -189,7 +188,7 @@ test.group('package proof adoption boundaries', (group) => {
     await checking.promise;
     const admission = await app.container.make(AccountAdmission);
     await admission.operator.revoke({ email: 'bruce.wayne@wayne.example' });
-    const decision = await withTransaction((trx) => requireAdmissionDecision(userId, trx));
+    const decision = await db.transaction((trx) => requireAdmissionDecision(userId, trx));
     pending.resolve();
     const response = await request;
     response.assertStatus(403);
@@ -213,7 +212,7 @@ test.group('package proof adoption boundaries', (group) => {
         completeness: 'full',
       })
     );
-    const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, companyId));
+    const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const responses = [
       await issue(client, cookie, { ...body, companyId: scope }),
       await asDataOwner(client.post('/api/transfer/apply'), cookie)

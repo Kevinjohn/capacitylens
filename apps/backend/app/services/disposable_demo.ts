@@ -4,7 +4,6 @@ import db from '@adonisjs/lucid/services/db';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
-import { withTransaction } from '#services/with_transaction';
 import { initializeCompanyAccess } from '#services/initial_company_access';
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
@@ -13,7 +12,7 @@ import { hasNoCompany } from '#models/installation_company';
 
 /** Insert the single disposable company graph and its first membership in one transaction. */
 async function insertDisposableDemoSeed(ownerId: string) {
-  await withTransaction(async (trx) => {
+  await db.transaction(async (trx) => {
     if (!(await hasNoCompany(trx))) {
       throw new Error('Refusing demo seed: companies already exist');
     }

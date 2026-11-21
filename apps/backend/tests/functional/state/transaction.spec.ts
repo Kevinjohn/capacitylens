@@ -1,7 +1,6 @@
 import { test } from '@japa/runner';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
-import { withTransaction } from '#services/with_transaction';
 
 test.group('transaction helper', (group) => {
   group.setup(() => freshDatabase());
@@ -9,7 +8,7 @@ test.group('transaction helper', (group) => {
   test('rolls back every write when transactional work fails', async ({ assert }) => {
     await assert.rejects(
       () =>
-        withTransaction(async (trx) => {
+        db.transaction(async (trx) => {
           await trx.table('accounts').insert({
             id: 'rollback-account',
             name: 'Rollback Account',
