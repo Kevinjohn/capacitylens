@@ -1,6 +1,11 @@
 import { test, expect } from './dbFixtures';
 import type { Page } from './dbFixtures';
-import { isPlanningMutation, openApp, showScheduleFilters } from './browserTestSupport';
+import {
+  changeCompanySetting,
+  commitPlanningChange,
+  openApp,
+  showScheduleFilters,
+} from './browserTestSupport';
 
 async function moveDianaToSupplementary(page: Page) {
   await page
@@ -9,13 +14,16 @@ async function moveDianaToSupplementary(page: Page) {
     .getByRole('button', { name: 'Edit Diana Prince' })
     .click();
   await page.getByRole('radio', { name: 'Supplementary' }).click();
-  await page.getByRole('button', { name: 'Save' }).click();
+  await commitPlanningChange(page, 'resource.update', () =>
+    page.getByRole('button', { name: 'Save' }).click(),
+  );
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
 }
 
 async function restoreDisciplines(page: Page) {
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await page.getByRole('switch', { name: 'Use disciplines' }).click();
+  const useDisciplines = page.getByRole('switch', { name: 'Use disciplines' });
+  await changeCompanySetting(page, () => useDisciplines.click());
   await expect(page.getByRole('link', { name: 'Disciplines' })).toBeVisible();
   await page.getByRole('link', { name: 'Schedule' }).click();
   await expect(page.getByTestId('discipline-group').first()).toBeVisible();
@@ -35,21 +43,14 @@ test(
 
     // Enable External (default off) so its final band is present; it's an independent account pref.
     const showExternal = page.getByRole('switch', { name: 'Show external resources' });
-    const showExternalCommitted = page.waitForResponse((response) =>
-      isPlanningMutation(response.request(), 'settings.update'),
-    );
-    await showExternal.click();
+    await changeCompanySetting(page, () => showExternal.click());
     await expect(showExternal).toHaveAttribute('aria-checked', 'true');
-    const showExternalResponse = await showExternalCommitted;
-    expect(showExternalResponse.status()).toBe(200);
-    const showExternalReceipt = await showExternalResponse.json();
-    expect(showExternalReceipt.status).toBe('committed');
 
     await expect(page.getByRole('link', { name: 'Disciplines' })).toBeVisible();
     const useDisciplines = page.getByRole('switch', { name: 'Use disciplines' });
     await expect(useDisciplines).toHaveAttribute('aria-checked', 'true');
 
-    await useDisciplines.click();
+    await changeCompanySetting(page, () => useDisciplines.click());
     await expect(useDisciplines).toHaveAttribute('aria-checked', 'false');
 
     await expect(page.getByRole('link', { name: 'Disciplines' })).toHaveCount(0);
