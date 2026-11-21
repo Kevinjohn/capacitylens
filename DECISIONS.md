@@ -378,6 +378,10 @@ reopened there.
 23. Operator commands are tested by starting the CLI in its own process, with its own database
     file, environment and exit code, because their lock and exit-code contract is a process
     boundary. They are not tested in process with `ace.create`. Revisit: #2334 item 17.
+24. Account Kit checks credentials. The `User` model does not compose `withAuthFinder`, and no
+    product code calls `verifyCredentials`: sign-in, sessions and password checks are the kit's.
+    Provisional: accepted on 2026-11-21 so work can proceed, and to be reviewed again before the
+    first release. Revisit: #2334 item 1.
 
 ## Installation
 

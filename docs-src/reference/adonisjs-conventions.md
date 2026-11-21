@@ -429,8 +429,7 @@ Source: [Authentication](https://docs.adonisjs.com/guides/auth/introduction),
   CapacityLens member routes use the `web_effective` guard (#2334 item 1).
 - In the framework, an action reads the user with `auth.getUserOrFail()` and the `User` model
   composes `withAuthFinder`. In CapacityLens, Account Kit owns sign-in, sessions and credential
-  checks, and an action receives the verified actor. **Open:** #2334 item 1 records this as a
-  departure.
+  checks, and an action receives the verified actor (departure 24, provisional).
 - Authorization in the framework is a Bouncer ability in `app/abilities/main.ts` or a policy in
   `app/policies`, called from the controller. CapacityLens authorizes a company permission inside
   the product transaction through the Access Control package (departure 11).
