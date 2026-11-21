@@ -158,7 +158,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
       entity: { entity: 'clients', id: internal.id },
     });
     assert.equal(protectedArchive.status, 409);
-    assert.isNull(protectedArchive.code);
+    assert.isUndefined(protectedArchive.code);
 
     await execute({ operation: 'catalogue.archive', entity: { entity: 'clients', id: client.id } });
     const archivedState = await readState('a-studio', true);
