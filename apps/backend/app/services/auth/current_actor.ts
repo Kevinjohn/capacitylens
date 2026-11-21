@@ -15,7 +15,7 @@ import type { KitContext } from '@kevinjohn/adonisjs-confirm-action-with-passwor
 
 const handleKey = 'accountKitSession';
 
-/** The signed-in principal, as the Account Kit verified it in the current transaction. */
+/** The signed-in user, as the Account Kit verified it in the current transaction. */
 export interface CurrentActor {
   userId: string;
   /** The caller's Account Kit sign-in row; session-bound product rows cascade from it. */

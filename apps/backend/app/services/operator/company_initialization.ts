@@ -28,25 +28,25 @@ export async function initializeCompany(input: {
       if (!(await hasNoCompany(trx)) || (await trx.from(access.config.membershipsTable).first())) {
         throw new Error('Refusing company initialization: installation already has company access');
       }
-      const principal = await trx
+      const user = await trx
         .from('users')
         .where('email', email)
         .select('id', 'email', 'password', 'unverified_email')
         .first();
-      if (!principal) {
+      if (!user) {
         throw new Error('Refusing company initialization: an existing identity is required');
       }
-      if (typeof principal.password !== 'string' || !principal.password) {
+      if (typeof user.password !== 'string' || !user.password) {
         throw new Error('Refusing company initialization: identity has no enabled sign-in method');
       }
       // Account Kit treats an address as confirmed unless it is still awaiting its own proof.
-      if (principal.unverified_email === principal.email) {
+      if (user.unverified_email === user.email) {
         throw new Error('Refusing company initialization: identity has not confirmed its email');
       }
-      if (!(await isAdmitted(String(principal.id), trx))) {
+      if (!(await isAdmitted(String(user.id), trx))) {
         throw new Error('Refusing company initialization: identity is not admitted');
       }
-      return createInitialCompany(trx, { name, ownerId: String(principal.id), actorId: null });
+      return createInitialCompany(trx, { name, ownerId: String(user.id), actorId: null });
     });
   });
 }

@@ -1,7 +1,7 @@
 import type { MemberDirectoryEntry } from '#services/membership/member_directory';
 
 const validMember: MemberDirectoryEntry = {
-  userId: 'principal-clark',
+  userId: 'user-clark',
   role: 'editor',
   status: 'active',
   manage: false,

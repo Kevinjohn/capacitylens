@@ -183,7 +183,7 @@ One example for each backend shape. Controllers document the route's contract, n
 mechanics; models document what the column promises; middleware documents what it refuses.
 
 ```ts
-/** Returns the companies this principal may enter, or 409 while the installation has more than one. */
+/** Returns the companies this user may enter, or 409 while the installation has more than one. */
 export default class CompaniesController {
 
 /**

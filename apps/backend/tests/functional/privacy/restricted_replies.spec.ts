@@ -14,7 +14,7 @@ import {
 } from '../planning/helpers.js';
 
 // Every named route is classified by whether its reply can carry a restricted value. Routes that can
-// are called for every principal, and the raw reply must not contain a value that principal's
+// are called for every test user, and the raw reply must not contain a value that user's
 // effective role may not see. A new route fails the classification test until it is reviewed here.
 
 const MARKER_CLIENT = 'MARKER_CLIENT_KANE';
@@ -30,13 +30,13 @@ const codeNamesByMarker: Record<string, string> = {
 
 type Role = 'owner' | 'admin' | 'editor' | 'viewer';
 
-interface Principal {
+interface TestUser {
   label: string;
   effective: Role;
   viewAs: boolean;
-  /** The signed-in role behind a view-as principal; Owner when absent. */
+  /** The signed-in role behind a view-as test user; Owner when absent. */
   actor?: Role;
-  /** A view-as target the server must refuse; the principal then reads as itself. */
+  /** A view-as target the server must refuse; the test user then reads as itself. */
   refusedTarget?: Role;
 }
 
@@ -50,7 +50,7 @@ interface Fixture {
   resourceId: string;
 }
 
-const principals: Principal[] = [
+const testUsers: TestUser[] = [
   { label: 'Owner', effective: 'owner', viewAs: false },
   { label: 'Admin', effective: 'admin', viewAs: false },
   { label: 'Editor', effective: 'editor', viewAs: false },
@@ -150,10 +150,10 @@ async function stepHistory(fixture: Fixture, step: 'undo' | 'redo', historyId: s
 
 type Exposure =
   | {
-      call: (fixture: Fixture, principal: Principal) => Promise<ApiResponse>;
+      call: (fixture: Fixture, testUser: TestUser) => Promise<ApiResponse>;
       write: boolean;
       /** Markers the reply carries for a reader allowed to see them. */
-      carries: string[] | ((principal: Principal) => string[]);
+      carries: string[] | ((testUser: TestUser) => string[]);
     }
   | { none: string };
 
@@ -172,25 +172,25 @@ const replies: Record<string, Exposure> = {
   },
   'api.export': {
     write: false,
-    carries: (principal) => [
+    carries: (testUser) => [
       MARKER_CLIENT,
       MARKER_PROJECT,
       MARKER_NOTE,
-      ...(canReadInactive(principal.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
+      ...(canReadInactive(testUser.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
     ],
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('export')), fixture.cookie).send(),
   },
   'api.state': {
     write: false,
-    carries: (principal) => [
+    carries: (testUser) => [
       MARKER_CLIENT,
       MARKER_PROJECT,
       MARKER_NOTE,
-      ...(canReadInactive(principal.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
+      ...(canReadInactive(testUser.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
     ],
-    call: (fixture, principal) => {
-      const inactive = canReadInactive(principal.effective);
+    call: (fixture, testUser) => {
+      const inactive = canReadInactive(testUser.effective);
       return session(
         fixture.client.get(
           `/api/state?companyId=${companyId}${inactive ? '&includeInactive=1' : ''}`
@@ -455,47 +455,47 @@ test.group('restricted values in replies', (group) => {
   });
 
   test('no reply carries a restricted value to {label}')
-    .with(principals)
-    .run(async ({ client, assert, cleanup }, principal) => {
+    .with(testUsers)
+    .run(async ({ client, assert, cleanup }, testUser) => {
       configureAuth(cleanup);
       const owner = await signIn(client, 'owner');
       const markers = await prepareMarkers(client, owner.cookie);
       let cookie: string;
       let viewToken: string | undefined;
-      if (principal.viewAs) {
-        const viewer = await signIn(client, principal.actor ?? 'owner');
-        const target = await signIn(client, principal.effective);
+      if (testUser.viewAs) {
+        const viewer = await signIn(client, testUser.actor ?? 'owner');
+        const target = await signIn(client, testUser.effective);
         const started = await startViewAs(client, viewer.cookie, target.userId);
         started.assertStatus(200);
         cookie = viewer.cookie;
         viewToken = await readContextToken(client, cookie);
       } else {
         const member =
-          principal.effective === 'owner' ? owner : await signIn(client, principal.effective);
+          testUser.effective === 'owner' ? owner : await signIn(client, testUser.effective);
         cookie = member.cookie;
-        if (principal.refusedTarget) {
+        if (testUser.refusedTarget) {
           const target =
-            principal.refusedTarget === 'owner'
+            testUser.refusedTarget === 'owner'
               ? owner
-              : await signIn(client, principal.refusedTarget);
+              : await signIn(client, testUser.refusedTarget);
           const refused = await startViewAs(client, cookie, target.userId);
           refused.assertStatus(403);
         }
       }
       const fixture: Fixture = { client, ownerCookie: owner.cookie, cookie, ...markers };
-      const hidden = listHiddenMarkers(principal.effective);
+      const hidden = listHiddenMarkers(testUser.effective);
       for (const [name, exposure] of Object.entries(replies)) {
         if ('none' in exposure) continue;
-        const reply = await exposure.call(fixture, principal);
+        const reply = await exposure.call(fixture, testUser);
         const text = reply.text();
-        const where = `${name} to ${principal.label}`;
+        const where = `${name} to ${testUser.label}`;
         for (const marker of hidden) assert.notInclude(text, marker, where);
         if (exposure.write) {
-          const refused = principal.viewAs || principal.effective === 'viewer';
+          const refused = testUser.viewAs || testUser.effective === 'viewer';
           assert.equal(reply.status(), refused ? 403 : 200, where);
         } else if (name === 'api.planning.archive') {
-          if (principal.viewAs) assert.equal(reply.status(), 403, where);
-          else if (principal.effective === 'owner' || principal.effective === 'admin')
+          if (testUser.viewAs) assert.equal(reply.status(), 403, where);
+          else if (testUser.effective === 'owner' || testUser.effective === 'admin')
             assert.equal(reply.status(), 200, where);
         } else {
           assert.equal(reply.status(), 200, where);
@@ -504,7 +504,7 @@ test.group('restricted values in replies', (group) => {
         // quoted code name, as JSON text, in place of each name it may not.
         if (reply.status() === 200) {
           const { carries } = exposure;
-          for (const marker of typeof carries === 'function' ? carries(principal) : carries) {
+          for (const marker of typeof carries === 'function' ? carries(testUser) : carries) {
             const codeName = codeNamesByMarker[marker];
             if (!hidden.includes(marker)) assert.include(text, marker, where);
             else if (codeName) assert.include(text, `\\"${codeName}\\"`, where);
@@ -513,7 +513,7 @@ test.group('restricted values in replies', (group) => {
         // The export is labelled full only for an effective Owner, whoever is signed in.
         if (name === 'api.export' && reply.status() === 200) {
           const { completeness } = JSON.parse(text) as { completeness: string };
-          assert.equal(completeness, principal.effective === 'owner' ? 'full' : 'redacted', where);
+          assert.equal(completeness, testUser.effective === 'owner' ? 'full' : 'redacted', where);
         }
       }
       if (viewToken) {

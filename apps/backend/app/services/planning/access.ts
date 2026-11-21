@@ -2,7 +2,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { getActiveMembership, requireStoredRole } from '#services/auth/authorization';
-import { resolveEffectiveReadPrincipal } from '#services/auth/masquerade';
+import { resolveEffectiveReadUser } from '#services/auth/masquerade';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { PlanningOperationError } from '#services/planning/errors';
 
@@ -14,9 +14,9 @@ export interface PlanningAccess extends PlanningAccessGrant {
 
 /** Resolves the caller's planning access and access grant inside the transaction. */
 export async function resolvePlanningAccess(trx: TransactionClientContract, companyId: string) {
-  const principal = await resolveEffectiveReadPrincipal(trx, companyId);
-  const membership = await getActiveMembership(principal.effectiveId, companyId, trx);
-  if (!membership || (principal.companyId !== null && principal.companyId !== companyId)) {
+  const user = await resolveEffectiveReadUser(trx, companyId);
+  const membership = await getActiveMembership(user.effectiveId, companyId, trx);
+  if (!membership || (user.companyId !== null && user.companyId !== companyId)) {
     throw new PlanningOperationError(
       403,
       'ACCOUNT_MEMBERSHIP_LOST',
@@ -28,10 +28,10 @@ export async function resolvePlanningAccess(trx: TransactionClientContract, comp
   if (!access.can(role, 'planning:read')) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
-  const masquerading = principal.isMasquerading;
+  const masquerading = user.isMasquerading;
   const planningAccess: PlanningAccess = {
-    actorId: principal.actorId,
-    effectiveActorId: principal.effectiveId,
+    actorId: user.actorId,
+    effectiveActorId: user.effectiveId,
     role,
     canWrite: !masquerading && access.can(role, 'planning:write'),
     canSeePrivateNames: canSeePrivateNames(role),

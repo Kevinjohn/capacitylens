@@ -11,7 +11,7 @@ const args = [
 type Inspection = ReturnType<ReturnType<typeof operatorFixture>['inspect']>;
 
 /** A confirmed identity with a password and the invitation and approval admission requires. */
-function seedPrincipal(database: Inspection, options: { admitted?: boolean } = {}) {
+function insertUser(database: Inspection, options: { admitted?: boolean } = {}) {
   const now = new Date().toISOString();
   database
     .prepare(
@@ -37,7 +37,7 @@ test('company initialization creates canonical defaults and refuses a second set
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedPrincipal(database);
+    insertUser(database);
     database.close();
     const result = f.command(args);
     assert.equal(result.status, 0, result.output);
@@ -75,7 +75,7 @@ test('company initialization creates canonical defaults and refuses a second set
   }
 });
 
-test('company initialization refuses missing intent, missing principal and concurrent writer', ({
+test('company initialization refuses missing intent, missing user and concurrent writer', ({
   assert,
   test: t,
 }) => {
@@ -86,7 +86,7 @@ test('company initialization refuses missing intent, missing principal and concu
     assert.notEqual(f.command(args.slice(0, -1)).status, 0);
     assert.notEqual(f.command(args).status, 0);
     const database = f.inspect();
-    seedPrincipal(database);
+    insertUser(database);
     database.exec('BEGIN IMMEDIATE');
     const locked = f.command(args);
     assert.notEqual(locked.status, 0);
@@ -108,7 +108,7 @@ test('company initialization runs through the Account Kit transaction runner', (
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedPrincipal(database);
+    insertUser(database);
     // Only the Kit runner touches the singleton lock row, so its absence is the one difference
     // between the refused run and the successful one. The command redacts the runner's message.
     database.prepare('DELETE FROM account_transaction_lock').run();
@@ -139,7 +139,7 @@ test('company initialization rolls back every row if its audit cannot be recorde
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedPrincipal(database);
+    insertUser(database);
     database.exec(
       "CREATE TRIGGER fail_company_audit BEFORE INSERT ON audit_entries BEGIN SELECT RAISE(ABORT, 'private database detail'); END"
     );
@@ -171,7 +171,7 @@ test('company initialization rejects invalid input and unconfirmed or unadmitted
   try {
     assert.equal(f.command(['app:upgrade']).status, 0);
     const database = f.inspect();
-    seedPrincipal(database);
+    insertUser(database);
     database.close();
     assert.notEqual(
       f.command(['company:initialize', 'invalid', 'Wayne Enterprises', '--confirm-server-stopped'])
@@ -338,7 +338,7 @@ for (const drift of [
     try {
       assert.equal(f.command(['app:upgrade']).status, 0);
       const database = f.inspect();
-      seedPrincipal(database);
+      insertUser(database);
       const users = database.prepare('SELECT * FROM users').all();
       database.exec(drift);
       database.close();

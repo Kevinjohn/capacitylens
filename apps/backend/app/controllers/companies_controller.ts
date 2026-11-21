@@ -5,7 +5,7 @@ import { hasMultipleCompanies } from '#models/installation_company';
 import { buildAccessGrant } from '#services/auth/access_grant';
 import { isRole } from '@capacitylens/shared/account/types';
 
-/** Returns the companies this principal may enter, or 409 while the installation has more than one. */
+/** Returns the companies this user may enter, or 409 while the installation has more than one. */
 export default class CompaniesController {
   async index(ctx: HttpContext) {
     const summaries = await withActor(ctx, async (actor, trx) => {

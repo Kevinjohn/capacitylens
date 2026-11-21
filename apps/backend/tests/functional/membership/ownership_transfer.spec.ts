@@ -14,9 +14,9 @@ import { createIdentity, signUpAndIn } from '../../helpers/identities.js';
 
 const password = 'batman-secret-2026';
 
-async function principalId(email: string) {
+async function findUserId(email: string) {
   const row = await db.from('users').where('email', email).first();
-  if (!row) throw new Error(`Missing test principal: ${email}`);
+  if (!row) throw new Error(`Missing test user: ${email}`);
   return String(row.id);
 }
 
@@ -28,7 +28,7 @@ async function fixture(client: ApiClient) {
   });
   owner.assertStatus(200);
   const ownerCookie = owner.cookie('adonis-session')!.value;
-  const ownerId = await principalId('bruce.wayne@wayne.example');
+  const ownerId = await findUserId('bruce.wayne@wayne.example');
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
   const admin = await signUpAndIn(client, {
     email: 'clark.kent@wayne.example',
@@ -37,7 +37,7 @@ async function fixture(client: ApiClient) {
   });
   admin.assertStatus(200);
   const adminCookie = admin.cookie('adonis-session')!.value;
-  const adminId = await principalId('clark.kent@wayne.example');
+  const adminId = await findUserId('clark.kent@wayne.example');
   const now = new Date().toISOString();
   await db.table('memberships').insert({
     scope_id: 'a-studio',
@@ -234,7 +234,7 @@ test.group('atomic ownership transfer', (group) => {
     nonOwner.assertStatus(403);
     const self = await post(ownerCookie, 'a-studio', ownerId);
     self.assertStatus(409);
-    const absent = await post(ownerCookie, 'a-studio', 'missing-principal');
+    const absent = await post(ownerCookie, 'a-studio', 'missing-user');
     absent.assertStatus(404);
     // An unknown company answers exactly like a company the caller holds no authority in.
     const wrongCompany = await post(ownerCookie, 'a-missing', adminId);

@@ -14,7 +14,7 @@ const signed = asDataOwner;
 
 async function userId(email: string) {
   const user = await db.from('users').where('email', email).first();
-  if (!user) throw new Error(`Missing test principal: ${email}`);
+  if (!user) throw new Error(`Missing test user: ${email}`);
   return String(user.id);
 }
 

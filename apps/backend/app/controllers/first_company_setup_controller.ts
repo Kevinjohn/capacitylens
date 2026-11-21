@@ -5,7 +5,7 @@ import { createInitialCompany } from '#services/initial_company_defaults';
 import { firstCompanySetupMessage, storeValidator } from '#validators/first_company_setup';
 
 /**
- * Establishes company access only for the sole confirmed, admitted principal on an empty
+ * Establishes company access only for the sole confirmed, admitted user on an empty
  * installation. The Kit's account transaction serialises competing setups.
  */
 export default class FirstCompanySetupController {

@@ -69,7 +69,7 @@ export async function resetAuthenticatedClient(client: ApiClient, seed: boolean 
   return authenticatedDataClient(client, session.cookie);
 }
 
-/** Gives a fixture principal explicit standing in a company inserted directly by a test. */
+/** Gives a fixture user explicit standing in a company inserted directly by a test. */
 export async function grantDataOwner(userId: string, companyId: string) {
   const existing = await db
     .from('memberships')
@@ -87,7 +87,7 @@ export async function grantDataOwner(userId: string, companyId: string) {
   });
 }
 
-/** Inserts one isolated company for an existing native test principal without clearing other rows. */
+/** Inserts one isolated company for an existing native test user without clearing other rows. */
 export async function createFixtureCompanyForOwner(
   userId: string,
   name: string,
@@ -107,8 +107,8 @@ export async function createFixtureCompanyForOwner(
   if (!companyName) throw new Error('A fixture company requires a name.');
   const now = new Date().toISOString();
   await db.transaction(async (trx) => {
-    const principal = await trx.from('users').where('id', userId).select('id').first();
-    if (!principal) throw new Error('A fixture company requires an existing native principal.');
+    const user = await trx.from('users').where('id', userId).select('id').first();
+    if (!user) throw new Error('A fixture company requires an existing native user.');
     await trx.table('accounts').insert(
       encodeRow('accounts', {
         id,

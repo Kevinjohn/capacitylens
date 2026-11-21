@@ -17,7 +17,7 @@ const signed = asDataOwner;
 
 async function userId(email: string) {
   const user = await db.from('users').where('email', email).first();
-  if (!user) throw new Error(`Missing test principal: ${email}`);
+  if (!user) throw new Error(`Missing test user: ${email}`);
   return String(user.id);
 }
 
@@ -32,7 +32,7 @@ test.group('company member access and tracking', (group) => {
     await db.from('users').delete();
   });
 
-  test('an existing company prevents sole-principal setup even without memberships', async ({
+  test('an existing company prevents sole-user setup even without memberships', async ({
     client,
     assert,
   }) => {

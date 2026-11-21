@@ -11,14 +11,14 @@ const signed = asDataOwner;
 
 async function userId(email: string) {
   const user = await db.from('users').where('email', email).first();
-  if (!user) throw new Error(`Missing test principal: ${email}`);
+  if (!user) throw new Error(`Missing test user: ${email}`);
   return String(user.id);
 }
 
-async function observation(companyId: string, principalId: string) {
+async function observation(companyId: string, targetUserId: string) {
   return db
     .from('company_settings')
-    .where({ company_id: companyId, key: `member-sign-in:${principalId}` })
+    .where({ company_id: companyId, key: `member-sign-in:${targetUserId}` })
     .first();
 }
 

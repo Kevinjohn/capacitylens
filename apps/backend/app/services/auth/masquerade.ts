@@ -75,7 +75,7 @@ export async function readCurrentMasquerade(
   }
   // Another tab of the same sign-in may sit on a company the target does not share. Report the
   // mode where it holds so that tab can adopt the current context and offer End; company reads
-  // are still authorized per request by resolveEffectiveReadPrincipal.
+  // are still authorized per request by resolveEffectiveReadUser.
   if (!companyId) {
     const memberships = await listActiveCompanyIds(actor.id, undefined);
     for (const candidate of memberships) {
@@ -125,7 +125,7 @@ export async function endMasquerade(ctx: HttpContext, expectedContext: string) {
 }
 
 /** Resolves only the identity admitted before the product transaction; never substitutes on error. */
-export async function resolveEffectiveReadPrincipal(
+export async function resolveEffectiveReadUser(
   trx: TransactionClientContract,
   companyId: string | undefined
 ) {
