@@ -3,7 +3,7 @@ import { isTransportFailure } from '@/data/requestTimeout';
 import { m } from '@/i18n';
 import type { AuthStatusResult } from './authStatus';
 import { parseAuthUser } from './validateAuthUser';
-import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './companyTransition';
+import { adoptMasqueradeStatus, captureMasqueradeStatusCheck } from './companyTransition';
 import { masqueradeApi } from './masqueradeApi';
 import { rejectInvalidResponse, readAuthResponse } from './authResponse';
 import { useStore } from '@/store/useStore';
@@ -70,7 +70,7 @@ export async function fetchAuthStatus(
   let isCurrent: () => boolean;
   let masquerade: Awaited<ReturnType<typeof masqueradeApi.status>>;
   try {
-    isCurrent = await captureMasqueradeStatusGuard();
+    isCurrent = await captureMasqueradeStatusCheck();
     masquerade = await masqueradeApi.status(useStore.getState().activeCompanyId ?? undefined);
   } catch (error) {
     // /me can resolve only a 401 here; a successful response does not prove inactivity.

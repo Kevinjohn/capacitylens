@@ -39,7 +39,7 @@ export function FormDialog({
   onSubmit,
   children,
   footer,
-  guardDirty = true,
+  warnOnDirty = true,
   dirty: controlledDirty,
   onDirtyChange,
   onEdit,
@@ -52,7 +52,7 @@ export function FormDialog({
   children: ReactNode;
   footer?: ReactNode;
   /** Disable for confirmation-only dialogs whose inputs are a gate, not savable form data. */
-  guardDirty?: boolean;
+  warnOnDirty?: boolean;
   /** Optional controlled dirty state; otherwise FormDialog owns it through form events. */
   dirty?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
@@ -60,7 +60,7 @@ export function FormDialog({
   onEdit?: () => void;
 }) {
   const { markDirty, requestClose } = useFormDialogViewModel({
-    guardDirty,
+    warnOnDirty,
     controlledDirty,
     onDirtyChange,
     onEdit,
@@ -107,13 +107,13 @@ export function FormDialog({
 }
 
 function useFormDialogViewModel({
-  guardDirty,
+  warnOnDirty,
   controlledDirty,
   onDirtyChange,
   onEdit,
   onClose,
 }: {
-  guardDirty: boolean;
+  warnOnDirty: boolean;
   controlledDirty: boolean | undefined;
   onDirtyChange: ((dirty: boolean) => void) | undefined;
   onEdit: (() => void) | undefined;
@@ -132,19 +132,19 @@ function useFormDialogViewModel({
   }, [dirty]);
   const markDirty = useCallback(() => {
     onEdit?.();
-    if (!guardDirty || dirtyRef.current) return;
+    if (!warnOnDirty || dirtyRef.current) return;
     // React can surface one native edit through both input and change capture before the controlled
-    // value re-renders. Flip the live guard immediately so one edit publishes one dirty transition.
+    // value re-renders. Flip the live dirty warning immediately so one edit publishes one dirty transition.
     dirtyRef.current = true;
     setDirtyFormSource({ source: dirtySource, dirty: true });
     if (controlledDirty === undefined) setLocalDirty(true);
     onDirtyChange?.(true);
-  }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, onEdit, setDirtyFormSource]);
-  // Publish this FormDialog's contribution so global beforeunload/shortcut guards aggregate every open
+  }, [controlledDirty, dirtySource, warnOnDirty, onDirtyChange, onEdit, setDirtyFormSource]);
+  // Publish this FormDialog's contribution so global beforeunload and shortcut dirty warnings aggregate every open
   // owner. Cleanup releases only this token; a clean overlapping FormDialog cannot clear another form.
   useEffect(() => {
-    setDirtyFormSource({ source: dirtySource, dirty: guardDirty && dirty });
-  }, [dirty, dirtySource, guardDirty, setDirtyFormSource]);
+    setDirtyFormSource({ source: dirtySource, dirty: warnOnDirty && dirty });
+  }, [dirty, dirtySource, warnOnDirty, setDirtyFormSource]);
   useEffect(
     () => () => setDirtyFormSource({ source: dirtySource, dirty: false }),
     [dirtySource, setDirtyFormSource],
@@ -154,7 +154,7 @@ function useFormDialogViewModel({
   const requestClose = () => {
     // `dirtyRef` flips synchronously in markDirty, before a controlled parent has had a chance to
     // feed `dirty=true` back through props. Reading it here closes that one-render escape hatch.
-    if (guardDirty && dirtyRef.current) {
+    if (warnOnDirty && dirtyRef.current) {
       setNotice(m.dialog_unsaved_changes());
       return;
     }

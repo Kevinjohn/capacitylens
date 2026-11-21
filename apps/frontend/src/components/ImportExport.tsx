@@ -18,7 +18,7 @@ import type { TransferPreview } from '@/data/companyDataRequests';
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
-    <FormDialog title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
+    <FormDialog title={m.data_importing_title()} onClose={() => {}} warnOnDirty={false}>
       {requiresReload ? (
         <div className="flex flex-col gap-3">
           <p
@@ -209,7 +209,7 @@ export function ImportExport() {
             selectionRef.current += 1;
             clearPendingImport();
           }}
-          guardDirty={false}
+          warnOnDirty={false}
         >
           <ImportPreview
             preview={preview}

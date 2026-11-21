@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { hasOpenDialog, isTextEntryShortcutOwner } from './shortcutGuards';
+import { hasOpenDialog, isTextEntryShortcutOwner } from './shortcutFilters';
 
 afterEach(() => {
   document.body.replaceChildren();

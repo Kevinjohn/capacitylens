@@ -5,12 +5,12 @@ import { canWritePlanning } from '@/data/planning/planningAccess';
 import type { AppData, ID, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import type { StoreState } from './types';
 
-/** Create guards that enforce company scoping and entity invariants. */
-export function createGuards(get: StoreApi<StoreState>['getState']) {
+/** Create rules that enforce company scoping and entity invariants. */
+export function createStoreRules(get: StoreApi<StoreState>['getState']) {
   // Every scoped add* stamps the active company. A non-null selection alone is insufficient. The
   // company must either exist in the published data or in the server-authorised summaries while a
   // switch is loading its slice. Typed command context and revision checks still gate writes; this
-  // guard only prevents stamping an orphan companyId into the slice.
+  // rule only prevents stamping an orphan companyId into the slice.
   const requireCompany = (): ID => {
     const state = get();
     const id = state.activeCompanyId;
@@ -25,7 +25,7 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
   };
 
   // Refuse writes during masquerade or unless the last accepted planning read may write.
-  // Return a notice instead of throwing because callers use this guard for interactive mutations.
+  // Return a notice instead of throwing because callers use this rule for interactive mutations.
   const isBlockedByViewer = (): boolean => {
     const state = get();
     if (state.masquerade.kind !== 'inactive') {
@@ -44,15 +44,15 @@ export function createGuards(get: StoreApi<StoreState>['getState']) {
     return true;
   };
 
-  return buildGuards({ requireCompany, isBlockedByViewer });
+  return buildStoreRules({ requireCompany, isBlockedByViewer });
 }
 
-interface BuildGuardsInput {
+interface BuildStoreRulesInput {
   requireCompany: () => ID;
   isBlockedByViewer: () => boolean;
 }
 
-function buildGuards({ requireCompany, isBlockedByViewer }: BuildGuardsInput) {
+function buildStoreRules({ requireCompany, isBlockedByViewer }: BuildStoreRulesInput) {
   const resolveOwnedRow = <K extends ScopedEntityKey>(
     data: AppData,
     key: K,

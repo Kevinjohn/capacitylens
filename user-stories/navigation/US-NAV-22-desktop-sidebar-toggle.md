@@ -29,10 +29,10 @@ flowchart TD
 ```mermaid
 flowchart TD
   button["SidebarTrigger calls toggleSidebar"] --> state["SidebarProvider updates open state"]
-  key["useSidebarKeyboardShortcut handles Cmd/Ctrl+B"] --> guard["shortcutGuards checks text entry IME and dialog"]
-  guard -->|allowed| state
-  guard -->|guarded| context["keyboard event remains with active context"]
+  key["useSidebarKeyboardShortcut handles Cmd/Ctrl+B"] --> filter["shortcutFilters checks text entry IME and dialog"]
+  filter -->|allowed| state
+  filter -->|filtered| context["keyboard event remains with active context"]
   state --> pref["setSidebarOpen persists device preference"]
 ```
 
-**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [sidebar.tsx](../../apps/frontend/src/components/ui/sidebar.tsx); [shortcutGuards.ts](../../apps/frontend/src/lib/shortcutGuards.ts); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)
+**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [sidebar.tsx](../../apps/frontend/src/components/ui/sidebar.tsx); [shortcutFilters.ts](../../apps/frontend/src/lib/shortcutFilters.ts); [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts)

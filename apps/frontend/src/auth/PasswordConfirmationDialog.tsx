@@ -75,7 +75,7 @@ export function PasswordConfirmationDialog({
       description={m.password_confirmation_body()}
       onClose={busy ? () => {} : onCancel}
       onSubmit={() => void confirm()}
-      guardDirty={false}
+      warnOnDirty={false}
       footer={
         <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
           {m.form_cancel()}

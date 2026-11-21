@@ -197,7 +197,7 @@ export function MemberResourceDialog({
           title={m.settings_member_col_scheduled_person()}
           description={memberLabel}
           onClose={() => setOpen(false)}
-          guardDirty={false}
+          warnOnDirty={false}
           footer={
             <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
               {m.settings_help_close()}

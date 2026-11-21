@@ -6,7 +6,7 @@ import { NO_ACCESS, PermissionContext } from './permissionContext';
 import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
 import { refreshCompanySummaries } from './useCompanySummaries';
 import { masqueradeApi } from './masqueradeApi';
-import { adoptMasqueradeStatus, captureMasqueradeStatusGuard } from './companyTransition';
+import { adoptMasqueradeStatus, captureMasqueradeStatusCheck } from './companyTransition';
 import type { AccessPermissionStatus } from '@/lib/accessCopy';
 
 interface FetchedPermission {
@@ -52,7 +52,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
   try {
     // Adopt masquerade status before publishing an effective role so reloads never render one
     // writable frame under a masqueraded session.
-    const projectionIsCurrent = await captureMasqueradeStatusGuard();
+    const projectionIsCurrent = await captureMasqueradeStatusCheck();
     const isCurrent = () => refresh.isCurrent() && projectionIsCurrent();
     if (!isCurrent()) return;
     const masquerade = await masqueradeApi.status(refresh.companyId);

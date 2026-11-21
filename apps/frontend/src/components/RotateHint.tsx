@@ -58,7 +58,7 @@ export function RotateHint() {
       title={m.rotate_title()}
       onClose={dismiss}
       onSubmit={dismiss}
-      guardDirty={false}
+      warnOnDirty={false}
       footer={
         <Button size="sm" type="submit">
           {m.rotate_dismiss()}

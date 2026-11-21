@@ -6,7 +6,7 @@ import { Slot } from "radix-ui";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/cn";
-import { hasOpenDialog, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
+import { hasOpenDialog, isTextEntryShortcutOwner } from "@/lib/shortcutFilters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -25,7 +25,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-// Local shadcn deviation: shortcut guards prevent Cmd/Ctrl+B from overriding text entry or open
+// Local shadcn deviation: shortcut filters prevent Cmd/Ctrl+B from overriding text entry or open
 // dialogs; cookie persistence is omitted because state is device-local; caller className/style
 // overrides propagate consistently through the desktop and mobile shells.
 const SIDEBAR_WIDTH = "16rem";

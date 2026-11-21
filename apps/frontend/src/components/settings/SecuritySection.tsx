@@ -77,7 +77,7 @@ function PasswordDialog({
         title={m.settings_security_change_password()}
         onClose={close}
         onSubmit={() => void password.submit()}
-        guardDirty={false}
+        warnOnDirty={false}
         footer={
           <FormActions
             onCancel={close}
@@ -115,7 +115,7 @@ function DeleteAccountDialog({
         description={m.settings_security_delete_account_description()}
         onClose={close}
         onSubmit={() => void deletion.submit()}
-        guardDirty={false}
+        warnOnDirty={false}
         footer={
           <>
             <Button size="sm" type="button" variant="outline" onClick={close}>

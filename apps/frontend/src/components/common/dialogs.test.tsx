@@ -153,7 +153,7 @@ describe('FormDialog', () => {
           <input aria-label="edited field" />
         </FormDialog>
         {showCleanOverlay && (
-          <FormDialog key="overlay" title="Clean overlay" onClose={vi.fn()} guardDirty={false}>
+          <FormDialog key="overlay" title="Clean overlay" onClose={vi.fn()} warnOnDirty={false}>
             <p>Hint only</p>
           </FormDialog>
         )}

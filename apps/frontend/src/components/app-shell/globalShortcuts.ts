@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { m } from '@/i18n';
-import { hasOpenDialog, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
+import { hasOpenDialog, isTextEntryShortcutOwner } from '@/lib/shortcutFilters';
 import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';

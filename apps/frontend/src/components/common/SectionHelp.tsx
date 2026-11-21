@@ -25,7 +25,7 @@ export function SectionHelp({ title, children }: { title: string; children: Reac
       {open && (
         <FormDialog
           title={title}
-          guardDirty={false}
+          warnOnDirty={false}
           onClose={() => setOpen(false)}
           footer={
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

@@ -144,7 +144,7 @@ export function OwnershipTransferCard() {
         <FormDialog
           title={m.ownership_transfer_heading()}
           description={m.ownership_transfer_intro()}
-          guardDirty={false}
+          warnOnDirty={false}
           onClose={() => setOpen(false)}
           footer={
             <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>

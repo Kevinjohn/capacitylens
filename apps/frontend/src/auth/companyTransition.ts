@@ -35,14 +35,14 @@ export async function adoptMasqueradeStatus(
 }
 
 /** Capture the current model projection before a status request can race a local transition. */
-export async function captureMasqueradeStatusGuard(): Promise<() => boolean> {
+export async function captureMasqueradeStatusCheck(): Promise<() => boolean> {
   const model = await loadMasqueradeModel();
   return model.captureStatusReconciliation();
 }
 
 /** Refresh the authoritative mode at its fixed deadline or after explicit reconciliation. */
 export async function reconcileMasqueradeStatus(): Promise<void> {
-  const isCurrent = await captureMasqueradeStatusGuard();
+  const isCurrent = await captureMasqueradeStatusCheck();
   const status = await masqueradeApi.status(useStore.getState().activeCompanyId ?? undefined);
   await adoptMasqueradeStatus(status, isCurrent);
 }

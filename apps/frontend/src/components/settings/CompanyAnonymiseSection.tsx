@@ -100,7 +100,7 @@ export function CompanyAnonymiseSection() {
         <FormDialog
           title={m.settings_company_anonymise_confirm_title()}
           description={m.settings_company_anonymise_confirm_body()}
-          guardDirty={false}
+          warnOnDirty={false}
           onClose={() => {
             if (busy) return;
             setConfirming(false);

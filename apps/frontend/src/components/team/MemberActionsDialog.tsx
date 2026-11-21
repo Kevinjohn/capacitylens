@@ -53,7 +53,7 @@ export function MemberActionsDialog({
           title={m.settings_member_settings_heading()}
           description={memberLabel}
           onClose={() => onOpenChange(false)}
-          guardDirty={false}
+          warnOnDirty={false}
           footer={
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               {m.settings_help_close()}
