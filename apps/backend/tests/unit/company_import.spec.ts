@@ -33,7 +33,7 @@ function dropDisplayNames<T extends { clients: object[]; projects: object[] }>(s
   return { ...state, clients: state.clients.map(strip), projects: state.projects.map(strip) };
 }
 
-test.group('Beta transfer confidentiality boundary', () => {
+test.group('company import confidentiality boundary', () => {
   test('owner projection preserves supported confidential content and stable IDs', ({ assert }) => {
     const source = transformState(confidentialSource().source, 'a-studio', 'owner');
     const document = buildCompanyExport(source, { companyId: 'a-studio', completeness: 'full' });
@@ -72,7 +72,7 @@ test.group('Beta transfer confidentiality boundary', () => {
   });
 });
 
-test.group('Beta transfer backend contract regressions', () => {
+test.group('company import contract regressions', () => {
   test('redacted private names preserve supported code-name boundaries', ({ assert }) => {
     for (const length of [98, 99, 100]) {
       const { source, client, project } = confidentialSource();

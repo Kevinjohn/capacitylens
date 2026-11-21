@@ -23,7 +23,7 @@ async function reset(client: ApiClient, seeded = true) {
   return authenticatedDataClient(client, session.cookie);
 }
 
-test.group('M2b data routes', (group) => {
+test.group('data routes', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();

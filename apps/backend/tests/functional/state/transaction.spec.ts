@@ -3,7 +3,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { withTransaction } from '#services/with_transaction';
 
-test.group('M1 transaction helper', (group) => {
+test.group('transaction helper', (group) => {
   group.setup(() => freshDatabase());
 
   test('rolls back every write when transactional work fails', async ({ assert }) => {

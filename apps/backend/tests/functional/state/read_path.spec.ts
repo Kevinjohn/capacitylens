@@ -19,7 +19,7 @@ const fixture = JSON.parse(
   }>;
 };
 
-test.group('M1 read path', (group) => {
+test.group('read path', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
   for (const expected of fixture.responses.filter(

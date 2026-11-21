@@ -14,7 +14,7 @@ const securityHeaders = [
   'x-frame-options',
 ];
 
-test.group('M1 HTTP contract', (group) => {
+test.group('HTTP contract', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
 

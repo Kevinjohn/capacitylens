@@ -18,7 +18,7 @@ function clientRow(id: string) {
   };
 }
 
-test.group('M2a SQLite transaction faults', (group) => {
+test.group('SQLite transaction faults', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
 

@@ -187,7 +187,7 @@ const failures: [string, CorruptDocument][] = [
   ],
 ];
 
-describe('Beta transfer failure boundaries', () => {
+describe('company import failure boundaries', () => {
   it.each(['clients', 'projects'] as const)('retains the full-export name limit for %s', (key) => {
     const document = freshDocument();
     const row = requireValue(

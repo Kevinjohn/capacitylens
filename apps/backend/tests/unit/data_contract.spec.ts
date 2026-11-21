@@ -5,7 +5,7 @@ import { readState } from '#tests/helpers/state_fixture';
 import db from '@adonisjs/lucid/services/db';
 import { transactionalDatabase } from '../helpers/transactional_database.js';
 
-test.group('M2b data contract', (group) => {
+test.group('data contract', (group) => {
   transactionalDatabase(group);
   test('returns explicit null from a persisted optional column', async ({ assert }) => {
     const data = seed();

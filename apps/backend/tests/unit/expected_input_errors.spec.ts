@@ -11,7 +11,7 @@ import { parseRequestDocument } from '#services/company_import';
 
 // Expected invalid input becomes a 400; anything else must reach the exception handler and reporting.
 
-test.group('Expected input errors', () => {
+test.group('expected input errors', () => {
   test('a request document parses, or is null only when it is invalid input', ({ assert }) => {
     // A request carries the file as the browser read it, in the interchange shape.
     const document = JSON.parse(

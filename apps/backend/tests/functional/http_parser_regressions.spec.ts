@@ -52,7 +52,7 @@ async function reset(client: ApiClient, seeded = true) {
   return { client: authenticatedDataClient(client, session.cookie), cookie: session.cookie };
 }
 
-test.group('M2a review regressions', (group) => {
+test.group('HTTP parser regressions', (group) => {
   group.setup(() => freshDatabase());
 
   test('removes the CSP report endpoint', async ({ client, assert }) => {

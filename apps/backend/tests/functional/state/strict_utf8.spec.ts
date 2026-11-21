@@ -52,7 +52,7 @@ async function readContextToken(
   return token;
 }
 
-test.group('M1 framework JSON parsing', (group) => {
+test.group('framework JSON parsing', (group) => {
   group.setup(() => freshDatabase());
 
   test('passes malformed UTF-8 bytes through parsing to typed route validation', async ({

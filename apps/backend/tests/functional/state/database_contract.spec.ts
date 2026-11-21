@@ -48,7 +48,7 @@ async function rowCount(table: string, where: Record<string, string>) {
   return Number(result?.count ?? 0);
 }
 
-test.group('M1 database contract', (group) => {
+test.group('database contract', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();

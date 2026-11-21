@@ -11,7 +11,7 @@ import { createBundle } from '@kevinjohn/adonisjs-sqlite-backup';
 import { rememberSchemaIntegrity } from '#services/schema_integrity';
 import type { ApiClient } from '@japa/api-client';
 
-test.group('Backup diagnostics', (group) => {
+test.group('backup diagnostics', (group) => {
   group.setup(() => freshDatabase());
   let owner: ApiClient;
   group.each.setup(async ({ context }) => {

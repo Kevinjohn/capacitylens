@@ -7,7 +7,7 @@ import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixtu
 const strictPolicy =
   "default-src 'self';script-src 'self';style-src 'self';style-src-attr 'unsafe-inline';img-src 'self' data:;font-src 'self';connect-src 'self';frame-ancestors 'none';object-src 'none';base-uri 'none';form-action 'self'";
 
-test.group('M1 static fallback', (group) => {
+test.group('static fallback', (group) => {
   group.setup(() => freshDatabase());
   test('serves the shell only for SPA routes', async ({ client, assert }) => {
     for (const path of ['/', '/schedule/week/2026-10-05', '/invite/abc', '/reset-password/abc']) {
