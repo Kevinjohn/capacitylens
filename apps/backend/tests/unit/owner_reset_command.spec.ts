@@ -1,5 +1,9 @@
 import { test } from '@japa/runner';
-import { operatorFixture, seedOwner, withOperatorServer } from './operator_command_support.js';
+import {
+  operatorFixture,
+  seedOwner,
+  withOperatorServer,
+} from '#tests/helpers/operator_command_helpers';
 
 const args = ['owner:reset-password', 'bruce@wayne.example', '--confirm-server-stopped'];
 

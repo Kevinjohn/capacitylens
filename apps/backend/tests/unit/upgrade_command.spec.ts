@@ -13,7 +13,7 @@ import {
   prepareDirectory,
   verifyBundle,
 } from '@kevinjohn/adonisjs-sqlite-backup';
-import { scratchBackendFilter } from './operator_command_support.js';
+import { scratchBackendFilter } from '#tests/helpers/operator_command_helpers';
 
 const appRoot = process.cwd();
 

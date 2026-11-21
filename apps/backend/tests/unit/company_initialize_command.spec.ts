@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import { operatorFixture, withOperatorServer } from './operator_command_support.js';
+import { operatorFixture, withOperatorServer } from '#tests/helpers/operator_command_helpers';
 import { writeSmokeSchedule } from '../../../../tooling/smokeSchedule.mjs';
 
 const args = [

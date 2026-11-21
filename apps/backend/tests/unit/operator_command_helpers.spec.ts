@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { operatorFixture } from './operator_command_support.js';
+import { operatorFixture } from '#tests/helpers/operator_command_helpers';
 
 test('the operator fixture separates machine stdout from warning stderr and preserves failures', ({
   assert,

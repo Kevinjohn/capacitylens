@@ -17,7 +17,7 @@ import {
   type CreateResult,
 } from '@kevinjohn/adonisjs-sqlite-backup';
 import BackupProvider from '#providers/backup_provider';
-import { operatorFixture } from './operator_command_support.js';
+import { operatorFixture } from '#tests/helpers/operator_command_helpers';
 
 function makeApplication(
   backup: BackupService,

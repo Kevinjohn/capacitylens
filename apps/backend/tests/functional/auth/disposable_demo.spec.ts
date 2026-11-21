@@ -12,7 +12,7 @@ import { readState } from '#tests/helpers/state_fixture';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { createIdentity, signIn } from '../../helpers/identities.js';
-import { operatorFixture } from '../../unit/operator_command_support.js';
+import { operatorFixture } from '#tests/helpers/operator_command_helpers';
 
 const email = 'admin@admin.admin';
 const password = 'capacitylens-demo-2026';

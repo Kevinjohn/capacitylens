@@ -4,7 +4,11 @@ import { dirname } from 'node:path';
 import { cpSync, existsSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { operatorFixture, scratchBackendFilter, seedOwner } from './operator_command_support.js';
+import {
+  operatorFixture,
+  scratchBackendFilter,
+  seedOwner,
+} from '#tests/helpers/operator_command_helpers';
 
 function tableCount(database: DatabaseSync, table: string) {
   return database.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n;

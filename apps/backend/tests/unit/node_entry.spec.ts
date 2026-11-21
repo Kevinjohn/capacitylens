@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { operatorFixture, withOperatorServer } from './operator_command_support.js';
+import { operatorFixture, withOperatorServer } from '#tests/helpers/operator_command_helpers';
 
 test('native web and Ace entries refuse unsupported Node before creating a database', ({
   assert,
