@@ -368,8 +368,9 @@ reopened there.
 20. A type used by one file stays in it. A type shared across files goes in the feature's
     `types.ts` or `app/types/`; there is no `types/` folder for every declaration. Revisit: #2334
     item 7.
-21. Before the first release there is one baseline migration without `down()`; released
-    migrations are append-only. Production refuses rollbacks
+21. Before the first release there is one baseline migration without `down()`, and it is edited
+    in place: no installed database exists, and the alpha tags that carried it do not make it
+    released (#2345 decision D4). Released migrations are append-only. Production refuses rollbacks
     (`disableRollbacksInProduction`). Revisit: #2334 item 8.
 22. A validator reads one request source: the body for a write and the query string for a read,
     passed as `validateUsing(validator, { data })`. It never validates the merged `request.all()`,
