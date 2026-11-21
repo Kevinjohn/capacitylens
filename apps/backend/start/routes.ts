@@ -1,6 +1,6 @@
 import '#start/planning_routes';
 import router from '@adonisjs/core/services/router';
-import { fileURLToPath } from 'node:url';
+import app from '@adonisjs/core/services/app';
 import { healthChecks } from '#start/health';
 import { registerAuthRoutes } from '#start/auth_routes';
 import { registerMembershipRoutes } from '#start/membership_routes';
@@ -56,5 +56,5 @@ router.get('*', async ({ request, response }) => {
     return response.notFound('Not found');
   }
   response.header('Cache-Control', 'no-store');
-  return response.download(fileURLToPath(new URL('../public/index.html', import.meta.url)));
+  return response.download(app.publicPath('index.html'));
 });
