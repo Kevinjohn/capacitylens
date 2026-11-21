@@ -3,7 +3,7 @@ import { withTransaction } from '#services/with_transaction';
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
 
-/** Add fixture rows without replacing operator data or audit history. */
+/** Add the seed rows without replacing operator data or audit history. */
 export async function insertSeed() {
   await withTransaction(async (trx) => {
     const data = seed();

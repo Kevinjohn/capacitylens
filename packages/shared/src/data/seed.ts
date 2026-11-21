@@ -8,12 +8,12 @@ import { createActivities } from './seed/activities.js';
 import { createAllocations } from './seed/allocations.js';
 import { createSchedule } from './seed/schedule.js';
 
-// Fictional fixture data spans two tenants to exercise server isolation. The disposable demo
+// Fictional seed data spans two companies to exercise server isolation. The disposable demo
 // selects only a-studio. Its rich schedule includes overlapping allocations, a limited-days
 // freelancer, a project-bound placeholder, an external partner and time off. Placeholder and
 // external rows remain hidden until their default-off company visibility settings are enabled.
 
-/** Build deterministic fictional company, people and scheduling fixture data. */
+/** Build deterministic fictional company, people and scheduling seed data. */
 export function seed(): AppData {
   const { accounts: companies, disciplines, clients, projects, phases } = createOrgTables();
   return {

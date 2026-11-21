@@ -102,7 +102,7 @@ it. A backend service that serves a request takes the verified actor and the tra
 controller, and only controllers and middleware read the request; a service that wraps a package
 bound to the request (Masquerade, Account Kit sign-in) receives the context only to hand it to
 that package. Boot-time and operator services run outside any request and are exempt: Ace commands
-and `app/services/operator/`, the readiness and schema checks, fixture, demo and development bootstrap seeding, storage
+and `app/services/operator/`, the readiness and schema checks, seed rows, demo and development bootstrap seeding, storage
 maintenance and the transaction helper may import the database service and read the clock, and a
 function they share with request code may default its connection to that service. Optional means
 absent, not `null`.

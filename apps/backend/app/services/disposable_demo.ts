@@ -22,7 +22,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
     }
     const data = seedForCurrentWeek();
     const company = data.accounts.find((row) => row.id === 'a-studio');
-    if (!company) throw new Error('Disposable company fixture is missing');
+    if (!company) throw new Error('Disposable demo company is missing');
     for (const [key, table] of Object.entries(tables)) {
       const rows =
         key === 'accounts'

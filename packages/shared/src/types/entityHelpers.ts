@@ -71,7 +71,7 @@ function buildDefaultCapacityWorkingPattern(): Pick<Resource, 'workingDays' | 'h
 
 /** The unused silent-default capacity fields every `external` resource is created with: externals
  * have no capacity, but the Resource type + store still require a positive working day and a
- * non-empty week. A factory (not a shared object) so each call gets its own weekday arrays. No
+ * non-empty week. A function (not a shared object) so each call gets its own weekday arrays. No
  * aliasing if a consumer mutates one. One source for the External form, seed, and fixtures. */
 export function buildExternalCapacityDefaults(): Pick<
   Resource,
