@@ -37,7 +37,7 @@ flowchart TD
 flowchart TD
   store["useStore hydration and error state"] --> shell["AppShell passes gate state"]
   shell --> gate["AppEntryGate selects entry stage"]
-  gate -->|not hydrated| loading["LoadingBoundary status"]
+  gate -->|not hydrated| loading["LoadingGate status"]
   gate -->|ready| children["Application children render"]
 ```
 

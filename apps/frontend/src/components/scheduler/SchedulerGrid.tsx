@@ -193,7 +193,7 @@ type GridViewProps = {
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 };
 
-function SchedulerModalBoundary({
+function SchedulerDialogHost({
   dialog,
   setDialog,
 }: Pick<GridViewProps['interactions'], 'dialog' | 'setDialog'>) {
@@ -261,7 +261,7 @@ function SchedulerGridContents(props: GridViewProps) {
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
         onViewSchedule={props.onViewSchedule}
       />
-      <SchedulerModalBoundary dialog={interactions.dialog} setDialog={interactions.setDialog} />
+      <SchedulerDialogHost dialog={interactions.dialog} setDialog={interactions.setDialog} />
     </>
   );
 }

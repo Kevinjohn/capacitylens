@@ -21,7 +21,7 @@ import { AuthLoading } from './authScreens';
 import { AccessScreen } from './AccessScreens';
 import { useAuthContextValue } from './useAuthContextValue';
 
-// Auth boundary checks GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
+// Auth gate checks GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so interactive auth forms never load unless a login is actually shown.
 
 const LoginScreen = lazy(() =>
@@ -140,7 +140,7 @@ function useAuthInvalidation({
   }, [checkAuth, setStatus]);
 }
 
-function LoginBoundary({
+function SignInGate({
   status,
   children,
   authContextValue,
@@ -185,7 +185,7 @@ function AuthError({ message, retry }: { message: string; retry: () => void }) {
   );
 }
 
-function AuthenticatedBoundary({
+function AuthenticatedGate({
   children,
   authContextValue,
 }: {
@@ -194,7 +194,7 @@ function AuthenticatedBoundary({
 }) {
   return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
 }
-/** Provides server-verified authentication state and a retryable boot boundary. Unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
+/** Provides server-verified authentication state and a retryable boot gate. Unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
 export function AuthProvider({
   children,
   onTenantAccessReady,
@@ -249,9 +249,9 @@ function AuthenticatedAppProvider({
   }
   if (status.kind === 'login') {
     return (
-      <LoginBoundary status={status} authContextValue={authContextValue}>
+      <SignInGate status={status} authContextValue={authContextValue}>
         {children}
-      </LoginBoundary>
+      </SignInGate>
     );
   }
   // The address confirmation page stays reachable from the limited screen that asks for it.
@@ -272,9 +272,7 @@ function AuthenticatedAppProvider({
     );
   }
   if (confirmingAddress) {
-    return (
-      <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
-    );
+    return <AuthenticatedGate authContextValue={authContextValue}>{children}</AuthenticatedGate>;
   }
   if (status.companySetupRequired) {
     return (
@@ -302,7 +300,5 @@ function AuthenticatedAppProvider({
       />
     );
   }
-  return (
-    <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
-  );
+  return <AuthenticatedGate authContextValue={authContextValue}>{children}</AuthenticatedGate>;
 }
