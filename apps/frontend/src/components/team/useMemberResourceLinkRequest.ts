@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
-import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi';
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
 import type { TeamMember } from '@/account/teamAccessApi';
 
 interface MemberResourceLinkRequestsInput {
@@ -114,7 +114,7 @@ export function useMemberResourceLinkRequests({
           update(userId, { error: m.settings_member_resource_unknown() });
         } else if (result.kind === 'rejected') {
           update(userId, {
-            error: resolveRejectionMessage(result, m.settings_member_resource_error()),
+            error: resolveRefusalMessage(result, m.settings_member_resource_error()),
           });
         } else update(userId, { expectedResourceId: resourceId === '' ? null : resourceId });
       })

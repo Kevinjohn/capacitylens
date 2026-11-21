@@ -3,7 +3,7 @@ import { admissionRequests } from './admissionRequests';
 import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
 import { runOperation } from './operationRequest';
-import { resolveRejectionMessage, teamAccessApi } from './teamAccessApi';
+import { resolveRefusalMessage, teamAccessApi } from './teamAccessApi';
 
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -302,7 +302,7 @@ describe('rejectionMessage', () => {
   // fallback stays the better thing to show.
   it("prefers the server's sentence on a rejection", () => {
     expect(
-      resolveRejectionMessage(
+      resolveRefusalMessage(
         { kind: 'rejected', status: 409, message: 'That member owns the account.' },
         'fallback',
       ),
@@ -311,25 +311,25 @@ describe('rejectionMessage', () => {
 
   it('falls back when a rejection carried no sentence', () => {
     expect(
-      resolveRejectionMessage({ kind: 'rejected', status: 403, message: null }, 'fallback'),
+      resolveRefusalMessage({ kind: 'rejected', status: 403, message: null }, 'fallback'),
     ).toBe('fallback');
   });
 
   it('falls back rather than showing a blank toast for an empty rejection message', () => {
-    expect(
-      resolveRejectionMessage({ kind: 'rejected', status: 403, message: '' }, 'fallback'),
-    ).toBe('fallback');
+    expect(resolveRefusalMessage({ kind: 'rejected', status: 403, message: '' }, 'fallback')).toBe(
+      'fallback',
+    );
   });
 
   it("keeps the caller's sentence for unknown and invalid outcomes", () => {
     expect(
-      resolveRejectionMessage(
+      resolveRefusalMessage(
         { kind: 'unknown', status: 502, message: 'Gateway timeout.' },
         'fallback',
       ),
     ).toBe('fallback');
     expect(
-      resolveRejectionMessage(
+      resolveRefusalMessage(
         { kind: 'invalid', status: 200, message: 'The server returned an invalid response.' },
         'fallback',
       ),
@@ -337,9 +337,9 @@ describe('rejectionMessage', () => {
   });
 
   it("keeps the caller's sentence for a success handed to it defensively", () => {
-    expect(
-      resolveRejectionMessage<true>({ kind: 'ok', status: 204, value: true }, 'fallback'),
-    ).toBe('fallback');
+    expect(resolveRefusalMessage<true>({ kind: 'ok', status: 204, value: true }, 'fallback')).toBe(
+      'fallback',
+    );
   });
 });
 

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { m } from '@/i18n';
 import { teamAccessApi } from '@/account/teamAccessApi';
 import type { TeamMember } from '@/account/teamAccessApi';
-import { resolveRejectionMessage } from '@/account/accessResult';
+import { resolveRefusalMessage } from '@/account/accessResult';
 import { queryClient } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
@@ -73,7 +73,7 @@ function useOwnerDirectory({
 
 function readDirectoryError(error: Error | null): string | null {
   if (error instanceof TeamReadError) {
-    return resolveRejectionMessage(error.result, m.ownership_transfer_read_failed());
+    return resolveRefusalMessage(error.result, m.ownership_transfer_read_failed());
   }
   return error ? m.ownership_transfer_read_failed() : null;
 }
@@ -140,7 +140,7 @@ async function settleTransfer({
     await reconcileCallerAccess(companyId, refreshAuth);
     return;
   }
-  setError(resolveRejectionMessage(result, m.ownership_transfer_command_failed()));
+  setError(resolveRefusalMessage(result, m.ownership_transfer_command_failed()));
 }
 
 function useTransferOperation({

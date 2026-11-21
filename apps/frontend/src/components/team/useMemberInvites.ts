@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { m } from '@/i18n';
 import type { InvitationRole } from '@capacitylens/shared/account/types';
 import { isAccountEmail } from '@capacitylens/shared/account/validation';
-import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi';
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
 import type { TeamInvitation } from '@/account/teamAccessApi';
 import type { FieldError } from '@/hooks/useFieldError';
 import { resolveErrorMessage } from '@/lib/errorMessage';
@@ -112,7 +112,7 @@ function createRevokeInvite({
           }
           fail(
             null,
-            resolveRejectionMessage(
+            resolveRefusalMessage(
               result,
               m.settings_members_err_revoke_invite({ status: result.status }),
             ),
@@ -147,7 +147,7 @@ function createResendInvite({
         const result = await teamAccessApi.resendInvitation(companyId, invitation.id);
         if (!isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
-          fail(null, resolveRejectionMessage(result, m.settings_invite_resend_failed()));
+          fail(null, resolveRefusalMessage(result, m.settings_invite_resend_failed()));
           return;
         }
         if (result.value.emailed) {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isRole } from '@capacitylens/shared/account/types';
 import { m } from '@/i18n';
-import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi';
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
 import type { AdmissionRequest } from '@/account/teamAccessApi';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ export function AdmissionRequestsPanel() {
       const result = await teamAccessApi.decideAdmission(request.userId, decision);
       if (controllerRef.current !== controller) return;
       if (result.kind !== 'ok') {
-        setError(resolveRejectionMessage(result, m.settings_admission_failed()));
+        setError(resolveRefusalMessage(result, m.settings_admission_failed()));
       }
       await load(signal);
     } catch (failure) {

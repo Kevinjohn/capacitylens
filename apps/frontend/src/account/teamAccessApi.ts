@@ -17,7 +17,7 @@ import { ownershipTransferAccess } from './ownershipTransferAccess';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { TeamDirectory, TeamInvitation, AdmissionRequest } from './teamAccessTypes';
 
-export { resolveRejectionMessage, type TeamAccessResult } from './accessResult';
+export { resolveRefusalMessage, type TeamAccessResult } from './accessResult';
 export type {
   TeamMember,
   TeamDirectory,

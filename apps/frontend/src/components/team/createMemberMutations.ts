@@ -1,7 +1,7 @@
 import { m } from '@/i18n';
 import type { MembershipStatus } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
-import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi';
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
 import type { TeamMember as Member } from '@/account/teamAccessApi';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import type { MemberOperationDependencies } from './MemberOperationDependencies';
@@ -31,7 +31,7 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
         if (result.kind !== 'ok') {
           dependencies.fail(
             null,
-            resolveRejectionMessage(
+            resolveRefusalMessage(
               result,
               m.settings_members_err_sign_in_tracking({ status: result.status }),
             ),
@@ -67,7 +67,7 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
           }
           dependencies.fail(
             null,
-            resolveRejectionMessage(
+            resolveRefusalMessage(
               result,
               m.settings_members_err_change_role({ status: result.status }),
             ),
@@ -103,7 +103,7 @@ function createStatusMutation(dependencies: MemberMutationDependencies) {
           }
           dependencies.fail(
             null,
-            resolveRejectionMessage(
+            resolveRefusalMessage(
               result,
               m.settings_members_err_change_status({ status: result.status }),
             ),

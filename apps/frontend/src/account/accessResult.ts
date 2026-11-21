@@ -16,7 +16,7 @@ export type TeamAccessResult<T> =
   | { kind: 'invalid'; status: number; message: string };
 
 /** Uses the server message only for a decoded rejection; ambiguous or undecodable outcomes use the operation fallback. An empty rejection message also falls back. */
-export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
+export function resolveRefusalMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
   return result.kind === 'rejected' && result.message ? result.message : fallback;
 }
 
