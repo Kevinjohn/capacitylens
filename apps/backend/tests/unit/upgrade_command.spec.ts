@@ -27,7 +27,7 @@ function command(root: string, databasePath: string, args: string[], backupDir?:
       ...process.env,
       CAPACITYLENS_DB: databasePath,
       CAPACITYLENS_BACKUP_DIR: backupDir ?? '',
-      APP_KEY: 'zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi',
+      APP_KEY: 'capacitylens-test-key-0123456789abcdef',
       APP_URL: 'http://127.0.0.1',
       HOST: '127.0.0.1',
       PORT: '0',

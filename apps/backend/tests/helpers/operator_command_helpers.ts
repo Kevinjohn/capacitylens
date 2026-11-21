@@ -15,7 +15,7 @@ export function operatorFixture() {
     CAPACITYLENS_PUBLIC_URL: 'http://localhost:8787',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
-    APP_KEY: 'zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi',
+    APP_KEY: 'capacitylens-test-key-0123456789abcdef',
     APP_URL: 'http://localhost:8787',
     LOG_LEVEL: 'fatal',
   };

@@ -44,7 +44,7 @@ Copy the generated value into `APP_KEY` in `apps/backend/.env`, then return to t
 cd ../..
 ```
 
-The example key is a placeholder; do not use it as a local secret or commit your `.env` file.
+The example file leaves `APP_KEY` empty; do not commit your `.env` file.
 Initialize the local SQLite database and run its migrations before starting the full-stack
 development servers:
 
