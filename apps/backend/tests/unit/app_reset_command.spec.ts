@@ -32,15 +32,15 @@ test('app reset archives all account and credential state and initializes a sepa
     assert.equal(reset.status, 0, reset.output);
     const result = JSON.parse(reset.stdout.trim()) as {
       archivePath: string;
-      snapshotPath: string;
+      backupPath: string;
       databasePath: string;
     };
     assert.equal(result.databasePath, destination);
-    const snapshot = listBundles(dirname(result.archivePath))[0]!;
-    assert.equal(verifyBundle(dirname(result.archivePath), snapshot.name).path, snapshot.path);
-    assert.equal(result.snapshotPath, join(snapshot.path, 'db.sqlite'));
+    const backup = listBundles(dirname(result.archivePath))[0]!;
+    assert.equal(verifyBundle(dirname(result.archivePath), backup.name).path, backup.path);
+    assert.equal(result.backupPath, join(backup.path, 'db.sqlite'));
     assert.isFalse(existsSync(f.databasePath));
-    for (const path of [result.archivePath, result.snapshotPath]) {
+    for (const path of [result.archivePath, result.backupPath]) {
       const archived = new DatabaseSync(path, { readOnly: true });
       assert.equal(tableCount(archived, 'users'), 1);
       assert.equal(tableCount(archived, 'account_sessions'), 1);
@@ -174,7 +174,7 @@ test('a replacement upgrade failure preserves the verified recovery files and na
   }
 });
 
-test('a failed snapshot reports only completed recovery artifacts and leaves the source in place', ({
+test('a failed backup reports only completed recovery artifacts and leaves the source in place', ({
   assert,
   test: t,
 }) => {
@@ -206,7 +206,7 @@ test('a failed snapshot reports only completed recovery artifacts and leaves the
       '--disposable',
     ]);
     assert.notEqual(result.status, 0);
-    assert.include(result.output, 'No verified snapshot was completed');
+    assert.include(result.output, 'No verified backup was completed');
     assert.include(result.output, `Original source remains at: ${f.databasePath}`);
     assert.notInclude(result.output, 'Original archive:');
     assert.isTrue(existsSync(f.databasePath));

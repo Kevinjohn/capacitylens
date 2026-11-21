@@ -80,11 +80,11 @@ function scratchApp(root: string, migrations: Record<string, string>) {
   return scratch;
 }
 
-function preMigrationSnapshots(dir: string) {
+function preMigrationBackups(dir: string) {
   return listBundles(dir).map((bundle) => verifyBundle(dir, bundle.name).name);
 }
 
-test('native upgrade initializes a fresh database without a snapshot', ({
+test('native upgrade initializes a fresh database without a backup', ({
   assert,
   test: testCase,
 }) => {
@@ -133,11 +133,11 @@ test('native upgrade backs up an existing database before migrating and refuses 
     assert.lengthOf(journal(dbPath), 2);
     assert.include(tables(dbPath), 'upgrade_added');
     const backups = join(root, 'live.db.backups');
-    const [snapshot, ...others] = preMigrationSnapshots(backups);
-    assert.isDefined(snapshot);
+    const [backup, ...others] = preMigrationBackups(backups);
+    assert.isDefined(backup);
     assert.lengthOf(others, 0);
-    assert.lengthOf(journal(join(backups, snapshot!, 'db.sqlite')), 1);
-    assert.notInclude(tables(join(backups, snapshot!, 'db.sqlite')), 'upgrade_added');
+    assert.lengthOf(journal(join(backups, backup!, 'db.sqlite')), 1);
+    assert.notInclude(tables(join(backups, backup!, 'db.sqlite')), 'upgrade_added');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -185,9 +185,9 @@ test('a failing later migration rolls back its own DDL after an earlier file com
     assert.lengthOf(journal(dbPath), 2);
     assert.include(tables(dbPath), 'upgrade_committed');
     assert.notInclude(tables(dbPath), 'upgrade_rolled_back');
-    const [snapshot] = preMigrationSnapshots(join(root, 'live.db.backups'));
-    assert.isDefined(snapshot);
-    assert.lengthOf(journal(join(root, 'live.db.backups', snapshot!, 'db.sqlite')), 1);
+    const [backup] = preMigrationBackups(join(root, 'live.db.backups'));
+    assert.isDefined(backup);
+    assert.lengthOf(journal(join(root, 'live.db.backups', backup!, 'db.sqlite')), 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -21,7 +21,7 @@ function hasDestinationEntry(path: string) {
   }
 }
 
-/** Snapshot and archive a stopped installation, then create its replacement at a new path. */
+/** Back up and archive a stopped installation, then create its replacement at a new path. */
 export async function resetInstallation(input: {
   newDatabasePath: string;
   confirmServerStopped: boolean;
@@ -44,15 +44,15 @@ export async function resetInstallation(input: {
   // impossible; a mutable record keeps those reads typed as they really are.
   const progress: {
     archivePath: string | undefined;
-    snapshotPath: string | undefined;
+    backupPath: string | undefined;
     destinationReserved: boolean;
-    snapshotVerified: boolean;
+    backupVerified: boolean;
     archived: boolean;
   } = {
     archivePath: undefined,
-    snapshotPath: undefined,
+    backupPath: undefined,
     destinationReserved: false,
-    snapshotVerified: false,
+    backupVerified: false,
     archived: false,
   };
   let stage = 'source validation';
@@ -64,11 +64,11 @@ export async function resetInstallation(input: {
       progress.destinationReserved = true;
       const archive = mkdtempSync(`${sourcePath}.reset-archive-`);
       progress.archivePath = join(archive, 'original.db');
-      stage = 'verified snapshot';
+      stage = 'verified backup';
       const bundle = await createBundle({ source: { database: connection }, directory: archive });
-      progress.snapshotPath = join(bundle.path, 'db.sqlite');
+      progress.backupPath = join(bundle.path, 'db.sqlite');
       stage = 'source checkpoint';
-      progress.snapshotVerified = true;
+      progress.backupVerified = true;
       const checkpoint = connection.pragma('wal_checkpoint(TRUNCATE)') as Array<{ busy: number }>;
       if (checkpoint.some((row) => row.busy !== 0)) {
         throw new Error('Reset could not checkpoint the source database');
@@ -111,17 +111,17 @@ export async function resetInstallation(input: {
     if (migrated.error || migrated.status !== 0) {
       throw new Error('New database upgrade failed', { cause: migrated.error });
     }
-    return { databasePath, archivePath: progress.archivePath, snapshotPath: progress.snapshotPath };
+    return { databasePath, archivePath: progress.archivePath, backupPath: progress.backupPath };
   } catch (cause) {
     if (!progress.archivePath && !progress.destinationReserved) throw cause;
     const original = progress.archived
       ? `Original archive: ${progress.archivePath}`
       : `Original source remains at: ${sourcePath}`;
-    const snapshot = progress.snapshotVerified
-      ? `Verified snapshot: ${progress.snapshotPath}`
-      : 'No verified snapshot was completed';
+    const backupNote = progress.backupVerified
+      ? `Verified backup: ${progress.backupPath}`
+      : 'No verified backup was completed';
     throw new Error(
-      `Reset failed during ${stage}. ${original}; ${snapshot}; inspect partial destination: ${databasePath}. Do not retry over these files.`,
+      `Reset failed during ${stage}. ${original}; ${backupNote}; inspect partial destination: ${databasePath}. Do not retry over these files.`,
       { cause }
     );
   }

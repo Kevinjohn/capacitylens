@@ -6,7 +6,7 @@ import { resetInstallation } from '#services/operator/reset_installation';
 export default class AppReset extends BaseCommand {
   static commandName = 'app:reset';
   static description =
-    'Snapshot and archive the stopped installation, then initialize a new database path';
+    'Back up and archive the stopped installation, then initialize a new database path';
   static options: CommandOptions = { startApp: true };
   @args.string({ description: 'New, unused database path' }) declare newDatabasePath: string;
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
