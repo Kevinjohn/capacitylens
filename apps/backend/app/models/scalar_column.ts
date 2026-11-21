@@ -77,3 +77,33 @@ export function booleanColumn(
     },
   };
 }
+
+/**
+ * Column options for an instant stored and serialised as the canonical UTC ISO string
+ * (`Date#toISOString()`), so storage and the wire keep the exact string they hold today.
+ */
+export function timestampColumn(
+  table: string,
+  column: string
+): {
+  prepare: (value: unknown) => string | null | undefined;
+  consume: (value: unknown) => DateTime | null;
+  serialize: (value: unknown) => string | null | undefined;
+} {
+  const toCanonical = (value: unknown) => {
+    if (value === undefined || value === null) return value;
+    if (DateTime.isDateTime(value) && value.isValid) return value.toJSDate().toISOString();
+    throw new Error(`Invalid timestamp in ${table}.${column}`);
+  };
+  return {
+    prepare: toCanonical,
+    consume: (value: unknown) => {
+      if (value === null) return null;
+      if (!isIsoInstant(value)) {
+        throw new Error(`Invalid persisted timestamp in ${table}.${column}`);
+      }
+      return DateTime.fromMillis(Date.parse(value), { zone: 'utc' });
+    },
+    serialize: toCanonical,
+  };
+}

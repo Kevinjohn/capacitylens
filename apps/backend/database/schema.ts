@@ -5,36 +5,37 @@
  */
 
 import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { DateTime } from 'luxon'
 
 export class AccountAdmissionSchema extends BaseModel {
   static $columns = ['approvalActorId', 'approvalDecidedAt', 'approvalStatus', 'bootstrapEmail', 'createdAt', 'id', 'invitationId', 'invitationRecordedAt', 'invitationSource', 'invitedEmail', 'invitedRole', 'requestedAt', 'updatedAt', 'userId'] as const
   $columns = AccountAdmissionSchema.$columns
   @column()
   declare approvalActorId: string | null
-  @column()
-  declare approvalDecidedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare approvalDecidedAt: DateTime | null
   @column()
   declare approvalStatus: string | null
   @column()
   declare bootstrapEmail: string | null
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: number
   @column()
   declare invitationId: number | null
-  @column()
-  declare invitationRecordedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare invitationRecordedAt: DateTime | null
   @column()
   declare invitationSource: string | null
   @column()
   declare invitedEmail: string | null
   @column()
   declare invitedRole: string | null
-  @column()
-  declare requestedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare requestedAt: DateTime | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
   @column()
   declare userId: string | null
 }
@@ -44,23 +45,23 @@ export class AccountGettingStartedDismissalSchema extends BaseModel {
   $columns = AccountGettingStartedDismissalSchema.$columns
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class AccountInvitationSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'role', 'scope', 'tokenHash', 'updatedAt'] as const
   $columns = AccountInvitationSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare email: string
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -71,8 +72,8 @@ export class AccountInvitationSchema extends BaseModel {
   declare scope: string
   @column()
   declare tokenHash: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class AccountMemberResourceSchema extends BaseModel {
@@ -80,16 +81,16 @@ export class AccountMemberResourceSchema extends BaseModel {
   $columns = AccountMemberResourceSchema.$columns
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare resourceId: string
   @column()
   declare revision: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
   @column()
   declare userId: string
 }
@@ -97,18 +98,18 @@ export class AccountMemberResourceSchema extends BaseModel {
 export class AccountSessionSchema extends BaseModel {
   static $columns = ['createdAt', 'expiresAt', 'handleHash', 'id', 'label', 'lastSeenAt', 'userId'] as const
   $columns = AccountSessionSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
   declare handleHash: string
   @column({ isPrimary: true })
   declare id: number
   @column()
   declare label: string | null
-  @column()
-  declare lastSeenAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare lastSeenAt: DateTime
   @column()
   declare userId: string
 }
@@ -129,8 +130,8 @@ export class AccountSchema extends BaseModel {
   declare capacityOverviewAccess: import('@capacitylens/shared/types/entities').CapacityOverviewAccess | null
   @column()
   declare color: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare dateStyle: import('@capacitylens/shared/types/entities').DateStyle | null
   @column()
@@ -153,8 +154,8 @@ export class AccountSchema extends BaseModel {
   declare showTaskFieldInSchedule: boolean | null
   @column()
   declare timezone: string | null
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
   @column()
   declare weekStartsOn: 0 | 1 | null
   @column()
@@ -164,14 +165,14 @@ export class AccountSchema extends BaseModel {
 export class ActivitySchema extends BaseModel {
   static $columns = ['archivedAt', 'companyId', 'createdAt', 'deletedAt', 'id', 'kind', 'name', 'phaseId', 'projectId', 'updatedAt'] as const
   $columns = ActivitySchema.$columns
-  @column()
-  declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare archivedAt: DateTime | null
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -182,8 +183,8 @@ export class ActivitySchema extends BaseModel {
   declare phaseId: string | null
   @column()
   declare projectId: string | null
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class AdonisSessionSchema extends BaseModel {
@@ -191,8 +192,8 @@ export class AdonisSessionSchema extends BaseModel {
   $columns = AdonisSessionSchema.$columns
   @column()
   declare data: string
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -206,10 +207,10 @@ export class AllocationSchema extends BaseModel {
   declare activityId: string
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column()
   declare deletionGroupId: string | null
   @column()
@@ -234,8 +235,8 @@ export class AllocationSchema extends BaseModel {
   declare status: import('@capacitylens/shared/types/entities').AllocationStatus
   @column()
   declare task: string | null
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class AuditEntrySchema extends BaseModel {
@@ -247,8 +248,8 @@ export class AuditEntrySchema extends BaseModel {
   declare actorId: string | null
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare details: unknown | null
   @column()
@@ -257,15 +258,15 @@ export class AuditEntrySchema extends BaseModel {
   declare entityId: string | null
   @column({ isPrimary: true })
   declare id: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class ClientSchema extends BaseModel {
   static $columns = ['archivedAt', 'builtin', 'codeName', 'color', 'companyId', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
   $columns = ClientSchema.$columns
-  @column()
-  declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare archivedAt: DateTime | null
   @column()
   declare builtin: boolean | null
   @column()
@@ -274,18 +275,18 @@ export class ClientSchema extends BaseModel {
   declare color: string
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare isPrivate: boolean | null
   @column()
   declare name: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class ClosureSchema extends BaseModel {
@@ -293,10 +294,10 @@ export class ClosureSchema extends BaseModel {
   $columns = ClosureSchema.$columns
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column()
   declare deletionGroupId: string | null
   @column()
@@ -307,8 +308,8 @@ export class ClosureSchema extends BaseModel {
   declare name: string
   @column()
   declare startDate: import('@capacitylens/shared/types/entities').ISODate
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class CompanyPlanningRevisionSchema extends BaseModel {
@@ -325,14 +326,14 @@ export class CompanySettingSchema extends BaseModel {
   $columns = CompanySettingSchema.$columns
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare key: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
   @column()
   declare value: unknown | null
 }
@@ -344,10 +345,10 @@ export class DeletedGroupSchema extends BaseModel {
   declare actorId: string
   @column()
   declare companyId: string
-  @column()
-  declare consumedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare consumedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare groupId: string
   @column()
@@ -378,10 +379,10 @@ export class DisciplineSchema extends BaseModel {
   declare color: string | null
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column()
   declare deletionGroupId: string | null
   @column({ isPrimary: true })
@@ -390,21 +391,21 @@ export class DisciplineSchema extends BaseModel {
   declare name: string
   @column()
   declare sortOrder: number
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class EmailVerificationTokenSchema extends BaseModel {
   static $columns = ['createdAt', 'currentEmail', 'email', 'expiresAt', 'hash', 'id', 'purpose', 'tokenableId'] as const
   $columns = EmailVerificationTokenSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare currentEmail: string
   @column()
   declare email: string
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
   declare hash: string
   @column({ isPrimary: true })
@@ -420,12 +421,12 @@ export class LoginLinkTokenSchema extends BaseModel {
   $columns = LoginLinkTokenSchema.$columns
   @column()
   declare clientChallenge: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare email: string
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
   declare hash: string
   @column({ isPrimary: true })
@@ -500,15 +501,15 @@ export class MasqueradeModeSchema extends BaseModel {
   declare targetIncarnation: string | null
   @column()
   declare targetStampHash: string | null
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class MembershipSchema extends BaseModel {
   static $columns = ['createdAt', 'id', 'role', 'scopeId', 'status', 'updatedAt', 'userId'] as const
   $columns = MembershipSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -517,8 +518,8 @@ export class MembershipSchema extends BaseModel {
   declare scopeId: string
   @column()
   declare status: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
   @column()
   declare userId: string
 }
@@ -553,12 +554,12 @@ export class PasswordConfirmationSchema extends BaseModel {
 export class PasswordResetTokenSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'expiresAt', 'hash', 'id', 'tokenableId'] as const
   $columns = PasswordResetTokenSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare email: string
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
   declare hash: string
   @column({ isPrimary: true })
@@ -572,10 +573,10 @@ export class PhaseSchema extends BaseModel {
   $columns = PhaseSchema.$columns
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column()
   declare deletionGroupId: string | null
   @column({ isPrimary: true })
@@ -584,8 +585,8 @@ export class PhaseSchema extends BaseModel {
   declare name: string
   @column()
   declare projectId: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class PlanningHistorySchema extends BaseModel {
@@ -625,8 +626,8 @@ export class PlanningMutationSchema extends BaseModel {
 export class ProjectSchema extends BaseModel {
   static $columns = ['archivedAt', 'clientId', 'codeName', 'color', 'companyId', 'createdAt', 'deletedAt', 'id', 'isPrivate', 'name', 'updatedAt'] as const
   $columns = ProjectSchema.$columns
-  @column()
-  declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare archivedAt: DateTime | null
   @column()
   declare clientId: string
   @column()
@@ -635,18 +636,18 @@ export class ProjectSchema extends BaseModel {
   declare color: string
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare isPrivate: boolean | null
   @column()
   declare name: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class RateLimitSchema extends BaseModel {
@@ -665,8 +666,8 @@ export class RequestReceiptSchema extends BaseModel {
   $columns = RequestReceiptSchema.$columns
   @column()
   declare commandId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -681,25 +682,25 @@ export class RequestReceiptSchema extends BaseModel {
   declare scopeId: string
   @column()
   declare state: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class ResourceSchema extends BaseModel {
   static $columns = ['archivedAt', 'avatarUrl', 'color', 'companyId', 'createdAt', 'deletedAt', 'disciplineId', 'employmentType', 'engagement', 'firstAvailableDate', 'halfDays', 'id', 'isFavourite', 'kind', 'lastAvailableDate', 'name', 'projectId', 'role', 'updatedAt', 'workingDays', 'workingHoursPerDay'] as const
   $columns = ResourceSchema.$columns
-  @column()
-  declare archivedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
+  @column.dateTime()
+  declare archivedAt: DateTime | null
   @column()
   declare avatarUrl: string | null
   @column()
   declare color: string
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column()
   declare disciplineId: string | null
   @column()
@@ -724,8 +725,8 @@ export class ResourceSchema extends BaseModel {
   declare projectId: string | null
   @column()
   declare role: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
   @column()
   declare workingDays: import('@capacitylens/shared/types/entities').Weekday[]
   @column()
@@ -737,12 +738,12 @@ export class SocialHandoffCodeSchema extends BaseModel {
   $columns = SocialHandoffCodeSchema.$columns
   @column()
   declare clientChallenge: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare credentialRevision: string | null
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
   declare hash: string
   @column({ isPrimary: true })
@@ -758,10 +759,10 @@ export class SocialIdentitySchema extends BaseModel {
   $columns = SocialIdentitySchema.$columns
   @column()
   declare avatarUrl: string | null
-  @column()
-  declare confirmedAt: import('@capacitylens/shared/types/entities').ISOTimestamp | null
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare confirmedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare email: string | null
   @column()
@@ -778,8 +779,8 @@ export class SocialIdentitySchema extends BaseModel {
   declare provider: string
   @column()
   declare providerUserId: string
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
   @column()
   declare userId: string
 }
@@ -787,12 +788,12 @@ export class SocialIdentitySchema extends BaseModel {
 export class SocialSensitiveProofSchema extends BaseModel {
   static $columns = ['createdAt', 'credentialRevision', 'expiresAt', 'hash', 'id', 'purpose', 'userId'] as const
   $columns = SocialSensitiveProofSchema.$columns
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare credentialRevision: string | null
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
   declare hash: string
   @column({ isPrimary: true })
@@ -810,16 +811,16 @@ export class SocialTransactionSchema extends BaseModel {
   declare avatarUrl: string | null
   @column()
   declare clientChallenge: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column()
   declare credentialRevision: string | null
   @column()
   declare email: string | null
   @column()
   declare emailVerified: boolean | null
-  @column()
-  declare expiresAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime()
+  declare expiresAt: DateTime
   @column()
   declare hash: string
   @column({ isPrimary: true })
@@ -849,10 +850,10 @@ export class TimeOffSchema extends BaseModel {
   $columns = TimeOffSchema.$columns
   @column()
   declare companyId: string
-  @column()
-  declare createdAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column.dateTime()
-  declare deletedAt: import('luxon').DateTime | null
+  declare deletedAt: DateTime | null
   @column()
   declare deletionGroupId: string | null
   @column()
@@ -867,8 +868,8 @@ export class TimeOffSchema extends BaseModel {
   declare startDate: import('@capacitylens/shared/types/entities').ISODate
   @column()
   declare type: import('@capacitylens/shared/types/entities').TimeOffType
-  @column()
-  declare updatedAt: import('@capacitylens/shared/types/entities').ISOTimestamp
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class UserSchema extends BaseModel {

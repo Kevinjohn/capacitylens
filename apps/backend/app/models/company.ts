@@ -1,18 +1,10 @@
 import { column } from '@adonisjs/lucid/orm';
 import { CAPACITY_OVERVIEW_ACCESS_VALUES } from '@capacitylens/shared/types/entities';
-import type {
-  CapacityOverviewAccess,
-  ISOTimestamp,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
+import type { CapacityOverviewAccess, Weekday } from '@capacitylens/shared/types/entities';
 import { AccountSchema } from '#database/schema';
-import {
-  isArrayOf,
-  isOneOf,
-  isoTimestampColumn,
-  jsonColumn,
-} from '@kevinjohn/adonisjs-lucid-checked-columns';
-import { booleanColumn, isWeekday } from '#models/scalar_column';
+import type { DateTime } from 'luxon';
+import { isArrayOf, isOneOf, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
+import { booleanColumn, isWeekday, timestampColumn } from '#models/scalar_column';
 
 export default class Company extends AccountSchema {
   static table = 'accounts';
@@ -43,9 +35,9 @@ export default class Company extends AccountSchema {
   )
   declare capacityOverviewAccess: CapacityOverviewAccess | null;
 
-  @column(isoTimestampColumn('accounts', 'created_at'))
-  declare createdAt: ISOTimestamp;
+  @column.dateTime(timestampColumn('accounts', 'created_at'))
+  declare createdAt: DateTime;
 
-  @column(isoTimestampColumn('accounts', 'updated_at'))
-  declare updatedAt: ISOTimestamp;
+  @column.dateTime(timestampColumn('accounts', 'updated_at'))
+  declare updatedAt: DateTime;
 }

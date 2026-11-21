@@ -350,7 +350,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
   plural `snake_case` name; set `static table` only when it is not.
 - A model extends its generated schema class, `class Project extends ProjectSchema`, imported from
   `#database/schema`. The model carries relationships, hooks, scopes and behaviour, not column
-  declarations. **Open:** #2334 item 13 covers the soft-delete mixin and the `accounts` table.
+  declarations. **Open:** #2345 item 6.1 covers the `accounts` table.
 - Change a generated type in `database/schema_rules.ts`. Redeclare a column on the model only for
   a one-model refinement or a custom `prepare` or `consume`.
 - Hide a column from output with `serializeAs: null`.

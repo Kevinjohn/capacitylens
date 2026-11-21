@@ -8,24 +8,8 @@ export default {
       tsType: "import('@capacitylens/shared/types/entities').ISODate",
       decorators: [{ name: '@column' }],
     },
-    DateTime: {
-      tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
-      decorators: [{ name: '@column' }],
-    },
   },
   columns: {
-    created_at: {
-      tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
-      decorators: [{ name: '@column' }],
-    },
-    updated_at: {
-      tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
-      decorators: [{ name: '@column' }],
-    },
-    deleted_at: {
-      tsType: "import('luxon').DateTime",
-      decorators: [{ name: '@column.dateTime' }],
-    },
     working_days: weekdays,
     half_days: weekdays,
   },
@@ -73,6 +57,14 @@ export default {
     // Account Kit's Lucid adapter reads and writes these as Luxon values.
     users: {
       columns: {
+        created_at: {
+          tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
+          decorators: [{ name: '@column' }],
+        },
+        updated_at: {
+          tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
+          decorators: [{ name: '@column' }],
+        },
         email_verified_at: {
           tsType: "import('luxon').DateTime | null",
           decorators: [{ name: '@column.dateTime' }],
