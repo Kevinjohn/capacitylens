@@ -21,7 +21,7 @@ import type {
 import { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color';
 import type { Draft, Patch } from '@/lib/entityDrafts';
 
-export interface PlanningCommand {
+export interface PlanningIntentRequest {
   intent: PlanningIntent;
   /** The edited row's `updatedAt` when its form opened; the server refuses a row that has moved on. */
   expectedUpdatedAt?: string;
@@ -29,16 +29,16 @@ export interface PlanningCommand {
   endsHistory?: true;
 }
 
-interface CommandContext {
+interface IntentScope {
   data: AppData;
   companyId: string;
 }
 
-interface CreateCommandContext extends CommandContext {
+interface CreateIntentScope extends IntentScope {
   args: { id: string };
 }
 
-interface UpdateCommandContext<Row> extends CommandContext {
+interface UpdateIntentScope<Row> extends IntentScope {
   original: Row;
   args: { id: string; changes: object };
 }
@@ -91,8 +91,8 @@ function diffFields(
 
 /** Build an explicit allocation creation intent. */
 export function buildAllocationCreate(
-  context: CreateCommandContext & { args: { id: string; fields: Draft<Allocation> } },
-): PlanningCommand | null {
+  context: CreateIntentScope & { args: { id: string; fields: Draft<Allocation> } },
+): PlanningIntentRequest | null {
   const { data, companyId, args } = context;
   if (!hasCompany(data, companyId)) return null;
   const activity = data.activities.find(
@@ -121,11 +121,11 @@ export function buildAllocationCreate(
 
 /** Use source duplication for unchanged copies, retaining deliberate edits through explicit creation. */
 export function buildAllocationDuplicate(
-  context: CommandContext & {
+  context: IntentScope & {
     original: Allocation;
     args: { sourceId: string; id: string; fields: Draft<Allocation> };
   },
-): PlanningCommand | null {
+): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
   if (
     original.id !== args.sourceId ||
@@ -134,9 +134,9 @@ export function buildAllocationDuplicate(
   ) {
     return null;
   }
-  const command = buildAllocationCreate({ data, companyId, args });
-  if (!command || command.intent.operation !== 'allocation.create') return null;
-  const created = command.intent.allocation;
+  const intentRequest = buildAllocationCreate({ data, companyId, args });
+  if (!intentRequest || intentRequest.intent.operation !== 'allocation.create') return null;
+  const created = intentRequest.intent.allocation;
   const copyFields = [
     'resourceId',
     'activityId',
@@ -149,9 +149,9 @@ export function buildAllocationDuplicate(
   const sameSource =
     copyFields.every((field) => equal(created[field] ?? null, original[field] ?? null)) &&
     Boolean(created.ignoreWorkingDays) === Boolean(original.ignoreWorkingDays);
-  if (!sameSource) return command;
+  if (!sameSource) return intentRequest;
   return {
-    ...command,
+    ...intentRequest,
     intent: {
       operation: 'allocation.duplicate',
       sourceAllocationId: args.sourceId,
@@ -175,8 +175,8 @@ const ALLOCATION_FIELDS = [
 
 /** Build an allocation patch against the captured draft basis. */
 export function buildAllocationUpdate(
-  context: UpdateCommandContext<Allocation> & { args: { id: string; changes: Patch<Allocation> } },
-): PlanningCommand | null {
+  context: UpdateIntentScope<Allocation> & { args: { id: string; changes: Patch<Allocation> } },
+): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
   const current = getOwnedRow(data, 'allocations', companyId, args.id);
   if (!current || original.id !== args.id || original.companyId !== companyId) return null;
@@ -213,8 +213,8 @@ export function buildAllocationUpdate(
 
 /** Build an explicit time-off creation intent. */
 export function buildTimeOffCreate(
-  context: CreateCommandContext & { args: { id: string; fields: Draft<TimeOff> } },
-): PlanningCommand | null {
+  context: CreateIntentScope & { args: { id: string; fields: Draft<TimeOff> } },
+): PlanningIntentRequest | null {
   const { data, companyId, args } = context;
   if (
     !hasCompany(data, companyId) ||
@@ -247,8 +247,8 @@ const TIME_OFF_FIELDS = [
 
 /** Build a time-off patch against the captured draft basis. */
 export function buildTimeOffUpdate(
-  context: UpdateCommandContext<TimeOff> & { args: { id: string; changes: Patch<TimeOff> } },
-): PlanningCommand | null {
+  context: UpdateIntentScope<TimeOff> & { args: { id: string; changes: Patch<TimeOff> } },
+): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
   const current = getOwnedRow(data, 'timeOff', companyId, args.id);
   if (!current || original.id !== args.id || original.companyId !== companyId) return null;
@@ -265,8 +265,8 @@ export function buildTimeOffUpdate(
 
 /** Build an explicit company-closure creation intent. */
 export function buildClosureCreate(
-  context: CreateCommandContext & { args: { fields: Draft<Closure> } },
-): PlanningCommand | null {
+  context: CreateIntentScope & { args: { fields: Draft<Closure> } },
+): PlanningIntentRequest | null {
   const { data, companyId, args } = context;
   if (!hasCompany(data, companyId)) return null;
   return {
@@ -290,8 +290,8 @@ const CLOSURE_FIELDS = [
 
 /** Build a company-closure patch against the captured draft basis. */
 export function buildClosureUpdate(
-  context: UpdateCommandContext<Closure> & { args: { id: string; changes: Patch<Closure> } },
-): PlanningCommand | null {
+  context: UpdateIntentScope<Closure> & { args: { id: string; changes: Patch<Closure> } },
+): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
   const current = getOwnedRow(data, 'closures', companyId, args.id);
   if (!current || original.id !== args.id || original.companyId !== companyId) return null;
@@ -308,8 +308,8 @@ export function buildClosureUpdate(
 
 /** Build an explicit resource creation intent with normalized kind-specific fields. */
 export function buildResourceCreate(
-  context: CreateCommandContext & { args: { id: string; fields: Draft<Resource> } },
-): PlanningCommand | null {
+  context: CreateIntentScope & { args: { id: string; fields: Draft<Resource> } },
+): PlanningIntentRequest | null {
   const { data, companyId, args } = context;
   if (!hasCompany(data, companyId)) return null;
   const input = args.fields;
@@ -362,8 +362,8 @@ const RESOURCE_FIELDS = [
 
 /** Build a resource patch with kind changes normalized to valid resource fields. */
 export function buildResourceUpdate(
-  context: UpdateCommandContext<Resource> & { args: { id: string; changes: Patch<Resource> } },
-): PlanningCommand | null {
+  context: UpdateIntentScope<Resource> & { args: { id: string; changes: Patch<Resource> } },
+): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
   const current = getOwnedRow(data, 'resources', companyId, args.id);
   if (!current || original.id !== args.id || original.companyId !== companyId) return null;
@@ -424,8 +424,8 @@ type CatalogueCreateFields =
 
 /** Build an explicit catalogue creation intent, preserving supplied links for validation. */
 export function buildCatalogueCreate(
-  context: CreateCommandContext & { args: { id: string } & CatalogueCreateFields },
-): PlanningCommand | null {
+  context: CreateIntentScope & { args: { id: string } & CatalogueCreateFields },
+): PlanningIntentRequest | null {
   const { data, companyId, args } = context;
   if (!hasCompany(data, companyId)) return null;
   let entity: Extract<PlanningIntent, { operation: 'catalogue.create' }>['entity'];
@@ -500,8 +500,8 @@ const CATALOGUE_FIELDS: Record<CatalogueEntity, readonly string[]> = {
 
 /** Build a catalogue patch against its captured draft basis. */
 export function buildCatalogueUpdate(
-  context: CommandContext & { original: CatalogueRow; args: CatalogueChanges },
-): PlanningCommand | null {
+  context: IntentScope & { original: CatalogueRow; args: CatalogueChanges },
+): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
   const key = args.entity;
   const current = getOwnedRow(data, key, companyId, args.id);
@@ -566,8 +566,8 @@ type SettingsFields = Pick<
 
 /** Build a field-limited company settings patch. */
 export function buildSettingsUpdate(
-  context: CommandContext & { original: Company; args: Pick<Patch<Company>, keyof SettingsFields> },
-): PlanningCommand | null {
+  context: IntentScope & { original: Company; args: Pick<Patch<Company>, keyof SettingsFields> },
+): PlanningIntentRequest | null {
   const { data, companyId, original, args } = context;
   const current = data.accounts.find((company) => company.id === companyId);
   if (!current || original.id !== companyId) return null;

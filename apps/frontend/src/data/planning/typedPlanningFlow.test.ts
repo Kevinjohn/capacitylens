@@ -11,7 +11,7 @@ import {
 } from '@/test/fixtures';
 import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
-import { buildResourceCreate, buildSettingsUpdate } from './planningCommands';
+import { buildResourceCreate, buildSettingsUpdate } from './planningIntents';
 import { createPlanningCache, createPlanningCacheState } from './planningCache';
 import type { PlanningCacheState } from './planningCacheTypes';
 
@@ -43,15 +43,15 @@ describe('typed planning flow', () => {
     await cache.refresh();
     const original = state().data.accounts[0];
     if (!original) throw new Error('Expected account.');
-    const command = buildSettingsUpdate({
+    const intentRequest = buildSettingsUpdate({
       data: state().data,
       companyId,
       original,
       args: { dateStyle: 'month-day', timezone: 'Europe/London' },
     });
-    if (!command) throw new Error('Expected settings command.');
+    if (!intentRequest) throw new Error('Expected settings intent.');
 
-    await cache.execute(cache.begin(), command.intent);
+    await cache.execute(cache.begin(), intentRequest.intent);
     expect(state().data.accounts[0]).toMatchObject({
       dateStyle: 'month-day',
       timezone: 'Europe/London',
@@ -144,7 +144,7 @@ describe('typed planning flow', () => {
     const { cache, state, transport } = flow(initial);
     await cache.refresh();
     const id = 'resource-1';
-    const command = buildResourceCreate({
+    const intentRequest = buildResourceCreate({
       data: state().data,
       companyId,
       args: {
@@ -162,8 +162,8 @@ describe('typed planning flow', () => {
         },
       },
     });
-    if (!command) throw new Error('Expected resource command.');
-    await cache.execute(cache.begin(), command.intent);
+    if (!intentRequest) throw new Error('Expected resource intent.');
+    await cache.execute(cache.begin(), intentRequest.intent);
     await expect(cache.undo()).resolves.toBe(true);
     expect(state().data.resources.filter((row) => !row.archivedAt)).toEqual([]);
     expect(state().planning.history).toEqual({ canUndo: false, canRedo: true });

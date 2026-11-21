@@ -62,7 +62,7 @@ function modelWithNativeData(bootstrapFailure = false) {
   });
   const model = new MasqueradeModel({
     flush: vi.fn(async () => ({ kind: 'clean' as const })),
-    suspend: () => useStore.getState().suspendPlanningCommands(),
+    suspend: () => useStore.getState().suspendPlanningIntents(),
     reproject: reprojectAccess,
     readBootstrapCompany: async (companyId) => {
       if (bootstrapFailure) throw new Error('Bootstrap company read failed');
@@ -120,7 +120,7 @@ async function failSelectedCanonicalRead(model: MasqueradeModel) {
 it("recovers a selected company after its canonical read fails, but refuses another owner's lock", async () => {
   const { model, api } = modelWithNativeData();
   await failSelectedCanonicalRead(model);
-  const foreignRelease = useStore.getState().suspendPlanningCommands();
+  const foreignRelease = useStore.getState().suspendPlanningIntents();
   expect(foreignRelease).toBeTypeOf('function');
   const beforeBlockedRetry = reads.count;
   expect(await model.retryProjection()).toBe(false);

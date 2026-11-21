@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useStore } from '@/store/useStore';
 import type { LifecycleEntity } from '@/lib/entityDrafts';
-import type { PlanningCommand } from '@/data/planning/planningCommands';
+import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { runResourceAnonymisation } from '@/store/resourceAnonymisation';
 import { notifyInactiveDataChanged } from '@/data/inactiveDataEvents';
 import { buildArchiveImpactNotice } from '@/lib/archiveImpactCopy';
 
-// Archive and restore use typed planning commands. Anonymisation has a named server route;
+// Archive and restore use typed planning intents. Anonymisation has a named server route;
 // uncertain results require authoritative recovery before another irreversible attempt.
 
 type LifecycleVerb = 'archive' | 'unarchive' | 'anonymise';
@@ -55,7 +55,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           if (!activeCompanyId || useStore.getState().activeCompanyId !== activeCompanyId) return;
           if (verb === 'archive' || verb === 'unarchive') {
             // Archiving from a list is confirmed there and is not offered for undo.
-            const command: PlanningCommand =
+            const intentRequest: PlanningIntentRequest =
               entity === 'resources'
                 ? verb === 'archive'
                   ? { intent: { operation: 'resource.archive', id }, endsHistory: true }
@@ -69,7 +69,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
                       intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
                       endsHistory: true,
                     };
-            const receipt = await useStore.getState().sendPlanningCommand(command);
+            const receipt = await useStore.getState().sendPlanningIntent(intentRequest);
             if (activeCompanyId) notifyInactiveDataChanged(activeCompanyId);
             if (entity !== 'resources' && verb === 'archive' && receipt?.archived) {
               const notice = buildArchiveImpactNotice(entity, receipt.archived);

@@ -144,7 +144,7 @@ describe('archived resource actions', () => {
     expect(screen.queryByText('Designer')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Anonymise/ })).not.toBeInTheDocument();
   });
-  it('restores an Editor identity through the typed planning command', async () => {
+  it('restores an Editor identity through the typed planning intent', async () => {
     await useStore.getState().refreshPlanning();
     setPlanningRole('editor');
     request

@@ -161,7 +161,7 @@ describe('active-account permission publication', () => {
     await expect(s().addClient({ name: 'Must not land', color: '#111111' })).rejects.toThrow(
       'No active company is selected.',
     );
-    await s().sendPlanningCommand({
+    await s().sendPlanningIntent({
       intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'cB' } },
     });
     await expect(s().undoPlanning()).resolves.toBe(false);
@@ -183,7 +183,7 @@ describe('active-account permission publication', () => {
       kind: 'blocked',
     });
     await expect(
-      s().sendPlanningCommand({
+      s().sendPlanningIntent({
         intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'cB' } },
       }),
     ).resolves.toBeUndefined();

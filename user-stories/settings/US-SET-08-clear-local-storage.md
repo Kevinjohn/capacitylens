@@ -28,7 +28,7 @@ flowchart TD
   settings["SettingsAppearanceSection renders device preferences"] --> runtime["runtimeSlice setters update in-memory preference state"]
   runtime --> storage["displayPrefs writes display keys to localStorage"]
   settings --> account["SettingsView separately reads company settings through useSettingsViewModel"]
-  account --> company["Company writes use typedPlanningActions and sendPlanningCommand"]
+  account --> company["Company writes use typedPlanningActions and sendPlanningIntent"]
 ```
 
 **Code references:** [SettingsAppearanceSection.tsx](../../apps/frontend/src/components/settings/SettingsAppearanceSection.tsx), [runtimeSlice.ts](../../apps/frontend/src/store/slices/runtimeSlice.ts), [displayPrefs.ts](../../apps/frontend/src/lib/displayPrefs.ts), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)

@@ -6,7 +6,7 @@ import {
   bootstrapOrg,
   createFixturePerson,
   seedFixtureMember,
-  sendPlanningFixtureCommand,
+  sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
 import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
@@ -46,7 +46,7 @@ async function seedClosureAccount(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const editor = await signUpUser(EDITOR);
   const companyId = await bootstrapOrg(request, owner.cookie, ORG);
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'settings.update',
     changes: { externalEnabled: true },
   });
@@ -56,7 +56,7 @@ async function seedClosureAccount(request: APIRequestContext) {
     name: 'Barbara Gordon',
     role: 'Designer',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'resource.create',
     id: IDS.external,
     fields: {

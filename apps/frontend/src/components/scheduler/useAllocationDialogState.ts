@@ -22,7 +22,7 @@ import { useStore } from '@/store/useStore';
 import { buildAllocationDialogSeed } from './buildAllocationDialogSeed';
 import type { AllocationDialogProps } from './allocationDialogTypes';
 import { buildRepeatProjection } from './buildRepeatProjection';
-import { createAllocationCommands } from './allocationSubmit';
+import { createAllocationIntents } from './allocationSubmit';
 import { useAllocationScheduleState } from './useAllocationScheduleState';
 import { useAllocationTargetState } from './useAllocationTargetState';
 
@@ -197,7 +197,7 @@ function buildDialogState(
   state: ReturnType<typeof useTargetSchedule>,
 ) {
   const { target, schedule, repeatProjection, endDateHint } = state;
-  const { submit, onDuplicate, onDelete } = createAllocationCommands({
+  const { submit, onDuplicate, onDelete } = createAllocationIntents({
     ...target.fields,
     ...target,
     ...schedule.fields,

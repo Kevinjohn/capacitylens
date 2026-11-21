@@ -13,7 +13,7 @@ import type { AllocationSaveAdvisory } from '@/store/StoreEntityActions';
 
 import type { FieldError } from '@/hooks/useFieldError';
 import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
-type CommandInput = Omit<AllocationDialogSnapshot, 'editId' | 'repeatUntilMinimum'> &
+type IntentInput = Omit<AllocationDialogSnapshot, 'editId' | 'repeatUntilMinimum'> &
   Pick<
     ReturnType<typeof useStore.getState>,
     | 'addAllocation'
@@ -32,15 +32,15 @@ type CommandInput = Omit<AllocationDialogSnapshot, 'editId' | 'repeatUntilMinimu
     /** True while this dialog's typed write is in flight; a second submit is ignored. */
     writing: { current: boolean };
   };
-type ValidatedDraft = Parameters<CommandInput['addAllocation']>[0];
+type ValidatedDraft = Parameters<IntentInput['addAllocation']>[0];
 
 interface RejectNewPlacementInput {
-  command: CommandInput;
+  intentRequest: IntentInput;
   draft: ValidatedDraft;
   operation: 'save' | 'duplicate';
 }
 
-function resolveAssignmentError(input: CommandInput): string | null {
+function resolveAssignmentError(input: IntentInput): string | null {
   if (!input.selectedResource || !input.selectedActivity) return null;
   const check = validateAllocationAssignment(
     input.selectedResource,
@@ -52,7 +52,7 @@ function resolveAssignmentError(input: CommandInput): string | null {
   return resolveDomainErrorMessage(firstCode);
 }
 
-function resolveDraftEndDate(input: CommandInput) {
+function resolveDraftEndDate(input: IntentInput) {
   return resolveEndDate({
     editing: input.editing,
     isBlocks: input.isBlocks,
@@ -66,7 +66,7 @@ function resolveDraftEndDate(input: CommandInput) {
   });
 }
 
-function parseOptionalTask(input: CommandInput): string | undefined | null {
+function parseOptionalTask(input: IntentInput): string | undefined | null {
   const task = parseText(input.task, input.fail, {
     field: 'task',
     required: false,
@@ -77,7 +77,7 @@ function parseOptionalTask(input: CommandInput): string | undefined | null {
   return task === '' ? undefined : task;
 }
 
-function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null {
+function parseAllocationIntentDraft(input: IntentInput): ValidatedDraft | null {
   const repeat =
     input.create && input.repeat !== 'none'
       ? {
@@ -139,38 +139,44 @@ function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null
   };
 }
 
-function isNewPlacementRejected({ command, draft, operation }: RejectNewPlacementInput): boolean {
-  const editing = operation === 'save' ? command.editing : null;
+function isNewPlacementRejected({
+  intentRequest,
+  draft,
+  operation,
+}: RejectNewPlacementInput): boolean {
+  const editing = operation === 'save' ? intentRequest.editing : null;
   if (
     editing?.resourceId === draft.resourceId ||
-    !command.selectedResource ||
-    command.selectedEffectiveWeek === undefined
+    !intentRequest.selectedResource ||
+    intentRequest.selectedEffectiveWeek === undefined
   ) {
     return false;
   }
   const ignoreWorkingDays = Boolean(editing && draft.ignoreWorkingDays);
-  if (!ignoreWorkingDays && command.selectedEffectiveWeek.kind !== 'days') {
-    command.fail('resource', m.form_allocation_err_no_effective_working_days());
+  if (!ignoreWorkingDays && intentRequest.selectedEffectiveWeek.kind !== 'days') {
+    intentRequest.fail('resource', m.form_allocation_err_no_effective_working_days());
     return true;
   }
   const blocked = resolveEffectiveWeekPlacementBlockReason({
-    resource: command.selectedResource,
+    resource: intentRequest.selectedResource,
     date: draft.startDate,
-    timeOff: listRenderableDateRanges(command.data.timeOff),
-    effectiveWeek: command.selectedEffectiveWeek,
+    timeOff: listRenderableDateRanges(intentRequest.data.timeOff),
+    effectiveWeek: intentRequest.selectedEffectiveWeek,
     ignoreWorkingDays,
-    closures: listRenderableDateRanges(command.data.closures),
+    closures: listRenderableDateRanges(intentRequest.data.closures),
   });
   if (blocked === 'non-working') {
-    command.fail('startDate', m.form_allocation_err_start_non_working());
+    intentRequest.fail('startDate', m.form_allocation_err_start_non_working());
   }
-  if (blocked === 'time-off') command.fail('startDate', m.form_allocation_err_start_time_off());
+  if (blocked === 'time-off') {
+    intentRequest.fail('startDate', m.form_allocation_err_start_time_off());
+  }
   return blocked !== null;
 }
 
 /** Saves the draft; resolves with the reply's capacity advisory, or null when nothing was created. */
 async function saveDraft(
-  input: CommandInput,
+  input: IntentInput,
   draft: ValidatedDraft,
 ): Promise<AllocationSaveAdvisory | null> {
   if (input.editing) {
@@ -194,7 +200,7 @@ async function saveDraft(
 }
 
 /** Shows the server's capacity advisory for a saved allocation once the dialog has closed. */
-function showSaveAdvisory(input: CommandInput, saved: AllocationSaveAdvisory): void {
+function showSaveAdvisory(input: IntentInput, saved: AllocationSaveAdvisory): void {
   const { advisory, repeatAdvisory } = saved;
   const message = repeatAdvisory
     ? formatCapacityAdvisory(
@@ -212,11 +218,11 @@ function showSaveAdvisory(input: CommandInput, saved: AllocationSaveAdvisory): v
 }
 
 // Shows a failed write at form level, keeping the dialog open for another attempt.
-function reportFailure(input: CommandInput, error: unknown, fallback: string): void {
+function reportFailure(input: IntentInput, error: unknown, fallback: string): void {
   input.fail(null, error instanceof Error ? resolveErrorMessage(error) : fallback);
 }
 
-function reportSaveError(input: CommandInput, error: unknown): void {
+function reportSaveError(input: IntentInput, error: unknown): void {
   if (input.repeat !== 'none' && error instanceof RangeError) {
     input.fail('repeatUntil', m.form_allocation_err_repeat_date_domain());
     return;
@@ -224,9 +230,9 @@ function reportSaveError(input: CommandInput, error: unknown): void {
   reportFailure(input, error, m.form_allocation_err_save_failed());
 }
 
-/** Builds validated create and update commands for the allocation dialog. */
-export function createAllocationCommands(input: CommandInput) {
-  const validateDraft = () => parseAllocationCommandDraft(input);
+/** Builds validated create and update intents for the allocation dialog. */
+export function createAllocationIntents(input: IntentInput) {
+  const validateDraft = () => parseAllocationIntentDraft(input);
   const submit = async () => {
     if (!input.canEdit) return;
     if (input.editing && input.isCurrentDraft && !input.isCurrentDraft()) {
@@ -234,7 +240,9 @@ export function createAllocationCommands(input: CommandInput) {
       return;
     }
     const draft = validateDraft();
-    if (!draft || isNewPlacementRejected({ command: input, draft, operation: 'save' })) return;
+    if (!draft || isNewPlacementRejected({ intentRequest: input, draft, operation: 'save' })) {
+      return;
+    }
     try {
       const saved = await saveDraft(input, draft);
       if (!saved) return;
@@ -248,7 +256,9 @@ export function createAllocationCommands(input: CommandInput) {
   const duplicateAllocation = async () => {
     if (!input.editing) return;
     const draft = validateDraft();
-    if (!draft || isNewPlacementRejected({ command: input, draft, operation: 'duplicate' })) return;
+    if (!draft || isNewPlacementRejected({ intentRequest: input, draft, operation: 'duplicate' })) {
+      return;
+    }
     try {
       const result = await input.duplicateAllocation(input.editing.id, draft);
       if (result.kind !== 'created') return;
@@ -268,13 +278,13 @@ export function createAllocationCommands(input: CommandInput) {
       reportFailure(input, e, m.form_allocation_err_delete_failed());
     }
   };
-  // Each command awaits its typed write and reports every failure in the dialog, so none escapes.
+  // Each intent awaits its typed write and reports every failure in the dialog, so none escapes.
   // One write runs at a time: a repeated submit before the dialog closes must not save twice.
-  const runExclusive = async (command: () => Promise<void>) => {
+  const runExclusive = async (intentRequest: () => Promise<void>) => {
     if (input.writing.current) return;
     input.writing.current = true;
     try {
-      await command();
+      await intentRequest();
     } finally {
       input.writing.current = false;
     }

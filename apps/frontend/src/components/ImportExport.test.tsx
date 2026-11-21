@@ -15,7 +15,7 @@ const planningProbe = vi.hoisted(() => ({ releases: 0, suspends: 0 }));
 const originalPlanning = {
   refreshPlanning: useStore.getState().refreshPlanning,
   planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
-  suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
+  suspendPlanningIntents: useStore.getState().suspendPlanningIntents,
 };
 
 const companyId = 'a-studio';
@@ -40,7 +40,7 @@ function renderTools() {
   useStore.setState({
     refreshPlanning: async () => refreshOverride.result.kind === 'reloaded',
     planningReadyForReplacement: () => true,
-    suspendPlanningCommands: () => {
+    suspendPlanningIntents: () => {
       planningProbe.suspends += 1;
       return () => {
         planningProbe.releases += 1;
@@ -146,7 +146,7 @@ describe('beta import and export', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(useStore.getState().notice?.tone).toBe('error');
-    const releaseRecovery = useStore.getState().suspendPlanningCommands();
+    const releaseRecovery = useStore.getState().suspendPlanningIntents();
     if (!releaseRecovery) {
       throw new Error('The selected context was not available for authority recovery.');
     }
@@ -177,7 +177,7 @@ describe('beta import and export', () => {
         useStore.getState().setActiveCompany(companyId);
         await useStore.getState().refreshPlanning();
       }
-      const successorRelease = useStore.getState().suspendPlanningCommands();
+      const successorRelease = useStore.getState().suspendPlanningIntents();
       if (!successorRelease) throw new Error('The successor planning context was not ready.');
       const successorNotice = useStore.getState().notice;
       const refresh = vi.fn(async () => true);
@@ -314,7 +314,7 @@ describe('beta import and export', () => {
     expect(requests[2]?.body.document).toEqual(incoming);
   });
 
-  it.each([403, 409])('releases planning commands after a refused %i import', async (status) => {
+  it.each([403, 409])('releases planning intents after a refused %i import', async (status) => {
     await submitServerImport(Response.json({ error: 'Import refused.' }, { status }));
     await waitFor(() => expect(planningProbe.releases).toBe(1));
     expect(useStore.getState().notice).toMatchObject({ tone: 'error', message: 'Import refused.' });
@@ -326,7 +326,7 @@ describe('beta import and export', () => {
     expect(useStore.getState().notice?.tone).toBe('warning');
   });
 
-  it('keeps commands suspended and requires reload when a committed import refresh fails', async () => {
+  it('keeps intents suspended and requires reload when a committed import refresh fails', async () => {
     refreshOverride.result = { kind: 'failed' };
     await submitServerImport(Response.json({ imported: 5, changed: true, revision: 8 }));
     await screen.findByTestId('import-reload-required');

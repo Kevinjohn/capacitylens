@@ -65,7 +65,7 @@ describe('MasqueradeModel', () => {
       makeAppData({ accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })] }),
     );
     const { model, dependencies } = createHarness({
-      suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
+      suspend: vi.fn(() => useStore.getState().suspendPlanningIntents()),
       readBootstrapCompany: vi
         .fn()
         .mockResolvedValueOnce(null)
@@ -110,7 +110,7 @@ describe('MasqueradeModel', () => {
   it('ends a cold server projection without requiring a loaded planning context', async () => {
     useStore.getState().clearPlanning();
     const { model, dependencies } = createHarness({
-      suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
+      suspend: vi.fn(() => useStore.getState().suspendPlanningIntents()),
       readBootstrapCompany: vi.fn(async () => null),
     });
     await model.adoptStatus({ active: true, ...state });

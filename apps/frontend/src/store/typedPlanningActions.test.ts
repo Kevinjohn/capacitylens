@@ -24,7 +24,7 @@ describe('typed planning domain rejections', () => {
       companySummaries: [{ id: activeCompanyId, name: 'Daily Planet', role: 'owner' }],
     });
     const sent = getStubPlanningTransport().calls.length;
-    // The guard admits a company whose slice is still loading; no command can be built until the
+    // The guard admits a company whose slice is still loading; no intent can be built until the
     // company row is published, so the write is refused as no company selected and nothing is sent.
     await expect(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#2d75da' }),

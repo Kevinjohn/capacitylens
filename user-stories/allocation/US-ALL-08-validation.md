@@ -45,7 +45,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationDialog submit"] --> B["allocationSubmit.parseAllocationCommandDraft"]
+  A["AllocationDialog submit"] --> B["allocationSubmit.parseAllocationIntentDraft"]
   B --> C["validateAllocationDraft checks date range and mode quantity"]
   C -->|invalid| D["fail(field, message); return without mutation"]
   C -->|valid| E["assignment and placement checks"]

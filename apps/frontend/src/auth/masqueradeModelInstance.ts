@@ -11,7 +11,7 @@ export const masqueradeModel = new MasqueradeModel({
   flush: async () => ({
     kind: useStore.getState().planningReadyForReplacement() ? 'clean' : 'blocked',
   }),
-  suspend: () => useStore.getState().suspendPlanningCommands(),
+  suspend: () => useStore.getState().suspendPlanningIntents(),
   reproject: reprojectAccess,
   switchCompany: async (companyId) => {
     useStore.getState().setActiveCompany(companyId);

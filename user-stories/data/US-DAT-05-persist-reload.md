@@ -27,7 +27,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  action["createTypedPlanningActions builds a typed command"] --> slice["allocationSlice.sendPlanningCommand enters planningCache"]
+  action["createTypedPlanningActions builds a typed intent"] --> slice["allocationSlice.sendPlanningIntent enters planningCache"]
   slice --> controller["planningCache executes through PlanningTransport"]
   controller --> transport["planningTransport sends the generated planning route"]
   transport --> endpoint["PlanningController validates and calls mutatePlanning"]

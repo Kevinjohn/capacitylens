@@ -34,13 +34,13 @@ describe('MasqueradeModel', () => {
     await resetStoreWithCompany('a-studio');
     const oldRead = createDeferred<void>();
     const freshRead = createDeferred<boolean>();
-    const otherRelease = useStore.getState().suspendPlanningCommands();
+    const otherRelease = useStore.getState().suspendPlanningIntents();
     expect(otherRelease).toBeTypeOf('function');
     useStore.setState((current) => ({
       planning: { ...current.planning, phase: { kind: 'loading', lastWrite: null } },
     }));
     const { model, dependencies } = createHarness({
-      suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
+      suspend: vi.fn(() => useStore.getState().suspendPlanningIntents()),
       reproject: vi.fn(() => freshRead.promise),
     });
 

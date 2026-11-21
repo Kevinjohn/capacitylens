@@ -28,7 +28,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["useArchiveRecovery / ArchivedEntitySection provides archived row and parent identity"] --> B["ArchiveRecoverySection / ArchivedEntitySection Restore control"]
-  B --> C["useLifecycleActions.unarchive → sendPlanningCommand"] --> D["resource.unarchive intent"]
+  B --> C["useLifecycleActions.unarchive → sendPlanningIntent"] --> D["resource.unarchive intent"]
   D --> E{"createStorePlanningTransport"}
   E --> F["createPlanningTransport → api.planning.mutate"] --> G["PlanningController.mutate → mutatePlanning begins scoped transaction"]
   G --> H["executePlanningIntent.transitionLifecycle updates only the restored row"] --> K["mutatePlanning records revision/audit and commits"] --> J["acceptReceipt and buildActiveData refresh update views"]

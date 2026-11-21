@@ -5,7 +5,7 @@ import {
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
   createFixturePerson,
-  sendPlanningFixtureCommand,
+  sendPlanningIntent,
   masqueradeContextHeaders,
   seedFixtureMember,
   signUpUser as signUp,
@@ -66,7 +66,7 @@ async function seedViewerScenario(request: APIRequestContext) {
   const editor = await signUp(EDITOR);
   const companyId = await bootstrapOrg(request, owner.cookie, `Viewer Studio ${STAMP}`);
   const clientId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',

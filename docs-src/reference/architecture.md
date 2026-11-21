@@ -45,7 +45,7 @@ apps/backend/
   tests/                  Japa: functional (HTTP and SQLite) and unit suites
 apps/frontend/src/
   components/             screens and editors, grouped by feature
-  data/planning/          planning cache, command builders, two transports
+  data/planning/          planning cache, intent builders, two transports
   store/                  zustand store; slices wire the controller into the UI
   auth/                   session status, access screens, view-as and permission context
   lib/                    pure UI helpers
@@ -184,7 +184,7 @@ for that id; each read reports only whether Undo and Redo are available. The sto
 wires it in `apps/frontend/src/store/slices/planningSessionSlice.ts`; nothing else writes planning rows
 in the browser, and nothing is persisted.
 
-- `apps/frontend/src/data/planning/planningCommands.ts` builds the intent for a
+- `apps/frontend/src/data/planning/planningIntents.ts` builds the intent for a
   gesture. A build with no difference returns `null` and nothing is sent.
 - Runtime planning uses HTTP in `apps/frontend/src/data/planning/planningTransport.ts`. Unit tests
   use an explicit response stub without planning rules; shared domain, backend and browser tests

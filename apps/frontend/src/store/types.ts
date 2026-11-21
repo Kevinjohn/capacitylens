@@ -11,7 +11,7 @@ import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
 import type { Company, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningCacheMetadata } from '@/data/planning/planningCacheTypes';
-import type { PlanningCommand } from '@/data/planning/planningCommands';
+import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 
 /** Runtime state for the current masquerade session. */
@@ -110,9 +110,11 @@ export interface StoreState extends StoreEntityActions {
   planning: PlanningCacheMetadata;
   /** Advances only when a current planning request confirms that sign-in authority was lost. */
   planningAuthLossVersion: number;
-  /** Submit one typed planning command and resolve with the server reply after authoritative
+  /** Submit one typed planning intent and resolve with the server reply after authoritative
    * reconciliation, or with nothing when a viewer is blocked from writing. */
-  sendPlanningCommand: (command: PlanningCommand) => Promise<PlanningMutationSuccess | undefined>;
+  sendPlanningIntent: (
+    intentRequest: PlanningIntentRequest,
+  ) => Promise<PlanningMutationSuccess | undefined>;
   /** Current user notice, or null. Dismissal and treatment follow Notice. */
   notice: Notice | null;
   /** Latest keyboard capacity announcement and sequence token. The token makes equal
@@ -203,7 +205,7 @@ export interface StoreState extends StoreEntityActions {
   /** End the current planning context and discard private planning rows. */
   clearPlanning: () => void;
   /** Atomically claim an out-of-band replacement; release is idempotent for its context. */
-  suspendPlanningCommands: () => (() => void) | null;
+  suspendPlanningIntents: () => (() => void) | null;
   /** Whether the active canonical planning view is settled enough for a bulk replacement. */
   planningReadyForReplacement: () => boolean;
   /** Ask the server to undo this page's latest change, as one planning write. */

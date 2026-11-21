@@ -3,7 +3,7 @@ import {
   AUTH_PASSWORD,
   bootstrapOrg,
   seedFixtureMember,
-  sendPlanningFixtureCommand,
+  sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
 import { waitForAppLanding } from './browserTestKit';
@@ -94,7 +94,7 @@ async function seedPrivateNames(
 ) {
   const clientId = crypto.randomUUID();
   const projectId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, ownerCookie, companyId, {
+  await sendPlanningIntent(request, ownerCookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -102,7 +102,7 @@ async function seedPrivateNames(
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  await sendPlanningFixtureCommand(request, ownerCookie, companyId, {
+  await sendPlanningIntent(request, ownerCookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',

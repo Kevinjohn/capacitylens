@@ -500,10 +500,10 @@ describe('ActivityList', () => {
       hoursPerDay: 8,
       status: 'confirmed',
     });
-    const originalSend = useStore.getState().sendPlanningCommand;
+    const originalSend = useStore.getState().sendPlanningIntent;
     useStore.setState({
-      sendPlanningCommand: async (command) => {
-        void command;
+      sendPlanningIntent: async (intentRequest) => {
+        void intentRequest;
         return {
           status: 'committed',
           mutationId: 'm-archive',
@@ -531,7 +531,7 @@ describe('ActivityList', () => {
         }),
       );
     } finally {
-      useStore.setState({ sendPlanningCommand: originalSend });
+      useStore.setState({ sendPlanningIntent: originalSend });
     }
   });
 
@@ -565,9 +565,9 @@ describe('ActivityList', () => {
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'Internal sync', kind: 'internal' }),
     );
-    const originalSend = useStore.getState().sendPlanningCommand;
+    const originalSend = useStore.getState().sendPlanningIntent;
     useStore.setState({
-      sendPlanningCommand: async () => {
+      sendPlanningIntent: async () => {
         throw new Error('Stored activity is inconsistent.');
       },
     });
@@ -590,7 +590,7 @@ describe('ActivityList', () => {
         }),
       );
     } finally {
-      useStore.setState({ sendPlanningCommand: originalSend });
+      useStore.setState({ sendPlanningIntent: originalSend });
     }
   });
 

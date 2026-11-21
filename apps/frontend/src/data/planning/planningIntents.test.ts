@@ -23,12 +23,12 @@ import {
   buildSettingsUpdate,
   buildTimeOffCreate,
   buildTimeOffUpdate,
-} from './planningCommands';
+} from './planningIntents';
 
 const companyId = 'acct-test';
 const stableId = '7415a19e-539d-45c9-9c52-8b8c3a058926';
 
-describe('planning command builders', () => {
+describe('planning intent builders', () => {
   it('uses one stable supplied ID and explicit nullable defaults for allocation creates', () => {
     const data = makeAppData({
       resources: [makeResource({ id: 'resource-1', companyId })],
@@ -37,7 +37,7 @@ describe('planning command builders', () => {
       ],
     });
 
-    const command = buildAllocationCreate({
+    const intentRequest = buildAllocationCreate({
       data,
       companyId,
       args: {
@@ -53,7 +53,7 @@ describe('planning command builders', () => {
       },
     });
 
-    expect(command).toEqual({
+    expect(intentRequest).toEqual({
       intent: {
         operation: 'allocation.create',
         allocation: {
@@ -124,14 +124,14 @@ describe('planning command builders', () => {
   it('sends only changed allocation fields, compared with the draft original', () => {
     const original = makeAllocation({ id: 'allocation-1', companyId, note: 'old', hoursPerDay: 8 });
     const current = { ...original, note: 'server changed' };
-    const command = buildAllocationUpdate({
+    const intentRequest = buildAllocationUpdate({
       data: makeAppData({ allocations: [current] }),
       companyId,
       original,
       args: { id: original.id, changes: { note: undefined, hoursPerDay: 8 } },
     });
 
-    expect(command).toEqual({
+    expect(intentRequest).toEqual({
       intent: { operation: 'allocation.update', id: original.id, changes: { note: null } },
     });
   });
@@ -257,14 +257,14 @@ describe('planning command builders', () => {
     'preserves real client privacy changes from $original to $requested',
     ({ original, requested }) => {
       const client = makeClient({ id: 'client-1', companyId, isPrivate: original });
-      const command = buildCatalogueUpdate({
+      const intentRequest = buildCatalogueUpdate({
         data: makeAppData({ clients: [client] }),
         companyId,
         original: client,
         args: { entity: 'clients', id: client.id, changes: { isPrivate: requested } },
       });
 
-      expect(command?.intent).toEqual({
+      expect(intentRequest?.intent).toEqual({
         operation: 'catalogue.update',
         entity: { entity: 'clients', id: client.id, changes: { isPrivate: requested } },
       });
@@ -330,7 +330,7 @@ describe('planning command builders', () => {
   it('omits an unsupplied time-off note but preserves an explicit note or clear', () => {
     const data = makeAppData({ resources: [makeResource({ id: 'resource-1', companyId })] });
     for (const note of ['Private note', null] as const) {
-      const command = buildTimeOffCreate({
+      const intentRequest = buildTimeOffCreate({
         data,
         companyId,
         args: {
@@ -344,7 +344,10 @@ describe('planning command builders', () => {
           },
         },
       });
-      expect(command?.intent).toMatchObject({ operation: 'timeOff.create', timeOff: { note } });
+      expect(intentRequest?.intent).toMatchObject({
+        operation: 'timeOff.create',
+        timeOff: { note },
+      });
     }
   });
 

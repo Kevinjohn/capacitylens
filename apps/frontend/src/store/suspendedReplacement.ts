@@ -57,7 +57,7 @@ export async function runSuspendedReplacement({
   isChanged,
 }: SuspendedReplacementInput): Promise<SuspendedReplacementOutcome> {
   if (!useStore.getState().planningReadyForReplacement()) return { kind: 'blocked' };
-  const release = useStore.getState().suspendPlanningCommands();
+  const release = useStore.getState().suspendPlanningIntents();
   if (!release) return { kind: 'blocked' };
   const { activeCompanyId, planning } = useStore.getState();
   const planningContext = planning.context;

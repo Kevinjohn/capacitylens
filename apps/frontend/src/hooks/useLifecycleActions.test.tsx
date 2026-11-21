@@ -8,7 +8,7 @@ import {
   resetStoreWithCompany,
 } from '@/test/fixtures';
 import { useLifecycleActions } from './useLifecycleActions';
-import type { PlanningCommand } from '@/data/planning/planningCommands';
+import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 
 const originalRefreshPlanning = useStore.getState().refreshPlanning;
 
@@ -23,12 +23,12 @@ afterEach(() => {
 });
 
 describe('named lifecycle actions', () => {
-  it('sends archive and restore through typed planning commands', async () => {
-    const send = vi.fn(async (command: PlanningCommand) => {
-      void command;
+  it('sends archive and restore through typed planning intents', async () => {
+    const send = vi.fn(async (intentRequest: PlanningIntentRequest) => {
+      void intentRequest;
       return undefined;
     });
-    useStore.setState({ sendPlanningCommand: send });
+    useStore.setState({ sendPlanningIntent: send });
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
     const { result } = renderHook(() => useLifecycleActions());
@@ -36,7 +36,7 @@ describe('named lifecycle actions', () => {
       await result.current.archive('clients', 'c-1');
       await result.current.unarchive('clients', 'c-1');
     });
-    expect(send.mock.calls.map(([command]) => command)).toEqual([
+    expect(send.mock.calls.map(([intentRequest]) => intentRequest)).toEqual([
       {
         intent: { operation: 'catalogue.archive', entity: { entity: 'clients', id: 'c-1' } },
         endsHistory: true,
@@ -50,8 +50,8 @@ describe('named lifecycle actions', () => {
   });
 
   it('reports what the server says a client archive hid', async () => {
-    const send = vi.fn(async (command: PlanningCommand) => {
-      void command;
+    const send = vi.fn(async (intentRequest: PlanningIntentRequest) => {
+      void intentRequest;
       return {
         status: 'committed' as const,
         mutationId: 'm-archive',
@@ -61,7 +61,7 @@ describe('named lifecycle actions', () => {
         archived: { projects: 1, phases: 1, activities: 1, allocations: 2, timeOff: 0 },
       };
     });
-    useStore.setState({ sendPlanningCommand: send });
+    useStore.setState({ sendPlanningIntent: send });
     const { result } = renderHook(() => useLifecycleActions());
     await act(async () => result.current.archive('clients', 'c-1'));
     expect(useStore.getState().notice).toEqual({
@@ -89,7 +89,7 @@ describe('named lifecycle actions', () => {
   });
 
   it('refuses resource anonymisation while another replacement owns the planning context', async () => {
-    const release = useStore.getState().suspendPlanningCommands();
+    const release = useStore.getState().suspendPlanningIntents();
     if (!release) throw new Error('The test planning context was not ready.');
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
@@ -104,11 +104,11 @@ describe('named lifecycle actions', () => {
   });
 
   it('drops a queued action after the selected company changes', async () => {
-    const send = vi.fn(async (command: PlanningCommand) => {
-      void command;
+    const send = vi.fn(async (intentRequest: PlanningIntentRequest) => {
+      void intentRequest;
       return undefined;
     });
-    useStore.setState({ sendPlanningCommand: send });
+    useStore.setState({ sendPlanningIntent: send });
     const { result } = renderHook(() => useLifecycleActions());
     const queued = result.current.archive('clients', 'c-1');
     useStore.getState().setActiveCompany(null);

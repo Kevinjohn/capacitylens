@@ -6,7 +6,7 @@ import {
   bootstrapOrg,
   createFixturePerson,
   seedFixtureMember,
-  sendPlanningFixtureCommand,
+  sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
 import {
@@ -127,7 +127,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   const email = `diana-prince-writers-${suffix}@capacitylens.dev`;
   const owner = await signUpUser(email);
   const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Planning Studio ${suffix}`);
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'settings.update',
     changes: { disciplinesEnabled: true },
   });

@@ -525,8 +525,8 @@ export function clearAuthE2ECompanies(): void {
   }
 }
 
-/** Seeds scenario data through an authenticated typed planning command at the current revision. */
-export async function sendPlanningFixtureCommand(
+/** Seeds scenario data through an authenticated typed planning intent at the current revision. */
+export async function sendPlanningIntent(
   request: APIRequestContext,
   cookie: string,
   companyId: string,
@@ -548,7 +548,7 @@ export async function sendPlanningFixtureCommand(
   const response = await request.post(url, options);
   expect(
     response.status(),
-    `seed planning command ${String(intent.operation)}: ${await response.text()}`,
+    `seed planning intent ${String(intent.operation)}: ${await response.text()}`,
   ).toBe(200);
   return response.json();
 }
@@ -560,7 +560,7 @@ export async function createFixturePerson(
   companyId: string,
   person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
 ): Promise<void> {
-  await sendPlanningFixtureCommand(request, cookie, companyId, {
+  await sendPlanningIntent(request, cookie, companyId, {
     operation: 'resource.create',
     id: person.id,
     fields: {

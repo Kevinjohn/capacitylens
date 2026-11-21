@@ -4,7 +4,7 @@ import {
   AUTH_PASSWORD,
   bootstrapOrg,
   seedFixtureMember,
-  sendPlanningFixtureCommand,
+  sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
 import { waitForAppLanding } from './browserTestKit';
@@ -46,7 +46,7 @@ test('the account access setting gates viewer navigation and direct routes', asy
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
 
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'settings.update',
     changes: { capacityOverviewAccess: 'everyone' },
   });

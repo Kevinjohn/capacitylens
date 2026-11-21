@@ -7,7 +7,7 @@ import {
   bootstrapOrg,
   createFixturePerson,
   revokeFixtureSessions,
-  sendPlanningFixtureCommand,
+  sendPlanningIntent,
   signUpUser,
   masqueradeContextHeaders,
 } from './authTestKit';
@@ -55,7 +55,7 @@ async function createScenario(request: APIRequestContext) {
     name: 'Clark Kent',
     role: 'Planner',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -63,7 +63,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { name: 'Wayne Enterprises', color: '#76a5e7' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -71,7 +71,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { clientId, name: 'Gotham Renewal', color: '#e776b8' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'activities',
@@ -421,7 +421,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
 }) => {
   const { owner, companyId, ownerEmail, resourceId, activityId } = await createScenario(request);
   const allocationId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: allocationId,
@@ -663,7 +663,7 @@ test('a weekly repeat persists all 14 occurrences as one series through one type
 }) => {
   const { owner, companyId, ownerEmail, resourceId, projectId, activityId } =
     await createScenario(request);
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: crypto.randomUUID(),

@@ -249,7 +249,7 @@ export function archiveForTest(
     entity === 'resources'
       ? { operation: 'resource.archive' as const, id }
       : { operation: 'catalogue.archive' as const, entity: { entity, id } };
-  return useStore.getState().sendPlanningCommand({ intent });
+  return useStore.getState().sendPlanningIntent({ intent });
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
@@ -261,7 +261,7 @@ export function unarchiveForTest(
     entity === 'resources'
       ? { operation: 'resource.unarchive' as const, id }
       : { operation: 'catalogue.unarchive' as const, entity: { entity, id } };
-  return useStore.getState().sendPlanningCommand({ intent });
+  return useStore.getState().sendPlanningIntent({ intent });
 }
 
 /** Reset the store to a clean single-company state with that company active.
