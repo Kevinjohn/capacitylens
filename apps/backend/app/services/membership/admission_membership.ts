@@ -3,7 +3,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { isInvitableRole } from '#services/account_kit/admission_rules';
 import { hasNoCompany, getInstallationCompanyId } from '#models/installation_company';
-import { AdmissionError } from '#exceptions/admission_error';
+import { AdmissionException } from '#exceptions/admission_exception';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
 import access from '#config/access_control';
@@ -17,14 +17,18 @@ import access from '#config/access_control';
 export async function completeMembership(userId: string, trx: TransactionClientContract) {
   const companyId = await getInstallationCompanyId(trx);
   if (!companyId) {
-    throw new AdmissionError('The company has not been set up yet.', 409, 'COMPANY_SETUP_REQUIRED');
+    throw new AdmissionException(
+      'The company has not been set up yet.',
+      409,
+      'COMPANY_SETUP_REQUIRED'
+    );
   }
   const existing = await access.memberships.find(companyId, userId, trx);
   if (existing?.status === 'active') {
     return { companyId, role: String(existing.role), created: false };
   }
   if (existing) {
-    throw new AdmissionError(
+    throw new AdmissionException(
       'Your membership in this company is suspended. Ask an Owner or Admin to restore it.',
       409,
       'MEMBERSHIP_SUSPENDED'

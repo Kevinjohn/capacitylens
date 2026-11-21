@@ -2,7 +2,7 @@
 // limit, or of whether a company exists yet, reads through these functions.
 
 import type { Trx } from '@kevinjohn/adonisjs-account-kit/types';
-import { AdmissionError } from '#exceptions/admission_error';
+import { AdmissionException } from '#exceptions/admission_exception';
 
 type CompanyReader = Pick<Trx, 'from'>;
 
@@ -19,13 +19,13 @@ export async function hasNoCompany(reader: CompanyReader): Promise<boolean> {
 
 /**
  * The installation's single company, or null before first setup.
- * @throws AdmissionError 409 `MULTIPLE_COMPANIES` when a second company exists.
+ * @throws AdmissionException 409 `MULTIPLE_COMPANIES` when a second company exists.
  */
 export async function getInstallationCompanyId(reader: CompanyReader): Promise<string | null> {
   const rows = await reader.from('accounts').select('id').limit(2);
   // Only seeded development data holds two companies; say so rather than fail with a 500.
   if (rows.length > 1) {
-    throw new AdmissionError(
+    throw new AdmissionException(
       'This installation has more than one company. Accounts need a single-company database.',
       409,
       'MULTIPLE_COMPANIES'

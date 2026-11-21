@@ -3,7 +3,8 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
-import User, { FirstCompanyPendingError } from '#models/user';
+import User from '#models/user';
+import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
 import {
@@ -207,7 +208,7 @@ test.group('authenticated first company setup', (group) => {
       db.transaction((trx) =>
         User.create({ email: address, password, unverifiedEmail: address }, { client: trx })
       );
-    await assert.rejects(() => register('joker@wayne.example'), FirstCompanyPendingError);
+    await assert.rejects(() => register('joker@wayne.example'), FirstCompanyPendingException);
     const token = await bootstrapInvitation(email);
     const [registered, accepted] = await Promise.allSettled([
       register('harley@wayne.example'),

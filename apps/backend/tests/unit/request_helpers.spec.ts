@@ -2,10 +2,10 @@ import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
 import env from '#start/env';
 import HttpExceptionHandler from '#exceptions/handler';
-import { RefusalError } from '#exceptions/refusal_error';
-import { AdmissionError } from '#exceptions/admission_error';
-import { MembershipError } from '#services/membership/member_mutations';
-import { OwnershipTransferError } from '#services/membership/ownership_transfer';
+import { RefusalException } from '#exceptions/refusal_exception';
+import { AdmissionException } from '#exceptions/admission_exception';
+import { MembershipException } from '#exceptions/membership_exception';
+import { OwnershipTransferException } from '#exceptions/ownership_transfer_exception';
 import { isMailConfigured } from '#services/mail_delivery';
 
 test('mail is configured only with a non-blank host', ({ assert, cleanup }) => {
@@ -21,22 +21,22 @@ test('mail is configured only with a non-blank host', ({ assert, cleanup }) => {
 
 for (const [error, body] of [
   [
-    new MembershipError('Not a member of this company.', 404, 'NOT_FOUND'),
+    new MembershipException('Not a member of this company.', 404, 'NOT_FOUND'),
     { error: 'Not a member of this company.', code: 'NOT_FOUND' },
   ],
   [
-    new OwnershipTransferError('Company not found.', 404, 'NOT_FOUND'),
+    new OwnershipTransferException('Company not found.', 404, 'NOT_FOUND'),
     { error: 'Company not found.', code: 'NOT_FOUND' },
   ],
   [
-    new AdmissionError('Admission is not permitted.', 404, 'FORBIDDEN', { state: 'pending' }),
+    new AdmissionException('Admission is not permitted.', 404, 'FORBIDDEN', { state: 'pending' }),
     { error: 'Admission is not permitted.', code: 'FORBIDDEN', decision: { state: 'pending' } },
   ],
 ] as const) {
   test(`the handler renders ${error.constructor.name} from its own status and code`, async ({
     assert,
   }) => {
-    assert.instanceOf(error, RefusalError);
+    assert.instanceOf(error, RefusalException);
     let sent: unknown;
     let status = 0;
     const ctx = {

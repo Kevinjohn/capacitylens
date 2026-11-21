@@ -22,7 +22,7 @@ import {
   InvalidPasswordConfirmationRequestException,
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
 import { IdentityAuthorityError } from '#services/auth/authorization';
-import { RefusalError } from '#exceptions/refusal_error';
+import { RefusalException } from '#exceptions/refusal_exception';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
@@ -361,7 +361,7 @@ export function mapHttpError(
       ? accessRefusal
       : { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } };
   }
-  if (error instanceof RefusalError) return { status: error.status, body: error.body() };
+  if (error instanceof RefusalException) return { status: error.status, body: error.body() };
   const confirmation = buildConfirmationResponse(error);
   if (confirmation) return confirmation;
   if (error instanceof IdentityAuthorityError) {

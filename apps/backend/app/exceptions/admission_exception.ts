@@ -1,7 +1,7 @@
-import { RefusalError } from '#exceptions/refusal_error';
+import { RefusalException } from '#exceptions/refusal_exception';
 
 /** A safe product admission refusal with its HTTP contract. */
-export class AdmissionError extends RefusalError {
+export class AdmissionException extends RefusalException {
   constructor(
     message: string,
     status: number,

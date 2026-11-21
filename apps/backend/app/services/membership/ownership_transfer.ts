@@ -1,4 +1,4 @@
-import { RefusalError } from '#exceptions/refusal_error';
+import { OwnershipTransferException } from '#exceptions/ownership_transfer_exception';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
 import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
@@ -9,8 +9,6 @@ import { runAccountOperation, type AccountOperationIdentity } from '#services/ac
 import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
-
-export class OwnershipTransferError extends RefusalError {}
 
 /** One ownership transfer in the caller's transaction, by its verified actor. */
 export interface OwnershipTransferInput {
@@ -53,13 +51,17 @@ export async function transferOwnership({
         throw new IdentityAuthorityError('Forbidden.');
       }
       if (actor.userId === toUserId) {
-        throw new OwnershipTransferError('Choose another administrator.', 409, 'TARGET_INELIGIBLE');
+        throw new OwnershipTransferException(
+          'Choose another administrator.',
+          409,
+          'TARGET_INELIGIBLE'
+        );
       }
       const target = await access.memberships.find(companyId, toUserId, trx);
-      if (!target) throw new OwnershipTransferError('Member not found.', 404, 'NOT_FOUND');
+      if (!target) throw new OwnershipTransferException('Member not found.', 404, 'NOT_FOUND');
       // The package accepts any active member; CapacityLens hands ownership to an Admin only.
       if (target.status !== 'active' || target.role !== 'admin') {
-        throw new OwnershipTransferError(
+        throw new OwnershipTransferException(
           'Target is no longer an active administrator.',
           409,
           'TARGET_INELIGIBLE'

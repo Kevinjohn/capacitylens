@@ -10,7 +10,7 @@ import {
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import env from '#start/env';
 import { isMailConfigured } from '#services/mail_delivery';
-import { FirstCompanyPendingError } from '#models/user';
+import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { isMembershipRequired } from '#services/membership/admission_membership';
 import { signInWithPassword } from '#services/auth/password_sign_in';
@@ -122,7 +122,7 @@ export default class AuthController {
     } catch (error) {
       // Route wording: sign-up words these refusals for this route; invitations word them
       // differently.
-      if (error instanceof FirstCompanyPendingError) {
+      if (error instanceof FirstCompanyPendingException) {
         return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
       }
       if (error instanceof RegistrationEmailAlreadyRegisteredError) {

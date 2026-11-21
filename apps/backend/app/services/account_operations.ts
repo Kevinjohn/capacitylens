@@ -3,7 +3,7 @@
 // CapacityLens's own names follow it (`idempotencyKey`, `isAccountIdempotencyKey`,
 // `IDEMPOTENCY_CONFLICT`); only values passed to the package use its `requestKey` name.
 
-import { RefusalError } from '#exceptions/refusal_error';
+import { AccountOperationException } from '#exceptions/account_operation_exception';
 import { randomUUID } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
@@ -23,8 +23,6 @@ export interface AccountOperationIdentity {
   requestKey: string;
 }
 
-export class AccountCommandError extends RefusalError {}
-
 /**
  * Parses the paired account-operation headers (`X-Account-Command-Id`, `Idempotency-Key`), minting
  * both for older callers that send neither.
@@ -37,7 +35,11 @@ export function parseAccountOperation(
     return { commandId: randomUUID(), requestKey: randomUUID() };
   }
   if (!isAccountCommandId(commandId) || !isAccountIdempotencyKey(requestKey)) {
-    throw new AccountCommandError('Invalid or unpaired command headers.', 400, 'VALIDATION_ERROR');
+    throw new AccountOperationException(
+      'Invalid or unpaired command headers.',
+      400,
+      'VALIDATION_ERROR'
+    );
   }
   return { commandId, requestKey };
 }
@@ -45,10 +47,14 @@ export function parseAccountOperation(
 /** Adapts package refusals to the existing account-operation HTTP contract. */
 export function mapAccountOperationError(error: unknown): unknown {
   if (error instanceof E_DUPLICATE_REQUEST_CONFLICT) {
-    return new AccountCommandError('Command identity already used.', 409, 'IDEMPOTENCY_CONFLICT');
+    return new AccountOperationException(
+      'Command identity already used.',
+      409,
+      'IDEMPOTENCY_CONFLICT'
+    );
   }
   if (error instanceof E_INVALID_COMMAND_VALUE) {
-    return new AccountCommandError('Invalid command payload.', 400, 'VALIDATION_ERROR');
+    return new AccountOperationException('Invalid command payload.', 400, 'VALIDATION_ERROR');
   }
   return error;
 }
