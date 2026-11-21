@@ -1,5 +1,5 @@
 import { defineConfig } from '@adonisjs/cors';
-import { corsOrigins } from '#services/cors_policy';
+import { corsOrigins } from '#services/cors_origins';
 
 const corsConfig = defineConfig({
   enabled: true,
