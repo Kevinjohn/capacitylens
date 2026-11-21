@@ -5,12 +5,10 @@ import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
 import { readStateWithClient } from '#services/state_repository';
 import { readState, resetState } from '#tests/helpers/state_fixture';
-import {
-  executePlanningIntent as applyPlanningIntent,
-  PlanningOperationError,
-} from '#services/planning/execute';
+import { executePlanningIntent as applyPlanningIntent } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 const owner: PlanningAccessGrant = {
   role: 'owner',
@@ -96,7 +94,7 @@ test.group('typed planning writers', (group) => {
             owner
           )
         ),
-      PlanningOperationError
+      PlanningOperationException
     );
     const state = await readState('a-studio', true);
     assert.isUndefined(state.timeOff.find((row) => row.id === id));
@@ -166,7 +164,7 @@ test.group('typed planning writers', (group) => {
             editor
           )
         ),
-      PlanningOperationError
+      PlanningOperationException
     );
   });
 

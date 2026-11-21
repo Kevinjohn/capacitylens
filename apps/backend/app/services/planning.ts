@@ -16,7 +16,7 @@ import {
   advancePlanningRevision,
   assertPlanningBaseRevision,
 } from '#services/planning_revision';
-import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
+import { executePlanningIntent } from '#services/planning/execute';
 import { resolvePlanningAccess, type PlanningAccess } from '#services/planning/access';
 import {
   changesNothing,
@@ -31,7 +31,6 @@ import {
   discardRestorationGroups,
   isMutationCommitted,
   recordCommittedMutation,
-  RestorationConfirmationError,
 } from '#services/planning/restoration';
 import {
   discardHistory,
@@ -51,6 +50,9 @@ import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { EmptyHistoryException } from '#exceptions/empty_history_exception';
+import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 
 export type { PlanningAccess };
 
@@ -133,7 +135,11 @@ export async function readPlanning(
 export async function readArchiveRecovery(trx: TransactionClientContract, companyId: string) {
   const { planningAccess } = await resolvePlanningAccess(trx, companyId);
   if (!planningAccess.canWrite) {
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
+    throw new PlanningOperationException(
+      403,
+      'AUTHORIZATION_DENIED',
+      'This action is not allowed.'
+    );
   }
   const data = await readStateWithClient(trx, companyId, true);
   return archiveRecovery(data, companyId, planningAccess.role);
@@ -153,13 +159,6 @@ export function stepPlanningHistory({
   step,
 }: PlanningHistoryStepOptions) {
   return commit({ trx, actor, companyId, meta: input, step, supplied: null });
-}
-
-/** The caller's history holds no step in that direction; nothing was attempted or refused. */
-export class EmptyHistoryError extends PlanningOperationError {
-  constructor(message: string) {
-    super(409, null, message);
-  }
 }
 
 /**
@@ -206,10 +205,14 @@ async function commit({
 }: CommitOptions): Promise<PlanningMutationSuccess> {
   const { planningAccess, accessGrant } = await resolvePlanningAccess(trx, companyId);
   if (!planningAccess.canWrite) {
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
+    throw new PlanningOperationException(
+      403,
+      'AUTHORIZATION_DENIED',
+      'This action is not allowed.'
+    );
   }
   if (await isMutationCommitted(trx, companyId, input.mutationId)) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       409,
       'MUTATION_ID_REUSED',
       'This mutation identity has already committed.'
@@ -233,7 +236,7 @@ async function commit({
   const entry = step === 'undo' ? current?.past.at(-1) : current?.future.at(-1);
   const requested = supplied ?? (step === 'undo' ? entry?.inverse : entry?.forward);
   if (!requested) {
-    throw new EmptyHistoryError(
+    throw new EmptyHistoryException(
       step === 'undo' ? 'There is nothing to undo.' : 'There is nothing to redo.'
     );
   }
@@ -260,7 +263,7 @@ async function commit({
       ? archiveImpact(before, intent.entity.entity, intent.entity.id)
       : undefined;
   if (changesNothing(written)) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       400,
       'NO_CHANGE',
       'The operation does not change planning data.'
@@ -275,10 +278,10 @@ async function commit({
       input.confirmedRestorationCount !== undefined &&
       input.confirmedRestorationCount !== count
     ) {
-      throw new RestorationConfirmationError(count, true);
+      throw new RestorationConfirmationException(count, true);
     }
     if (count > 0 && input.confirmedRestorationCount === undefined) {
-      throw new RestorationConfirmationError(count, false);
+      throw new RestorationConfirmationException(count, false);
     }
     await discardRestorationGroups(trx, companyId);
   }

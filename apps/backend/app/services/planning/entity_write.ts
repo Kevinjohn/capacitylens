@@ -13,10 +13,10 @@ import {
   assertAllocationStartIsAvailable,
   assertAllocationStartsOnWorkingDay,
 } from '#services/planning/entity_validation/domain';
-import { PlanningOperationError } from '#services/planning/errors';
 import { isRetainedTable } from './retained_rows.js';
 import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
 import { asRecord, writeRow, type WrittenRow } from './writer.js';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 interface WriteEntityOptions<K extends ScopedEntityKey> {
   trx: TransactionClientContract;
@@ -96,24 +96,24 @@ export async function writeEntity<K extends ScopedEntityKey>({
   const existing = rows.find((row) => row.id === id);
   assertMayWriteRestrictedFields(table, asRecord(fields), accessGrant, mode);
   if (mode === 'create' && existing) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   if (
     mode === 'create' &&
     !isRetainedTable(table) &&
     (await trx.from(tables[table]).select('id').where('id', id).first())
   ) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   if (mode === 'update' && !existing) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record was not found.');
   }
   if (
     mode === 'update' &&
     expectedUpdatedAt !== undefined &&
     existing?.updatedAt !== expectedUpdatedAt
   ) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       409,
       'STALE_REVISION',
       'The record changed since it was opened.'

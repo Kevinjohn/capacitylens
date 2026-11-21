@@ -4,7 +4,7 @@ import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
-import { updateSettings, PlanningOperationError } from '#services/planning/writer';
+import { updateSettings } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
 import { advancePlanningRevision } from '#services/planning_revision';
 import {
@@ -17,6 +17,7 @@ import {
   signIn,
   trusted,
 } from './helpers.js';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 test.group('authenticated typed planning transactions', (group) => {
   group.setup(() => freshDatabase());
@@ -566,7 +567,7 @@ test.group('authenticated typed planning transactions', (group) => {
           );
         });
       },
-      PlanningOperationError,
+      PlanningOperationException,
       'Language, week start and time zone are set when the company is created and cannot be changed.'
     );
     assert.deepEqual(await readState(companyId, true), before);

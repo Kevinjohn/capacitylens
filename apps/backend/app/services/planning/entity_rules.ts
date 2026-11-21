@@ -30,9 +30,10 @@ import {
   getRestriction,
   isPrivateRowRestricted,
 } from '#services/planning/restricted_fields';
-import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 // Widened so a stored value of unknown type can be checked against the known kinds.
 const resourceKinds: readonly unknown[] = RESOURCE_KINDS;
@@ -74,13 +75,13 @@ export function assertMayWriteRestrictedFields(
       Object.hasOwn(fields, field) &&
       !(mode === 'create' && rule.emptyAllowedOnCreate && isEmptyValue(fields[field]))
   );
-  if (named) throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', rule.refusal);
+  if (named) throw new PlanningOperationException(403, 'AUTHORIZATION_DENIED', rule.refusal);
 }
 
 const IMMUTABLE_COMPANY_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const;
 
 function reject(field: string, reason: string): never {
-  throw new EntityWriteError(`${field} ${reason}.`);
+  throw new EntityWriteException(`${field} ${reason}.`);
 }
 
 /** Keeps a restricted caller's write from changing what it cannot see: stored values win. */
@@ -113,7 +114,7 @@ function assertResourceFields(
     kind !== 'placeholder' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
   ) {
-    throw new EntityWriteError('A person or external company name is required.');
+    throw new EntityWriteException('A person or external company name is required.');
   }
   if (kind === 'person') {
     if (requested.projectId !== undefined && requested.projectId !== null) {
@@ -173,7 +174,7 @@ function assertResourceFields(
   }
   if (Object.hasOwn(requested, 'avatarUrl')) {
     if (requested.avatarUrl !== null && requested.avatarUrl !== undefined) {
-      throw new EntityWriteError(
+      throw new EntityWriteException(
         'Only a person can have an avatar URL.',
         400,
         undefined,
@@ -185,7 +186,7 @@ function assertResourceFields(
 
 function assertResourceKind(candidate: Record<string, unknown>, existing: Record<string, unknown>) {
   if (!resourceKinds.includes(existing.kind)) {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'The stored resource kind is invalid and must be repaired by import.',
       400,
       undefined,
@@ -193,7 +194,7 @@ function assertResourceKind(candidate: Record<string, unknown>, existing: Record
     );
   }
   if (candidate.kind !== existing.kind) {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'A resource’s kind cannot change after creation.',
       400,
       undefined,
@@ -211,14 +212,14 @@ function assertManagedFields(
   if (isLifecycleEntityKey(table)) {
     for (const field of ['archivedAt', 'deletedAt'] as const) {
       if (Object.hasOwn(requested, field) && requested[field] !== (existing?.[field] ?? null)) {
-        throw new EntityWriteError(`${field} is managed by its lifecycle action.`);
+        throw new EntityWriteException(`${field} is managed by its lifecycle action.`);
       }
       candidate[field] = existing?.[field] ?? null;
     }
   }
   if (table === 'allocations' && existing) {
     if (Object.hasOwn(requested, 'seriesId') && requested.seriesId !== existing.seriesId) {
-      throw new EntityWriteError('seriesId is fixed after creation.');
+      throw new EntityWriteException('seriesId is fixed after creation.');
     }
     candidate.seriesId = existing.seriesId ?? null;
   }
@@ -244,7 +245,7 @@ export function assertFrozenCompanyFields(
       existing[field] !== null &&
       requested[field] !== existing[field]
     ) {
-      throw new EntityWriteError(
+      throw new EntityWriteException(
         'Language, week start and time zone are set when the company is created and cannot be changed.',
         409
       );
@@ -269,7 +270,7 @@ function buildValidationView(
 function assertRequired(table: ScopedEntityKey, candidate: Record<string, unknown>) {
   const missing = requiredFields[table].filter((field) => !Object.hasOwn(candidate, field));
   if (missing.length) {
-    throw new EntityWriteError(`Missing required field(s): ${missing.join(', ')}.`);
+    throw new EntityWriteException(`Missing required field(s): ${missing.join(', ')}.`);
   }
 }
 
@@ -289,15 +290,15 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
 ): Promise<AppData[K][number]> {
   const existing = stored && asRecord(stored);
   if (typeof row.id !== 'string' || !ENTITY_ID_PATTERN.test(row.id)) {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'id must be 1–128 URL-safe characters, begin with a letter or number, and contain only letters, numbers, dot, underscore, tilde, colon or hyphen.'
     );
   }
   if (typeof row.companyId !== 'string' || row.companyId.length === 0) {
-    throw new EntityWriteError('A string companyId is required.');
+    throw new EntityWriteException('A string companyId is required.');
   }
   if (existing && existing.companyId !== row.companyId) {
-    throw new EntityWriteError('Not found.', 404);
+    throw new EntityWriteException('Not found.', 404);
   }
   const hidden = listHiddenFields(table, accessGrant, existing);
   for (const [field, value] of Object.entries(row)) {
@@ -321,7 +322,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
     if (error instanceof errors.E_VALIDATION_ERROR) {
       const first = error.messages[0];
       if (typeof first?.message === 'string') {
-        throw new EntityWriteError(
+        throw new EntityWriteException(
           first.message,
           400,
           undefined,
@@ -337,14 +338,14 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   }
   if (table === 'clients' || table === 'projects') {
     if (accessGrant.canSeePrivateNames && !hasUsablePrivateCodeName(candidate)) {
-      throw new EntityWriteError('A private client or project requires a code name.');
+      throw new EntityWriteException('A private client or project requires a code name.');
     }
   }
   if (
     table === 'closures' &&
     (typeof candidate.name !== 'string' || cleanText(candidate.name).length === 0)
   ) {
-    throw new EntityWriteError('Closure name is required.');
+    throw new EntityWriteException('Closure name is required.');
   }
   for (const field of ['name', 'role', 'codeName', 'note', 'task'] as const) {
     if (typeof candidate[field] === 'string') {
@@ -365,9 +366,9 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
     const write = { table, row: validated, existing: stored } as EntityWrite;
     assertEntityDomain(write, state, options.lookup, options.hasOtherBuiltinClient);
   } catch (error) {
-    if (error instanceof EntityWriteError) throw error;
+    if (error instanceof EntityWriteException) throw error;
     if (error instanceof DomainError) {
-      throw new EntityWriteError(error.message, 400, undefined, error.code);
+      throw new EntityWriteException(error.message, 400, undefined, error.code);
     }
     throw error;
   }

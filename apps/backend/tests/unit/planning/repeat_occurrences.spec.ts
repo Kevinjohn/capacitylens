@@ -5,12 +5,12 @@ import {
   type AppData,
   type SchedulingMode,
 } from '@capacitylens/shared/types/entities';
-import { PlanningOperationError } from '#services/planning/execute';
 import {
   buildAllocationOccurrences,
   buildTimeOffOccurrences,
   type RepeatRange,
 } from '#services/planning/repeat_occurrences';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 const companyId = FIXTURE_COMPANY.id;
 const first = {
@@ -91,7 +91,7 @@ test.group('allocation repeat occurrences', () => {
     for (const until of ['2026-06-07', '2026-12-02']) {
       assert.throws(
         () => occurrences('days', { pattern: { kind: 'weeks', interval: 1 }, until }),
-        PlanningOperationError
+        PlanningOperationException
       );
     }
   });
@@ -132,7 +132,7 @@ test.group('time-off repeat occurrences', () => {
     for (const until of ['2026-06-29', '2027-06-30']) {
       assert.throws(
         () => dates(entry, { pattern: { kind: 'monthly-last-weekday' }, until }),
-        PlanningOperationError
+        PlanningOperationException
       );
     }
   });

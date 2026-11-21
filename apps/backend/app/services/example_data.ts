@@ -5,8 +5,8 @@ import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import { writeAudit } from '#services/audit';
-import { EntityWriteError } from '#services/planning/errors';
 import { advancePlanningRevision } from '#services/planning_revision';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
 
 const INSERT_ORDER = [
   'clients',
@@ -30,14 +30,14 @@ export async function addExampleData(
 ) {
   const state = await readStateWithClient(trx, companyId, true);
   const company = state.accounts.at(0);
-  if (!company) throw new EntityWriteError('Company not found.', 404);
+  if (!company) throw new EntityWriteException('Company not found.', 404);
   if (
     state.resources.length > 0 ||
     state.clients.some((client) => client.builtin !== true) ||
     state.projects.length > 0 ||
     state.allocations.length > 0
   ) {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'Example data can only be added to a company that has no people, clients, projects or allocations, including archived or deleted ones.',
       409,
       undefined,

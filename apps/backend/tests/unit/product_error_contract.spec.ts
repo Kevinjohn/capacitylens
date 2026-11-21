@@ -1,5 +1,3 @@
-import { RestorationConfirmationError } from '#services/planning/restoration';
-import { PlanningOperationError } from '#services/planning/execute';
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
 import type { HttpContext } from '@adonisjs/core/http';
@@ -13,6 +11,8 @@ import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 
 function context(error: unknown, routeName?: string) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
@@ -277,20 +277,20 @@ test.group('product error adapters', () => {
     assert,
   }) => {
     const conflict = await answerOnPlanning(
-      new PlanningOperationError(409, null, 'The record is in use.')
+      new PlanningOperationException(409, null, 'The record is in use.')
     );
     assert.equal(conflict.status, 409);
     assert.deepEqual(conflict.body, { error: 'The record is in use.' });
 
     // No code is inferred from the status, and a stated code does not rewrite the status.
     const uncoded = await answerOnPlanning(
-      new PlanningOperationError(400, null, 'Nothing to restore.')
+      new PlanningOperationException(400, null, 'Nothing to restore.')
     );
     assert.equal(uncoded.status, 400);
     assert.deepEqual(uncoded.body, { error: 'Nothing to restore.' });
 
     const stale = await answerOnPlanning(
-      new PlanningOperationError(409, 'STALE_REVISION', 'Reload first.')
+      new PlanningOperationException(409, 'STALE_REVISION', 'Reload first.')
     );
     assert.equal(stale.status, 409);
     assert.deepEqual(stale.body, { error: 'Reload first.', code: 'STALE_REVISION' });
@@ -299,7 +299,7 @@ test.group('product error adapters', () => {
     assert,
   }) => {
     for (const stale of [false, true]) {
-      const error = new RestorationConfirmationError(3, stale);
+      const error = new RestorationConfirmationException(3, stale);
       const result = await answerOnPlanning(error);
       assert.equal(result.status, 409);
       assert.deepEqual(result.body, {

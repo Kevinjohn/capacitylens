@@ -126,7 +126,7 @@ one is a swallow too.
 
 Validation returns a value; enforcement throws. Validators return a `ValidationResult` or a VineJS
 schema result and never throw on bad input. The write boundary converts a failed result into a
-typed error whose message is safe to show, such as `PlanningOperationError` in
+typed error whose message is safe to show, such as `PlanningOperationException` in
 `apps/backend/app/services/planning/writer.ts`, and `app/exceptions/handler.ts` maps
 the class to a status. The frontend catches at the form or gesture handler and relays the message
 to the field or toast. Add to the typed error vocabulary rather than sniffing message strings; the

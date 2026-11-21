@@ -15,11 +15,11 @@ import {
 } from '@capacitylens/shared/types/entities';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
 import { tables } from '#services/product_tables';
-import { EntityWriteError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 import { discardRestorationGroups } from '#services/planning/restoration';
 import { discardHistory } from '#services/planning/history';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
 
 /**
  * Validates a document taken from a parsed request body, throwing a {@link CompanyDocumentError} that
@@ -81,7 +81,7 @@ async function assertNoForeignIdCollision(
         .select('id')
         .first();
       if (foreign) {
-        throw new EntityWriteError(
+        throw new EntityWriteException(
           'The import contains scheduling IDs used by another company on this server.',
           409,
           undefined,
@@ -116,7 +116,7 @@ export async function previewCompanyImport(
   document: CompanyExportDocument
 ) {
   const current = await readStateWithClient(trx, companyId, true);
-  if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
+  if (current.accounts.length !== 1) throw new EntityWriteException('Company not found.', 404);
   const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
   await assertNoForeignIdCollision(trx, companyId, prepared.data);
   const changed = buildPortableFingerprint(current, companyId) !== buildFingerprint(prepared.data);
@@ -141,10 +141,10 @@ export async function applyCompanyImport(
   actorId: string
 ) {
   const current = await readStateWithClient(trx, companyId, true);
-  if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
+  if (current.accounts.length !== 1) throw new EntityWriteException('Company not found.', 404);
   const revision = await getPlanningRevision(trx, companyId);
   if (revision !== baseRevision) {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'The company changed. Preview the current data again.',
       409,
       { revision },

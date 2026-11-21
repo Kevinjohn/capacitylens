@@ -2,6 +2,7 @@
 // `assertPlanningBaseRevision` refuses a mismatch with 409 `STALE_REVISION`.
 
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
 
 const revisionsByTransaction = new WeakMap<
   TransactionClientContract,
@@ -67,21 +68,6 @@ export function advancePlanningRevision(
   return pending;
 }
 
-/** A stale-revision conflict; the authoritative comparison occurs under the write transaction. */
-export class StalePlanningRevisionError extends Error {
-  readonly statusCode = 409;
-  readonly code = 'STALE_REVISION' as const;
-
-  constructor(
-    readonly mutationId: string,
-    readonly baseRevision: number,
-    readonly currentRevision: number
-  ) {
-    super('The planning revision changed before this mutation was applied.');
-    this.name = 'StalePlanningRevisionError';
-  }
-}
-
 /** Throw the conflict contract when the caller's captured revision is no longer current. */
 export function assertPlanningBaseRevision(
   baseRevision: number,
@@ -89,6 +75,6 @@ export function assertPlanningBaseRevision(
   mutationId: string
 ): void {
   if (baseRevision !== currentRevision) {
-    throw new StalePlanningRevisionError(mutationId, baseRevision, currentRevision);
+    throw new StalePlanningRevisionException(mutationId, baseRevision, currentRevision);
   }
 }

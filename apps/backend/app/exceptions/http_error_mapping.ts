@@ -25,9 +25,10 @@ import { IdentityAuthorizationException } from '#exceptions/identity_authorizati
 import { RefusalException } from '#exceptions/refusal_exception';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
-import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
-import { RestorationConfirmationError } from '#services/planning/restoration';
-import { StalePlanningRevisionError } from '#services/planning_revision';
+import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 
 /** One mapped HTTP outcome. `report` marks a mapped outcome that is still logged as a failure. */
 export interface HttpErrorResponse {
@@ -285,7 +286,7 @@ function buildPlanningResponse(
   error: unknown,
   surface: RefusalSurface
 ): HttpErrorResponse | undefined {
-  if (error instanceof RestorationConfirmationError) {
+  if (error instanceof RestorationConfirmationException) {
     return {
       status: 409,
       body: {
@@ -295,7 +296,7 @@ function buildPlanningResponse(
       } satisfies ProductHttpErrorBody,
     };
   }
-  if (error instanceof PlanningOperationError) {
+  if (error instanceof PlanningOperationException) {
     return {
       status: error.status,
       body: { error: error.message, ...(error.code ? { code: error.code } : {}) },
@@ -303,7 +304,7 @@ function buildPlanningResponse(
   }
   // Planning words an entity refusal as authorization or validation; the import and example-data
   // routes send the stated status, code and the current revision.
-  if (error instanceof EntityWriteError) {
+  if (error instanceof EntityWriteException) {
     if (surface === 'planning') {
       return {
         status: error.status === 403 ? 403 : 400,
@@ -322,7 +323,7 @@ function buildPlanningResponse(
       },
     };
   }
-  if (error instanceof StalePlanningRevisionError) {
+  if (error instanceof StalePlanningRevisionException) {
     return { status: 409, body: { error: error.message, code: 'STALE_REVISION' } };
   }
 }

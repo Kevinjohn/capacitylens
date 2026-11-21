@@ -1,13 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import {
   abandonPlanningHistory,
-  EmptyHistoryError,
   readPlanning,
   readArchiveRecovery,
   mutatePlanning,
   stepPlanningHistory,
 } from '#services/planning';
-import { PlanningOperationError } from '#services/planning/execute';
 import {
   planningHistoryStepValidator,
   planningMutationValidator,
@@ -15,6 +13,8 @@ import {
 import { planningReadValidator } from '#validators/planning/read';
 import type { PlanningHistoryStepInput } from '#validators/planning/contracts';
 import { withActor } from '#services/auth/current_actor';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { EmptyHistoryException } from '#exceptions/empty_history_exception';
 
 /** Planning reads, one mutation route, and the page's undo and redo. */
 export default class PlanningController {
@@ -67,8 +67,8 @@ export default class PlanningController {
       // The refused step rolled back with its transaction, so ending its history needs its own.
       if (
         historyId !== undefined &&
-        error instanceof PlanningOperationError &&
-        !(error instanceof EmptyHistoryError) &&
+        error instanceof PlanningOperationException &&
+        !(error instanceof EmptyHistoryException) &&
         error.code !== 'STALE_REVISION' &&
         error.code !== 'MUTATION_ID_REUSED'
       ) {

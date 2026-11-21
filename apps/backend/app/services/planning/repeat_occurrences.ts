@@ -10,7 +10,8 @@ import {
 } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
-import { requireExistingRow, PlanningOperationError } from './writer.js';
+import { requireExistingRow } from './writer.js';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 // The server's expansion of a repeat pattern into dated occurrences, using the shared rules.
 
@@ -33,7 +34,7 @@ interface FirstAllocation {
  * A working-span company keeps the first occurrence's count of working days; an hourly company or
  * an external resource keeps its calendar span.
  *
- * @throws PlanningOperationError 400 when the repeat or a projected span is invalid.
+ * @throws PlanningOperationException 400 when the repeat or a projected span is invalid.
  */
 export function buildAllocationOccurrences(
   data: AppData,
@@ -70,7 +71,7 @@ export function buildAllocationOccurrences(
  * Dates of every occurrence, the first included, for time off repeated from `first` under the
  * time-off horizon and occurrence limit. Each occurrence keeps the first one's calendar span.
  *
- * @throws PlanningOperationError 400 when the repeat or a projected span is invalid.
+ * @throws PlanningOperationException 400 when the repeat or a projected span is invalid.
  */
 export function buildTimeOffOccurrences(
   first: { startDate: ISODate; endDate: ISODate },
@@ -89,7 +90,7 @@ function refuseInvalidRepeat<T>(expand: () => T): T {
   } catch (error) {
     // RepeatingDateError is a RangeError; both describe input the repeat cannot produce.
     if (error instanceof RangeError) {
-      throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
+      throw new PlanningOperationException(400, 'VALIDATION_ERROR', error.message);
     }
     throw error;
   }

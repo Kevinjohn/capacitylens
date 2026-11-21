@@ -6,12 +6,11 @@ import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
 import { assertFrozenCompanyFields } from '#services/planning/entity_rules';
 import { tables } from '#services/product_tables';
-import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateRow } from '#validators/planning/row';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-
-export { PlanningOperationError };
+import { EntityWriteException } from '#exceptions/entity_write_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 /** One row a planning operation wrote: its table, id, and the row before and after. */
 export interface WrittenRow {
@@ -37,7 +36,9 @@ export function requireExistingRow<K extends AppDataKey>(
 ): AppData[K][number] {
   const rows: readonly { id: string }[] = data[table];
   const row = rows.find((item) => item.id === id);
-  if (!row) throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
+  if (!row) {
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record was not found.');
+  }
   // Indexing the snapshot by a generic key loses the element type, so restore it here.
   return row as AppData[K][number];
 }
@@ -93,7 +94,7 @@ export async function updateSettings(
   written: WrittenRow[] = []
 ) {
   if (Object.hasOwn(changes, 'capacityOverviewAccess') && !isOwnerOrAdmin(accessGrant.role)) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       403,
       'AUTHORIZATION_DENIED',
       'This setting requires an administrator.'
@@ -104,8 +105,8 @@ export async function updateSettings(
   try {
     assertFrozenCompanyFields(changes, candidate, existing);
   } catch (error) {
-    if (!(error instanceof EntityWriteError) || error.status !== 409) throw error;
-    throw new PlanningOperationError(409, null, error.message);
+    if (!(error instanceof EntityWriteException) || error.status !== 409) throw error;
+    throw new PlanningOperationException(409, null, error.message);
   }
   const now = createServerRevision(existing.updatedAt);
   candidate.updatedAt = now;

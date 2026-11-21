@@ -156,7 +156,7 @@ Then, in order:
 | None | 500 | Unexpected fault; the transaction rolled back |
 
 The forwarded codes are listed in `planningMutationErrorCodes` in
-`apps/backend/app/validators/planning/contracts.ts`; a `PlanningOperationError` states one of them
+`apps/backend/app/validators/planning/contracts.ts`; a `PlanningOperationException` states one of them
 or none, and is sent with its own status.
 
 A request that times out or loses its response may or may not have committed. The browser sends
@@ -166,10 +166,8 @@ nothing new: it refetches, shows the server's state, clears undo history and rec
 ## Planning internals other modules import
 
 `apps/backend/app/services/planning/` is private to the facade and the planning controller, with
-four deliberate exceptions:
+three deliberate exceptions:
 
-- `errors.ts` `EntityWriteError`: thrown by export import and example data, mapped by their
-  controllers.
 - `access_grant.ts` `PlanningAccessGrant`: the access grant type the planning engine consumes.
 - `entity_rules.ts` `TABLE_NAMES`: the scoped table list for export import and example data.
 - `server_timestamp.ts` `createServerRevision`: row timestamps for anonymisation.

@@ -4,9 +4,10 @@ import { freshDatabase } from '../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readStateWithClient } from '#services/state_repository';
 import { readState, resetState } from '#tests/helpers/state_fixture';
-import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
+import { executePlanningIntent } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 const owner: PlanningAccessGrant = {
   role: 'owner',
@@ -33,7 +34,7 @@ async function refused(intent: PlanningIntent) {
   try {
     await execute(intent);
   } catch (error) {
-    if (error instanceof PlanningOperationError) return error;
+    if (error instanceof PlanningOperationException) return error;
     throw error;
   }
   throw new Error('Expected the planning intent to be refused.');
@@ -101,7 +102,7 @@ test.group('typed allocation group and lifecycle operations', (group) => {
           allocation: makeAllocation(source, refusedFirstId, '2026-10-25'),
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-01' },
         }),
-      PlanningOperationError
+      PlanningOperationException
     );
     const unchanged = await readState('a-studio', true);
     assert.isFalse(unchanged.allocations.some((row) => row.id === refusedFirstId));
