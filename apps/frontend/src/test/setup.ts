@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { setMasqueradeContextReader } from '@/data/requestTimeout';
 
-// The app registers this reader when the masquerade controller is wired; tests that never load that
+// The app registers this reader when the masquerade model is wired; tests that never load that
 // module still send the current context proof, as the running app does.
 setMasqueradeContextReader(getMasqueradeContextToken);
 

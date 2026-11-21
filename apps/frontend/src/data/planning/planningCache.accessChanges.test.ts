@@ -9,13 +9,13 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-} from './planningCacheControllerTestKit';
+} from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
-describe('planning cache controller', () => {
+describe('planning cache', () => {
   it('keeps context and history for every 403 execute refusal, including membership loss', async () => {
     const execute = vi
       .fn()
@@ -25,7 +25,7 @@ describe('planning cache controller', () => {
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
@@ -33,13 +33,13 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const first = h.controller.begin();
-    await expect(h.controller.execute(first, intent)).rejects.toMatchObject({
+    const first = h.cache.begin();
+    await expect(h.cache.execute(first, intent)).rejects.toMatchObject({
       code: 'AUTHORIZATION_DENIED',
     });
     expect(h.state().planning.context).toEqual(context);
-    const second = h.controller.begin();
-    await expect(h.controller.execute(second, intent)).rejects.toMatchObject({
+    const second = h.cache.begin();
+    await expect(h.cache.execute(second, intent)).rejects.toMatchObject({
       code: 'ACCOUNT_MEMBERSHIP_LOST',
     });
     expect(h.state().planning.context).toEqual(context);
@@ -57,7 +57,7 @@ describe('planning cache controller', () => {
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
       data: makeCanonicalData(),
@@ -65,8 +65,8 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
       authority: makePlanningAuthority(),
     });
-    await h.controller.execute(h.controller.begin(), intent);
-    const draft = h.controller.begin();
+    await h.cache.execute(h.cache.begin(), intent);
+    const draft = h.cache.begin();
     expect(h.state().planning.history.canUndo).toBe(true);
     await expect(
       h.readSnapshot({
@@ -78,7 +78,7 @@ describe('planning cache controller', () => {
       }),
     ).resolves.toBe(true);
     expect(h.state().planning.history.canUndo).toBe(false);
-    await expect(h.controller.execute(draft, intent)).rejects.toThrow();
+    await expect(h.cache.execute(draft, intent)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
@@ -87,7 +87,7 @@ describe('planning cache controller', () => {
       execute: vi.fn<PlanningTransport['execute']>(),
       read: vi.fn<PlanningTransport['read']>(),
     });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     const cached = makeCanonicalData();
     await expect(
       h.readSnapshot({
@@ -129,11 +129,11 @@ describe('planning cache controller', () => {
       execute: vi.fn<PlanningTransport['execute']>(),
       read,
     });
-    h.controller.setContext(context);
-    await h.controller.refresh();
-    await h.controller.refresh();
+    h.cache.setContext(context);
+    await h.cache.refresh();
+    await h.cache.refresh();
     expect(h.state().planning.context).toEqual(context);
-    await h.controller.refresh();
+    await h.cache.refresh();
     expect(h.state().planning.context).toEqual(context);
     expect(h.state().planning).toMatchObject({ phase: { kind: 'failed' }, revision: 1 });
   });
@@ -150,7 +150,7 @@ describe('canonical planning write capability', () => {
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     await h.readSnapshot({
       revision: 0,
       authority: makePlanningAuthority(),
@@ -158,9 +158,9 @@ describe('canonical planning write capability', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    await h.controller.execute(h.controller.begin(), intent);
+    await h.cache.execute(h.cache.begin(), intent);
     expect(h.state().planning.history.canUndo).toBe(true);
-    const draft = h.controller.begin();
+    const draft = h.cache.begin();
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority({ canWrite: false }),
@@ -169,8 +169,8 @@ describe('canonical planning write capability', () => {
       capacity: emptyCapacity(),
     });
     expect(h.state().planning.history.canUndo).toBe(false);
-    expect(() => h.controller.begin()).toThrow(/read-only/);
-    await expect(h.controller.execute(draft, intent)).rejects.toThrow();
+    expect(() => h.cache.begin()).toThrow(/read-only/);
+    await expect(h.cache.execute(draft, intent)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });

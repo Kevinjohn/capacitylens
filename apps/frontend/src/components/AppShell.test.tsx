@@ -1,7 +1,7 @@
 import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, act, waitFor } from '@testing-library/react';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { setUpAppShellTests, renderAppShell } from './AppShellTestKit';
@@ -79,7 +79,7 @@ describe('AppShell planning problems', () => {
         lastWrite: {
           kind: 'refused',
           mutationId: 'mutation-1',
-          error: new PlanningControllerError('Refused.', 'ACCOUNT_MEMBERSHIP_LOST', 403),
+          error: new PlanningCacheError('Refused.', 'ACCOUNT_MEMBERSHIP_LOST', 403),
         },
       },
       m.app_planning_refused(),

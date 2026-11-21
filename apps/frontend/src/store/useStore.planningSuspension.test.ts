@@ -158,7 +158,7 @@ describe('planning command suspension', () => {
     expect(useStore.getState().suspendPlanningCommands()).toBeNull();
   });
 
-  it('clears private planning rows even when the controller context is already null', () => {
+  it('clears private planning rows even when the cache context is already null', () => {
     useStore.getState().clearPlanning();
     useStore.setState((state) => ({
       data: { ...state.data, accounts: [makeCompany()] },

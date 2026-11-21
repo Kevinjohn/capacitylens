@@ -10,7 +10,7 @@ import type { ThemePreference } from '@/lib/theme';
 import type { AccessGrant, Role } from '@capacitylens/shared/domain/access';
 import type { MasqueradeState } from '@capacitylens/shared/domain/masquerade';
 import type { Company, AppData, ID, ISODate } from '@capacitylens/shared/types/entities';
-import type { PlanningControllerMetadata } from '@/data/planning/planningCacheTypes';
+import type { PlanningCacheMetadata } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 
@@ -107,7 +107,7 @@ export interface StoreState extends StoreEntityActions {
    * response cannot overwrite a create/delete/join result. Transient and never persisted. */
   companySummariesRequestId: number;
   /** Planning cache metadata, including the server-reported Undo/Redo availability. Page-local. */
-  planning: PlanningControllerMetadata;
+  planning: PlanningCacheMetadata;
   /** Advances only when a current planning request confirms that sign-in authority was lost. */
   planningAuthLossVersion: number;
   /** Submit one typed planning command and resolve with the server reply after authoritative
@@ -156,7 +156,7 @@ export interface StoreState extends StoreEntityActions {
    * company switch or page reload. Transient: never persisted or included in undo history. */
   membershipRevision: number;
   /** Session-backed read projection. Every non-inactive phase blocks local writes while the
-   * controller establishes or removes the authoritative server projection. */
+   * masquerade model establishes or removes the authoritative server projection. */
   masquerade: MasqueradeRuntimeState;
 
   /** Patch a company's settings; undoable. Throws a display-safe `Error` on invalid working days. */

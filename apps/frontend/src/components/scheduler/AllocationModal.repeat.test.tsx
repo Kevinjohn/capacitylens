@@ -10,7 +10,7 @@ import { requireValue } from '@/test/fixtures';
 import { queueAllocationGroupResponse } from '@/test/planning/queuePlanningTestKit';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import {
   ACC,
   person,
@@ -302,9 +302,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
 
       // The server places later occurrences, so it owns this refusal.
       const refusal = 'A repeated working span extends beyond the supported date range.';
-      getStubPlanningTransport().failNext(
-        new PlanningControllerError(refusal, 'VALIDATION_ERROR', 400),
-      );
+      getStubPlanningTransport().failNext(new PlanningCacheError(refusal, 'VALIDATION_ERROR', 400));
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(refusal);
@@ -596,7 +594,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
 
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'The allocation starts before this person is available.',
         'VALIDATION_ERROR',
         400,

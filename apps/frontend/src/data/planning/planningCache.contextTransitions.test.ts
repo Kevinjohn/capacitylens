@@ -10,22 +10,22 @@ import {
 } from '@/test/planningTransitionHarness';
 import { createDeferred } from '@/test/createDeferred';
 
-// Pins the coordinator transitions that no other controller test asserts directly.
+// Pins the coordinator transitions that no other cache test asserts directly.
 
 describe('planning context transitions', () => {
   it('keeps rows, history and an in-flight read when an equal context is installed again', async () => {
     const h = await readyWithHistory();
     const read = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
-    const refreshing = h.controller.refresh();
+    const refreshing = h.cache.refresh();
     const signal = h.read.mock.calls.at(-1)?.[1];
-    h.controller.setContext({ ...context });
+    h.cache.setContext({ ...context });
     expect(signal?.aborted).toBe(false);
     read.resolve(snapshot(2));
     await expect(refreshing).resolves.toBe(true);
     expect(h.state().data.clients).toHaveLength(1);
     // The page kept its history id, so the server still reports its change as undoable.
-    await expect(h.controller.refresh()).resolves.toBe(true);
+    await expect(h.cache.refresh()).resolves.toBe(true);
     expect(h.state().planning.history.canUndo).toBe(true);
   });
 
@@ -33,9 +33,9 @@ describe('planning context transitions', () => {
     const h = await ready();
     const read = createDeferred<PlanningSnapshot>();
     h.read.mockImplementationOnce(() => read.promise);
-    const refreshing = h.controller.refresh();
+    const refreshing = h.cache.refresh();
     const signal = h.read.mock.calls.at(-1)?.[1];
-    h.controller.setContext(null);
+    h.cache.setContext(null);
     expect(signal?.aborted).toBe(true);
     read.resolve(snapshot(5));
     await expect(refreshing).resolves.toBe(false);
@@ -49,10 +49,10 @@ describe('planning context transitions', () => {
 
   it('returns false without a read while no client context is installed', async () => {
     const h = setup();
-    await expect(h.controller.refresh()).resolves.toBe(false);
-    await expect(h.controller.undo()).resolves.toBe(false);
+    await expect(h.cache.refresh()).resolves.toBe(false);
+    await expect(h.cache.undo()).resolves.toBe(false);
     expect(h.read).not.toHaveBeenCalled();
     expect(h.state().planning.phase.kind).toBe('idle');
-    expect(() => h.controller.begin()).toThrow(/read-only/);
+    expect(() => h.cache.begin()).toThrow(/read-only/);
   });
 });

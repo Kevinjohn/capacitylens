@@ -10,13 +10,13 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-} from './planningCacheControllerTestKit';
+} from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
-describe('planning cache controller', () => {
+describe('planning cache', () => {
   it('retains the draft revision through refresh and refuses the stale attempt without replay', async () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
@@ -29,7 +29,7 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
     });
     const h = createHarness({ execute, read });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     await h.readSnapshot({
       revision: 3,
       authority: makePlanningAuthority(),
@@ -37,7 +37,7 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const draft = h.controller.begin();
+    const draft = h.cache.begin();
     await h.readSnapshot({
       revision: 4,
       authority: makePlanningAuthority(),
@@ -46,7 +46,7 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
     });
     expect(draft.baseRevision).toBe(3);
-    await expect(h.controller.execute(draft, intent)).rejects.toMatchObject({
+    await expect(h.cache.execute(draft, intent)).rejects.toMatchObject({
       code: 'STALE_REVISION',
     });
     expect(execute).toHaveBeenCalledTimes(1);
@@ -68,7 +68,7 @@ describe('planning cache controller', () => {
         capacity: emptyCapacity(),
       }),
     });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
@@ -76,7 +76,7 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const gesture = h.controller.begin();
+    const gesture = h.cache.begin();
     await h.readSnapshot({
       revision: 2,
       authority: makePlanningAuthority(),
@@ -88,7 +88,7 @@ describe('planning cache controller', () => {
       operation: 'settings.update',
       changes: { timezone: 'Europe/Paris' },
     } as PlanningIntent;
-    await expect(h.controller.execute(gesture, finalIntent)).rejects.toMatchObject({
+    await expect(h.cache.execute(gesture, finalIntent)).rejects.toMatchObject({
       code: 'STALE_REVISION',
     });
     expect(execute.mock.calls[0]?.[1]).toMatchObject({ baseRevision: 1, intent: finalIntent });
@@ -109,18 +109,18 @@ describe('planning cache controller', () => {
       Promise.resolve(makeReceipt(execution.mutationId, 2)),
     );
     const h = createHarness({ execute, read });
-    h.controller.setContext(context);
-    await h.controller.refresh();
-    const draft = h.controller.begin();
-    await expect(h.controller.execute(draft, intent)).resolves.toMatchObject({
+    h.cache.setContext(context);
+    await h.cache.refresh();
+    const draft = h.cache.begin();
+    await expect(h.cache.execute(draft, intent)).resolves.toMatchObject({
       revision: 2,
     });
     const { phase } = h.state().planning;
     expect(phase).toMatchObject({ kind: 'writing', write: { commitment: { revision: 2 } } });
     expect(phase.kind === 'writing' && phase.readError).toBeInstanceOf(TypeError);
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
-    expect(() => h.controller.begin()).toThrow();
-    await expect(h.controller.execute(draft, intent)).rejects.toThrow();
+    expect(() => h.cache.begin()).toThrow();
+    await expect(h.cache.execute(draft, intent)).rejects.toThrow();
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });

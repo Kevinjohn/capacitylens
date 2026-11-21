@@ -59,4 +59,4 @@ flowchart TD
 - [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx)
 - [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

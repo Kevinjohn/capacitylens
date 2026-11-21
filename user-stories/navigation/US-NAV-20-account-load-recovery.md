@@ -29,9 +29,9 @@ A["Planning read fails"] --> B["Shell shows the planning alert"]
 
 ```mermaid
 flowchart TD
-  read["planningCacheController read fails"] --> phase["planning phase: failed"]
+  read["planningCache read fails"] --> phase["planning phase: failed"]
   phase --> notice["readPlanningProblem returns unavailable"]
   notice --> shell["AppShell renders the alert"]
 ```
 
-**Code references:** [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts); [planningNotices.ts](../../apps/frontend/src/data/planning/planningNotices.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
+**Code references:** [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts); [planningNotices.ts](../../apps/frontend/src/data/planning/planningNotices.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)

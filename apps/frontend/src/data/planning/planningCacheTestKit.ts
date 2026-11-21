@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { Company, AppData, ISODate } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
-import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
+import { createPlanningCache, createPlanningCacheState } from './planningCache';
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { makeCompany } from '@/test/fixtures';
@@ -29,7 +29,7 @@ export const makeCanonicalData = (companyOverrides: Partial<Company> = {}): AppD
 });
 
 /**
- * A controller over `transport`. Reads come from queued snapshots, then the transport, then the
+ * A cache over `transport`. Reads come from queued snapshots, then the transport, then the
  * latest known server state; each carries the history the server model reports for the reading page
  * unless the snapshot names its own. Undo and Redo default to that model when the transport has none.
  */
@@ -74,7 +74,7 @@ export function createHarness(
       return makeReceipt(historyStep.mutationId, revision);
     };
   let id = 0;
-  const controller = createPlanningCacheController({
+  const cache = createPlanningCache({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
@@ -83,7 +83,7 @@ export function createHarness(
       read,
       async execute(...args) {
         const receipt = await transport.execute(...args);
-        // A malformed reply may carry no receipt; pass it through for the controller to judge.
+        // A malformed reply may carry no receipt; pass it through for the cache to judge.
         const revision = (receipt as PlanningMutationSuccess | null)?.revision;
         if (revision !== undefined) {
           serverSnapshot = { ...serverSnapshot, revision };
@@ -97,12 +97,12 @@ export function createHarness(
     createMutationId: vi.fn(() => `mutation-${++id}`),
   });
   return {
-    controller,
+    cache,
     read,
     state: store.getState,
     async readSnapshot(snapshot: PlanningSnapshot) {
       snapshots.push(snapshot);
-      return controller.refresh();
+      return cache.refresh();
     },
   };
 }

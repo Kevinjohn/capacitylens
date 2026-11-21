@@ -11,21 +11,21 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-} from './planningCacheControllerTestKit';
+} from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 import { createDeferred } from '@/test/createDeferred';
 
 afterEach(() => setMasqueradeContextToken(null));
 
-describe('planning cache controller', () => {
+describe('planning cache', () => {
   it('keeps the context proof captured with a planning action when status changes before execution', async () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()
       .mockResolvedValue(makeReceipt('mutation-1', 4));
     const h = createHarness({ execute, read: vi.fn() });
     setMasqueradeContextToken('captured-idle-context');
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     await h.readSnapshot({
       revision: 3,
       authority: makePlanningAuthority(),
@@ -34,9 +34,9 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
     });
 
-    const draft = h.controller.begin();
+    const draft = h.cache.begin();
     setMasqueradeContextToken('new-active-context');
-    await h.controller.execute(draft, intent);
+    await h.cache.execute(draft, intent);
 
     expect(execute.mock.calls[0]?.[0]).toEqual({
       ...context,
@@ -53,10 +53,10 @@ describe('planning cache controller', () => {
       capacity: emptyCapacity(),
     });
     const h = createHarness({ execute: vi.fn(), read });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     setMasqueradeContextToken('current-context');
 
-    await h.controller.refresh();
+    await h.cache.refresh();
 
     expect(read.mock.calls[0]?.[0]).toEqual({
       ...context,
@@ -76,9 +76,9 @@ describe('planning cache controller', () => {
       execute: vi.fn<PlanningTransport['execute']>(),
       read,
     });
-    h.controller.setContext(context);
-    const readPromise = h.controller.refresh();
-    h.controller.setContext(null);
+    h.cache.setContext(context);
+    const readPromise = h.cache.refresh();
+    h.cache.setContext(null);
     resolveRead({
       revision: 9,
       authority: makePlanningAuthority(),
@@ -106,7 +106,7 @@ describe('planning cache controller', () => {
     });
     const anonymousIdentity = Symbol('anonymous');
     const anonymous = { identity: anonymousIdentity, companyId: 'company-1' };
-    h.controller.setContext(anonymous);
+    h.cache.setContext(anonymous);
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
@@ -114,9 +114,9 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const write = h.controller.execute(h.controller.begin(), intent).catch(() => undefined);
-    h.controller.setContext({ identity: anonymousIdentity, companyId: 'company-2' });
-    h.controller.setContext(anonymous);
+    const write = h.cache.execute(h.cache.begin(), intent).catch(() => undefined);
+    h.cache.setContext({ identity: anonymousIdentity, companyId: 'company-2' });
+    h.cache.setContext(anonymous);
     await h.readSnapshot({
       revision: 7,
       authority: makePlanningAuthority(),
@@ -137,7 +137,7 @@ describe('planning cache controller', () => {
       read: vi.fn<PlanningTransport['read']>(),
     });
     const callerContext = { identity: 'actor-1', companyId: 'company-1' };
-    h.controller.setContext(callerContext);
+    h.cache.setContext(callerContext);
     callerContext.companyId = 'company-2';
     expect(h.state().planning.context).toEqual({ identity: 'actor-1', companyId: 'company-1' });
   });
@@ -153,7 +153,7 @@ describe('planning receipt completion context', () => {
         );
         const read = vi.fn<PlanningTransport['read']>();
         const h = createHarness({ execute, read });
-        h.controller.setContext(context);
+        h.cache.setContext(context);
         await h.readSnapshot({
           revision: 1,
           data: makeCanonicalData(),
@@ -161,26 +161,24 @@ describe('planning receipt completion context', () => {
           capacity: emptyCapacity(),
           authority: makePlanningAuthority(),
         });
-        await h.controller.execute(h.controller.begin(), intent);
-        if (action === 'redo') await h.controller.undo();
+        await h.cache.execute(h.cache.begin(), intent);
+        if (action === 'redo') await h.cache.undo();
         const baseRevision = h.state().planning.revision;
         if (baseRevision === null) throw new Error('Expected an initialized planning revision.');
         const revision = baseRevision + 1;
         const delayed = createDeferred<PlanningSnapshot>();
         read.mockImplementationOnce(() => delayed.promise);
         const completion =
-          action === 'execute'
-            ? h.controller.execute(h.controller.begin(), intent)
-            : h.controller[action]();
+          action === 'execute' ? h.cache.execute(h.cache.begin(), intent) : h.cache[action]();
         await vi.waitFor(() =>
           expect(h.state().planning.phase).toMatchObject({
             kind: 'writing',
             write: { commitment: { revision } },
           }),
         );
-        if (change === 'sign-out') h.controller.setContext(null);
+        if (change === 'sign-out') h.cache.setContext(null);
         if (change === 'company switch') {
-          h.controller.setContext({ ...context, companyId: 'company-2' });
+          h.cache.setContext({ ...context, companyId: 'company-2' });
         }
         delayed.resolve({
           revision,

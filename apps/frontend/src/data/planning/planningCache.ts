@@ -5,8 +5,8 @@ import type {
   PlanningCacheState,
   PlanningCacheStore,
   PlanningClientContext,
-  PlanningControllerMetadata,
-  PlanningControllerOptions,
+  PlanningCacheMetadata,
+  PlanningCacheOptions,
   PlanningDraft,
   PlanningHistory,
   PlanningPendingMutation,
@@ -15,7 +15,7 @@ import type {
   PlanningWriteResult,
 } from './planningCacheTypes';
 import { buildAuthorityKey, canWritePlanning } from './planningAuthority';
-import { getErrorDetails, PlanningControllerError } from './planningErrors';
+import { getErrorDetails, PlanningCacheError } from './planningErrors';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
 import { isSnapshotForCompany, isValidReceipt, isValidSnapshot } from './planningReceipts';
 import { applyReceiptChanges } from './planningReceiptChanges';
@@ -48,9 +48,7 @@ function keptLastWrite(phase: PlanningPhase): PlanningWriteResult | null {
   return phase.lastWrite?.kind === 'refused' ? null : phase.lastWrite;
 }
 
-const initialMetadata = (
-  context: PlanningClientContext | null = null,
-): PlanningControllerMetadata => ({
+const initialMetadata = (context: PlanningClientContext | null = null): PlanningCacheMetadata => ({
   context,
   authority: null,
   revision: null,
@@ -60,7 +58,7 @@ const initialMetadata = (
   history: buildEmptyHistory(),
 });
 
-/** Creates the single non-persisted Zustand value used by the planning controller. */
+/** Creates the single non-persisted Zustand value used by the planning cache. */
 export function createPlanningCacheState(data: AppData = createEmptyAppData()): PlanningCacheState {
   return { data, planning: initialMetadata() };
 }
@@ -90,7 +88,7 @@ function isScopeLoss(error: unknown): boolean {
  * Owns one client's planning request ordering and the page's history id. The server holds the
  * history itself; the id lives only in memory, so a reload starts a new, empty history.
  */
-export function createPlanningCacheController(options: PlanningControllerOptions) {
+export function createPlanningCache(options: PlanningCacheOptions) {
   const { transport } = options;
   const store: PlanningCacheStore = { getState: options.getState, setState: options.setState };
   const createMutationId = options.createMutationId ?? (() => crypto.randomUUID());
@@ -172,7 +170,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       !isValidSnapshot(snapshot) ||
       !isSnapshotForCompany(snapshot, context.companyId)
     ) {
-      throw new PlanningControllerError('The canonical planning read was invalid.');
+      throw new PlanningCacheError('The canonical planning read was invalid.');
     }
     const accessChanged =
       current.planning.authority !== null &&
@@ -202,7 +200,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
           phase: older
             ? {
                 kind: 'failed',
-                error: new PlanningControllerError(
+                error: new PlanningCacheError(
                   'The access projection changed but its read was stale.',
                 ),
                 lastWrite: null,
@@ -212,7 +210,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       }));
       return !older;
     }
-    if (older) throw new PlanningControllerError('The canonical planning read was stale.');
+    if (older) throw new PlanningCacheError('The canonical planning read was stale.');
 
     const commitment = attempt?.pending.commitment;
     // The read that reaches an acknowledged write's revision finalizes it.
@@ -335,14 +333,10 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     const context = state.planning.context;
     const baseRevision = state.planning.revision;
     if (!canWritePlanning(state.planning.authority)) {
-      throw new PlanningControllerError(
-        'This planning view is read-only.',
-        'AUTHORIZATION_DENIED',
-        403,
-      );
+      throw new PlanningCacheError('This planning view is read-only.', 'AUTHORIZATION_DENIED', 403);
     }
     if (!context || baseRevision === null || !isPlanningReadyForChange(state.planning)) {
-      throw new PlanningControllerError('Planning is not ready for a new change.');
+      throw new PlanningCacheError('Planning is not ready for a new change.');
     }
     const immutableContext = context;
     const requestContext = Object.freeze({
@@ -371,22 +365,16 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   function assertCanPerform(draft: PlanningDraft): void {
     const state = store.getState();
     if (!isCurrent(draft.generation, draft.context) || state.planning.revision === null) {
-      throw new PlanningControllerError(
-        'Planning context changed before the change could be sent.',
-      );
+      throw new PlanningCacheError('Planning context changed before the change could be sent.');
     }
     if (!canWritePlanning(state.planning.authority)) {
-      throw new PlanningControllerError(
-        'This planning view is read-only.',
-        'AUTHORIZATION_DENIED',
-        403,
-      );
+      throw new PlanningCacheError('This planning view is read-only.', 'AUTHORIZATION_DENIED', 403);
     }
     if (state.planning.phase.kind === 'writing') {
-      throw new PlanningControllerError('A planning change is already pending.');
+      throw new PlanningCacheError('A planning change is already pending.');
     }
     if (!isPlanningReadyForChange(state.planning)) {
-      throw new PlanningControllerError('Planning is not ready for a new change.');
+      throw new PlanningCacheError('Planning is not ready for a new change.');
     }
   }
 
@@ -431,7 +419,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
    * from before. An undo or redo is never asked to confirm. */
   async function send(
     owner: NonNullable<typeof attempt>,
-    before: PlanningControllerMetadata,
+    before: PlanningCacheMetadata,
     controller: AbortController,
   ): Promise<PlanningMutationSuccess | typeof DECLINED> {
     const { pending, draft } = owner;
@@ -442,7 +430,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       return await transport.execute(draft.requestContext, pending.execution, controller.signal);
     } catch (error) {
       if (
-        !(error instanceof PlanningControllerError) ||
+        !(error instanceof PlanningCacheError) ||
         error.code !== 'RESTORATION_CONFIRMATION_REQUIRED' ||
         !Number.isSafeInteger(error.restorableItemCount) ||
         error.restorableItemCount === undefined ||
@@ -458,7 +446,7 @@ export function createPlanningCacheController(options: PlanningControllerOptions
       );
       controller.signal.throwIfAborted();
       if (!isAttemptOwner(owner)) {
-        throw new PlanningControllerError('Planning context changed before confirmation.');
+        throw new PlanningCacheError('Planning context changed before confirmation.');
       }
       if (!accepted) {
         attempt = null;
@@ -484,11 +472,11 @@ export function createPlanningCacheController(options: PlanningControllerOptions
   ): Promise<PlanningMutationSuccess | null> {
     const { pending, draft } = owner;
     if (!isAttemptOwner(owner)) {
-      throw new PlanningControllerError('Planning context changed while the request was pending.');
+      throw new PlanningCacheError('Planning context changed while the request was pending.');
     }
     if (!isValidReceipt(receipt, pending.execution)) {
       await settleUnconfirmed(owner);
-      throw new PlanningControllerError(
+      throw new PlanningCacheError(
         'The server receipt was invalid; commitment is unknown.',
         undefined,
         undefined,
@@ -555,24 +543,24 @@ export function createPlanningCacheController(options: PlanningControllerOptions
     await refresh();
   }
 
-  /** Records a failed send in planning state and rethrows it as a controller error. */
+  /** Records a failed send in planning state and rethrows it as a cache error. */
   async function settleFailure(owner: NonNullable<typeof attempt>, error: unknown): Promise<never> {
     const details = getErrorDetails(error);
-    if (error instanceof PlanningControllerError && error.uncertain) throw error;
+    if (error instanceof PlanningCacheError && error.uncertain) throw error;
     if (isScopeLoss(error)) {
       if (isAttemptOwner(owner)) loseScope();
-      throw new PlanningControllerError(details.message, details.code, details.status);
+      throw new PlanningCacheError(details.message, details.code, details.status);
     }
     if (details.code === 'MUTATION_ID_REUSED') {
       if (isAttemptOwner(owner)) await settleUnconfirmed(owner);
-      throw new PlanningControllerError(details.message, details.code, details.status, true);
+      throw new PlanningCacheError(details.message, details.code, details.status, true);
     }
     if (details.code === 'STALE_REVISION' || details.status === 409) {
       if (isAttemptOwner(owner)) {
         markRefused(owner, error, details.code ?? 'STALE_REVISION');
         await refresh();
       }
-      throw new PlanningControllerError(
+      throw new PlanningCacheError(
         details.message,
         details.code ?? 'STALE_REVISION',
         details.status,
@@ -590,10 +578,10 @@ export function createPlanningCacheController(options: PlanningControllerOptions
         // A refused undo or redo ends the page's history on the server; the read shows that.
         if (owner.pending.kind !== 'new') await refresh();
       }
-      throw new PlanningControllerError(details.message, details.code, details.status);
+      throw new PlanningCacheError(details.message, details.code, details.status);
     }
     if (isAttemptOwner(owner)) await settleUnconfirmed(owner);
-    throw new PlanningControllerError(details.message, details.code, details.status, true);
+    throw new PlanningCacheError(details.message, details.code, details.status, true);
   }
 
   async function perform(

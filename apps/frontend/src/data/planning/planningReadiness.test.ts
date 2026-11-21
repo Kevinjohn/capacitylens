@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { PlanningControllerMetadata } from './planningCacheTypes';
+import type { PlanningCacheMetadata } from './planningCacheTypes';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
-const ready: PlanningControllerMetadata = {
+const ready: PlanningCacheMetadata = {
   context: { identity: 'bruce-login', companyId: 'wayne' },
   authority: makePlanningAuthority(),
   revision: 4,

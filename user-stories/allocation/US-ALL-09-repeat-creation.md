@@ -47,7 +47,7 @@ flowchart TD
   A["AllocationScheduleFields repeat preview"] --> B["allocationSubmit validates the repeat fields"]
   B -->|valid| C["allocationSlice.addRepeatedAllocation sends the first allocation, the pattern and the occurrence ids"]
   B -->|invalid| I["Repeat/date error; no write"]
-  C --> D["Planning cache controller executes group command"]
+  C --> D["Planning cache executes group command"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends api.planning.mutate"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
@@ -71,4 +71,4 @@ flowchart TD
 - [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 - [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

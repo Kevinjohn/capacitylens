@@ -1,4 +1,4 @@
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -252,7 +252,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
 
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'A placeholder bound to a project can only take activities from that project.',
         'VALIDATION_ERROR',
         400,

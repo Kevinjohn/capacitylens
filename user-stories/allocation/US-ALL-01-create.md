@@ -57,7 +57,7 @@ flowchart TD
   A["AllocationModal create dialog"] --> B["allocationSubmit validates draft and assignment"]
   B -->|valid| C["allocationSlice.addAllocation"]
   B -->|invalid| I["Field/form error; dialog remains open"]
-  C --> D["Planning cache controller executes command"]
+  C --> D["Planning cache executes command"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends api.planning.mutate"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
@@ -81,4 +81,4 @@ flowchart TD
 - [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

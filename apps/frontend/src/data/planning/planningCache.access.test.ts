@@ -3,8 +3,8 @@ import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
-import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
-import { PlanningControllerError } from './planningErrors';
+import { createPlanningCache, createPlanningCacheState } from './planningCache';
+import { PlanningCacheError } from './planningErrors';
 import type { FullPlanningSnapshot, PlanningTransport } from './planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
@@ -38,22 +38,22 @@ async function setup() {
   const store = createStore(() => createPlanningCacheState());
   const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot('Wayne Enterprises'));
   const execute = vi.fn<PlanningTransport['execute']>();
-  const controller = createPlanningCacheController({
+  const cache = createPlanningCache({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
     transport: { read, execute, undo: vi.fn(), redo: vi.fn() },
   });
-  controller.setContext(context);
-  await controller.refresh();
-  return { store, controller, read, execute };
+  cache.setContext(context);
+  await cache.refresh();
+  return { store, cache, read, execute };
 }
 
 type Fixture = Awaited<ReturnType<typeof setup>>;
 
 async function startRequest(fixture: Fixture, stage: RequestStage): Promise<unknown> {
-  if (stage === 'read') return fixture.controller.refresh();
-  return fixture.controller.execute(fixture.controller.begin(), update);
+  if (stage === 'read') return fixture.cache.refresh();
+  return fixture.cache.execute(fixture.cache.begin(), update);
 }
 
 function rejectStage(fixture: Fixture, stage: RequestStage, error: Error) {
@@ -70,7 +70,7 @@ describe('planning request access boundaries', () => {
       data: makeAppData({ accounts: [duplicateCompany, duplicateCompany] }),
     });
 
-    await expect(fixture.controller.refresh()).resolves.toBe(false);
+    await expect(fixture.cache.refresh()).resolves.toBe(false);
     expect(fixture.store.getState().planning.phase.kind).toBe('failed');
     expect(fixture.store.getState().planning.revision).toBe(1);
   });
@@ -89,7 +89,7 @@ describe('planning request access boundaries', () => {
           );
         }
       });
-      rejectStage(fixture, stage, new PlanningControllerError('Access ended', undefined, 401));
+      rejectStage(fixture, stage, new PlanningCacheError('Access ended', undefined, 401));
       await startRequest(fixture, stage).catch((error: unknown) => error);
       expect(fixture.store.getState().planning.context).toBeNull();
       expect(fixture.store.getState().data.clients).toEqual([]);
@@ -101,7 +101,7 @@ describe('planning request access boundaries', () => {
       it(`keeps readable rows and history and shows the refusal after ${stage} reports 403/${code}`, async () => {
         const fixture = await setup();
         const history = fixture.store.getState().planning.history;
-        rejectStage(fixture, stage, new PlanningControllerError('Action refused', code, 403));
+        rejectStage(fixture, stage, new PlanningCacheError('Action refused', code, 403));
         await startRequest(fixture, stage).catch((error: unknown) => error);
         const state = fixture.store.getState();
         expect(state.planning.context).toEqual(context);
@@ -117,13 +117,13 @@ describe('planning request access boundaries', () => {
       if (stage === 'read') fixture.read.mockImplementationOnce(() => pending.promise);
       else fixture.execute.mockImplementationOnce(() => pending.promise);
       const oldRequest = startRequest(fixture, stage).catch((error: unknown) => error);
-      fixture.controller.setContext({ ...context, identity: 'diana-session-2' });
+      fixture.cache.setContext({ ...context, identity: 'diana-session-2' });
       fixture.read.mockResolvedValueOnce({
         ...snapshot('Gotham', 2),
         authority: makePlanningAuthority({ role: 'editor' }),
       });
-      await fixture.controller.refresh();
-      pending.reject(new PlanningControllerError('Previous session ended', undefined, 401));
+      await fixture.cache.refresh();
+      pending.reject(new PlanningCacheError('Previous session ended', undefined, 401));
       await oldRequest;
       expect(fixture.store.getState().planning.context?.identity).toBe('diana-session-2');
       expect(fixture.store.getState().data.clients[0]?.name).toBe('Gotham');
@@ -135,8 +135,8 @@ describe('planning request access boundaries', () => {
     const fixture = await setup();
     const pending = createDeferred<Success>();
     fixture.execute.mockImplementationOnce(() => pending.promise);
-    const draft = fixture.controller.begin();
-    const oldRequest = fixture.controller.execute(draft, update).catch((error: unknown) => error);
+    const draft = fixture.cache.begin();
+    const oldRequest = fixture.cache.execute(draft, update).catch((error: unknown) => error);
     const { phase } = fixture.store.getState().planning;
     const execution = phase.kind === 'writing' ? phase.write.execution : undefined;
     expect(execution).toBeDefined();
@@ -144,7 +144,7 @@ describe('planning request access boundaries', () => {
       ...snapshot('Gotham', 2),
       authority: makePlanningAuthority({ role: 'editor' }),
     });
-    await fixture.controller.refresh();
+    await fixture.cache.refresh();
     pending.resolve({
       status: 'committed',
       mutationId: execution?.mutationId ?? 'missing',
@@ -156,6 +156,6 @@ describe('planning request access boundaries', () => {
     expect(fixture.store.getState().data.clients[0]?.name).toBe('Gotham');
     expect(fixture.store.getState().planning.history).toEqual({ canUndo: false, canRedo: false });
     expect(fixture.store.getState().planning.phase.kind).not.toBe('writing');
-    await expect(fixture.controller.execute(draft, update)).rejects.toThrow(/context/i);
+    await expect(fixture.cache.execute(draft, update)).rejects.toThrow(/context/i);
   });
 });

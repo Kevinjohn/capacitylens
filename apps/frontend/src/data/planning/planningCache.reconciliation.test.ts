@@ -11,13 +11,13 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-} from './planningCacheControllerTestKit';
+} from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
 afterEach(() => setMasqueradeContextToken(null));
 
-describe('planning cache controller', () => {
+describe('planning cache', () => {
   it('accepts a matching commitment after a read reaches the pending write revision, then clears history on a later external revision', async () => {
     let release!: (receipt: PlanningMutationSuccess) => void;
     const execute = vi.fn<PlanningTransport['execute']>(
@@ -30,7 +30,7 @@ describe('planning cache controller', () => {
       execute,
       read: vi.fn<PlanningTransport['read']>(),
     });
-    h.controller.setContext(context);
+    h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
       authority: makePlanningAuthority(),
@@ -38,8 +38,8 @@ describe('planning cache controller', () => {
       today: companyToday,
       capacity: emptyCapacity(),
     });
-    const draft = h.controller.begin();
-    const write = h.controller.execute(draft, intent);
+    const draft = h.cache.begin();
+    const write = h.cache.execute(draft, intent);
     await h.readSnapshot({
       revision: 2,
       authority: makePlanningAuthority(),
@@ -103,13 +103,13 @@ describe('planning cache controller', () => {
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
     const h = createHarness({ execute: vi.fn(), read });
-    h.controller.setContext(context);
-    await expect(h.controller.refresh()).resolves.toBe(false);
+    h.cache.setContext(context);
+    await expect(h.cache.refresh()).resolves.toBe(false);
     expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningError(h.state().planning.phase)).toBeInstanceOf(Error);
     expect(h.state().data).toEqual(createEmptyAppData());
     expect(h.state().planning.authority).toBeNull();
     expect(h.state().planning.history.canUndo).toBe(false);
-    expect(() => h.controller.begin()).toThrow(/read-only/);
+    expect(() => h.cache.begin()).toThrow(/read-only/);
   });
 });

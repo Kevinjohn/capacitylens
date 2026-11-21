@@ -12,7 +12,7 @@ import {
 import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { buildResourceCreate, buildSettingsUpdate } from './planningCommands';
-import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
+import { createPlanningCache, createPlanningCacheState } from './planningCache';
 import type { PlanningCacheState } from './planningCacheTypes';
 
 const companyId = 'a1';
@@ -22,7 +22,7 @@ function flow(initial: PlanningCacheState['data']) {
   const store = createStore<PlanningCacheState>(() => createPlanningCacheState(initial));
   const transport = new StubPlanningTransport();
   transport.reset(companyId, initial);
-  const controller = createPlanningCacheController({
+  const cache = createPlanningCache({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState(update) {
@@ -30,8 +30,8 @@ function flow(initial: PlanningCacheState['data']) {
     },
     transport,
   });
-  controller.setContext(context);
-  return { controller, state: store.getState, transport };
+  cache.setContext(context);
+  return { cache, state: store.getState, transport };
 }
 
 describe('typed planning flow', () => {
@@ -39,8 +39,8 @@ describe('typed planning flow', () => {
     const initial = makeAppData({
       accounts: [makeCompany({ id: companyId, dateStyle: null, timezone: null })],
     });
-    const { controller, state } = flow(initial);
-    await controller.refresh();
+    const { cache, state } = flow(initial);
+    await cache.refresh();
     const original = state().data.accounts[0];
     if (!original) throw new Error('Expected account.');
     const command = buildSettingsUpdate({
@@ -51,7 +51,7 @@ describe('typed planning flow', () => {
     });
     if (!command) throw new Error('Expected settings command.');
 
-    await controller.execute(controller.begin(), command.intent);
+    await cache.execute(cache.begin(), command.intent);
     expect(state().data.accounts[0]).toMatchObject({
       dateStyle: 'month-day',
       timezone: 'Europe/London',
@@ -59,10 +59,10 @@ describe('typed planning flow', () => {
     expect(state().planning.revision).toBe(1);
     expect(state().planning.history.canUndo).toBe(true);
 
-    await controller.undo();
+    await cache.undo();
     expect(state().data.accounts[0]).toMatchObject({ dateStyle: null, timezone: null });
     expect(state().planning.revision).toBe(2);
-    await controller.redo();
+    await cache.redo();
     expect(state().data.accounts[0]).toMatchObject({
       dateStyle: 'month-day',
       timezone: 'Europe/London',
@@ -103,8 +103,8 @@ describe('typed planning flow', () => {
         }),
       ],
     });
-    const { controller, state, transport } = flow(initial);
-    await controller.refresh();
+    const { cache, state, transport } = flow(initial);
+    await cache.refresh();
     const activityForDelete = requireValue(
       state().data.activities[0],
       'activity after phase delete',
@@ -123,7 +123,7 @@ describe('typed planning flow', () => {
       transport,
     );
 
-    await controller.execute(controller.begin(), {
+    await cache.execute(cache.begin(), {
       operation: 'catalogue.delete',
       entity: { entity: 'phases', id: 'phase-1' },
     });
@@ -131,7 +131,7 @@ describe('typed planning flow', () => {
     expect(state().data.activities[0]?.phaseId).toBeNull();
     expect(state().planning.history).toEqual({ canUndo: true, canRedo: false });
 
-    await expect(controller.undo()).resolves.toBe(true);
+    await expect(cache.undo()).resolves.toBe(true);
 
     expect(transport.calls).toHaveLength(1);
     expect(transport.historySteps).toEqual(['undo']);
@@ -141,8 +141,8 @@ describe('typed planning flow', () => {
 
   it('undoes and redoes a resource creation without changing its id', async () => {
     const initial = makeAppData({ accounts: [makeCompany({ id: companyId })] });
-    const { controller, state, transport } = flow(initial);
-    await controller.refresh();
+    const { cache, state, transport } = flow(initial);
+    await cache.refresh();
     const id = 'resource-1';
     const command = buildResourceCreate({
       data: state().data,
@@ -163,11 +163,11 @@ describe('typed planning flow', () => {
       },
     });
     if (!command) throw new Error('Expected resource command.');
-    await controller.execute(controller.begin(), command.intent);
-    await expect(controller.undo()).resolves.toBe(true);
+    await cache.execute(cache.begin(), command.intent);
+    await expect(cache.undo()).resolves.toBe(true);
     expect(state().data.resources.filter((row) => !row.archivedAt)).toEqual([]);
     expect(state().planning.history).toEqual({ canUndo: false, canRedo: true });
-    await expect(controller.redo()).resolves.toBe(true);
+    await expect(cache.redo()).resolves.toBe(true);
     expect(state().data.resources).toHaveLength(1);
     expect(state().data.resources[0]?.id).toBe(id);
     expect(state().data.resources[0]?.archivedAt).toBeNull();
@@ -181,12 +181,12 @@ describe('typed planning flow', () => {
       accounts: [makeCompany({ id: companyId })],
       clients: [client],
     });
-    const { controller, state, transport } = flow(initial);
-    await controller.refresh();
+    const { cache, state, transport } = flow(initial);
+    await cache.refresh();
     transport.failNext(new Error('server refusal'));
 
     await expect(
-      controller.execute(controller.begin(), {
+      cache.execute(cache.begin(), {
         operation: 'catalogue.update',
         entity: { entity: 'clients', id: client.id, changes: { name: 'Wayne Studio' } },
       }),

@@ -10,7 +10,7 @@ import {
   setPlanningAuthority,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import type { Draft } from './useStore';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
@@ -232,7 +232,7 @@ describe('server-owned allocation rules', () => {
   // browser sends the write and surfaces the refusal.
   const refuseNext = () =>
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'Allocation must reference an existing resource and activity in this company.',
         'VALIDATION_ERROR',
         400,
@@ -384,9 +384,7 @@ it('leaves a reassignment before the target is available for the server to refus
   );
   const allocation = requireCreated(await state().addAllocation(draft()));
   const refusal = 'Allocation includes a scheduled working day before this person is available.';
-  getStubPlanningTransport().failNext(
-    new PlanningControllerError(refusal, 'VALIDATION_ERROR', 400),
-  );
+  getStubPlanningTransport().failNext(new PlanningCacheError(refusal, 'VALIDATION_ERROR', 400));
   await expect(
     state().reassignAllocation(allocation.id, {
       resourceId: target.id,

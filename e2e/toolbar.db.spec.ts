@@ -228,7 +228,7 @@ test.describe('Toolbar', () => {
       await page.getByTestId('scheduler-grid').click({ position: { x: 5, y: 5 } });
       await page.keyboard.press('Meta+z');
       await expect(page.getByTestId('allocation-bar')).toHaveCount(before);
-      // Restored rows can repaint before the controller unlocks Redo.
+      // Restored rows can repaint before the planning cache unlocks Redo.
       await expect(redoBtn).toBeEnabled();
       await page.keyboard.press('Meta+Shift+z');
       await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1);

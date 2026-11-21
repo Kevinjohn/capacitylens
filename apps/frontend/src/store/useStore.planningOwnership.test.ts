@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { readPlanningProblem } from '@/data/planning/planningNotices';
 import { useStore } from '@/store/useStore';
 import {
@@ -92,7 +92,7 @@ describe('planning authority publication', () => {
     expect(useStore.getState().planning.history.canUndo).toBe(true);
     expect(useStore.getState().planning.history.canRedo).toBe(true);
 
-    failure.read = new PlanningControllerError('Sign in again.', undefined, 401);
+    failure.read = new PlanningCacheError('Sign in again.', undefined, 401);
     const beforeAuthLoss = useStore.getState().planningAuthLossVersion;
     await useStore.getState().refreshPlanning({ fresh: true });
 
@@ -112,7 +112,7 @@ describe('planning authority publication', () => {
     const data = useStore.getState().data;
     const history = useStore.getState().planning.history;
     const authLossVersion = useStore.getState().planningAuthLossVersion;
-    failure.execute = new PlanningControllerError(
+    failure.execute = new PlanningCacheError(
       'You no longer belong to this company.',
       'ACCOUNT_MEMBERSHIP_LOST',
       403,

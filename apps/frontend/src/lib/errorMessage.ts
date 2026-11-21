@@ -2,7 +2,7 @@ import { m } from '@/i18n';
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import type { DomainErrorCode } from '@capacitylens/shared/domain/errors';
 import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 
 // One entry per DomainErrorCode. The values are uncalled message references. This table is built
 // once at import and Paraglide resolves the active locale at call time, so storing resolved strings
@@ -61,7 +61,7 @@ export function resolveErrorMessage(error: unknown): string {
   try {
     if (error instanceof DomainError) return resolveDomainErrorMessage(error.code);
     // The change may have saved; the form that is retried must say so, not show the transport text.
-    if (error instanceof PlanningControllerError && error.uncertain) {
+    if (error instanceof PlanningCacheError && error.uncertain) {
       return m.app_planning_unconfirmed();
     }
     if (error instanceof Error && error.message.trim()) return error.message;

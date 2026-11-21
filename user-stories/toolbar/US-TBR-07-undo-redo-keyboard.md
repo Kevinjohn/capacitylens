@@ -35,8 +35,8 @@ flowchart TD
   A["useAppShellViewModel installs useGlobalShortcuts key listener"] --> B["applyHistoryShortcutEffect checks key, composition, text entry, open modal and unsaved form"]
   B -->|blocked| C["No history action runs"]
   B -->|allowed| D["undoPlanning or redoPlanning"]
-  D --> E["planningCacheController executes history intent through PlanningTransport"]
+  D --> E["planningCache executes history intent through PlanningTransport"]
   E --> F["Accepted result updates planning history and Schedule"]
 ```
 
-**Code references:** [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts), [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
+**Code references:** [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts), [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)

@@ -1,8 +1,8 @@
 import { canWritePlanning } from './planningAuthority';
-import type { PlanningControllerMetadata } from './planningCacheTypes';
+import type { PlanningCacheMetadata } from './planningCacheTypes';
 
 /** The one readiness rule: a writable, loaded context at a known revision with no unresolved write. */
-export function isPlanningReadyForChange(planning: PlanningControllerMetadata): boolean {
+export function isPlanningReadyForChange(planning: PlanningCacheMetadata): boolean {
   return (
     planning.context !== null &&
     canWritePlanning(planning.authority) &&
@@ -14,7 +14,7 @@ export function isPlanningReadyForChange(planning: PlanningControllerMetadata): 
 /** Undo or Redo is available when a change could be made and the server's last read reported a
  * step in that direction for this page's history. */
 export function isPlanningHistoryReady(
-  planning: PlanningControllerMetadata,
+  planning: PlanningCacheMetadata,
   step: 'undo' | 'redo',
 ): boolean {
   return (
@@ -29,8 +29,8 @@ export function isPlanningHistoryReady(
  * committed in between and rows read at `basis` are current apart from that change.
  */
 export function isSoleAcknowledgedAdvance(
-  basis: Pick<PlanningControllerMetadata, 'context' | 'revision'>,
-  planning: PlanningControllerMetadata,
+  basis: Pick<PlanningCacheMetadata, 'context' | 'revision'>,
+  planning: PlanningCacheMetadata,
 ): boolean {
   return (
     basis.revision !== null &&

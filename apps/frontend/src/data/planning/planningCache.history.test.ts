@@ -8,7 +8,7 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-} from './planningCacheControllerTestKit';
+} from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
@@ -21,7 +21,7 @@ const committing = () =>
 
 async function loaded(transport: Parameters<typeof createHarness>[0], revision = 1) {
   const h = createHarness(transport);
-  h.controller.setContext(context);
+  h.cache.setContext(context);
   await h.readSnapshot({
     revision,
     authority: makePlanningAuthority(),
@@ -32,12 +32,12 @@ async function loaded(transport: Parameters<typeof createHarness>[0], revision =
   return h;
 }
 
-describe('planning cache controller history', () => {
+describe('planning cache history', () => {
   it('names one history id on every read and write, and shows what the server reports', async () => {
     const execute = committing();
     const h = await loaded({ execute, read: vi.fn<PlanningTransport['read']>() });
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
-    await h.controller.execute(h.controller.begin(), intent);
+    await h.cache.execute(h.cache.begin(), intent);
     expect(h.state().planning.history).toEqual({ canUndo: true, canRedo: false });
     const historyId = execute.mock.calls[0]?.[1].historyId;
     expect(historyId).toEqual(expect.any(String));
@@ -47,16 +47,16 @@ describe('planning cache controller history', () => {
   it('names no history on a change that ends it, so the server offers no undo', async () => {
     const execute = committing();
     const h = await loaded({ execute, read: vi.fn<PlanningTransport['read']>() });
-    await h.controller.execute(h.controller.begin(), intent);
+    await h.cache.execute(h.cache.begin(), intent);
     expect(h.state().planning.history.canUndo).toBe(true);
-    await h.controller.execute(h.controller.begin(), intent, undefined, true);
+    await h.cache.execute(h.cache.begin(), intent, undefined, true);
     expect(execute.mock.calls[1]?.[1]).not.toHaveProperty('historyId');
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
   });
 
   it('keeps history for a same-revision read and loses it when another change moves on', async () => {
     const h = await loaded({ execute: committing(), read: vi.fn<PlanningTransport['read']>() });
-    await h.controller.execute(h.controller.begin(), intent);
+    await h.cache.execute(h.cache.begin(), intent);
     const same = {
       authority: makePlanningAuthority(),
       data: makeCanonicalData(),
@@ -103,10 +103,10 @@ describe('planning cache controller history', () => {
         history: { canUndo: true, canRedo: false },
       });
     const h = await loaded({ execute, read, undo, redo });
-    await h.controller.execute(h.controller.begin(), intent);
-    await expect(h.controller.undo()).resolves.toBe(true);
+    await h.cache.execute(h.cache.begin(), intent);
+    await expect(h.cache.undo()).resolves.toBe(true);
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: true });
-    await expect(h.controller.redo()).resolves.toBe(true);
+    await expect(h.cache.redo()).resolves.toBe(true);
     expect(h.state().planning.history).toEqual({ canUndo: true, canRedo: false });
     const historyId = execute.mock.calls[0]?.[1].historyId;
     const steps = [undo.mock.calls[0]?.[1], redo.mock.calls[0]?.[1]];
@@ -121,8 +121,8 @@ describe('planning cache controller history', () => {
     const undo = vi.fn<PlanningTransport['undo']>();
     const redo = vi.fn<PlanningTransport['redo']>();
     const h = await loaded({ execute: committing(), read: vi.fn(), undo, redo });
-    await expect(h.controller.undo()).resolves.toBe(false);
-    await expect(h.controller.redo()).resolves.toBe(false);
+    await expect(h.cache.undo()).resolves.toBe(false);
+    await expect(h.cache.redo()).resolves.toBe(false);
     expect(undo).not.toHaveBeenCalled();
     expect(redo).not.toHaveBeenCalled();
   });
@@ -134,7 +134,7 @@ describe('planning cache controller history', () => {
         .mockRejectedValue({ status: 400, code: 'NO_CHANGE' }),
       read: vi.fn<PlanningTransport['read']>(),
     });
-    await expect(h.controller.execute(h.controller.begin(), intent)).rejects.toMatchObject({
+    await expect(h.cache.execute(h.cache.begin(), intent)).rejects.toMatchObject({
       code: 'NO_CHANGE',
     });
     expect(h.state().planning.phase).toMatchObject({
@@ -151,7 +151,7 @@ describe('planning cache controller history', () => {
   ])('rereads after a refused Undo so the ended history shows ($status)', async (refusal) => {
     const undo = vi.fn<PlanningTransport['undo']>().mockRejectedValue(refusal);
     const h = await loaded({ execute: committing(), read: vi.fn(), undo });
-    await h.controller.execute(h.controller.begin(), intent);
+    await h.cache.execute(h.cache.begin(), intent);
     const reads = h.read.mock.calls.length;
     // The server ends the history after refusing one of its steps; its next read says so.
     h.read.mockResolvedValueOnce({
@@ -162,7 +162,7 @@ describe('planning cache controller history', () => {
       capacity: emptyCapacity(),
       history: { canUndo: false, canRedo: false },
     });
-    await expect(h.controller.undo()).rejects.toMatchObject({ status: refusal.status });
+    await expect(h.cache.undo()).rejects.toMatchObject({ status: refusal.status });
     expect(h.read.mock.calls.length).toBe(reads + 1);
     expect(h.state().planning).toMatchObject({
       phase: { kind: 'ready' },
@@ -172,12 +172,12 @@ describe('planning cache controller history', () => {
 
   it('loses history when the company changes, even after switching back', async () => {
     const h = await loaded({ execute: committing(), read: vi.fn() });
-    await h.controller.execute(h.controller.begin(), intent);
+    await h.cache.execute(h.cache.begin(), intent);
     const first = h.read.mock.calls.at(-1)?.[2]?.historyId;
-    h.controller.setContext({ ...context, companyId: 'company-2' });
+    h.cache.setContext({ ...context, companyId: 'company-2' });
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
-    h.controller.setContext(context);
-    await h.controller.refresh();
+    h.cache.setContext(context);
+    await h.cache.refresh();
     expect(h.read.mock.calls.at(-1)?.[2]?.historyId).not.toBe(first);
     expect(h.state().planning.history).toEqual({ canUndo: false, canRedo: false });
   });

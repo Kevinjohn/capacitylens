@@ -9,7 +9,7 @@ import { OwnerPermissions } from '@/test/ownerPermissions';
 import { RestorationCleanupDialog } from '@/components/common/RestorationCleanupDialog';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
   renderTestingLibrary(ui, { wrapper: OwnerPermissions });
@@ -170,7 +170,7 @@ describe('ExternalForm', () => {
     });
     await useStore.getState().deleteClosure(closure.id);
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'This change clears 1 restorable item.',
         'RESTORATION_CONFIRMATION_REQUIRED',
         409,

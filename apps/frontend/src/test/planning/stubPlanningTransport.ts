@@ -6,7 +6,7 @@ import type {
   PlanningSnapshot,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import type {
   PlanningExecution,
   PlanningIntent,
@@ -283,12 +283,12 @@ export class StubPlanningTransport implements PlanningTransport {
     }
     const revision = this.revision(companyId);
     if (step.baseRevision !== revision) {
-      throw new PlanningControllerError('The planning data changed.', 'STALE_REVISION', 409);
+      throw new PlanningCacheError('The planning data changed.', 'STALE_REVISION', 409);
     }
     const history = this.history(companyId);
     const available = history.model.report(step.historyId, revision);
     if (!(kind === 'undo' ? available.canUndo : available.canRedo)) {
-      throw new PlanningControllerError(`There is nothing to ${kind}.`, undefined, 409);
+      throw new PlanningCacheError(`There is nothing to ${kind}.`, undefined, 409);
     }
     history.model.step(kind, step.historyId, revision, revision + 1);
     const [from, to] =

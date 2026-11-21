@@ -2,8 +2,8 @@ import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it, vi } from 'vitest';
 import { makeCompany } from '@/test/fixtures';
-import { createPlanningCacheController, createPlanningCacheState } from './planningCacheController';
-import { PlanningControllerError } from './planningErrors';
+import { createPlanningCache, createPlanningCacheState } from './planningCache';
+import { PlanningCacheError } from './planningErrors';
 import type { PlanningCacheState, PlanningTransport } from './planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
@@ -18,7 +18,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
   const execute = vi
     .fn<PlanningTransport['execute']>()
     .mockRejectedValueOnce(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'This change clears 3 restorable items',
         'RESTORATION_CONFIRMATION_REQUIRED',
         409,
@@ -33,7 +33,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
       restoration: { consumedGroupId: null, replacementGroupId: null },
       changes: { upserts: [], removed: [] },
     }));
-  const controller = createPlanningCacheController({
+  const cache = createPlanningCache({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
@@ -54,18 +54,18 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
     },
     ...(confirm ? { confirmRestorationCleanup: confirm } : {}),
   });
-  controller.setContext(context);
-  return { controller, store, execute };
+  cache.setContext(context);
+  return { cache, store, execute };
 }
 
 describe('restoration cleanup confirmation', () => {
   it('cancels without changing data or history', async () => {
     const confirm = vi.fn(async () => false);
     const h = harness(confirm);
-    await h.controller.refresh();
+    await h.cache.refresh();
     const before = h.store.getState();
-    const draft = h.controller.begin();
-    expect(await h.controller.execute(draft, intent)).toBeNull();
+    const draft = h.cache.begin();
+    expect(await h.cache.execute(draft, intent)).toBeNull();
     expect(h.store.getState()).toEqual(before);
     expect(h.execute).toHaveBeenCalledTimes(1);
     expect(confirm).toHaveBeenCalledWith(3, expect.any(AbortSignal));
@@ -73,8 +73,8 @@ describe('restoration cleanup confirmation', () => {
   it('confirms once using the original identity, intent and revision plus exact count', async () => {
     const confirm = vi.fn(async () => true);
     const h = harness(confirm);
-    await h.controller.refresh();
-    await h.controller.execute(h.controller.begin(), intent);
+    await h.cache.refresh();
+    await h.cache.execute(h.cache.begin(), intent);
     expect(h.execute).toHaveBeenCalledTimes(2);
     const initial = h.execute.mock.calls[0]?.[1];
     expect(initial).toBeDefined();
@@ -83,10 +83,8 @@ describe('restoration cleanup confirmation', () => {
   });
   it('fails closed without a dialog callback and never automatically asks twice', async () => {
     const closed = harness();
-    await closed.controller.refresh();
-    await expect(
-      closed.controller.execute(closed.controller.begin(), intent),
-    ).rejects.toMatchObject({
+    await closed.cache.refresh();
+    await expect(closed.cache.execute(closed.cache.begin(), intent)).rejects.toMatchObject({
       code: 'RESTORATION_CONFIRMATION_REQUIRED',
     });
     expect(closed.execute).toHaveBeenCalledTimes(1);
@@ -94,17 +92,11 @@ describe('restoration cleanup confirmation', () => {
     const h = harness(confirm);
     h.execute.mockReset();
     h.execute.mockRejectedValue(
-      new PlanningControllerError(
-        'The count changed.',
-        'RESTORATION_CONFIRMATION_STALE',
-        409,
-        false,
-        2,
-      ),
+      new PlanningCacheError('The count changed.', 'RESTORATION_CONFIRMATION_STALE', 409, false, 2),
     );
     // First refusal carries the original exact count; the confirmed retry receives the changed count.
     h.execute.mockRejectedValueOnce(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'Confirm cleanup.',
         'RESTORATION_CONFIRMATION_REQUIRED',
         409,
@@ -112,8 +104,8 @@ describe('restoration cleanup confirmation', () => {
         3,
       ),
     );
-    await h.controller.refresh();
-    await expect(h.controller.execute(h.controller.begin(), intent)).rejects.toMatchObject({
+    await h.cache.refresh();
+    await expect(h.cache.execute(h.cache.begin(), intent)).rejects.toMatchObject({
       code: 'RESTORATION_CONFIRMATION_STALE',
     });
     expect(confirm).toHaveBeenCalledTimes(1);
@@ -125,7 +117,7 @@ describe('restoration cleanup confirmation', () => {
     h.execute
       .mockReset()
       .mockRejectedValue(
-        new PlanningControllerError(
+        new PlanningCacheError(
           'Invalid count.',
           'RESTORATION_CONFIRMATION_REQUIRED',
           409,
@@ -133,8 +125,8 @@ describe('restoration cleanup confirmation', () => {
           -1,
         ),
       );
-    await h.controller.refresh();
-    await expect(h.controller.execute(h.controller.begin(), intent)).rejects.toMatchObject({
+    await h.cache.refresh();
+    await expect(h.cache.execute(h.cache.begin(), intent)).rejects.toMatchObject({
       code: 'RESTORATION_CONFIRMATION_REQUIRED',
     });
     expect(confirm).not.toHaveBeenCalled();
@@ -149,8 +141,8 @@ describe('restoration cleanup confirmation', () => {
         }),
     );
     const h = harness(confirm);
-    await h.controller.refresh();
-    const pending = h.controller.execute(h.controller.begin(), intent);
+    await h.cache.refresh();
+    const pending = h.cache.execute(h.cache.begin(), intent);
     await vi.waitFor(() => expect(confirm).toHaveBeenCalled());
     h.store.setState((current) => ({ planning: { ...current.planning, revision: 7 } }));
     cancel(false);
@@ -169,10 +161,10 @@ describe('restoration cleanup confirmation', () => {
         }),
     );
     const h = harness(confirm);
-    await h.controller.refresh();
-    const pending = h.controller.execute(h.controller.begin(), intent);
+    await h.cache.refresh();
+    const pending = h.cache.execute(h.cache.begin(), intent);
     await vi.waitFor(() => expect(confirm).toHaveBeenCalled());
-    h.controller.setContext(null);
+    h.cache.setContext(null);
     accept(true);
     await expect(pending).rejects.toThrow();
     expect(h.execute).toHaveBeenCalledTimes(1);

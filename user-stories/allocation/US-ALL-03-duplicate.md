@@ -53,4 +53,4 @@ flowchart TD
 - [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

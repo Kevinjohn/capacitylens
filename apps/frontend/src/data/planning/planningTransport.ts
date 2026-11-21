@@ -1,7 +1,7 @@
 import { readProductHttpFailure } from '@/api/productHttpError';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { client } from '@/api/queryClient';
-import { PlanningControllerError } from './planningErrors';
+import { PlanningCacheError } from './planningErrors';
 import type { PlanningClientContext, PlanningTransport } from './planningCacheTypes';
 
 type PlanningClient = typeof client;
@@ -45,7 +45,7 @@ function requireReply<T>(reply: T | void): T {
 function mapPlanningError(error: unknown): unknown {
   const failure = readProductHttpFailure(error, 'The planning request was refused.');
   if (!failure) return error;
-  return new PlanningControllerError(
+  return new PlanningCacheError(
     failure.body.error,
     failure.body.code,
     failure.status,
@@ -87,7 +87,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           }),
         );
         if (snapshot.companyId !== context.companyId) {
-          throw new PlanningControllerError("The server returned another company's planning data.");
+          throw new PlanningCacheError("The server returned another company's planning data.");
         }
         const authority = snapshot.authority;
         if (
@@ -98,7 +98,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
           typeof authority.canSeePrivateNames !== 'boolean' ||
           typeof authority.canSeeTimeOffNote !== 'boolean'
         ) {
-          throw new PlanningControllerError('The server returned an invalid planning authority.');
+          throw new PlanningCacheError('The server returned an invalid planning authority.');
         }
         const base = {
           revision: snapshot.revision,

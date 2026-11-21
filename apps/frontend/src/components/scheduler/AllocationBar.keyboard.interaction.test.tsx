@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { m } from '@/i18n';
 import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithCompany } from '@/test/fixtures';
@@ -330,7 +330,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     const original = useStore.getState().updateAllocation;
     useStore.setState({
       updateAllocation: () =>
-        Promise.reject(new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409)),
+        Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
     });
     try {
       render(
@@ -365,7 +365,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
 
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'The allocation ends after this person is available.',
         'VALIDATION_ERROR',
         400,

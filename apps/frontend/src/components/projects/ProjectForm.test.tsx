@@ -13,7 +13,7 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
@@ -51,7 +51,7 @@ describe('ProjectForm', () => {
     });
     await useStore.getState().deleteClosure(closure.id);
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'This change clears 1 restorable item.',
         'RESTORATION_CONFIRMATION_REQUIRED',
         409,

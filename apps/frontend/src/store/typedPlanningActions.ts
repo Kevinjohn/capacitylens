@@ -37,7 +37,7 @@ function requireCreatedId(value: unknown): string {
   return value;
 }
 
-/** The remaining planning writers share the allocation controller and await its reconciliation. */
+/** The remaining planning writers share the planning cache and await its reconciliation. */
 export function createTypedPlanningActions(
   get: () => Pick<StoreState, 'data' | 'planning' | 'masquerade' | 'sendPlanningCommand'>,
   {

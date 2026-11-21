@@ -33,7 +33,7 @@ export type FullPlanningSnapshot = PlanningSnapshotBase & { slice?: 'full'; data
 
 /** What a planning read asks for: the capacity window, absent for the server's default, and the
  * page's history id, so the server reports that history's undo and redo availability. The planning
- * controller always names its history; a read outside it names none and is told neither is available.
+ * cache always names its history; a read outside it names none and is told neither is available.
  * `ifRevision` names the revision the reader already holds; the server then leaves the rows out if
  * that revision is current. */
 export interface PlanningReadRequest {
@@ -58,14 +58,14 @@ export interface PlanningClientContext {
 }
 
 /**
- * The server port. Error contract: the controller reads any thrown value for `code`, `status` and
+ * The server port. Error contract: the cache reads any thrown value for `code`, `status` and
  * `message` only. On `execute`, status 401 ends the planning scope; code `MUTATION_ID_REUSED`, status
  * 408, a status of 500 or more, or no status (a network failure) leaves the commit boundary unknown,
- * so the controller refetches and reports the change as unconfirmed; code `STALE_REVISION`
+ * so the cache refetches and reports the change as unconfirmed; code `STALE_REVISION`
  * or status 409 is refused and refreshed; codes `AUTHORIZATION_DENIED`, `VALIDATION_ERROR` and
  * `NO_CHANGE`, and any other status below 500, are refused. Only a server request to confirm cleanup
- * must be a `PlanningControllerError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
- * `restorableItemCount`. A transport must not set `uncertain`; the controller sets it on failures it
+ * must be a `PlanningCacheError`: code `RESTORATION_CONFIRMATION_REQUIRED` with a positive
+ * `restorableItemCount`. A transport must not set `uncertain`; the cache sets it on failures it
  * has already recorded. `undo` and `redo` follow the same contract, except that the server never
  * asks them to confirm cleanup. A `read` failure ends the scope on 401 and is otherwise recorded
  * on the planning state.
@@ -127,7 +127,7 @@ export type PlanningPhase =
   | { kind: 'failed'; error: unknown; lastWrite: PlanningWriteResult | null }
   | { kind: 'writing'; write: PlanningPendingMutation; readError: unknown | null };
 
-export interface PlanningControllerMetadata {
+export interface PlanningCacheMetadata {
   context: PlanningClientContext | null;
   /** The authority of the last accepted read; null until a read is accepted. */
   authority: PlanningAuthority | null;
@@ -140,10 +140,10 @@ export interface PlanningControllerMetadata {
   history: PlanningHistory;
 }
 
-/** The controller owns metadata; planning rows remain in the one Zustand `data` value. */
+/** The cache owns metadata; planning rows remain in the one Zustand `data` value. */
 export interface PlanningCacheState {
   data: AppData;
-  planning: PlanningControllerMetadata;
+  planning: PlanningCacheMetadata;
 }
 
 export interface PlanningCacheStore {
@@ -159,7 +159,7 @@ export interface PlanningDraft {
   readonly generation: number;
 }
 
-export interface PlanningControllerOptions {
+export interface PlanningCacheOptions {
   getState: PlanningCacheStore['getState'];
   setState: PlanningCacheStore['setState'];
   transport: PlanningTransport;

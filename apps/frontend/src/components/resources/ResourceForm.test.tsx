@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { ResourceForm } from './ResourceForm';
 import { useStore } from '@/store/useStore';
 import { makeResourceDraft, requireValue, resetStoreWithCompany } from '@/test/fixtures';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const addResource = useStore.getState().addResource;
@@ -288,7 +288,7 @@ it('keeps the draft and displays a refusal returned by the planning transport', 
   const onClose = vi.fn();
   const transport = getStubPlanningTransport();
   transport.failNext(
-    new PlanningControllerError(
+    new PlanningCacheError(
       'The planning server refused this resource change.',
       'VALIDATION_ERROR',
       400,
@@ -313,7 +313,7 @@ it('shows a planning conflict when the typed write is refused', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   vi.spyOn(useStore.getState(), 'addResource').mockRejectedValue(
-    new PlanningControllerError('Row is stale.', 'revision_conflict', 409),
+    new PlanningCacheError('Row is stale.', 'revision_conflict', 409),
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
@@ -331,7 +331,7 @@ it("keeps the server's own reason when a save is rejected as invalid", async () 
   const user = userEvent.setup();
   const onClose = vi.fn();
   vi.spyOn(useStore.getState(), 'addResource').mockRejectedValue(
-    new PlanningControllerError('That discipline no longer exists.', 'VALIDATION_ERROR', 400),
+    new PlanningCacheError('That discipline no longer exists.', 'VALIDATION_ERROR', 400),
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);

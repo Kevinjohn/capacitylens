@@ -58,7 +58,7 @@ function readSaveAdvisory(receipt: PlanningMutationSuccess | undefined): Allocat
   };
 }
 
-/** Create allocation actions backed by the planning cache controller. */
+/** Create allocation actions backed by the planning cache. */
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {

@@ -3,14 +3,11 @@ import { expect, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import type { PlanningIntent } from '@/api/planningContracts';
 import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
-import {
-  createPlanningCacheController,
-  createPlanningCacheState,
-} from '@/data/planning/planningCacheController';
+import { createPlanningCache, createPlanningCacheState } from '@/data/planning/planningCache';
 import type {
   FullPlanningSnapshot,
   PlanningCacheState,
-  PlanningControllerOptions,
+  PlanningCacheOptions,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
@@ -20,7 +17,7 @@ import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures
 
 export { makeReceipt };
 
-// Shared setup for the planning cache controller transition tests.
+// Shared setup for the planning cache transition tests.
 
 export const context = { identity: 'bruce-session', companyId: 'wayne' };
 export const update: PlanningIntent = {
@@ -47,7 +44,7 @@ export function snapshot(
   };
 }
 
-export type Options = Pick<PlanningControllerOptions, 'onAuthLoss' | 'confirmRestorationCleanup'>;
+export type Options = Pick<PlanningCacheOptions, 'onAuthLoss' | 'confirmRestorationCleanup'>;
 
 export function setup(options: Options = {}) {
   const store = createStore<PlanningCacheState>(() => createPlanningCacheState());
@@ -80,7 +77,7 @@ export function setup(options: Options = {}) {
   const redo = stepper('redo');
   let id = 0;
   let historyNumber = 0;
-  const controller = createPlanningCacheController({
+  const cache = createPlanningCache({
     readMasqueradeContextToken: getMasqueradeContextToken,
     getState: store.getState,
     setState: store.setState,
@@ -90,20 +87,20 @@ export function setup(options: Options = {}) {
     ...options,
   });
   const state = () => store.getState();
-  return { store, state, server, read, execute, undo, redo, controller };
+  return { store, state, server, read, execute, undo, redo, cache };
 }
 
 export async function ready(options: Options = {}) {
   const h = setup(options);
-  h.controller.setContext(context);
-  await expect(h.controller.refresh()).resolves.toBe(true);
+  h.cache.setContext(context);
+  await expect(h.cache.refresh()).resolves.toBe(true);
   return h;
 }
 
 /** Ready at revision 2 with one change the server reports as undoable. */
 export async function readyWithHistory(options: Options = {}) {
   const h = await ready(options);
-  await h.controller.execute(h.controller.begin(), update);
+  await h.cache.execute(h.cache.begin(), update);
   expect(h.state().planning.history).toEqual({ canUndo: true, canRedo: false });
   expect(h.state().planning.revision).toBe(2);
   return h;

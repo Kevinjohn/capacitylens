@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { screen, act, waitFor } from '@testing-library/react';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { useStore } from '@/store/useStore';
 import { setUpAppShellTests, renderAppShell } from './AppShellTestKit';
 
@@ -14,7 +14,7 @@ vi.mock('@/i18n', async (importOriginal) => ({
 setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
 describe('AppShell undo/redo keyboard', () => {
-  // The shortcuts drive the planning controller's typed history.
+  // The shortcuts drive the planning cache's typed history.
   function withPlanningHistorySpies(run: (spies: { undo: Mock; redo: Mock }) => void) {
     const { undoPlanning, redoPlanning } = useStore.getState();
     const spies = { undo: vi.fn(async () => true), redo: vi.fn(async () => true) };
@@ -82,9 +82,7 @@ describe('AppShell undo/redo keyboard', () => {
       act(() =>
         useStore.setState({
           undoPlanning: () =>
-            Promise.reject(
-              new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409),
-            ),
+            Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
         }),
       );
       await act(async () => {

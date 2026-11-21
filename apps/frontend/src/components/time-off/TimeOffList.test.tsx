@@ -23,7 +23,7 @@ import {
 import { PermissionContext } from '@/auth/permissionContext';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { permissionValue } from '@/test/permissionGrants';
 
 const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
@@ -458,7 +458,7 @@ it('rejects a stale edit instead of overwriting a concurrent change', async () =
 
   await useStore.getState().updateTimeOff(entry.id, { type: 'sick' });
   getStubPlanningTransport().failNext(
-    new PlanningControllerError('Time off changed while you were editing.', 'STALE_REVISION', 409),
+    new PlanningCacheError('Time off changed while you were editing.', 'STALE_REVISION', 409),
   );
   await user.clear(screen.getByLabelText('Note'));
   await user.type(screen.getByLabelText('Note'), 'Edited note');

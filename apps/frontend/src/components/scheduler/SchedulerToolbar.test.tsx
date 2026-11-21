@@ -11,7 +11,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { SchedulerToolbar } from './SchedulerToolbar';
 import { buildEmptyFilters, useStore } from '@/store/useStore';
 import {
@@ -470,7 +470,7 @@ describe('SchedulerToolbar history errors', () => {
       }),
     );
     const undo = vi.fn(() =>
-      Promise.reject(new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409)),
+      Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
     );
     const original = useStore.getState().undoPlanning;
     useStore.setState({ undoPlanning: undo });

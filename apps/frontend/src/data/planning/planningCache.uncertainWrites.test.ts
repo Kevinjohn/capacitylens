@@ -10,7 +10,7 @@ import {
   companyToday,
   makeReceipt,
   createHarness,
-} from './planningCacheControllerTestKit';
+} from './planningCacheTestKit';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
 
@@ -54,7 +54,7 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
     .fn<PlanningTransport['execute']>()
     .mockImplementationOnce(async (_context, execution) => makeReceipt(execution.mutationId, 2));
   const h = createHarness({ execute, read });
-  h.controller.setContext(context);
+  h.cache.setContext(context);
   await h.readSnapshot({
     revision: 1,
     authority: makePlanningAuthority(),
@@ -62,12 +62,12 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
     today: companyToday,
     capacity: emptyCapacity(),
   });
-  await h.controller.execute(h.controller.begin(), intent);
+  await h.cache.execute(h.cache.begin(), intent);
   expect(h.state().planning.history.canUndo).toBe(true);
   lose(execute);
   nextReads(read);
   const readsBefore = read.mock.calls.length;
-  await expect(h.controller.execute(h.controller.begin(), intent)).rejects.toMatchObject({
+  await expect(h.cache.execute(h.cache.begin(), intent)).rejects.toMatchObject({
     uncertain: true,
   });
   return { h, execute, reads: read.mock.calls.length - readsBefore };
@@ -93,7 +93,7 @@ describe('planning write whose reply was lost', () => {
       execute.mockImplementationOnce(async (_context, execution) =>
         makeReceipt(execution.mutationId, 4),
       );
-      await h.controller.execute(h.controller.begin(), intent);
+      await h.cache.execute(h.cache.begin(), intent);
       expect(h.state().planning.phase).toMatchObject({
         kind: 'ready',
         lastWrite: { kind: 'acknowledged', revision: 4 },
@@ -137,7 +137,7 @@ describe('planning write whose reply was lost', () => {
     expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningProblem(h.state().planning)).toBe('unavailable');
 
-    await expect(h.controller.refresh()).resolves.toBe(true);
+    await expect(h.cache.refresh()).resolves.toBe(true);
     expect(h.state().planning.phase.kind).toBe('ready');
     expect(h.state().data).toEqual(serverData);
     expect(readPlanningProblem(h.state().planning)).toBe('unconfirmed');

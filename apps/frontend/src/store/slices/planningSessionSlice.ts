@@ -6,10 +6,7 @@ import { requestRestorationCleanup } from '@/data/planning/restorationCleanupCon
 import type { StateCreator } from 'zustand';
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import {
-  createPlanningCacheController,
-  createPlanningCacheState,
-} from '@/data/planning/planningCacheController';
+import { createPlanningCache, createPlanningCacheState } from '@/data/planning/planningCache';
 import type { PlanningCacheState, PlanningTransport } from '@/data/planning/planningCacheTypes';
 import type { PlanningCommand } from '@/data/planning/planningCommands';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
@@ -54,7 +51,7 @@ function publishPlanning(
   if (state.planning.context?.companyId !== planning.context.companyId) {
     return { planning, data: createEmptyAppData() };
   }
-  // The controller publishes only a read accepted for this company, so the rows need no filter.
+  // The cache publishes only a read accepted for this company, so the rows need no filter.
   const companyId = planning.context.companyId;
   const data = next.data;
   const company = data.accounts.find((row) => row.id === companyId);
@@ -75,7 +72,7 @@ function publishPlanning(
 }
 
 /**
- * The planning session: the cache controller, context changes, refresh and reconciliation, command
+ * The planning session: the cache, context changes, refresh and reconciliation, command
  * suspension, replacement readiness, undo/redo and the one write path every entity uses.
  */
 export function createPlanningSessionSlice(
@@ -83,7 +80,7 @@ export function createPlanningSessionSlice(
   transport: PlanningTransport,
 ): StateCreator<StoreState, [], [], PlanningSessionSlice> {
   return (set, get) => {
-    const controller = createPlanningCacheController({
+    const cache = createPlanningCache({
       getState: () => ({ data: get().data, planning: get().planning }),
       setState: (update) =>
         set((state) =>
@@ -112,7 +109,7 @@ export function createPlanningSessionSlice(
       contextEpoch += 1;
       commandLocks.clear();
       activeRead = null;
-      controller.setContext(companyId === null ? null : { identity: PAGE_IDENTITY, companyId });
+      cache.setContext(companyId === null ? null : { identity: PAGE_IDENTITY, companyId });
     };
     const clearPrivatePlanning = (authLost = false) => {
       syncContext(null);
@@ -144,8 +141,8 @@ export function createPlanningSessionSlice(
       if (checkCommandsSuspended()) {
         throw new Error('Planning commands are suspended while company data changes.');
       }
-      const receipt = await controller.execute(
-        controller.begin(),
+      const receipt = await cache.execute(
+        cache.begin(),
         command.intent,
         command.expectedUpdatedAt,
         command.endsHistory,
@@ -165,7 +162,7 @@ export function createPlanningSessionSlice(
         }
         syncContext(companyId);
         if (!options?.fresh && activeRead?.companyId === companyId) return activeRead.promise;
-        const promise = controller
+        const promise = cache
           .refresh({ quiet: options?.quiet === true })
           .then(
             (accepted) =>
@@ -199,13 +196,9 @@ export function createPlanningSessionSlice(
       },
       planningReadyForReplacement: () => isReplacementReady(),
       undoPlanning: () =>
-        isBlockedByViewer() || checkCommandsSuspended()
-          ? Promise.resolve(false)
-          : controller.undo(),
+        isBlockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : cache.undo(),
       redoPlanning: () =>
-        isBlockedByViewer() || checkCommandsSuspended()
-          ? Promise.resolve(false)
-          : controller.redo(),
+        isBlockedByViewer() || checkCommandsSuspended() ? Promise.resolve(false) : cache.redo(),
     };
   };
 }

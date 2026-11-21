@@ -14,7 +14,7 @@ type LifecycleVerb = 'archive' | 'unarchive' | 'anonymise';
 
 /**
  * The dispatch surface returned by {@link useLifecycleActions}. Each method runs one lifecycle
- * transition for one entity row. Planning operations use the shared typed command controller;
+ * transition for one entity row. Planning operations use the shared typed planning cache;
  * anonymisation uses the server. The promise never rejects. A failure is surfaced as a notice and the promise still
  * resolves, so a caller can `void` it without an unhandled rejection (the MembersSection idiom).
  */

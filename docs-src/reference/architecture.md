@@ -45,7 +45,7 @@ apps/backend/
   tests/                  Japa: functional (HTTP and SQLite) and unit suites
 apps/frontend/src/
   components/             screens and editors, grouped by feature
-  data/planning/          planning cache controller, command builders, two transports
+  data/planning/          planning cache, command builders, two transports
   store/                  zustand store; slices wire the controller into the UI
   auth/                   session status, access screens, view-as and permission context
   lib/                    pure UI helpers
@@ -177,8 +177,8 @@ product writer advances the revision, and export, import and anonymisation read 
 
 ## Browser ownership
 
-One `createPlanningCacheController` in
-`apps/frontend/src/data/planning/planningCacheController.ts` owns the confirmed planning cache,
+One `createPlanningCache` in
+`apps/frontend/src/data/planning/planningCache.ts` owns the confirmed planning cache,
 the page's in-memory history id and the single pending write. The server holds the Undo/Redo history
 for that id; each read reports only whether Undo and Redo are available. The store
 wires it in `apps/frontend/src/store/slices/planningSessionSlice.ts`; nothing else writes planning rows
@@ -211,17 +211,17 @@ Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused` and `er
 | ready, refused | Undo or Redo the last read reported | `pending` with a fresh `mutationId` |
 | pending | Undo or Redo refused | as a write, then refetch to show the ended history |
 
-These transitions are pinned in `apps/frontend/src/data/planning/planningCacheController.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.access.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.accessChanges.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.clientContext.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.contextTransitions.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.history.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.historyTransitions.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.readTransitions.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.reconciliation.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.uncertainWrites.test.ts`,
-`apps/frontend/src/data/planning/planningCacheController.writeTransitions.test.ts`,
+These transitions are pinned in `apps/frontend/src/data/planning/planningCache.test.ts`,
+`apps/frontend/src/data/planning/planningCache.access.test.ts`,
+`apps/frontend/src/data/planning/planningCache.accessChanges.test.ts`,
+`apps/frontend/src/data/planning/planningCache.clientContext.test.ts`,
+`apps/frontend/src/data/planning/planningCache.contextTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCache.history.test.ts`,
+`apps/frontend/src/data/planning/planningCache.historyTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCache.readTransitions.test.ts`,
+`apps/frontend/src/data/planning/planningCache.reconciliation.test.ts`,
+`apps/frontend/src/data/planning/planningCache.uncertainWrites.test.ts`,
+`apps/frontend/src/data/planning/planningCache.writeTransitions.test.ts`,
 `apps/frontend/src/data/planning/restorationConfirmation.test.ts`,
 `apps/frontend/src/data/planning/typedPlanningFlow.test.ts`,
 `apps/frontend/src/test/createTestPlanningTransport.test.ts`,
@@ -294,7 +294,7 @@ Backend test paths are relative to `apps/backend/`.
   `tests/unit/upgrade_command.spec.ts`, `tests/unit/app_reset_command.spec.ts`,
   `tests/unit/owner_reset_command.spec.ts`, `tests/unit/company_initialize_command.spec.ts`.
 - **Browser coordinator.** The frontend files listed under
-  [Browser ownership](#browser-ownership), plus `e2e/planning-controller.auth.spec.ts` and
+  [Browser ownership](#browser-ownership), plus `e2e/planning-cache.auth.spec.ts` and
   `e2e/scheduler-persistence.auth.spec.ts`, which drive real typed routes against SQLite.
 
 ## Lucid soft-delete integration

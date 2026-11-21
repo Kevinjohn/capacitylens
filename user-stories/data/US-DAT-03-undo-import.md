@@ -25,9 +25,9 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  server["Server import completes and useServerImport refreshes planning"] --> revision["planningCacheController accepts canonical replacement revision"]
+  server["Server import completes and useServerImport refreshes planning"] --> revision["planningCache accepts canonical replacement revision"]
   revision --> clear["External revision leaves page-local undo history cleared"]
   clear --> controls["Undo and Redo have no import inverse to apply"]
 ```
 
-**Code references:** [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx)
+**Code references:** [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx)

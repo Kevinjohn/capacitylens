@@ -326,7 +326,7 @@ describe('PermissionProvider account-switch safety', () => {
     expect(screen.getByText('resolved:editor:edit')).toBeInTheDocument();
   });
 
-  it('ignores a delayed active status after a local controller transition', async () => {
+  it('ignores a delayed active status after a local masquerade model transition', async () => {
     await resetStoreWithCompany('a-studio');
     let resolveStatus!: (status: MasqueradeStatus) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(

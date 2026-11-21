@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useStore } from './useStore';
 import { makeClient, makeResourceDraft, resetStoreWithCompany } from '@/test/fixtures';
 import { requireCreated } from '@/test/requireCreated';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 beforeEach(async () => {
@@ -11,7 +11,7 @@ beforeEach(async () => {
 
 function refuseNextPlanningMutation(): void {
   getStubPlanningTransport().failNext(
-    new PlanningControllerError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
+    new PlanningCacheError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
   );
 }
 

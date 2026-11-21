@@ -74,7 +74,7 @@ function uuid(): string {
   return crypto.randomUUID();
 }
 
-test('unactivated planning controller uses authenticated typed routes and reconciles acknowledged edits', async ({
+test('unactivated planning cache uses authenticated typed routes and reconciles acknowledged edits', async ({
   page,
   request,
 }) => {

@@ -10,7 +10,7 @@ import {
   setPlanningAuthority,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningTestKit';
 
@@ -97,11 +97,7 @@ describe('atomic time-off creation: atomic validation', () => {
       }
     });
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
-        'The server refused the time-off batch.',
-        'VALIDATION_ERROR',
-        400,
-      ),
+      new PlanningCacheError('The server refused the time-off batch.', 'VALIDATION_ERROR', 400),
     );
     await expect(
       requireCreated(state().addRepeatedTimeOff(draft(), weekly('2026-06-15'), 3)),
