@@ -119,6 +119,7 @@ const referenceSidebar = [
       { text: "Architecture", link: "/reference/architecture" },
       { text: "How it is tested", link: "/reference/how-it-is-tested" },
       { text: "Code standards", link: "/reference/code-standards" },
+      { text: "AdonisJS conventions", link: "/reference/adonisjs-conventions" },
       { text: "Philosophy", link: "/reference/philosophy" },
       { text: "Open source and contributing", link: "/open-source" },
     ],
