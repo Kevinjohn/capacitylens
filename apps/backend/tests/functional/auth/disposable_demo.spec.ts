@@ -109,7 +109,7 @@ test.group('disposable development demo', (group) => {
     const owner = await createIdentity(email, { password });
     await seedDisposableDemo(app);
     // Keep a membership while making the company existence probe report empty. This stages the
-    // independent membership guard without manufacturing an invalid persisted foreign key.
+    // independent membership check without manufacturing an invalid persisted foreign key.
     const originalFrom = db.from;
     db.from = ((table: string) =>
       table === 'accounts'

@@ -547,7 +547,7 @@ test.group('authenticated typed planning transactions', (group) => {
   test('settings service rejects a language change before writing in its transaction', async ({
     assert,
   }) => {
-    // HTTP settings strip language; a different stored locale exposes the service's frozen-field guard.
+    // HTTP settings strip language; a different stored locale exposes the service's frozen-field rules.
     await db.from('accounts').where('id', companyId).update({ language: 'fr' });
     const before = await readState(companyId, true);
     await assert.rejects(

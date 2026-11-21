@@ -18,7 +18,7 @@ const now = '2026-10-20T12:00:00.000Z';
 interface CorruptionCase {
   label: string;
   invalidValue: string;
-  guardMessage: string;
+  checkMessage: string;
   column: 'role' | 'status';
   validValue: string;
 }
@@ -27,14 +27,14 @@ const corruptions: CorruptionCase[] = [
   {
     label: 'membership role',
     invalidValue: 'invalid-role-sentinel',
-    guardMessage: 'Membership has an invalid role.',
+    checkMessage: 'Membership has an invalid role.',
     column: 'role',
     validValue: 'editor',
   },
   {
     label: 'membership status',
     invalidValue: 'invalid-status-sentinel',
-    guardMessage: 'Membership has an invalid status.',
+    checkMessage: 'Membership has an invalid status.',
     column: 'status',
     validValue: 'active',
   },
@@ -150,7 +150,7 @@ test.group('member directory malformed storage', (group) => {
     await db.from('users').delete();
   });
 
-  test('guards corrupted company rows at the service and authenticated HTTP boundary', async ({
+  test('rejects corrupted company rows at the service and authenticated HTTP boundary', async ({
     client,
     assert,
   }) => {
@@ -174,8 +174,8 @@ test.group('member directory malformed storage', (group) => {
             readMemberDirectory(trx, companyId, { actorId: ownerId, role: 'owner' })
           ),
         Error,
-        new RegExp('^' + corruption.guardMessage.replace('.', '\\.') + '$'),
-        `${corruption.label} must reach its own service guard`
+        new RegExp('^' + corruption.checkMessage.replace('.', '\\.') + '$'),
+        `${corruption.label} must reach its own service check`
       );
       const failed = await ownerGet({ client, path, ownerCookie, contextToken }).send();
       failed.assertStatus(500);
