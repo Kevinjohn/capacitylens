@@ -31,10 +31,11 @@ const shieldConfig = defineConfig({
   csrf: {
     enabled: false,
     exceptRoutes: [],
-    enableXsrfCookie: true,
+    enableXsrfCookie: false,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
   },
 
+  // X-Frame-Options for clients that ignore the CSP frame-ancestors directive.
   xFrame: {
     enabled: true,
     action: 'DENY',
