@@ -3,11 +3,11 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { transactionalDatabase } from '../helpers/transactional_database.js';
 
-test.group('M2b data contract', () => {
+test.group('M2b data contract', (group) => {
+  transactionalDatabase(group);
   test('returns explicit null from a persisted optional column', async ({ assert }) => {
-    await freshDatabase();
     const data = seed();
     const account = data.accounts[0]!;
     await db

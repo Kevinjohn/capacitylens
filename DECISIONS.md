@@ -351,9 +351,10 @@ framework defaults; any other departure needs a decision recorded here first.
 15. The Node server is created by `bin/server.ts` with fixed connection limits, and a
     client-supplied request id is discarded (`start/resource_limits.ts`).
 16. The backend's runtime framework packages are pinned to exact versions; it is not published.
-17. Test groups and suites rebuild the database by wipe and migrate. A global test
-    transaction is not used: Account Kit refuses to run on a connection that is already in a
-    transaction.
+17. Every database test group starts from wipe and migrate. Groups that send no HTTP request and
+    never reach Account Kit then run each test inside a global transaction; the rest reset rows
+    through fixture helpers, because Account Kit refuses a connection already in a transaction and
+    the rate limiter's database store waits for the one pooled connection the transaction holds.
 18. Routes are registered from one file per area in `start/`. Prettier keeps semicolons.
 
 ## Installation
