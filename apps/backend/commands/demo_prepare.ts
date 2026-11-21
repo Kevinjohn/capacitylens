@@ -2,7 +2,7 @@ import { BaseCommand } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
 import { assertDisposableDemoDatabase, prepareDisposableDemo } from '#services/disposable_demo';
 
-export default class DemoCommand extends BaseCommand {
+export default class DemoPrepare extends BaseCommand {
   static commandName = 'capacitylens:demo:prepare';
   static description = 'Prepare the disposable development demo installation';
   static options: CommandOptions = { startApp: true };
