@@ -109,7 +109,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { sessionRequests } = await import('@/account/sessionRequests');
     const { useStore } = await import('@/store/useStore');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeController } = await import('./masqueradeControllerInstance');
+    const { masqueradeModel } = await import('./masqueradeModelInstance');
     const { getMasqueradeContextToken, setMasqueradeContextToken } =
       await import('@/api/masqueradeContext');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
@@ -120,7 +120,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       .spyOn(sessionRequests, 'me')
       .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     const restore = vi
-      .spyOn(masqueradeController, 'restoreServerEndedProjection')
+      .spyOn(masqueradeModel, 'restoreServerEndedProjection')
       .mockImplementation(() => {});
     useStore.setState({
       activeCompanyId: 'a-studio',
@@ -147,14 +147,14 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       status.mockRestore();
       request.mockRestore();
       restore.mockRestore();
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
       setMasqueradeContextToken(null);
     }
   });
 
   it('fails closed without adopting an active status whose principal is not a valid user', async () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeController } = await import('./masqueradeControllerInstance');
+    const { masqueradeModel } = await import('./masqueradeModelInstance');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: true,
       companyId: 'a-studio',
@@ -168,7 +168,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       contextToken: 'mode-token',
       principal: { id: '', email: 'real@example.test' },
     });
-    const adopt = vi.spyOn(masqueradeController, 'adoptStatus');
+    const adopt = vi.spyOn(masqueradeModel, 'adoptStatus');
     try {
       await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'error' });
       expect(adopt).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
 
   it('ignores an active status read that resolves after local identity invalidation', async () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeController } = await import('./masqueradeControllerInstance');
+    const { masqueradeModel } = await import('./masqueradeModelInstance');
     const { useStore } = await import('@/store/useStore');
     const { getMasqueradeContextToken } = await import('@/api/masqueradeContext');
     let resolveStatus!: (status: Awaited<ReturnType<typeof masqueradeApi.status>>) => void;
@@ -189,7 +189,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
         resolveStatus = resolve;
       }),
     );
-    const adopt = vi.spyOn(masqueradeController, 'adoptStatus');
+    const adopt = vi.spyOn(masqueradeModel, 'adoptStatus');
     const activeStatus = {
       active: true as const,
       companyId: 'a-studio',
@@ -206,7 +206,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     try {
       const pending = fetchAuthStatus(() => true);
       await vi.waitFor(() => expect(status).toHaveBeenCalledOnce());
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
       resolveStatus(activeStatus);
 
       await expect(pending).resolves.toBeNull();
@@ -216,7 +216,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     } finally {
       status.mockRestore();
       adopt.mockRestore();
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
     }
   });
 });

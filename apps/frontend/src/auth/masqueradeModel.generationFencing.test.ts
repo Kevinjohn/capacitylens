@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, createHarness } from './masqueradeControllerTestKit';
+import { state, inactiveStatus, createHarness } from './masqueradeModelTestKit';
 import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
@@ -10,20 +10,20 @@ beforeEach(async () => {
   useStore.getState().setNotice(null);
 });
 
-describe('MasqueradeController transitions', () => {
+describe('MasqueradeModel transitions', () => {
   it('does not let a stale start rejection overwrite server-end restoration', async () => {
     const initialProjection = createDeferred<boolean>();
     const reproject = vi
       .fn()
       .mockImplementationOnce(() => initialProjection.promise)
       .mockResolvedValueOnce(true);
-    const { controller, resume } = createHarness({ reproject });
+    const { model, resume } = createHarness({ reproject });
 
-    const starting = controller.start(state.companyId, state.targetUserId);
+    const starting = model.start(state.companyId, state.targetUserId);
     await vi.waitFor(() =>
       expect(useStore.getState().masquerade).toMatchObject({ kind: 'starting', state }),
     );
-    await controller.adoptStatus(inactiveStatus);
+    await model.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' }));
     useStore.getState().setNotice('newer transition', 'info');
 
@@ -34,7 +34,7 @@ describe('MasqueradeController transitions', () => {
   });
 });
 
-describe('MasqueradeController generation fencing', () => {
+describe('MasqueradeModel generation fencing', () => {
   it('does not let a projection retry publish after an explicit end', async () => {
     const retryProjection = createDeferred<boolean>();
     const reproject = vi
@@ -42,12 +42,12 @@ describe('MasqueradeController generation fencing', () => {
       .mockResolvedValueOnce(false)
       .mockImplementationOnce(() => retryProjection.promise)
       .mockResolvedValueOnce(true);
-    const { controller } = createHarness({ reproject });
-    await controller.start(state.companyId, state.targetUserId);
+    const { model } = createHarness({ reproject });
+    await model.start(state.companyId, state.targetUserId);
 
-    const retrying = controller.retryProjection();
+    const retrying = model.retryProjection();
     await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));
-    await expect(controller.end()).resolves.toBe(true);
+    await expect(model.end()).resolves.toBe(true);
     retryProjection.resolve(true);
 
     await expect(retrying).resolves.toBe(false);
@@ -61,12 +61,12 @@ describe('MasqueradeController generation fencing', () => {
       .mockResolvedValueOnce(true)
       .mockImplementationOnce(() => restoration.promise)
       .mockResolvedValueOnce(true);
-    const { controller, resume } = createHarness({ reproject });
-    await controller.adoptStatus({ active: true, ...state });
-    await controller.adoptStatus(inactiveStatus);
+    const { model, resume } = createHarness({ reproject });
+    await model.adoptStatus({ active: true, ...state });
+    await model.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));
 
-    await expect(controller.end()).resolves.toBe(true);
+    await expect(model.end()).resolves.toBe(true);
     expect(resume).toHaveBeenCalledOnce();
     useStore.getState().setNotice('newer transition', 'info');
     restoration.resolve(true);

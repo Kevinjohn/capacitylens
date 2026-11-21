@@ -3,11 +3,11 @@ import { createStorePlanningTransport } from '@/data/planning/storePlanningTrans
 import { useStore } from '@/store/useStore';
 import { masqueradeApi } from './masqueradeApi';
 import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/api/masqueradeContext';
-import { MasqueradeController } from './masqueradeController';
+import { MasqueradeModel } from './masqueradeModel';
 import { reprojectAccess } from './reprojectAccess';
 
 /** Coordinates company switching into and out of masquerade mode. */
-export const masqueradeController = new MasqueradeController({
+export const masqueradeModel = new MasqueradeModel({
   flush: async () => ({
     kind: useStore.getState().planningReadyForReplacement() ? 'clean' : 'blocked',
   }),
@@ -39,4 +39,4 @@ export const masqueradeController = new MasqueradeController({
 
 // Every API request carries the current context proof; a server-ended projection is recovered here.
 setMasqueradeContextReader(getMasqueradeContextToken);
-setMasqueradeEndedHandler(() => masqueradeController.restoreServerEndedProjection());
+setMasqueradeEndedHandler(() => masqueradeModel.restoreServerEndedProjection());

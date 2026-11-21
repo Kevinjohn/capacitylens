@@ -12,7 +12,7 @@ vi.mock('@/data/requestTimeout', () => ({
   setMasqueradeContextReader: vi.fn(),
 }));
 
-import { masqueradeController } from '@/auth/masqueradeControllerInstance';
+import { masqueradeModel } from '@/auth/masqueradeModelInstance';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from './accountCommands';
 import { invitationRequests } from './invitationRequests';
@@ -69,7 +69,7 @@ describe('implicit account command cohorts', () => {
       try {
         await vi.waitFor(() => expect(digest).toHaveBeenCalledOnce());
         body.email = 'barbara@wayne.test';
-        await masqueradeController.adoptStatus({
+        await masqueradeModel.adoptStatus({
           active: false,
           contextToken: changed ? 'idle-after' : 'idle-before',
         });

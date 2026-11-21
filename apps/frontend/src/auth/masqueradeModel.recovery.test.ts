@@ -7,7 +7,7 @@ import type { PlanningPendingMutation } from '@/data/planning/planningCacheTypes
 import { StubPlanningTransport } from '@/test/planning/stubPlanningTransport';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { reprojectAccess } from './reprojectAccess';
-import { MasqueradeController } from './masqueradeController';
+import { MasqueradeModel } from './masqueradeModel';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
 const reads = vi.hoisted(() => ({ fail: false, count: 0 }));
@@ -43,7 +43,7 @@ const state: MasqueradeState & { contextToken: string } = {
 };
 const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
-function controllerWithNativeSlice(bootstrapFailure = false) {
+function modelWithNativeData(bootstrapFailure = false) {
   const nativeData = makeAppData({
     accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })],
   });
@@ -60,7 +60,7 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     useStore.getState().setActiveCompany(companyId);
     return { kind: 'reloaded' as const };
   });
-  const controller = new MasqueradeController({
+  const model = new MasqueradeModel({
     flush: vi.fn(async () => ({ kind: 'clean' as const })),
     suspend: () => useStore.getState().suspendPlanningCommands(),
     reproject: reprojectAccess,
@@ -79,15 +79,15 @@ function controllerWithNativeSlice(bootstrapFailure = false) {
     readState: () => useStore.getState(),
     setContextToken: setMasqueradeContextToken,
   });
-  return { controller, api, switchCompany };
+  return { model, api, switchCompany };
 }
 
 it('keeps a failed bootstrap read gated while allowing a confirmed cold End', async () => {
-  const { controller, api, switchCompany } = controllerWithNativeSlice(true);
-  await controller.adoptStatus({ active: true, ...state });
+  const { model, api, switchCompany } = modelWithNativeData(true);
+  await model.adoptStatus({ active: true, ...state });
   expect(useStore.getState().activeCompanyId).toBeNull();
   expect(useStore.getState().masquerade.kind).toBe('starting');
-  expect(await controller.end()).toBe(true);
+  expect(await model.end()).toBe(true);
   expect(api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
   expect(switchCompany).toHaveBeenCalledExactlyOnceWith(null);
   expect(useStore.getState().masquerade.kind).toBe('inactive');
@@ -105,9 +105,9 @@ afterEach(() => {
   reads.fail = false;
 });
 
-async function failSelectedCanonicalRead(controller: MasqueradeController) {
+async function failSelectedCanonicalRead(model: MasqueradeModel) {
   reads.fail = true;
-  await controller.adoptStatus({ active: true, ...state });
+  await model.adoptStatus({ active: true, ...state });
   expect(useStore.getState().activeCompanyId).toBe('a-studio');
   expect(useStore.getState().planning).toMatchObject({
     phase: { kind: 'failed' },
@@ -118,28 +118,28 @@ async function failSelectedCanonicalRead(controller: MasqueradeController) {
 }
 
 it("recovers a selected company after its canonical read fails, but refuses another owner's lock", async () => {
-  const { controller, api } = controllerWithNativeSlice();
-  await failSelectedCanonicalRead(controller);
+  const { model, api } = modelWithNativeData();
+  await failSelectedCanonicalRead(model);
   const foreignRelease = useStore.getState().suspendPlanningCommands();
   expect(foreignRelease).toBeTypeOf('function');
   const beforeBlockedRetry = reads.count;
-  expect(await controller.retryProjection()).toBe(false);
-  expect(await controller.end()).toBe(false);
+  expect(await model.retryProjection()).toBe(false);
+  expect(await model.end()).toBe(false);
   expect(reads.count).toBe(beforeBlockedRetry);
   expect(api.end).not.toHaveBeenCalled();
   expect(useStore.getState().masquerade.kind).toBe('starting');
   foreignRelease?.();
 
   reads.fail = false;
-  expect(await controller.retryProjection()).toBe(true);
+  expect(await model.retryProjection()).toBe(true);
   expect(useStore.getState().masquerade.kind).toBe('active');
   expect(useStore.getState().planning.phase.kind).toBe('ready');
 });
 
 it('ends a selected cold member view even while canonical reads keep failing', async () => {
-  const { controller, api, switchCompany } = controllerWithNativeSlice();
-  await failSelectedCanonicalRead(controller);
-  expect(await controller.end()).toBe(true);
+  const { model, api, switchCompany } = modelWithNativeData();
+  await failSelectedCanonicalRead(model);
+  expect(await model.end()).toBe(true);
   expect(api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
   expect(switchCompany).toHaveBeenCalledExactlyOnceWith(null);
   expect(useStore.getState().masquerade.kind).toBe('inactive');
@@ -147,15 +147,15 @@ it('ends a selected cold member view even while canonical reads keep failing', a
 });
 
 it('refuses recovery while a typed mutation remains unresolved', async () => {
-  const { controller, api } = controllerWithNativeSlice();
-  await failSelectedCanonicalRead(controller);
+  const { model, api } = modelWithNativeData();
+  await failSelectedCanonicalRead(model);
   const write = { execution: { mutationId: 'pending' } } as PlanningPendingMutation;
   useStore.setState((current) => ({
     planning: { ...current.planning, phase: { kind: 'writing', write, readError: null } },
   }));
   const before = reads.count;
-  expect(await controller.retryProjection()).toBe(false);
-  expect(await controller.end()).toBe(false);
+  expect(await model.retryProjection()).toBe(false);
+  expect(await model.end()).toBe(false);
   expect(reads.count).toBe(before);
   expect(api.end).not.toHaveBeenCalled();
   expect(useStore.getState().masquerade.kind).toBe('starting');

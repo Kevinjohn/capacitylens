@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { loadPlanningData, makeCompany, makeAppData, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, createHarness } from './masqueradeControllerTestKit';
+import { state, inactiveStatus, createHarness } from './masqueradeModelTestKit';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -10,10 +10,10 @@ beforeEach(async () => {
   useStore.getState().setNotice(null);
 });
 
-describe('MasqueradeController', () => {
+describe('MasqueradeModel', () => {
   it('restores the real projection when End fails after another tab already stopped the mode', async () => {
     await resetStoreWithCompany('a-studio');
-    const { controller, dependencies, resume } = createHarness({
+    const { model, dependencies, resume } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => inactiveStatus),
         start: vi.fn(async () => state),
@@ -22,9 +22,9 @@ describe('MasqueradeController', () => {
         }),
       },
     });
-    await controller.adoptStatus({ active: true, ...state });
+    await model.adoptStatus({ active: true, ...state });
 
-    await expect(controller.end()).resolves.toBe(true);
+    await expect(model.end()).resolves.toBe(true);
     expect(dependencies.api.status).toHaveBeenCalledOnce();
     expect(dependencies.reproject).toHaveBeenCalledWith(state.companyId);
     expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
@@ -40,7 +40,7 @@ describe('MasqueradeController', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
-    const { controller, dependencies } = createHarness({
+    const { model, dependencies } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: true, ...replacement })),
         start: vi.fn(async () => state),
@@ -49,9 +49,9 @@ describe('MasqueradeController', () => {
         }),
       },
     });
-    await controller.adoptStatus({ active: true, ...state });
+    await model.adoptStatus({ active: true, ...state });
 
-    await expect(controller.end()).resolves.toBe(true);
+    await expect(model.end()).resolves.toBe(true);
     await vi.waitFor(() =>
       expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: replacement }),
     );
@@ -64,7 +64,7 @@ describe('MasqueradeController', () => {
     loadPlanningData(
       makeAppData({ accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })] }),
     );
-    const { controller, dependencies } = createHarness({
+    const { model, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       readBootstrapCompany: vi
         .fn()
@@ -79,19 +79,19 @@ describe('MasqueradeController', () => {
         }),
       },
     });
-    await controller.adoptStatus({ active: true, ...state });
+    await model.adoptStatus({ active: true, ...state });
     expect(useStore.getState().masquerade.kind).toBe('starting');
-    await expect(controller.end()).resolves.toBe(true);
+    await expect(model.end()).resolves.toBe(true);
     expect(dependencies.api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
     expect(useStore.getState().masquerade.kind).toBe('active');
-    await expect(controller.retryProjection()).resolves.toBe(true);
+    await expect(model.retryProjection()).resolves.toBe(true);
     expect(useStore.getState().masquerade.kind).toBe('active');
   });
 
   it("keeps retry ownership when a non-cold End cannot acquire another writer's lock", async () => {
     await resetStoreWithCompany('a-studio');
     const resume = vi.fn();
-    const { controller, dependencies } = createHarness({
+    const { model, dependencies } = createHarness({
       suspend: vi.fn().mockReturnValueOnce(null).mockReturnValueOnce(resume),
     });
     useStore.getState().setMasquerade({
@@ -100,22 +100,22 @@ describe('MasqueradeController', () => {
       state,
       generation: 0,
     });
-    await expect(controller.end()).resolves.toBe(false);
+    await expect(model.end()).resolves.toBe(false);
     expect(dependencies.api.end).not.toHaveBeenCalled();
     expect(useStore.getState().masquerade.kind).toBe('starting');
-    await expect(controller.retryProjection()).resolves.toBe(true);
+    await expect(model.retryProjection()).resolves.toBe(true);
     expect(useStore.getState().masquerade.kind).toBe('active');
   });
 
   it('ends a cold server projection without requiring a loaded planning context', async () => {
     useStore.getState().clearPlanning();
-    const { controller, dependencies } = createHarness({
+    const { model, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       readBootstrapCompany: vi.fn(async () => null),
     });
-    await controller.adoptStatus({ active: true, ...state });
+    await model.adoptStatus({ active: true, ...state });
     const navigate = vi.fn();
-    await expect(controller.end('explicit', navigate)).resolves.toBe(true);
+    await expect(model.end('explicit', navigate)).resolves.toBe(true);
     expect(dependencies.api.end).toHaveBeenCalledExactlyOnceWith(state.token, 'explicit');
     expect(dependencies.suspend).not.toHaveBeenCalled();
     expect(dependencies.switchCompany).toHaveBeenCalledExactlyOnceWith(null);
@@ -124,10 +124,10 @@ describe('MasqueradeController', () => {
   });
 
   it('succeeds while inactive without navigating or touching masquerade dependencies', async () => {
-    const { controller, dependencies, resume } = createHarness();
+    const { model, dependencies, resume } = createHarness();
     const navigate = vi.fn();
 
-    await expect(controller.end('explicit', navigate)).resolves.toBe(true);
+    await expect(model.end('explicit', navigate)).resolves.toBe(true);
     expect(navigate).not.toHaveBeenCalled();
     expect(dependencies.suspend).not.toHaveBeenCalled();
     expect(dependencies.api.end).not.toHaveBeenCalled();
@@ -136,7 +136,7 @@ describe('MasqueradeController', () => {
   });
 });
 
-describe('MasqueradeController cross-tab reconciliation', () => {
+describe('MasqueradeModel cross-tab reconciliation', () => {
   it('adopts a newer cross-tab masquerade returned after DELETE', async () => {
     const newer = {
       ...state,
@@ -145,7 +145,7 @@ describe('MasqueradeController cross-tab reconciliation', () => {
       token: 'token-2',
       contextToken: 'token-2',
     };
-    const { controller, resume } = createHarness({
+    const { model, resume } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
         start: vi.fn(async () => state),
@@ -153,8 +153,8 @@ describe('MasqueradeController cross-tab reconciliation', () => {
       },
     });
     const navigate = vi.fn();
-    await controller.adoptStatus({ active: true, ...state });
-    await expect(controller.end('explicit', navigate)).resolves.toBe(true);
+    await model.adoptStatus({ active: true, ...state });
+    await expect(model.end('explicit', navigate)).resolves.toBe(true);
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: newer });
     expect(navigate).not.toHaveBeenCalled();
     expect(resume).not.toHaveBeenCalled();
@@ -168,16 +168,16 @@ describe('MasqueradeController cross-tab reconciliation', () => {
       token: 'token-2',
       contextToken: 'token-2',
     };
-    const { controller, dependencies, resume } = createHarness({
+    const { model, dependencies, resume } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
         start: vi.fn(async () => state),
         end: vi.fn(async () => {}),
       },
     });
-    await controller.adoptStatus({ active: true, ...state });
+    await model.adoptStatus({ active: true, ...state });
 
-    await expect(controller.transitionCompany('a-loft')).resolves.toBe(false);
+    await expect(model.transitionCompany('a-loft')).resolves.toBe(false);
     expect(useStore.getState().notice).toMatchObject({
       message: 'A newer masquerade is active. End it before switching companies.',
       tone: 'error',
@@ -188,7 +188,7 @@ describe('MasqueradeController cross-tab reconciliation', () => {
   });
 
   it('refuses an account switch when DELETE fails and keeps writes suspended', async () => {
-    const { controller, dependencies, resume } = createHarness({
+    const { model, dependencies, resume } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...state })),
         start: vi.fn(async () => state),
@@ -197,8 +197,8 @@ describe('MasqueradeController cross-tab reconciliation', () => {
         }),
       },
     });
-    await controller.adoptStatus({ active: true, ...state });
-    await expect(controller.transitionCompany('a-loft')).resolves.toBe(false);
+    await model.adoptStatus({ active: true, ...state });
+    await expect(model.transitionCompany('a-loft')).resolves.toBe(false);
     expect(dependencies.switchCompany).not.toHaveBeenCalled();
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state });
     expect(resume).not.toHaveBeenCalled();

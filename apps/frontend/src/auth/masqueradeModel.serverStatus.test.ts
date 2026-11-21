@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
-import { state, inactiveStatus, createHarness } from './masqueradeControllerTestKit';
+import { state, inactiveStatus, createHarness } from './masqueradeModelTestKit';
 import { createDeferred } from '@/test/createDeferred';
 
 beforeEach(async () => {
@@ -11,22 +11,22 @@ beforeEach(async () => {
   useStore.getState().setNotice(null);
 });
 
-describe('MasqueradeController', () => {
+describe('MasqueradeModel', () => {
   it('invalidates a captured reconciliation when its company or identity changes', async () => {
     await resetStoreWithCompany('a-studio');
-    const { controller } = createHarness({
+    const { model } = createHarness({
       switchCompany: vi.fn(async (companyId: string | null) => {
         useStore.getState().setActiveCompany(companyId);
         return { kind: 'reloaded' as const };
       }),
     });
-    const beforeCompanySwitch = controller.captureStatusReconciliation();
+    const beforeCompanySwitch = model.captureStatusReconciliation();
 
-    await expect(controller.transitionCompany('a-loft')).resolves.toBe(true);
+    await expect(model.transitionCompany('a-loft')).resolves.toBe(true);
     expect(beforeCompanySwitch()).toBe(false);
 
-    const beforeIdentityChange = controller.captureStatusReconciliation();
-    controller.invalidate();
+    const beforeIdentityChange = model.captureStatusReconciliation();
+    model.invalidate();
     expect(beforeIdentityChange()).toBe(false);
   });
 
@@ -39,12 +39,12 @@ describe('MasqueradeController', () => {
     useStore.setState((current) => ({
       planning: { ...current.planning, phase: { kind: 'loading', lastWrite: null } },
     }));
-    const { controller, dependencies } = createHarness({
+    const { model, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningCommands()),
       reproject: vi.fn(() => freshRead.promise),
     });
 
-    await controller.adoptStatus({ active: true, ...state });
+    await model.adoptStatus({ active: true, ...state });
     expect(useStore.getState().masquerade.kind).toBe('starting');
     expect(dependencies.reproject).not.toHaveBeenCalled();
     expect(useStore.getState().notice).toMatchObject({ tone: 'error' });
@@ -55,7 +55,7 @@ describe('MasqueradeController', () => {
     useStore.setState((current) => ({
       planning: { ...current.planning, phase: { kind: 'ready', lastWrite: null } },
     }));
-    const retry = controller.retryProjection();
+    const retry = model.retryProjection();
     expect(dependencies.reproject).toHaveBeenCalledExactlyOnceWith('a-studio', false);
     expect(useStore.getState().masquerade.kind).toBe('starting');
     freshRead.resolve(true);
@@ -73,7 +73,7 @@ describe('MasqueradeController', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
-    const { controller, dependencies } = createHarness({
+    const { model, dependencies } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...newer })),
         start: vi.fn(() => oldStart.promise),
@@ -81,9 +81,9 @@ describe('MasqueradeController', () => {
       },
     });
 
-    const starting = controller.start(state.companyId, state.targetUserId);
+    const starting = model.start(state.companyId, state.targetUserId);
     await vi.waitFor(() => expect(dependencies.api.start).toHaveBeenCalledOnce());
-    await controller.adoptStatus({ active: true, ...newer });
+    await model.adoptStatus({ active: true, ...newer });
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: newer });
     oldStart.resolve(state);
     await expect(starting).resolves.toBe(false);
@@ -99,7 +99,7 @@ describe('MasqueradeController', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
-    const { controller, dependencies } = createHarness({
+    const { model, dependencies } = createHarness({
       api: {
         status: vi.fn(async (): Promise<MasqueradeStatus> => ({ active: true, ...remote })),
         start: vi.fn(async () => state),
@@ -107,7 +107,7 @@ describe('MasqueradeController', () => {
       },
     });
 
-    controller.restoreServerEndedProjection();
+    model.restoreServerEndedProjection();
 
     await vi.waitFor(() =>
       expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: remote }),
@@ -118,12 +118,12 @@ describe('MasqueradeController', () => {
   });
 });
 
-describe('MasqueradeController shared-session reconciliation', () => {
+describe('MasqueradeModel shared-session reconciliation', () => {
   it('restores the real projection when another tab has ended the shared session masquerade', async () => {
-    const { controller, dependencies, resume } = createHarness();
-    await controller.adoptStatus({ active: true, ...state });
+    const { model, dependencies, resume } = createHarness();
+    await model.adoptStatus({ active: true, ...state });
 
-    await controller.adoptStatus(inactiveStatus);
+    await model.adoptStatus(inactiveStatus);
     await vi.waitFor(() => expect(useStore.getState().masquerade.kind).toBe('inactive'));
 
     expect(dependencies.reproject).toHaveBeenCalledWith(state.companyId);
@@ -131,10 +131,10 @@ describe('MasqueradeController shared-session reconciliation', () => {
   });
 
   it('keeps the real projection suspended until its reload succeeds', async () => {
-    const { controller, resume } = createHarness({ reproject: vi.fn(async () => false) });
-    await controller.adoptStatus({ active: true, ...state });
+    const { model, resume } = createHarness({ reproject: vi.fn(async () => false) });
+    await model.adoptStatus({ active: true, ...state });
 
-    controller.restoreServerEndedProjection();
+    model.restoreServerEndedProjection();
     await vi.waitFor(() =>
       expect(useStore.getState().notice?.message).toContain('could not be restored'),
     );

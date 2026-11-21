@@ -337,14 +337,14 @@ describe('PermissionProvider account-switch safety', () => {
     );
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const { masqueradeController } = await import('./masqueradeControllerInstance');
+    const { masqueradeModel } = await import('./masqueradeModelInstance');
     const inactiveProjection = useStore.getState().masquerade;
     const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
     renderProvider();
 
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
     act(() => {
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
       useStore.setState({ masquerade: inactiveProjection });
     });
     await act(async () =>

@@ -9,7 +9,7 @@ import { readSoleCompanyOwnership } from './useCompanySummaries';
 import { resolvePublicAuthEntry } from './authEntryRoute';
 import { useStore } from '@/store/useStore';
 import { queryClient } from '@/api/queryClient';
-import { masqueradeController } from './masqueradeControllerInstance';
+import { masqueradeModel } from './masqueradeModelInstance';
 import { AuthContext } from './authContext';
 import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -61,7 +61,7 @@ function useAuthStatus() {
     }
     if (next.kind === 'login') {
       clearStoredAccountCommands();
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
     } else if (next.kind === 'pass') {
@@ -129,7 +129,7 @@ function useAuthInvalidation({
   useEffect(() => {
     const resetOnAuthInvalidation = (event: StorageEvent) => {
       if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
       setStatus({ kind: 'checking' });

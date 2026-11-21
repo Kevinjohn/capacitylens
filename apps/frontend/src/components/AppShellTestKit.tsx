@@ -31,10 +31,10 @@ export const companyDirectory: { response: CompanySummary[]; pending: boolean; r
  * `syncLocaleFromCompany`, because each test file declares the `@/i18n` mock itself.
  */
 export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
-  // Company switches load their controller lazily. Loading it once here lets each test's switches
+  // Company switches load their masquerade model lazily. Loading it once here lets each test's switches
   // finish inside that test instead of landing in a later one.
   beforeAll(async () => {
-    await import('@/auth/masqueradeControllerInstance');
+    await import('@/auth/masqueradeModelInstance');
   });
 
   afterEach(() => {

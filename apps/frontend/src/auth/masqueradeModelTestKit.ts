@@ -2,8 +2,8 @@ import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 import { vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { useStore } from '@/store/useStore';
-import { MasqueradeController } from './masqueradeController';
-import type { MasqueradeControllerDependencies } from './masqueradeController';
+import { MasqueradeModel } from './masqueradeModel';
+import type { MasqueradeModelDependencies } from './masqueradeModel';
 import { viewAsGrantFor } from '@/test/permissionGrants';
 
 export const state: MasqueradeState & { contextToken: string } = {
@@ -19,9 +19,9 @@ export const state: MasqueradeState & { contextToken: string } = {
 };
 export const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
-export function createHarness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
+export function createHarness(overrides: Partial<MasqueradeModelDependencies> = {}) {
   const resume = vi.fn();
-  const dependencies: MasqueradeControllerDependencies = {
+  const dependencies: MasqueradeModelDependencies = {
     flush: vi.fn(async () => ({ kind: 'clean' as const })),
     suspend: vi.fn(() => resume),
     reproject: vi.fn(async () => true),
@@ -36,5 +36,5 @@ export function createHarness(overrides: Partial<MasqueradeControllerDependencie
     setContextToken: setMasqueradeContextToken,
     ...overrides,
   };
-  return { controller: new MasqueradeController(dependencies), dependencies, resume };
+  return { model: new MasqueradeModel(dependencies), dependencies, resume };
 }

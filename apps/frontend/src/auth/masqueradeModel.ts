@@ -42,27 +42,27 @@ function isSwitchSuccessful(outcome: RefreshOutcome): boolean {
 }
 
 /** Store and persistence operations required to switch masquerade companies safely. */
-export interface MasqueradeControllerDependencies {
+export interface MasqueradeModelDependencies {
   flush: () => Promise<FlushPendingWritesResult>;
   suspend: () => ResumeWrites | null;
   reproject: (companyId: string, includeCompanySummaries?: boolean) => Promise<boolean>;
   switchCompany: (companyId: string | null) => Promise<RefreshOutcome>;
   readBootstrapCompany: (companyId: string) => Promise<string | null>;
   api: typeof masqueradeApi;
-  /** The store state this controller reads and writes; the controller reaches no other state. */
+  /** The store state this model reads and writes; the model reaches no other state. */
   readState: () => StoreState;
   /** The one writer of the masquerade context proof the data layer sends with each request. */
   setContextToken: (token: string | null) => void;
 }
 
 /** Sole owner of the persistence suspension used by identity masquerade transitions. */
-export class MasqueradeController {
-  private readonly dependencies: MasqueradeControllerDependencies;
+export class MasqueradeModel {
+  private readonly dependencies: MasqueradeModelDependencies;
   private resumeWrites: ResumeWrites | null = null;
   private generation = 0;
   private startPendingGeneration: number | null = null;
 
-  constructor(dependencies: MasqueradeControllerDependencies) {
+  constructor(dependencies: MasqueradeModelDependencies) {
     this.dependencies = dependencies;
   }
 
@@ -404,7 +404,7 @@ export class MasqueradeController {
     status: Extract<MasqueradeStatus, { active: true }>,
   ): Promise<void> {
     const current = this.store.masquerade;
-    // The controller already owns these transitions. A membership invalidation triggered by its
+    // The model already owns these transitions. A membership invalidation triggered by its
     // own reproject must not publish `active` before that authoritative reload has completed.
     if (current.kind === 'starting') {
       if (current.state?.token === status.token) {

@@ -33,13 +33,13 @@ flowchart TD
 flowchart TD
     Row["MemberRow offers view action to eligible Owner or Admin"] --> Confirm["MemberConfirmations confirmMemberAction"]
     Confirm --> Start["useMembersOrchestration calls accountTransition.startMasquerade"]
-    Start --> Controller["masqueradeController.start → masqueradeApi.start"]
-    Controller --> Request["masqueradeRequests POST api.masquerade.start"]
+    Start --> Model["masqueradeModel.start → masqueradeApi.start"]
+    Model --> Request["masqueradeRequests POST api.masquerade.start"]
     Request --> Server["MasqueradeController.start → auth masquerade service → Masquerade package start"]
-    Server --> Projection["Controller returns readCurrentMasquerade; controller loads target projection into store"]
+    Server --> Projection["Controller returns readCurrentMasquerade; model loads target projection into store"]
     Projection --> Banner["AppShell renders MasqueradeBanner; permissionContext hides write affordances"]
     Banner --> ReadOnly["Masquerade context middleware refuses product writes while mode is active"]
     Banner --> End["End now → accountTransition.endMasquerade → package stop and real projection restore"]
 ```
 
-**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx), [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [companyTransition.ts](../../apps/frontend/src/auth/companyTransition.ts), [masqueradeController.ts](../../apps/frontend/src/auth/masqueradeController.ts), [masqueradeApi.ts](../../apps/frontend/src/auth/masqueradeApi.ts), [masqueradeRequests.ts](../../apps/frontend/src/auth/masqueradeRequests.ts), [masquerade_routes.ts](../../apps/backend/start/masquerade_routes.ts), [masquerade_controller.ts](../../apps/backend/app/controllers/masquerade_controller.ts), [masquerade.ts](../../apps/backend/app/services/auth/masquerade.ts), [masquerade_context_middleware.ts](../../apps/backend/app/middleware/masquerade_context_middleware.ts), [route_middleware.ts](../../apps/backend/start/route_middleware.ts), [permissionContext.ts](../../apps/frontend/src/auth/permissionContext.ts), [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
+**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx), [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [companyTransition.ts](../../apps/frontend/src/auth/companyTransition.ts), [masqueradeModel.ts](../../apps/frontend/src/auth/masqueradeModel.ts), [masqueradeApi.ts](../../apps/frontend/src/auth/masqueradeApi.ts), [masqueradeRequests.ts](../../apps/frontend/src/auth/masqueradeRequests.ts), [masquerade_routes.ts](../../apps/backend/start/masquerade_routes.ts), [masquerade_controller.ts](../../apps/backend/app/controllers/masquerade_controller.ts), [masquerade.ts](../../apps/backend/app/services/auth/masquerade.ts), [masquerade_context_middleware.ts](../../apps/backend/app/middleware/masquerade_context_middleware.ts), [route_middleware.ts](../../apps/backend/start/route_middleware.ts), [permissionContext.ts](../../apps/frontend/src/auth/permissionContext.ts), [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx)
