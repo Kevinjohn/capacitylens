@@ -1,6 +1,6 @@
 import { args, BaseCommand, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { recoverOwner } from '#services/operations/owner_recovery';
+import { recoverOwner } from '#services/operator/owner_recovery';
 
 /** Recover a sole owner using an audited single-use link while the server is stopped. */
 export default class OwnerResetPassword extends BaseCommand {

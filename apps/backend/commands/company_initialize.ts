@@ -1,6 +1,6 @@
 import { args, BaseCommand, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { initializeCompany } from '#services/operations/company_initialization';
+import { initializeCompany } from '#services/operator/company_initialization';
 
 /** Initialize company access for an existing identity on an empty stopped installation. */
 export default class CompanyInitialize extends BaseCommand {

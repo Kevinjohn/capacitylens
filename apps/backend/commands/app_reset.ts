@@ -1,6 +1,6 @@
 import { args, BaseCommand, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { resetInstallation } from '#services/operations/reset_installation';
+import { resetInstallation } from '#services/operator/reset_installation';
 
 /** Preserve the stopped installation before creating an empty replacement. */
 export default class AppReset extends BaseCommand {
