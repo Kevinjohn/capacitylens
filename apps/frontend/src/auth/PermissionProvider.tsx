@@ -62,7 +62,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     // One validated request drives the company directory and permission projection while retaining their
     // distinct failure postures.
     const summaries = await refreshCompanySummaries({
-      acceptEffects: refresh.isCurrent,
+      isCurrent: refresh.isCurrent,
     });
     if (summaries === null) {
       publishUnavailable(refresh);

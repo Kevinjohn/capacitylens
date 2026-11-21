@@ -32,7 +32,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useAppShellViewModel installs useGlobalShortcuts key listener"] --> B["applyHistoryShortcutEffect checks key, composition, text entry, open dialog and unsaved form"]
+  A["useAppShellViewModel installs useGlobalShortcuts key listener"] --> B["handleHistoryShortcut checks key, composition, text entry, open dialog and unsaved form"]
   B -->|blocked| C["No history action runs"]
   B -->|allowed| D["undoPlanning or redoPlanning"]
   D --> E["planningCache executes history intent through PlanningTransport"]

@@ -16,7 +16,7 @@ interface GlobalShortcutsInput {
 type PaletteShortcutInput = Pick<GlobalShortcutsInput, 'setPaletteOpen'>;
 type HistoryShortcutInput = Pick<GlobalShortcutsInput, 'redo' | 'undo'>;
 
-function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcutInput): boolean {
+function handlePaletteShortcut(event: KeyboardEvent, input: PaletteShortcutInput): boolean {
   if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return false;
   if (event.isComposing) return true;
   if (useStore.getState().dirtyForm) {
@@ -30,7 +30,7 @@ function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcut
   return true;
 }
 
-function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcutInput) {
+function handleHistoryShortcut(event: KeyboardEvent, input: HistoryShortcutInput) {
   if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
   if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenDialog()) return;
   if (useStore.getState().dirtyForm) return;
@@ -47,8 +47,8 @@ export function useGlobalShortcuts(input: GlobalShortcutsInput) {
   const { redo, setPaletteOpen, undo } = input;
   useEffect(() => {
     const dispatchShortcut = (event: KeyboardEvent) => {
-      if (!applyPaletteShortcutEffect(event, { setPaletteOpen })) {
-        applyHistoryShortcutEffect(event, { redo, undo });
+      if (!handlePaletteShortcut(event, { setPaletteOpen })) {
+        handleHistoryShortcut(event, { redo, undo });
       }
     };
     window.addEventListener('keydown', dispatchShortcut);

@@ -31,14 +31,14 @@ async function resolveIdentityWhileMasqueradeStatusIsUnknown(
 /** Ask the server who we are. This function is total and never throws. */
 async function readActiveMasqueradeAuthStatus(
   masquerade: Extract<Awaited<ReturnType<typeof masqueradeApi.status>>, { active: true }>,
-  acceptEffects: () => boolean,
+  isCurrent: () => boolean,
 ): Promise<AuthStatusResult | null> {
   try {
     const user = parseAuthUser(masquerade.principal);
     if (!user) {
       return rejectInvalidResponse();
     }
-    if (!(await adoptMasqueradeStatus(masquerade, acceptEffects))) return null;
+    if (!(await adoptMasqueradeStatus(masquerade, isCurrent))) return null;
     const next: Extract<AuthStatusResult, { kind: 'pass' }> = {
       kind: 'pass',
       user,
@@ -64,27 +64,25 @@ function buildAuthServiceError(error: unknown): AuthStatusResult {
   };
 }
 
-export async function fetchAuthStatus(
-  acceptEffects: () => boolean,
-): Promise<AuthStatusResult | null> {
-  let isCurrent: () => boolean;
+export async function fetchAuthStatus(isCurrent: () => boolean): Promise<AuthStatusResult | null> {
+  let projectionIsCurrent: () => boolean;
   let masquerade: Awaited<ReturnType<typeof masqueradeApi.status>>;
   try {
-    isCurrent = await captureMasqueradeStatusCheck();
+    projectionIsCurrent = await captureMasqueradeStatusCheck();
     masquerade = await masqueradeApi.status(useStore.getState().activeCompanyId ?? undefined);
   } catch (error) {
     // /me can resolve only a 401 here; a successful response does not prove inactivity.
     console.warn('AuthProvider: masquerade status could not be checked', error);
     return resolveIdentityWhileMasqueradeStatusIsUnknown(error);
   }
-  const acceptStatus = () => acceptEffects() && isCurrent();
+  const acceptStatus = () => isCurrent() && projectionIsCurrent();
   if (!acceptStatus()) return null;
   if (masquerade.active) {
     const activeStatus = await readActiveMasqueradeAuthStatus(masquerade, acceptStatus);
-    return acceptEffects() ? activeStatus : null;
+    return isCurrent() ? activeStatus : null;
   }
   if (!(await adoptMasqueradeStatus(masquerade, acceptStatus))) return null;
-  if (!acceptEffects()) return null;
+  if (!isCurrent()) return null;
   try {
     return await readAuthResponse(await sessionRequests.me());
   } catch (error) {
