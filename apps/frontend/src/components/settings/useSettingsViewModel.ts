@@ -53,7 +53,7 @@ function readSchedulingSettings(
 }
 
 /** Combines current permissions, company preferences, and section actions for settings. */
-export function useSettingsViewController() {
+export function useSettingsViewModel() {
   const workingDaysMinimumId = useId();
   const canEdit = useCanEdit();
   const role = useRole();

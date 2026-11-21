@@ -40,14 +40,14 @@ interface GesturePreview {
   dates: DateRange | null;
 }
 
-interface ControllerOptions {
+interface ViewModelOptions {
   bar: BarLayout;
   indexAtClientX: (clientX: number) => number;
   isDays: boolean;
   onEdit?: (id: ID) => void;
 }
 
-/** Per-allocation refs and geometry watch shared by the gesture hook and its controller. */
+/** Per-allocation refs and geometry watch shared by the gesture hook and its view model. */
 export interface GestureRuntime {
   lanesRef: React.RefObject<LaneSnapshot[]>;
   previewDaysRef: React.RefObject<Map<ID, Weekday[] | undefined>>;
@@ -129,7 +129,7 @@ function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDates
 }
 
 function previewGesture(
-  options: ControllerOptions,
+  options: ViewModelOptions,
   runtime: GestureRuntime,
   input: DragResizePreviewInput,
 ) {
@@ -163,7 +163,7 @@ function previewGesture(
 }
 
 interface ResolveCommitInput {
-  options: ControllerOptions;
+  options: ViewModelOptions;
   mode: DragMode;
   deltaDays: number;
   resourceId: ID;
@@ -192,7 +192,7 @@ function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCom
 }
 
 interface SavePointerCommitInput {
-  options: ControllerOptions;
+  options: ViewModelOptions;
   targetResourceId: ID | null;
   result: ReturnType<typeof resolveCommitDates>;
 }
@@ -238,7 +238,7 @@ interface PointerCommitInput {
 }
 
 function commitPointerGesture(
-  options: ControllerOptions,
+  options: ViewModelOptions,
   runtime: GestureRuntime,
   input: PointerCommitInput,
 ) {
@@ -273,7 +273,7 @@ function commitPointerGesture(
   void savePointerCommit({ options, targetResourceId, result });
 }
 
-function resolveKeyboardGesture(options: ControllerOptions, mode: DragMode, deltaDays: number) {
+function resolveKeyboardGesture(options: ViewModelOptions, mode: DragMode, deltaDays: number) {
   const { bar } = options;
   const workingDays = resolveGestureWorkingDays(readGestureCalendar(), bar.allocation.resourceId);
   const gestureOptions = {
@@ -302,7 +302,7 @@ function refuseBlockedKeyboardGesture({ current, next }: KeyboardGateInput) {
 }
 
 async function saveKeyboardGesture(
-  options: ControllerOptions,
+  options: ViewModelOptions,
   scheduleFocus: ScheduleAllocationFocus,
   input: { next: DateRange; rescale: ReturnType<typeof resolveVolumePreservingHours> | null },
 ) {
@@ -339,7 +339,7 @@ async function saveKeyboardGesture(
 }
 
 function nudgeAllocation(
-  options: ControllerOptions,
+  options: ViewModelOptions,
   scheduleFocus: ScheduleAllocationFocus,
   input: { mode: DragMode; deltaDays: number },
 ) {
@@ -371,10 +371,7 @@ function startPointerGesture(runtime: GestureRuntime) {
 }
 
 /** Coordinates pointer and keyboard allocation gestures with preview and commit state. */
-export function useAllocationGestureController(
-  options: ControllerOptions,
-  runtime: GestureRuntime,
-) {
+export function useAllocationGestureViewModel(options: ViewModelOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
   const scheduleFocus = useAllocationFocus();

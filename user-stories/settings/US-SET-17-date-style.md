@@ -28,7 +28,7 @@ C -->|no or uncertain| E["Read the visible error and resolve it before continuin
 
 ```mermaid
 flowchart TD
-  control["SettingsDateFormatSection calls updateSetting({ dateStyle })"] --> view["useSettingsViewController.updateSetting checks active company and catches failure"]
+  control["SettingsDateFormatSection calls updateSetting({ dateStyle })"] --> view["useSettingsViewModel.updateSetting checks active company and catches failure"]
   view --> action["typedPlanningActions.updateAccount builds settings.update command"]
   action --> execute["allocationSlice.sendPlanningCommand calls execute on the planning cache controller (createPlanningCacheController)"]
   execute --> transport["planningTransport sends api.planning.mutate"]
@@ -37,4 +37,4 @@ flowchart TD
   reply --> read["store selectors.resolveDateStyle supplies setting to views"]
 ```
 
-**Code references:** [SettingsDateFormatSection.tsx](../../apps/frontend/src/components/settings/SettingsDateFormatSection.tsx), [useSettingsViewController.ts](../../apps/frontend/src/components/settings/useSettingsViewController.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)
+**Code references:** [SettingsDateFormatSection.tsx](../../apps/frontend/src/components/settings/SettingsDateFormatSection.tsx), [useSettingsViewModel.ts](../../apps/frontend/src/components/settings/useSettingsViewModel.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_routes.ts](../../apps/backend/start/planning_routes.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [selectors.ts](../../apps/frontend/src/store/selectors.ts)

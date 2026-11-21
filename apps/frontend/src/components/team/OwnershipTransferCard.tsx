@@ -7,28 +7,28 @@ import { SelectField } from '@/components/common/fields/SelectField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useOwnershipTransfer } from './useOwnershipTransfer';
-import type { OwnershipTransferController } from './useOwnershipTransfer';
+import type { OwnershipTransferViewModel } from './useOwnershipTransfer';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 
 function TransferForm({
-  controller,
+  viewModel,
   selected,
   setSelected,
   onTransfer,
 }: {
-  controller: OwnershipTransferController;
+  viewModel: OwnershipTransferViewModel;
   selected: string;
   setSelected: (value: string) => void;
   onTransfer: (value: string) => void;
 }) {
-  const selectedMember = controller.candidates.find((member) => member.userId === selected);
+  const selectedMember = viewModel.candidates.find((member) => member.userId === selected);
   return (
     <div className="flex flex-col gap-3">
       <SelectField
         label={m.ownership_transfer_nominee_label()}
         value={selected}
         onChange={setSelected}
-        options={controller.candidates.map((member) => ({
+        options={viewModel.candidates.map((member) => ({
           value: member.userId,
           label: member.name ?? member.email ?? member.userId,
         }))}
@@ -44,11 +44,11 @@ function TransferForm({
         <Button
           type="button"
           size="sm"
-          disabled={controller.busy || selectedMember === undefined}
+          disabled={viewModel.busy || selectedMember === undefined}
           data-testid="ownership-transfer-complete"
           onClick={() => onTransfer(selected)}
         >
-          {controller.busy ? m.ownership_transfer_working() : m.ownership_transfer_submit()}
+          {viewModel.busy ? m.ownership_transfer_working() : m.ownership_transfer_submit()}
         </Button>
       </div>
     </div>
@@ -56,17 +56,17 @@ function TransferForm({
 }
 
 function TransferContent({
-  controller,
+  viewModel,
   selected,
   setSelected,
   onTransfer,
 }: {
-  controller: OwnershipTransferController;
+  viewModel: OwnershipTransferViewModel;
   selected: string;
   setSelected: (value: string) => void;
   onTransfer: (value: string) => void;
 }) {
-  if (!controller.directoryLoaded && controller.loading) {
+  if (!viewModel.directoryLoaded && viewModel.loading) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
         {m.ownership_transfer_loading()}
@@ -74,19 +74,19 @@ function TransferContent({
     );
   }
 
-  const showEmpty = controller.directoryLoaded && controller.candidates.length === 0;
-  const showForm = controller.directoryLoaded && controller.candidates.length > 0;
+  const showEmpty = viewModel.directoryLoaded && viewModel.candidates.length === 0;
+  const showForm = viewModel.directoryLoaded && viewModel.candidates.length > 0;
   return (
     <div className="flex flex-col gap-3">
-      {controller.error !== null && (
+      {viewModel.error !== null && (
         <Alert variant="destructive">
-          <AlertDescription>{controller.error}</AlertDescription>
-          {!controller.directoryLoaded && (
+          <AlertDescription>{viewModel.error}</AlertDescription>
+          {!viewModel.directoryLoaded && (
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => void controller.refresh()}
+              onClick={() => void viewModel.refresh()}
             >
               {m.ownership_transfer_retry()}
             </Button>
@@ -100,7 +100,7 @@ function TransferContent({
       )}
       {showForm && (
         <TransferForm
-          controller={controller}
+          viewModel={viewModel}
           selected={selected}
           setSelected={setSelected}
           onTransfer={onTransfer}
@@ -117,9 +117,9 @@ export function OwnershipTransferCard() {
   const [confirmationTarget, setConfirmationTarget] = useState<string | null>(null);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const { refreshAuth } = useAuth();
-  const controller = useOwnershipTransfer(activeCompanyId, refreshAuth);
+  const viewModel = useOwnershipTransfer(activeCompanyId, refreshAuth);
   const requestTransfer = (target: string) => setConfirmationTarget(target);
-  if (!controller.available) return null;
+  if (!viewModel.available) return null;
 
   return (
     <section
@@ -135,7 +135,7 @@ export function OwnershipTransferCard() {
         data-testid="ownership-transfer-open"
         onClick={() => {
           setOpen(true);
-          void controller.refresh();
+          void viewModel.refresh();
         }}
       >
         {m.ownership_transfer_open()}
@@ -153,7 +153,7 @@ export function OwnershipTransferCard() {
           }
         >
           <TransferContent
-            controller={controller}
+            viewModel={viewModel}
             selected={selected}
             setSelected={setSelected}
             onTransfer={requestTransfer}
@@ -168,7 +168,7 @@ export function OwnershipTransferCard() {
           onConfirmed={(id) => {
             const target = confirmationTarget;
             setConfirmationTarget(null);
-            void controller.transfer(target, id);
+            void viewModel.transfer(target, id);
           }}
           onCancel={() => setConfirmationTarget(null)}
         />

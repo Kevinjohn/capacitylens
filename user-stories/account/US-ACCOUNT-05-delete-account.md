@@ -6,7 +6,7 @@ As a signed-in person, I want to delete my account so that my sign-in and compan
 **Access:** Any signed-in person; an Owner must transfer ownership first.
 **Entry:** Account → Delete account
 **Documentation:** [Account](../../docs-src/using/account.md)
-**Source:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx); [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx); [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts)
+**Source:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx); [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx); [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts)
 
 ## Acceptance criteria
 
@@ -45,4 +45,4 @@ flowchart TD
   kit --> session["Successful deletion terminates session; browser reloads"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)

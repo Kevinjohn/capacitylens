@@ -12,7 +12,7 @@ import { useAuditWarning, useNoticeBridge } from './app-shell/shellNotices';
 import { useGlobalShortcuts } from './app-shell/globalShortcuts';
 
 /** Owns AppShell's bootstrap handoff, global effects, shortcuts and notice bridge. */
-export function useAppShellController() {
+export function useAppShellViewModel() {
   // PermissionProvider owns active-company refreshes and publishes the validated directory.
   useCompanySummaries();
   const notice = useStore((state) => state.notice);

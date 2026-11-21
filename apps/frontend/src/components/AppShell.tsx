@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { m } from '@/i18n';
 import { ACCOUNT_LINK } from '@/lib/navLinks';
 import { AppEntryGate } from './AppEntryGate';
-import { useAppShellController } from './useAppShellController';
+import { useAppShellViewModel } from './useAppShellViewModel';
 import { useVisibleRoutes } from './useVisibleRoutes';
 import { AppSidebar } from './AppSidebar';
 import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar';
@@ -200,7 +200,7 @@ function GatedMain({
 /** Coordinates application routes, navigation, company notices, and global dialogs. */
 export function AppShell() {
   const navigate = useNavigate();
-  const { paletteOpen, closePalette } = useAppShellController();
+  const { paletteOpen, closePalette } = useAppShellViewModel();
   const hydrated = useStore((state) => state.hydrated);
   const masquerade = useStore((state) => state.masquerade);
   const masqueradeBanner = buildMasqueradeBannerContent(masquerade);

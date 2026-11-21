@@ -6,7 +6,7 @@ As a signed-in person, I want to change my password so that I can keep my accoun
 **Access:** Any signed-in person.
 **Entry:** Account → Change password
 **Documentation:** [Account](../../docs-src/using/account.md)
-**Source:** [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx); [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts); [en.json](../../apps/frontend/messages/en.json)
+**Source:** [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx); [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria
 
@@ -43,4 +43,4 @@ flowchart TD
   kit --> error["Rejected credential returns a visible field error"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts), [DECISIONS.md](../../DECISIONS.md)
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts), [DECISIONS.md](../../DECISIONS.md)

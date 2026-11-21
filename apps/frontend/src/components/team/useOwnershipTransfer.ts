@@ -21,7 +21,7 @@ interface OwnershipTransferState {
   error: string | null;
 }
 
-export interface OwnershipTransferController extends OwnershipTransferState {
+export interface OwnershipTransferViewModel extends OwnershipTransferState {
   refresh(): Promise<void>;
   transfer(targetPrincipalId: string, confirmationId: string): Promise<void>;
 }
@@ -178,7 +178,7 @@ function useTransferCommand({
 export function useOwnershipTransfer(
   companyId: string | null,
   refreshAuth: () => Promise<void>,
-): OwnershipTransferController {
+): OwnershipTransferViewModel {
   const { user } = useAuth();
   const mayTransfer = useCan('ownership:transfer');
   const permissionStatus = usePermissionStatus();

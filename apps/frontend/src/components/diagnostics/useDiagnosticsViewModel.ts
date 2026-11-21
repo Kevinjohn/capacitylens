@@ -5,7 +5,7 @@ import { readServerDiagnostics } from '@/data/serverDiagnostics';
 type ServerObservation = { response: unknown; observedAt: string | undefined };
 
 /** Observes the server once, then combines that snapshot with this client's live facts. */
-export function useDiagnosticsController() {
+export function useDiagnosticsViewModel() {
   const [observation, setObservation] = useState<ServerObservation>(() => ({
     response: null,
     observedAt: undefined,

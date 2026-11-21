@@ -3,12 +3,12 @@ import { m } from '@/i18n';
 import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { FieldError } from '@/components/ui/field';
-import { useSecurityController } from './useSecurityController';
+import { useSecurityViewModel } from './useSecurityViewModel';
 
-type Controller = ReturnType<typeof useSecurityController>;
+type ViewModel = ReturnType<typeof useSecurityViewModel>;
 
-function PasswordForm({ controller }: { controller: Controller }) {
-  const { fieldError, password } = controller;
+function PasswordForm({ viewModel }: { viewModel: ViewModel }) {
+  const { fieldError, password } = viewModel;
   return (
     <>
       <TextField
@@ -50,9 +50,9 @@ function PasswordForm({ controller }: { controller: Controller }) {
         describedById={fieldError.errorId}
       />
       <FieldError id={fieldError.errorId}>{fieldError.error}</FieldError>
-      {controller.message && (
+      {viewModel.message && (
         <p role="status" className="text-sm text-ok">
-          {controller.message}
+          {viewModel.message}
         </p>
       )}
       <RequiredLegend />
@@ -63,14 +63,14 @@ function PasswordForm({ controller }: { controller: Controller }) {
 function PasswordDialog({
   open,
   onOpenChange,
-  controller,
+  viewModel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  controller: Controller;
+  viewModel: ViewModel;
 }) {
   const close = () => onOpenChange(false);
-  const password = controller.password;
+  const password = viewModel.password;
   return (
     open && (
       <Modal
@@ -83,7 +83,7 @@ function PasswordDialog({
             onCancel={close}
             submitLabel={m.settings_security_change_password()}
             disabled={
-              controller.busy ||
+              viewModel.busy ||
               !password.currentPassword ||
               !password.newPassword ||
               !password.confirmPassword
@@ -91,7 +91,7 @@ function PasswordDialog({
           />
         }
       >
-        <PasswordForm controller={controller} />
+        <PasswordForm viewModel={viewModel} />
       </Modal>
     )
   );
@@ -100,14 +100,14 @@ function PasswordDialog({
 function DeleteAccountDialog({
   open,
   onOpenChange,
-  controller,
+  viewModel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  controller: Controller;
+  viewModel: ViewModel;
 }) {
   const close = () => onOpenChange(false);
-  const { deletion, fieldError } = controller;
+  const { deletion, fieldError } = viewModel;
   return (
     open && (
       <Modal
@@ -125,7 +125,7 @@ function DeleteAccountDialog({
               size="sm"
               type="submit"
               variant="destructive"
-              disabled={controller.busy || !deletion.currentPassword}
+              disabled={viewModel.busy || !deletion.currentPassword}
             >
               {m.settings_security_delete_account()}
             </Button>
@@ -164,26 +164,22 @@ export function SecuritySection({
   deleteOpen?: boolean;
   onDeleteOpenChange?: (open: boolean) => void;
 }) {
-  const controller = useSecurityController();
+  const viewModel = useSecurityViewModel();
   const changePasswordOpen = (open: boolean) => {
-    if (!open) controller.password.reset();
+    if (!open) viewModel.password.reset();
     onPasswordOpenChange(open);
   };
   const changeDeleteOpen = (open: boolean) => {
-    if (!open) controller.deletion.reset();
+    if (!open) viewModel.deletion.reset();
     onDeleteOpenChange(open);
   };
   return (
     <>
-      <PasswordDialog
-        open={passwordOpen}
-        onOpenChange={changePasswordOpen}
-        controller={controller}
-      />
+      <PasswordDialog open={passwordOpen} onOpenChange={changePasswordOpen} viewModel={viewModel} />
       <DeleteAccountDialog
         open={deleteOpen}
         onOpenChange={changeDeleteOpen}
-        controller={controller}
+        viewModel={viewModel}
       />
     </>
   );

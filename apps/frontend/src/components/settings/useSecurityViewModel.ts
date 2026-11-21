@@ -157,7 +157,7 @@ function useAccountDeletion({ fail, clear, setMessage, setBusy }: PasswordChange
 }
 
 /** Coordinates password, deletion and session controls with their busy and error states. */
-export function useSecurityController() {
+export function useSecurityViewModel() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fieldError = useFieldError();
