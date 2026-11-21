@@ -135,7 +135,7 @@ export function ImportExport() {
   const setNotice = useStore((state) => state.setNotice);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const canImport = useCan('company:import');
-  // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
+  // A full-set replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
     pending: pendingImport,
     readFile,
@@ -199,7 +199,7 @@ export function ImportExport() {
         }}
       />
 
-      {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
+      {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale set. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
       {pendingImport && canImport && !continued && (

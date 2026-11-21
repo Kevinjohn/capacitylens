@@ -9,7 +9,7 @@ import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { m } from '@/i18n';
 import { useAuth } from './authContext';
 
-// The company directory is loaded before a tenant is selected because the active company slice
+// The company directory is loaded before a tenant is selected because the active company set
 // cannot enumerate other memberships.
 
 // Validate directory entries before publication. Unknown roles and malformed grants remain

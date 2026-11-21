@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { companySeed } from '@/test/companyDocument';
 import {
-  fetchInactiveSlice,
-  InactiveSliceHttpError,
-  InactiveSliceShapeError,
-} from './fetchInactiveSlice';
+  fetchInactiveRecords,
+  InactiveRecordsHttpError,
+  InactiveRecordsShapeError,
+} from './fetchInactiveRecords';
 
 // The shared reader of the purge-gated `?includeInactive=1` admin endpoint. The component suites
 // (DeleteCompanyDialog, ArchivedSection) prove each caller's surface; this proves the helper's own
@@ -19,15 +19,15 @@ afterEach(() => {
 const ok = (body: unknown): Response =>
   ({ ok: true, status: 200, json: async () => body }) as unknown as Response;
 
-describe('fetchInactiveSlice', () => {
-  it('requests a complete inactive slice for the account with credentials', async () => {
+describe('fetchInactiveRecords', () => {
+  it('requests a complete inactive set for the account with credentials', async () => {
     const body = companySeed('a-studio');
     const fetchMock = vi.fn(async () => ok(body));
     vi.stubGlobal('fetch', fetchMock);
 
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     const controller = new AbortController();
-    const data = await fetchInactiveSlice('a-studio', controller.signal);
+    const data = await fetchInactiveRecords('a-studio', controller.signal);
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain('/api/state?companyId=a-studio&includeInactive=1');
@@ -40,36 +40,36 @@ describe('fetchInactiveSlice', () => {
     expect(data).toEqual(body);
   });
 
-  it('throws InactiveSliceHttpError carrying the status and the server `{ error }` sentence', async () => {
+  it('throws InactiveRecordsHttpError carrying the status and the server `{ error }` sentence', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => Response.json({ error: 'Down for backup.' }, { status: 503 })),
     );
-    const err = await fetchInactiveSlice('a1').then(
+    const err = await fetchInactiveRecords('a1').then(
       () => null,
       (e: unknown) => e,
     );
-    expect(err).toBeInstanceOf(InactiveSliceHttpError);
-    expect((err as InactiveSliceHttpError).status).toBe(503);
-    expect((err as InactiveSliceHttpError).serverMessage).toBe('Down for backup.');
+    expect(err).toBeInstanceOf(InactiveRecordsHttpError);
+    expect((err as InactiveRecordsHttpError).status).toBe(503);
+    expect((err as InactiveRecordsHttpError).serverMessage).toBe('Down for backup.');
   });
 
-  it('throws InactiveSliceHttpError with serverMessage undefined when the error body is unreadable', async () => {
+  it('throws InactiveRecordsHttpError with serverMessage undefined when the error body is unreadable', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => new Response('not JSON', { status: 403 })),
     );
-    const err = await fetchInactiveSlice('a1').then(
+    const err = await fetchInactiveRecords('a1').then(
       () => null,
       (e: unknown) => e,
     );
-    expect(err).toBeInstanceOf(InactiveSliceHttpError);
-    expect((err as InactiveSliceHttpError).status).toBe(403);
-    expect((err as InactiveSliceHttpError).serverMessage).toBeUndefined();
+    expect(err).toBeInstanceOf(InactiveRecordsHttpError);
+    expect((err as InactiveRecordsHttpError).status).toBe(403);
+    expect((err as InactiveRecordsHttpError).serverMessage).toBeUndefined();
   });
 
-  // A partial 200 must not be repaired into an apparently complete slice.
-  it('throws InactiveSliceShapeError on a structurally incomplete 200 body', async () => {
+  // A partial 200 must not be repaired into an apparently complete set.
+  it('throws InactiveRecordsShapeError on a structurally incomplete 200 body', async () => {
     for (const body of [
       null,
       [],
@@ -80,7 +80,7 @@ describe('fetchInactiveSlice', () => {
         'fetch',
         vi.fn(async () => ok(body)),
       );
-      await expect(fetchInactiveSlice('a1')).rejects.toBeInstanceOf(InactiveSliceShapeError);
+      await expect(fetchInactiveRecords('a1')).rejects.toBeInstanceOf(InactiveRecordsShapeError);
     }
   });
 
@@ -96,7 +96,7 @@ describe('fetchInactiveSlice', () => {
       vi.fn(async () => ok(body)),
     );
 
-    await expect(fetchInactiveSlice('a-studio')).rejects.toBe(fault);
+    await expect(fetchInactiveRecords('a-studio')).rejects.toBe(fault);
   });
 
   it('refuses a response that holds more than the requested company', async () => {
@@ -106,6 +106,8 @@ describe('fetchInactiveSlice', () => {
       'fetch',
       vi.fn(async () => ok({ ...body, accounts: [...body.accounts, ...other] })),
     );
-    await expect(fetchInactiveSlice('a-studio')).rejects.toBeInstanceOf(InactiveSliceShapeError);
+    await expect(fetchInactiveRecords('a-studio')).rejects.toBeInstanceOf(
+      InactiveRecordsShapeError,
+    );
   });
 });

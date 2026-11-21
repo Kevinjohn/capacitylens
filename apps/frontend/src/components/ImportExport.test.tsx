@@ -320,7 +320,7 @@ describe('beta import and export', () => {
     expect(useStore.getState().notice).toMatchObject({ tone: 'error', message: 'Import refused.' });
   });
 
-  it('reloads the authoritative slice after an uncertain import response', async () => {
+  it('reloads the authoritative set after an uncertain import response', async () => {
     await submitServerImport(Response.json({ error: 'Unknown outcome.' }, { status: 503 }));
     await waitFor(() => expect(planningProbe.releases).toBe(1));
     expect(useStore.getState().notice?.tone).toBe('warning');

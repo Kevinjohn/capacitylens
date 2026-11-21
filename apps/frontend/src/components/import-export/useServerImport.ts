@@ -19,7 +19,7 @@ const reportCommittedImport = (
 ): void => {
   const { imported, skipped } = summary;
   if (imported === null) {
-    console.warn('import: 200 response with an off-spec body; the slice was replaced server-side');
+    console.warn('import: 200 response with an off-spec body; the set was replaced server-side');
   } else if (summary.unchanged) {
     setNotice(m.data_import_done());
     return;

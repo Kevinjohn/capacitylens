@@ -35,7 +35,7 @@ export interface Notice {
 }
 
 /** A directory entry for a company the current identity may access. Entries stay separate
- * from the active company slice. An unavailable role stays unresolved until refreshed.
+ * from the active company set. An unavailable role stays unresolved until refreshed.
  */
 export interface CompanySummary {
   id: ID;
@@ -95,7 +95,7 @@ export interface StoreState extends StoreEntityActions {
   /** The company currently in view, or null when no company is active. Never persisted. */
   activeCompanyId: ID | null;
   /** The server-sourced directory of companies this user may access. Set by useCompanySummaries
-   * from the user’s memberships. Separate from `data` because `data` holds only the active slice.
+   * from the user’s memberships. Separate from `data` because `data` holds only the active set.
    * Never persisted. */
   companySummaries: CompanySummary[];
   /** Whether the published directory was wholly valid. A partial response cannot prove uniqueness.

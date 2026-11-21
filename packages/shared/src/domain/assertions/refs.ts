@@ -246,7 +246,7 @@ function assertResourceKindImmutable(
 
 /** Check catalog references within companyId without checking the record’s own tenancy.
  * Allocation and time-off references have separate validators. Existing must be the owned stored row.
- * Unchanged references may be absent from an active-only client slice; their missing/inactive target checks are skipped, but a resolved foreign-account target still fails.
+ * Unchanged references may be absent from an active-only client set; their missing/inactive target checks are skipped, but a resolved foreign-account target still fails.
  * Creates and full project/phase rows require their parent; partial updates may omit the parent but cannot clear it.
  * Ordinary resource updates cannot change kind.
  * @throws DomainError on a violation; callers must not persist the write. */

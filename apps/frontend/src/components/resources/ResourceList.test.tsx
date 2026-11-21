@@ -251,7 +251,7 @@ describe('ResourceList display', () => {
         .addResource({ ...personDraft('Dangling discipline'), role: 'Researcher' }),
     );
     // Ordinary writes reject dangling references. Inject one at the view boundary to prove a
-    // malformed/legacy slice still renders safely rather than exposing a placeholder glyph.
+    // malformed/legacy set still renders safely rather than exposing a placeholder glyph.
     useStore.setState((state) => ({
       data: {
         ...state.data,
@@ -432,7 +432,7 @@ describe('ResourceList display', () => {
   });
 });
 
-// Active resources and the server-shaped inactive slice are read from separate fixture paths.
+// Active resources and the server-shaped inactive set are read from separate fixture paths.
 describe('ResourceList archive flow', () => {
   it('shows an Archive confirm dialog and cancelling keeps the resource visible', async () => {
     const user = userEvent.setup();

@@ -9,8 +9,8 @@ import type { StoreState } from './types';
 export function createStoreRules(get: StoreApi<StoreState>['getState']) {
   // Every scoped add* stamps the active company. A non-null selection alone is insufficient. The
   // company must either exist in the published data or in the server-authorised summaries while a
-  // switch is loading its slice. Typed intent scope and revision checks still gate writes; this
-  // rule only prevents stamping an orphan companyId into the slice.
+  // switch is loading its set. Typed intent scope and revision checks still gate writes; this
+  // rule only prevents stamping an orphan companyId into the set.
   const requireCompany = (): ID => {
     const state = get();
     const id = state.activeCompanyId;

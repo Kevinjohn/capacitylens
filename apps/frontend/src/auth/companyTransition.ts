@@ -11,7 +11,7 @@ async function loadMasqueradeModel() {
 }
 
 /** The authenticated company-switch boundary. It ends any current read projection before the
- * persistence subscriber installs another company's slice. */
+ * persistence subscriber installs another company's set. */
 export async function transitionCompany(companyId: string | null): Promise<boolean> {
   const model = await loadMasqueradeModel();
   return model.transitionCompany(companyId);

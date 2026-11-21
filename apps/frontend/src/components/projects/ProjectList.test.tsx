@@ -215,7 +215,7 @@ describe('ProjectList', () => {
     expect(projects[0]?.clientId).toBe(client.id);
   });
 
-  // Active planning rows stay scoped separately from the server-shaped inactive slice.
+  // Active planning rows stay scoped separately from the server-shaped inactive set.
   it('shows the Archive ConfirmDialog when the archive button is clicked', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(

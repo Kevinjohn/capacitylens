@@ -16,12 +16,12 @@ export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
   masqueradeEndedHandler = handler;
 }
 
-// Interactive calls fail quickly; whole-slice reads and writes need a longer deadline
+// Interactive calls fail quickly; whole-set reads and writes need a longer deadline
 // to complete on a healthy but slow server. A timed-out batch has an uncertain commit
 // boundary and requires authoritative reconciliation before another write.
 /** Default deadline for interactive API requests. */
 export const API_REQUEST_TIMEOUT_MS = 15_000;
-/** Longer deadline for whole-slice API reads and writes. */
+/** Longer deadline for whole-set API reads and writes. */
 export const API_BULK_TIMEOUT_MS = 120_000;
 
 /** Browser fetch failures that mean the service was unreachable rather than semantically invalid. */

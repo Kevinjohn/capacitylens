@@ -79,7 +79,7 @@ describe('useInactiveCompanyData', () => {
     expect(await screen.findByText(/Gotham/)).toBeInTheDocument();
   });
 
-  it('invalidates its private server slice after a lifecycle mutation', async () => {
+  it('invalidates its private server set after a lifecycle mutation', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => payload('a1', 'First') })

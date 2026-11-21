@@ -3,10 +3,10 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole } from '@/auth/permissionContext';
 import {
-  fetchInactiveSlice,
-  InactiveSliceHttpError,
-  InactiveSliceShapeError,
-} from '@/data/fetchInactiveSlice';
+  fetchInactiveRecords,
+  InactiveRecordsHttpError,
+  InactiveRecordsShapeError,
+} from '@/data/fetchInactiveRecords';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
@@ -78,7 +78,7 @@ export function useInactiveCompanyData(): {
     }
     const requestGeneration = ++generation.current;
     const controller = new AbortController();
-    void fetchInactiveSlice(activeCompanyId, controller.signal)
+    void fetchInactiveRecords(activeCompanyId, controller.signal)
       .then((data) => {
         if (
           generation.current === requestGeneration &&
@@ -90,13 +90,13 @@ export function useInactiveCompanyData(): {
       .catch((error: unknown) => {
         if (controller.signal.aborted || generation.current !== requestGeneration) return;
         setServerData(null);
-        if (error instanceof InactiveSliceHttpError && error.status === 403) return;
-        if (error instanceof InactiveSliceHttpError) {
+        if (error instanceof InactiveRecordsHttpError && error.status === 403) return;
+        if (error instanceof InactiveRecordsHttpError) {
           setNotice(
             error.serverMessage ?? m.settings_archived_err_load({ status: error.status }),
             'error',
           );
-        } else if (error instanceof InactiveSliceShapeError) {
+        } else if (error instanceof InactiveRecordsShapeError) {
           setNotice(m.settings_archived_err_incomplete(), 'error');
         } else setNotice(m.settings_err_server({ error: resolveErrorMessage(error) }), 'error');
       });

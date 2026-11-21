@@ -92,7 +92,7 @@ test.describe('sign-in screen (password sign-in)', () => {
       await page.getByRole('button', { name: 'Sign in' }).click();
       await planningResponse;
 
-      // The server selects this user's only company and hydrates its planning slice without
+      // The server selects this user's only company and hydrates its planning set without
       // showing a company picker.
       await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();

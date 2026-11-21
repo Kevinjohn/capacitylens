@@ -68,7 +68,7 @@ const allocation = (
   ...entity,
   ...over,
 });
-const dataWith = (slices: Partial<AppData>): AppData => ({ ...createEmptyAppData(), ...slices });
+const dataWith = (tables: Partial<AppData>): AppData => ({ ...createEmptyAppData(), ...tables });
 
 describe('first-use outcome truth table', () => {
   it('starts with all five outcomes incomplete', () => {

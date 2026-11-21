@@ -378,12 +378,12 @@ describe('assertScopedRefs', () => {
   });
 
   // The unchanged-on-update relaxation (5th arg `existing`): in server mode the client's hydrated
-  // slice is active-only, so an unchanged parent id pointing at an archived parent (absent from
+  // set is active-only, so an unchanged parent id pointing at an archived parent (absent from
   // `data`) must not block an unrelated edit. A changed id is still validated strictly.
   describe('unchanged parent id on update (existing row passed)', () => {
     it('passes an UNCHANGED clientId even when the client is absent from data (archived parent)', () => {
       const existing = project('p1', A1, 'c-archived');
-      // No clients at all. The archived parent was stripped from the slice.
+      // No clients at all. The archived parent was stripped from the set.
       expect(() =>
         assertScopedRefs(
           makeBaseData(),

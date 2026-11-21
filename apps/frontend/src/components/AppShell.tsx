@@ -211,7 +211,7 @@ export function AppShell() {
   const companySummaries = useStore((state) => state.companySummaries);
   const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
-  // Company summaries keep the tenant gate valid while the selected company's authoritative slice is still loading. Child content remains behind its hydration boundary.
+  // Company summaries keep the tenant gate valid while the selected company's authoritative set is still loading. Child content remains behind its hydration boundary.
   const activeCompany =
     companies.find((company) => company.id === activeCompanyId) ??
     companySummaries.find((a) => a.id === activeCompanyId);

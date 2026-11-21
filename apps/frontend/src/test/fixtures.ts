@@ -317,7 +317,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** A read that sent no `ifRevision` carries the complete slice; narrow it to one that does. */
+/** A read that sent no `ifRevision` carries the complete set; narrow it to one that does. */
 export function requireFullSnapshot(snapshot: PlanningSnapshot): FullPlanningSnapshot {
   if (snapshot.slice === 'unchanged') throw new Error('Expected a full planning read');
   return snapshot;

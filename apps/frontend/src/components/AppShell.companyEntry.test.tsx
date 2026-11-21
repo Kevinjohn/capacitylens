@@ -183,7 +183,7 @@ it('opens the sole server-selected company after a reload even when an invite ha
   expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
 });
 
-it('keeps the server-selected company when its active slice is empty', async () => {
+it('keeps the server-selected company when its active set is empty', async () => {
   const summary = { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' as const };
   useStore.setState({
     activeCompanyId: null,

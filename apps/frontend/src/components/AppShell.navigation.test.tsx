@@ -54,7 +54,7 @@ describe('AppShell navigation links', () => {
     );
     expect(document.title).toBe('Ressources · CapacityLens');
   });
-  it("preserves the last locale while a selected company's slice is still loading", async () => {
+  it("preserves the last locale while a selected company's set is still loading", async () => {
     const currentAccount = makeCompany({ language: 'en' });
     const destinationCompany = makeCompany({ id: 'acct-other', name: 'Other Co' });
     loadPlanningData(makeAppData({ accounts: [currentAccount] }));
@@ -63,7 +63,7 @@ describe('AppShell navigation links', () => {
     i18nMocks.syncLocaleFromCompany.mockClear();
 
     // Model the ordinary server switch gap directly: the directory authorizes the destination,
-    // activeCompanyId changes, and the old slice remains until the destination load resolves.
+    // activeCompanyId changes, and the old set remains until the destination load resolves.
     act(() => {
       useStore.setState({
         activeCompanyId: destinationCompany.id,

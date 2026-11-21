@@ -3,7 +3,7 @@ import { useStore } from '@/store/useStore';
 
 /**
  * How the page catches up after the server may have replaced company data. `refresh` reads the
- * canonical planning slice again; `reload` keeps planning writes suspended until the page reloads.
+ * canonical planning set again; `reload` keeps planning writes suspended until the page reloads.
  */
 export type ReplacementRecovery = 'refresh' | 'reload';
 

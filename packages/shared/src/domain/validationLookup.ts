@@ -45,7 +45,7 @@ interface IsEffectivelyActiveOptions {
 /**
  * Optional indexed view used by server batch validation. The browser/store callers keep using the
  * AppData arrays directly; a large transaction can supply these point/reverse lookups so applying
- * many operations does not repeatedly scan the same account slice.
+ * many operations does not repeatedly scan the same account set.
  */
 export interface ValidationDataLookup {
   row(table: AppDataKey, id: ID): (Record<string, unknown> & { id: ID }) | undefined;
