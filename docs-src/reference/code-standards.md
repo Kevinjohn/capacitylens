@@ -37,6 +37,9 @@ commit.
 
 Everything else on this page is checked in review.
 
+Where a backend file goes, what it is called and how each framework layer is used are in
+[AdonisJS conventions](./adonisjs-conventions.md).
+
 ## Filenames
 
 - Backend files are `snake_case`, as the framework requires and `@unicorn/filename-case`
