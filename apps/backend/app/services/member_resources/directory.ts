@@ -1,4 +1,5 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
+import Resource from '#models/resource';
 
 /** Keeps retained or archived resources identifiable in the member directory. */
 export interface MemberResourceLinkProjection {
@@ -15,9 +16,9 @@ export interface MemberResourceFields {
 
 /** Reads same-company person candidates for an administrator's member directory. */
 export async function readResourceCandidates(trx: TransactionClientContract, companyId: string) {
-  const rows = await trx
-    .from('resources')
-    .where({ company_id: companyId, kind: 'person' })
+  const rows = await Resource.query({ client: trx })
+    .withScopes((scopes) => scopes.forCompany(companyId))
+    .where('kind', 'person')
     .whereNull('archived_at')
     .whereNull('deleted_at')
     .select('id', 'name', 'role');
