@@ -5,7 +5,7 @@ import { isValidISODate } from './isoDates.js';
 import {
   generateRepeatingStartDates,
   RepeatingDateError,
-  TIME_OFF_REPEAT_POLICY,
+  TIME_OFF_REPEAT_RULES,
 } from './repeatingDates.js';
 import type { RepeatPattern } from './repeatingDates.js';
 import { endDateForSpan, calculateMaxSpanDays, MAX_SPAN_DAYS } from './schedulingDays.js';
@@ -142,7 +142,7 @@ export function buildRepeatedTimeOffDrafts<T extends { startDate: ISODate; endDa
     baseDraft.startDate,
     repeatUntil,
     pattern,
-    TIME_OFF_REPEAT_POLICY,
+    TIME_OFF_REPEAT_RULES,
   );
   const drafts = generated.startDates.map((startDate, index) => {
     if (index === 0) return baseDraft;

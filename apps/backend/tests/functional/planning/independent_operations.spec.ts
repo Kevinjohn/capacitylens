@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { TIME_OFF_REPEAT_POLICY } from '@capacitylens/shared/lib/repeatingDates';
+import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
@@ -92,7 +92,7 @@ test.group('independent typed planning operations', (group) => {
     const repeated = randomUUID();
     for (const [occurrenceIds, error] of [
       [
-        Array.from({ length: TIME_OFF_REPEAT_POLICY.maxOccurrences }, () => randomUUID()),
+        Array.from({ length: TIME_OFF_REPEAT_RULES.maxOccurrences }, () => randomUUID()),
         'occurrenceIds',
       ],
       [[repeated, repeated], 'Entity IDs must be unique.'],

@@ -9,7 +9,7 @@ export type RepeatPattern =
   | { kind: 'monthly-last-weekday' };
 
 /** Caller-owned limits for the common date generation rules. */
-export interface RepeatingDatePolicy {
+export interface RepeatingDateRules {
   /** Calendar months after the start that the inclusive cutoff may reach. */
   maximumCalendarMonths: number;
   /** Whether the maximum cutoff preserves the anchor day or ends its target month. */
@@ -39,7 +39,7 @@ export const GENERATED_ALLOCATION_LIMIT = 30;
 const DEFAULT_REPEAT_MONTHS = 2;
 
 /** Existing allocation behavior, kept as the default for every public helper. */
-export const ALLOCATION_REPEAT_POLICY: RepeatingDatePolicy = {
+export const ALLOCATION_REPEAT_RULES: RepeatingDateRules = {
   maximumCalendarMonths: MAX_REPEAT_MONTHS,
   maximumCutoff: 'anchor-day',
   defaultCalendarMonths: DEFAULT_REPEAT_MONTHS,
@@ -49,7 +49,7 @@ export const ALLOCATION_REPEAT_POLICY: RepeatingDatePolicy = {
 };
 
 /** Personal time-off behavior: the initial month plus eleven following calendar months. */
-export const TIME_OFF_REPEAT_POLICY: RepeatingDatePolicy = {
+export const TIME_OFF_REPEAT_RULES: RepeatingDateRules = {
   maximumCalendarMonths: 11,
   maximumCutoff: 'month-end',
   defaultCalendarMonths: 11,
@@ -97,34 +97,34 @@ function parseDateParts(date: ISODate): { year: number; month: number; day: numb
   };
 }
 
-/** Latest valid user cutoff for the selected caller policy, capped by the ISO date domain.
+/** Latest valid user cutoff for the selected caller rules, capped by the ISO date domain.
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
 export function resolveMaximumRepeatUntilDate(
   startDate: ISODate,
-  policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,
+  rules: RepeatingDateRules = ALLOCATION_REPEAT_RULES,
 ): ISODate {
   parseDateParts(startDate);
-  const target = addCalendarMonthsClamped(startDate, policy.maximumCalendarMonths);
+  const target = addCalendarMonthsClamped(startDate, rules.maximumCalendarMonths);
   // Clamp a range beyond the supported calendar to its final date.
   if (target === undefined) return MAX_ISO_DATE;
-  return policy.maximumCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
+  return rules.maximumCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
 }
 
-/** Suggest the selected policy’s default cutoff, bounded by its maximum and the four-digit ISO date domain.
- * Pure; the policy supplies valid month offsets and cutoff modes.
+/** Suggest the selected rules’ default cutoff, bounded by its maximum and the four-digit ISO date domain.
+ * Pure; the rules supply valid month offsets and cutoff modes.
  * @throws RepeatingDateError when startDate is not a validated ISO date; no cutoff is returned. */
 export function resolveDefaultRepeatUntilDate(
   startDate: ISODate,
-  policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,
+  rules: RepeatingDateRules = ALLOCATION_REPEAT_RULES,
 ): ISODate {
-  const maximum = resolveMaximumRepeatUntilDate(startDate, policy);
-  // Resolve the target month before applying the selected anchor-day or month-end cutoff policy.
-  const target = addCalendarMonthsClamped(startDate, policy.defaultCalendarMonths);
+  const maximum = resolveMaximumRepeatUntilDate(startDate, rules);
+  // Resolve the target month before applying the selected anchor-day or month-end cutoff rule.
+  const target = addCalendarMonthsClamped(startDate, rules.defaultCalendarMonths);
   // Clamp an out-of-domain suggestion to the last supported date so enabling repeat never creates an invalid date.
   let suggested: ISODate = MAX_ISO_DATE;
   if (target !== undefined) {
-    suggested = policy.defaultCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
+    suggested = rules.defaultCutoff === 'month-end' ? endOfCalendarMonth(target) : target;
   }
   return suggested > maximum ? maximum : suggested;
 }
@@ -133,14 +133,14 @@ export function resolveDefaultRepeatUntilDate(
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
 export function resolveMaximumTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
-  return resolveMaximumRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
+  return resolveMaximumRepeatUntilDate(startDate, TIME_OFF_REPEAT_RULES);
 }
 
 /** Suggested personal time-off cutoff at the end of its twelve-calendar-month horizon.
  * Pure; startDate must be a validated ISO date.
  * @throws RepeatingDateError for an invalid start date; no cutoff is returned. */
 export function calculateDefaultTimeOffRepeatUntilDate(startDate: ISODate): ISODate {
-  return resolveDefaultRepeatUntilDate(startDate, TIME_OFF_REPEAT_POLICY);
+  return resolveDefaultRepeatUntilDate(startDate, TIME_OFF_REPEAT_RULES);
 }
 
 // Undefined when the offset is not a safe integer or the target month falls outside the
@@ -168,16 +168,16 @@ function endOfCalendarMonth(date: ISODate): ISODate {
 function applyRepeatingStartDate(
   startDates: ISODate[],
   candidate: ISODate,
-  policy: RepeatingDatePolicy,
+  rules: RepeatingDateRules,
 ): ISODate[] {
   const previous = startDates.at(-1);
   if (previous !== undefined && candidate <= previous) {
     throw new Error('Repeating allocation dates must be strictly increasing.');
   }
-  if (startDates.length >= policy.maxOccurrences) {
+  if (startDates.length >= rules.maxOccurrences) {
     throw new RepeatingDateError(
       'occurrence-limit',
-      `Repeating ${policy.occurrenceNoun} generation exceeds its ${policy.maxOccurrences}-${policy.occurrenceNoun} limit.`,
+      `Repeating ${rules.occurrenceNoun} generation exceeds its ${rules.maxOccurrences}-${rules.occurrenceNoun} limit.`,
     );
   }
   return [...startDates, candidate];
@@ -203,10 +203,10 @@ function buildWeeklyStartDates(
 function buildMonthlyStartDates(
   startDate: ISODate,
   repeatUntil: ISODate,
-  policy: RepeatingDatePolicy,
+  rules: RepeatingDateRules,
 ): ISODate[] {
   const startDates: ISODate[] = [];
-  for (let monthOffset = 1; monthOffset <= policy.maximumCalendarMonths; monthOffset += 1) {
+  for (let monthOffset = 1; monthOffset <= rules.maximumCalendarMonths; monthOffset += 1) {
     const candidate = addCalendarMonthsClamped(startDate, monthOffset);
     if (candidate === undefined || candidate > repeatUntil) break;
     startDates.push(candidate);
@@ -228,7 +228,7 @@ function calculateLastMatchingWeekdayOfMonth(
 function buildMonthlyLastWeekdayStartDates(
   startDate: ISODate,
   repeatUntil: ISODate,
-  policy: RepeatingDatePolicy,
+  rules: RepeatingDateRules,
 ): ISODate[] {
   const { year, month } = parseDateParts(startDate);
   const weekday = getWeekday(startDate);
@@ -240,7 +240,7 @@ function buildMonthlyLastWeekdayStartDates(
   }
 
   const startDates: ISODate[] = [];
-  for (let monthOffset = 1; monthOffset <= policy.maximumCalendarMonths; monthOffset += 1) {
+  for (let monthOffset = 1; monthOffset <= rules.maximumCalendarMonths; monthOffset += 1) {
     const monthAnchor = addCalendarMonthsClamped(startDate, monthOffset);
     if (monthAnchor === undefined) break;
     const target = parseDateParts(monthAnchor);
@@ -255,8 +255,8 @@ function buildMonthlyLastWeekdayStartDates(
  * Weekly starts derive from the original anchor. Monthly-date starts preserve its numeric day, clamped to each month’s end.
  * Monthly-last-weekday starts use the last matching weekday of each month; the anchor must itself be that month’s last matching weekday.
  * @param startDate validated, zero-padded ISO date in the years 0001 through 9999.
- * @param repeatUntil validated inclusive cutoff no later than the selected policy horizon.
- * @param policy caller-specific horizon and occurrence limit; defaults to allocation policy.
+ * @param repeatUntil validated inclusive cutoff no later than the selected rules horizon.
+ * @param rules caller-specific horizon and occurrence limit; defaults to the allocation rules.
  * @param pattern weekly, original-calendar-date monthly or last-weekday monthly cadence.
  * @throws RepeatingDateError when dates, cutoff, pattern, last-weekday anchor or generated count are invalid; no starts are returned.
  * @throws Error when an internal ordering invariant is violated.
@@ -265,7 +265,7 @@ export function generateRepeatingStartDates(
   startDate: ISODate,
   repeatUntil: ISODate,
   pattern: RepeatPattern,
-  policy: RepeatingDatePolicy = ALLOCATION_REPEAT_POLICY,
+  rules: RepeatingDateRules = ALLOCATION_REPEAT_RULES,
 ): RepeatingDateResult {
   parseDateParts(startDate);
   parseDateParts(repeatUntil);
@@ -275,21 +275,21 @@ export function generateRepeatingStartDates(
       'Repeat until cannot be before the first start.',
     );
   }
-  if (repeatUntil > resolveMaximumRepeatUntilDate(startDate, policy)) {
+  if (repeatUntil > resolveMaximumRepeatUntilDate(startDate, rules)) {
     throw new RepeatingDateError(
       'cutoff-after-limit',
-      `Repeat until cannot be more than ${policy.maximumCalendarMonths} calendar months after the first start.`,
+      `Repeat until cannot be more than ${rules.maximumCalendarMonths} calendar months after the first start.`,
     );
   }
-  let startDates = applyRepeatingStartDate([], startDate, policy);
+  let startDates = applyRepeatingStartDate([], startDate, rules);
   const repeatedStartDates = (() => {
     switch (pattern.kind) {
       case 'weeks':
         return buildWeeklyStartDates(startDate, repeatUntil, pattern.interval);
       case 'monthly-date':
-        return buildMonthlyStartDates(startDate, repeatUntil, policy);
+        return buildMonthlyStartDates(startDate, repeatUntil, rules);
       case 'monthly-last-weekday':
-        return buildMonthlyLastWeekdayStartDates(startDate, repeatUntil, policy);
+        return buildMonthlyLastWeekdayStartDates(startDate, repeatUntil, rules);
       default:
         throw new RepeatingDateError(
           'unsupported-pattern',
@@ -298,7 +298,7 @@ export function generateRepeatingStartDates(
     }
   })();
   for (const candidate of repeatedStartDates) {
-    startDates = applyRepeatingStartDate(startDates, candidate, policy);
+    startDates = applyRepeatingStartDate(startDates, candidate, rules);
   }
 
   if (startDates.length < 2) {
