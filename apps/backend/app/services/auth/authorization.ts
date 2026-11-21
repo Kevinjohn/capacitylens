@@ -39,7 +39,7 @@ export async function getActiveCompanyRole(
 }
 
 /** Authorizes one company permission from live membership inside the actor's verified transaction. */
-export async function assertCompanyAction(
+export async function assertCompanyPermission(
   companyId: string,
   key: PermissionKey,
   trx: TransactionClientContract

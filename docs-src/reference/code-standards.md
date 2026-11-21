@@ -56,13 +56,13 @@ anything happens on the way. Read these two calls from `app/services/auth/author
 
 ```ts
 const role = await getActiveCompanyRole(userId, companyId, trx); // Role | null: absence is a value
-await assertCompanyAction(companyId, 'write', trx); // throws if refused
+await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 ```
 
 | Verb               | Promise                                                                                              | Example in the tree                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                  | `canArchive` in `packages/shared/src/domain/lifecycle/transitions.ts`             |
-| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyAction` in `apps/backend/app/services/auth/authorization.ts`        |
+| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyPermission` in `apps/backend/app/services/auth/authorization.ts`        |
 | `require`          | Returns what the caller needs or throws. The throwing partner of `get`.                              | `requireCompanyScope` in `apps/backend/app/models/scoped_model.ts`                |
 | `prepare`           | Prepares a resource for use according to its stated prerequisites.                                         | `prepareDirectory` from `@kevinjohn/adonisjs-sqlite-backup`  |
 | `get`              | Looks one thing up by key. Returns it, or `null` when absent. Never throws for absence.               | `getMasqueradeContextToken` in `apps/frontend/src/api/masqueradeContext.ts`         |
@@ -157,7 +157,7 @@ numbered so a review can cite one.
 
 1. **A comment says why; the code says what.** Delete any comment a reader would not miss.
 2. **Every exported symbol gets TSDoc.** The first sentence stands alone and says what the call
-   does, in the third person: "Authorizes one company action from live membership." State
+   does, in the third person: "Authorizes one company permission from live membership." State
    preconditions, what a throw means, and purity whenever they apply. Document the contract the
    type cannot carry: "a foreign id throws and nothing is changed" is the most important thing a
    caller can know.
@@ -187,11 +187,11 @@ mechanics; models document what the column promises; middleware documents what i
 export default class CompaniesController {
 
 /**
- * Authorizes one company action from live membership inside the actor's verified transaction.
+ * Authorizes one company permission from live membership inside the actor's verified transaction.
  *
  * @throws `IdentityAuthorityError`, mapped to 403 by the handler; nothing was read or written.
  */
-export async function assertCompanyAction(
+export async function assertCompanyPermission(
 
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
 export default class Client extends SoftDeletes(ClientSchema) {

@@ -2,7 +2,7 @@ import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import type { HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { withActor } from '#services/auth/current_actor';
-import { assertCompanyAction, IdentityAuthorityError } from '#services/auth/authorization';
+import { assertCompanyPermission, IdentityAuthorityError } from '#services/auth/authorization';
 import {
   dismissGettingStarted,
   isGettingStartedDismissed,
@@ -14,7 +14,7 @@ export default class GettingStartedController {
   async show(ctx: HttpContext) {
     const { params, response } = ctx;
     return withActor(ctx, async (_actor, trx) => {
-      await assertCompanyAction(params.companyId, 'planning:read', trx);
+      await assertCompanyPermission(params.companyId, 'planning:read', trx);
       return response.ok({
         dismissed: await isGettingStartedDismissed(trx, params.companyId),
         steps: await readGettingStartedSteps(trx, params.companyId),
@@ -33,7 +33,7 @@ export default class GettingStartedController {
     }
     const now = new Date().toISOString();
     await withActor(ctx, async (_actor, trx) => {
-      const { role } = await assertCompanyAction(params.companyId, 'planning:write', trx);
+      const { role } = await assertCompanyPermission(params.companyId, 'planning:write', trx);
       if (!isOwnerOrAdmin(role)) {
         throw new IdentityAuthorityError('Forbidden.');
       }

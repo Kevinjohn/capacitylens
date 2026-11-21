@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { assertCompanyAction } from '#services/auth/authorization';
+import { assertCompanyPermission } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { changeMemberRole, changeMemberStatus } from '#services/membership/member_mutations';
@@ -27,11 +27,11 @@ async function runMemberMutation<T>(ctx: HttpContext, input: SemanticMutationInp
     ctx.request.header('idempotency-key')
   );
   return withActor(ctx, async (currentActor, trx) => {
-    let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+    let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
     return runAccountCommand(trx, {
       name: operation,
       authorizeAccess: async () => {
-        actor = await assertCompanyAction(companyId, 'members:manage', trx);
+        actor = await assertCompanyPermission(companyId, 'members:manage', trx);
       },
       work: () => work(trx, actor),
       actorId: currentActor.userId,
@@ -47,7 +47,7 @@ export default class MembersController {
   async index(ctx: HttpContext) {
     const companyId = readRouteParam(ctx.params.companyId);
     const directory = await withActor(ctx, async (_actor, trx) => {
-      const actor = await assertCompanyAction(companyId, 'members:manage', trx);
+      const actor = await assertCompanyPermission(companyId, 'members:manage', trx);
       return readMemberDirectory(trx, companyId, actor);
     });
     return ctx.response.ok(directory);
@@ -59,7 +59,7 @@ export default class MembersController {
     });
     const companyId = readRouteParam(ctx.params.companyId);
     await withActor(ctx, async (_actor, trx) => {
-      const actor = await assertCompanyAction(companyId, 'members:signInTracking', trx);
+      const actor = await assertCompanyPermission(companyId, 'members:signInTracking', trx);
       await changeMemberSignInTracking(trx, { companyId, actorId: actor.actorId, enabled });
     });
     return ctx.response.ok({ enabled });

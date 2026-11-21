@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
-import { assertCompanyAction } from '#services/auth/authorization';
+import { assertCompanyPermission } from '#services/auth/authorization';
 import { runAccountCommand, parseAccountCommand } from '#services/account_commands';
 import { clearMemberResourceLink, setMemberResourceLink } from '#services/member_resources/links';
 import { refuseInvalidAdmissionBody } from '#services/admission/errors';
@@ -18,11 +18,11 @@ export default class MemberResourcesController {
     );
     const { companyId, userId } = ctx.params;
     const result = await withActor(ctx, async (currentActor, trx) => {
-      let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+      let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
       return runAccountCommand(trx, {
         name: 'set-member-resource-link',
         authorizeAccess: async () => {
-          actor = await assertCompanyAction(companyId, 'members:manage', trx);
+          actor = await assertCompanyPermission(companyId, 'members:manage', trx);
         },
         work: async () => {
           const { actorId } = actor;
@@ -54,11 +54,11 @@ export default class MemberResourcesController {
     );
     const { companyId, userId } = ctx.params;
     await withActor(ctx, async (currentActor, trx) => {
-      let actor: Awaited<ReturnType<typeof assertCompanyAction>>;
+      let actor: Awaited<ReturnType<typeof assertCompanyPermission>>;
       return runAccountCommand(trx, {
         name: 'clear-member-resource-link',
         authorizeAccess: async () => {
-          actor = await assertCompanyAction(companyId, 'members:manage', trx);
+          actor = await assertCompanyPermission(companyId, 'members:manage', trx);
         },
         work: async () => {
           const { actorId } = actor;

@@ -8,7 +8,7 @@ import {
 import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
 import { setProofHeaders } from '#services/request_helpers';
-import { assertCompanyAction } from '#services/auth/authorization';
+import { assertCompanyPermission } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
 import { getInstallationCompany, getInstallationCompanyId } from '#models/installation_company';
 import {
@@ -54,7 +54,7 @@ export default class InvitationsController {
   private async manager(ctx: HttpContext, companyId: unknown) {
     if (typeof companyId !== 'string' || !companyId) refuseInvalidAdmission();
     return withActor(ctx, async (_actor, trx) => {
-      const { actorId } = await assertCompanyAction(companyId, 'invitations:manage', trx);
+      const { actorId } = await assertCompanyPermission(companyId, 'invitations:manage', trx);
       if ((await getInstallationCompanyId(trx)) !== companyId) {
         refuseMissingAdmission('Company not found.');
       }

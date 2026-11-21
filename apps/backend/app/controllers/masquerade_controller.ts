@@ -7,8 +7,8 @@ import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { getSignedInSession } from '#services/auth/current_actor';
 import { endValidator, startValidator } from '#validators/masquerade';
 
-/** Package refusals reach the global handler's single mapping; only the authority refusal is reworded. */
-async function runWithAuthorityRefusal<T>(ctx: HttpContext, work: () => Promise<T>) {
+/** Package refusals reach the global handler's single mapping; only the authorization refusal is reworded. */
+async function runWithAuthorizationRefusal<T>(ctx: HttpContext, work: () => Promise<T>) {
   try {
     return await work();
   } catch (error) {
@@ -29,7 +29,7 @@ export default class MasqueradeController {
       return ctx.response.badRequest({ error: 'Target member is required.' });
     }
     const body = await ctx.request.validateUsing(startValidator, { data: ctx.request.body() });
-    return runWithAuthorityRefusal(ctx, async () => {
+    return runWithAuthorizationRefusal(ctx, async () => {
       const started = await startMasquerade(
         ctx,
         body.targetUserId,
@@ -44,7 +44,7 @@ export default class MasqueradeController {
   }
 
   async status(ctx: HttpContext) {
-    return runWithAuthorityRefusal(ctx, async () => {
+    return runWithAuthorizationRefusal(ctx, async () => {
       try {
         const signIn = await getSignedInSession(ctx);
         if (!signIn) return ctx.response.ok({ active: false, contextToken: null });
@@ -71,7 +71,7 @@ export default class MasqueradeController {
 
   async end(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(endValidator, { data: ctx.request.body() });
-    return runWithAuthorityRefusal(ctx, async () => {
+    return runWithAuthorizationRefusal(ctx, async () => {
       const header = ctx.request.header('X-Masquerade-Context');
       if (typeof header !== 'string' || !header) {
         throw new MasqueradeError('E_MASQUERADE_CONTEXT_REQUIRED');
