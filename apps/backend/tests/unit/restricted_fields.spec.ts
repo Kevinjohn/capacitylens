@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { transformState } from '#transformers/state_transformer';
-import { assertMayWriteRestrictedFields } from '#services/planning/entity_policy';
+import { assertMayWriteRestrictedFields } from '#services/planning/entity_rules';
 import { PlanningOperationError } from '#services/planning/errors';
 import { RESTRICTED_FIELDS } from '#services/planning/restricted_fields';
 import type { PlanningCapabilities } from '#services/planning/data_policy';

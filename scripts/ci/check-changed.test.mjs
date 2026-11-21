@@ -659,6 +659,7 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
     'apps/backend/app/services/account_kit/policy.ts',
     'apps/backend/app/services/membership/member_directory.ts',
     'apps/backend/app/services/planning/data_policy.ts',
+    'apps/backend/app/services/planning/entity_rules.ts',
     'apps/backend/app/middleware/company_scope_middleware.ts',
     'apps/backend/app/models/scoped_model.ts',
     'apps/backend/app/services/state_repository.ts',

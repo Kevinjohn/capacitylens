@@ -231,7 +231,7 @@ function assertManagedFields(
   }
 }
 
-/** Keep typed settings and entity writes on one frozen-field policy. */
+/** Keep typed settings and entity writes on one set of frozen-field rules. */
 export function assertFrozenCompanyFields(
   requested: Record<string, unknown>,
   candidate: Record<string, unknown>,

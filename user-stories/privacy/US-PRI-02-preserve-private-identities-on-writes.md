@@ -32,9 +32,9 @@ flowchart TD
 flowchart TD
   ui["ClientForm or ProjectForm builds ordinary update"] --> client["typed planning client sends mutation"]
   client --> server["mutatePlanning resolves authority and executes intent"]
-  server --> policy["entity_policy keeps stored private-name fields for non-Owners"]
-  policy --> writer["planning writer persists allowed changes"]
+  server --> rules["entity_rules keeps stored private-name fields for non-Owners"]
+  rules --> writer["planning writer persists allowed changes"]
   server --> response["transformState redacts private response"]
 ```
 
-**Code references:** [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx); [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx); [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts); [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts); [planning.ts](../../apps/backend/app/services/planning.ts); [entity_policy.ts](../../apps/backend/app/services/planning/entity_policy.ts); [writer.ts](../../apps/backend/app/services/planning/writer.ts); [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts)
+**Code references:** [ClientForm.tsx](../../apps/frontend/src/components/clients/ClientForm.tsx); [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx); [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts); [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts); [planning.ts](../../apps/backend/app/services/planning.ts); [entity_rules.ts](../../apps/backend/app/services/planning/entity_rules.ts); [writer.ts](../../apps/backend/app/services/planning/writer.ts); [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts)

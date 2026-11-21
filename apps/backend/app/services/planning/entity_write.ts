@@ -8,7 +8,7 @@ import {
   applyCreateDefaults,
   assertMayWriteRestrictedFields,
   prepareEntityWrite,
-} from '#services/planning/entity_policy';
+} from '#services/planning/entity_rules';
 import {
   assertAllocationStartIsAvailable,
   assertAllocationStartsOnWorkingDay,

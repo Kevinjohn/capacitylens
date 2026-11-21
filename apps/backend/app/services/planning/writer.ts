@@ -4,7 +4,7 @@ import type { AppData, AppDataKey, ScopedEntityKey } from '@capacitylens/shared/
 import { cleanText } from '@capacitylens/shared/lib/strings';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
 import { encodeRow } from '#services/state_repository';
-import { assertFrozenCompanyFields } from '#services/planning/entity_policy';
+import { assertFrozenCompanyFields } from '#services/planning/entity_rules';
 import { tables } from '#services/product_tables';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
@@ -22,7 +22,7 @@ export interface WrittenRow {
 }
 
 /**
- * A row read field by field. Policy checks that apply to several tables read and set fields by name;
+ * A row read field by field. Rule checks that apply to several tables read and set fields by name;
  * every row is a plain object, so the view is the same object.
  */
 export function asRecord(row: object): Record<string, unknown> {
