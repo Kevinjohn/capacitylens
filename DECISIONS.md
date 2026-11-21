@@ -341,9 +341,9 @@ framework defaults; any other departure needs a decision recorded here first.
     Control package, after the route middleware has checked membership. Controllers do not
     call Bouncer and the product has no policies or abilities of its own.
 12. Reads of planning tables that have a company-scoped model go through that model. Writes,
-    checks that must see other companies or soft-deleted rows, and tables without a model use
-    the query builder on the caller's connection. Account Kit creates identities through the
-    `User` model.
+    eligibility checks inside a write, checks that must see other companies or soft-deleted
+    rows, and tables without a model use the query builder on the caller's connection. Account
+    Kit creates identities through the `User` model.
 13. Ordinary planning edits go through one mutation route whose validated intent names the
     operation, plus undo and redo. Import, anonymisation and example data have their own
     routes. There are no per-entity resource routes.
