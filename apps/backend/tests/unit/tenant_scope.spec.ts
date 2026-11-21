@@ -1,13 +1,11 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { transactionalDatabase } from '../helpers/transactional_database.js';
 import Client from '#models/client';
 
 test.group('tenant scope', (group) => {
-  group.setup(() => freshDatabase());
+  transactionalDatabase(group);
   group.each.setup(async () => {
-    await db.from('clients').delete();
-    await db.from('accounts').delete();
     const now = new Date().toISOString();
     await db.table('accounts').multiInsert([
       {
@@ -42,5 +40,21 @@ test.group('tenant scope', (group) => {
   test('fails closed for unscoped model reads', async ({ assert }) => {
     await assert.rejects(() => Client.query(), 'A company scope is required for model reads');
     assert.lengthOf(await Client.query().withScopes((scopes) => scopes.forCompany('a-studio')), 1);
+  });
+});
+
+test.group('transactional database helper', (group) => {
+  transactionalDatabase(group);
+
+  test('a test may leave a row behind', async ({ assert }) => {
+    const now = new Date().toISOString();
+    await db
+      .table('accounts')
+      .insert({ id: 'a-gotham', name: 'Gotham', color: '#333', created_at: now, updated_at: now });
+    assert.exists(await db.from('accounts').where('id', 'a-gotham').first());
+  });
+
+  test('the next test starts without it', async ({ assert }) => {
+    assert.notExists(await db.from('accounts').where('id', 'a-gotham').first());
   });
 });
