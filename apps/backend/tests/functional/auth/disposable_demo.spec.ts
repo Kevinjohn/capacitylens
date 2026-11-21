@@ -82,7 +82,7 @@ test.group('disposable development demo', (group) => {
     assert.equal(audit.action, 'company.initialized');
     assert.equal(audit.actor_id, owner.id);
     assert.lengthOf(
-      await db.from('clients').where('company_id', 'a-studio').where('builtin', 'true'),
+      await db.from('clients').where('company_id', 'a-studio').where('builtin', true),
       1
     );
     const allocations = await db.from('allocations').orderBy('id');

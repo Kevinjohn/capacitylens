@@ -89,20 +89,20 @@ async function prepareArchiveFixture(archiveProject = false) {
 
   await db.from('clients').where({ id: client.id, company_id: companyId }).update({
     name: privateClientName,
-    is_private: 'true',
+    is_private: true,
     code_name: privateClientCode,
     archived_at: stamp,
   });
   await db.from('projects').where({ id: 'p-acme', company_id: companyId }).update({
     name: privateProjectName,
-    is_private: 'true',
+    is_private: true,
     code_name: privateProjectCode,
   });
   await db
     .from('projects')
     .where({ id: project.id, company_id: companyId })
     .update({
-      is_private: 'true',
+      is_private: true,
       code_name: null,
       ...(archiveProject ? { archived_at: stamp } : {}),
     });

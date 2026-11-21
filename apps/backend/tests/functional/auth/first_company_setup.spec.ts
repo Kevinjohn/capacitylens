@@ -92,7 +92,7 @@ test.group('authenticated first company setup', (group) => {
     assert.deepInclude(clients[0]!, {
       company_id: companyId,
       name: 'Internal',
-      builtin: 'true',
+      builtin: 1,
     });
     assert.equal((await db.from('company_planning_revisions').first())!.revision, 1);
     assert.deepInclude((await db.from('audit_entries').first())!, {

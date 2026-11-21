@@ -39,7 +39,7 @@ test.group('reassignment working-day override', (group) => {
     await db
       .from('allocations')
       .where('id', allocation.id)
-      .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: 'false' });
+      .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: false });
     const { cookie } = await signIn(client);
     const patch = (revision: number, changes: Record<string, unknown>) =>
       session(client.post(route('planning/mutations')), cookie)

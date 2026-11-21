@@ -139,7 +139,7 @@ async function insertPrivateClient() {
     name: privateClientName,
     code_name: 'Nightwing',
     color: '#123456',
-    is_private: 'true',
+    is_private: true,
     created_at: now,
     updated_at: now,
   });
@@ -458,7 +458,7 @@ test.group('native read-only masquerade', (group) => {
       name: 'Wayne Confidential Client',
       code_name: 'Nightwing',
       color: '#123456',
-      is_private: 'true',
+      is_private: true,
       created_at: now,
       updated_at: now,
     });

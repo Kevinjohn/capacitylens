@@ -8,12 +8,11 @@ import type {
 import { AccountSchema } from '#database/schema';
 import {
   isArrayOf,
-  isBoolean,
   isOneOf,
   isoTimestampColumn,
   jsonColumn,
 } from '@kevinjohn/adonisjs-lucid-checked-columns';
-import { isWeekday } from '#models/scalar_column';
+import { booleanColumn, isWeekday } from '#models/scalar_column';
 
 export default class Company extends AccountSchema {
   static table = 'accounts';
@@ -24,19 +23,19 @@ export default class Company extends AccountSchema {
   @column(jsonColumn('accounts', 'working_days', isArrayOf(isWeekday)))
   declare workingDays: Weekday[] | null;
 
-  @column(jsonColumn('accounts', 'disciplines_enabled', isBoolean))
+  @column(booleanColumn('accounts', 'disciplines_enabled'))
   declare disciplinesEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'placeholders_enabled', isBoolean))
+  @column(booleanColumn('accounts', 'placeholders_enabled'))
   declare placeholdersEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'external_enabled', isBoolean))
+  @column(booleanColumn('accounts', 'external_enabled'))
   declare externalEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'inline_activity_create_enabled', isBoolean))
+  @column(booleanColumn('accounts', 'inline_activity_create_enabled'))
   declare inlineActivityCreateEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'show_task_field_in_schedule', isBoolean))
+  @column(booleanColumn('accounts', 'show_task_field_in_schedule'))
   declare showTaskFieldInSchedule: boolean | null;
 
   @column(

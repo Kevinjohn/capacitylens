@@ -100,9 +100,7 @@ export function encodeFixture(value: object) {
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => [
       key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`),
-      Array.isArray(child) ||
-      typeof child === 'boolean' ||
-      (child !== null && typeof child === 'object')
+      Array.isArray(child) || (child !== null && typeof child === 'object')
         ? JSON.stringify(child)
         : (child ?? null),
     ])

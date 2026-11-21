@@ -250,10 +250,10 @@ function insertAuthE2ECompany(
     JSON.stringify(1),
     JSON.stringify([1, 2, 3, 4, 5]),
     null,
-    JSON.stringify(false),
-    JSON.stringify(false),
-    JSON.stringify(false),
-    JSON.stringify(false),
+    0,
+    0,
+    0,
+    0,
     null,
     null,
     null,
@@ -262,7 +262,7 @@ function insertAuthE2ECompany(
   );
   db.prepare(
     `INSERT INTO clients (id, company_id, name, color, builtin, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'true', ?, ?)`,
+     VALUES (?, ?, ?, ?, 1, ?, ?)`,
   ).run(internal.id, companyId, internal.name, internal.color, now, now);
   db.prepare(
     `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
@@ -359,7 +359,7 @@ export function readAuthE2EBaselineSnapshot(): {
     if (typeof account.id !== 'string')
       throw new Error('The retained Auth E2E baseline company has no ID.');
     const client = db
-      .prepare("SELECT * FROM clients WHERE company_id = ? AND builtin = 'true'")
+      .prepare('SELECT * FROM clients WHERE company_id = ? AND builtin = 1')
       .get(account.id) as Record<string, unknown> | undefined;
     const revision = db
       .prepare('SELECT revision FROM company_planning_revisions WHERE company_id = ?')

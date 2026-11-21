@@ -118,11 +118,11 @@ async function preparePrivateProjection() {
   await db
     .from('clients')
     .where({ id: client.id })
-    .update({ name: privateClientName, is_private: 'true', code_name: 'Nightwing' });
+    .update({ name: privateClientName, is_private: true, code_name: 'Nightwing' });
   await db
     .from('projects')
     .where({ id: project.id })
-    .update({ name: privateProjectName, is_private: 'true', code_name: 'Aurora' });
+    .update({ name: privateProjectName, is_private: true, code_name: 'Aurora' });
   await db.from('time_off').where({ id: timeOff.id }).update({ note: privateTimeOffNote });
   return {
     clientId: client.id,

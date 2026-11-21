@@ -40,7 +40,7 @@ test.group('authenticated typed planning transactions', (group) => {
     await db
       .from('clients')
       .where('id', hidden.id)
-      .update({ name: 'Wayne secret', is_private: 'true', code_name: 'Nightwing' });
+      .update({ name: 'Wayne secret', is_private: true, code_name: 'Nightwing' });
     const response = await session(client.get(planningUrl), cookie).send();
     response.assertStatus(200);
     assert.equal(response.body().companyId, companyId);

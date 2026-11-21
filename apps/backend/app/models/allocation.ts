@@ -1,22 +1,17 @@
 import { AllocationSchema } from '#database/schema';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
-import { deletedAtColumn } from '#models/scalar_column';
+import { booleanColumn, deletedAtColumn } from '#models/scalar_column';
 import type { DateTime } from 'luxon';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import type { ISODate, ISOTimestamp } from '@capacitylens/shared/types/entities';
 import { forCompany, requireCompanyScope } from '#models/scoped_model';
-import {
-  isBoolean,
-  isoDateColumn,
-  isoTimestampColumn,
-  jsonColumn,
-} from '@kevinjohn/adonisjs-lucid-checked-columns';
+import { isoDateColumn, isoTimestampColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 /** A company-scoped allocation; deletion metadata never serializes. */
 export default class Allocation extends SoftDeletes(AllocationSchema) {
   static forCompany = forCompany;
   @beforeFind() static requireFindScope = requireCompanyScope;
   @beforeFetch() static requireFetchScope = requireCompanyScope;
-  @column(jsonColumn('allocations', 'ignore_working_days', isBoolean))
+  @column(booleanColumn('allocations', 'ignore_working_days'))
   declare ignoreWorkingDays: boolean | null;
 
   @column(isoTimestampColumn('allocations', 'created_at')) declare createdAt: ISOTimestamp;

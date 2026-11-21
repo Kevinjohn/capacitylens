@@ -54,3 +54,26 @@ export const deletedAtColumn: Pick<
   consume: parseDeletedAt,
   serialize: (value: unknown) => serializeDeletedAt(value, 'serialization'),
 };
+
+/** Column options for a nullable flag stored as 1 or 0; any other value is refused both ways. */
+export function booleanColumn(
+  table: string,
+  column: string
+): {
+  prepare: (value: unknown) => boolean | null;
+  consume: (value: unknown) => boolean | null;
+} {
+  const refuse = () => new Error(`Invalid persisted boolean in ${table}.${column}`);
+  return {
+    // The SQLite driver binds true and false as 1 and 0.
+    prepare: (value: unknown) => {
+      if (value === null || typeof value === 'boolean') return value;
+      throw refuse();
+    },
+    consume: (value: unknown) => {
+      if (value === null) return null;
+      if (value === 0 || value === 1) return value === 1;
+      throw refuse();
+    },
+  };
+}

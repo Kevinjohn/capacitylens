@@ -4,10 +4,9 @@ import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISODate, ISOTimestamp, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
 import { forCompany, requireCompanyScope } from '#models/scoped_model';
-import { deletedAtColumn, isWeekday } from '#models/scalar_column';
+import { booleanColumn, deletedAtColumn, isWeekday } from '#models/scalar_column';
 import {
   isArrayOf,
-  isBoolean,
   isoDateColumn,
   isoTimestampColumn,
   jsonColumn,
@@ -24,7 +23,7 @@ export default class Resource extends SoftDeletes(ResourceSchema) {
   @column(jsonColumn('resources', 'half_days', isArrayOf(isWeekday)))
   declare halfDays: Weekday[];
 
-  @column(jsonColumn('resources', 'is_favourite', isBoolean))
+  @column(booleanColumn('resources', 'is_favourite'))
   declare isFavourite: boolean | null;
 
   @column(isoTimestampColumn('resources', 'archived_at')) declare archivedAt: ISOTimestamp | null;

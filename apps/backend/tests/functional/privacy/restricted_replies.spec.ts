@@ -384,12 +384,12 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   if (!clientRow || !projectRow || !timeOffRow) throw new Error('Seed data lacks the marker rows');
   await db.from('clients').where({ id: clientRow.id }).update({
     name: MARKER_CLIENT,
-    is_private: 'true',
+    is_private: true,
     code_name: codeNamesByMarker[MARKER_CLIENT],
   });
   await db.from('projects').where({ id: projectRow.id }).update({
     name: MARKER_PROJECT,
-    is_private: 'true',
+    is_private: true,
     code_name: codeNamesByMarker[MARKER_PROJECT],
   });
   await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE });

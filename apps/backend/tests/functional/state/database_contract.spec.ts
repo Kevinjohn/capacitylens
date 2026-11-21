@@ -107,6 +107,16 @@ test.group('database contract', (group) => {
         id: 'm1-dc-closure',
         values: { start_date: '2026-02-01', end_date: '2026-01-01' },
       },
+      { table: 'accounts', id: companyIds.dc, values: { disciplines_enabled: 'true' } },
+      { table: 'accounts', id: companyIds.dc, values: { placeholders_enabled: 'true' } },
+      { table: 'accounts', id: companyIds.dc, values: { external_enabled: 'true' } },
+      { table: 'accounts', id: companyIds.dc, values: { inline_activity_create_enabled: 'true' } },
+      { table: 'accounts', id: companyIds.dc, values: { show_task_field_in_schedule: 'true' } },
+      { table: 'clients', id: 'm1-dc-client', values: { is_private: 'true' } },
+      { table: 'clients', id: 'm1-dc-client', values: { builtin: 'true' } },
+      { table: 'projects', id: 'm1-dc-project', values: { is_private: 'true' } },
+      { table: 'resources', id: 'm1-dc-resource', values: { is_favourite: 'true' } },
+      { table: 'allocations', id: 'm1-dc-allocation', values: { ignore_working_days: 2 } },
     ])
     .run(async ({ assert }, { table, id, values }) => {
       const source = await db.from(table).where('id', id).first();

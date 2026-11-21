@@ -26,7 +26,7 @@ test.group('isolated company fixtures', (group) => {
       firstInternal
     );
     assert.equal(firstInternal.id, `internal:${firstId}`);
-    assert.equal(firstInternal.builtin, 'true');
+    assert.equal(firstInternal.builtin, 1);
     const firstMembers = await db
       .from('memberships')
       .where({ scope_id: firstId, user_id: owner.userId });

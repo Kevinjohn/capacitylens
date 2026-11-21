@@ -21,12 +21,12 @@ test('native company fixtures preserve baseline data and unrelated principals ac
   expect(baseline.account).toMatchObject({
     name: 'Daily Planet E2E Baseline',
     scheduling_mode: 'days',
-    inline_activity_create_enabled: 'false',
+    inline_activity_create_enabled: 0,
   });
   expect(baseline.client).toMatchObject({
     id: `internal:${baseline.account.id}`,
     name: 'Internal',
-    builtin: 'true',
+    builtin: 1,
   });
   expect(baseline.revision).toBe(1);
   expect(baseline.owner).toMatchObject({
@@ -142,15 +142,15 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       scheduling_mode: 'days',
       week_starts_on: 1,
       working_days: '[1,2,3,4,5]',
-      disciplines_enabled: 'false',
-      placeholders_enabled: 'false',
-      external_enabled: 'false',
-      inline_activity_create_enabled: 'false',
+      disciplines_enabled: 0,
+      placeholders_enabled: 0,
+      external_enabled: 0,
+      inline_activity_create_enabled: 0,
     });
     expect(restoredBaseline.client).toMatchObject({
       id: `internal:${restoredBaseline.account.id}`,
       name: 'Internal',
-      builtin: 'true',
+      builtin: 1,
     });
     expect(restoredBaseline.revision).toBe(1);
     expect(restoredBaseline.owner).toMatchObject({

@@ -60,27 +60,36 @@ export default class extends BaseSchema {
       table.json('week_starts_on').nullable();
       table.json('working_days').nullable();
       table.string('language').nullable();
-      table.json('disciplines_enabled').nullable();
-      table.json('placeholders_enabled').nullable();
-      table.json('external_enabled').nullable();
-      table.json('inline_activity_create_enabled').nullable();
-      table.json('show_task_field_in_schedule').nullable();
+      table.boolean('disciplines_enabled').nullable();
+      table.boolean('placeholders_enabled').nullable();
+      table.boolean('external_enabled').nullable();
+      table.boolean('inline_activity_create_enabled').nullable();
+      table.boolean('show_task_field_in_schedule').nullable();
       table.json('capacity_overview_access').nullable();
       table.string('date_style').nullable();
       table.check("scheduling_mode IS NULL OR scheduling_mode IN ('hourly','days','blocks')");
       table.check(
         "date_style IS NULL OR date_style IN ('day-month','day-ordinal-month','month-day','month-day-ordinal')"
       );
+      table.check('disciplines_enabled IS NULL OR disciplines_enabled IN (0, 1)');
+      table.check('placeholders_enabled IS NULL OR placeholders_enabled IN (0, 1)');
+      table.check('external_enabled IS NULL OR external_enabled IN (0, 1)');
+      table.check(
+        'inline_activity_create_enabled IS NULL OR inline_activity_create_enabled IN (0, 1)'
+      );
+      table.check('show_task_field_in_schedule IS NULL OR show_task_field_in_schedule IN (0, 1)');
     });
     this.schema.createTable('clients', (table) => {
       scoped(table);
       table.string('name').notNullable();
       table.string('color').notNullable();
-      table.json('is_private').nullable();
+      table.boolean('is_private').nullable();
       table.string('code_name').nullable();
-      table.json('builtin').nullable();
+      table.boolean('builtin').nullable();
       table.timestamp('archived_at').nullable();
       table.timestamp('deleted_at').nullable();
+      table.check('is_private IS NULL OR is_private IN (0, 1)');
+      table.check('builtin IS NULL OR builtin IN (0, 1)');
     });
     this.schema.createTable('disciplines', (table) => {
       scoped(table);
@@ -99,10 +108,11 @@ export default class extends BaseSchema {
         .onDelete('CASCADE');
       table.index(['client_id']);
       table.string('color').notNullable();
-      table.json('is_private').nullable();
+      table.boolean('is_private').nullable();
       table.string('code_name').nullable();
       table.timestamp('archived_at').nullable();
       table.timestamp('deleted_at').nullable();
+      table.check('is_private IS NULL OR is_private IN (0, 1)');
     });
     this.schema.createTable('phases', (table) => {
       scoped(table);
@@ -139,7 +149,7 @@ export default class extends BaseSchema {
         .inTable('projects')
         .onDelete('SET NULL');
       table.string('color').notNullable();
-      table.json('is_favourite').nullable();
+      table.boolean('is_favourite').nullable();
       table.date('first_available_date').nullable();
       table.date('last_available_date').nullable();
       table.timestamp('archived_at').nullable();
@@ -152,6 +162,7 @@ export default class extends BaseSchema {
       table.check(
         'first_available_date IS NULL OR last_available_date IS NULL OR first_available_date <= last_available_date'
       );
+      table.check('is_favourite IS NULL OR is_favourite IN (0, 1)');
     });
     this.schema.createTable('activities', (table) => {
       scoped(table);
@@ -196,7 +207,7 @@ export default class extends BaseSchema {
       table.string('status').notNullable();
       table.text('note').nullable();
       table.string('task').nullable();
-      table.json('ignore_working_days').nullable();
+      table.boolean('ignore_working_days').nullable();
       table.string('series_id').nullable();
       table.index(['resource_id']);
       table.index(['activity_id']);
@@ -204,6 +215,7 @@ export default class extends BaseSchema {
       table.check("status IN ('confirmed','tentative','completed')");
       table.check('start_date <= end_date');
       table.check('hours_per_day >= 0 AND hours_per_day <= 24');
+      table.check('ignore_working_days IS NULL OR ignore_working_days IN (0, 1)');
     });
     this.schema.createTable('time_off', (table) => {
       scoped(table);
