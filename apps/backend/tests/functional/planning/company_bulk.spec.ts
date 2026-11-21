@@ -19,7 +19,7 @@ const requestBody = (baseRevision: number, intent: Record<string, unknown>) => (
   intent,
 });
 
-test.group('typed bulk writer tenant isolation', (group) => {
+test.group('typed bulk writer company isolation', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await resetPlanningFixture();

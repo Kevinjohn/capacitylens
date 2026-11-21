@@ -642,8 +642,8 @@ export default class extends BaseSchema {
         );
       }
     }
-    // SQLite runs same-timing triggers newest first. Create this guard after relationship checks so
-    // changing company_id always reports and enforces the immutable tenant boundary directly.
+    // SQLite runs same-timing triggers newest first. Create this check after relationship checks so
+    // changing company_id always reports and enforces the immutable company boundary directly.
     for (const table of scopedTables) {
       this.schema.raw(
         `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`

@@ -143,12 +143,12 @@ test.group('soft-deleted rows', (group) => {
     const [deletedLocal, activeLocal] = state.allocations.filter(
       (row) => row.companyId === 'a-studio'
     );
-    const otherTenant = state.allocations.find((row) => row.companyId === 'a-loft')!;
+    const otherCompanyAllocation = state.allocations.find((row) => row.companyId === 'a-loft')!;
     const before = await db.from('allocations').where('id', deletedLocal!.id).first();
 
     const softDeleted = await db.transaction((trx) =>
       buildRetainedQuery(trx, 'a-studio', 'allocations')
-        .whereIn('id', [deletedLocal!.id, otherTenant.id])
+        .whereIn('id', [deletedLocal!.id, otherCompanyAllocation.id])
         .softDelete()
     );
 
@@ -156,23 +156,23 @@ test.group('soft-deleted rows', (group) => {
     const deleted = await db.from('allocations').where('id', deletedLocal!.id).first();
     assert.isNotNull(deleted.deleted_at);
     assert.equal(deleted.updated_at, before.updated_at);
-    const untouched = await db.from('allocations').where('id', otherTenant.id).first();
+    const untouched = await db.from('allocations').where('id', otherCompanyAllocation.id).first();
     assert.isNull(untouched.deleted_at);
 
     await db
       .from('allocations')
-      .where('id', otherTenant.id)
+      .where('id', otherCompanyAllocation.id)
       .update({ deleted_at: '2026-10-02T00:00:00.000Z' });
     const purged = await db.transaction((trx) =>
       buildRetainedQuery(trx, 'a-studio', 'allocations')
         .onlyTrashed()
-        .whereIn('id', [deletedLocal!.id, activeLocal!.id, otherTenant.id])
+        .whereIn('id', [deletedLocal!.id, activeLocal!.id, otherCompanyAllocation.id])
         .forceDelete()
     );
 
     assert.equal(purged, 1);
     assert.isNull(await db.from('allocations').where('id', deletedLocal!.id).first());
     assert.isObject(await db.from('allocations').where('id', activeLocal!.id).first());
-    assert.isObject(await db.from('allocations').where('id', otherTenant.id).first());
+    assert.isObject(await db.from('allocations').where('id', otherCompanyAllocation.id).first());
   });
 });

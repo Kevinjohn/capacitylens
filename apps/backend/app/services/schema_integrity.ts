@@ -19,7 +19,11 @@ const relationships = [
 
 const scopedTables = SCOPED_WRITE_ORDER.map((key) => tables[key]);
 
-const tenantIndexedTables = [...scopedTables, 'account_member_resources', 'audit_entries'] as const;
+const companyIndexedTables = [
+  ...scopedTables,
+  'account_member_resources',
+  'audit_entries',
+] as const;
 
 /** Account Kit storage, including the empty tables its pruning and checks still visit. */
 const accountKitTables = [
@@ -154,7 +158,7 @@ export async function assertSchemaIntegrity() {
   await assertProofStorage('login_link_tokens');
   await assertProofStorage('password_reset_tokens');
   await assertProofStorage('email_verification_tokens');
-  for (const table of tenantIndexedTables) await assertIndex(table, 'company_id');
+  for (const table of companyIndexedTables) await assertIndex(table, 'company_id');
   const auditColumns = (await db.rawQuery('PRAGMA table_info(audit_entries)')) as Array<{
     name: string;
     notnull: number;

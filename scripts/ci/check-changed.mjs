@@ -61,7 +61,7 @@ const formatConfig = /^\.prettier(?:rc[^/]*|ignore)$/;
 const workspaceInput = /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json)$/;
 // Paths that format:check covers but lint and the type-check do not.
 const documentationOnly = /^(?:docs-src\/|docs\/|user-stories\/)|\.md$/;
-// Backend inputs a spec import cannot map: permissions, tenant data access, middleware, schema and
+// Backend inputs a spec import cannot map: permissions, company data access, middleware, schema and
 // migrations, configuration, test infrastructure and package files. Any change here runs the
 // whole suite.
 const backendSuiteInput =
@@ -184,7 +184,7 @@ export function toolingScope(paths) {
  * runs them in their own workflows.
  *
  * A backend source change runs the specs that import it. Shared contracts, dependencies,
- * permissions, tenant data access, schema, configuration, test infrastructure, modules a shared
+ * permissions, company data access, schema, configuration, test infrastructure, modules a shared
  * test helper imports and backend changes no spec imports run the whole backend suite instead. Every step carries the reason it was selected.
  */
 export function planChecks(

@@ -6,7 +6,7 @@ import { checkDatabase } from '#services/database_health';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import Company from '#models/company';
-import { insertTenantFixture } from './database_contract_fixtures.js';
+import { insertTwoCompanyFixture } from './database_contract_fixtures.js';
 import {
   ACTIVITY_KINDS,
   ALLOCATION_STATUSES,
@@ -53,7 +53,7 @@ test.group('M1 database contract', (group) => {
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();
     await replaceWithSeed();
-    await insertTenantFixture();
+    await insertTwoCompanyFixture();
   });
 
   test('creates the complete fresh schema, including identity and control tables', async ({
@@ -329,7 +329,7 @@ test.group('M1 database contract', (group) => {
     }
   });
 
-  test('keeps account discovery global while filtering scoped entity reads to one tenant', async ({
+  test('keeps company discovery global while filtering scoped entity reads to one company', async ({
     assert,
   }) => {
     const accounts = await Company.all();
@@ -347,13 +347,13 @@ test.group('M1 database contract', (group) => {
       if (table === 'accounts') continue;
       assert.isTrue(
         (rows as Array<{ companyId: string }>).every((row) => row.companyId === companyIds.dc),
-        `${table} contains only the requested tenant`
+        `${table} contains only the requested company`
       );
     }
 
     const unknown = await readState('a-unknown');
     for (const [table, rows] of Object.entries(unknown))
-      assert.lengthOf(rows, 0, `${table} is empty for an unknown tenant`);
+      assert.lengthOf(rows, 0, `${table} is empty for an unknown company`);
   });
 
   test('scoped reads hide inactive lifecycle rows by default and can include them explicitly', async ({
@@ -530,9 +530,7 @@ test.group('M1 database contract', (group) => {
     assert.isNull(resource.discipline_id);
   });
 
-  test('keeps tenant account identifiers immutable on every scoped entity table', async ({
-    assert,
-  }) => {
+  test('keeps company identifiers immutable on every scoped entity table', async ({ assert }) => {
     const ids = [
       'm1-dc-client',
       'm1-dc-discipline',
@@ -672,7 +670,7 @@ test.group('M1 database contract', (group) => {
     assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_check'), []);
   });
 
-  test('uses tenant indexes for account-scoped reads and deletes', async ({ assert }) => {
+  test('uses company indexes for company-scoped reads and deletes', async ({ assert }) => {
     for (const [table, column] of accountIndexes) {
       for (const operation of ['SELECT *', 'DELETE'] as const) {
         const query =
@@ -831,7 +829,7 @@ test.group('M1 database contract', (group) => {
     await assertSchemaIntegrity();
   });
 
-  test('readiness refuses a missing tenant account index', async ({ assert }) => {
+  test('readiness refuses a missing company index', async ({ assert }) => {
     const index = await db
       .from('sqlite_master')
       .select('name', 'sql')
@@ -840,7 +838,7 @@ test.group('M1 database contract', (group) => {
       .whereNotNull('sql')
       .whereLike('sql', '%company_id%')
       .first();
-    assert.isDefined(index?.sql, 'the clients.company_id tenant index exists');
+    assert.isDefined(index?.sql, 'the clients.company_id index exists');
     await db.rawQuery(`DROP INDEX "${String(index!.name)}"`);
     try {
       await assert.rejects(() => assertSchemaIntegrity(), /clients\.company_id index is missing/);
@@ -901,7 +899,7 @@ test.group('M1 database contract', (group) => {
     await assertSchemaIntegrity();
   });
 
-  test('readiness refuses a same-name tenant trigger with a drifted enforcement body', async ({
+  test('readiness refuses a same-name company trigger with a drifted enforcement body', async ({
     assert,
   }) => {
     const triggerName = 'projects_client_id_insert';

@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db';
 import { transactionalDatabase } from '../helpers/transactional_database.js';
 import Client from '#models/client';
 
-test.group('tenant scope', (group) => {
+test.group('company isolation', (group) => {
   transactionalDatabase(group);
   group.each.setup(async () => {
     const now = new Date().toISOString();
