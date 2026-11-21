@@ -3,8 +3,8 @@ import { Modal } from '@/components/common/ui';
 import { AllocationFooter } from './AllocationFooter';
 import { AllocationScheduleFields } from './AllocationScheduleFields';
 import { AllocationTargetFields } from './AllocationTargetFields';
-import { useAllocationModalState } from './useAllocationModalState';
-import type { AllocationModalProps } from './allocationModalTypes';
+import { useAllocationDialogState } from './useAllocationDialogState';
+import type { AllocationDialogProps } from './allocationDialogTypes';
 
 type BuildTitleOptions = { editing: boolean; createName: string | undefined };
 function buildTitle({ editing, createName }: BuildTitleOptions) {
@@ -21,8 +21,8 @@ function buildTitle({ editing, createName }: BuildTitleOptions) {
 }
 
 /** Coordinates allocation creation or editing in a guarded dialog. */
-export function AllocationModal(props: AllocationModalProps) {
-  const state = useAllocationModalState(props);
+export function AllocationDialog(props: AllocationDialogProps) {
+  const state = useAllocationDialogState(props);
   const { editing, createName, onClose, submit, clear } = state.shell;
 
   return (

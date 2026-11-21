@@ -14,7 +14,7 @@ import type { ISODate } from '@capacitylens/shared/types/entities';
 import { Button } from '@/components/ui/button';
 import { PersonScheduleTrigger } from '@/components/person-schedule/PersonScheduleTrigger';
 import { resolveResourceAvatarUrl } from '@/account/resolveResourceAvatarUrl';
-import type { ModalState } from './schedulerGridModal';
+import type { DialogState } from './schedulerGridDialog';
 import type { SchedulerUI, StoreState } from '@/store/useStore';
 
 type LaneProps = ComponentProps<typeof ResourceLane>;
@@ -29,7 +29,7 @@ export interface SchedulerGridRowProps {
   ui: Pick<SchedulerUI, 'drawMode'>;
   canEdit: boolean;
   visibleStartDate: () => ISODate;
-  setModal: Dispatch<SetStateAction<ModalState | null>>;
+  setModal: Dispatch<SetStateAction<DialogState | null>>;
   days: LaneProps['days'];
   todayX: LaneProps['todayX'];
   geom: LaneProps['geom'];

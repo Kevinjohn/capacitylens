@@ -6,7 +6,7 @@ import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { buildVisibleSpanLabels, resolveVisibleWindow } from './visibleSpan';
-import { buildAverageUtilisationLabel } from './schedulerGridModal';
+import { buildAverageUtilisationLabel } from './schedulerGridDialog';
 import type { useSchedulerViewport } from './useSchedulerViewport';
 import {
   hasDisciplinesEnabled,

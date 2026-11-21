@@ -9,10 +9,10 @@ import type { ISODate, Resource } from '@capacitylens/shared/types/entities';
 import { FULL_DAY_HOURS } from '@capacitylens/shared/types/entities';
 import { resolveScheduledHoursOnDay } from '@capacitylens/shared/lib/capacity';
 
-import { resolveProjectSelection, hasWorkingSpan } from './allocationModalSelection';
-import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
+import { resolveProjectSelection, hasWorkingSpan } from './allocationDialogSelection';
+import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
 
-type SeedInput = Pick<AllocationModalSnapshot, 'editing' | 'create' | 'data' | 'mode'> & {
+type SeedInput = Pick<AllocationDialogSnapshot, 'editing' | 'create' | 'data' | 'mode'> & {
   resourceById: Map<string, Resource>;
   companyWorkingDays: ReturnType<typeof normalizeCompanyWorkingDays>;
   today: ISODate;
@@ -121,7 +121,7 @@ function resolveInitialCapacityHours({
 }
 
 /** Initializes dialog fields from an existing allocation or the create defaults. */
-export function buildAllocationModalSeed({
+export function buildAllocationDialogSeed({
   editing,
   create,
   data,
@@ -181,4 +181,4 @@ export function buildAllocationModalSeed({
   };
 }
 /** Fields used to initialize an allocation dialog. */
-export type AllocationModalSeed = ReturnType<typeof buildAllocationModalSeed>;
+export type AllocationDialogSeed = ReturnType<typeof buildAllocationDialogSeed>;

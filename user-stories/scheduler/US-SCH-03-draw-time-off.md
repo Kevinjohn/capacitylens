@@ -38,8 +38,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections sets drawMode=timeOff"] --> B["ResourceLane draw reaches SchedulerGrid.openDrawModal"]
-  B --> C["SchedulerModal renders TimeOffForm with resource and dates"]
+  A["SchedulerToolbarSections sets drawMode=timeOff"] --> B["ResourceLane draw reaches SchedulerGrid.openDrawDialog"]
+  B --> C["SchedulerDialog renders TimeOffForm with resource and dates"]
   C --> D["TimeOffForm calls saveTimeOff, which invokes the addTimeOff store action"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends timeOff.create API operation"]

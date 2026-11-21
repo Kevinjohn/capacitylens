@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import { makeResourceDraft } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
@@ -10,13 +10,13 @@ import { chooseOption } from '@/test/schedulerTestKit';
 import {
   first,
   ACC,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
 async function addInlineActivityTestPerson() {
@@ -24,7 +24,7 @@ async function addInlineActivityTestPerson() {
   return first(useStore.getState().data.resources).id;
 }
 
-describe('AllocationModal inline activity creation pref', () => {
+describe('AllocationDialog inline activity creation pref', () => {
   it('keeps a newer project and activity selection when inline creation resolves late', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
@@ -46,7 +46,7 @@ describe('AllocationModal inline activity creation pref', () => {
       });
 
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -105,7 +105,7 @@ describe('AllocationModal inline activity creation pref', () => {
     });
 
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -136,7 +136,7 @@ describe('AllocationModal inline activity creation pref', () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -152,7 +152,7 @@ describe('AllocationModal inline activity creation pref', () => {
     await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -179,7 +179,7 @@ describe('AllocationModal inline activity creation pref', () => {
   it('hides the inline "Add activity" controls by default while retaining the Activity picker', async () => {
     const resourceId = await addInlineActivityTestPerson();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -194,7 +194,7 @@ describe('AllocationModal inline activity creation pref', () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: false });
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -213,7 +213,7 @@ describe('AllocationModal inline activity creation pref', () => {
     const user = userEvent.setup();
     const view = renderAsOwner(
       <PermissionContext.Provider value={permissionValue('editor')}>
-        <AllocationModal
+        <AllocationDialog
           kind="create"
           create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
           onClose={vi.fn()}
@@ -224,7 +224,7 @@ describe('AllocationModal inline activity creation pref', () => {
 
     view.rerender(
       <PermissionContext.Provider value={permissionValue('viewer')}>
-        <AllocationModal
+        <AllocationDialog
           kind="create"
           create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
           onClose={vi.fn()}
@@ -238,13 +238,13 @@ describe('AllocationModal inline activity creation pref', () => {
   });
 });
 
-describe('AllocationModal task field', () => {
+describe('AllocationDialog task field', () => {
   it('shows and saves an optional single-line task when the company setting is enabled', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -271,7 +271,7 @@ describe('AllocationModal task field', () => {
     );
     await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: true });
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     await user.clear(screen.getByLabelText('Task'));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(useStore.getState().data.allocations[0]).toHaveProperty('task', null);
@@ -302,7 +302,7 @@ describe('AllocationModal task field', () => {
     await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: false });
     const user = userEvent.setup();
     const view = renderAsOwner(
-      <AllocationModal kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />,
+      <AllocationDialog kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />,
     );
     expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();
     await user.click(screen.getByRole('radio', { name: 'Tentative' }));
@@ -311,7 +311,7 @@ describe('AllocationModal task field', () => {
 
     await useStore.getState().updateCompany(ACC, { showTaskFieldInSchedule: true });
     renderAsOwner(
-      <AllocationModal kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />,
+      <AllocationDialog kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />,
     );
     expect(screen.getByLabelText('Task')).toHaveValue('Keep this task');
     expect(

@@ -16,8 +16,8 @@ import {
   AllocationControlColumn,
   AllocationSpanRow,
   DateRangeFields,
-} from './AllocationModalFieldLayout';
-import type { AllocationModalState } from './useAllocationModalState';
+} from './AllocationDialogFieldLayout';
+import type { AllocationDialogState } from './useAllocationDialogState';
 import { roundToHundredths } from '@/lib/roundToHundredths';
 
 const buildRepeatOptions = (): Option[] => [
@@ -36,7 +36,7 @@ const buildHoursPerDayOptions = (): Option[] => [
   { value: '8', label: m.form_allocation_hours_per_day_full_day() },
 ];
 
-type ScheduleProps = AllocationModalState['scheduleFields'];
+type ScheduleProps = AllocationDialogState['scheduleFields'];
 type TaskProps = Pick<
   ScheduleProps,
   'task' | 'setTask' | 'showTaskFieldInSchedule' | 'errorField' | 'errorId'

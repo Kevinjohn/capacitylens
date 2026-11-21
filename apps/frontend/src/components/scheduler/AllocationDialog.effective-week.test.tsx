@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { AllocationBar } from './AllocationBar';
 import { useStore } from '@/store/useStore';
 import {
@@ -15,14 +15,14 @@ import { settlePlanning } from '@/test/allocationBarInteractionTestKit';
 import {
   required,
   ACC,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   person,
   enableDays,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
 describe('#257: modal and gesture effective-week agreement', () => {
@@ -43,7 +43,7 @@ describe('#257: modal and gesture effective-week agreement', () => {
     );
     const user = userEvent.setup();
     const modal = renderAsOwner(
-      <AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
+      <AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
     );
 
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '5' } });
@@ -53,7 +53,7 @@ describe('#257: modal and gesture effective-week agreement', () => {
         useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
       ).toMatchObject({ endDate: '2026-06-08', hoursPerDay: 6.4 }),
     );
-    const modalAllocation = required(
+    const dialogAllocation = required(
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
       'Expected the modal-resized allocation.',
     );
@@ -89,10 +89,10 @@ describe('#257: modal and gesture effective-week agreement', () => {
       'Expected the gesture-resized allocation.',
     );
 
-    expect(modalAllocation).toMatchObject({ endDate: '2026-06-08', hoursPerDay: 6.4 });
+    expect(dialogAllocation).toMatchObject({ endDate: '2026-06-08', hoursPerDay: 6.4 });
     expect(gestureAllocation).toMatchObject({
-      endDate: modalAllocation.endDate,
-      hoursPerDay: modalAllocation.hoursPerDay,
+      endDate: dialogAllocation.endDate,
+      hoursPerDay: dialogAllocation.hoursPerDay,
     });
   });
 });
@@ -115,7 +115,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await user.type(screen.getByLabelText('Note'), 'Still editable');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -140,7 +140,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-05', endDate: '2026-06-05' }}
         onClose={onClose}
@@ -175,7 +175,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 
@@ -203,7 +203,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 
@@ -229,7 +229,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 

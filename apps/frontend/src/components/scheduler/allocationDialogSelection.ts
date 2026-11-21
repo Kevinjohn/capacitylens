@@ -11,7 +11,7 @@ import {
 import type { Activity, Resource, SchedulingMode } from '@capacitylens/shared/types/entities';
 import { FULL_DAY_HOURS, isExternalResource } from '@capacitylens/shared/types/entities';
 
-import type { EffectiveAllocationInput } from './allocationModalTypes';
+import type { EffectiveAllocationInput } from './allocationDialogTypes';
 /** Rounds seeded days to six decimal places to remove floating-point noise without changing useful fractions such as 0.5 or 0.125. */
 export const roundDays = (dayCount: number) => Math.round(dayCount * 1e6) / 1e6;
 /** Sentinel choice for work without a project attribution. */

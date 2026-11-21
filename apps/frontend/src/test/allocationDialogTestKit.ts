@@ -74,7 +74,7 @@ export function restoreStoreAllocationActions(): void {
 }
 
 /** Resets allocation modal fixtures and patched actions between tests. */
-export async function resetAllocationModalStore(): Promise<void> {
+export async function resetAllocationDialogStore(): Promise<void> {
   restoreStoreAllocationActions();
   await resetStoreWithData(base(), ACC);
   // Enable placeholders for assignment fixtures because the picker hides them by default. A current hidden assignee remains selectable while editing.

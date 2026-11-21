@@ -77,7 +77,7 @@ function render(ui: ReactNode) {
 
 beforeAll(async () => {
   // Resolve the real lazy editor before testing the lifetime of an opening's pending Save.
-  await import('@/components/scheduler/AllocationModal');
+  await import('@/components/scheduler/AllocationDialog');
 });
 beforeEach(async () => {
   hold.release = null;

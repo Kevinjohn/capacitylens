@@ -1,22 +1,22 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { makeAllocation } from '@/test/fixtures';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
-import { buildAllocationModalSeed } from './buildAllocationModalSeed';
+import { buildAllocationDialogSeed } from './buildAllocationDialogSeed';
 import type { EffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
-import { ACC, base, resetAllocationModalStore } from '@/test/allocationModalTestKit';
+import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
+import { ACC, base, resetAllocationDialogStore } from '@/test/allocationDialogTestKit';
 
 type IsExact<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
-describe('buildAllocationModalSeed', () => {
+describe('buildAllocationDialogSeed', () => {
   it('represents a missing selected effective week with undefined', () => {
     const selectedEffectiveWeekUsesUndefined: IsExact<
-      AllocationModalSnapshot['selectedEffectiveWeek'],
+      AllocationDialogSnapshot['selectedEffectiveWeek'],
       EffectiveWorkingWeek | undefined
     > = true;
 
@@ -26,7 +26,7 @@ describe('buildAllocationModalSeed', () => {
   it('uses the injected calendar date when no create or edit date exists', () => {
     const data = base();
 
-    const seed = buildAllocationModalSeed({
+    const seed = buildAllocationDialogSeed({
       editing: undefined,
       create: undefined,
       data,
@@ -54,7 +54,7 @@ describe('buildAllocationModalSeed', () => {
       ignoreWorkingDays: false,
     });
 
-    const seed = buildAllocationModalSeed({
+    const seed = buildAllocationDialogSeed({
       editing,
       create: { resourceId: 'resource-create', startDate: '2030-01-01', endDate: '2030-01-02' },
       data,

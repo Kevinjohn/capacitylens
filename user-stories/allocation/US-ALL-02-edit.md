@@ -6,7 +6,7 @@ As an Editor, I want to change an allocation in place so that an updated plan ke
 **Access:** Editor, Admin or Owner
 **Entry:** Schedule (`/`)
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx), [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx), [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 
 ## Acceptance criteria
 
@@ -50,7 +50,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationModal edit dialog"] --> B["allocationSubmit validates saved-value draft"]
+  A["AllocationDialog edit dialog"] --> B["allocationSubmit validates saved-value draft"]
   B -->|valid| C["allocationSlice.updateAllocation"]
   B -->|invalid or stale| I["Form error; saved row remains"]
   C --> D["Planning cache executes command"]
@@ -73,8 +73,8 @@ flowchart TD
 - [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
 - [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
-- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
-- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
 - [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

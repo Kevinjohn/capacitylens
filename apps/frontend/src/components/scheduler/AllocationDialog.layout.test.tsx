@@ -2,18 +2,18 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import { chooseOption } from '@/test/schedulerTestKit';
 import {
   ACC,
   person,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
 function expectLabelControl(control: HTMLElement) {
@@ -39,7 +39,7 @@ function expectAllocationSpanRow(controls: HTMLElement[]) {
   }
 }
 
-describe('AllocationModal compact layout', () => {
+describe('AllocationDialog compact layout', () => {
   it('aligns Hours-mode create fields, the full-width scheduling row, inline creation and repeat hints', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
@@ -47,7 +47,7 @@ describe('AllocationModal compact layout', () => {
     await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={vi.fn()}
@@ -93,7 +93,7 @@ describe('AllocationModal compact layout', () => {
         status: 'confirmed',
       }),
     );
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     expectLabelControl(screen.getByRole('combobox', { name: 'Assignee' }));
     expect(screen.queryByRole('combobox', { name: 'Repeat' })).not.toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('AllocationModal compact layout', () => {
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
     );
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -139,7 +139,7 @@ describe('AllocationModal compact layout', () => {
       }),
     );
     const externalView = renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: external.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -163,7 +163,7 @@ describe('AllocationModal compact layout', () => {
       }),
     );
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: placeholder.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}

@@ -19,8 +19,8 @@ import {
 } from '@/store/selectors';
 import { useActiveScopedData } from '@/store/useScopedData';
 import { useStore } from '@/store/useStore';
-import { buildAllocationModalSeed } from './buildAllocationModalSeed';
-import type { AllocationModalProps } from './allocationModalTypes';
+import { buildAllocationDialogSeed } from './buildAllocationDialogSeed';
+import type { AllocationDialogProps } from './allocationDialogTypes';
 import { buildRepeatProjection } from './buildRepeatProjection';
 import { createAllocationCommands } from './allocationSubmit';
 import { useAllocationScheduleState } from './useAllocationScheduleState';
@@ -51,7 +51,7 @@ function useSchedulingContext() {
   return { mode, companyWorkingDays };
 }
 
-function useAllocationModalContext(props: AllocationModalProps) {
+function useAllocationDialogContext(props: AllocationDialogProps) {
   const onClose = useFormLifetimeClose(props.onClose);
   const canEdit = useCanEdit();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -109,7 +109,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     () => new Map(data.resources.map((resource) => [resource.id, resource])),
     [data.resources],
   );
-  const seed = buildAllocationModalSeed({
+  const seed = buildAllocationDialogSeed({
     editing,
     create,
     data,
@@ -156,7 +156,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
   };
 }
 
-function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>) {
+function useTargetSchedule(context: ReturnType<typeof useAllocationDialogContext>) {
   const target = useAllocationTargetState({
     data: context.data,
     seed: context.seed,
@@ -187,13 +187,13 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
 }
 
 /** Coordinates allocation dialog fields, validation, and submission. */
-export function useAllocationModalState(props: AllocationModalProps) {
-  const context = useAllocationModalContext(props);
-  return buildModalState(context, useTargetSchedule(context));
+export function useAllocationDialogState(props: AllocationDialogProps) {
+  const context = useAllocationDialogContext(props);
+  return buildDialogState(context, useTargetSchedule(context));
 }
 
-function buildModalState(
-  context: ReturnType<typeof useAllocationModalContext>,
+function buildDialogState(
+  context: ReturnType<typeof useAllocationDialogContext>,
   state: ReturnType<typeof useTargetSchedule>,
 ) {
   const { target, schedule, repeatProjection, endDateHint } = state;
@@ -262,7 +262,7 @@ function buildModalState(
 }
 
 function buildRepeatProjectionInput(
-  context: ReturnType<typeof useAllocationModalContext>,
+  context: ReturnType<typeof useAllocationDialogContext>,
   target: ReturnType<typeof useAllocationTargetState>,
   schedule: ReturnType<typeof useAllocationScheduleState>,
 ): Parameters<typeof buildRepeatProjection>[0] {
@@ -354,4 +354,4 @@ function resolveCreateName({ isCreate, resource }: ResolveCreateNameOptions) {
 }
 
 /** State and handlers returned to the allocation dialog view. */
-export type AllocationModalState = ReturnType<typeof useAllocationModalState>;
+export type AllocationDialogState = ReturnType<typeof useAllocationDialogState>;

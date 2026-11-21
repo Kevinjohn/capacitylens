@@ -45,7 +45,7 @@ async function expectFullWidthSchedulingRow(dialog: Locator, controls: Locator[]
   }
 
   const rowBox = await row.boundingBox();
-  const modalBodyContentBox = await row.locator('xpath=parent::*').evaluate((body) => {
+  const dialogBodyContentBox = await row.locator('xpath=parent::*').evaluate((body) => {
     const box = body.getBoundingClientRect();
     const style = getComputedStyle(body);
     const left = box.x + Number.parseFloat(style.paddingLeft);
@@ -55,8 +55,8 @@ async function expectFullWidthSchedulingRow(dialog: Locator, controls: Locator[]
   const fieldBoxes = await Promise.all((await fields.all()).map((field) => field.boundingBox()));
   expect(rowBox).not.toBeNull();
   expect(fieldBoxes.every((box) => box !== null)).toBe(true);
-  expect(Math.abs(rowBox!.x - modalBodyContentBox.left)).toBeLessThanOrEqual(1);
-  expect(Math.abs(rowBox!.x + rowBox!.width - modalBodyContentBox.right)).toBeLessThanOrEqual(1);
+  expect(Math.abs(rowBox!.x - dialogBodyContentBox.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(rowBox!.x + rowBox!.width - dialogBodyContentBox.right)).toBeLessThanOrEqual(1);
   const widths = fieldBoxes.map((box) => box!.width);
   expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
 }

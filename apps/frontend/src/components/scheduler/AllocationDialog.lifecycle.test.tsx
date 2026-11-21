@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import { makeResourceDraft } from '@/test/fixtures';
 import { chooseOption } from '@/test/schedulerTestKit';
@@ -12,15 +12,15 @@ import {
   closestForm,
   completeAssignment,
   person,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
-describe('AllocationModal Enter key submission', () => {
+describe('AllocationDialog Enter key submission', () => {
   it('operates the Hours / day select with the keyboard', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource(makeResourceDraft({ name: 'Bruce', color: '#2d75da' })),
@@ -29,7 +29,7 @@ describe('AllocationModal Enter key submission', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}
@@ -60,7 +60,7 @@ describe('AllocationModal Enter key submission', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}
@@ -88,7 +88,7 @@ describe('AllocationModal Enter key submission', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}
@@ -110,14 +110,14 @@ describe('AllocationModal Enter key submission', () => {
   });
 });
 
-describe('AllocationModal submit exclusion', () => {
+describe('AllocationDialog submit exclusion', () => {
   it('saves once when two real submit events target a form closed by the first', async () => {
     const resource = await addPerson();
     const addAllocation = vi.spyOn(useStore.getState(), 'addAllocation');
     const user = userEvent.setup();
     let closeModal = () => {};
     const view = renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={() => closeModal()}
@@ -136,7 +136,7 @@ describe('AllocationModal submit exclusion', () => {
   });
 });
 
-describe('AllocationModal lifecycle', () => {
+describe('AllocationDialog lifecycle', () => {
   it('closes when the allocation being edited disappears from the store', async () => {
     const resource = await requireCreated(useStore.getState().addResource(person('Barbara')));
     const allocation = requireCreated(
@@ -150,7 +150,7 @@ describe('AllocationModal lifecycle', () => {
       }),
     );
     const onClose = vi.fn();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await act(() => useStore.getState().deleteAllocation(allocation.id));
 
@@ -170,7 +170,7 @@ describe('AllocationModal lifecycle', () => {
       }),
     );
     const onClose = vi.fn();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />);
     fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-06-05' } });
     const revision = useStore.getState().planning.revision;
     await useStore.getState().updateAllocation(allocation.id, { hoursPerDay: 4 });
@@ -222,7 +222,9 @@ describe('AllocationModal lifecycle', () => {
           return creation;
         });
       const onClose = vi.fn();
-      renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+      renderAsOwner(
+        <AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />,
+      );
       fireEvent.change(screen.getByLabelText('End'), { target: { value: '2026-06-05' } });
       fireEvent.change(screen.getByLabelText('New activity name'), {
         target: { value: 'Gotham review' },
@@ -282,7 +284,7 @@ describe('AllocationModal lifecycle', () => {
     const resource = await requireCreated(useStore.getState().addResource(person('Barbara')));
     const onClose = vi.fn();
     const view = renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}
@@ -293,7 +295,7 @@ describe('AllocationModal lifecycle', () => {
     fireEvent.click(screen.getByRole('option', { name: '4 h - half day' }));
 
     view.rerender(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}

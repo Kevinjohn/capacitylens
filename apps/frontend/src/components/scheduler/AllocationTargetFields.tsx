@@ -4,10 +4,10 @@ import { SelectField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { AllocationControlColumn } from './AllocationModalFieldLayout';
-import type { AllocationModalState } from './useAllocationModalState';
+import { AllocationControlColumn } from './AllocationDialogFieldLayout';
+import type { AllocationDialogState } from './useAllocationDialogState';
 
-type AllocationTargetFieldsProps = AllocationModalState['targetFields'];
+type AllocationTargetFieldsProps = AllocationDialogState['targetFields'];
 
 function getNewActivityPlaceholder(
   kind: AllocationTargetFieldsProps['activityScope']['kind'],

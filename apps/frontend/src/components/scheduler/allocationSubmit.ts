@@ -12,8 +12,8 @@ import { formatCapacityAdvisory } from '@/lib/capacity/advisoryCopy';
 import type { AllocationSaveAdvisory } from '@/store/StoreEntityActions';
 
 import type { FieldError } from '@/hooks/useFieldError';
-import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
-type CommandInput = Omit<AllocationModalSnapshot, 'editId' | 'repeatUntilMinimum'> &
+import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
+type CommandInput = Omit<AllocationDialogSnapshot, 'editId' | 'repeatUntilMinimum'> &
   Pick<
     ReturnType<typeof useStore.getState>,
     | 'addAllocation'

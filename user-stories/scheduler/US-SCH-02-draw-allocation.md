@@ -38,8 +38,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ResourceLane calls useResourceLaneInteraction.finishGesture"] --> B["SchedulerGrid.openDrawModal checks placement and sets create modal"]
-  B --> C["AllocationModal submits through useStore.addAllocation"]
+  A["ResourceLane calls useResourceLaneInteraction.finishGesture"] --> B["SchedulerGrid.openDrawDialog checks placement and sets create modal"]
+  B --> C["AllocationDialog submits through useStore.addAllocation"]
   C --> D["allocationSlice creates typed planning intent"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends allocation.create API operation"]
@@ -49,4 +49,4 @@ flowchart TD
   I --> J
 ```
 
-**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+**Code references:** [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)

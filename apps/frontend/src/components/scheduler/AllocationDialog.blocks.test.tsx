@@ -2,23 +2,23 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import { chooseOption } from '@/test/schedulerTestKit';
 import {
   ACC,
   person,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
 const enableBlocks = () => useStore.getState().updateCompany(ACC, { schedulingMode: 'blocks' });
 
-describe('AllocationModal blocks mode', () => {
+describe('AllocationDialog blocks mode', () => {
   it('asks only for start + days over, and persists a zero-load span', async () => {
     await enableBlocks();
     const r = await requireCreated(
@@ -27,7 +27,7 @@ describe('AllocationModal blocks mode', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -66,7 +66,7 @@ describe('AllocationModal blocks mode', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -97,7 +97,7 @@ describe('AllocationModal blocks mode', () => {
     const user = userEvent.setup();
 
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -137,7 +137,7 @@ describe('AllocationModal blocks mode', () => {
     );
     await enableBlocks();
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.type(screen.getByLabelText('Note'), 'Still scheduled');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -158,7 +158,7 @@ describe('AllocationModal blocks mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: resource.id,

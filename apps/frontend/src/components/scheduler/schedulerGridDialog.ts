@@ -16,7 +16,7 @@ export function buildAverageUtilisationLabel(rows: RowModel[]): string | null {
 }
 
 /** Creation, editing, and closed states for the scheduler modal. */
-export type ModalState =
+export type DialogState =
   | { kind: 'edit'; allocationId: ID }
   | { kind: 'create'; resourceId: ID; startDate: ISODate; endDate: ISODate }
   | { kind: 'timeOff'; resourceId: ID; startDate: ISODate; endDate: ISODate };

@@ -34,7 +34,7 @@ flowchart TD
   A["SchedulerGridRow receives visibleStartDate callback"] --> B["ResourceActions calls visibleStartDate on +"]
   B --> C["useSchedulerViewport.readVisibleStartDate resolves left-edge date"]
   C --> D["ResourceActions sets create modal with that date"]
-  D --> E["AllocationModal receives resource and start date"]
+  D --> E["AllocationDialog receives resource and start date"]
 ```
 
-**Code references:** [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Code references:** [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [useSchedulerViewport.ts](../../apps/frontend/src/components/scheduler/useSchedulerViewport.ts), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)

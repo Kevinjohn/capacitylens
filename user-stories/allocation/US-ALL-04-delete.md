@@ -10,7 +10,7 @@ As an Editor, I want to delete an allocation that is no longer needed so that th
 
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 
 ## Acceptance criteria
 
@@ -37,7 +37,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationModal: Delete action"] --> B["RepeatedAllocationDeleteDialog when series has scope choice"]
+  A["AllocationDialog: Delete action"] --> B["RepeatedAllocationDeleteDialog when series has scope choice"]
   B -->|cancel| C["Keep allocation"]
   B -->|one| D["allocationSubmit.deleteSelectedAllocation: deleteAllocation"]
   B -->|this and future| E["deleteAllocationSeriesFrom"]
@@ -47,7 +47,7 @@ flowchart TD
 
 **Code references:**
 
-- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 - [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx)
 - [RepeatedAllocationDeleteDialog.tsx](../../apps/frontend/src/components/scheduler/RepeatedAllocationDeleteDialog.tsx)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)

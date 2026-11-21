@@ -2,22 +2,22 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import { makeResourceDraft } from '@/test/fixtures';
 import { chooseOption } from '@/test/schedulerTestKit';
 import {
   required,
   person,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
-describe('AllocationModal create', () => {
+describe('AllocationDialog create', () => {
   it('orders project scopes and activities, and exposes status as a labelled radiogroup', async () => {
     await useStore.getState().addClient({ name: 'Zeta', color: '#123456' });
     const zetaClient = required(
@@ -37,7 +37,7 @@ describe('AllocationModal create', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
@@ -97,7 +97,7 @@ describe('AllocationModal create', () => {
         .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
     );
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
@@ -116,7 +116,7 @@ describe('AllocationModal create', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: resource.id,
@@ -142,7 +142,7 @@ describe('AllocationModal create', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={onClose}
@@ -179,7 +179,7 @@ describe('AllocationModal create', () => {
       );
       const user = userEvent.setup();
       renderAsOwner(
-        <AllocationModal
+        <AllocationDialog
           kind="create"
           create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
           onClose={vi.fn()}
@@ -211,7 +211,7 @@ describe('AllocationModal create', () => {
     const resourceId = resource.id;
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -234,7 +234,7 @@ describe('AllocationModal create', () => {
     const resourceId = resource.id;
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -275,7 +275,7 @@ describe('AllocationModal create', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: ph.id,
@@ -333,7 +333,7 @@ describe('AllocationModal create', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: placeholder.id, startDate: '2026-06-01', endDate: '2026-06-02' }}
         onClose={vi.fn()}
@@ -362,7 +362,7 @@ describe('AllocationModal create', () => {
   });
 });
 
-describe('AllocationModal date span bounds', () => {
+describe('AllocationDialog date span bounds', () => {
   it('rejects an over-limit Hours-mode date span', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),
@@ -370,7 +370,7 @@ describe('AllocationModal date span bounds', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: resource.id,
@@ -415,7 +415,7 @@ describe('AllocationModal date span bounds', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: resource.id,
@@ -456,7 +456,7 @@ describe('AllocationModal date span bounds', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-04' }}
         onClose={vi.fn()}

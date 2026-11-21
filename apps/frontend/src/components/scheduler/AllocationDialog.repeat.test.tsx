@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import { chooseOption } from '@/test/schedulerTestKit';
@@ -16,10 +16,10 @@ import {
   person,
   addPerson,
   completeAssignment,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   restoreStoreAllocationActions,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 const juneWeeklyOccurrences = [
   ['2099-06-01', '2099-06-03'],
@@ -28,15 +28,15 @@ const juneWeeklyOccurrences = [
 ] as const;
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
 // These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
-describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
+describe('AllocationDialog repeat creation', { timeout: 15_000 }, () => {
   it('shows all six create-only options, defaults to one-off and dirty-tracks repeat changes', async () => {
     const resource = await addPerson();
     const { unmount } = renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={vi.fn()}
@@ -74,7 +74,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
         status: 'confirmed',
       }),
     );
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole('combobox', { name: 'Repeat' })).not.toBeInTheDocument();
   });
 
@@ -82,7 +82,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const resource = await addPerson();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2027-12-03', endDate: '2027-12-05' }}
         onClose={vi.fn()}
@@ -108,7 +108,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const resource = await addPerson();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2027-12-03', endDate: '2027-12-05' }}
         onClose={vi.fn()}
@@ -128,7 +128,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const resource = await addPerson();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '9999-11-15', endDate: '9999-11-16' }}
         onClose={vi.fn()}
@@ -144,7 +144,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={onClose}
@@ -205,7 +205,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       const resource = await addPerson();
       const user = userEvent.setup();
       renderAsOwner(
-        <AllocationModal
+        <AllocationDialog
           kind="create"
           create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
           onClose={vi.fn()}
@@ -238,7 +238,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-01-31', endDate: '2099-02-02' }}
         onClose={vi.fn()}
@@ -289,7 +289,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       const onClose = vi.fn();
       const user = userEvent.setup();
       renderAsOwner(
-        <AllocationModal
+        <AllocationDialog
           kind="create"
           create={{ resourceId: resource.id, startDate: '9999-09-30', endDate: '9999-10-02' }}
           onClose={onClose}
@@ -325,7 +325,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={onClose}
@@ -352,7 +352,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const bulkSpy = vi.spyOn(useStore.getState(), 'addRepeatedAllocation');
     const user = userEvent.setup();
     const first = renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={vi.fn()}
@@ -374,7 +374,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       });
     const onClose = vi.fn();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={onClose}
@@ -397,7 +397,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const bulkSpy = vi.spyOn(useStore.getState(), 'addRepeatedAllocation');
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={vi.fn()}
@@ -447,7 +447,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const resource = await addPerson();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={vi.fn()}
@@ -478,7 +478,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const resource = await addPerson();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-12-21', endDate: '2099-12-23' }}
         onClose={vi.fn()}
@@ -504,7 +504,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
         onClose={onClose}
@@ -543,7 +543,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole('combobox', { name: 'Repeat' })).not.toBeInTheDocument();
     queuePlanningPatch((execution) => {
       const intent = execution.intent;
@@ -590,7 +590,7 @@ describe('AllocationModal repeat creation', { timeout: 15_000 }, () => {
     );
     await useStore.getState().updateResource(resource.id, { firstAvailableDate: '2026-06-08' });
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(

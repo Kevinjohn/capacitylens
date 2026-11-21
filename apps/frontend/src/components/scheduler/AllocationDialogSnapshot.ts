@@ -9,13 +9,13 @@ import type {
   SchedulingMode,
 } from '@capacitylens/shared/types/entities';
 import type { RepeatSelection } from '@/lib/repeatingAllocations';
-import type { AllocationModalProps } from './allocationModalTypes';
+import type { AllocationDialogProps } from './allocationDialogTypes';
 
 /** Current form values consumed by pure projections and the command factory. */
-export interface AllocationModalSnapshot {
+export interface AllocationDialogSnapshot {
   /** Only the tables the seed and submit projections read. */
   data: Pick<AppData, 'activities' | 'allocations' | 'closures' | 'timeOff'>;
-  create: Extract<AllocationModalProps, { create: unknown }>['create'] | undefined;
+  create: Extract<AllocationDialogProps, { create: unknown }>['create'] | undefined;
   editing: Allocation | undefined;
   editId: string | undefined;
   mode: SchedulingMode;

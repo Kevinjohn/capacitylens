@@ -7,10 +7,10 @@ import { MAX_SPAN_DAYS } from '@capacitylens/shared/lib/schedulingDays';
 import { MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities';
 import { resolveRepeatPattern } from '@/lib/repeatingAllocations';
 
-import type { AllocationModalSnapshot } from './AllocationModalSnapshot';
+import type { AllocationDialogSnapshot } from './AllocationDialogSnapshot';
 
 type ProjectionInput = Pick<
-  AllocationModalSnapshot,
+  AllocationDialogSnapshot,
   | 'activityId'
   | 'create'
   | 'attributedProjectId'

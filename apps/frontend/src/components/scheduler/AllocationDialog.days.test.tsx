@@ -4,29 +4,29 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import { chooseOption } from '@/test/schedulerTestKit';
 import {
   required,
   closestForm,
   ACC,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   person,
   enableDays,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
-describe('AllocationModal days mode', () => {
+describe('AllocationDialog days mode', () => {
   it('keeps a missing resource distinct from a resource with no effective working days', async () => {
     await enableDays();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: 'missing-resource', startDate: '2026-06-01', endDate: '2026-06-05' }}
         onClose={vi.fn()}
@@ -58,7 +58,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-05' }}
         onClose={vi.fn()}
@@ -86,7 +86,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '9999-12-27', endDate: '9999-12-27' }}
         onClose={vi.fn()}
@@ -114,7 +114,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -141,7 +141,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-03' }}
         onClose={vi.fn()}
@@ -168,7 +168,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }}
         onClose={vi.fn()}
@@ -196,7 +196,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }}
         onClose={vi.fn()}
@@ -235,7 +235,7 @@ describe('AllocationModal days mode', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole('checkbox', { name: 'Ignore working days' })).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -259,7 +259,7 @@ describe('AllocationModal days mode', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -301,7 +301,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -331,7 +331,7 @@ describe('AllocationModal days mode', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -363,7 +363,7 @@ describe('AllocationModal days mode', () => {
     );
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -398,7 +398,7 @@ describe('AllocationModal days mode', () => {
     const addAllocation = vi.spyOn(useStore.getState(), 'addAllocation');
     const user = userEvent.setup();
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -434,7 +434,7 @@ describe('AllocationModal days mode', () => {
     const user = userEvent.setup();
 
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{
           resourceId: r.id,
@@ -467,7 +467,7 @@ describe('AllocationModal days mode', () => {
         .addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
     );
     renderAsOwner(
-      <AllocationModal
+      <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2026-06-02', endDate: '2026-06-02' }}
         onClose={vi.fn()}
@@ -495,7 +495,7 @@ describe('AllocationModal days mode', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
     const after = required(
@@ -522,7 +522,7 @@ describe('AllocationModal days mode', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -548,7 +548,7 @@ describe('AllocationModal days mode', () => {
         status: 'confirmed',
       }),
     );
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByLabelText('Days of work')).toHaveValue(5);
     expect(screen.getByLabelText('Days over')).toHaveValue(10);

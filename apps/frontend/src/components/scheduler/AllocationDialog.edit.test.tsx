@@ -2,7 +2,7 @@ import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AllocationModal } from './AllocationModal';
+import { AllocationDialog } from './AllocationDialog';
 import { useStore } from '@/store/useStore';
 import type { Activity, Weekday } from '@capacitylens/shared/types/entities';
 import { setExternalEnabled, setPlaceholdersEnabled } from '@/test/fixtures';
@@ -12,9 +12,9 @@ import {
   ACC,
   person,
   required,
-  resetAllocationModalStore,
+  resetAllocationDialogStore,
   renderAsOwner,
-} from '@/test/allocationModalTestKit';
+} from '@/test/allocationDialogTestKit';
 
 interface AllocationScopeCaseInput {
   caseName: string;
@@ -25,7 +25,7 @@ interface AllocationScopeCaseInput {
 }
 
 beforeEach(async () => {
-  await resetAllocationModalStore();
+  await resetAllocationDialogStore();
 });
 
 async function resolveScopeActivity(
@@ -43,7 +43,7 @@ async function resolveScopeActivity(
   );
 }
 
-describe('AllocationModal edit', () => {
+describe('AllocationDialog edit', () => {
   it.each([
     {
       caseName: 'attributed All-projects',
@@ -99,7 +99,9 @@ describe('AllocationModal edit', () => {
         }),
       );
       const user = userEvent.setup();
-      renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+      renderAsOwner(
+        <AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
+      );
 
       expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(expectedScope);
       expect(screen.getByRole('combobox', { name: 'Activity' })).toHaveTextContent(activityName);
@@ -130,7 +132,7 @@ describe('AllocationModal edit', () => {
     );
     await useStore.getState().updateResource(resource.id, { firstAvailableDate: '2026-06-08' });
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Note'), {
       target: { value: 'Retained scheduling context' },
@@ -161,7 +163,7 @@ describe('AllocationModal edit', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     const hours = screen.getByRole('combobox', { name: 'Hours / day' });
     expect(hours).toHaveTextContent('6.4');
@@ -199,7 +201,7 @@ describe('AllocationModal edit', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole('combobox', { name: 'Hours / day' })).toHaveTextContent('5');
     await chooseOption(user, 'Hours / day', '4 h - half day');
@@ -228,7 +230,7 @@ describe('AllocationModal edit', () => {
     );
     const user = userEvent.setup();
     const view = renderAsOwner(
-      <AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
+      <AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
     );
 
     const note = screen.getByLabelText('Note');
@@ -241,7 +243,7 @@ describe('AllocationModal edit', () => {
     );
 
     view.unmount();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Note'), {
       target: { value: 'First line Second line' },
     });
@@ -274,7 +276,9 @@ describe('AllocationModal edit', () => {
     const user = userEvent.setup();
 
     try {
-      renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+      renderAsOwner(
+        <AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />,
+      );
       await user.click(screen.getByRole('button', { name: 'Delete' }));
       await user.click(
         within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }),
@@ -321,7 +325,7 @@ describe('AllocationModal edit', () => {
     if (!selected || !later) throw new Error('Expected both repeated allocations to be created.');
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={selected.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={selected.id} onClose={onClose} />);
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     await user.click(
@@ -357,7 +361,7 @@ describe('AllocationModal edit', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
     await chooseOption(user, 'Assignee', 'Clark Kent');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -396,7 +400,7 @@ describe('AllocationModal edit', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
     await chooseOption(user, 'Assignee', 'Clark Kent');
     await user.click(screen.getByRole('checkbox', { name: 'Ignore working days' }));
@@ -437,7 +441,7 @@ describe('AllocationModal edit', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await chooseOption(user, 'Assignee', 'Placeholder (slot)');
     expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent('Ferris / Other');
@@ -474,7 +478,7 @@ describe('AllocationModal edit', () => {
     );
     // Editing must preserve the current hidden placeholder rather than silently reassigning to a visible option.
     await setPlaceholdersEnabled({ on: false });
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole('combobox', { name: 'Assignee' });
     expect(assignee).toHaveTextContent('Placeholder (slot)');
@@ -509,7 +513,7 @@ describe('AllocationModal edit', () => {
     );
     // Editing must preserve the current hidden external resource rather than silently reassigning to a visible option.
     await setExternalEnabled({ on: false });
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     const assignee = screen.getByRole('combobox', { name: 'Assignee' });
     expect(assignee).toHaveTextContent('Kord Industries (external)');
@@ -546,7 +550,7 @@ describe('AllocationModal edit', () => {
       }),
     );
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(
       'No specific project',
@@ -598,7 +602,7 @@ describe('AllocationModal edit', () => {
       },
     }));
 
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent(
       'Ferris / Lightning',
@@ -622,7 +626,7 @@ describe('AllocationModal edit', () => {
     );
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={onClose} />);
 
     fireEvent.change(screen.getByLabelText('End'), {
       target: { value: '2026-06-05' },
@@ -667,7 +671,7 @@ describe('AllocationModal edit', () => {
     await useStore.getState().updateCompany(ACC, { schedulingMode: 'hourly' });
     const onClose = vi.fn();
     const user = userEvent.setup();
-    renderAsOwner(<AllocationModal kind="edit" allocationId={alloc.id} onClose={onClose} />);
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={alloc.id} onClose={onClose} />);
 
     await user.click(screen.getByRole('button', { name: 'Duplicate' }));
 
