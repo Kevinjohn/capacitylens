@@ -203,7 +203,7 @@ Source: the Configuration and Folder structure pages of the AdonisJS start guide
   and `commands` are lazy imports, in the starter kit's order. **Open:** #2334 item 14.
 - Resolve paths with `app.makePath()`, `app.publicPath()` and `app.tmpPath()`.
 - `.env.example` lists every variable with a placeholder value. Values for tests belong in
-  `.env.test`. **Open:** #2334 item 12.
+  `.env.test`; `bin/test.ts` keeps only the values computed per port lane or that must override the shell.
 - Product variables use the `CAPACITYLENS_` prefix (departure 5). Framework packages are pinned to
   exact versions (departure 16).
 
