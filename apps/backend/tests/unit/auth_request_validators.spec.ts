@@ -26,7 +26,7 @@ test.group('ordinary request validator normalization', () => {
     );
   });
 
-  test('retains the email-shape policy instead of adopting deliverability validation', async ({
+  test('retains the email-shape rules instead of adopting deliverability validation', async ({
     assert,
   }) => {
     const input = { email: 'CLARK@WAYNE', password: '' };

@@ -78,7 +78,7 @@ type CapacityLensEnvironmentSchema = {
   [Key in OptionalBooleanKey]: OptionalBooleanValidator;
 };
 
-/** Validate operator values while leaving compound policies to their owning configuration. */
+/** Validate operator values while leaving compound rules to their owning configuration. */
 export const envSchema: CapacityLensEnvironmentSchema = {
   NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
   PORT: Env.schema.number(),
@@ -96,7 +96,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: optionalBoolean,
   CAPACITYLENS_ALLOW_RESET: optionalBoolean,
-  // Admission owns domain-list policy; CORS owns its explicit origin-list validation.
+  // Admission owns the domain-list rules; CORS owns its explicit origin-list validation.
   CAPACITYLENS_ALLOWED_EMAIL_DOMAINS: optional,
   CAPACITYLENS_BACKUP_DIR: optional,
   // Retention deliberately accepts raw text for the backup parser’s warning/default/clamp behavior.

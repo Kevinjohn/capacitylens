@@ -197,7 +197,7 @@ export async function assertCompanyPermission(
 export default class Client extends SoftDeletes(ClientSchema) {
 
 /**
- * The Masquerade package's route policy: on a member route it admits the view-as mode, requires
+ * The Masquerade package's route rules: on a member route it admits the view-as mode, requires
  * the captured context on a write, and refuses writes and sensitive routes while a mode is active.
  */
 export default class MasqueradeContextMiddleware {

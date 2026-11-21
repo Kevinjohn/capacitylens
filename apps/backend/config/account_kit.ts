@@ -52,7 +52,7 @@ export default defineConfig({
   sessionManagement: { idleExpiry: SESSION_IDLE_EXPIRY },
   // One lifetime for every invitation; the documentation names it.
   expiresIn: { invitation: '7d' },
-  // The routes count Unicode code points against the shared policy; these are the Kit's UTF-16 bounds.
+  // The routes count Unicode code points against the shared limits; these are the Kit's UTF-16 bounds.
   passwordPolicy: { minLength: MIN_PASSWORD_LENGTH, maxLength: MAX_PASSWORD_INPUT_CODE_UNITS },
   limiterSecret: env.get('APP_KEY'),
   limiterNamespace: 'capacitylens',

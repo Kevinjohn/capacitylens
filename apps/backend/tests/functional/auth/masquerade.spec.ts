@@ -624,7 +624,7 @@ test.group('native read-only masquerade', (group) => {
       asSession(client.get('/api/companies/a-studio/members'), cookie),
       asSession(client.get('/api/diagnostics'), cookie),
     ];
-    // Route policy runs after route matching, so a write to a path with no route is a 404 (#1865).
+    // Masquerade route rules run after route matching, so a write to a path with no route is a 404 (#1865).
     const expectedStatuses = [403, 404, 404, 404, 403, 404, 403, 403, 403];
     for (const [index, request] of examples.entries()) {
       const response = await request.send();
@@ -642,7 +642,7 @@ test.group('native read-only masquerade', (group) => {
     ).setup((request) => {
       request.request.send('{');
     });
-    // The body parser runs before route policy, so a malformed write is refused as malformed.
+    // The body parser runs before the masquerade route rules, so a malformed write is refused as malformed.
     malformed.assertStatus(400);
     assert.notExists(
       await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()

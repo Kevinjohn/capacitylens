@@ -1,7 +1,7 @@
 // `@kevinjohn/adonisjs-confirm-action-with-password` 0.2.1, used with exactly Account Kit 0.4.1,
 // owns issuance, credential/session/request binding, expiry and transactional consumption. Product
 // code owns live company authority and the response contract; its pre-flight and transactional
-// policy require a confirmed email, admission, a live Owner and no view-as mode. Credential writes
+// rules require a confirmed email, admission, a live Owner and no view-as mode. Credential writes
 // remain Account Kit-owned.
 
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';

@@ -24,7 +24,7 @@ export async function getActiveMembership(userId: string, companyId: string, trx
   return membership?.status === 'active' ? membership : null;
 }
 
-/** Resolves active company standing for ordinary data and member policies. */
+/** Resolves active company standing for ordinary data and member rules. */
 export async function getActiveCompanyRole(
   userId: string,
   companyId: string,

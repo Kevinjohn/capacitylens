@@ -157,7 +157,7 @@ test.group('ordinary authentication request contracts', (group) => {
     }
   });
 
-  test('sign-up keeps Unicode code-point passwords and trimmed names before policy', async ({
+  test('sign-up keeps Unicode code-point passwords and trimmed names before the password rules', async ({
     client,
     assert,
   }) => {
