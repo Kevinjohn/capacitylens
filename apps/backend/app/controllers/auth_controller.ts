@@ -8,7 +8,7 @@ import {
   isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 import { isMailConfigured } from '#services/mail_delivery';
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { isFirstCompanySetupRequired } from '#services/first_company_setup';
@@ -110,7 +110,7 @@ export default class AuthController {
       return ctx.response.badRequest({ error: requireAuthRequestMessage(error, 'sign-up') });
     }
     const { email, name } = body;
-    if (!env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') || (await hasNoCompany(db))) {
+    if (!capacitylens.allowOpenSignUp || (await hasNoCompany(db))) {
       return ctx.response.forbidden({ error: 'Sign-up is closed.', code: 'SIGN_UP_CLOSED' });
     }
     try {

@@ -3,7 +3,7 @@
 // proof.
 
 import type { ApplicationService } from '@adonisjs/core/types';
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
@@ -38,8 +38,8 @@ export async function recordBootstrapAdmission(
 }
 
 export async function bootstrapDevelopmentCredential(app: ApplicationService) {
-  if (!env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN')) return;
-  const password = env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD');
+  if (!capacitylens.createAdmin) return;
+  const password = capacitylens.bootstrapAdminPassword;
   if (!password || getPasswordLengthFailure(password)) {
     throw new Error(
       'CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must satisfy the password length policy'

@@ -4,7 +4,7 @@
 // `masquerade:stop`.
 
 import type { ApplicationService } from '@adonisjs/core/types';
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 import db from '@adonisjs/lucid/services/db';
 import { rememberSchemaIntegrity } from '#services/schema_integrity';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
@@ -48,11 +48,11 @@ export default class ConfigurationProvider {
   async boot() {
     if (this.app.inProduction) {
       assertProductionPosture({
-        allowReset: env.get('CAPACITYLENS_ALLOW_RESET'),
-        createAdmin: env.get('CAPACITYLENS_CREATE_ADMIN_ADMIN'),
-        bootstrapPassword: env.get('CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD'),
-        rateLimit: env.get('CAPACITYLENS_RATE_LIMIT'),
-        fixedToday: env.get('CAPACITYLENS_FIXED_TODAY'),
+        allowReset: capacitylens.allowReset,
+        createAdmin: capacitylens.createAdmin,
+        bootstrapPassword: capacitylens.bootstrapAdminPassword,
+        rateLimit: capacitylens.rateLimit,
+        fixedToday: capacitylens.fixedToday,
       });
     }
   }

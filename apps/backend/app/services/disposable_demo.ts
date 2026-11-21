@@ -7,7 +7,7 @@ import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 import { initializeCompanyAccess } from '#services/initial_company_access';
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 import { hasNoCompany } from '#models/installation_company';
 
 /** Insert the single disposable company graph and its first membership in one transaction. */
@@ -48,7 +48,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
 
 /** The demo commands run only on the per-launch storage `pnpm run dev:demo` creates under tmp/. */
 export function assertDisposableDemoDatabase(app: ApplicationService) {
-  const databasePath = env.get('CAPACITYLENS_DB');
+  const databasePath = capacitylens.databasePath;
   const directory = databasePath ? dirname(resolve(databasePath)) : '';
   if (
     !databasePath ||
