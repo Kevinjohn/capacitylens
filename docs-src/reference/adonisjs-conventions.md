@@ -149,7 +149,7 @@ one class unless the table says otherwise.
 | Validator | `app/validators/<singular resource>.ts` | named `<verb><Resource>Validator` | `createMemberValidator` |
 | Transformer | `app/transformers/<singular>_transformer.ts` | `<Singular>Transformer` | `user_transformer.ts` |
 | Exception | `app/exceptions/<name>_exception.ts` | `<Name>Exception` | `stale_revision_exception.ts` |
-| Service | `app/services/<name>_service.ts` | `<Name>Service` | function modules here (departure 10); file name **Open:** #2334 item 6 |
+| Service | `app/services/<name>_service.ts` | `<Name>Service` | function modules with no `_service` suffix (departure 10) |
 | Provider | `providers/<name>_provider.ts` | `<Name>Provider` | `backup_provider.ts` |
 | Preload file | `start/<name>.ts` | none; imported for its effect | `start/validator.ts` |
 | Ace command | `commands/<namespace>_<action>.ts` | `<NamespaceAction>` | `app_reset.ts`, `app:reset` |
@@ -265,6 +265,9 @@ Source: [Validation](https://docs.adonisjs.com/guides/basics/validation).
   `updateMemberValidator`, `listMembersValidator`. A name is unique across the application.
 - Validate with `request.validateUsing(validator)` as the first step of the action. Nothing reads
   `request.body()`, `request.all()` or `request.qs()` unvalidated.
+- CapacityLens passes the one request source a validator reads, `{ data: request.body() }` for a
+  write and `{ data: request.qs() }` for a read, so the merged `request.all()` is never validated
+  (departure 22).
 - Validate route parameters, headers and cookies in the same validator, under its `params`,
   `headers` and `cookies` keys.
 - Do not wrap `validateUsing` in `try`/`catch`. Use `request.tryValidateUsing` when the action
@@ -313,8 +316,8 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
 - Framework exception codes are `E_UPPER_SNAKE`. Product codes on the wire are stable identifiers
   and keep their spelling.
 - The handler shows debug output in development only (departure 19). Every error leaves in the
-  flat error contract (departure 2). **Open:** #2334 item 3 widens that departure to the whole
-  handler.
+  flat error contract, and the handler does not call `super.handle` or `super.report`
+  (departure 2).
 - A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers. **Open:** #2334 item 11.
 
 ## Responses and transformers
@@ -385,7 +388,7 @@ Source: [Models](https://lucid.adonisjs.com/docs/models),
 - Put data changes in `this.defer()` and raw DDL in `this.schema.raw()`.
 - Declare a foreign key with `.references().inTable()` and an explicit `.onDelete()`.
 - Production never rolls back: set `disableRollbacksInProduction: true`. The single baseline
-  migration has no `down()`. **Open:** #2334 item 8.
+  migration has no `down()` (departure 21).
 - A seeder extends `BaseSeeder`, lives in `database/seeders`, uses `this.client`, and limits itself
   with `static environment`.
 - A model factory lives in `database/factories` and is made with `node ace make:factory`.
@@ -402,7 +405,7 @@ Source: [Dependency injection](https://docs.adonisjs.com/guides/concepts/depende
 - In the framework a service is a class the container constructs, taken with `@inject()` and
   replaced in a test with `container.swap`. CapacityLens services are modules of exported
   functions without `@inject`, and a package service is resolved with `app.container.make` where
-  it is used (departure 10). **Open:** #2334 item 6 settles the file name.
+  it is used. Service files carry no `_service` suffix (departure 10).
 - Write a provider only for container bindings, framework extensions, or work that must start and
   stop with the application. One-off setup is a preload file.
 - In a provider: `register` only binds and is synchronous; `boot` configures; `start` also runs
@@ -492,7 +495,8 @@ Source: [Testing](https://docs.adonisjs.com/guides/testing/introduction),
   `mail.fake()`.
 - Assert on rows with the `db` assertions the `dbAssertions` plugin adds: `db.assertHas`,
   `db.assertMissing`, `db.assertCount`.
-- Test a command with `ace.create(Command, args)` and `command.assertSucceeded()`.
+- The framework tests a command with `ace.create(Command, args)` and `command.assertSucceeded()`.
+  CapacityLens operator commands are tested by starting the CLI (departure 23).
 - An API test calls a route by its name with `client.visit('members.index')`.
 - Every database group starts from wipe and migrate, and only groups that send no HTTP request
   use the global transaction (departure 17).
@@ -540,7 +544,7 @@ than the documentation does. CapacityLens does not install them. This is where i
 | `playwright-locators-are-exact` | A text locator states `exact`. | Applies to `e2e/` specs. |
 | `no-top-level-functions` | Behaviour is a class method, not a top-level function. | Not followed (departure 10). |
 | `exported-functions-are-factories` | An exported function only builds and returns a class instance. | Not followed (departure 10). |
-| `types-live-in-types-directory` | Types and interfaces live in a `types/` folder. | **Open:** #2334 item 7. |
+| `types-live-in-types-directory` | Types and interfaces live in a `types/` folder. | Not followed (departure 20). |
 
 Its code style guide adds one rule this page adopts: return early. Check each condition that ends
 the work at the top of the function, and do not wrap the main logic in an `if`.
