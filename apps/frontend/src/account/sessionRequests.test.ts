@@ -17,7 +17,7 @@ import { clearStoredAccountCommands } from './accountCommands';
 import { sessionRequests } from './sessionRequests';
 import { announceAuditWarning, AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 
-describe('browser account client', () => {
+describe('browser account api', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
     mocks.fetchApi

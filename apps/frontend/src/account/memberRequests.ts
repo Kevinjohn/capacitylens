@@ -3,7 +3,7 @@ import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import type { BrowserAccountCommand } from './accountCommands';
 import { runCommand, buildJsonCommandRequestInit } from './commandRequest';
-import { clearMemberResourceLink, setMemberResourceLink } from './memberResourceClient';
+import { clearMemberResourceLink, setMemberResourceLink } from './memberResourceApi';
 
 interface ChangeMemberRoleInput {
   companyId: string;
@@ -29,7 +29,7 @@ interface ChangeMemberStatusInput {
 type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
 
 /**
- * Member and ownership requests. Their typed readers are `teamAccessClient` and
+ * Member and ownership requests. Their typed readers are `teamAccessApi` and
  * `ownershipTransferAccess`; screens use those, never these responses.
  */
 export const memberRequests = {

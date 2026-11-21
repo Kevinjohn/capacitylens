@@ -3,7 +3,7 @@ import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { InvitationSignupBody } from './accountRequestTypes';
 
 /**
- * Signed-out invitation requests. Their typed reader is `invitationSignupClient`; screens use it,
+ * Signed-out invitation requests. Their typed reader is `invitationSignupApi`; screens use it,
  * never these responses.
  */
 export const invitationSignupRequests = {

@@ -1,6 +1,6 @@
 import { clearStoredAccountCommands } from '@/account/accountCommands';
 import { queryClient } from '@/api/queryClient';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 import { useStore } from '@/store/useStore';
 
 /** Non-secret storage signal that makes sibling tabs recheck the server session. */
@@ -18,7 +18,7 @@ export async function signOutAndReload({
   clearAccountCommands = clearStoredAccountCommands,
   reload = () => window.location.reload(),
 }: SignOutOptions = {}): Promise<void> {
-  const result = await authClient.signOut();
+  const result = await authApi.signOut();
   if (result.error) throw new Error(result.error.message);
 
   try {

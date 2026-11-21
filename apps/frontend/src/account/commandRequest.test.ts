@@ -18,7 +18,7 @@ import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
 import { command, transferOwner, expectCommand } from './accountCommandsTestKit';
 
-describe('browser account client', () => {
+describe('browser account api', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
     mocks.fetchApi

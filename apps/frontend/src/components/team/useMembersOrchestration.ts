@@ -2,7 +2,7 @@ import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessClient';
+import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessApi';
 import { useAuth } from '@/auth/authContext';
 import { useAccessGrant } from '@/auth/permissionContext';
 import { useDeadlineClock } from '@/hooks/useDeadlineClock';

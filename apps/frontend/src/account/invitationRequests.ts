@@ -7,7 +7,7 @@ import type { CreateInvitationBody } from './accountRequestTypes';
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from './commandRequest';
 
 /**
- * Invitation administration requests. Their typed reader is `teamAccessClient`; screens use it,
+ * Invitation administration requests. Their typed reader is `teamAccessApi`; screens use it,
  * never these responses.
  */
 export const invitationRequests = {

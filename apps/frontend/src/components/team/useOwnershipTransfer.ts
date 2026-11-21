@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { m } from '@/i18n';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamMember } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { resolveRejectionMessage } from '@/account/accessResult';
 import { queryClient } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
@@ -27,7 +27,7 @@ export interface OwnershipTransferController extends OwnershipTransferState {
 }
 
 const EMPTY_MEMBERS: readonly TeamMember[] = [];
-type OwnershipTransferResult = Awaited<ReturnType<typeof teamAccessClient.transferOwnership>>;
+type OwnershipTransferResult = Awaited<ReturnType<typeof teamAccessApi.transferOwnership>>;
 
 function useOwnerDirectory({
   companyId,
@@ -107,7 +107,7 @@ async function sendTransfer(
   confirmationId: string,
 ): Promise<OwnershipTransferResult | null> {
   try {
-    return await teamAccessClient.transferOwnership({
+    return await teamAccessApi.transferOwnership({
       companyId,
       targetPrincipalId,
       confirmationId,

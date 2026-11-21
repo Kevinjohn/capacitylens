@@ -17,7 +17,7 @@ import { clearStoredAccountCommands } from './accountCommands';
 import { readUnknownAccountCommandOutcome } from './commandOutcome';
 import { invitationRequests } from './invitationRequests';
 
-describe('browser account client', () => {
+describe('browser account api', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
     mocks.fetchApi

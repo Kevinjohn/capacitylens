@@ -2,7 +2,7 @@ import { m } from '@/i18n';
 import { APP_NAME } from '@capacitylens/shared/brand';
 import type { InvitationRole } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamInvitation } from '@/account/teamAccessClient';
+import type { TeamInvitation } from '@/account/teamAccessApi';
 import { formatInviteExpiryDate } from '@/components/invites/inviteExpiry';
 import { resolveRoleLabel, resolveRoleSummary } from '@/lib/accessCopy';
 import { Modal, SelectField, TextField } from '@/components/common/ui';

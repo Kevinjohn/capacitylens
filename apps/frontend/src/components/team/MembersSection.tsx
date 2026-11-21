@@ -9,7 +9,7 @@ import { InviteMemberPanel } from './InviteMemberPanel';
 import { MemberConfirmations } from './MemberConfirmations';
 import { MemberRow } from './MemberRow';
 import { useMembersOrchestration } from './useMembersOrchestration';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 
 // Member controls require an authoritative Owner/Admin directory read, while server authorization remains independent. Fresh invitation secrets are displayed once and never read back.
 

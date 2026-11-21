@@ -2,7 +2,7 @@ import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { Modal, SelectField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Link as LinkIcon } from 'lucide-react';

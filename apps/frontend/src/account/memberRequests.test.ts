@@ -32,7 +32,7 @@ function requestInitAt(
   return call[1];
 }
 
-describe('browser account client', () => {
+describe('browser account api', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
     mocks.fetchApi

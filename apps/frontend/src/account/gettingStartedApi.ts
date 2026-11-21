@@ -4,7 +4,7 @@ import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 
 /** Company-scoped onboarding dismissal. Each call throws an `Error` when the server refuses it. */
-export const gettingStartedClient = {
+export const gettingStartedApi = {
   /**
    * Reads whether the company dismissed onboarding and which milestones it has reached.
    *

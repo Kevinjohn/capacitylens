@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { buildMemberConfirmationCopy, resolveMemberLabel } from './memberConfirmationCopy';
 import type { MemberConfirmation } from './memberConfirmationCopy';
 

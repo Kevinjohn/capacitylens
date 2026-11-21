@@ -3,7 +3,7 @@ import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/acco
 import { MAX_PASSWORD_INPUT_CODE_UNITS } from '@capacitylens/shared/domain/password';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 
 /** Manages password sign-in, errors, and successful session handling. */
 export function usePasswordSignIn({
@@ -31,7 +31,7 @@ export function usePasswordSignIn({
     setBusy(true);
     setError(null);
     try {
-      const { error: failure } = await authClient.signIn.email({
+      const { error: failure } = await authApi.signIn.email({
         email: normalizedEmail,
         password,
       });

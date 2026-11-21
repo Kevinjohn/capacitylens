@@ -37,10 +37,10 @@ flowchart TD
 ```mermaid
 flowchart TD
   screen["LoginScreen renders LoginForm"] --> hook["usePasswordSignIn submits credentials"]
-  hook --> auth["authClient password sign-in request"]
+  hook --> auth["authApi password sign-in request"]
   auth --> session["AuthProvider refreshes signed-in status"]
   session --> app["AppShell becomes available"]
   account["AccountView sign out"] --> signedOut["signOutAndReload ends session and reloads"]
 ```
 
-**Code references:** [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts); [LoginScreen.tsx](../../apps/frontend/src/auth/LoginScreen.tsx); [LoginForm.tsx](../../apps/frontend/src/auth/LoginForm.tsx); [authClient.ts](../../apps/frontend/src/auth/authClient.ts); [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx); [signOut.ts](../../apps/frontend/src/auth/signOut.ts)
+**Code references:** [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts); [LoginScreen.tsx](../../apps/frontend/src/auth/LoginScreen.tsx); [LoginForm.tsx](../../apps/frontend/src/auth/LoginForm.tsx); [authApi.ts](../../apps/frontend/src/auth/authApi.ts); [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx); [signOut.ts](../../apps/frontend/src/auth/signOut.ts)

@@ -2,7 +2,7 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { m } from '@/i18n';
 import { canViewAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { useCan } from '@/auth/permissionContext';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Badge } from '@/components/ui/badge';

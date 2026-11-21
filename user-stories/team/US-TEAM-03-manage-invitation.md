@@ -33,16 +33,16 @@ flowchart TD
 flowchart TD
     Row["InviteMemberPanel renders outstanding invite row"] --> Action{"Resend or Revoke?"}
     Action -->|"Resend"| ResendHook["useMemberInvites resendInvite"]
-    ResendHook --> ResendClient["teamAccessClient.resendInvitation → invitationRequests.resendInvitation"]
+    ResendHook --> ResendClient["teamAccessApi.resendInvitation → invitationRequests.resendInvitation"]
     ResendClient --> ResendRoute["api.invites.resend → InvitationsController.resend"]
     ResendRoute --> KitResend["Account Kit resend replaces invitation link and emails it"]
     KitResend --> Reload["reloadInvites refreshes the directory; UI shows outcome"]
     Action -->|"Revoke"| RevokeHook["useMemberInvites revokeInvite"]
-    RevokeHook --> RevokeClient["teamAccessClient.revokeInvitation → invitationRequests.revokeInvitation"]
+    RevokeHook --> RevokeClient["teamAccessApi.revokeInvitation → invitationRequests.revokeInvitation"]
     RevokeClient --> RevokeRoute["api.invites.revoke → InvitationsController.revoke"]
     RevokeRoute --> KitRevoke["Account Kit revokes the invitation"]
     KitRevoke --> Reload
     ResendRoute -. "Mail unavailable or delivery failure is shown" .-> Error["Resend notice or error"]
 ```
 
-**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [invitationRequests.ts](../../apps/frontend/src/account/invitationRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts)
+**Code references:** [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [useMemberInvites.ts](../../apps/frontend/src/components/team/useMemberInvites.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [invitationRequests.ts](../../apps/frontend/src/account/invitationRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts)

@@ -48,7 +48,7 @@ beforeEach(() => {
 });
 
 describe('masqueradeApi', () => {
-  it('decodes status transported by the account client', async () => {
+  it('decodes status transported by the account api', async () => {
     mocks.status.mockResolvedValue(json(activeStatus));
 
     await expect(masqueradeApi.status('a-studio')).resolves.toEqual(activeStatus);

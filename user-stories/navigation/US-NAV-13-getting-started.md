@@ -43,4 +43,4 @@ flowchart TD
   panel --> tour["useTourAction starts role tour"]
 ```
 
-**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx); [getting_started.ts](../../apps/backend/app/services/getting_started.ts); [gettingStartedClient.ts](../../apps/frontend/src/account/gettingStartedClient.ts); [useTourAction.ts](../../apps/frontend/src/hooks/useTourAction.ts)
+**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [GettingStarted.tsx](../../apps/frontend/src/components/GettingStarted.tsx); [getting_started.ts](../../apps/backend/app/services/getting_started.ts); [gettingStartedApi.ts](../../apps/frontend/src/account/gettingStartedApi.ts); [useTourAction.ts](../../apps/frontend/src/hooks/useTourAction.ts)

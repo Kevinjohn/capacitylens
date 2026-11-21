@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { queryClient } from '@/api/queryClient';
 import { useStore } from '@/store/useStore';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from './signOut';
 
 afterEach(() => {
@@ -23,7 +23,7 @@ describe('signOutAndReload', () => {
       expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
     });
 
-    vi.spyOn(authClient, 'signOut').mockResolvedValue({ data: null, error: null });
+    vi.spyOn(authApi, 'signOut').mockResolvedValue({ data: null, error: null });
     await signOutAndReload({
       clearAccountCommands,
       reload,
@@ -47,7 +47,7 @@ describe('signOutAndReload', () => {
       const clearAccountCommands = vi.fn();
       const reload = vi.fn();
 
-      vi.spyOn(authClient, 'signOut').mockImplementation(requestSignOut);
+      vi.spyOn(authApi, 'signOut').mockImplementation(requestSignOut);
       await expect(signOutAndReload({ clearAccountCommands, reload })).rejects.toThrow(message);
       expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toBeNull();
       expect(reload).not.toHaveBeenCalled();

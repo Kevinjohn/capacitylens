@@ -5,7 +5,7 @@ import { buildApiRouteUrl, buildApiReadRouteUrl } from '@/api/queryClient';
 export type AdmissionStatus = 'pending' | 'rejected' | 'revoked';
 
 /**
- * Admission requests. Their typed reader is `teamAccessClient`; screens use it, never these
+ * Admission requests. Their typed reader is `teamAccessApi`; screens use it, never these
  * responses.
  */
 export const admissionRequests = {

@@ -61,7 +61,7 @@ export async function readCommandResult<T>(
   }
   if (expectedStatus !== undefined && response.status !== expectedStatus) {
     console.warn(
-      `teamAccessClient: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
+      `teamAccessApi: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
     );
   }
   return parseOkBody(response, decode);

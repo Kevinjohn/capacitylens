@@ -5,7 +5,7 @@ import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/acco
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 
 /** Optional self-service recovery; success never reveals whether an address is registered. */
 export function ForgotPassword() {
@@ -25,7 +25,7 @@ export function ForgotPassword() {
     setBusy(true);
     setError(null);
     try {
-      const response = await authClient.requestPasswordReset(normalizedEmail);
+      const response = await authApi.requestPasswordReset(normalizedEmail);
       if (!response.error) setPhase('sent');
       else setError(m.login_reset_request_failed());
     } catch {

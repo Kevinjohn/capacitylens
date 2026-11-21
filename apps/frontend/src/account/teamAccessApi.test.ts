@@ -3,7 +3,7 @@ import { admissionRequests } from './admissionRequests';
 import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
 import { runCommand } from './commandRequest';
-import { resolveRejectionMessage, teamAccessClient } from './teamAccessClient';
+import { resolveRejectionMessage, teamAccessApi } from './teamAccessApi';
 
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -13,14 +13,14 @@ const json = (body: unknown) =>
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('teamAccessClient command outcomes', () => {
+describe('teamAccessApi command outcomes', () => {
   it('classifies an in-progress command as an unknown outcome', async () => {
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
       Response.json({ code: 'COMMAND_IN_PROGRESS', error: 'Still running.' }, { status: 409 }),
     );
 
     await expect(
-      teamAccessClient.createInvitation({
+      teamAccessApi.createInvitation({
         companyId: 'account-1',
         role: 'viewer',
         email: 'selina@wayne.test',
@@ -35,7 +35,7 @@ describe('teamAccessClient command outcomes', () => {
     );
 
     await expect(
-      teamAccessClient.createInvitation({
+      teamAccessApi.createInvitation({
         companyId: 'account-1',
         role: 'viewer',
         email: 'selina@wayne.test',
@@ -45,7 +45,7 @@ describe('teamAccessClient command outcomes', () => {
   });
 });
 
-describe('teamAccessClient directory validation', () => {
+describe('teamAccessApi directory validation', () => {
   it('defaults absent additive fields and contains unsupported rows', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(
@@ -84,7 +84,7 @@ describe('teamAccessClient directory validation', () => {
       }),
     );
 
-    await expect(teamAccessClient.listMembers('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listMembers('account-1')).resolves.toMatchObject({
       kind: 'ok',
       value: {
         signInTrackingEnabled: false,
@@ -115,14 +115,14 @@ describe('teamAccessClient directory validation', () => {
       };
       vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(json({ members: [member] }));
 
-      await expect(teamAccessClient.listMembers('account-1')).resolves.toMatchObject({
+      await expect(teamAccessApi.listMembers('account-1')).resolves.toMatchObject({
         kind: 'invalid',
       });
     },
   );
 });
 
-describe('teamAccessClient member resource links', () => {
+describe('teamAccessApi member resource links', () => {
   it('keeps an operation-ambiguous conflict uncertain despite a terminal-looking body', async () => {
     const response = await runCommand({
       operationKey: null,
@@ -133,7 +133,7 @@ describe('teamAccessClient member resource links', () => {
     });
     vi.spyOn(memberRequests, 'setMemberResourceLink').mockResolvedValue(response);
     await expect(
-      teamAccessClient.setMemberResourceLink({
+      teamAccessApi.setMemberResourceLink({
         companyId: 'a1',
         principalId: 'u1',
         resourceId: 'r1',
@@ -152,7 +152,7 @@ describe('teamAccessClient member resource links', () => {
         json({ resourceId: 'r1', revision }),
       );
       await expect(
-        teamAccessClient.setMemberResourceLink({
+        teamAccessApi.setMemberResourceLink({
           companyId: 'a1',
           principalId: 'u1',
           resourceId: 'r1',
@@ -176,19 +176,19 @@ describe('teamAccessClient member resource links', () => {
       resourceId: 'r1',
       expectedRevision: null,
     };
-    await expect(teamAccessClient.setMemberResourceLink(input)).resolves.toEqual({
+    await expect(teamAccessApi.setMemberResourceLink(input)).resolves.toEqual({
       kind: 'rejected',
       status: 409,
       message: 'The member link changed.',
     });
-    await expect(teamAccessClient.setMemberResourceLink(input)).resolves.toMatchObject({
+    await expect(teamAccessApi.setMemberResourceLink(input)).resolves.toMatchObject({
       kind: 'invalid',
       status: 200,
     });
   });
 });
 
-describe('teamAccessClient invitation rows', () => {
+describe('teamAccessApi invitation rows', () => {
   it('drops rows without an address or an invitable role and keeps valid peers', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const row = { expiresAt: '2026-08-27T10:00:00.000Z', createdAt: '2026-07-27T10:00:00.000Z' };
@@ -202,7 +202,7 @@ describe('teamAccessClient invitation rows', () => {
       }),
     );
 
-    await expect(teamAccessClient.listInvitations('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listInvitations('account-1')).resolves.toMatchObject({
       kind: 'ok',
       value: [{ id: '1', preauthEmail: 'selina@wayne.test' }],
     });
@@ -212,7 +212,7 @@ describe('teamAccessClient invitation rows', () => {
   });
 });
 
-describe('teamAccessClient invitation creation', () => {
+describe('teamAccessApi invitation creation', () => {
   it.each([
     [201, true],
     [202, false],
@@ -222,7 +222,7 @@ describe('teamAccessClient invitation creation', () => {
       .mockResolvedValue(new Response(JSON.stringify({ id: 1, emailed }), { status }));
     const input = { companyId: 'a1', role: 'editor' as const, email: 'selina@wayne.test' };
 
-    await expect(teamAccessClient.createInvitation(input)).resolves.toMatchObject({
+    await expect(teamAccessApi.createInvitation(input)).resolves.toMatchObject({
       kind: 'ok',
       value: { emailed },
     });
@@ -247,14 +247,14 @@ describe('teamAccessClient invitation creation', () => {
         }),
       );
 
-      await expect(teamAccessClient.listInvitations('account-1')).resolves.toMatchObject({
+      await expect(teamAccessApi.listInvitations('account-1')).resolves.toMatchObject({
         kind: 'invalid',
       });
     },
   );
 });
 
-describe('teamAccessClient duplicate validation', () => {
+describe('teamAccessApi duplicate validation', () => {
   it('rejects duplicate member identities', async () => {
     const member = {
       userId: 'user-1',
@@ -271,7 +271,7 @@ describe('teamAccessClient duplicate validation', () => {
       }),
     );
 
-    await expect(teamAccessClient.listMembers('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listMembers('account-1')).resolves.toMatchObject({
       kind: 'invalid',
     });
   });
@@ -290,7 +290,7 @@ describe('teamAccessClient duplicate validation', () => {
       }),
     );
 
-    await expect(teamAccessClient.listInvitations('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listInvitations('account-1')).resolves.toMatchObject({
       kind: 'invalid',
     });
   });
@@ -343,7 +343,7 @@ describe('rejectionMessage', () => {
   });
 });
 
-describe('teamAccessClient admission requests', () => {
+describe('teamAccessApi admission requests', () => {
   it.each([
     { userId: 'bruce', email: null, requestedAt: null },
     { userId: 'bruce', email: 'bruce@wayne.test', requestedAt: 42 },
@@ -352,7 +352,7 @@ describe('teamAccessClient admission requests', () => {
       .spyOn(admissionRequests, 'listAdmissionRequests')
       .mockImplementation(async () => json({ items: [row], nextCursor: null }));
 
-    await expect(teamAccessClient.listAdmissionRequests()).resolves.toMatchObject({
+    await expect(teamAccessApi.listAdmissionRequests()).resolves.toMatchObject({
       kind: 'invalid',
     });
     expect(list).toHaveBeenCalledOnce();
@@ -370,7 +370,7 @@ describe('teamAccessClient admission requests', () => {
         ),
       );
 
-    await expect(teamAccessClient.listAdmissionRequests()).resolves.toEqual({
+    await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
       kind: 'ok',
       status: 200,
       value: [{ ...row, invitedRole: null, approval: 'pending' }],
@@ -391,7 +391,7 @@ describe('teamAccessClient admission requests', () => {
         return json({ items: [], nextCursor: null });
       });
 
-    await expect(teamAccessClient.listAdmissionRequests()).resolves.toEqual({
+    await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
       kind: 'invalid',
       status: 200,
       message: 'The server returned an invalid response.',
@@ -413,7 +413,7 @@ describe('teamAccessClient admission requests', () => {
         return json({ items: [], nextCursor: null });
       });
 
-    await expect(teamAccessClient.listAdmissionRequests()).resolves.toEqual({
+    await expect(teamAccessApi.listAdmissionRequests()).resolves.toEqual({
       kind: 'invalid',
       status: 200,
       message: 'The server returned an invalid response.',
@@ -438,7 +438,7 @@ describe('teamAccessClient admission requests', () => {
         return json({ items: [], nextCursor: null });
       });
 
-    await expect(teamAccessClient.listAdmissionRequests()).resolves.toMatchObject({
+    await expect(teamAccessApi.listAdmissionRequests()).resolves.toMatchObject({
       kind: 'ok',
       value: [
         { userId: 'jason', approval: 'pending' },

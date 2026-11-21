@@ -59,7 +59,7 @@ const post = <Name extends AuthRoute>(name: Name, body: Route.Body<Name>) =>
   request('POST', name, buildJsonBody(name, body));
 
 /** Typed browser client for the product's session, credential, confirmation and admission endpoints. */
-export const authClient = {
+export const authApi = {
   signIn: {
     email: async (input: PasswordCredentials) => {
       const received: { response?: { ok: boolean; status: number; payload: unknown } } = {};

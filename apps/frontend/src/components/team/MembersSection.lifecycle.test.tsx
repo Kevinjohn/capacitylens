@@ -11,7 +11,7 @@ import {
 } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
-import { teamAccessClient } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
 import {
   chooseMemberAction,
   waitForMemberRow,
@@ -355,7 +355,7 @@ describe('MembersSection — member lifecycle', () => {
       { userId: 'ed', role: 'editor', name: 'Clark Kent' },
     ]);
     vi.stubGlobal('fetch', fetchMock);
-    vi.spyOn(teamAccessClient, 'setMemberResourceLink').mockResolvedValue({
+    vi.spyOn(teamAccessApi, 'setMemberResourceLink').mockResolvedValue({
       kind: 'unknown',
       status: 409,
       message: 'The operation may have completed.',

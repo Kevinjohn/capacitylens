@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
-import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamMember } from '@/account/teamAccessClient';
+import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamMember } from '@/account/teamAccessApi';
 
 interface MemberResourceLinkRequestsInput {
   companyId: string | null;
@@ -27,7 +27,7 @@ function resolveResourceStatus({
 
 function requestResourceLinkChange(member: TeamMember, companyId: string, resourceId: string) {
   if (resourceId !== '') {
-    return teamAccessClient.setMemberResourceLink({
+    return teamAccessApi.setMemberResourceLink({
       companyId,
       principalId: member.userId,
       resourceId,
@@ -35,7 +35,7 @@ function requestResourceLinkChange(member: TeamMember, companyId: string, resour
     });
   }
   if (member.resourceLink) {
-    return teamAccessClient.clearMemberResourceLink(
+    return teamAccessApi.clearMemberResourceLink(
       companyId,
       member.userId,
       member.resourceLink.revision,

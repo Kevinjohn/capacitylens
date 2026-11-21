@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { invitationSignupRequests } from './invitationSignupRequests';
-import { readInvitationPreview, signUpWithInvitation } from './invitationSignupClient';
+import { readInvitationPreview, signUpWithInvitation } from './invitationSignupApi';
 
 afterEach(() => vi.restoreAllMocks());
 

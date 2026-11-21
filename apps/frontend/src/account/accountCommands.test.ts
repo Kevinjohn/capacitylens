@@ -20,7 +20,7 @@ import {
 } from './accountCommands';
 import { transferOwner } from './accountCommandsTestKit';
 
-describe('browser account client', () => {
+describe('browser account api', () => {
   beforeEach(() => {
     clearStoredAccountCommands();
     mocks.fetchApi

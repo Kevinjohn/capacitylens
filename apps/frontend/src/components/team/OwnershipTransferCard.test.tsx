@@ -5,7 +5,7 @@ import { m } from '@/i18n';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
@@ -14,7 +14,7 @@ import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
 const client = vi.hoisted(() => ({ listMembers: vi.fn(), transferOwnership: vi.fn() }));
 const reproject = vi.hoisted(() => vi.fn(async () => true));
 
-vi.mock('@/account/teamAccessClient', () => ({ teamAccessClient: client }));
+vi.mock('@/account/teamAccessApi', () => ({ teamAccessApi: client }));
 vi.mock('@/auth/reprojectAccess', () => ({ reprojectAccess: reproject }));
 vi.mock('@/auth/PasswordConfirmationDialog', () => ({
   PasswordConfirmationDialog: ({

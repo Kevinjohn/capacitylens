@@ -5,8 +5,8 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { PermissionContext } from '@/auth/permissionContext';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { AdmissionRequest } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { AdmissionRequest } from '@/account/teamAccessApi';
 import { TeamAccessView } from './TeamAccessView';
 import { useStore } from '@/store/useStore';
 import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
@@ -224,21 +224,21 @@ describe('TeamAccessView member management', () => {
         email: 'barbara.gordon@example.com',
       };
       let finishDecision!: (
-        value: Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>,
+        value: Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>,
       ) => void;
       let failDecision!: (failure: Error) => void;
-      const oldDecision = new Promise<Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>>(
+      const oldDecision = new Promise<Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>>(
         (resolve, reject) => {
           finishDecision = resolve;
           failDecision = reject;
         },
       );
       const list = vi
-        .spyOn(teamAccessClient, 'listAdmissionRequests')
+        .spyOn(teamAccessApi, 'listAdmissionRequests')
         .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [oldRequest] })
         .mockResolvedValue({ kind: 'ok', status: 200, value: [successorRequest] });
       const decide = vi
-        .spyOn(teamAccessClient, 'decideAdmission')
+        .spyOn(teamAccessApi, 'decideAdmission')
         .mockReturnValueOnce(oldDecision)
         .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
 

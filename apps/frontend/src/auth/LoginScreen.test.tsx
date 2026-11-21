@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-// Mock the product auth client so the forms can submit without a real server. Its methods return
+// Mock the product auth api so the forms can submit without a real server. Its methods return
 // a typed { data, error } result so each form sets its inline error
 // and the per-control describedby wires up.
 const signInEmail = vi.fn();
 const requestPasswordReset = vi.fn();
-vi.mock('./authClient', () => ({
-  authClient: {
+vi.mock('./authApi', () => ({
+  authApi: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
     },

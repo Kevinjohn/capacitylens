@@ -5,7 +5,7 @@ import {
   MIN_PASSWORD_LENGTH,
   getPasswordLengthFailure,
 } from '@capacitylens/shared/domain/password';
-import { authClient } from '@/auth/authClient';
+import { authApi } from '@/auth/authApi';
 import { useFieldError } from '@/hooks/useFieldError';
 import { m } from '@/i18n';
 
@@ -66,7 +66,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     const requestGeneration = ++generation.current;
     setBusy(true);
     try {
-      const result = await authClient.changePassword({ currentPassword, newPassword });
+      const result = await authApi.changePassword({ currentPassword, newPassword });
       // A committed update whose follow-up failed still changed the password, so the old inputs are obsolete.
       const committedWithWarning = result.error?.code === 'CREDENTIAL_UPDATE_COMMITTED';
       if (result.error && !committedWithWarning) {
@@ -130,7 +130,7 @@ function useAccountDeletion({ fail, clear, setMessage, setBusy }: PasswordChange
     const requestGeneration = ++generation.current;
     setBusy(true);
     try {
-      const result = await authClient.deleteAccount({ currentPassword });
+      const result = await authApi.deleteAccount({ currentPassword });
       // A committed deletion whose follow-up failed still removed the account and ended the sign-in.
       if (result.error && result.error.code !== 'ACCOUNT_DELETION_COMMITTED') {
         if (requestGeneration !== generation.current) return;

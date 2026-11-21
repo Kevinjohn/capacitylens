@@ -30,7 +30,7 @@ const acceptNoContent = (): true => true;
 
 type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
 /** Provides typed request methods for team and access administration. */
-export const teamAccessClient = {
+export const teamAccessApi = {
   ...ownershipTransferAccess,
 
   async listMembers(

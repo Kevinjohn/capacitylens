@@ -34,12 +34,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  access["AccessScreen sends confirmation request"] --> send["authClient.sendEmailVerification"]
+  access["AccessScreen sends confirmation request"] --> send["authApi.sendEmailVerification"]
   send --> mail["VerificationController.send calls Account Kit emailVerification.send"]
-  link["VerifyEmail inspects link and displays password form"] --> inspect["authClient.inspectEmailVerification"]
+  link["VerifyEmail inspects link and displays password form"] --> inspect["authApi.inspectEmailVerification"]
   inspect --> kitInspect["VerificationController.inspect calls Account Kit emailVerification.inspect"]
   form["VerifyEmail.submit sends token and password"] --> complete["VerificationController.complete calls Account Kit emailVerification.complete"]
   complete --> result["VerifyEmail renders success, invalid, unavailable or uncertain result"]
 ```
 
-**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [verification_controller.ts](../../apps/backend/app/controllers/verification_controller.ts)
+**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [verification_controller.ts](../../apps/backend/app/controllers/verification_controller.ts)

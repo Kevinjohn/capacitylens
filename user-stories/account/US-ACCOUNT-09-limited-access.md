@@ -31,13 +31,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  gate["AuthProvider renders AccessScreen for accessGate"] --> request["AdmissionStep calls authClient.requestAdmission"]
+  gate["AuthProvider renders AccessScreen for accessGate"] --> request["AdmissionStep calls authApi.requestAdmission"]
   request --> kit["AdmissionController.request calls Account Kit admission service"]
-  gate --> join["MembershipStep calls authClient.completeMembership"]
+  gate --> join["MembershipStep calls authApi.completeMembership"]
   join --> service["AdmissionController.complete calls completeMembership"]
   request --> refresh["AccessScreen onRefresh rechecks AuthProvider status"]
   join --> refresh
   refresh --> outcome["AuthProvider renders refreshed gate or company access"]
 ```
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)
+**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)

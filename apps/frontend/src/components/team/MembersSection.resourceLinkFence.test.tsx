@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { m } from '@/i18n';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamDirectory, TeamMember } from '@/account/teamAccessApi';
 import { resetStoreWithCompany } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
 import {
@@ -14,9 +14,9 @@ import {
 } from './MembersSectionTestKit';
 import type { User } from './MembersSectionTestKit';
 
-type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;
-type LinkWrite = Awaited<ReturnType<typeof teamAccessClient.setMemberResourceLink>>;
-type UnlinkWrite = Awaited<ReturnType<typeof teamAccessClient.clearMemberResourceLink>>;
+type MembersRead = Awaited<ReturnType<typeof teamAccessApi.listMembers>>;
+type LinkWrite = Awaited<ReturnType<typeof teamAccessApi.setMemberResourceLink>>;
+type UnlinkWrite = Awaited<ReturnType<typeof teamAccessApi.clearMemberResourceLink>>;
 type ResourceLink = TeamMember['resourceLink'];
 
 function makeMember(userId: string, name: string, resourceLink: ResourceLink = null): TeamMember {
@@ -66,18 +66,18 @@ function controlRequests(initialRead = makeRead()) {
   const writes = holdCalls<LinkWrite>();
   const unlinks = holdCalls<UnlinkWrite>();
   const listMembers = vi
-    .spyOn(teamAccessClient, 'listMembers')
+    .spyOn(teamAccessApi, 'listMembers')
     .mockResolvedValueOnce(initialRead)
     .mockImplementation(() => new Promise((resolve) => reads.calls.push(resolve)));
-  vi.spyOn(teamAccessClient, 'listInvitations').mockResolvedValue({
+  vi.spyOn(teamAccessApi, 'listInvitations').mockResolvedValue({
     kind: 'ok',
     status: 200,
     value: [],
   });
   const setLink = vi
-    .spyOn(teamAccessClient, 'setMemberResourceLink')
+    .spyOn(teamAccessApi, 'setMemberResourceLink')
     .mockImplementation(() => new Promise((resolve) => writes.calls.push(resolve)));
-  vi.spyOn(teamAccessClient, 'clearMemberResourceLink').mockImplementation(
+  vi.spyOn(teamAccessApi, 'clearMemberResourceLink').mockImplementation(
     () => new Promise((resolve) => unlinks.calls.push(resolve)),
   );
   return { reads, writes, unlinks, listMembers, setLink };

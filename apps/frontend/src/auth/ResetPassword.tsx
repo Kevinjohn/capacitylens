@@ -13,7 +13,7 @@ import {
 } from '@capacitylens/shared/domain/password';
 import { resolveResetPasswordFailureMessage } from './resetPasswordFailure';
 import { m } from '@/i18n';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 
 // Password recovery must render before a session exists. The server enforces token consumption and password policy.
 
@@ -175,7 +175,7 @@ export function ResetPassword() {
     setError(null);
     setState({ kind: 'working' });
     try {
-      const res = await authClient.resetPassword({ newPassword: password, token });
+      const res = await authApi.resetPassword({ newPassword: password, token });
       if (!res.error) {
         setState({ kind: 'done' });
         return;

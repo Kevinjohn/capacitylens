@@ -1,6 +1,6 @@
 import { m } from '@/i18n';
 import type { MembershipStatus } from '@capacitylens/shared/account/types';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 
 /** Member administration actions that require a confirmation message. */
 export type MemberConfirmationAction = 'masquerade' | 'suspend' | 'restore';

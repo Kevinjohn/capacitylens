@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useCan, useRole } from '@/auth/permissionContext';
 import { useTourAction } from '@/hooks/useTourAction';
-import { gettingStartedClient } from '@/account/gettingStartedClient';
+import { gettingStartedApi } from '@/account/gettingStartedApi';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
 import { useStore } from '@/store/useStore';
 import { Button } from './ui/button';
@@ -234,7 +234,7 @@ function useCompanyDismissal(
   useEffect(() => {
     if (dismissedRef.current) return;
     const controller = new AbortController();
-    void gettingStartedClient
+    void gettingStartedApi
       .read(companyId, controller.signal)
       .then(({ dismissed: companyDismissed, steps: companySteps }) => {
         if (!controller.signal.aborted && !dismissedRef.current) {
@@ -259,7 +259,7 @@ function useCompanyDismissal(
     if (saving) return;
     setSaving(true);
     try {
-      await gettingStartedClient.dismiss(companyId);
+      await gettingStartedApi.dismiss(companyId);
       dismissedRef.current = true;
       setDismissed(true);
       setConfirmOpen(false);

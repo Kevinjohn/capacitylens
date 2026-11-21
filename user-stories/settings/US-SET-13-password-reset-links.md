@@ -27,10 +27,10 @@ E -->|no| G["Read the error; request a new link if it expired"]
 
 ```mermaid
 flowchart TD
-  forgot["ForgotPassword submits email to authClient"] --> request["authClient.requestPasswordReset calls auth endpoint"]
+  forgot["ForgotPassword submits email to authApi"] --> request["authApi.requestPasswordReset calls auth endpoint"]
   request --> email["CredentialController.requestReset issues reset email without disclosing account existence"]
-  link["ResetPassword reads bearer from route"] --> submit["authClient.resetPassword submits new password"]
+  link["ResetPassword reads bearer from route"] --> submit["authApi.resetPassword submits new password"]
   submit --> session["Account Kit credential change ends sessions"]
 ```
 
-**Code references:** [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)
+**Code references:** [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)

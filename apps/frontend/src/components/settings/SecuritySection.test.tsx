@@ -9,8 +9,8 @@ import { SecuritySection } from './SecuritySection';
 
 const changePassword = vi.fn();
 const deleteAccount = vi.fn();
-vi.mock('@/auth/authClient', () => ({
-  authClient: {
+vi.mock('@/auth/authApi', () => ({
+  authApi: {
     changePassword: (...args: unknown[]) => changePassword(...args),
     deleteAccount: (...args: unknown[]) => deleteAccount(...args),
   },

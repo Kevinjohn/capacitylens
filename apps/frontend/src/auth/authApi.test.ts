@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
-describe('product auth client', () => {
+describe('product auth api', () => {
   it("posts password sign-in with session credentials for the backend's same-site CSRF boundary", async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     let sent: Request | undefined;
@@ -19,7 +19,7 @@ describe('product auth client', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const result = await authClient.signIn.email({
+    const result = await authApi.signIn.email({
       email: 'bruce@example.test',
       password: 'correct horse',
     });
@@ -51,7 +51,7 @@ describe('product auth client', () => {
       const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(failure);
       vi.stubGlobal('fetch', fetchMock);
       await expect(
-        authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+        authApi.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
       ).rejects.toBe(failure);
       expect(fetchMock).toHaveBeenCalledOnce();
     }
@@ -67,7 +67,7 @@ describe('product auth client', () => {
         ),
     );
     await expect(
-      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+      authApi.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
     ).resolves.toEqual({
       data: null,
       error: null,
@@ -80,7 +80,7 @@ describe('product auth client', () => {
       vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 })),
     );
     await expect(
-      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+      authApi.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
     ).resolves.toEqual({
       data: null,
       error: null,
@@ -103,7 +103,7 @@ describe('product auth client', () => {
     );
 
     await expect(
-      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+      authApi.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
     ).resolves.toEqual({
       data: null,
       error: null,
@@ -128,7 +128,7 @@ describe('product auth client', () => {
       );
 
       await expect(
-        authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+        authApi.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
       ).resolves.toEqual({
         data: null,
         error: { message: `Authentication request failed (${status}).`, status },
@@ -148,7 +148,7 @@ describe('product auth client', () => {
     );
 
     await expect(
-      authClient.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
+      authApi.signIn.email({ email: 'clark@wayne.example', password: 'secret' }),
     ).resolves.toEqual({
       data: null,
       error: { message: 'Sign-in refused.', code: 'REFUSED', status: 403 },
@@ -169,7 +169,7 @@ describe('product auth client', () => {
     );
 
     await expect(
-      authClient.signIn.email({ email: 'x@example.test', password: 'wrong' }),
+      authApi.signIn.email({ email: 'x@example.test', password: 'wrong' }),
     ).resolves.toEqual({
       data: null,
       error: { message: 'Invalid email or password.', code: 'INVALID_CREDENTIALS', status: 401 },
@@ -182,7 +182,7 @@ describe('product auth client', () => {
       vi.fn<typeof fetch>().mockResolvedValue(Response.json({}, { status: 503 })),
     );
 
-    await expect(authClient.requestPasswordReset('bruce@example.test')).resolves.toEqual({
+    await expect(authApi.requestPasswordReset('bruce@example.test')).resolves.toEqual({
       data: null,
       error: { message: 'Authentication request failed (503).', status: 503 },
     });
@@ -192,13 +192,13 @@ describe('product auth client', () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await authClient.requestPasswordReset('bruce@example.test');
-    await authClient.resetPassword({ token: 'single-use-token', newPassword: 'new-password' });
-    await authClient.changePassword({
+    await authApi.requestPasswordReset('bruce@example.test');
+    await authApi.resetPassword({ token: 'single-use-token', newPassword: 'new-password' });
+    await authApi.changePassword({
       currentPassword: 'current-password',
       newPassword: 'new-password',
     });
-    await authClient.signOut();
+    await authApi.signOut();
 
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       '/api/auth/request-reset',
@@ -229,7 +229,7 @@ it('retains unknown HTTP codes and safe operation metadata', async () => {
       ),
   );
   await expect(
-    authClient.signIn.email({ email: 'bruce@wayne.example', password: 'secret' }),
+    authApi.signIn.email({ email: 'bruce@wayne.example', password: 'secret' }),
   ).resolves.toMatchObject({
     data: null,
     error: {

@@ -1,8 +1,8 @@
 import { m } from '@/i18n';
 import type { MembershipStatus } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
-import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamMember as Member } from '@/account/teamAccessClient';
+import { resolveRejectionMessage, teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamMember as Member } from '@/account/teamAccessApi';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import type { MemberActionDependencies } from './MemberActionDependencies';
 import type { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
@@ -23,7 +23,7 @@ function createSignInTrackingMutation(dependencies: MemberMutationDependencies) 
   return (next: boolean) =>
     dependencies.withMemberAction('member-sign-in-tracking', async (companyId) => {
       try {
-        const result = await teamAccessClient.setMemberSignInTracking({
+        const result = await teamAccessApi.setMemberSignInTracking({
           companyId,
           enabled: next,
         });
@@ -58,7 +58,7 @@ function createRoleMutation(dependencies: MemberMutationDependencies) {
     if (nextRole === member.role) return;
     await dependencies.withMemberAction(`role:${member.userId}`, async (companyId) => {
       try {
-        const result = await teamAccessClient.changeMemberRole(companyId, member.userId, nextRole);
+        const result = await teamAccessApi.changeMemberRole(companyId, member.userId, nextRole);
         if (!dependencies.isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {
@@ -94,11 +94,7 @@ function createStatusMutation(dependencies: MemberMutationDependencies) {
     if (nextStatus === member.status) return;
     await dependencies.withMemberAction(`status:${member.userId}`, async (companyId) => {
       try {
-        const result = await teamAccessClient.changeMemberStatus(
-          companyId,
-          member.userId,
-          nextStatus,
-        );
+        const result = await teamAccessApi.changeMemberStatus(companyId, member.userId, nextStatus);
         if (!dependencies.isActiveCompany(companyId)) return;
         if (result.kind !== 'ok') {
           if (result.kind === 'unknown') {

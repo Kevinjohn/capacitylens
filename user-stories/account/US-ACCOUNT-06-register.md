@@ -42,4 +42,4 @@ flowchart TD
   kitAccept --> reload["Browser reload rechecks AuthProvider session and access gate"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupClient.ts](../../apps/frontend/src/account/invitationSignupClient.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [auth_controller.ts](../../apps/backend/app/controllers/auth_controller.ts)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [auth_controller.ts](../../apps/backend/app/controllers/auth_controller.ts)

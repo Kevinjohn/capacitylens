@@ -9,8 +9,8 @@ import {
   getPasswordLengthFailure,
 } from '@capacitylens/shared/domain/password';
 import { m } from '@/i18n';
-import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignupClient';
-import type { InvitationPreview } from '@/account/invitationSignupClient';
+import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignupApi';
+import type { InvitationPreview } from '@/account/invitationSignupApi';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

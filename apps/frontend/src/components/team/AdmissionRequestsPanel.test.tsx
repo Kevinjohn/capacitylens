@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { AdmissionRequest } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { AdmissionRequest } from '@/account/teamAccessApi';
 import { AdmissionRequestsPanel } from './AdmissionRequestsPanel';
 
 const pendingRequest: AdmissionRequest = {
@@ -17,15 +17,15 @@ afterEach(() => vi.restoreAllMocks());
 describe('AdmissionRequestsPanel read and refusal states', () => {
   it('shows loading until the read finishes, then allows a failed read to be retried', async () => {
     let finishRead!: (
-      value: Awaited<ReturnType<typeof teamAccessClient.listAdmissionRequests>>,
+      value: Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>,
     ) => void;
-    const firstRead = new Promise<
-      Awaited<ReturnType<typeof teamAccessClient.listAdmissionRequests>>
-    >((resolve) => {
-      finishRead = resolve;
-    });
+    const firstRead = new Promise<Awaited<ReturnType<typeof teamAccessApi.listAdmissionRequests>>>(
+      (resolve) => {
+        finishRead = resolve;
+      },
+    );
     const list = vi
-      .spyOn(teamAccessClient, 'listAdmissionRequests')
+      .spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockReturnValueOnce(firstRead)
       .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] });
 
@@ -44,7 +44,7 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
 
   it('explains approval only while at least one request is listed', async () => {
     const list = vi
-      .spyOn(teamAccessClient, 'listAdmissionRequests')
+      .spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [] })
       .mockResolvedValueOnce({ kind: 'ok', status: 200, value: [pendingRequest] });
 
@@ -62,10 +62,10 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
 
   it('shows a decision refusal and keeps the request available', async () => {
     const list = vi
-      .spyOn(teamAccessClient, 'listAdmissionRequests')
+      .spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockResolvedValue({ kind: 'ok', status: 200, value: [pendingRequest] });
     const decide = vi
-      .spyOn(teamAccessClient, 'decideAdmission')
+      .spyOn(teamAccessApi, 'decideAdmission')
       .mockResolvedValue({ kind: 'rejected', status: 403, message: 'Approval is unavailable.' });
 
     render(<AdmissionRequestsPanel />);
@@ -80,18 +80,16 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
   });
 
   it('does not refresh after a pending decision settles after unmount', async () => {
-    let finishDecision!: (
-      value: Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>,
-    ) => void;
-    const decision = new Promise<Awaited<ReturnType<typeof teamAccessClient.decideAdmission>>>(
+    let finishDecision!: (value: Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>) => void;
+    const decision = new Promise<Awaited<ReturnType<typeof teamAccessApi.decideAdmission>>>(
       (resolve) => {
         finishDecision = resolve;
       },
     );
     const list = vi
-      .spyOn(teamAccessClient, 'listAdmissionRequests')
+      .spyOn(teamAccessApi, 'listAdmissionRequests')
       .mockResolvedValue({ kind: 'ok', status: 200, value: [pendingRequest] });
-    vi.spyOn(teamAccessClient, 'decideAdmission').mockReturnValueOnce(decision);
+    vi.spyOn(teamAccessApi, 'decideAdmission').mockReturnValueOnce(decision);
 
     const view = render(<AdmissionRequestsPanel />);
     await screen.findByTestId('admission-request');
