@@ -199,7 +199,7 @@ async function commit({
   step,
   supplied,
 }: CommitOptions): Promise<PlanningMutationSuccess> {
-  const { authority, capabilities } = await resolvePlanningAuthority(trx, companyId);
+  const { authority, accessGrant } = await resolvePlanningAuthority(trx, companyId);
   if (!authority.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
@@ -238,7 +238,7 @@ async function commit({
     trx,
     companyId,
     intent: requested,
-    capabilities,
+    accessGrant,
     data: working,
     identity: {
       actorId: authority.actorId,

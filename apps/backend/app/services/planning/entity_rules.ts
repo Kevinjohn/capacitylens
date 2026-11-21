@@ -32,7 +32,7 @@ import {
 } from '#services/planning/restricted_fields';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 
 // Widened so a stored value of unknown type can be checked against the known kinds.
 const resourceKinds: readonly unknown[] = RESOURCE_KINDS;
@@ -64,10 +64,10 @@ const isEmptyValue = (value: unknown) => value === undefined || value === null |
 export function assertMayWriteRestrictedFields(
   table: ScopedEntityKey,
   fields: Record<string, unknown>,
-  capabilities: PlanningCapabilities,
+  accessGrant: PlanningAccessGrant,
   mode: 'create' | 'update'
 ) {
-  const rule = getRestriction(table, capabilities);
+  const rule = getRestriction(table, accessGrant);
   if (!rule) return;
   const named = rule.fields.some(
     (field) =>
@@ -88,9 +88,9 @@ function pinHiddenFields(
   table: ScopedEntityKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  context: PlanningCapabilities
+  accessGrant: PlanningAccessGrant
 ) {
-  const rule = getRestriction(table, context);
+  const rule = getRestriction(table, accessGrant);
   if (!rule) return;
   const privateRow = existing?.isPrivate === true;
   const keepsStored = rule.privateRowFields.length === 0 || privateRow;
@@ -259,10 +259,10 @@ function buildValidationView(
   table: ScopedEntityKey,
   candidate: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
-  context: PlanningCapabilities
+  accessGrant: PlanningAccessGrant
 ) {
   const visible = { ...candidate };
-  for (const field of listHiddenFields(table, context, existing)) delete visible[field];
+  for (const field of listHiddenFields(table, accessGrant, existing)) delete visible[field];
   return visible;
 }
 
@@ -284,7 +284,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   row: Record<string, unknown>,
   stored: AppData[K][number] | undefined,
   state: AppData,
-  context: PlanningCapabilities,
+  accessGrant: PlanningAccessGrant,
   options: EntityWriteOptions
 ): Promise<AppData[K][number]> {
   const existing = stored && asRecord(stored);
@@ -299,18 +299,18 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   if (existing && existing.companyId !== row.companyId) {
     throw new EntityWriteError('Not found.', 404);
   }
-  const hidden = listHiddenFields(table, context, existing);
+  const hidden = listHiddenFields(table, accessGrant, existing);
   for (const [field, value] of Object.entries(row)) {
     if (value !== undefined || hidden.includes(field)) continue;
     reject(field, 'cannot be undefined');
   }
   let candidate = { ...row };
-  pinHiddenFields(table, candidate, existing, context);
+  pinHiddenFields(table, candidate, existing, accessGrant);
   assertRequired(table, candidate);
   if (table === 'resources' && existing) assertResourceKind(candidate, existing);
   let validated: AppData[K][number];
   try {
-    const visible = buildValidationView(table, candidate, existing, context);
+    const visible = buildValidationView(table, candidate, existing, accessGrant);
     validated = await validateRow(table, visible);
     // The validated row keeps what the caller cannot see as stored; `candidate` is its field view.
     for (const field of hidden) {
@@ -336,7 +336,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
     assertResourceFields(row, candidate);
   }
   if (table === 'clients' || table === 'projects') {
-    if (context.canSeePrivateNames && !hasUsablePrivateCodeName(candidate)) {
+    if (accessGrant.canSeePrivateNames && !hasUsablePrivateCodeName(candidate)) {
       throw new EntityWriteError('A private client or project requires a code name.');
     }
   }
@@ -357,7 +357,7 @@ export async function prepareEntityWrite<K extends ScopedEntityKey>(
   normalizeValidWrite({
     table,
     candidate,
-    restrictedPrivateRow: isPrivateRowRestricted(table, context, existing),
+    restrictedPrivateRow: isPrivateRowRestricted(table, accessGrant, existing),
   });
   try {
     // `table` is the key `validated` and `stored` were read for; the compiler cannot relate a

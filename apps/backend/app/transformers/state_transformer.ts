@@ -16,13 +16,13 @@ export default class StateTransformer extends BaseTransformer<AppData> {
   toObject(): AppData {
     const data = this.resource;
     const companyId = this.companyId;
-    const capabilities = {
+    const visibilityFlags = {
       canSeePrivateNames: canSeePrivateNames(this.role),
       canSeeTimeOffNote: canSeeTimeOffNote(this.role),
     };
     const scoped = <K extends ScopedEntityKey>(table: K) =>
       (companyId ? data[table].filter((row) => row.companyId === companyId) : data[table]).map(
-        (row) => projectForReader(table, capabilities, row)
+        (row) => projectForReader(table, visibilityFlags, row)
       ) as AppData[K];
     // Each client and project carries the label its reader orders by, decided here once.
     const named = <K extends 'clients' | 'projects'>(table: K) =>

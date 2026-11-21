@@ -9,7 +9,7 @@ import { tables } from '#services/product_tables';
 import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { validateRow } from '#validators/planning/row';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 
 export { PlanningOperationError };
 
@@ -89,10 +89,10 @@ export async function updateSettings(
   data: AppData,
   companyId: string,
   changes: Record<string, unknown>,
-  capabilities: PlanningCapabilities,
+  accessGrant: PlanningAccessGrant,
   written: WrittenRow[] = []
 ) {
-  if (Object.hasOwn(changes, 'capacityOverviewAccess') && !isOwnerOrAdmin(capabilities.role)) {
+  if (Object.hasOwn(changes, 'capacityOverviewAccess') && !isOwnerOrAdmin(accessGrant.role)) {
     throw new PlanningOperationError(
       403,
       'AUTHORIZATION_DENIED',

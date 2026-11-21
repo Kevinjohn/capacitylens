@@ -10,9 +10,9 @@ import {
   PlanningOperationError,
 } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 
-const owner: PlanningCapabilities = {
+const owner: PlanningAccessGrant = {
   role: 'owner',
   canWrite: true,
   canSeePrivateNames: true,
@@ -23,14 +23,14 @@ async function executePlanningIntent(
   trx: TransactionClientContract,
   companyId: string,
   intent: PlanningIntent,
-  capabilities: PlanningCapabilities
+  accessGrant: PlanningAccessGrant
 ) {
   const data = await readStateWithClient(trx, companyId, true);
   return applyPlanningIntent({
     trx,
     companyId,
     intent,
-    capabilities,
+    accessGrant,
     data,
     identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
   });
@@ -132,7 +132,7 @@ test.group('typed planning writers', (group) => {
 
   test('permits Editor settings but reserves capacity access for Admin', async ({ assert }) => {
     await resetState('single');
-    const editor: PlanningCapabilities = {
+    const editor: PlanningAccessGrant = {
       ...owner,
       role: 'editor',
       canSeePrivateNames: false,
@@ -194,7 +194,7 @@ test.group('typed planning writers', (group) => {
         owner
       )
     );
-    const editor: PlanningCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
+    const editor: PlanningAccessGrant = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -219,7 +219,7 @@ test.group('typed planning writers', (group) => {
     await resetState('single');
     const before = await readState('a-studio', true);
     const id = randomUUID();
-    const editor: PlanningCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
+    const editor: PlanningAccessGrant = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,

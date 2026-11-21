@@ -4,14 +4,14 @@ import { transformState } from '#transformers/state_transformer';
 import { assertMayWriteRestrictedFields } from '#services/planning/entity_rules';
 import { PlanningOperationError } from '#services/planning/errors';
 import { RESTRICTED_FIELDS } from '#services/planning/restricted_fields';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 
 // An Editor sees neither private names nor time-off notes.
 const editor = {
   role: 'editor',
   canSeePrivateNames: false,
   canSeeTimeOffNote: false,
-} as unknown as PlanningCapabilities;
+} as unknown as PlanningAccessGrant;
 
 const secretRow = (fields: readonly string[]) => ({
   id: 'row-1',

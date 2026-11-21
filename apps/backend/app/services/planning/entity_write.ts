@@ -3,7 +3,7 @@ import type { AppData, ScopedEntityKey, Weekday } from '@capacitylens/shared/typ
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { tables } from '#services/product_tables';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
   applyCreateDefaults,
   assertMayWriteRestrictedFields,
@@ -27,7 +27,7 @@ interface WriteEntityOptions<K extends ScopedEntityKey> {
   table: K;
   id: string;
   fields: Partial<AppData[K][number]>;
-  capabilities: PlanningCapabilities;
+  accessGrant: PlanningAccessGrant;
   mode: 'create' | 'update';
   identity: RestorationIdentity;
   permissiveRepeatStart?: boolean;
@@ -86,7 +86,7 @@ export async function writeEntity<K extends ScopedEntityKey>({
   table,
   id,
   fields,
-  capabilities,
+  accessGrant,
   mode,
   identity,
   permissiveRepeatStart,
@@ -94,7 +94,7 @@ export async function writeEntity<K extends ScopedEntityKey>({
 }: WriteEntityOptions<K>) {
   const rows: readonly AppData[K][number][] = data[table];
   const existing = rows.find((row) => row.id === id);
-  assertMayWriteRestrictedFields(table, asRecord(fields), capabilities, mode);
+  assertMayWriteRestrictedFields(table, asRecord(fields), accessGrant, mode);
   if (mode === 'create' && existing) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
@@ -130,7 +130,7 @@ export async function writeEntity<K extends ScopedEntityKey>({
     candidate.sortOrder = resolveNextDisciplineSortOrder(data, companyId);
   }
   const lookup = lookupFor(data);
-  const clean = await prepareEntityWrite(table, candidate, existing, data, capabilities, {
+  const clean = await prepareEntityWrite(table, candidate, existing, data, accessGrant, {
     lookup,
     hasOtherBuiltinClient: (targetCompanyId, clientId) =>
       data.clients.some(

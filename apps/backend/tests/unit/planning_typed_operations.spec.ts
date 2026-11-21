@@ -6,9 +6,9 @@ import { readStateWithClient } from '#services/state_repository';
 import { readState, resetState } from '#tests/helpers/state_fixture';
 import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 
-const owner: PlanningCapabilities = {
+const owner: PlanningAccessGrant = {
   role: 'owner',
   canWrite: true,
   canSeePrivateNames: true,
@@ -22,7 +22,7 @@ async function execute(intent: PlanningIntent) {
       trx,
       companyId: 'a-studio',
       intent,
-      capabilities: owner,
+      accessGrant: owner,
       data,
       identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
     });

@@ -3,16 +3,16 @@ import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/doma
 import access from '#config/access_control';
 import { getActiveMembership, requireStoredRole } from '#services/auth/authorization';
 import { resolveEffectiveReadPrincipal } from '#services/auth/masquerade';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { PlanningOperationError } from '#services/planning/errors';
 
 /** The verified actor behind one planning operation and what that member may do and see. */
-export interface PlanningAuthority extends PlanningCapabilities {
+export interface PlanningAuthority extends PlanningAccessGrant {
   actorId: string;
   effectiveActorId: string;
 }
 
-/** Resolves the caller's planning authority and write capabilities inside the transaction. */
+/** Resolves the caller's planning authority and access grant inside the transaction. */
 export async function resolvePlanningAuthority(trx: TransactionClientContract, companyId: string) {
   const principal = await resolveEffectiveReadPrincipal(trx, companyId);
   const membership = await getActiveMembership(principal.effectiveId, companyId, trx);
@@ -37,6 +37,6 @@ export async function resolvePlanningAuthority(trx: TransactionClientContract, c
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   };
-  const capabilities: PlanningCapabilities = authority;
-  return { authority, capabilities };
+  const accessGrant: PlanningAccessGrant = authority;
+  return { authority, accessGrant };
 }

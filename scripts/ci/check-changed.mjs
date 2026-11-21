@@ -67,7 +67,7 @@ const documentationOnly = /^(?:docs-src\/|docs\/|user-stories\/)|\.md$/;
 const backendSuiteInput =
   /^apps\/backend\/(?:(?:database|config|start|providers|bin|commands|types|scripts)\/|app\/(?:middleware|exceptions|models)\/|app\/services\/(?:auth|account_kit|access_control|admission|membership)\/|app\/services\/(?:state_repository|with_transaction)\.ts$|tests\/(?!.+\.spec\.ts$)|[^/]+$)/;
 const backendPermissionFile =
-  /^apps\/backend\/app\/services\/(?:planning\/(?:data_policy|entity_rules)|cors_policy)\.ts$/;
+  /^apps\/backend\/app\/services\/(?:planning\/(?:access_grant|entity_rules)|cors_policy)\.ts$/;
 const backendModule = /^apps\/backend\/app\/([^/]+)\/(.+)\.ts$/;
 const backendTests = 'apps/backend/tests/';
 // Application source, tests and prose that no tooling-policy check reads. The Sonner CSP test reads

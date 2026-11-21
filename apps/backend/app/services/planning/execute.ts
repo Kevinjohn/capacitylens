@@ -18,7 +18,7 @@ import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
   requireExistingRow,
   PlanningOperationError,
@@ -119,7 +119,7 @@ export interface ExecutePlanningIntentOptions {
   trx: TransactionClientContract;
   companyId: string;
   intent: PlanningIntent;
-  capabilities: PlanningCapabilities;
+  accessGrant: PlanningAccessGrant;
   /** The mutable, complete company snapshot; the caller keeps its own before-image. */
   data: AppData;
   identity: RestorationIdentity;
@@ -154,7 +154,7 @@ async function applyIntent(
     trx,
     companyId,
     intent,
-    capabilities,
+    accessGrant,
     data,
     identity,
     expectedUpdatedAt,
@@ -163,13 +163,13 @@ async function applyIntent(
   committed: { intent: PlanningIntent }
 ): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
-  if (!capabilities.canWrite) {
+  if (!accessGrant.canWrite) {
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
   if (!data.accounts.some((row) => row.id === companyId)) {
     throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
-  const writeOptions = { trx, data, written, companyId, capabilities, identity, expectedUpdatedAt };
+  const writeOptions = { trx, data, written, companyId, accessGrant, identity, expectedUpdatedAt };
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -423,7 +423,7 @@ async function applyIntent(
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'settings.update':
-        await updateSettings(trx, data, companyId, intent.changes, capabilities, written);
+        await updateSettings(trx, data, companyId, intent.changes, accessGrant, written);
         return unchanged;
       case 'allocation.delete':
       case 'allocation.deleteGroup': {
