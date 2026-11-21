@@ -312,13 +312,17 @@ This is the short, present-tense record of decisions that constrain future work.
 ## AdonisJS framework departures
 
 The AdonisJS documentation is the structural reference. These choices deliberately differ from
-framework defaults; any other departure needs a decision recorded here first.
+framework defaults; any other departure needs a decision recorded here first. An entry that ends
+with "Revisit" was recorded on 2026-11-21 after the framework comparison in #2334 and may be
+reopened there.
 
 1. The shared package is imported by the backend and the SPA. It contains pure domain rules and wire
    types, never backend code.
-2. Validation errors use the product's flat error contract, not Vine's default response. Empty
-   strings are not converted to null; empty optionals are `null` on the wire, in storage and in the
-   export.
+2. Every error leaves in the product's flat error contract, not the framework's default body; the
+   exception handler maps each error itself and does not call `super.handle` or `super.report`,
+   because they would log the error message and answer in a second shape. Empty strings are not
+   converted to null; empty optionals are `null` on the wire, in storage and in the export.
+   Revisit: #2334 item 3.
 3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
@@ -337,7 +341,8 @@ framework defaults; any other departure needs a decision recorded here first.
    planning slice (see Browser data).
 10. Product services are modules of exported functions and do not use `@inject`. A mutating
     service receives its transaction as an argument; package services are resolved with
-    `app.container.make` where they are used.
+    `app.container.make` where they are used. Service files carry no `_service` suffix.
+    Revisit: #2334 item 6.
 11. A company permission is authorised inside the product transaction through the Access
     Control package, after the route middleware has checked membership. Controllers do not
     call Bouncer and the product has no policies or abilities of its own.
@@ -360,6 +365,19 @@ framework defaults; any other departure needs a decision recorded here first.
 18. Routes are registered from one file per area in `start/`. Prettier keeps semicolons.
 19. The exception handler shows debug output in development only (`debug = app.inDev`), so the
     test environment answers with the same error bodies as production.
+20. A type used by one file stays in it. A type shared across files goes in the feature's
+    `types.ts` or `app/types/`; there is no `types/` folder for every declaration. Revisit: #2334
+    item 7.
+21. Before the first release there is one baseline migration without `down()`, and it is edited
+    in place: no installed database exists, and the alpha tags that carried it do not make it
+    released (#2345 decision D4). Released migrations are append-only. Production refuses rollbacks
+    (`disableRollbacksInProduction`). Revisit: #2334 item 8.
+22. A validator reads one request source: the body for a write and the query string for a read,
+    passed as `validateUsing(validator, { data })`. It never validates the merged `request.all()`,
+    so a credential is never accepted from a URL. Revisit: #2334 item 15.
+23. Operator commands are tested by starting the CLI in its own process, with its own database
+    file, environment and exit code, because their lock and exit-code contract is a process
+    boundary. They are not tested in process with `ace.create`. Revisit: #2334 item 17.
 
 ## Installation
 
