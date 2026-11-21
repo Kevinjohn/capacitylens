@@ -5,6 +5,7 @@ import {
   InvalidCredentialsError,
   InvalidSessionError,
   RegistrationEmailAlreadyRegisteredError,
+  isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { CurrentAccountInput } from '@kevinjohn/adonisjs-account-kit/types';
 import env from '#start/env';
@@ -17,7 +18,6 @@ import { buildUserProjection } from '#services/auth/user_projection';
 import { requireAdmissionDecision, withActor } from '#services/auth/current_actor';
 import { errors as vineErrors } from '@vinejs/vine';
 import { signInValidator, signUpValidator } from '#validators/auth_requests';
-import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { hasAnyIdentity, hasNoCompany } from '#models/installation_company';
 import { managedGuard } from '#services/auth/managed_guard';

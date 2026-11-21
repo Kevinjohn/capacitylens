@@ -3,6 +3,7 @@ import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import {
   InvalidTokenError,
   RegistrationEmailAlreadyRegisteredError,
+  isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import type { Invitation } from '@kevinjohn/adonisjs-account-kit/types';
 import { isMailConfigured } from '#services/mail_delivery';
@@ -17,7 +18,6 @@ import {
 } from '#services/admission/errors';
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
-import { isCommittedFailure } from '#services/account_kit/committed';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { createValidator, signUpValidator } from '#validators/invitations';
 

@@ -6,12 +6,12 @@ import {
   IdentityNotConfirmedError,
   InvalidTokenError,
   ThrottledError,
+  isCommittedFailure,
 } from '@kevinjohn/adonisjs-account-kit/errors';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import { isMailConfigured } from '#services/mail_delivery';
 import { setProofHeaders } from '#services/request_helpers';
 import { readCurrentAccount } from '#services/auth/current_actor';
-import { isCommittedFailure } from '#services/account_kit/committed';
 import { managedGuard } from '#services/auth/managed_guard';
 import {
   changePasswordValidator,
