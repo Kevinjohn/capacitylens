@@ -1,11 +1,10 @@
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import type { HttpContext } from '@adonisjs/core/http';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { InvalidTokenError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { InvalidTokenError, isCommittedFailure } from '@kevinjohn/adonisjs-account-kit/errors';
 import { isMailConfigured } from '#services/mail_delivery';
 import { setProofHeaders } from '#services/request_helpers';
 import { readCurrentAccount } from '#services/auth/current_actor';
-import { isCommittedFailure } from '#services/account_kit/committed';
 import { completeValidator, inspectValidator } from '#validators/verification';
 
 /** Address confirmation for a signed-in identity, reachable before admission. */
