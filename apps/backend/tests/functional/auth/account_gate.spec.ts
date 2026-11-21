@@ -1,7 +1,7 @@
 import { test } from '@japa/runner';
 import router from '@adonisjs/core/services/router';
+import type { ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import db from '@adonisjs/lucid/services/db';
-import { getClassifiedRouteAccess, resolveRouteAccess } from '#services/auth/route_access';
 import { resetState } from '#tests/helpers/state_fixture';
 import { freshDatabase } from '../../helpers/fresh_database.js';
 import {
@@ -23,23 +23,77 @@ test.group('account gate', (group) => {
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', companyId);
   });
 
-  test('every route is classified by name and only the non-API routes have none', ({ assert }) => {
+  test('every route carries its reviewed account gate', ({ assert }) => {
     const routes = Object.values(router.toJSON()).flat();
-    assert.isAbove(routes.length, 50);
-    assert.deepEqual(
-      routes.filter((route) => route.name === undefined).map((route) => route.pattern),
-      ['/health/live', '/health/ready', '/*']
+    const access = Object.fromEntries(
+      routes.map((route) => {
+        const gate = [...route.middleware.all()].find(
+          (entry): entry is ParsedNamedMiddleware =>
+            typeof entry === 'object' && 'name' in entry && entry.name === 'accountGate'
+        );
+        return [`${route.methods.join(',')} ${route.pattern}`, gate ? gate.args.access : 'public'];
+      })
     );
-    assert.deepEqual(
-      routes.filter((route) => route.name && getClassifiedRouteAccess(route.name) === undefined),
-      []
-    );
-  });
-
-  test('a route name in no set is unclassified and gets the strictest check', ({ assert }) => {
-    assert.isUndefined(getClassifiedRouteAccess('api.lexcorp.secrets'));
-    assert.equal(resolveRouteAccess('api.lexcorp.secrets'), 'admitted');
-    assert.equal(resolveRouteAccess(undefined), 'public');
+    assert.deepEqual(access, {
+      'GET,HEAD /*': 'public',
+      'POST /api/auth/change-password': 'public',
+      'POST /api/auth/delete-account': 'public',
+      'POST /api/auth/inspect-reset': 'public',
+      'GET,HEAD /api/auth/me': 'public',
+      'POST /api/auth/password-confirmation': 'public',
+      'POST /api/auth/request-reset': 'public',
+      'POST /api/auth/reset-password': 'public',
+      'POST /api/auth/sign-in': 'public',
+      'POST /api/auth/sign-out': 'public',
+      'POST /api/auth/sign-up': 'public',
+      'POST /api/auth/verification/complete': 'public',
+      'POST /api/auth/verification/inspect': 'public',
+      'POST /api/auth/verification/send': 'public',
+      'GET,HEAD /api/health': 'public',
+      'GET,HEAD /api/invites/:token/preview': 'public',
+      'POST /api/invites/:token/signup': 'public',
+      'GET,HEAD /api/masquerade': 'public',
+      'GET,HEAD /health/live': 'public',
+      'GET,HEAD /health/ready': 'public',
+      'GET,HEAD /api/*': 'limited',
+      'GET,HEAD /api/admission': 'limited',
+      'POST /api/admission/:userId/approve': 'limited',
+      'POST /api/admission/:userId/reject': 'limited',
+      'POST /api/admission/:userId/revoke': 'limited',
+      'POST /api/admission/request': 'limited',
+      'GET,HEAD /api/admission/requests': 'limited',
+      'POST /api/companies/:companyId/masquerade': 'limited',
+      'DELETE /api/masquerade': 'limited',
+      'POST /api/admission/complete': 'admitted',
+      'GET,HEAD /api/companies': 'admitted',
+      'POST /api/companies/:companyId/anonymise': 'admitted',
+      'POST /api/companies/:companyId/example-data': 'admitted',
+      'GET,HEAD /api/companies/:companyId/export': 'admitted',
+      'GET,HEAD /api/companies/:companyId/getting-started': 'admitted',
+      'PUT /api/companies/:companyId/getting-started': 'admitted',
+      'GET,HEAD /api/companies/:companyId/invites': 'admitted',
+      'DELETE /api/companies/:companyId/invites/:id': 'admitted',
+      'POST /api/companies/:companyId/invites/:id/resend': 'admitted',
+      'PUT /api/companies/:companyId/member-sign-in-tracking': 'admitted',
+      'GET,HEAD /api/companies/:companyId/members': 'admitted',
+      'PATCH /api/companies/:companyId/members/:userId': 'admitted',
+      'DELETE /api/companies/:companyId/members/:userId/resource-link': 'admitted',
+      'PUT /api/companies/:companyId/members/:userId/resource-link': 'admitted',
+      'PATCH /api/companies/:companyId/members/:userId/status': 'admitted',
+      'POST /api/companies/:companyId/ownership-transfer': 'admitted',
+      'GET,HEAD /api/companies/:companyId/planning': 'admitted',
+      'GET,HEAD /api/companies/:companyId/planning/archive': 'admitted',
+      'POST /api/companies/:companyId/planning/mutations': 'admitted',
+      'POST /api/companies/:companyId/planning/redo': 'admitted',
+      'POST /api/companies/:companyId/planning/undo': 'admitted',
+      'POST /api/companies/:companyId/resources/:id/anonymise': 'admitted',
+      'GET,HEAD /api/diagnostics': 'admitted',
+      'POST /api/installation/company': 'admitted',
+      'POST /api/invites': 'admitted',
+      'GET,HEAD /api/state': 'admitted',
+      'POST /api/transfer/apply': 'admitted',
+      'POST /api/transfer/preview': 'admitted',
+    });
   });
 
   test('a request with no session is refused on admitted and limited routes', async ({

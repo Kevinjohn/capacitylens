@@ -290,8 +290,7 @@ Source: [Middleware](https://docs.adonisjs.com/guides/basics/middleware).
 - Authentication and the membership check for a route are named middleware on that route or its
   group. Router middleware does not decide what to do from the route's name. A company permission
   is authorized inside the transaction (departure 11).
-- In the starter kit, body parsing, session, Shield and `initialize_auth` are router middleware.
-  **Open:** #2334 item 10.
+- Body parsing, session, Shield and `initialize_auth` are router middleware, as in the starter kit.
 - A middleware is a class with `handle(ctx, next, options?)`. Code before `await next()` runs on
   the way in; code after it runs on the way out.
 - A middleware refuses by throwing an exception or by sending a response and not calling `next`.

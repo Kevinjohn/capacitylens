@@ -2,6 +2,7 @@ import '#start/planning_routes';
 import router from '@adonisjs/core/services/router';
 import app from '@adonisjs/core/services/app';
 import { healthChecks } from '#start/health';
+import { middleware } from '#start/kernel';
 import { registerAuthRoutes } from '#start/auth_routes';
 import { registerMembershipRoutes } from '#start/membership_routes';
 import { registerAdmissionRoutes } from '#start/admission_routes';
@@ -44,7 +45,8 @@ router.get('/health/ready', async ({ response }) => {
 registerDiagnosticsRoutes();
 router
   .get('/api/*', ({ response }) => response.notFound({ error: 'Not found' }))
-  .as('api.not-found');
+  .as('api.not-found')
+  .use(middleware.accountGate({ access: 'limited' }));
 router.get('*', async ({ request, response }) => {
   const path = request.url().split('?', 1)[0];
   const lastSegment = path.slice(path.lastIndexOf('/') + 1);

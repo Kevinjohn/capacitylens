@@ -73,20 +73,20 @@ POST /api/companies/:companyId/planning/mutations
   "intent": { "operation": "allocation.update", "id": "<id>", "changes": { "hoursPerDay": 6 } } }
 ```
 
-Three router middleware gates run, in this order, before the controller and can refuse:
+Three middleware gates run, in this order, before the controller and can refuse:
 
-- P1. `apps/backend/app/middleware/account_gate_middleware.ts` selects a check by
-  route name (`apps/backend/app/services/auth/route_access.ts`). Account Kit's
-  `admissionMiddleware` refuses a product route unless the session is valid, the address is
-  confirmed and the person is admitted; its `managedAccountMiddleware` asks only for a valid
-  session on the limited routes; public routes pass. Without a valid session the answer is 401
-  `{ error: 'Sign-in required.' }` with no code.
-- P2. `apps/backend/app/middleware/masquerade_context_middleware.ts` runs the Masquerade
+- P1. `apps/backend/app/middleware/masquerade_context_middleware.ts` (router stack) runs the Masquerade
   package's context middleware on routes using the effective guard (`start/route_middleware.ts`). It
   admits the view-as mode, requires the current context header on unsafe methods (428
   `MASQUERADE_CONTEXT_REQUIRED`), refuses a stale header on any method (409
   `MASQUERADE_CONTEXT_CHANGED`), and refuses every unsafe request, and reads marked
   `asMemberOnly()`, while viewing as another member (403 `MASQUERADE_READ_ONLY`).
+- P2. The `accountGate` named middleware (`apps/backend/app/middleware/account_gate_middleware.ts`)
+  runs the check that the route's group, or the route itself, names with the `access` option.
+  Account Kit's `admissionMiddleware` refuses an `admitted` route unless the session is valid, the
+  address is confirmed and the person is admitted; its `managedAccountMiddleware` asks only for a
+  valid session on a `limited` route; a route without the gate is public. Without a valid session
+  the answer is 401 `{ error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED' }`.
 - P3. On a route with `:companyId` in its path, `apps/backend/app/middleware/company_scope_middleware.ts`
   runs Access Control's `scope` middleware for the authenticated user (the viewed-as member under
   view-as) and refuses one without an active membership: 403 `ACCOUNT_MEMBERSHIP_LOST` on planning

@@ -6,6 +6,7 @@ import {
   asMemberOnly,
   asOwnAccount,
 } from '#start/route_middleware';
+import { middleware } from '#start/kernel';
 import { controllers } from '#generated/controllers';
 
 /** Registers invitation, admission and member resource routes. */
@@ -13,19 +14,19 @@ export function registerAdmissionRoutes() {
   router
     .post('/api/invites', [controllers.Invitations, 'create'])
     .as('api.invites.create')
-    .use(asMember());
+    .use([middleware.accountGate({ access: 'admitted' }), ...asMember()]);
   router
     .get('/api/companies/:companyId/invites', [controllers.Invitations, 'index'])
     .as('api.invites.index')
-    .use(asCompanyMemberOnly());
+    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMemberOnly()]);
   router
     .post('/api/companies/:companyId/invites/:id/resend', [controllers.Invitations, 'resend'])
     .as('api.invites.resend')
-    .use(asCompanyMember());
+    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
   router
     .delete('/api/companies/:companyId/invites/:id', [controllers.Invitations, 'revoke'])
     .as('api.invites.revoke')
-    .use(asCompanyMember());
+    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
   router
     .get('/api/invites/:token/preview', [controllers.Invitations, 'preview'])
     .as('api.invites.preview')
@@ -38,31 +39,31 @@ export function registerAdmissionRoutes() {
   router
     .get('/api/admission', [controllers.Admission, 'show'])
     .as('api.admission.show')
-    .use(asMemberOnly());
+    .use([middleware.accountGate({ access: 'limited' }), ...asMemberOnly()]);
   router
     .post('/api/admission/request', [controllers.Admission, 'request'])
     .as('api.admission.request')
-    .use(asMember());
+    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
   router
     .post('/api/admission/complete', [controllers.Admission, 'complete'])
     .as('api.admission.complete')
-    .use(asMember());
+    .use([middleware.accountGate({ access: 'admitted' }), ...asMember()]);
   router
     .get('/api/admission/requests', [controllers.Admission, 'index'])
     .as('api.admission.index')
-    .use(asMemberOnly());
+    .use([middleware.accountGate({ access: 'limited' }), ...asMemberOnly()]);
   router
     .post('/api/admission/:userId/approve', [controllers.Admission, 'approve'])
     .as('api.admission.approve')
-    .use(asMember());
+    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
   router
     .post('/api/admission/:userId/reject', [controllers.Admission, 'reject'])
     .as('api.admission.reject')
-    .use(asMember());
+    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
   router
     .post('/api/admission/:userId/revoke', [controllers.Admission, 'revoke'])
     .as('api.admission.revoke')
-    .use(asMember());
+    .use([middleware.accountGate({ access: 'limited' }), ...asMember()]);
 
   router
     .put('/api/companies/:companyId/members/:userId/resource-link', [
@@ -70,12 +71,12 @@ export function registerAdmissionRoutes() {
       'setLink',
     ])
     .as('api.member-resources.set')
-    .use(asCompanyMember());
+    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
   router
     .delete('/api/companies/:companyId/members/:userId/resource-link', [
       controllers.MemberResources,
       'clearLink',
     ])
     .as('api.member-resources.clear')
-    .use(asCompanyMember());
+    .use([middleware.accountGate({ access: 'admitted' }), ...asCompanyMember()]);
 }

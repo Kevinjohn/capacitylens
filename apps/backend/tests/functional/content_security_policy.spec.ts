@@ -16,6 +16,12 @@ test.group('Shield content security policy', (group) => {
     await limiter.clear();
   });
 
+  test('a routed response carries the policy once', async ({ client, assert }) => {
+    const response = await client.get('/api/health');
+    assert.equal(response.status(), 200);
+    assert.equal(response.header('content-security-policy'), policy);
+  });
+
   test('a cross-site refusal carries the policy', async ({ client, assert }) => {
     const response = await client
       .post('/api/auth/sign-in')

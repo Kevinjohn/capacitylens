@@ -1,5 +1,6 @@
 import router from '@adonisjs/core/services/router';
 import { asPlanningMember } from '#start/route_middleware';
+import { middleware } from '#start/kernel';
 import { sensitive } from '@kevinjohn/adonisjs-masquerade/http';
 import { controllers } from '#generated/controllers';
 
@@ -23,4 +24,4 @@ router
       .post('/api/companies/:companyId/planning/redo', [controllers.Planning, 'redo'])
       .as('api.planning.redo');
   })
-  .use(asPlanningMember());
+  .use([middleware.accountGate({ access: 'admitted' }), ...asPlanningMember()]);
