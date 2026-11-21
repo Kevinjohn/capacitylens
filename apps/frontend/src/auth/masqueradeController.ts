@@ -29,13 +29,13 @@ interface EndProjectionInput {
   reason: ClientMasqueradeEndReason;
   finish: (state: MasqueradeState) => Promise<FinishProjectionResult>;
   failureMessage: string;
-  options: { onNoState: NoStatePolicy };
+  options: { onNoState: NoStateMode };
 }
 
 type ResumeWrites = (options?: { dropParkedEdits?: boolean }) => void;
 type EndProjectionResult =
   { kind: 'inactive' } | { kind: 'superseded' } | { kind: 'noop' } | { kind: 'failed' };
-type NoStatePolicy = 'succeed' | 'wait';
+type NoStateMode = 'succeed' | 'wait';
 
 function isSwitchSuccessful(outcome: RefreshOutcome): boolean {
   return outcome.kind === 'reloaded';
