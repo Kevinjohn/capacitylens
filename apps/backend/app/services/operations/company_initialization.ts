@@ -2,7 +2,7 @@ import db from '@adonisjs/lucid/services/db';
 import { transaction } from '@kevinjohn/adonisjs-account-kit/transaction';
 import { parseUserName } from '@capacitylens/shared/lib/strings';
 import { createInitialCompany } from '#services/initial_company_defaults';
-import { isAdmitted } from '#services/account_kit/policy';
+import { isAdmitted } from '#services/account_kit/admission_rules';
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation';
 import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';

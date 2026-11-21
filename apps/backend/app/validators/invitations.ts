@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine';
 import { normalizeAccountEmail } from '@capacitylens/shared/account/validation';
-import { INVITABLE_ROLES } from '#services/account_kit/policy';
+import { INVITABLE_ROLES } from '#services/account_kit/admission_rules';
 import {
   accountEmail,
   allowedFields,

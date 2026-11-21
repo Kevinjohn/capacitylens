@@ -22,7 +22,7 @@ import {
   recordInvitationAccepted,
   withDeletionRecords,
 } from '#services/account_kit/membership_effects';
-import { onCredentialsChangedTransaction } from '#services/account_kit/policy';
+import { onCredentialsChangedTransaction } from '#services/account_kit/admission_rules';
 import { requireRegistrationDisplayName, users } from '#services/account_kit/users';
 import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry';
 
