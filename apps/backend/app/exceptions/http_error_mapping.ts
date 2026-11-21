@@ -45,7 +45,7 @@ interface SharedRefusal {
 
 /**
  * The routes that word a shared refusal differently. `planning` is every `api.planning.*` route and
- * the export download, which reads through planning authority; `admission` is the member-resource
+ * the export download, which reads through planning access; `admission` is the member-resource
  * routes; `product` is every other route.
  */
 export type RefusalSurface = 'product' | 'planning' | 'admission';

@@ -6,7 +6,7 @@ import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/aut
 import { resolveEffectiveReadPrincipal } from '#services/auth/masquerade';
 import { withActor } from '#services/auth/current_actor';
 import access from '#config/access_control';
-import { resolvePlanningAuthority } from '#services/planning/authority';
+import { resolvePlanningAccess } from '#services/planning/access';
 import {
   buildCompanyExport,
   serializeCompanyExport,
@@ -37,16 +37,16 @@ export default class ExportsController {
   async download(ctx: HttpContext) {
     const companyId = String(ctx.params.companyId);
     const text = await withActor(ctx, async (_actor, trx) => {
-      const { authority } = await resolvePlanningAuthority(trx, companyId);
+      const { planningAccess } = await resolvePlanningAccess(trx, companyId);
       const rows = await readStateWithClient(
         trx,
         companyId,
-        access.can(authority.role, 'members:manage')
+        access.can(planningAccess.role, 'members:manage')
       );
       return serializeCompanyExport(
-        buildCompanyExport(transformState(rows, companyId, authority.role), {
+        buildCompanyExport(transformState(rows, companyId, planningAccess.role), {
           companyId,
-          completeness: authority.canSeePrivateNames ? 'full' : 'redacted',
+          completeness: planningAccess.canSeePrivateNames ? 'full' : 'redacted',
         })
       );
     });

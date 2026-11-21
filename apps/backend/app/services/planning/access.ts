@@ -7,13 +7,13 @@ import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import { PlanningOperationError } from '#services/planning/errors';
 
 /** The verified actor behind one planning operation and what that member may do and see. */
-export interface PlanningAuthority extends PlanningAccessGrant {
+export interface PlanningAccess extends PlanningAccessGrant {
   actorId: string;
   effectiveActorId: string;
 }
 
-/** Resolves the caller's planning authority and access grant inside the transaction. */
-export async function resolvePlanningAuthority(trx: TransactionClientContract, companyId: string) {
+/** Resolves the caller's planning access and access grant inside the transaction. */
+export async function resolvePlanningAccess(trx: TransactionClientContract, companyId: string) {
   const principal = await resolveEffectiveReadPrincipal(trx, companyId);
   const membership = await getActiveMembership(principal.effectiveId, companyId, trx);
   if (!membership || (principal.companyId !== null && principal.companyId !== companyId)) {
@@ -29,7 +29,7 @@ export async function resolvePlanningAuthority(trx: TransactionClientContract, c
     throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
   }
   const masquerading = principal.isMasquerading;
-  const authority: PlanningAuthority = {
+  const planningAccess: PlanningAccess = {
     actorId: principal.actorId,
     effectiveActorId: principal.effectiveId,
     role,
@@ -37,6 +37,6 @@ export async function resolvePlanningAuthority(trx: TransactionClientContract, c
     canSeePrivateNames: canSeePrivateNames(role),
     canSeeTimeOffNote: canSeeTimeOffNote(role),
   };
-  const accessGrant: PlanningAccessGrant = authority;
-  return { authority, accessGrant };
+  const accessGrant: PlanningAccessGrant = planningAccess;
+  return { planningAccess, accessGrant };
 }
