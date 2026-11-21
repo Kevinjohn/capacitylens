@@ -152,7 +152,7 @@ export function ResetPassword() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   // Stable ids so both inputs can point at the shared form-level error (WCAG 3.3.1), the
-  // LoginScreen idiom: describedby re-announces the reason as the user navigates back.
+  // SignInScreen idiom: describedby re-announces the reason as the user navigates back.
   const passwordId = useId();
   const confirmId = useId();
   const errorId = useId();

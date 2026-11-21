@@ -5,10 +5,10 @@ import { useEffect, useId, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
-import { LoginForm } from './LoginForm';
+import { SignInForm } from './SignInForm';
 import { usePasswordSignIn } from './usePasswordSignIn';
 
-type LoginScreenProps = {
+type SignInScreenProps = {
   needsSetup?: boolean;
   passwordResetEmail?: boolean;
   degraded?: boolean;
@@ -16,18 +16,18 @@ type LoginScreenProps = {
   onSignedIn: () => void;
 };
 
-function useLoginIds() {
+function useSignInIds() {
   return { email: useId(), password: useId(), error: useId() };
 }
 
 /** Renders the public password sign-in screen. */
-export function LoginScreen({
+export function SignInScreen({
   needsSetup = false,
   passwordResetEmail = false,
   degraded = false,
   hadUnsavedChanges = false,
   onSignedIn,
-}: LoginScreenProps) {
+}: SignInScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const passwordSignIn = usePasswordSignIn({
@@ -35,14 +35,14 @@ export function LoginScreen({
     setBusy,
     onSignedIn,
   });
-  const ids = useLoginIds();
+  const ids = useSignInIds();
 
   useEffect(() => {
     document.title = `${m.login_sign_in()} · ${APP_NAME}`;
   }, []);
 
   return (
-    <LoginView
+    <SignInView
       needsSetup={needsSetup}
       passwordResetEmail={passwordResetEmail}
       degraded={degraded}
@@ -56,7 +56,7 @@ export function LoginScreen({
   );
 }
 
-type LoginViewProps = {
+type SignInViewProps = {
   needsSetup: boolean;
   passwordResetEmail: boolean;
   degraded: boolean;
@@ -68,19 +68,19 @@ type LoginViewProps = {
   passwordSignIn: ReturnType<typeof usePasswordSignIn>;
 };
 
-function LoginView(props: LoginViewProps) {
+function SignInView(props: SignInViewProps) {
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
-        <LoginHeading />
+        <SignInHeading />
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
-            <LoginNotices
+            <SignInNotices
               degraded={props.degraded}
               hadUnsavedChanges={props.hadUnsavedChanges}
               needsSetup={props.needsSetup}
             />
-            <LoginForm
+            <SignInForm
               passwordAutoFocus
               busy={props.busy}
               error={props.error}
@@ -95,7 +95,7 @@ function LoginView(props: LoginViewProps) {
   );
 }
 
-function LoginHeading() {
+function SignInHeading() {
   return (
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
@@ -105,9 +105,9 @@ function LoginHeading() {
   );
 }
 
-type LoginNoticesProps = { degraded: boolean; hadUnsavedChanges: boolean; needsSetup: boolean };
+type SignInNoticesProps = { degraded: boolean; hadUnsavedChanges: boolean; needsSetup: boolean };
 
-function LoginNotices({ degraded, hadUnsavedChanges, needsSetup }: LoginNoticesProps) {
+function SignInNotices({ degraded, hadUnsavedChanges, needsSetup }: SignInNoticesProps) {
   return (
     <>
       {needsSetup && (

@@ -17,7 +17,7 @@ it.each([true, false, undefined, 'true'])(
     );
     try {
       expect(await fetchAuthStatus(() => true)).toMatchObject({
-        kind: 'login',
+        kind: 'signIn',
         passwordResetEmail: passwordResetEmail === true,
       });
     } finally {
@@ -56,7 +56,7 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
       .spyOn(sessionRequests, 'me')
       .mockResolvedValue(new Response(JSON.stringify({}), { status: 401 }));
     try {
-      expect(await fetchAuthStatus(() => false)).toMatchObject({ kind: 'login' });
+      expect(await fetchAuthStatus(() => false)).toMatchObject({ kind: 'signIn' });
     } finally {
       status.mockRestore();
       request.mockRestore();
@@ -95,7 +95,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       return new Response(JSON.stringify({}), { status: 401 });
     });
     try {
-      await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'login' });
+      await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'signIn' });
       expect(status).toHaveBeenCalledOnce();
       expect(request).toHaveBeenCalledOnce();
     } finally {
@@ -140,7 +140,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       },
     });
     try {
-      await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'login' });
+      await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'signIn' });
       expect(restore).toHaveBeenCalledOnce();
       expect(getMasqueradeContextToken()).toBe('new-idle-context');
     } finally {

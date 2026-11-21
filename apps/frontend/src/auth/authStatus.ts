@@ -28,10 +28,10 @@ export type AuthStatusResult =
       admission?: AdmissionSummary;
     }
   | {
-      kind: 'login';
+      kind: 'signIn';
       passwordResetEmail: boolean;
       needsSetup: boolean;
-      /** True when the 401 body itself was untrustworthy (non-JSON or an HTML proxy page). The login
+      /** True when the 401 body itself was untrustworthy (non-JSON or an HTML proxy page). The sign-in
        * wall then shows a non-terminal "configuration couldn't be loaded" notice above the password
        * form. */
       degraded: boolean;

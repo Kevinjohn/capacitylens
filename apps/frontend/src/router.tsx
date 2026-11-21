@@ -75,7 +75,7 @@ const InviteAccept = lazy(() =>
 const VerifyEmail = lazy(() =>
   import('./auth/VerifyEmail').then((module) => ({ default: module.VerifyEmail })),
 );
-// Keep password reset outside tenant and login gates so a visitor without a session
+// Keep password reset outside tenant and sign-in gates so a visitor without a session
 // can redeem a reset link.
 const ResetPassword = lazy(() =>
   import('./auth/ResetPassword').then((module) => ({ default: module.ResetPassword })),

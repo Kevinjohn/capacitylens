@@ -29,7 +29,7 @@ The matrix keeps every historical story discoverable by status.
   current menu action.
 - **Open self-registration:** [auth routes](../apps/backend/start/auth_routes.ts#L11) expose
   password signup under the configured admission policy, but the current
-  [sign-in screen](../apps/frontend/src/auth/LoginScreen.tsx) has no registration form or link.
+  [sign-in screen](../apps/frontend/src/auth/SignInScreen.tsx) has no registration form or link.
   The available account-creation journey is the emailed invitation. The agreed signup policy
   is enforced on the server; a self-service registration entry is a UI availability gap
   not evidence that signup bypasses the policy. No new entry point is introduced here.

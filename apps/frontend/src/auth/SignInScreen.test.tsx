@@ -15,7 +15,7 @@ vi.mock('./authApi', () => ({
   },
 }));
 
-import { LoginScreen } from './LoginScreen';
+import { SignInScreen } from './SignInScreen';
 import { m } from '@/i18n';
 
 beforeEach(() => {
@@ -27,12 +27,12 @@ beforeEach(() => {
 function setsDescriptiveTitleOutsideAppShell() {
   document.title = 'Schedule · CapacityLens';
 
-  render(<LoginScreen onSignedIn={vi.fn()} />);
+  render(<SignInScreen onSignedIn={vi.fn()} />);
 
   expect(document.title).toBe('Sign in · CapacityLens');
 }
 
-describe('LoginScreen — password sign-in', () => {
+describe('SignInScreen — password sign-in', () => {
   it(
     'sets a descriptive title while rendering outside the app shell',
     setsDescriptiveTitleOutsideAppShell,
@@ -41,7 +41,7 @@ describe('LoginScreen — password sign-in', () => {
   it('opens the app after a successful password sign-in without a local challenge', async () => {
     signInEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
-    render(<LoginScreen onSignedIn={onSignedIn} />);
+    render(<SignInScreen onSignedIn={onSignedIn} />);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-password' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -50,7 +50,7 @@ describe('LoginScreen — password sign-in', () => {
   });
 
   it('keeps an oversized current password intact and refuses to send it', () => {
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
     const password = 'x'.repeat(257);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } });
@@ -62,12 +62,12 @@ describe('LoginScreen — password sign-in', () => {
   });
 });
 
-describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
+describe('SignInScreen — per-control error cues (WCAG 3.3.1)', () => {
   it('surfaces a network error and re-enables sign in when the request throws', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
       signInEmail.mockRejectedValue(new TypeError('offline'));
-      render(<LoginScreen onSignedIn={vi.fn()} />);
+      render(<SignInScreen onSignedIn={vi.fn()} />);
 
       fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } });
       fireEvent.change(screen.getByLabelText('Password'), {
@@ -84,7 +84,7 @@ describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
 
   it('surfaces the product API message for password sign-in rejection', async () => {
     signInEmail.mockResolvedValue({ data: null, error: { message: 'Invalid email or password.' } });
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong-password' } });
@@ -95,7 +95,7 @@ describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
 
   it('normalizes a pasted sign-in email before authenticating', async () => {
     signInEmail.mockResolvedValue({ data: {}, error: null });
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Email'), {
       target: { value: '  Person@Example.COM  ' },
@@ -112,7 +112,7 @@ describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
   });
 
   it('gives the email/password inputs ids and no aria-describedby before any error', () => {
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
     const email = screen.getByLabelText('Email');
     const password = screen.getByLabelText('Password');
 
@@ -125,7 +125,7 @@ describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
 
   it('points both inputs at the error message via aria-describedby after a failed sign-in', async () => {
     signInEmail.mockResolvedValue({ error: { message: 'Invalid email or password.' } });
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong' } });
@@ -144,9 +144,9 @@ describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {
 
 // Before the first company exists, the first identity arrives through the operator's setup link,
 // so the sign-in screen only explains where to go and keeps ordinary sign-in available.
-describe('LoginScreen — before company setup (needsSetup)', () => {
+describe('SignInScreen — before company setup (needsSetup)', () => {
   it('points to the setup link and keeps the sign-in form', () => {
-    render(<LoginScreen needsSetup onSignedIn={vi.fn()} />);
+    render(<SignInScreen needsSetup onSignedIn={vi.fn()} />);
     expect(screen.getByTestId('login-setup-needed')).toHaveTextContent(
       m.login_setup_link_needed({ app: 'CapacityLens' }),
     );
@@ -155,14 +155,14 @@ describe('LoginScreen — before company setup (needsSetup)', () => {
   });
 
   it('shows no setup notice by default', () => {
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
     expect(screen.queryByTestId('login-setup-needed')).not.toBeInTheDocument();
   });
 });
 
-describe('LoginScreen — degraded 401 body notice', () => {
+describe('SignInScreen — degraded 401 body notice', () => {
   it('shows the non-terminal advisory above the form when degraded is true', () => {
-    render(<LoginScreen degraded onSignedIn={vi.fn()} />);
+    render(<SignInScreen degraded onSignedIn={vi.fn()} />);
     expect(
       screen.getByText(
         'Sign-in configuration could not be loaded. Try again shortly or contact your administrator.',
@@ -175,16 +175,16 @@ describe('LoginScreen — degraded 401 body notice', () => {
   });
 
   it('renders no advisory by default (a well-formed body)', () => {
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
     expect(
       screen.queryByText(/sign-in configuration could not be loaded/i),
     ).not.toBeInTheDocument();
   });
 });
 
-describe('LoginScreen — unsaved session-expiry notice', () => {
+describe('SignInScreen — unsaved session-expiry notice', () => {
   it('surfaces the captured write loss without blocking sign-in', () => {
-    render(<LoginScreen hadUnsavedChanges onSignedIn={vi.fn()} />);
+    render(<SignInScreen hadUnsavedChanges onSignedIn={vi.fn()} />);
     expect(screen.getByRole('alert')).toHaveTextContent(
       /could not be saved before your session expired/i,
     );
@@ -192,7 +192,7 @@ describe('LoginScreen — unsaved session-expiry notice', () => {
   });
 
   it('does not claim loss for an ordinary signed-out boot', () => {
-    render(<LoginScreen onSignedIn={vi.fn()} />);
+    render(<SignInScreen onSignedIn={vi.fn()} />);
     expect(
       screen.queryByText(/could not be saved before your session expired/i),
     ).not.toBeInTheDocument();
@@ -201,7 +201,7 @@ describe('LoginScreen — unsaved session-expiry notice', () => {
 
 it('reveals email password recovery and shows a neutral confirmation', async () => {
   requestPasswordReset.mockResolvedValue({ data: { ok: true }, error: null });
-  render(<LoginScreen passwordResetEmail onSignedIn={vi.fn()} />);
+  render(<SignInScreen passwordResetEmail onSignedIn={vi.fn()} />);
   expect(screen.queryByTestId('forgot-password-email')).not.toBeInTheDocument();
   fireEvent.click(screen.getByTestId('forgot-password'));
   fireEvent.change(screen.getByTestId('forgot-password-email'), {

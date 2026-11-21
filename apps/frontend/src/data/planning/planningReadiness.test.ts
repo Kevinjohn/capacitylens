@@ -4,7 +4,7 @@ import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningRead
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 const ready: PlanningCacheMetadata = {
-  context: { identity: 'bruce-login', companyId: 'wayne' },
+  context: { identity: 'bruce-user', companyId: 'wayne' },
   authority: makePlanningAccess(),
   revision: 4,
   today: '2026-06-03',

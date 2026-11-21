@@ -7,7 +7,7 @@ import { createPlanningTransport } from './planningTransport';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
 
 const context = {
-  identity: 'bruce-login',
+  identity: 'bruce-user',
   companyId: 'wayne',
   masqueradeContextToken: 'captured-context',
 };
@@ -200,7 +200,7 @@ describe('generated planning transport', () => {
   it("keeps the action's captured proof when the shared mode changes before fetch dispatch", async () => {
     const { transport, requests } = harness({ status: 'committed', mutationId, revision: 6 });
     const actionContext = {
-      identity: 'bruce-login',
+      identity: 'bruce-user',
       companyId: 'wayne',
       masqueradeContextToken: 'captured-context',
     };
@@ -223,7 +223,7 @@ describe('generated planning transport', () => {
     });
     setMasqueradeContextToken('newer-context');
 
-    await transport.read({ identity: 'bruce-login', companyId: 'wayne' }, signal).catch(() => null);
+    await transport.read({ identity: 'bruce-user', companyId: 'wayne' }, signal).catch(() => null);
 
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('');
     setMasqueradeContextToken(null);

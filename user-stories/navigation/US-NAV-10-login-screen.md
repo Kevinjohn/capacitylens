@@ -10,7 +10,7 @@ As an invited company member, I want to sign in before accessing persisted compa
 
 **Documentation:** [Account](../../docs-src/using/account.md)
 
-**Source:** [LoginScreen.tsx](../../apps/frontend/src/auth/LoginScreen.tsx); [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx)
+**Source:** [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx); [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx)
 
 ## Acceptance criteria
 
@@ -36,11 +36,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  screen["LoginScreen renders LoginForm"] --> hook["usePasswordSignIn submits credentials"]
+  screen["SignInScreen renders SignInForm"] --> hook["usePasswordSignIn submits credentials"]
   hook --> auth["authApi password sign-in request"]
   auth --> session["AuthProvider refreshes signed-in status"]
   session --> app["AppShell becomes available"]
   account["AccountView sign out"] --> signedOut["signOutAndReload ends session and reloads"]
 ```
 
-**Code references:** [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts); [LoginScreen.tsx](../../apps/frontend/src/auth/LoginScreen.tsx); [LoginForm.tsx](../../apps/frontend/src/auth/LoginForm.tsx); [authApi.ts](../../apps/frontend/src/auth/authApi.ts); [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx); [signOut.ts](../../apps/frontend/src/auth/signOut.ts)
+**Code references:** [usePasswordSignIn.ts](../../apps/frontend/src/auth/usePasswordSignIn.ts); [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx); [SignInForm.tsx](../../apps/frontend/src/auth/SignInForm.tsx); [authApi.ts](../../apps/frontend/src/auth/authApi.ts); [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx); [signOut.ts](../../apps/frontend/src/auth/signOut.ts)

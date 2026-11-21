@@ -47,4 +47,4 @@ flowchart TD
   kitReset --> outcome["ResetPassword renders success or link error"]
 ```
 
-**Code references:** [LoginScreen.tsx](../../apps/frontend/src/auth/LoginScreen.tsx), [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)
+**Code references:** [SignInScreen.tsx](../../apps/frontend/src/auth/SignInScreen.tsx), [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx), [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts)

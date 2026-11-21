@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('AuthProvider — server mode', () => {
-  it('a 401 replaces the app with the login screen (password form)', async () => {
+  it('a 401 replaces the app with the sign-in screen (password form)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => makeMeResponse(401, {})),
@@ -84,7 +84,7 @@ describe('AuthProvider — server mode', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
-    // The body couldn't be trusted at all, so the login wall says its configuration is a guess.
+    // The body couldn't be trusted at all, so the sign-in wall says its configuration is a guess.
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
   it('password invite routes render before sign-in so the token can onboard a new identity', async () => {

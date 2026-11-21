@@ -11,12 +11,12 @@ import {
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-// This spec exercises the password-mode login wall; the core demo project uses cosmetic sign-in.
+// This spec exercises the password-mode sign-in wall; the core demo project uses cosmetic sign-in.
 
 // Shared auth helpers come from authTestKit. A fresh user has no membership, so GET /api/companies
 // returns no companies. The first-company route provisions a company for the signed-in owner.
 const EMAIL = 'tester@capacitylens.dev';
-const ORG_NAME = `Login Studio ${Date.now()}`;
+const ORG_NAME = `Sign-in Studio ${Date.now()}`;
 
 // This unconfirmed identity uses its own anonymous request context, separate from any session used
 // to create the control company. The test tolerates EMAIL_REGISTERED (409) on a reused server.
@@ -33,8 +33,8 @@ async function seedUser(email = EMAIL) {
   }
 }
 
-test.describe('login screen (password sign-in)', () => {
-  test('unauthenticated visit shows the login screen, not the app — and the API 401s', async ({
+test.describe('sign-in screen (password sign-in)', () => {
+  test('unauthenticated visit shows the sign-in screen, not the app — and the API 401s', async ({
     page,
     request,
   }) => {
@@ -66,12 +66,12 @@ test.describe('login screen (password sign-in)', () => {
   });
   // Tagged for the short browser journey that runs on every main push.
   test(
-    'signing in reveals the app; signing out from Account via the sidebar returns to the login screen',
+    'signing in reveals the app; signing out from Account via the sidebar returns to the sign-in screen',
     { tag: '@journey' },
     async ({ page, request }) => {
       // A fresh per-run user guarantees the sign-up cookie; the isolated fixture then
       // creates one company and makes that principal its owner.
-      const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`);
+      const { email, cookie } = await signUpUser(`sign-in-${Date.now()}@capacitylens.dev`);
       await bootstrapOrg(request, cookie, ORG_NAME);
 
       const unscopedStateReads: string[] = [];
@@ -92,7 +92,7 @@ test.describe('login screen (password sign-in)', () => {
       await page.getByRole('button', { name: 'Sign in' }).click();
       await planningResponse;
 
-      // The server selects this login's only company and hydrates its planning slice without
+      // The server selects this user's only company and hydrates its planning slice without
       // showing a company picker.
       await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'How CapacityLens works' })).toBeVisible();
@@ -200,7 +200,7 @@ test.describe('login screen (password sign-in)', () => {
     await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0);
   });
-  test('a login with NO memberships sees no company data (tenant isolation — no cross-tenant leak)', async ({
+  test('a user with NO memberships sees no company data (tenant isolation — no cross-tenant leak)', async ({
     page,
     request,
   }, testInfo) => {

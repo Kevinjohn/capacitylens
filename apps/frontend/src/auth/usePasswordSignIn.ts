@@ -43,7 +43,7 @@ export function usePasswordSignIn({
       onSignedIn();
     } catch (error) {
       // A transport failure must restore the sign-in controls and surface a generic message while logging its cause.
-      console.error('LoginScreen: password sign-in request failed', error);
+      console.error('SignInScreen: password sign-in request failed', error);
       setError(m.login_network_error());
       setBusy(false);
     }

@@ -94,8 +94,8 @@ export interface StoreState extends StoreEntityActions {
   hydrated: boolean;
   /** The company currently in view, or null when no company is active. Never persisted. */
   activeCompanyId: ID | null;
-  /** The server-sourced directory of companies this login may access. Set by useCompanySummaries
-   * from the login’s memberships. Separate from `data` because `data` holds only the active slice.
+  /** The server-sourced directory of companies this user may access. Set by useCompanySummaries
+   * from the user’s memberships. Separate from `data` because `data` holds only the active slice.
    * Never persisted. */
   companySummaries: CompanySummary[];
   /** Whether the published directory was wholly valid. A partial response cannot prove uniqueness.

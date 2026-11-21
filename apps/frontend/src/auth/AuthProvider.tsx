@@ -21,11 +21,11 @@ import { AuthLoading } from './authScreens';
 import { AccessScreen } from './AccessScreens';
 import { useAuthContextValue } from './useAuthContextValue';
 
-// Auth gate checks GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
-// lazy chunk so interactive auth forms never load unless a login is actually shown.
+// Auth gate checks GET /api/auth/me once at boot; a 401 replaces everything with the SignInScreen. The screen is a
+// lazy chunk so interactive auth forms never load unless a sign-in is actually shown.
 
-const LoginScreen = lazy(() =>
-  import('./LoginScreen').then((screenModule) => ({ default: screenModule.LoginScreen })),
+const SignInScreen = lazy(() =>
+  import('./SignInScreen').then((screenModule) => ({ default: screenModule.SignInScreen })),
 );
 
 type CheckAuth = (onNull: 'report-error' | 'keep-previous') => Promise<AuthStatusResult | null>;
@@ -59,7 +59,7 @@ function useAuthStatus() {
       }
       return next;
     }
-    if (next.kind === 'login') {
+    if (next.kind === 'signIn') {
       clearStoredAccountCommands();
       masqueradeModel.invalidate();
       queryClient.clear();
@@ -145,7 +145,7 @@ function SignInGate({
   children,
   authContextValue,
 }: {
-  status: Extract<AuthStatusResult, { kind: 'login' }>;
+  status: Extract<AuthStatusResult, { kind: 'signIn' }>;
   children: ReactNode;
   authContextValue: ReturnType<typeof useAuthContextValue>;
 }) {
@@ -156,7 +156,7 @@ function SignInGate({
   }
   return (
     <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
-      <LoginScreen
+      <SignInScreen
         needsSetup={status.needsSetup}
         passwordResetEmail={status.passwordResetEmail}
         degraded={status.degraded}
@@ -247,7 +247,7 @@ function AuthenticatedAppProvider({
       />
     );
   }
-  if (status.kind === 'login') {
+  if (status.kind === 'signIn') {
     return (
       <SignInGate status={status} authContextValue={authContextValue}>
         {children}

@@ -4,19 +4,19 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FieldError, FieldGroup } from '@/components/ui/field';
-import { LoginField } from './LoginField';
+import { SignInField } from './SignInField';
 
-type LoginIds = {
+type SignInIds = {
   email: string;
   password: string;
   error: string;
 };
 
-type LoginFormProps = {
+type SignInFormProps = {
   passwordAutoFocus: boolean;
   busy: boolean;
   error: string | null;
-  ids: LoginIds;
+  ids: SignInIds;
   passwordSignIn: {
     email: string;
     setEmail: Dispatch<SetStateAction<string>>;
@@ -27,7 +27,7 @@ type LoginFormProps = {
 };
 
 /** The password sign-in form. */
-export function LoginForm(props: LoginFormProps) {
+export function SignInForm(props: SignInFormProps) {
   return (
     <PasswordForm
       autoFocus={props.passwordAutoFocus}
@@ -39,7 +39,7 @@ export function LoginForm(props: LoginFormProps) {
   );
 }
 
-type PasswordFormProps = Pick<LoginFormProps, 'busy' | 'error' | 'ids' | 'passwordSignIn'> & {
+type PasswordFormProps = Pick<SignInFormProps, 'busy' | 'error' | 'ids' | 'passwordSignIn'> & {
   autoFocus: boolean;
 };
 
@@ -60,7 +60,7 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
       noValidate
     >
       <FieldGroup className="gap-3">
-        <LoginField
+        <SignInField
           id={ids.email}
           label={m.login_email()}
           type="email"
@@ -70,7 +70,7 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
           aria-describedby={describedBy}
           autoFocus={autoFocus}
         />
-        <LoginField
+        <SignInField
           id={ids.password}
           label={m.login_password()}
           type="password"
