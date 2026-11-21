@@ -14,14 +14,14 @@ As a company member, I want to collapse or expand the desktop sidebar so that I 
 
 ## Acceptance criteria
 
-- The header button and shortcut toggle the desktop sidebar between expanded and icon-only states. The button’s accessible name tracks the action. The shortcut yields while text entry, IME composition, or a modal owns the keyboard.
+- The header button and shortcut toggle the desktop sidebar between expanded and icon-only states. The button’s accessible name tracks the action. The shortcut yields while text entry, IME composition, or a dialog owns the keyboard.
 
 ## User flow
 
 ```mermaid
 flowchart TD
   trigger["Use sidebar button or Cmd/Ctrl+B"] -->|allowed context| toggle["Sidebar expands or collapses"]
-  trigger -->|typing, IME composition, or modal| yielded["Shortcut stays with that context"]
+  trigger -->|typing, IME composition, or dialog| yielded["Shortcut stays with that context"]
 ```
 
 ## Code flow
@@ -29,7 +29,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   button["SidebarTrigger calls toggleSidebar"] --> state["SidebarProvider updates open state"]
-  key["useSidebarKeyboardShortcut handles Cmd/Ctrl+B"] --> guard["shortcutGuards checks text entry IME and modal"]
+  key["useSidebarKeyboardShortcut handles Cmd/Ctrl+B"] --> guard["shortcutGuards checks text entry IME and dialog"]
   guard -->|allowed| state
   guard -->|guarded| context["keyboard event remains with active context"]
   state --> pref["setSidebarOpen persists device preference"]

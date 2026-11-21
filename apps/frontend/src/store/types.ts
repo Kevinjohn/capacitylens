@@ -121,7 +121,7 @@ export interface StoreState extends StoreEntityActions {
    */
   srAnnouncement: { text: string; seq: number } | null;
   /** True while any registered form/operation has unsaved work, drives the unsaved-changes guards
-   * (modal backdrop/Escape, beforeunload). Derived from source ownership, never persisted. */
+   * (dialog backdrop/Escape, beforeunload). Derived from source ownership, never persisted. */
   dirtyForm: boolean;
   /** Internal owner set from which dirtyForm is derived. Transient and never persisted. */
   dirtyFormSources: ReadonlySet<symbol>;

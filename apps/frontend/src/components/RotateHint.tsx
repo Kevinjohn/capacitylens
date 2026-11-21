@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { APP_NAME, STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand';
-import { Modal } from './common/ui';
+import { FormDialog } from './common/ui';
 import { Button } from './ui/button';
 import { m } from '@/i18n';
 
@@ -54,7 +54,7 @@ export function RotateHint() {
   };
 
   return (
-    <Modal
+    <FormDialog
       title={m.rotate_title()}
       onClose={dismiss}
       onSubmit={dismiss}
@@ -66,6 +66,6 @@ export function RotateHint() {
       }
     >
       <p className="text-sm text-muted-foreground">{m.rotate_body({ app: APP_NAME })}</p>
-    </Modal>
+    </FormDialog>
   );
 }

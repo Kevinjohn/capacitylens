@@ -39,7 +39,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerGridRow ResourceActions + sets create modal from visible start date"] --> B["SchedulerDialog renders AllocationDialog with row resource"]
+  A["SchedulerGridRow ResourceActions + sets create dialog from visible start date"] --> B["SchedulerDialog renders AllocationDialog with row resource"]
   B --> C["AllocationDialog submits through useStore.addAllocation"]
   C --> D["allocationSlice creates typed planning intent"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]

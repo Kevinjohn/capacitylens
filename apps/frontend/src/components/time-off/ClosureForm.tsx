@@ -8,7 +8,13 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError, useFieldErrorFocus } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
 import { useStore } from '@/store/useStore';
-import { DateField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import {
+  DateField,
+  FormActions,
+  FormDialog,
+  RequiredLegend,
+  TextField,
+} from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 
 type ClosureFormFieldsProps = {
@@ -112,7 +118,7 @@ export function ClosureForm({
   };
 
   return (
-    <Modal
+    <FormDialog
       title={closure ? m.form_closure_edit_title() : m.form_closure_add_title()}
       onClose={onClose}
       onSubmit={() => {
@@ -134,6 +140,6 @@ export function ClosureForm({
           errorId={errorId}
         />
       </fieldset>
-    </Modal>
+    </FormDialog>
   );
 }

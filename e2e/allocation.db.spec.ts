@@ -12,7 +12,7 @@ import {
 } from './browserTestKit';
 
 test.describe('Allocation editor', () => {
-  // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
+  // Covers US-ALL-01..08. The allocation editor (dialog) opened from the row "+" or by
   // clicking a bar. Seed bars live in June 2026, so each test explicitly opens that visible week.
   test.beforeEach(async ({ page }) => {
     await openApp(page);

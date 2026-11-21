@@ -55,14 +55,14 @@ status definitions. Guide and implementation links live with each story; tests r
 
 | Story                                                          | Action                                         | Status  |
 | -------------------------------------------------------------- | ---------------------------------------------- | ------- |
-| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create an allocation via the modal             | Current |
+| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create an allocation via the dialog            | Current |
 | [US-ALL-02](allocation/US-ALL-02-edit.md)                      | Edit an existing allocation                    | Current |
 | [US-ALL-03](allocation/US-ALL-03-duplicate.md)                 | Duplicate an allocation                        | Current |
 | [US-ALL-04](allocation/US-ALL-04-delete.md)                    | Delete an allocation                           | Current |
-| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add a new activity inline from the modal       | Current |
+| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add a new activity inline from the dialog      | Current |
 | [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change an allocation's assignee                | Current |
 | [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder assignee locks the project         | Current |
-| [US-ALL-08](allocation/US-ALL-08-validation.md)                | The modal rejects bad input                    | Current |
+| [US-ALL-08](allocation/US-ALL-08-validation.md)                | The dialog rejects bad input                   | Current |
 | [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating weekly or monthly allocations | Current |
 | [US-ALL-10](allocation/US-ALL-10-task-field.md)                | Add an optional task to an allocation          | Current |
 | [US-ALL-11](allocation/US-ALL-11-cancel-allocation-form.md)    | Cancel allocation create or edit               | Current |

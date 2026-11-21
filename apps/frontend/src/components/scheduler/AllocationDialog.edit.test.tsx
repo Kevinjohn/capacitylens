@@ -253,7 +253,7 @@ describe('AllocationDialog edit', () => {
     );
   });
 
-  it('keeps the modal open and surfaces the reason when deletion is rejected', async () => {
+  it('keeps the dialog open and surfaces the reason when deletion is rejected', async () => {
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
     );

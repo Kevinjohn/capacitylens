@@ -34,7 +34,7 @@ export function resolveDateStyle(data: AppData, activeCompanyId: ID | null): Dat
 }
 
 /** The active company's scheduling input mode. Absent on the company reads as 'hourly'.
- * Shared by the modal and bar. */
+ * Shared by the dialog and bar. */
 export const resolveSchedulingMode = createCompanyFieldSelector('schedulingMode', 'hourly');
 
 /** Whether the active company uses disciplines; every discipline surface shares this value. */
@@ -66,8 +66,8 @@ export const hasPlaceholdersEnabled = createCompanyFieldSelector('placeholdersEn
 /** Whether the active company shows external resources; an absent field defaults to false. */
 export const hasExternalResourcesEnabled = createCompanyFieldSelector('externalEnabled', false);
 
-/** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
- * false (disabled). Single source so Settings and the modal use the same company value. */
+/** Whether the Allocation dialog offers the inline "Add activity" input + button. Absent reads as
+ * false (disabled). Single source so Settings and the dialog use the same company value. */
 export const canCreateInlineActivity = createCompanyFieldSelector(
   'inlineActivityCreateEnabled',
   false,

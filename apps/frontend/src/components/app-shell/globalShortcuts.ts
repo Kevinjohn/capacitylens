@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { m } from '@/i18n';
-import { hasOpenModal, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
+import { hasOpenDialog, isTextEntryShortcutOwner } from '@/lib/shortcutGuards';
 import { isShownByPlanningState } from '@/data/planning/planningNotices';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
@@ -24,7 +24,7 @@ function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcut
     if (!event.repeat) useStore.getState().setNotice(m.dialog_unsaved_changes());
     return true;
   }
-  if (hasOpenModal()) return true;
+  if (hasOpenDialog()) return true;
   event.preventDefault();
   if (!event.repeat) input.setPaletteOpen((open) => !open);
   return true;
@@ -32,7 +32,7 @@ function applyPaletteShortcutEffect(event: KeyboardEvent, input: PaletteShortcut
 
 function applyHistoryShortcutEffect(event: KeyboardEvent, input: HistoryShortcutInput) {
   if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
-  if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenModal()) return;
+  if (event.isComposing || isTextEntryShortcutOwner(event.target) || hasOpenDialog()) return;
   if (useStore.getState().dirtyForm) return;
   event.preventDefault();
   (event.shiftKey ? input.redo() : input.undo()).catch((error: unknown) => {

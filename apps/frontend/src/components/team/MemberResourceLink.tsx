@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember } from '@/account/teamAccessApi';
-import { Modal, SelectField } from '@/components/common/ui';
+import { FormDialog, SelectField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Link as LinkIcon } from 'lucide-react';
 import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
@@ -193,7 +193,7 @@ export function MemberResourceDialog({
         <LinkIcon />
       </Button>
       {open && (
-        <Modal
+        <FormDialog
           title={m.settings_member_col_scheduled_person()}
           description={memberLabel}
           onClose={() => setOpen(false)}
@@ -210,7 +210,7 @@ export function MemberResourceDialog({
             request={request}
             view={buildMemberResourceView(member, linkedResourceIds, resourceCandidates)}
           />
-        </Modal>
+        </FormDialog>
       )}
     </>
   );

@@ -35,7 +35,7 @@ function expectCodeNameDescriptionOnOwnRow() {
   expect(description).toHaveClass('sm:col-start-2');
 }
 
-describe('compact input modal layouts', () => {
+describe('compact input dialog layouts', () => {
   it('uses compact rows for every External and Discipline field', () => {
     const external = render(<ExternalForm onClose={vi.fn()} />);
     expectCompact(screen.getByLabelText('Company'));

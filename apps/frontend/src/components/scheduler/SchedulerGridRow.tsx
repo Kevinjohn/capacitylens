@@ -29,7 +29,7 @@ export interface SchedulerGridRowProps {
   ui: Pick<SchedulerUI, 'drawMode'>;
   canEdit: boolean;
   visibleStartDate: () => ISODate;
-  setModal: Dispatch<SetStateAction<DialogState | null>>;
+  setDialog: Dispatch<SetStateAction<DialogState | null>>;
   days: LaneProps['days'];
   todayX: LaneProps['todayX'];
   geom: LaneProps['geom'];
@@ -114,7 +114,7 @@ function ResourceActions({
   ui,
   canEdit,
   visibleStartDate,
-  setModal,
+  setDialog,
   utilisationPrefs,
   visibleWeeksLabel,
 }: Pick<
@@ -123,7 +123,7 @@ function ResourceActions({
   | 'ui'
   | 'canEdit'
   | 'visibleStartDate'
-  | 'setModal'
+  | 'setDialog'
   | 'utilisationPrefs'
   | 'visibleWeeksLabel'
 >) {
@@ -138,7 +138,7 @@ function ResourceActions({
           size="icon"
           onClick={() => {
             const day = visibleStartDate();
-            setModal({
+            setDialog({
               kind: ui.drawMode === 'timeOff' ? 'timeOff' : 'create',
               resourceId: resource.id,
               startDate: day,
@@ -179,7 +179,7 @@ type RowHeaderProps = Pick<
   | 'ui'
   | 'canEdit'
   | 'visibleStartDate'
-  | 'setModal'
+  | 'setDialog'
   | 'personScheduleTitlesByResourceId'
   | 'onViewSchedule'
 >;
@@ -252,7 +252,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         ui={props.ui}
         canEdit={canEdit}
         visibleStartDate={props.visibleStartDate}
-        setModal={props.setModal}
+        setDialog={props.setDialog}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
         onViewSchedule={props.onViewSchedule}
       />

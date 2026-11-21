@@ -8,7 +8,7 @@ import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from
 //
 // Seed bars live 1–9 June 2026 (clock frozen to 2026-06-03), so a fresh allocation Fri 12 → Mon 15
 // June (spanning the empty weekend 13–14) collides with nothing. Clark Kent is Mon–Fri.
-// The spec drives the modal in the seed's default hourly scheduling mode (Start/End + Hours / day).
+// The spec drives the dialog in the seed's default hourly scheduling mode (Start/End + Hours / day).
 const clarkLane = (page: Page) => page.locator('[data-resource-id="r-nike"]');
 const clarkOverMarkers = (page: Page) => clarkLane(page).getByTestId('over-marker');
 

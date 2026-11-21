@@ -8,7 +8,7 @@ import { parseName } from '@/lib/validation';
 import { m } from '@/i18n';
 import {
   FormActions,
-  Modal,
+  FormDialog,
   RequiredLegend,
   SegmentedField,
   SelectField,
@@ -171,7 +171,7 @@ export function ActivityForm({
   };
 
   return (
-    <Modal
+    <FormDialog
       title={activity ? m.form_activity_edit_title() : m.form_activity_add_title()}
       onClose={onClose}
       onSubmit={() => {
@@ -192,6 +192,6 @@ export function ActivityForm({
         error={error}
         pending={pending}
       />
-    </Modal>
+    </FormDialog>
   );
 }

@@ -523,7 +523,7 @@ describe('SettingsView — account options selected at creation', () => {
     expect(screen.queryByRole('combobox', { name: 'Time zone' })).not.toBeInTheDocument();
   });
 
-  it('moves the frozen explanation into the section help modal', async () => {
+  it('moves the frozen explanation into the section help dialog', async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
 

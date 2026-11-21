@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { m } from '@/i18n';
 import { useAuth } from '@/auth/authContext';
 import { useStore } from '@/store/useStore';
-import { Modal } from '@/components/common/ui';
+import { FormDialog } from '@/components/common/ui';
 import { SelectField } from '@/components/common/fields/SelectField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -141,7 +141,7 @@ export function OwnershipTransferCard() {
         {m.ownership_transfer_open()}
       </Button>
       {open && !confirmationTarget && (
-        <Modal
+        <FormDialog
           title={m.ownership_transfer_heading()}
           description={m.ownership_transfer_intro()}
           guardDirty={false}
@@ -158,7 +158,7 @@ export function OwnershipTransferCard() {
             setSelected={setSelected}
             onTransfer={requestTransfer}
           />
-        </Modal>
+        </FormDialog>
       )}
       {confirmationTarget && activeCompanyId && (
         <PasswordConfirmationDialog

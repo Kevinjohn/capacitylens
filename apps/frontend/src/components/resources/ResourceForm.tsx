@@ -6,7 +6,7 @@ import { useFieldError } from '@/hooks/useFieldError';
 import { m } from '@/i18n';
 import {
   FormActions,
-  Modal,
+  FormDialog,
   RequiredLegend,
   SegmentedField,
   SelectField,
@@ -231,7 +231,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     readActiveCompanyId: () => useStore.getState().activeCompanyId,
   });
   return (
-    <Modal
+    <FormDialog
       title={resolveFormTitle({ resource, isPlaceholder })}
       onClose={onClose}
       onSubmit={() => {
@@ -251,6 +251,6 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
         errorField={errorField}
         errorId={errorId}
       />
-    </Modal>
+    </FormDialog>
   );
 }

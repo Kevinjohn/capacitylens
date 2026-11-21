@@ -356,7 +356,7 @@ describe('AllocationDialog days mode', () => {
 
   it('rejects a work volume that would derive more than 24h/day (no silent clamp)', async () => {
     // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24,
-    // silently discarding the entered volume. The modal must reject so preview === saved.
+    // silently discarding the entered volume. The dialog must reject so preview === saved.
     await enableDays();
     const r = await requireCreated(
       useStore.getState().addResource({ ...person('Bruce'), workingDays: [1, 2, 3, 4, 5] }),

@@ -237,7 +237,7 @@ async function assertExternalVariants(page: Page, testInfo: TestInfo) {
   await page.screenshot({ path: testInfo.outputPath('issue_306_allocation_placeholder.png') });
 }
 
-test.describe('Allocation modal label/control layout', { tag: '@engine' }, () => {
+test.describe('Allocation dialog label/control layout', { tag: '@engine' }, () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);

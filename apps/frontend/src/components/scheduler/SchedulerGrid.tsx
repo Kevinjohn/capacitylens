@@ -36,17 +36,17 @@ const TimeOffForm = lazy(() =>
   })),
 );
 
-function SchedulerDialog({ modal, close }: { modal: DialogState; close: () => void }) {
-  if (modal.kind === 'edit') {
-    return <AllocationDialog kind="edit" allocationId={modal.allocationId} onClose={close} />;
+function SchedulerDialog({ dialog, close }: { dialog: DialogState; close: () => void }) {
+  if (dialog.kind === 'edit') {
+    return <AllocationDialog kind="edit" allocationId={dialog.allocationId} onClose={close} />;
   }
-  if (modal.kind === 'timeOff') {
+  if (dialog.kind === 'timeOff') {
     return (
       <TimeOffForm
         defaults={{
-          resourceId: modal.resourceId,
-          startDate: modal.startDate,
-          endDate: modal.endDate,
+          resourceId: dialog.resourceId,
+          startDate: dialog.startDate,
+          endDate: dialog.endDate,
         }}
         onClose={close}
       />
@@ -55,7 +55,11 @@ function SchedulerDialog({ modal, close }: { modal: DialogState; close: () => vo
   return (
     <AllocationDialog
       kind="create"
-      create={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+      create={{
+        resourceId: dialog.resourceId,
+        startDate: dialog.startDate,
+        endDate: dialog.endDate,
+      }}
       onClose={close}
     />
   );
@@ -113,12 +117,12 @@ function openDrawDialog({
   resourceId,
   startDate,
   endDate,
-  setModal,
+  setDialog,
 }: {
   resourceId: ID;
   startDate: ISODate;
   endDate: ISODate;
-  setModal: (modal: DialogState) => void;
+  setDialog: (dialog: DialogState) => void;
 }) {
   const state = useStore.getState();
   const drawMode = state.ui.drawMode;
@@ -137,13 +141,18 @@ function openDrawDialog({
     return;
   }
   if (drawMode === 'timeOff' && isExternalResource(resource)) return;
-  setModal({ kind: drawMode === 'timeOff' ? 'timeOff' : 'create', resourceId, startDate, endDate });
+  setDialog({
+    kind: drawMode === 'timeOff' ? 'timeOff' : 'create',
+    resourceId,
+    startDate,
+    endDate,
+  });
 }
 
 function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
   const screenReaderAnnouncement = useStore((state) => state.srAnnouncement);
   const announceStatus = useStore((state) => state.announceCapacity);
-  const [modal, setModal] = useState<DialogState | null>(null);
+  const [dialog, setDialog] = useState<DialogState | null>(null);
   const previousDrawMode = useRef(ui.drawMode);
   useEffect(() => {
     if (previousDrawMode.current === ui.drawMode) return;
@@ -155,15 +164,15 @@ function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
     );
   }, [announceStatus, ui.drawMode]);
   const editAllocation = useCallback(
-    (allocationId: ID) => setModal({ kind: 'edit', allocationId }),
+    (allocationId: ID) => setDialog({ kind: 'edit', allocationId }),
     [],
   );
   const createFromDraw = useCallback(
     (resourceId: ID, startDate: ISODate, endDate: ISODate) =>
-      openDrawDialog({ resourceId, startDate, endDate, setModal }),
+      openDrawDialog({ resourceId, startDate, endDate, setDialog }),
     [],
   );
-  return { screenReaderAnnouncement, modal, setModal, editAllocation, createFromDraw };
+  return { screenReaderAnnouncement, dialog, setDialog, editAllocation, createFromDraw };
 }
 
 type GridViewProps = {
@@ -185,13 +194,13 @@ type GridViewProps = {
 };
 
 function SchedulerModalBoundary({
-  modal,
-  setModal,
-}: Pick<GridViewProps['interactions'], 'modal' | 'setModal'>) {
-  if (!modal) return null;
+  dialog,
+  setDialog,
+}: Pick<GridViewProps['interactions'], 'dialog' | 'setDialog'>) {
+  if (!dialog) return null;
   return (
     <Suspense fallback={null}>
-      <SchedulerDialog modal={modal} close={() => setModal(null)} />
+      <SchedulerDialog dialog={dialog} close={() => setDialog(null)} />
     </Suspense>
   );
 }
@@ -243,7 +252,7 @@ function SchedulerGridContents(props: GridViewProps) {
         visibleWeeksLabel={visibleWeeksLabel}
         canEdit={canEdit}
         visibleStartDate={visibleStartDate}
-        setModal={interactions.setModal}
+        setDialog={interactions.setDialog}
         days={days}
         todayX={todayX}
         calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
@@ -252,7 +261,7 @@ function SchedulerGridContents(props: GridViewProps) {
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
         onViewSchedule={props.onViewSchedule}
       />
-      <SchedulerModalBoundary modal={interactions.modal} setModal={interactions.setModal} />
+      <SchedulerModalBoundary dialog={interactions.dialog} setDialog={interactions.setDialog} />
     </>
   );
 }

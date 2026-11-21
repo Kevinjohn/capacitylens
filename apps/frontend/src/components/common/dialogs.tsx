@@ -32,7 +32,7 @@ function hasOpenNestedOverlay(): boolean {
 }
 
 /** Provides the shared dialog title, body, and dismissal behavior. */
-export function Modal({
+export function FormDialog({
   title,
   description,
   onClose,
@@ -53,13 +53,13 @@ export function Modal({
   footer?: ReactNode;
   /** Disable for confirmation-only dialogs whose inputs are a gate, not savable form data. */
   guardDirty?: boolean;
-  /** Optional controlled dirty state; otherwise Modal owns it through form events. */
+  /** Optional controlled dirty state; otherwise FormDialog owns it through form events. */
   dirty?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
   /** Called for every form edit, including edits after the form is already dirty. */
   onEdit?: () => void;
 }) {
-  const { markDirty, requestClose } = useModalController({
+  const { markDirty, requestClose } = useFormDialogViewModel({
     guardDirty,
     controlledDirty,
     onDirtyChange,
@@ -98,15 +98,15 @@ export function Modal({
           <DialogTitle className="text-base">{title}</DialogTitle>
           {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
         </DialogHeader>
-        <ModalForm onSubmit={onSubmit} markDirty={markDirty} footer={footer}>
+        <DialogForm onSubmit={onSubmit} markDirty={markDirty} footer={footer}>
           {children}
-        </ModalForm>
+        </DialogForm>
       </DialogContent>
     </Dialog>
   );
 }
 
-function useModalController({
+function useFormDialogViewModel({
   guardDirty,
   controlledDirty,
   onDirtyChange,
@@ -121,7 +121,7 @@ function useModalController({
 }) {
   const setNotice = useStore((state) => state.setNotice);
   const setDirtyFormSource = useStore((state) => state.setDirtyFormSource);
-  const [dirtySource] = useState(() => Symbol('modal-dirty'));
+  const [dirtySource] = useState(() => Symbol('dialog-dirty'));
   const [invoker] = useState(() => document.activeElement as HTMLElement | null);
 
   const [localDirty, setLocalDirty] = useState(false);
@@ -140,8 +140,8 @@ function useModalController({
     if (controlledDirty === undefined) setLocalDirty(true);
     onDirtyChange?.(true);
   }, [controlledDirty, dirtySource, guardDirty, onDirtyChange, onEdit, setDirtyFormSource]);
-  // Publish this Modal's contribution so global beforeunload/shortcut guards aggregate every open
-  // owner. Cleanup releases only this token; a clean overlapping Modal cannot clear another form.
+  // Publish this FormDialog's contribution so global beforeunload/shortcut guards aggregate every open
+  // owner. Cleanup releases only this token; a clean overlapping FormDialog cannot clear another form.
   useEffect(() => {
     setDirtyFormSource({ source: dirtySource, dirty: guardDirty && dirty });
   }, [dirty, dirtySource, guardDirty, setDirtyFormSource]);
@@ -163,7 +163,7 @@ function useModalController({
   return { markDirty, requestClose };
 }
 
-function ModalForm({
+function DialogForm({
   onSubmit,
   markDirty,
   footer,

@@ -316,7 +316,7 @@ against the packaged native production server with disposable SQLite data and pa
 not the development server. A temporary loopback HTTPS edge preserves secure session cookies;
 only the test browser accepts its self-signed certificate. On macOS a process-only preference makes
 scrollbars visible without changing OS preferences. It runs the existing HTTP installation,
-scheduling, backup and restore smoke as well as desktop/narrow modal scrolling, background locking,
+scheduling, backup and restore smoke as well as desktop/narrow dialog scrolling, background locking,
 scrollbar compensation, nested dialogs and selection, Escape, focus restoration and lock cleanup.
 A separate page proves that the shipped CSP blocks an injected stylesheet and that the violation
 guard detects it. Runtime style violations or uncaught browser exceptions fail acceptance.

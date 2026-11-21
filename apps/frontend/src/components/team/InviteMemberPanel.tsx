@@ -5,7 +5,7 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamInvitation } from '@/account/teamAccessApi';
 import { formatInviteExpiryDate } from '@/components/invites/inviteExpiry';
 import { resolveRoleLabel, resolveRoleSummary } from '@/lib/accessCopy';
-import { Modal, SelectField, TextField } from '@/components/common/ui';
+import { FormDialog, SelectField, TextField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { FieldError, FieldSet } from '@/components/ui/field';
 import { sortInvitationsForPresentation } from './buildMemberDirectoryPresentation';
@@ -37,7 +37,7 @@ export function InviteMemberPanel(props: InviteMemberPanelProps) {
     <section data-testid="invites-section" aria-busy={props.busy} className="flex flex-col gap-4">
       <InviteHeader onOpen={props.openInviteDialog} />
       {props.inviteDialogOpen && (
-        <Modal
+        <FormDialog
           title={m.settings_invite_heading()}
           description={m.settings_invite_intro({ app: APP_NAME })}
           onClose={props.closeInviteDialog}
@@ -54,7 +54,7 @@ export function InviteMemberPanel(props: InviteMemberPanelProps) {
           }
         >
           <InviteForm {...props} />
-        </Modal>
+        </FormDialog>
       )}
       {!props.inviteDialogOpen && props.errorField === 'invite' && (
         <FieldError id={props.errorId} role="alert">

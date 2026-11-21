@@ -3,7 +3,7 @@ import type { Route } from '@capacitylens/backend/registry';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import { fetchApi } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
-import { Modal } from '@/components/common/ui';
+import { FormDialog } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -70,7 +70,7 @@ export function PasswordConfirmationDialog({
   };
 
   return (
-    <Modal
+    <FormDialog
       title={m.reauth_title()}
       description={m.password_confirmation_body()}
       onClose={busy ? () => {} : onCancel}
@@ -106,6 +106,6 @@ export function PasswordConfirmationDialog({
           {busy ? m.reauth_confirming() : m.common_continue()}
         </Button>
       </div>
-    </Modal>
+    </FormDialog>
   );
 }

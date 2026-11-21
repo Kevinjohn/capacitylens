@@ -25,7 +25,7 @@ beforeEach(async () => {
   await resetAllocationDialogStore();
 });
 
-describe('#257: modal and gesture effective-week agreement', () => {
+describe('#257: dialog and gesture effective-week agreement', () => {
   it('saves the same end and hours/day as a resize commit for the same five-day span', async () => {
     await enableDays([1, 2, 3, 4]);
     const resource = await requireCreated(
@@ -42,7 +42,7 @@ describe('#257: modal and gesture effective-week agreement', () => {
       }),
     );
     const user = userEvent.setup();
-    const modal = renderAsOwner(
+    const dialog = renderAsOwner(
       <AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
     );
 
@@ -55,9 +55,9 @@ describe('#257: modal and gesture effective-week agreement', () => {
     );
     const dialogAllocation = required(
       useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
-      'Expected the modal-resized allocation.',
+      'Expected the dialog-resized allocation.',
     );
-    modal.unmount();
+    dialog.unmount();
 
     await useStore
       .getState()

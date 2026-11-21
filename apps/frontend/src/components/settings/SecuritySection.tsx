@@ -1,6 +1,6 @@
 import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password';
 import { m } from '@/i18n';
-import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FormActions, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { FieldError } from '@/components/ui/field';
 import { useSecurityViewModel } from './useSecurityViewModel';
@@ -73,7 +73,7 @@ function PasswordDialog({
   const password = viewModel.password;
   return (
     open && (
-      <Modal
+      <FormDialog
         title={m.settings_security_change_password()}
         onClose={close}
         onSubmit={() => void password.submit()}
@@ -92,7 +92,7 @@ function PasswordDialog({
         }
       >
         <PasswordForm viewModel={viewModel} />
-      </Modal>
+      </FormDialog>
     )
   );
 }
@@ -110,7 +110,7 @@ function DeleteAccountDialog({
   const { deletion, fieldError } = viewModel;
   return (
     open && (
-      <Modal
+      <FormDialog
         title={m.settings_security_delete_account()}
         description={m.settings_security_delete_account_description()}
         onClose={close}
@@ -147,7 +147,7 @@ function DeleteAccountDialog({
         />
         <FieldError id={fieldError.errorId}>{fieldError.error}</FieldError>
         <RequiredLegend />
-      </Modal>
+      </FormDialog>
     )
   );
 }

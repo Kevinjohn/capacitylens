@@ -74,7 +74,7 @@
   /* Named layer tiers keep sticky chrome below drags, dialogs, floating content, tooltips, and the focused skip link. */
   --z-index-sticky: 40;
   --z-index-drag: 50;
-  --z-index-modal: 55;
+  --z-index-dialog: 55;
   --z-index-popover: 60;
   --z-index-tooltip: 65;
   --z-index-skip-link: 70;

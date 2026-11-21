@@ -179,7 +179,7 @@ test.describe('Command palette', { tag: '@engine' }, () => {
 
     await expect(page.getByTestId('command-palette')).not.toBeVisible();
   });
-  test('dirty-form guard: Ctrl+K while a modal is dirty does not open the palette', async ({
+  test('dirty-form guard: Ctrl+K while a dialog is dirty does not open the palette', async ({
     page,
   }) => {
     await openApp(page);

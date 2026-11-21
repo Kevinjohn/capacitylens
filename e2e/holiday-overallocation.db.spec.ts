@@ -55,7 +55,7 @@ async function markerOnFirstTimeOff(lane: Locator) {
 }
 
 test(
-  'modal edits, drag and repeat creation show work on holiday as over allocation',
+  'dialog edits, drag and repeat creation show work on holiday as over allocation',
   { tag: '@engine' },
   async ({ page }, testInfo) => {
     await openApp(page);

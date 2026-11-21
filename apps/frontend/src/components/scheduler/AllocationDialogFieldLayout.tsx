@@ -16,7 +16,7 @@ export function AllocationControlColumn({ children }: { children: ReactNode }) {
   );
 }
 
-/** The scheduling controls are the one deliberate exception to the modal's 25/75 rows. */
+/** The scheduling controls are the one deliberate exception to the dialog's 25/75 rows. */
 export function AllocationSpanRow({
   children,
   hint,

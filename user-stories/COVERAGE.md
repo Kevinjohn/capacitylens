@@ -53,14 +53,14 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 | Story                                                          | Action                                         | Access                 | Status  | Catalogue |
 | -------------------------------------------------------------- | ---------------------------------------------- | ---------------------- | ------- | --------- |
-| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create an allocation via the modal             | Editor, Admin or Owner | Current | Existing  |
+| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create an allocation via the dialog            | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-02](allocation/US-ALL-02-edit.md)                      | Edit an existing allocation                    | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-03](allocation/US-ALL-03-duplicate.md)                 | Duplicate an allocation                        | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-04](allocation/US-ALL-04-delete.md)                    | Delete an allocation                           | Editor, Admin or Owner | Current | Existing  |
-| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add a new activity inline from the modal       | Editor, Admin or Owner | Current | Existing  |
+| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add a new activity inline from the dialog      | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change an allocation's assignee                | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder assignee locks the project         | Editor, Admin or Owner | Current | Existing  |
-| [US-ALL-08](allocation/US-ALL-08-validation.md)                | The modal rejects bad input                    | Editor, Admin or Owner | Current | Existing  |
+| [US-ALL-08](allocation/US-ALL-08-validation.md)                | The dialog rejects bad input                   | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating weekly or monthly allocations | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-10](allocation/US-ALL-10-task-field.md)                | Add an optional task to an allocation          | Editor, Admin or Owner | Current | Existing  |
 | [US-ALL-11](allocation/US-ALL-11-cancel-allocation-form.md)    | Cancel allocation create or edit               | Editor, Admin or Owner | Current | New       |

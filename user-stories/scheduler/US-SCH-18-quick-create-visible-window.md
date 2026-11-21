@@ -33,7 +33,7 @@ flowchart TD
 flowchart TD
   A["SchedulerGridRow receives visibleStartDate callback"] --> B["ResourceActions calls visibleStartDate on +"]
   B --> C["useSchedulerViewport.readVisibleStartDate resolves left-edge date"]
-  C --> D["ResourceActions sets create modal with that date"]
+  C --> D["ResourceActions sets create dialog with that date"]
   D --> E["AllocationDialog receives resource and start date"]
 ```
 

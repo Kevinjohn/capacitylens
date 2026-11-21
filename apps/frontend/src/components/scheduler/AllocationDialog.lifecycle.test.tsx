@@ -115,15 +115,15 @@ describe('AllocationDialog submit exclusion', () => {
     const resource = await addPerson();
     const addAllocation = vi.spyOn(useStore.getState(), 'addAllocation');
     const user = userEvent.setup();
-    let closeModal = () => {};
+    let closeDialog = () => {};
     const view = renderAsOwner(
       <AllocationDialog
         kind="create"
         create={{ resourceId: resource.id, startDate: '2099-06-01', endDate: '2099-06-03' }}
-        onClose={() => closeModal()}
+        onClose={() => closeDialog()}
       />,
     );
-    closeModal = view.unmount;
+    closeDialog = view.unmount;
     await completeAssignment(user);
     const form = closestForm(screen.getByRole('button', { name: 'Save' }));
 

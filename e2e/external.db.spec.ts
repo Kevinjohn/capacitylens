@@ -118,7 +118,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     );
   });
   test(
-    'assigns an activity from the row "+": the modal has no Hours field and saves a span-only bar',
+    'assigns an activity from the row "+": the dialog has no Hours field and saves a span-only bar',
     { tag: '@engine' },
     async ({ page }) => {
       await openApp(page);
@@ -133,7 +133,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
       await page.getByRole('button', { name: 'Add allocation for Kord Industries' }).click();
       const dialog = page.getByRole('dialog', { name: 'New allocation' });
       await expect(dialog.getByRole('heading')).toContainText('Kord Industries');
-      // External work has no capacity, so its modal collects only a date span.
+      // External work has no capacity, so its dialog collects only a date span.
       await expect(dialog.getByLabel('Hours / day')).toHaveCount(0);
       // Externals already use literal calendar spans, so the override is hidden.
       await expect(dialog.getByRole('checkbox', { name: 'Ignore working days' })).toHaveCount(0);

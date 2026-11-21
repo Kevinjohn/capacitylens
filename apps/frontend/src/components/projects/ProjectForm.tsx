@@ -14,7 +14,7 @@ import { m } from '@/i18n';
 import {
   ColorField,
   FormActions,
-  Modal,
+  FormDialog,
   RequiredLegend,
   SelectField,
   TextField,
@@ -85,7 +85,7 @@ export function ProjectForm({
     prepareProjectSave({ project, name, clientId, color, privateNameFields, fail, add, update });
 
   return (
-    <Modal
+    <FormDialog
       title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
       onSubmit={() => {
@@ -121,7 +121,7 @@ export function ProjectForm({
           disabled={pending}
         />
       </fieldset>
-    </Modal>
+    </FormDialog>
   );
 }
 

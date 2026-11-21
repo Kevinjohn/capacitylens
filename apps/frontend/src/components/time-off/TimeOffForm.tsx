@@ -11,7 +11,7 @@ import { m } from '@/i18n';
 import {
   DateField,
   FormActions,
-  Modal,
+  FormDialog,
   RequiredLegend,
   SelectField,
   TextField,
@@ -208,7 +208,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
     });
 
   return (
-    <Modal
+    <FormDialog
       title={timeOff ? m.form_time_off_edit_title() : m.form_time_off_add_title()}
       onClose={onClose}
       onSubmit={() => {
@@ -232,7 +232,7 @@ export function TimeOffForm({ timeOff, defaults, onClose: close }: TimeOffFormPr
         {error}
       </FieldError>
       <RequiredLegend />
-    </Modal>
+    </FormDialog>
   );
 }
 

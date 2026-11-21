@@ -35,7 +35,7 @@ This is the short, present-tense record of decisions that constrain future work.
   deliberate friction against task tracking.
 - CapacityLens is a single product with one repository and one set of releases.
 - The global sidebar shortcut (⌘B / Ctrl+B) yields while text entry or IME composition owns the
-  keyboard and while any modal is open; those contexts keep both the chord and page layout stable.
+  keyboard and while any dialog is open; those contexts keep both the chord and page layout stable.
 - English is the only locale. The message layer, the company language field and the locale sync
   stay for a later second locale: the field selects the runtime locale and is not shown when a
   company is created while English is the only locale. It cannot be changed afterwards; a field that

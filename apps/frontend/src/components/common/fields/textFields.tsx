@@ -74,7 +74,7 @@ function TextFieldControl({
       value={value}
       placeholder={placeholder}
       autoFocus={autoFocus}
-      // Mark the intended autofocus target so Modal's focus trap honours it instead of
+      // Mark the intended autofocus target so FormDialog's focus trap honours it instead of
       // grabbing the first focusable (often a leading button).
       data-autofocus={autoFocus ? '' : undefined}
       maxLength={maxLength ?? undefined}

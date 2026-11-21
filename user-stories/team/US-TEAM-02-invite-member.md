@@ -37,7 +37,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Panel["InviteMemberPanel opens Modal with settings_invite_intro description, then submit"] --> Hook["useMemberInvites submitInvite validates email"]
+    Panel["InviteMemberPanel opens FormDialog with settings_invite_intro description, then submit"] --> Hook["useMemberInvites submitInvite validates email"]
     Hook --> Client["teamAccessApi.createInvitation → invitationRequests.createInvitation"]
     Client --> Route["api.invites.create → InvitationsController.create"]
     Route --> MailConfig{"CAPACITYLENS_MAIL_HOST configured?"}

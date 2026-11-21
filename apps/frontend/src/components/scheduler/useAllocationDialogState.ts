@@ -178,7 +178,7 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationDialogContext
   const repeatProjection = useRepeatProjection(
     buildRepeatProjectionInput(context, target, schedule),
   );
-  // A typed span can produce an invalid date; guard formatWeekdayScheduleDate() to avoid crashing the modal.
+  // A typed span can produce an invalid date; guard formatWeekdayScheduleDate() to avoid crashing the dialog.
   const parsedEndDate = parseDate(schedule.effEndDate);
   const endDateHint = Number.isNaN(parsedEndDate.getTime())
     ? null

@@ -22,7 +22,7 @@ import {
 } from './allocationDialogSelection';
 import type { EffectiveAllocationInput } from './allocationDialogTypes';
 
-// The modal derives its selector choice and effective span from these helpers alone, so each
+// The dialog derives its selector choice and effective span from these helpers alone, so each
 // branch is pinned here directly instead of through the dialog.
 
 const WEEK: EffectiveWorkingWeek = { kind: 'days', days: WORKDAYS };

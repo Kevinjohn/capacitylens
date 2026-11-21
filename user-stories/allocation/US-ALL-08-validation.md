@@ -1,4 +1,4 @@
-# US-ALL-08 — The modal rejects bad input
+# US-ALL-08 — The dialog rejects bad input
 
 As an Editor, I want invalid allocation fields to be identified so that I can correct the booking before it is saved.
 

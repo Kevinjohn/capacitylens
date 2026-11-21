@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useCan } from '@/auth/permissionContext';
-import { ConfirmDialog, Modal } from './common/ui';
+import { ConfirmDialog, FormDialog } from './common/ui';
 import { m } from '@/i18n';
 import { Button } from './ui/button';
 import { reloadPage } from '@/lib/reloadPage';
@@ -18,7 +18,7 @@ import type { TransferPreview } from '@/data/companyDataRequests';
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
-    <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
+    <FormDialog title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
       {requiresReload ? (
         <div className="flex flex-col gap-3">
           <p
@@ -37,7 +37,7 @@ function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
           {m.data_importing_body()}
         </p>
       )}
-    </Modal>
+    </FormDialog>
   );
 }
 
@@ -157,7 +157,7 @@ export function ImportExport() {
     setPreview(null);
     setPreviewError(null);
   };
-  // The server is the only validator: its reply is either the preview or the refusal shown in the modal.
+  // The server is the only validator: its reply is either the preview or the refusal shown in the dialog.
   const requestPreview = async (pending: PendingImport) => {
     const companyId = pending.companyId;
     if (!companyId) return;
@@ -203,7 +203,7 @@ export function ImportExport() {
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
       {pendingImport && canImport && !continued && (
-        <Modal
+        <FormDialog
           title={m.data_import_confirm_title()}
           onClose={() => {
             selectionRef.current += 1;
@@ -216,7 +216,7 @@ export function ImportExport() {
             error={previewError}
             onContinue={() => preview && setContinued(true)}
           />
-        </Modal>
+        </FormDialog>
       )}
       {pendingImport && canImport && preview && continued && !confirmingAction && (
         <ImportConfirmation

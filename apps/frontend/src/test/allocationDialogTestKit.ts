@@ -36,18 +36,18 @@ export function closestForm(control: HTMLElement): HTMLFormElement {
   return required(control.closest('form'), 'Expected the allocation control to belong to a form.');
 }
 
-/** Render an ordinary modal as a resolved Owner; tests may still supply inner authority boundaries. */
+/** Render an ordinary dialog as a resolved Owner; tests may still supply inner authority boundaries. */
 export function renderAsOwner(ui: ReactElement, options: Omit<RenderOptions, 'wrapper'> = {}) {
   return render(ui, { ...options, wrapper: OwnerPermissions });
 }
 
-/** Company fixture ID used by allocation modal tests. */
+/** Company fixture ID used by allocation dialog tests. */
 export const ACC = DEFAULT_COMPANY_ID;
 const originalAddAllocation = useStore.getState().addAllocation;
 const originalAddRepeatedAllocation = useStore.getState().addRepeatedAllocation;
 const originalAddActivity = useStore.getState().addActivity;
 
-/** Builds the base company data for allocation modal tests. */
+/** Builds the base company data for allocation dialog tests. */
 export function base(): AppData {
   return makeAppData({
     clients: [makeClient({ companyId: ACC, color: '#2d75da' })],
@@ -73,7 +73,7 @@ export function restoreStoreAllocationActions(): void {
   });
 }
 
-/** Resets allocation modal fixtures and patched actions between tests. */
+/** Resets allocation dialog fixtures and patched actions between tests. */
 export async function resetAllocationDialogStore(): Promise<void> {
   restoreStoreAllocationActions();
   await resetStoreWithData(base(), ACC);
@@ -96,7 +96,7 @@ export const addPerson = () =>
     useStore.getState().addResource(makeResourceDraft({ name: 'Tyler', color: '#111111' })),
   );
 
-/** Completes the visible allocation assignment fields in a modal test. */
+/** Completes the visible allocation assignment fields in a dialog test. */
 export const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
   await chooseOption(user, 'Project', 'Ferris / Lightning');
   await chooseOption(user, 'Activity', 'Wireframes');

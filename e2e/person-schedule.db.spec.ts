@@ -180,7 +180,7 @@ test(
 );
 
 test.describe('Individual schedule drawer', { tag: '@engine' }, () => {
-  test('opens as one read-only modal and preserves the grid state', async ({ page }) => {
+  test('opens as one read-only dialog and preserves the grid state', async ({ page }) => {
     const { grid, gridElement, before } = await prepareFilteredGrid(page);
     const trigger = page.getByRole('button', { name: "View Bruce Wayne's schedule BW" });
     await expect(trigger).toHaveAttribute('title', "View Bruce Wayne's schedule");

@@ -137,13 +137,13 @@ describe('AppShell sidebar collapse', () => {
     expect(useStore.getState().sidebarOpen).toBe(true);
     expect(event.defaultPrevented).toBe(false);
   });
-  it('ignores Cmd/Ctrl+B while a modal is open', () => {
+  it('ignores Cmd/Ctrl+B while a dialog is open', () => {
     renderAppShell({});
-    const modal = document.createElement('div');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('data-state', 'open');
-    document.body.append(modal);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-state', 'open');
+    document.body.append(dialog);
     const event = new KeyboardEvent('keydown', {
       key: 'b',
       metaKey: true,
@@ -159,7 +159,7 @@ describe('AppShell sidebar collapse', () => {
       expect(useStore.getState().sidebarOpen).toBe(true);
       expect(event.defaultPrevented).toBe(false);
     } finally {
-      modal.remove();
+      dialog.remove();
     }
   });
 });

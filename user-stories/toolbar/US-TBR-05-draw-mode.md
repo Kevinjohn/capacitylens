@@ -39,7 +39,7 @@ flowchart TD
   A["SchedulerToolbarSections SegmentedControl calls setDrawMode"] --> B["schedulerSlice stores local drawMode"]
   B --> C["SchedulerGridRow provides draw callback for Editor"]
   C --> D["ResourceLane interaction sends resource and dates to createFromDraw"]
-  D --> E["openDrawDialog selects allocation or time-off modal by drawMode"]
+  D --> E["openDrawDialog selects allocation or time-off dialog by drawMode"]
 ```
 
 **Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [schedulerSlice.ts](../../apps/frontend/src/store/slices/schedulerSlice.ts), [SchedulerGridRow.tsx](../../apps/frontend/src/components/scheduler/SchedulerGridRow.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx)

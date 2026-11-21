@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { hasOpenModal, isTextEntryShortcutOwner } from './shortcutGuards';
+import { hasOpenDialog, isTextEntryShortcutOwner } from './shortcutGuards';
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -92,32 +92,32 @@ describe('textEntryOwnsShortcut', () => {
   });
 });
 
-describe('hasOpenModal', () => {
-  function appendModal(ariaModal: string, state?: string): HTMLElement {
-    const modal = document.createElement('div');
-    modal.setAttribute('aria-modal', ariaModal);
-    if (state !== undefined) modal.dataset.state = state;
-    document.body.append(modal);
-    return modal;
+describe('hasOpenDialog', () => {
+  function appendDialog(ariaModal: string, state?: string): HTMLElement {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('aria-modal', ariaModal);
+    if (state !== undefined) dialog.dataset.state = state;
+    document.body.append(dialog);
+    return dialog;
   }
 
-  it('returns false when no modal exists', () => {
-    expect(hasOpenModal()).toBe(false);
+  it('returns false when no dialog exists', () => {
+    expect(hasOpenDialog()).toBe(false);
   });
 
-  it('finds an aria modal whose state is open or unspecified', () => {
-    appendModal('true', 'open');
-    expect(hasOpenModal()).toBe(true);
+  it('finds an aria dialog whose state is open or unspecified', () => {
+    appendDialog('true', 'open');
+    expect(hasOpenDialog()).toBe(true);
 
     document.body.replaceChildren();
-    appendModal('true');
-    expect(hasOpenModal()).toBe(true);
+    appendDialog('true');
+    expect(hasOpenDialog()).toBe(true);
   });
 
-  it('excludes closed dialogs and elements that are not aria modals', () => {
-    appendModal('true', 'closed');
-    appendModal('false', 'open');
+  it('excludes closed dialogs and elements that are not aria dialogs', () => {
+    appendDialog('true', 'closed');
+    appendDialog('false', 'open');
 
-    expect(hasOpenModal()).toBe(false);
+    expect(hasOpenDialog()).toBe(false);
   });
 });

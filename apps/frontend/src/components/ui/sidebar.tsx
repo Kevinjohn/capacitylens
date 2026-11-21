@@ -6,7 +6,7 @@ import { Slot } from "radix-ui";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/cn";
-import { hasOpenModal, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
+import { hasOpenDialog, isTextEntryShortcutOwner } from "@/lib/shortcutGuards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 
 // Local shadcn deviation: shortcut guards prevent Cmd/Ctrl+B from overriding text entry or open
-// modals; cookie persistence is omitted because state is device-local; caller className/style
+// dialogs; cookie persistence is omitted because state is device-local; caller className/style
 // overrides propagate consistently through the desktop and mobile shells.
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
@@ -131,7 +131,7 @@ function useSidebarKeyboardShortcut(toggleSidebar: () => void) {
       if (
         event.isComposing ||
         isTextEntryShortcutOwner(event.target) ||
-        hasOpenModal()
+        hasOpenDialog()
       )
         return;
       event.preventDefault();

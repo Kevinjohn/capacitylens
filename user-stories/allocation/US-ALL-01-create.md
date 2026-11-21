@@ -1,4 +1,4 @@
-# US-ALL-01 — Create an allocation via the modal
+# US-ALL-01 — Create an allocation via the dialog
 
 As an Editor, I want to book an activity onto a resource for a date range so that the Schedule shows the assigned work and its capacity.
 

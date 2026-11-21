@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { m } from '@/i18n';
-import { Modal } from '@/components/common/ui';
+import { FormDialog } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 
@@ -49,7 +49,7 @@ export function MemberActionsDialog({
         <Settings />
       </Button>
       {open && (
-        <Modal
+        <FormDialog
           title={m.settings_member_settings_heading()}
           description={memberLabel}
           onClose={() => onOpenChange(false)}
@@ -68,7 +68,7 @@ export function MemberActionsDialog({
           >
             {children}
           </div>
-        </Modal>
+        </FormDialog>
       )}
     </>
   );

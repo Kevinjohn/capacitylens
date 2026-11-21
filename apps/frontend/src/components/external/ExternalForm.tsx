@@ -6,7 +6,7 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError } from '@/hooks/useFieldError';
 import { parseText } from '@/lib/validation';
 import { m } from '@/i18n';
-import { FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import { FormActions, FormDialog, RequiredLegend, TextField } from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { NEUTRAL_COLOR } from '@/lib/palette';
 import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
@@ -94,7 +94,7 @@ export function ExternalForm({
   };
 
   return (
-    <Modal
+    <FormDialog
       title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
       onSubmit={() => {
@@ -113,6 +113,6 @@ export function ExternalForm({
           errorId={errorId}
         />
       </fieldset>
-    </Modal>
+    </FormDialog>
   );
 }

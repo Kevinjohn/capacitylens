@@ -18,7 +18,7 @@ export const roundDays = (dayCount: number) => Math.round(dayCount * 1e6) / 1e6;
 export const INTERNAL_PROJECT_SELECTION = '__allocation_internal__';
 /** Sentinel choice for any project in the selected activity scope. */
 export const ANY_PROJECT_SELECTION = '__allocation_any_project__';
-/** Maps an activity to the project selector choice shown in the modal. */
+/** Maps an activity to the project selector choice shown in the dialog. */
 export function resolveProjectSelection(activity: Activity | undefined): string {
   if (isAllocationAttributionAllowed(activity?.kind)) return ANY_PROJECT_SELECTION;
   if (activity?.kind === 'project' && activity.projectId) return activity.projectId;

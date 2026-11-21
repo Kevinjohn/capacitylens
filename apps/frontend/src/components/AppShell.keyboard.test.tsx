@@ -95,17 +95,17 @@ describe('AppShell undo/redo keyboard', () => {
     }
   });
 
-  it('ignores undo and redo while a clean modal has focus on a non-text control', () => {
+  it('ignores undo and redo while a clean dialog has focus on a non-text control', () => {
     useStore.getState().setHydrated(true);
     renderAppShell({});
 
-    const modal = document.createElement('div');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('data-state', 'open');
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-state', 'open');
     const button = document.createElement('button');
-    modal.append(button);
-    document.body.append(modal);
+    dialog.append(button);
+    document.body.append(dialog);
 
     try {
       withPlanningHistorySpies((spies) => {
@@ -128,7 +128,7 @@ describe('AppShell undo/redo keyboard', () => {
         expect(spies.redo).not.toHaveBeenCalled();
       });
     } finally {
-      modal.remove();
+      dialog.remove();
     }
   });
 });
@@ -166,13 +166,13 @@ describe('AppShell command palette dirty-form guard', () => {
 
     expect(screen.getByTestId('command-palette')).toBeInTheDocument();
   });
-  it('leaves Cmd/Ctrl+K to an existing modal', () => {
+  it('leaves Cmd/Ctrl+K to an existing dialog', () => {
     renderAppShell({});
-    const modal = document.createElement('div');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('data-state', 'open');
-    document.body.appendChild(modal);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-state', 'open');
+    document.body.appendChild(dialog);
     const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
     try {
       act(() => {
@@ -181,7 +181,7 @@ describe('AppShell command palette dirty-form guard', () => {
       expect(event.defaultPrevented).toBe(false);
       expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
     } finally {
-      modal.remove();
+      dialog.remove();
     }
   });
   it('ignores Cmd/Ctrl+K during IME composition', () => {
@@ -221,18 +221,18 @@ describe('AppShell command palette dirty-form guard', () => {
     });
     expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument();
   });
-  it('leaves Ctrl+K to a later modal even while the palette is open', () => {
+  it('leaves Ctrl+K to a later dialog even while the palette is open', () => {
     renderAppShell({});
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
     });
     expect(screen.getByTestId('command-palette')).toBeInTheDocument();
 
-    const modal = document.createElement('div');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('data-state', 'open');
-    document.body.appendChild(modal);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('data-state', 'open');
+    document.body.appendChild(dialog);
     const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, cancelable: true });
     try {
       act(() => {
@@ -241,7 +241,7 @@ describe('AppShell command palette dirty-form guard', () => {
       expect(event.defaultPrevented).toBe(false);
       expect(screen.getByTestId('command-palette')).toBeInTheDocument();
     } finally {
-      modal.remove();
+      dialog.remove();
     }
   });
 });

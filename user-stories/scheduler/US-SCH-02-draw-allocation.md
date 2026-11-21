@@ -38,7 +38,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["ResourceLane calls useResourceLaneInteraction.finishGesture"] --> B["SchedulerGrid.openDrawDialog checks placement and sets create modal"]
+  A["ResourceLane calls useResourceLaneInteraction.finishGesture"] --> B["SchedulerGrid.openDrawDialog checks placement and sets create dialog"]
   B --> C["AllocationDialog submits through useStore.addAllocation"]
   C --> D["allocationSlice creates typed planning intent"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]

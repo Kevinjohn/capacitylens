@@ -207,7 +207,7 @@ describe('AllocationDialog inline activity creation pref', () => {
     expect(screen.getByRole('combobox', { name: 'Activity' })).toBeInTheDocument();
   });
 
-  it('removes inline activity creation when an open editor modal is downgraded to viewer', async () => {
+  it('removes inline activity creation when an open editor dialog is downgraded to viewer', async () => {
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
