@@ -9,7 +9,7 @@ import {
   revokeFixtureSessions,
   sendPlanningIntent,
   signUpUser,
-  masqueradeContextHeaders,
+  masqueradeTokenHeaders,
 } from './authTestKit';
 import {
   boundingBoxOrThrow,
@@ -463,7 +463,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   const { revision } = (await planning.json()) as { revision: number };
   const deletion = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
     headers: {
-      ...(await masqueradeContextHeaders(request, owner.cookie)),
+      ...(await masqueradeTokenHeaders(request, owner.cookie)),
       'content-type': 'application/json',
     },
     data: {
@@ -765,7 +765,7 @@ test('a stale-revision scheduler write shows server state without a toast or his
   const { revision } = (await planning.json()) as { revision: number };
   const external = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
     headers: {
-      ...(await masqueradeContextHeaders(request, owner.cookie)),
+      ...(await masqueradeTokenHeaders(request, owner.cookie)),
       'content-type': 'application/json',
     },
     data: {

@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { createStore } from 'zustand/vanilla';
 import { describe, expect, it, vi } from 'vitest';
 import { makeCompany } from '@/test/fixtures';
@@ -34,7 +34,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
       changes: { upserts: [], removed: [] },
     }));
   const cache = createPlanningCache({
-    readMasqueradeContextToken: getMasqueradeContextToken,
+    readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
     setState: store.setState,
     transport: {

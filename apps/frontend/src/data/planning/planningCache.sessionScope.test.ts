@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import {
   context,
   intent,
@@ -16,7 +16,7 @@ import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 import { createDeferred } from '@/test/createDeferred';
 
-afterEach(() => setMasqueradeContextToken(null));
+afterEach(() => setMasqueradeToken(null));
 
 describe('planning cache', () => {
   it('keeps the context proof captured with a planning action when status changes before execution', async () => {
@@ -24,7 +24,7 @@ describe('planning cache', () => {
       .fn<PlanningTransport['execute']>()
       .mockResolvedValue(makeReceipt('mutation-1', 4));
     const h = createHarness({ execute, read: vi.fn() });
-    setMasqueradeContextToken('captured-idle-context');
+    setMasqueradeToken('captured-idle-context');
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 3,
@@ -35,12 +35,12 @@ describe('planning cache', () => {
     });
 
     const draft = h.cache.begin();
-    setMasqueradeContextToken('new-active-context');
+    setMasqueradeToken('new-active-context');
     await h.cache.execute(draft, intent);
 
     expect(execute.mock.calls[0]?.[0]).toEqual({
       ...context,
-      masqueradeContextToken: 'captured-idle-context',
+      masqueradeToken: 'captured-idle-context',
     });
   });
 
@@ -54,13 +54,13 @@ describe('planning cache', () => {
     });
     const h = createHarness({ execute: vi.fn(), read });
     h.cache.setContext(context);
-    setMasqueradeContextToken('current-context');
+    setMasqueradeToken('current-context');
 
     await h.cache.refresh();
 
     expect(read.mock.calls[0]?.[0]).toEqual({
       ...context,
-      masqueradeContextToken: 'current-context',
+      masqueradeToken: 'current-context',
     });
   });
 

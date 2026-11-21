@@ -1,8 +1,8 @@
-import { setMasqueradeContextReader, setMasqueradeEndedHandler } from '@/data/requestTimeout';
+import { setMasqueradeTokenReader, setMasqueradeEndedHandler } from '@/data/requestTimeout';
 import { createStorePlanningTransport } from '@/data/planning/storePlanningTransport';
 import { useStore } from '@/store/useStore';
 import { masqueradeApi } from './masqueradeApi';
-import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken, setMasqueradeToken } from '@/api/masqueradeToken';
 import { MasqueradeModel } from './masqueradeModel';
 import { reprojectAccess } from './reprojectAccess';
 
@@ -24,7 +24,7 @@ export const masqueradeModel = new MasqueradeModel({
       {
         identity: Symbol('masquerade bootstrap'),
         companyId,
-        masqueradeContextToken: getMasqueradeContextToken(),
+        masqueradeToken: getMasqueradeToken(),
       },
       new AbortController().signal,
     );
@@ -34,9 +34,9 @@ export const masqueradeModel = new MasqueradeModel({
   },
   api: masqueradeApi,
   readState: () => useStore.getState(),
-  setContextToken: setMasqueradeContextToken,
+  setMasqueradeToken,
 });
 
 // Every API request carries the current context proof; a server-ended projection is recovered here.
-setMasqueradeContextReader(getMasqueradeContextToken);
+setMasqueradeTokenReader(getMasqueradeToken);
 setMasqueradeEndedHandler(() => masqueradeModel.restoreServerEndedProjection());

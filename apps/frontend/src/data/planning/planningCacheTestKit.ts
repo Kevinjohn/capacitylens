@@ -5,7 +5,7 @@ import type { Company, AppData, ISODate } from '@capacitylens/shared/types/entit
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import { createPlanningCache, createPlanningCacheState } from './planningCache';
 import type { PlanningCacheState, PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { makeCompany } from '@/test/fixtures';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makeReceipt } from '@/test/planning/makeReceipt';
@@ -75,7 +75,7 @@ export function createHarness(
     };
   let id = 0;
   const cache = createPlanningCache({
-    readMasqueradeContextToken: getMasqueradeContextToken,
+    readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
     setState: store.setState,
     transport: {

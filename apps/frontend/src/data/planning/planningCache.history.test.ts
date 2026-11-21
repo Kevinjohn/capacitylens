@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import {
   context,
   intent,
@@ -12,7 +12,7 @@ import {
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
-afterEach(() => setMasqueradeContextToken(null));
+afterEach(() => setMasqueradeToken(null));
 
 const committing = () =>
   vi.fn<PlanningTransport['execute']>((_context, execution) =>

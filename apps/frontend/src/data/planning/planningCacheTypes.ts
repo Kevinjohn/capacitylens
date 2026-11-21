@@ -50,11 +50,11 @@ export interface PlanningHistoryStep {
 }
 
 /** Client identity is deliberately opaque; company id distinguishes its planning projection. */
-export interface PlanningClientContext {
+export interface PlanningSessionScope {
   readonly identity: string | symbol;
   readonly companyId: string;
   /** Mode boundary captured when this planning context is installed. */
-  readonly masqueradeContextToken?: string | null | undefined;
+  readonly masqueradeToken?: string | null | undefined;
 }
 
 /**
@@ -72,22 +72,22 @@ export interface PlanningClientContext {
  */
 export interface PlanningTransport {
   execute(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     execution: PlanningExecution,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
   undo(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
   redo(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess>;
   read(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     signal: AbortSignal,
     request?: PlanningReadRequest,
   ): Promise<PlanningSnapshot>;
@@ -128,7 +128,7 @@ export type PlanningPhase =
   | { kind: 'writing'; write: PlanningPendingMutation; readError: unknown | null };
 
 export interface PlanningCacheMetadata {
-  context: PlanningClientContext | null;
+  context: PlanningSessionScope | null;
   /** The authority of the last accepted read; null until a read is accepted. */
   authority: PlanningAccess | null;
   revision: number | null;
@@ -153,9 +153,9 @@ export interface PlanningCacheStore {
 
 export interface PlanningDraft {
   readonly baseRevision: number;
-  readonly context: PlanningClientContext;
+  readonly context: PlanningSessionScope;
   /** Request proof frozen with the action; context changes never replace an admitted write's proof. */
-  readonly requestContext: PlanningClientContext;
+  readonly requestContext: PlanningSessionScope;
   readonly generation: number;
 }
 
@@ -164,7 +164,7 @@ export interface PlanningCacheOptions {
   setState: PlanningCacheStore['setState'];
   transport: PlanningTransport;
   /** The current masquerade context proof, captured into each request when it is dispatched. */
-  readMasqueradeContextToken: () => string | null;
+  readMasqueradeToken: () => string | null;
   /** The capacity window each read asks for, captured when the read is sent. */
   readCapacityWindow?: () => CapacityRange | undefined;
   createMutationId?: () => string;

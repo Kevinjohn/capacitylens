@@ -1,4 +1,4 @@
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import { vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { useStore } from '@/store/useStore';
@@ -33,7 +33,7 @@ export function createHarness(overrides: Partial<MasqueradeModelDependencies> = 
       end: vi.fn(async () => {}),
     },
     readState: () => useStore.getState(),
-    setContextToken: setMasqueradeContextToken,
+    setMasqueradeToken,
     ...overrides,
   };
   return { model: new MasqueradeModel(dependencies), dependencies, resume };

@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { fetchApi } from '@/data/requestTimeout';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { BrowserAccountOperation } from './accountOperations';
@@ -26,11 +26,11 @@ export const invitationRequests = {
     body: CreateInvitationBody,
     operation?: BrowserAccountOperation,
   ): Promise<Response> {
-    const capturedContext = getMasqueradeContextToken();
+    const capturedContext = getMasqueradeToken();
     const payload = { ...body };
     const companyId = payload.companyId;
     const operationKey = await buildPayloadOperationKey(`invitation-create:${companyId}`, payload);
-    if (getMasqueradeContextToken() !== capturedContext) {
+    if (getMasqueradeToken() !== capturedContext) {
       return Response.json(
         {
           error: 'The action context changed. Review the invitation before trying again.',

@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
@@ -112,7 +112,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
       mounted.current = false;
     };
   }, []);
-  const actionContext = getMasqueradeContextToken();
+  const actionContext = getMasqueradeToken();
   const directoryState = useTeamDirectory({
     enabled: input.enabled,
     activeCompanyId: input.activeCompanyId,
@@ -130,7 +130,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   const isActiveCompany = (companyId: string): boolean =>
     mounted.current &&
     useStore.getState().activeCompanyId === companyId &&
-    getMasqueradeContextToken() === actionContext;
+    getMasqueradeToken() === actionContext;
   const withMemberAction = async (
     key: string,
     body: (companyId: string) => Promise<void>,

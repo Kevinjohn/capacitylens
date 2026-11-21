@@ -5,7 +5,7 @@ import { resolveCapacityOverviewAccessDecision } from '@/auth/capacityOverviewAc
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 import type { PermissionContextValue } from '@/auth/permissionContext';
 import { listVisibleRoutes } from '@/lib/navLinks';
-import type { AppRouteDefinition, RouteVisibilityContext } from '@/lib/navLinks';
+import type { AppRouteDefinition, RouteVisibilityFacts } from '@/lib/navLinks';
 import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from '@/store/selectors';
 import { useStore } from '@/store/useStore';
 import { resolveDiagnosticsAccessDecision } from './diagnostics/useDiagnosticsAccessDecision';
@@ -18,12 +18,12 @@ interface RouteVisibilityInput {
 }
 
 /** Builds the route visibility context from the member's role and the company's settings. */
-export function buildRouteVisibilityContext({
+export function buildRouteVisibilityFacts({
   role,
   status,
   capacityOverviewAccess,
   disciplinesEnabled,
-}: RouteVisibilityInput): RouteVisibilityContext {
+}: RouteVisibilityInput): RouteVisibilityFacts {
   return {
     disciplinesEnabled,
     capacityOverviewAllowed:
@@ -43,7 +43,7 @@ export function useVisibleRoutes(): AppRouteDefinition[] {
   const disciplinesEnabled = useStore((state) =>
     hasDisciplinesEnabled(state.data, state.activeCompanyId),
   );
-  const { capacityOverviewAllowed, diagnosticsAllowed } = buildRouteVisibilityContext({
+  const { capacityOverviewAllowed, diagnosticsAllowed } = buildRouteVisibilityFacts({
     role,
     status,
     capacityOverviewAccess,

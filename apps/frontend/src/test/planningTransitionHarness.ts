@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { expect, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import type { PlanningIntent } from '@/api/planningContracts';
@@ -78,7 +78,7 @@ export function setup(options: Options = {}) {
   let id = 0;
   let historyNumber = 0;
   const cache = createPlanningCache({
-    readMasqueradeContextToken: getMasqueradeContextToken,
+    readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
     setState: store.setState,
     transport: { read, execute, undo, redo },

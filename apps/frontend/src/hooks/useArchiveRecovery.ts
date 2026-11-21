@@ -5,7 +5,7 @@ import { client, buildScopeQueryKey } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
 import { useCan, useRole, usePermissionStatus } from '@/auth/permissionContext';
 import { subscribeToInactiveDataChanges } from '@/data/inactiveDataEvents';
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { buildAccessKey } from '@/data/planning/planningAccess';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
@@ -61,7 +61,7 @@ export function useArchiveRecovery() {
   const epoch = transitioned ? fence.epoch + 1 : fence.epoch;
   if (transitioned) setFence({ signature, context: planning.context, epoch });
   const instance = useId();
-  const contextToken = getMasqueradeContextToken();
+  const masqueradeToken = getMasqueradeToken();
   const query = useQuery<ArchiveRecovery>({
     queryKey: buildScopeQueryKey(scope, [
       'archive-recovery',
@@ -80,7 +80,7 @@ export function useArchiveRecovery() {
       const response = await client.request('api.planning.archive', {
         params: { companyId: companyId ?? '' },
         signal,
-        headers: { 'X-Masquerade-Context': contextToken ?? '' },
+        headers: { 'X-Masquerade-Context': masqueradeToken ?? '' },
       });
       if (response.companyId !== companyId) {
         throw new Error(m.settings_archived_err_incomplete());

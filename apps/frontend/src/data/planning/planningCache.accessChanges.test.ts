@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import type { PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import {
   context,
   intent,
@@ -13,7 +13,7 @@ import {
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
-afterEach(() => setMasqueradeContextToken(null));
+afterEach(() => setMasqueradeToken(null));
 
 describe('planning cache', () => {
   it('keeps context and history for every 403 execute refusal, including membership loss', async () => {

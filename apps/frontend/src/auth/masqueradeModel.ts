@@ -52,7 +52,7 @@ export interface MasqueradeModelDependencies {
   /** The store state this model reads and writes; the model reaches no other state. */
   readState: () => StoreState;
   /** The one writer of the masquerade context proof the data layer sends with each request. */
-  setContextToken: (token: string | null) => void;
+  setMasqueradeToken: (token: string | null) => void;
 }
 
 /** Sole owner of the persistence suspension used by identity masquerade transitions. */
@@ -75,7 +75,7 @@ export class MasqueradeModel {
     ++this.generation;
     this.startPendingGeneration = null;
     this.releaseSuspension({ dropParkedEdits: true });
-    this.dependencies.setContextToken(null);
+    this.dependencies.setMasqueradeToken(null);
     this.store.setMasquerade({ kind: 'inactive' });
   }
 
@@ -220,7 +220,7 @@ export class MasqueradeModel {
       return this.failOwnedStart(generation, error);
     }
     if (!this.ownsRuntime(generation, 'starting')) return false;
-    this.dependencies.setContextToken(state.token);
+    this.dependencies.setMasqueradeToken(state.token);
     this.store.setMasquerade({
       kind: 'starting',
       pending: { companyId, targetUserId },
@@ -384,7 +384,7 @@ export class MasqueradeModel {
 
   /** Adopt status before PermissionProvider publishes an effective role, preventing a writable frame. */
   async adoptStatus(status: MasqueradeStatus): Promise<void> {
-    this.dependencies.setContextToken(status.contextToken);
+    this.dependencies.setMasqueradeToken(status.contextToken);
     if (!status.active) {
       const current = this.store.masquerade;
       if (current.kind === 'starting' && current.state && this.store.activeCompanyId === null) {
@@ -508,7 +508,7 @@ export class MasqueradeModel {
   ) {
     return restoreMasqueradeProjection({
       state,
-      adoptContextToken: this.dependencies.setContextToken,
+      adoptMasqueradeToken: this.dependencies.setMasqueradeToken,
       readStatus: () => this.dependencies.api.status(this.store.activeCompanyId ?? undefined),
       isCurrent: () => this.ownsRuntime(generation, 'ending'),
       publishActive: (status) =>

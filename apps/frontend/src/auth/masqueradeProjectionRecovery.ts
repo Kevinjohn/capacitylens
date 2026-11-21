@@ -15,7 +15,7 @@ export function publishMasqueradeCompany(store: StoreState, state: MasqueradeSta
 
 interface RestoreMasqueradeProjectionInput {
   state: MasqueradeState;
-  adoptContextToken: (token: string | null) => void;
+  adoptMasqueradeToken: (token: string | null) => void;
   readStatus: () => Promise<MasqueradeStatus>;
   isCurrent: () => boolean;
   publishActive: (status: Extract<MasqueradeStatus, { active: true }>) => void;
@@ -26,7 +26,7 @@ interface RestoreMasqueradeProjectionInput {
 /** Confirms server state before restoring real data or retaining the projected identity. */
 export async function restoreMasqueradeProjection({
   state,
-  adoptContextToken,
+  adoptMasqueradeToken,
   readStatus,
   isCurrent,
   publishActive,
@@ -35,7 +35,7 @@ export async function restoreMasqueradeProjection({
 }: RestoreMasqueradeProjectionInput): Promise<RealProjectionResult> {
   const status = await readStatus();
   if (!isCurrent()) return { kind: 'superseded' };
-  adoptContextToken(status.contextToken);
+  adoptMasqueradeToken(status.contextToken);
   if (status.active) {
     publishActive(status);
     return { kind: 'active' };

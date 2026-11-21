@@ -4,11 +4,11 @@ import { noteAuditWarning } from '@/lib/auditWarning';
 import { readApiErrorCode } from '@/lib/readApiError';
 
 let masqueradeEndedHandler: (() => void) | null = null;
-let readMasqueradeContextToken: () => string | null = () => null;
+let readMasqueradeToken: () => string | null = () => null;
 
 /** Register the reader of the current masquerade context proof sent with every request. */
-export function setMasqueradeContextReader(reader: () => string | null): void {
-  readMasqueradeContextToken = reader;
+export function setMasqueradeTokenReader(reader: () => string | null): void {
+  readMasqueradeToken = reader;
 }
 
 /** Register the session-projection recovery hook without coupling the common fetch layer to React. */
@@ -96,7 +96,7 @@ function buildMasqueradeHeaders(
     requestOptions.method ?? (input instanceof Request ? input.method : 'GET')
   ).toUpperCase();
   if (method === 'OPTIONS') return requestOptions.headers;
-  const token = readMasqueradeContextToken();
+  const token = readMasqueradeToken();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(requestOptions.headers).forEach((value, name) => headers.set(name, value));
   if (!headers.has('X-Masquerade-Context') && token !== null) {

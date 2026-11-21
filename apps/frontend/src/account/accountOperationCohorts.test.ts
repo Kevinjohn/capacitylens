@@ -9,11 +9,11 @@ vi.mock('@/data/requestTimeout', () => ({
   API_BULK_TIMEOUT_MS: 120_000,
   createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
   setMasqueradeEndedHandler: vi.fn(),
-  setMasqueradeContextReader: vi.fn(),
+  setMasqueradeTokenReader: vi.fn(),
 }));
 
 import { masqueradeModel } from '@/auth/masqueradeModelInstance';
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import {
   bindStoredAccountOperationsToIdentity,
   clearStoredAccountOperations,
@@ -62,7 +62,7 @@ describe('implicit account operation cohorts', () => {
   it.each([true, false])(
     'keeps the original invitation action across deferred hashing (context changes: %s)',
     async (changed) => {
-      setMasqueradeContextToken('idle-before');
+      setMasqueradeToken('idle-before');
       const original = crypto.subtle.digest.bind(crypto.subtle);
       const held = createDeferred<ArrayBuffer>();
       const digest = vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(() => held.promise);
@@ -94,7 +94,7 @@ describe('implicit account operation cohorts', () => {
       } finally {
         held.resolve(new ArrayBuffer(0));
         await pending;
-        setMasqueradeContextToken(null);
+        setMasqueradeToken(null);
       }
     },
   );

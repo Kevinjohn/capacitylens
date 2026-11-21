@@ -1,5 +1,5 @@
 import { readPlanningError } from './planningNotices';
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { describe, expect, it, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
@@ -39,7 +39,7 @@ async function setup() {
   const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot('Wayne Enterprises'));
   const execute = vi.fn<PlanningTransport['execute']>();
   const cache = createPlanningCache({
-    readMasqueradeContextToken: getMasqueradeContextToken,
+    readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
     setState: store.setState,
     transport: { read, execute, undo: vi.fn(), redo: vi.fn() },

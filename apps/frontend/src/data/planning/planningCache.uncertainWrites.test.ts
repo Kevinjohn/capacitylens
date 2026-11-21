@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlanningMutationSuccess } from '@/api/planningContracts';
 import type { PlanningSnapshot, PlanningTransport } from './planningCacheTypes';
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import { readPlanningProblem } from './planningNotices';
 import {
   context,
@@ -14,7 +14,7 @@ import {
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
-afterEach(() => setMasqueradeContextToken(null));
+afterEach(() => setMasqueradeToken(null));
 
 type Execute = ReturnType<typeof vi.fn<PlanningTransport['execute']>>;
 

@@ -4,7 +4,7 @@ import { buildVisibleRange } from '@/store/selectors';
 import { PlanningSaveCancelledError } from '@/data/planning/PlanningSaveCancelledError';
 import { requestRestorationCleanup } from '@/data/planning/restorationCleanupConfirmation';
 import type { StateCreator } from 'zustand';
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { createPlanningCache, createPlanningCacheState } from '@/data/planning/planningCache';
 import type { PlanningCacheState, PlanningTransport } from '@/data/planning/planningCacheTypes';
@@ -89,7 +89,7 @@ export function createPlanningSessionSlice(
       transport,
       onAuthLoss: () => clearPrivatePlanning(true),
       confirmRestorationCleanup: requestRestorationCleanup,
-      readMasqueradeContextToken: getMasqueradeContextToken,
+      readMasqueradeToken: getMasqueradeToken,
       // The grid holds a placeholder week until the first read anchors it, so that read asks for
       // the server's default window, which is the anchored grid's window.
       readCapacityWindow: () => {
@@ -98,7 +98,7 @@ export function createPlanningSessionSlice(
         return { from: start, to: end };
       },
     });
-    let contextEpoch = 0;
+    let tokenEpoch = 0;
     let contextCompanyId: string | null = null;
     const intentLocks = new Set<symbol>();
     let activeRead: { companyId: string; promise: Promise<boolean> } | null = null;
@@ -106,7 +106,7 @@ export function createPlanningSessionSlice(
       const current = get().planning.context;
       if (contextCompanyId === companyId && current?.companyId === (companyId ?? undefined)) return;
       contextCompanyId = companyId;
-      contextEpoch += 1;
+      tokenEpoch += 1;
       intentLocks.clear();
       activeRead = null;
       cache.setContext(companyId === null ? null : { identity: PAGE_IDENTITY, companyId });
@@ -189,11 +189,11 @@ export function createPlanningSessionSlice(
         ) {
           return null;
         }
-        const epoch = contextEpoch;
+        const epoch = tokenEpoch;
         const token = Symbol('planning suspension');
         intentLocks.add(token);
         return () => {
-          if (epoch === contextEpoch) intentLocks.delete(token);
+          if (epoch === tokenEpoch) intentLocks.delete(token);
         };
       },
       planningReadyForReplacement: () => isReplacementReady(),

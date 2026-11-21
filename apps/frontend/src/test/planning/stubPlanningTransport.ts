@@ -1,6 +1,6 @@
 import type {
   PlanningAccess,
-  PlanningClientContext,
+  PlanningSessionScope,
   PlanningHistoryStep,
   PlanningReadRequest,
   PlanningSnapshot,
@@ -175,7 +175,7 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   async read(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     signal: AbortSignal,
     { window, historyId, ifRevision }: PlanningReadRequest = {},
   ): Promise<PlanningSnapshot> {
@@ -205,7 +205,7 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   async execute(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     execution: PlanningExecution,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess> {
@@ -247,7 +247,7 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   undo(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess> {
@@ -255,7 +255,7 @@ export class StubPlanningTransport implements PlanningTransport {
   }
 
   redo(
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess> {
@@ -269,7 +269,7 @@ export class StubPlanningTransport implements PlanningTransport {
    */
   private async step(
     kind: 'undo' | 'redo',
-    context: PlanningClientContext,
+    context: PlanningSessionScope,
     step: PlanningHistoryStep,
     signal: AbortSignal,
   ): Promise<PlanningMutationSuccess> {

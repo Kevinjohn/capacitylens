@@ -4,12 +4,12 @@ import { registry } from '@capacitylens/backend/registry';
 import type { PlanningIntent } from '@/api/planningContracts';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 import { createPlanningTransport } from './planningTransport';
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 
 const context = {
   identity: 'bruce-user',
   companyId: 'wayne',
-  masqueradeContextToken: 'captured-context',
+  masqueradeToken: 'captured-context',
 };
 const signal = new AbortController().signal;
 const id = '7415a19e-539d-45c9-9c52-8b8c3a058926';
@@ -202,9 +202,9 @@ describe('generated planning transport', () => {
     const actionContext = {
       identity: 'bruce-user',
       companyId: 'wayne',
-      masqueradeContextToken: 'captured-context',
+      masqueradeToken: 'captured-context',
     };
-    setMasqueradeContextToken('newer-context');
+    setMasqueradeToken('newer-context');
 
     await transport.execute(
       actionContext,
@@ -221,12 +221,12 @@ describe('generated planning transport', () => {
       canWrite: true,
       data: createEmptyAppData(),
     });
-    setMasqueradeContextToken('newer-context');
+    setMasqueradeToken('newer-context');
 
     await transport.read({ identity: 'bruce-user', companyId: 'wayne' }, signal).catch(() => null);
 
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('');
-    setMasqueradeContextToken(null);
+    setMasqueradeToken(null);
   });
 
   it('surfaces context changes without replaying a stale write', async () => {
@@ -237,7 +237,7 @@ describe('generated planning transport', () => {
 
     await expect(
       transport.execute(
-        { ...context, masqueradeContextToken: 'captured-context' },
+        { ...context, masqueradeToken: 'captured-context' },
         execution({ operation: 'allocation.create', allocation }),
         signal,
       ),

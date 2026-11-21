@@ -1,4 +1,4 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 // Reuse the app's prebundled entry so loading this test module does not trigger a Vite dependency reload.
 import { createStore } from 'zustand';
 import type { StoreApi } from 'zustand/vanilla';
@@ -7,7 +7,7 @@ import { createPlanningCache, createPlanningCacheState } from '@/data/planning/p
 import type {
   PlanningCacheState,
   PlanningPhase,
-  PlanningClientContext,
+  PlanningSessionScope,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { createPlanningTransport } from '@/data/planning/planningTransport';
@@ -102,7 +102,7 @@ export async function initializePlanningServerHarness(key: string, companyId: st
     },
   };
   const cache = createPlanningCache({
-    readMasqueradeContextToken: getMasqueradeContextToken,
+    readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
     setState: store.setState,
     transport,
@@ -117,7 +117,7 @@ export async function initializePlanningServerHarness(key: string, companyId: st
   };
   harnesses.set(key, harness);
 
-  const context: PlanningClientContext = { identity: `browser-session:${key}`, companyId };
+  const context: PlanningSessionScope = { identity: `browser-session:${key}`, companyId };
   cache.setContext(context);
   if (!(await cache.refresh())) {
     throw new Error('The authenticated planning snapshot could not be loaded.');

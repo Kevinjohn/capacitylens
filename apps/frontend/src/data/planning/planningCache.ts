@@ -4,7 +4,7 @@ import type { PlanningIntent, PlanningMutationSuccess } from '@/api/planningCont
 import type {
   PlanningCacheState,
   PlanningCacheStore,
-  PlanningClientContext,
+  PlanningSessionScope,
   PlanningCacheMetadata,
   PlanningCacheOptions,
   PlanningDraft,
@@ -48,7 +48,7 @@ function keptLastWrite(phase: PlanningPhase): PlanningWriteResult | null {
   return phase.lastWrite?.kind === 'refused' ? null : phase.lastWrite;
 }
 
-const initialMetadata = (context: PlanningClientContext | null = null): PlanningCacheMetadata => ({
+const initialMetadata = (context: PlanningSessionScope | null = null): PlanningCacheMetadata => ({
   context,
   authority: null,
   revision: null,
@@ -64,8 +64,8 @@ export function createPlanningCacheState(data: AppData = createEmptyAppData()): 
 }
 
 function isSameContext(
-  left: PlanningClientContext | null,
-  right: PlanningClientContext | null,
+  left: PlanningSessionScope | null,
+  right: PlanningSessionScope | null,
 ): boolean {
   return (
     left === right ||
@@ -73,7 +73,7 @@ function isSameContext(
       !!right &&
       left.companyId === right.companyId &&
       Object.is(left.identity, right.identity) &&
-      left.masqueradeContextToken === right.masqueradeContextToken)
+      left.masqueradeToken === right.masqueradeToken)
   );
 }
 
@@ -95,9 +95,9 @@ export function createPlanningCache(options: PlanningCacheOptions) {
   const createHistoryId = options.createHistoryId ?? (() => crypto.randomUUID());
   // Replacing the id ends the page's history: the server never reports another id's steps.
   let historyId = createHistoryId();
-  const applyContextToken = (context: PlanningClientContext): PlanningClientContext =>
-    context.masqueradeContextToken === undefined
-      ? Object.freeze({ ...context, masqueradeContextToken: options.readMasqueradeContextToken() })
+  const withMasqueradeToken = (context: PlanningSessionScope): PlanningSessionScope =>
+    context.masqueradeToken === undefined
+      ? Object.freeze({ ...context, masqueradeToken: options.readMasqueradeToken() })
       : context;
   let generation = 0;
   let readSequence = 0;
@@ -130,17 +130,17 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     return controller;
   };
   const finishRequest = (controller: AbortController) => controllers.delete(controller);
-  const isCurrent = (capturedGeneration: number, context: PlanningClientContext) =>
+  const isCurrent = (capturedGeneration: number, context: PlanningSessionScope) =>
     generation === capturedGeneration && isSameContext(store.getState().planning.context, context);
 
-  function setContext(context: PlanningClientContext | null): void {
+  function setContext(context: PlanningSessionScope | null): void {
     const frozenContext = context
       ? Object.freeze({
           identity: context.identity,
           companyId: context.companyId,
-          ...(context.masqueradeContextToken === undefined
+          ...(context.masqueradeToken === undefined
             ? {}
-            : { masqueradeContextToken: context.masqueradeContextToken }),
+            : { masqueradeToken: context.masqueradeToken }),
         })
       : null;
     if (isSameContext(store.getState().planning.context, frozenContext)) return;
@@ -292,7 +292,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     }
     try {
       const window = options.readCapacityWindow?.();
-      const snapshot = await transport.read(applyContextToken(context), controller.signal, {
+      const snapshot = await transport.read(withMasqueradeToken(context), controller.signal, {
         ...(window ? { window } : {}),
         historyId,
         ...(full || revision === null ? {} : { ifRevision: revision }),
@@ -341,7 +341,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     const immutableContext = context;
     const requestContext = Object.freeze({
       ...immutableContext,
-      masqueradeContextToken: options.readMasqueradeContextToken(),
+      masqueradeToken: options.readMasqueradeToken(),
     });
     return Object.freeze({
       baseRevision,
@@ -633,7 +633,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     const context = Object.freeze({ ...state.planning.context });
     const requestContext = Object.freeze({
       ...context,
-      masqueradeContextToken: options.readMasqueradeContextToken(),
+      masqueradeToken: options.readMasqueradeToken(),
     });
     const draft: PlanningDraft = Object.freeze({
       baseRevision: state.planning.revision,

@@ -27,7 +27,7 @@ export const AUTH_PASSWORD = 'demo-password-123456';
 export const BOOTSTRAP_ADMIN = { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' };
 
 /** Captures the authenticated session's current masquerade context for one deliberate API action. */
-export async function masqueradeContextHeaders(
+export async function masqueradeTokenHeaders(
   request: APIRequestContext,
   cookie?: string,
   origin = AUTH_API,
@@ -542,7 +542,7 @@ export async function sendPlanningIntent(
     throw new Error('The fixture planning read did not return a revision.');
   const url = `${AUTH_API}/api/companies/${companyId}/planning/mutations`;
   const options = {
-    headers: await masqueradeContextHeaders(request, cookie),
+    headers: await masqueradeTokenHeaders(request, cookie),
     data: { mutationId: crypto.randomUUID(), baseRevision: revision, intent },
   };
   const response = await request.post(url, options);

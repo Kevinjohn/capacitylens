@@ -3,7 +3,7 @@ import { API, serverState, requireStateRows } from './serverTestState';
 import { openFirstCompanySetup, finishFirstCompanySetup } from './firstCompanyTestKit';
 import { settledSchedulerLeftDate } from './browserTestKit';
 import type { Page } from '@playwright/test';
-import { masqueradeContextHeaders } from './authTestKit';
+import { masqueradeTokenHeaders } from './authTestKit';
 
 async function visibleScheduleWeekday(page: Page): Promise<number> {
   await settledSchedulerLeftDate(page);
@@ -44,7 +44,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
       const initialized = await request.post(
         `${API}/api/companies/${account.id}/planning/mutations`,
         {
-          headers: await masqueradeContextHeaders(request, undefined, API),
+          headers: await masqueradeTokenHeaders(request, undefined, API),
           data: {
             mutationId: crypto.randomUUID(),
             baseRevision: revision,
@@ -56,7 +56,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
       revision += 1;
 
       const res = await request.post(`${API}/api/companies/${account.id}/planning/mutations`, {
-        headers: await masqueradeContextHeaders(request, undefined, API),
+        headers: await masqueradeTokenHeaders(request, undefined, API),
         data: {
           mutationId: crypto.randomUUID(),
           baseRevision: revision,
@@ -69,7 +69,7 @@ test.describe('database-backed onboarding lock (P1.14)', () => {
     // The settings-update schema excludes language, so language-only updates are rejected
     // before frozen-field handling, even when the supplied language is English ('en').
     const language = await request.post(`${API}/api/companies/${account.id}/planning/mutations`, {
-      headers: await masqueradeContextHeaders(request, undefined, API),
+      headers: await masqueradeTokenHeaders(request, undefined, API),
       data: {
         mutationId: crypto.randomUUID(),
         baseRevision: revision,
@@ -107,7 +107,7 @@ test.describe('single-company production entry', () => {
 
   test('ordinary additional company creation is rejected', async ({ request }) => {
     const res = await request.post(`${API}/api/installation/company`, {
-      headers: await masqueradeContextHeaders(request, undefined, API),
+      headers: await masqueradeTokenHeaders(request, undefined, API),
       data: {
         name: 'Queen Industries',
       },

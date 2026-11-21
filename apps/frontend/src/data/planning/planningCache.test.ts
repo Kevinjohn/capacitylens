@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PlanningIntent } from '@/api/planningContracts';
 import type { PlanningTransport } from './planningCacheTypes';
 import { readPlanningProblem } from './planningNotices';
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import {
   context,
   intent,
@@ -14,7 +14,7 @@ import {
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
-afterEach(() => setMasqueradeContextToken(null));
+afterEach(() => setMasqueradeToken(null));
 
 describe('planning cache', () => {
   it('retains the draft revision through refresh and refuses the stale attempt without replay', async () => {

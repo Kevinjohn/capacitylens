@@ -2,18 +2,18 @@ import { readProductHttpFailure } from '@/api/productHttpError';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { client } from '@/api/queryClient';
 import { PlanningCacheError } from './planningErrors';
-import type { PlanningClientContext, PlanningTransport } from './planningCacheTypes';
+import type { PlanningSessionScope, PlanningTransport } from './planningCacheTypes';
 
 type PlanningClient = typeof client;
 
 // The caller captures the proof into the context; a missing one sends an empty proof, never a newer one.
-function getContextToken(context: PlanningClientContext): string | null {
-  return context.masqueradeContextToken ?? null;
+function getScopeMasqueradeToken(context: PlanningSessionScope): string | null {
+  return context.masqueradeToken ?? null;
 }
 
-function applyMasqueradeContext(
+function applyMasqueradeHeader(
   apiClient: PlanningClient,
-  contextToken: string | null | undefined,
+  masqueradeToken: string | null | undefined,
 ): PlanningClient {
   return new Proxy(apiClient, {
     get(target, property, receiver) {
@@ -28,7 +28,7 @@ function applyMasqueradeContext(
         // An empty proof is explicit too: a delayed action cannot inherit a newer global context.
         return target.request(name, {
           ...args,
-          headers: { ...args.headers, 'X-Masquerade-Context': contextToken ?? '' },
+          headers: { ...args.headers, 'X-Masquerade-Context': masqueradeToken ?? '' },
         });
       };
     },
@@ -56,7 +56,7 @@ function mapPlanningError(error: unknown): unknown {
 
 async function sendOperation(
   apiClient: PlanningClient,
-  context: PlanningClientContext,
+  context: PlanningSessionScope,
   execution: PlanningExecution,
   signal: AbortSignal,
 ): Promise<PlanningMutationSuccess> {
@@ -74,7 +74,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
   return {
     async read(context, signal, { window, historyId, ifRevision } = {}) {
       try {
-        const scopedClient = applyMasqueradeContext(apiClient, getContextToken(context));
+        const scopedClient = applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { companyId: context.companyId },
@@ -124,7 +124,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async execute(context, execution, signal) {
       try {
         return await sendOperation(
-          applyMasqueradeContext(apiClient, getContextToken(context)),
+          applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)),
           context,
           execution,
           signal,
@@ -136,7 +136,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async undo(context, step, signal) {
       try {
         return requireReply(
-          await applyMasqueradeContext(apiClient, getContextToken(context)).request(
+          await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
             'api.planning.undo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
@@ -148,7 +148,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async redo(context, step, signal) {
       try {
         return requireReply(
-          await applyMasqueradeContext(apiClient, getContextToken(context)).request(
+          await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
             'api.planning.redo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),

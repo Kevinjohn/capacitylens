@@ -51,7 +51,7 @@ function useSchedulingContext() {
   return { mode, companyWorkingDays };
 }
 
-function useAllocationDialogContext(props: AllocationDialogProps) {
+function useAllocationDialogInputs(props: AllocationDialogProps) {
   const onClose = useFormLifetimeClose(props.onClose);
   const canEdit = useCanEdit();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -156,7 +156,7 @@ function useAllocationDialogContext(props: AllocationDialogProps) {
   };
 }
 
-function useTargetSchedule(context: ReturnType<typeof useAllocationDialogContext>) {
+function useTargetSchedule(context: ReturnType<typeof useAllocationDialogInputs>) {
   const target = useAllocationTargetState({
     data: context.data,
     seed: context.seed,
@@ -188,12 +188,12 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationDialogContext
 
 /** Coordinates allocation dialog fields, validation, and submission. */
 export function useAllocationDialogState(props: AllocationDialogProps) {
-  const context = useAllocationDialogContext(props);
+  const context = useAllocationDialogInputs(props);
   return buildDialogState(context, useTargetSchedule(context));
 }
 
 function buildDialogState(
-  context: ReturnType<typeof useAllocationDialogContext>,
+  context: ReturnType<typeof useAllocationDialogInputs>,
   state: ReturnType<typeof useTargetSchedule>,
 ) {
   const { target, schedule, repeatProjection, endDateHint } = state;
@@ -262,7 +262,7 @@ function buildDialogState(
 }
 
 function buildRepeatProjectionInput(
-  context: ReturnType<typeof useAllocationDialogContext>,
+  context: ReturnType<typeof useAllocationDialogInputs>,
   target: ReturnType<typeof useAllocationTargetState>,
   schedule: ReturnType<typeof useAllocationScheduleState>,
 ): Parameters<typeof buildRepeatProjection>[0] {

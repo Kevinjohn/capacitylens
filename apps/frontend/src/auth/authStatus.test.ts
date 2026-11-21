@@ -84,14 +84,13 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
   it('adopts the idle request proof before querying the authenticated setup boundary', async () => {
     const { sessionRequests } = await import('@/account/sessionRequests');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { getMasqueradeContextToken, setMasqueradeContextToken } =
-      await import('@/api/masqueradeContext');
+    const { getMasqueradeToken, setMasqueradeToken } = await import('@/api/masqueradeToken');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
       contextToken: 'idle-context',
     });
     const request = vi.spyOn(sessionRequests, 'me').mockImplementation(async () => {
-      expect(getMasqueradeContextToken()).toBe('idle-context');
+      expect(getMasqueradeToken()).toBe('idle-context');
       return new Response(JSON.stringify({}), { status: 401 });
     });
     try {
@@ -101,7 +100,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     } finally {
       status.mockRestore();
       request.mockRestore();
-      setMasqueradeContextToken(null);
+      setMasqueradeToken(null);
     }
   });
 
@@ -110,8 +109,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { useStore } = await import('@/store/useStore');
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeModel } = await import('./masqueradeModelInstance');
-    const { getMasqueradeContextToken, setMasqueradeContextToken } =
-      await import('@/api/masqueradeContext');
+    const { getMasqueradeToken, setMasqueradeToken } = await import('@/api/masqueradeToken');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
       contextToken: 'new-idle-context',
@@ -142,13 +140,13 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     try {
       await expect(fetchAuthStatus(() => true)).resolves.toMatchObject({ kind: 'signIn' });
       expect(restore).toHaveBeenCalledOnce();
-      expect(getMasqueradeContextToken()).toBe('new-idle-context');
+      expect(getMasqueradeToken()).toBe('new-idle-context');
     } finally {
       status.mockRestore();
       request.mockRestore();
       restore.mockRestore();
       masqueradeModel.invalidate();
-      setMasqueradeContextToken(null);
+      setMasqueradeToken(null);
     }
   });
 
@@ -182,7 +180,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeModel } = await import('./masqueradeModelInstance');
     const { useStore } = await import('@/store/useStore');
-    const { getMasqueradeContextToken } = await import('@/api/masqueradeContext');
+    const { getMasqueradeToken } = await import('@/api/masqueradeToken');
     let resolveStatus!: (status: Awaited<ReturnType<typeof masqueradeApi.status>>) => void;
     const status = vi.spyOn(masqueradeApi, 'status').mockReturnValue(
       new Promise((resolve) => {
@@ -212,7 +210,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       await expect(pending).resolves.toBeNull();
       expect(adopt).not.toHaveBeenCalled();
       expect(useStore.getState().masquerade).toEqual({ kind: 'inactive' });
-      expect(getMasqueradeContextToken()).toBeNull();
+      expect(getMasqueradeToken()).toBeNull();
     } finally {
       status.mockRestore();
       adopt.mockRestore();

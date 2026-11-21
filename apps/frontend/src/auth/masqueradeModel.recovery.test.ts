@@ -1,4 +1,4 @@
-import { setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { setMasqueradeToken } from '@/api/masqueradeToken';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { makeCompany, makeAppData, requireFullSnapshot } from '@/test/fixtures';
@@ -77,7 +77,7 @@ function modelWithNativeData(bootstrapFailure = false) {
     switchCompany,
     api,
     readState: () => useStore.getState(),
-    setContextToken: setMasqueradeContextToken,
+    setMasqueradeToken,
   });
   return { model, api, switchCompany };
 }

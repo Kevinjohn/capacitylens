@@ -6,7 +6,7 @@ import {
   bootstrapOrg,
   createFixturePerson,
   sendPlanningIntent,
-  masqueradeContextHeaders,
+  masqueradeTokenHeaders,
   seedFixtureMember,
   signUpUser as signUp,
 } from './authTestKit';
@@ -43,7 +43,7 @@ async function assertViewerWriteRejected(
 ) {
   const newClientId = crypto.randomUUID();
   const directWrite = await request.post(`${API}/api/companies/${companyId}/planning/mutations`, {
-    headers: await masqueradeContextHeaders(request, cookie),
+    headers: await masqueradeTokenHeaders(request, cookie),
     data: {
       mutationId: crypto.randomUUID(),
       baseRevision: 2,
