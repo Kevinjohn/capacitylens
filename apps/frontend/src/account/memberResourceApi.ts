@@ -1,7 +1,7 @@
 import { fetchApi } from '@/data/requestTimeout';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import type { BrowserAccountCommand } from './accountCommands';
-import { buildCommandRequestInit, runCommand } from './commandRequest';
+import type { BrowserAccountOperation } from './accountOperations';
+import { buildOperationRequestInit, runOperation } from './operationRequest';
 
 /** Build the account-owned URL for one member/person association. */
 export function buildMemberResourceLinkUrl(companyId: string, principalId: string): string {
@@ -18,25 +18,25 @@ export interface MemberResourceLinkRequestInput {
   expectedRevision: string | null;
 }
 
-/** Send a link or change command through the account command boundary. */
+/** Send a link or change operation through the account operation boundary. */
 export function setMemberResourceLink(
   input: MemberResourceLinkRequestInput,
-  command?: BrowserAccountCommand,
+  operation?: BrowserAccountOperation,
 ): Promise<Response> {
-  return runCommand({
+  return runOperation({
     operationKey:
       `member-resource-link:${input.companyId}:${input.principalId}:` +
       `${input.resourceId}:${input.expectedRevision ?? 'none'}`,
-    explicit: command,
+    explicit: operation,
     request: (resolved) => {
       const [url, init] = buildMemberResourceLinkRequest(input);
-      return fetchApi(url, buildCommandRequestInit(init, resolved));
+      return fetchApi(url, buildOperationRequestInit(init, resolved));
     },
     ambiguousStatus: 409,
   });
 }
 
-/** Build a link-change request for the member-resource command adapter. */
+/** Build a link-change request for the member-resource operation adapter. */
 export function buildMemberResourceLinkRequest(
   input: MemberResourceLinkRequestInput,
 ): [string, RequestInit] {
@@ -54,7 +54,7 @@ export function buildMemberResourceLinkRequest(
   ];
 }
 
-/** Build an unlink request for the member-resource command adapter. */
+/** Build an unlink request for the member-resource operation adapter. */
 export function clearMemberResourceLinkRequest(
   companyId: string,
   principalId: string,
@@ -71,21 +71,21 @@ export function clearMemberResourceLinkRequest(
   ];
 }
 
-/** Send an unlink command through the account command boundary. */
+/** Send an unlink operation through the account operation boundary. */
 export function clearMemberResourceLink(
   input: { companyId: string; principalId: string; expectedRevision: string },
-  command?: BrowserAccountCommand,
+  operation?: BrowserAccountOperation,
 ): Promise<Response> {
-  return runCommand({
+  return runOperation({
     operationKey: `member-resource-unlink:${input.companyId}:${input.principalId}:${input.expectedRevision}`,
-    explicit: command,
+    explicit: operation,
     request: (resolved) => {
       const [url, init] = clearMemberResourceLinkRequest(
         input.companyId,
         input.principalId,
         input.expectedRevision,
       );
-      return fetchApi(url, buildCommandRequestInit(init, resolved));
+      return fetchApi(url, buildOperationRequestInit(init, resolved));
     },
     ambiguousStatus: 409,
   });

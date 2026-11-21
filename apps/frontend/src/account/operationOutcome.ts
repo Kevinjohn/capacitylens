@@ -2,21 +2,21 @@ import type { AccountErrorCode } from '@capacitylens/shared/account/errors';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 
 // These currently defined 409 codes prove that the server reached a terminal rejection. A new or
-// malformed code stays unknown, preserving the retry handle rather than risking a duplicate command.
-const TERMINAL_COMMAND_CONFLICT_CODES = new Set<string>([
+// malformed code stays unknown, preserving the retry handle rather than risking a duplicate operation.
+const TERMINAL_OPERATION_CONFLICT_CODES = new Set<string>([
   'INVITATION_USED',
   'CONFLICT',
   'AUTHORITY_CHANGED',
   'IDEMPOTENCY_CONFLICT',
 ] satisfies readonly AccountErrorCode[]);
-// The server refuses an emailed command without mail delivery before it writes anything.
+// The server refuses an emailed operation without mail delivery before it writes anything.
 const TERMINAL_SERVER_CODES = new Set<string>(['MAIL_UNAVAILABLE']);
-/** The unknown-outcome decision `runCommand` made for each response it classified. */
-export const commandOutcomeDecisions = new WeakMap<Response, boolean>();
+/** The unknown-outcome decision `runOperation` made for each response it classified. */
+export const operationOutcomeDecisions = new WeakMap<Response, boolean>();
 
-/** Read the exact unknown-outcome decision made while retaining or closing the command identity. */
-export function hasUnknownAccountCommandOutcome(response: Response): boolean {
-  return commandOutcomeDecisions.get(response) === true;
+/** Read the exact unknown-outcome decision made while retaining or closing the operation identity. */
+export function hasUnknownAccountOperationOutcome(response: Response): boolean {
+  return operationOutcomeDecisions.get(response) === true;
 }
 
 function compareCanonicalKeys(left: string, right: string): number {
@@ -32,7 +32,7 @@ async function readResponseBody(response: Response, parsedBody: unknown): Promis
 
 /** Keep unknown-outcome retry ceremonies distinct when one UI operation accepts different
  * semantic payloads. Without this binding, changing (for example) the company name after a 5xx
- * reuses the old command, receives IDEMPOTENCY_CONFLICT, clears the only recovery handle, and can
+ * reuses the old operation, receives IDEMPOTENCY_CONFLICT, clears the only recovery handle, and can
  * then submit a fresh duplicate while the original outcome is still unknown. */
 export async function buildPayloadOperationKey(operation: string, body: unknown): Promise<string> {
   const serialized: unknown = JSON.stringify(body, (_key, value: unknown) => {
@@ -48,8 +48,8 @@ export async function buildPayloadOperationKey(operation: string, body: unknown)
   return `${operation}:${fingerprint}`;
 }
 
-/** HTTP responses for which the client cannot prove whether a command committed. */
-export async function readUnknownAccountCommandOutcome(
+/** HTTP responses for which the client cannot prove whether a operation committed. */
+export async function readUnknownAccountOperationOutcome(
   response: Response,
   parsedBody?: unknown,
 ): Promise<boolean> {
@@ -58,7 +58,7 @@ export async function readUnknownAccountCommandOutcome(
     response.status >= 500
       ? TERMINAL_SERVER_CODES
       : response.status === 409
-        ? TERMINAL_COMMAND_CONFLICT_CODES
+        ? TERMINAL_OPERATION_CONFLICT_CODES
         : null;
   if (!terminalCodes) return false;
   try {
@@ -67,7 +67,7 @@ export async function readUnknownAccountCommandOutcome(
     const code = body.code;
     return typeof code !== 'string' || !terminalCodes.has(code);
   } catch {
-    // Status alone cannot distinguish a terminal rejection from an in-flight command. Retain the
+    // Status alone cannot distinguish a terminal rejection from an in-flight operation. Retain the
     // identity unless a readable, known code proves finality.
     return true;
   }

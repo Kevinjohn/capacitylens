@@ -4,7 +4,7 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { admissionRequests } from './admissionRequests';
 import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
-import { readCommandResult, readResult } from './accessResult';
+import { readOperationResult, readResult } from './accessResult';
 import {
   parseAdmissionPage,
   parseDelivery,
@@ -65,7 +65,7 @@ export const teamAccessApi = {
     principalId: string,
     role: Role,
   ): Promise<TeamAccessResult<true>> {
-    return readCommandResult(
+    return readOperationResult(
       await memberRequests.changeMemberRole({ companyId, principalId, role }),
       acceptNoContent,
     );
@@ -76,7 +76,7 @@ export const teamAccessApi = {
     principalId: string,
     status: MembershipStatus,
   ): Promise<TeamAccessResult<true>> {
-    return readCommandResult(
+    return readOperationResult(
       await memberRequests.changeMemberStatus({ companyId, principalId, status }),
       acceptNoContent,
     );
@@ -88,7 +88,7 @@ export const teamAccessApi = {
     resourceId: string;
     expectedRevision: string | null;
   }) {
-    return readCommandResult(await memberRequests.setMemberResourceLink(input), (body) =>
+    return readOperationResult(await memberRequests.setMemberResourceLink(input), (body) =>
       isRecord(body) && typeof body.resourceId === 'string' && typeof body.revision === 'string'
         ? { resourceId: body.resourceId, revision: body.revision }
         : null,
@@ -96,7 +96,7 @@ export const teamAccessApi = {
   },
 
   async clearMemberResourceLink(companyId: string, principalId: string, expectedRevision: string) {
-    return readCommandResult(
+    return readOperationResult(
       await memberRequests.clearMemberResourceLink({ companyId, principalId, expectedRevision }),
       acceptNoContent,
       204,
@@ -110,7 +110,7 @@ export const teamAccessApi = {
     email: string;
   }): Promise<TeamAccessResult<{ emailed: boolean }>> {
     const response = await invitationRequests.createInvitation(input);
-    return readCommandResult(response, parseDelivery, response.status === 202 ? 202 : 201);
+    return readOperationResult(response, parseDelivery, response.status === 202 ? 202 : 201);
   },
 
   async resendInvitation(
@@ -151,7 +151,7 @@ export const teamAccessApi = {
   },
 
   async revokeInvitation(companyId: string, invitationId: string): Promise<TeamAccessResult<true>> {
-    return readCommandResult(
+    return readOperationResult(
       await invitationRequests.revokeInvitation(companyId, invitationId),
       acceptNoContent,
     );

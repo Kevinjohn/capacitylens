@@ -2,9 +2,9 @@ import { CompanySetup } from './CompanySetup';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  bindStoredAccountCommandsToIdentity,
-  clearStoredAccountCommands,
-} from '@/account/accountCommands';
+  bindStoredAccountOperationsToIdentity,
+  clearStoredAccountOperations,
+} from '@/account/accountOperations';
 import { readSoleCompanyOwnership } from './useCompanySummaries';
 import { resolvePublicAuthEntry } from './authEntryRoute';
 import { useStore } from '@/store/useStore';
@@ -60,12 +60,12 @@ function useAuthStatus() {
       return next;
     }
     if (next.kind === 'signIn') {
-      clearStoredAccountCommands();
+      clearStoredAccountOperations();
       masqueradeModel.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
     } else if (next.kind === 'pass') {
-      bindStoredAccountCommandsToIdentity(next.user.id);
+      bindStoredAccountOperationsToIdentity(next.user.id);
     }
     setStatus(next);
     return next;

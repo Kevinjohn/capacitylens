@@ -1,5 +1,5 @@
 import { isIsoInstant } from '@capacitylens/shared/account/types';
-import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from './commandOutcome';
+import { operationOutcomeDecisions, readUnknownAccountOperationOutcome } from './operationOutcome';
 import { extractApiErrorMessage, readApiError } from '@/lib/readApiError';
 
 /**
@@ -42,8 +42,8 @@ async function parseOkBody<T>(
     : { kind: 'ok', status: response.status, value };
 }
 
-/** Decodes a command response and distinguishes rejection from an unknown outcome. */
-export async function readCommandResult<T>(
+/** Decodes a operation response and distinguishes rejection from an unknown outcome. */
+export async function readOperationResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
   expectedStatus?: number,
@@ -53,8 +53,8 @@ export async function readCommandResult<T>(
     const body: unknown = await response.json().catch(() => null);
     const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
     const unknown =
-      commandOutcomeDecisions.get(response) ??
-      (await readUnknownAccountCommandOutcome(response, body));
+      operationOutcomeDecisions.get(response) ??
+      (await readUnknownAccountOperationOutcome(response, body));
     return unknown
       ? { kind: 'unknown', status: response.status, message }
       : { kind: 'rejected', status: response.status, message };

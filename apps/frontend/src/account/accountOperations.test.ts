@@ -14,15 +14,15 @@ vi.mock('@/data/requestTimeout', () => ({
 }));
 
 import {
-  bindStoredAccountCommandsToIdentity,
-  clearStoredAccountCommands,
-  createBrowserAccountCommand,
-} from './accountCommands';
-import { transferOwner } from './accountCommandsTestKit';
+  bindStoredAccountOperationsToIdentity,
+  clearStoredAccountOperations,
+  createBrowserAccountOperation,
+} from './accountOperations';
+import { transferOwner } from './accountOperationsTestKit';
 
 describe('browser account api', () => {
   beforeEach(() => {
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
@@ -34,16 +34,16 @@ describe('browser account api', () => {
     vi.unstubAllGlobals();
   });
 
-  it('creates independent command and idempotency secrets', () => {
+  it('creates independent operation and idempotency secrets', () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000000')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000001');
-    expect(createBrowserAccountCommand()).toEqual({
+    expect(createBrowserAccountOperation()).toEqual({
       commandId: '00000000-0000-4000-8000-000000000000',
       idempotencyKey: '00000000-0000-4000-8000-000000000001',
     });
   });
-  it('reuses an in-memory command when session storage is blocked', async () => {
+  it('reuses an in-memory operation when session storage is blocked', async () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('Access denied', 'SecurityError');
     });
@@ -76,7 +76,7 @@ describe('browser account api', () => {
       '00000000-0000-4000-8000-000000000053',
     ]);
   });
-  it('clears retained command ceremonies without removing unrelated per-tab data', async () => {
+  it('clears retained operation ceremonies without removing unrelated per-tab data', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000061')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000062')
@@ -88,7 +88,7 @@ describe('browser account api', () => {
     sessionStorage.setItem('capacitylens.unrelated-preference', 'keep');
 
     await transferOwner({ name: 'Shared browser' });
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     await transferOwner({ name: 'Shared browser' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
@@ -101,7 +101,7 @@ describe('browser account api', () => {
     expect(sessionStorage.getItem('capacitylens.unrelated-preference')).toBe('keep');
     expect(
       Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)),
-    ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-command\./));
+    ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-operation\./));
   });
   it('retains same-user recovery but clears a ceremony before a different identity can use it', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
@@ -114,11 +114,11 @@ describe('browser account api', () => {
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    bindStoredAccountCommandsToIdentity('user-one');
+    bindStoredAccountOperationsToIdentity('user-one');
     await transferOwner({ name: 'Shared browser' });
-    bindStoredAccountCommandsToIdentity('user-one');
+    bindStoredAccountOperationsToIdentity('user-one');
     await transferOwner({ name: 'Shared browser' });
-    bindStoredAccountCommandsToIdentity('user-two');
+    bindStoredAccountOperationsToIdentity('user-two');
     await transferOwner({ name: 'Shared browser' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
@@ -141,12 +141,12 @@ describe('browser account api', () => {
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
-    bindStoredAccountCommandsToIdentity('user-one');
+    bindStoredAccountOperationsToIdentity('user-one');
     await transferOwner({ name: 'Shared browser' });
     vi.spyOn(Storage.prototype, 'length', 'get').mockImplementationOnce(() => {
       throw new DOMException('Storage unavailable', 'SecurityError');
     });
-    bindStoredAccountCommandsToIdentity('user-two');
+    bindStoredAccountOperationsToIdentity('user-two');
     await transferOwner({ name: 'Shared browser' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>

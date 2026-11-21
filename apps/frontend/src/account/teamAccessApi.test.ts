@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { admissionRequests } from './admissionRequests';
 import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
-import { runCommand } from './commandRequest';
+import { runOperation } from './operationRequest';
 import { resolveRejectionMessage, teamAccessApi } from './teamAccessApi';
 
 const json = (body: unknown) =>
@@ -13,8 +13,8 @@ const json = (body: unknown) =>
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('teamAccessApi command outcomes', () => {
-  it('classifies an in-progress command as an unknown outcome', async () => {
+describe('teamAccessApi operation outcomes', () => {
+  it('classifies an in-progress operation as an unknown outcome', async () => {
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
       Response.json({ code: 'COMMAND_IN_PROGRESS', error: 'Still running.' }, { status: 409 }),
     );
@@ -28,7 +28,7 @@ describe('teamAccessApi command outcomes', () => {
     ).resolves.toEqual({ kind: 'unknown', status: 409, message: 'Still running.' });
   });
 
-  it('decodes an equivalent successful status instead of reporting a rejected command', async () => {
+  it('decodes an equivalent successful status instead of reporting a rejected operation', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
       new Response(JSON.stringify({ emailed: true }), { status: 200 }),
@@ -124,7 +124,7 @@ describe('teamAccessApi directory validation', () => {
 
 describe('teamAccessApi member resource links', () => {
   it('keeps an operation-ambiguous conflict uncertain despite a terminal-looking body', async () => {
-    const response = await runCommand({
+    const response = await runOperation({
       operationKey: null,
       explicit: undefined,
       ambiguousStatus: 409,

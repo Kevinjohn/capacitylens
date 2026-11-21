@@ -1,10 +1,14 @@
 import { getMasqueradeContextToken } from '@/api/masqueradeContext';
 import { fetchApi } from '@/data/requestTimeout';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import type { BrowserAccountCommand } from './accountCommands';
-import { buildPayloadOperationKey } from './commandOutcome';
+import type { BrowserAccountOperation } from './accountOperations';
+import { buildPayloadOperationKey } from './operationOutcome';
 import type { CreateInvitationBody } from './accountRequestTypes';
-import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from './commandRequest';
+import {
+  runOperation,
+  buildOperationRequestInit,
+  buildJsonOperationRequestInit,
+} from './operationRequest';
 
 /**
  * Invitation administration requests. Their typed reader is `teamAccessApi`; screens use it,
@@ -20,7 +24,7 @@ export const invitationRequests = {
 
   async createInvitation(
     body: CreateInvitationBody,
-    command?: BrowserAccountCommand,
+    operation?: BrowserAccountOperation,
   ): Promise<Response> {
     const capturedContext = getMasqueradeContextToken();
     const payload = { ...body };
@@ -35,13 +39,13 @@ export const invitationRequests = {
         { status: 409 },
       );
     }
-    return runCommand({
+    return runOperation({
       operationKey,
-      explicit: command,
+      explicit: operation,
       request: (resolved) =>
         fetchApi(
           buildApiRouteUrl('api.invites.create', {}),
-          buildJsonCommandRequestInit(
+          buildJsonOperationRequestInit(
             'POST',
             buildJsonBody('api.invites.create', payload),
             resolved,
@@ -53,17 +57,17 @@ export const invitationRequests = {
   revokeInvitation(
     companyId: string,
     invitationId: string,
-    command?: BrowserAccountCommand,
+    operation?: BrowserAccountOperation,
   ): Promise<Response> {
-    return runCommand({
+    return runOperation({
       operationKey: `invitation-revoke:${companyId}:${invitationId}`,
-      explicit: command,
+      explicit: operation,
       request: (resolved) =>
         fetchApi(
           buildApiRouteUrl('api.invites.revoke', {
             params: { companyId, id: invitationId },
           }),
-          buildCommandRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
+          buildOperationRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
         ),
     });
   },

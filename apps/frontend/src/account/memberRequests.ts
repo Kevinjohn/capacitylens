@@ -1,29 +1,29 @@
 import { fetchApi } from '@/data/requestTimeout';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
-import type { BrowserAccountCommand } from './accountCommands';
-import { runCommand, buildJsonCommandRequestInit } from './commandRequest';
+import type { BrowserAccountOperation } from './accountOperations';
+import { runOperation, buildJsonOperationRequestInit } from './operationRequest';
 import { clearMemberResourceLink, setMemberResourceLink } from './memberResourceApi';
 
 interface ChangeMemberRoleInput {
   companyId: string;
   principalId: string;
   role: Role;
-  command?: BrowserAccountCommand | undefined;
+  operation?: BrowserAccountOperation | undefined;
 }
 
 interface TransferOwnershipInput {
   companyId: string;
   targetPrincipalId: string;
   confirmationId: string;
-  command?: BrowserAccountCommand | undefined;
+  operation?: BrowserAccountOperation | undefined;
 }
 
 interface ChangeMemberStatusInput {
   companyId: string;
   principalId: string;
   status: MembershipStatus;
-  command?: BrowserAccountCommand | undefined;
+  operation?: BrowserAccountOperation | undefined;
 }
 
 type SetMemberSignInTrackingOptions = { companyId: string; enabled: boolean };
@@ -60,17 +60,17 @@ export const memberRequests = {
     companyId,
     principalId,
     role,
-    command,
+    operation,
   }: ChangeMemberRoleInput): Promise<Response> {
-    return runCommand({
+    return runOperation({
       operationKey: `member-role:${companyId}:${principalId}:${role}`,
-      explicit: command,
+      explicit: operation,
       request: (resolved) =>
         fetchApi(
           buildApiRouteUrl('api.members.role', {
             params: { companyId, userId: principalId },
           }),
-          buildJsonCommandRequestInit(
+          buildJsonOperationRequestInit(
             'PATCH',
             buildJsonBody('api.members.role', { role }),
             resolved,
@@ -83,17 +83,17 @@ export const memberRequests = {
     companyId,
     principalId,
     status,
-    command,
+    operation,
   }: ChangeMemberStatusInput): Promise<Response> {
-    return runCommand({
+    return runOperation({
       operationKey: `member-status:${companyId}:${principalId}:${status}`,
-      explicit: command,
+      explicit: operation,
       request: (resolved) =>
         fetchApi(
           buildApiRouteUrl('api.members.status', {
             params: { companyId, userId: principalId },
           }),
-          buildJsonCommandRequestInit(
+          buildJsonOperationRequestInit(
             'PATCH',
             buildJsonBody('api.members.status', { status }),
             resolved,
@@ -106,15 +106,15 @@ export const memberRequests = {
     companyId,
     targetPrincipalId,
     confirmationId,
-    command,
+    operation,
   }: TransferOwnershipInput): Promise<Response> {
-    return runCommand({
+    return runOperation({
       operationKey: `ownership-transfer:${companyId}:${targetPrincipalId}`,
-      explicit: command,
+      explicit: operation,
       request: (resolved) =>
         fetchApi(
           buildApiRouteUrl('api.ownership.transfer', { params: { companyId } }),
-          buildJsonCommandRequestInit(
+          buildJsonOperationRequestInit(
             'POST',
             buildJsonBody('api.ownership.transfer', {
               toUserId: targetPrincipalId,

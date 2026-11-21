@@ -143,7 +143,7 @@ async function settleTransfer({
   setError(resolveRejectionMessage(result, m.ownership_transfer_command_failed()));
 }
 
-function useTransferCommand({
+function useTransferOperation({
   companyId,
   available,
   refreshAuth,
@@ -199,16 +199,16 @@ export function useOwnershipTransfer(
     scope,
     principalId: user?.id ?? null,
   });
-  const command = useTransferCommand({ companyId, available, refreshAuth });
+  const operation = useTransferOperation({ companyId, available, refreshAuth });
 
   return {
     available,
     loading: directory.loading,
     directoryLoaded: directory.loaded,
     candidates: directory.candidates,
-    busy: command.busy,
-    error: command.error ?? directory.error,
+    busy: operation.busy,
+    error: operation.error ?? directory.error,
     refresh: directory.refresh,
-    transfer: command.transfer,
+    transfer: operation.transfer,
   };
 }

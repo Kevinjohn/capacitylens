@@ -13,13 +13,13 @@ vi.mock('@/data/requestTimeout', () => ({
   createRequestSignal: mocks.requestSignal,
 }));
 
-import { clearStoredAccountCommands } from './accountCommands';
-import { readUnknownAccountCommandOutcome } from './commandOutcome';
+import { clearStoredAccountOperations } from './accountOperations';
+import { readUnknownAccountOperationOutcome } from './operationOutcome';
 import { invitationRequests } from './invitationRequests';
 
 describe('browser account api', () => {
   beforeEach(() => {
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
@@ -60,28 +60,28 @@ describe('browser account api', () => {
       { code: 'COMMAND_IN_PROGRESS', error: 'Still running.' },
       { status: 409 },
     );
-    await expect(readUnknownAccountCommandOutcome(inProgress)).resolves.toBe(true);
+    await expect(readUnknownAccountOperationOutcome(inProgress)).resolves.toBe(true);
     await expect(inProgress.json()).resolves.toMatchObject({
       error: 'Still running.',
     });
     await expect(
-      readUnknownAccountCommandOutcome(new Response(null, { status: 408 })),
+      readUnknownAccountOperationOutcome(new Response(null, { status: 408 })),
     ).resolves.toBe(true);
     await expect(
-      readUnknownAccountCommandOutcome(new Response(null, { status: 503 })),
+      readUnknownAccountOperationOutcome(new Response(null, { status: 503 })),
     ).resolves.toBe(true);
     await expect(
-      readUnknownAccountCommandOutcome(
+      readUnknownAccountOperationOutcome(
         Response.json({ code: 'DEPENDENCY_UNAVAILABLE' }, { status: 503 }),
       ),
     ).resolves.toBe(true);
     await expect(
-      readUnknownAccountCommandOutcome(
+      readUnknownAccountOperationOutcome(
         Response.json({ code: 'MAIL_UNAVAILABLE' }, { status: 503 }),
       ),
     ).resolves.toBe(false);
     await expect(
-      readUnknownAccountCommandOutcome(
+      readUnknownAccountOperationOutcome(
         Response.json({ code: 'IDEMPOTENCY_CONFLICT' }, { status: 409 }),
       ),
     ).resolves.toBe(false);
@@ -90,7 +90,7 @@ describe('browser account api', () => {
     'classifies the known terminal 409 code %s as final',
     async (code) => {
       await expect(
-        readUnknownAccountCommandOutcome(Response.json({ code }, { status: 409 })),
+        readUnknownAccountOperationOutcome(Response.json({ code }, { status: 409 })),
       ).resolves.toBe(false);
     },
   );
@@ -104,11 +104,11 @@ describe('browser account api', () => {
     } as unknown as Response;
 
     await expect(
-      readUnknownAccountCommandOutcome(new Response('truncated', { status: 409 })),
+      readUnknownAccountOperationOutcome(new Response('truncated', { status: 409 })),
     ).resolves.toBe(true);
-    await expect(readUnknownAccountCommandOutcome(unreadable)).resolves.toBe(true);
+    await expect(readUnknownAccountOperationOutcome(unreadable)).resolves.toBe(true);
     await expect(
-      readUnknownAccountCommandOutcome(
+      readUnknownAccountOperationOutcome(
         Response.json({ code: 'FUTURE_CONFLICT_CODE' }, { status: 409 }),
       ),
     ).resolves.toBe(true);

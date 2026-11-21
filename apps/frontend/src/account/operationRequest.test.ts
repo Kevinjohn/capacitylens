@@ -13,14 +13,14 @@ vi.mock('@/data/requestTimeout', () => ({
   createRequestSignal: mocks.requestSignal,
 }));
 
-import { clearStoredAccountCommands } from './accountCommands';
+import { clearStoredAccountOperations } from './accountOperations';
 import { invitationRequests } from './invitationRequests';
 import { memberRequests } from './memberRequests';
-import { command, transferOwner, expectCommand } from './accountCommandsTestKit';
+import { operation, transferOwner, expectOperation } from './accountOperationsTestKit';
 
 describe('browser account api', () => {
   beforeEach(() => {
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
@@ -31,32 +31,32 @@ describe('browser account api', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-  it('adds command headers, JSON encoding, safe path encoding, and bulk timeout policy', async () => {
-    await transferOwner({ name: 'Studio' }, command);
+  it('adds operation headers, JSON encoding, safe path encoding, and bulk timeout policy', async () => {
+    await transferOwner({ name: 'Studio' }, operation);
     await memberRequests.changeMemberRole({
       companyId: 'company / one',
       principalId: 'person / one',
       role: 'editor',
-      command,
+      operation,
     });
     await memberRequests.transferOwnership({
       companyId: 'company / one',
       targetPrincipalId: 'person / one',
       confirmationId: 'proof-1',
-      command,
+      operation,
     });
     await invitationRequests.createInvitation(
       { companyId: 'company / one', role: 'viewer', email: 'selina@wayne.test' },
-      command,
+      operation,
     );
-    await invitationRequests.revokeInvitation('company / one', 'invite / one', command);
+    await invitationRequests.revokeInvitation('company / one', 'invite / one', operation);
 
     const [createUrl, createInit] = mocks.fetchApi.mock.calls[0] as unknown as [
       string,
       RequestInit,
     ];
     expect(createUrl).toBe('/api/companies/a-studio/ownership-transfer');
-    expectCommand(createInit, 'POST');
+    expectOperation(createInit, 'POST');
     expect(new Headers(createInit.headers).get('content-type')).toBe('application/json');
     expect(createInit.body).toBe(JSON.stringify({ toUserId: 'Studio', confirmationId: 'proof-1' }));
 
@@ -69,7 +69,7 @@ describe('browser account api', () => {
     );
   });
 
-  it('reuses the same command and target after an uncertain response', async () => {
+  it('reuses the same operation and target after an uncertain response', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000201')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000202');
@@ -91,7 +91,7 @@ describe('browser account api', () => {
     expect(headers[1]?.get('x-account-command-id')).toBe(headers[0]?.get('x-account-command-id'));
     expect(headers[1]?.get('idempotency-key')).toBe(headers[0]?.get('idempotency-key'));
   });
-  it('reuses a stored command across unknown outcomes and rotates it after terminal completion', async () => {
+  it('reuses a stored operation across unknown outcomes and rotates it after terminal completion', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000001')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000002')
@@ -115,7 +115,7 @@ describe('browser account api', () => {
       '00000000-0000-4000-8000-000000000003',
     ]);
   });
-  it('reuses a stored command after HTTP 408 until a terminal completion is known', async () => {
+  it('reuses a stored operation after HTTP 408 until a terminal completion is known', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000071')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000072')
@@ -139,7 +139,7 @@ describe('browser account api', () => {
       '00000000-0000-4000-8000-000000000073',
     ]);
   });
-  it('keeps a command after an in-progress conflict but clears it after an idempotency conflict', async () => {
+  it('keeps a operation after an in-progress conflict but clears it after an idempotency conflict', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000003')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000004')
@@ -163,7 +163,7 @@ describe('browser account api', () => {
       '00000000-0000-4000-8000-000000000005',
     ]);
   });
-  it('keeps the same command identity after an unreadable 409 response', async () => {
+  it('keeps the same operation identity after an unreadable 409 response', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000041')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000042')
@@ -184,7 +184,7 @@ describe('browser account api', () => {
       '00000000-0000-4000-8000-000000000041',
     ]);
   });
-  it('does not let an explicit command discard an implicit unknown-outcome ceremony', async () => {
+  it('does not let an explicit operation discard an implicit unknown-outcome ceremony', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000031')
       .mockReturnValueOnce('00000000-0000-4000-8000-000000000032');
@@ -194,7 +194,7 @@ describe('browser account api', () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     await transferOwner({ name: 'Studio' });
-    await transferOwner({ name: 'Studio' }, command);
+    await transferOwner({ name: 'Studio' }, operation);
     await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
@@ -202,7 +202,7 @@ describe('browser account api', () => {
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000031',
-      command.commandId,
+      operation.commandId,
       '00000000-0000-4000-8000-000000000031',
     ]);
   });

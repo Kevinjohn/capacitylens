@@ -14,11 +14,14 @@ vi.mock('@/data/requestTimeout', () => ({
 
 import { masqueradeModel } from '@/auth/masqueradeModelInstance';
 import { setMasqueradeContextToken } from '@/api/masqueradeContext';
-import { bindStoredAccountCommandsToIdentity, clearStoredAccountCommands } from './accountCommands';
+import {
+  bindStoredAccountOperationsToIdentity,
+  clearStoredAccountOperations,
+} from './accountOperations';
 import { invitationRequests } from './invitationRequests';
 import { createDeferred } from '@/test/createDeferred';
 
-function commandHeadersAt(
+function operationHeadersAt(
   index: number,
 ): [commandId: string | null, idempotencyKey: string | null] {
   const init = mocks.fetchApi.mock.calls[index]?.[1];
@@ -45,9 +48,9 @@ const createInvitation = () =>
     email: 'selina@wayne.test',
   });
 
-describe('implicit account command cohorts', () => {
+describe('implicit account operation cohorts', () => {
   beforeEach(() => {
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     sessionStorage.clear();
     mocks.fetchApi.mockReset();
   });
@@ -100,7 +103,7 @@ describe('implicit account command cohorts', () => {
     ['definitive first', 0, 1],
     ['unknown first', 1, 0],
   ] as const)(
-    'retains a shared command when concurrent siblings settle $0',
+    'retains a shared operation when concurrent siblings settle $0',
     async (_name, first, second) => {
       const requests = [createDeferred<Response>(), createDeferred<Response>()] as const;
       mocks.fetchApi
@@ -109,8 +112,8 @@ describe('implicit account command cohorts', () => {
 
       const siblings = [createInvitation(), createInvitation()];
       await waitForRequests(2);
-      const shared = commandHeadersAt(0);
-      expect(commandHeadersAt(1)).toEqual(shared);
+      const shared = operationHeadersAt(0);
+      expect(operationHeadersAt(1)).toEqual(shared);
 
       requests[first].resolve(first === 0 ? ok() : unknown());
       await flushPromiseContinuations();
@@ -119,9 +122,9 @@ describe('implicit account command cohorts', () => {
 
       mocks.fetchApi.mockResolvedValueOnce(ok()).mockResolvedValueOnce(ok());
       await createInvitation();
-      expect(commandHeadersAt(2)).toEqual(shared);
+      expect(operationHeadersAt(2)).toEqual(shared);
       await createInvitation();
-      expect(commandHeadersAt(3)).not.toEqual(shared);
+      expect(operationHeadersAt(3)).not.toEqual(shared);
     },
   );
 
@@ -135,9 +138,9 @@ describe('implicit account command cohorts', () => {
 
     const siblings = [createInvitation(), createInvitation(), createInvitation()];
     await waitForRequests(3);
-    const shared = commandHeadersAt(0);
-    expect(commandHeadersAt(1)).toEqual(shared);
-    expect(commandHeadersAt(2)).toEqual(shared);
+    const shared = operationHeadersAt(0);
+    expect(operationHeadersAt(1)).toEqual(shared);
+    expect(operationHeadersAt(2)).toEqual(shared);
 
     requests[0].resolve(ok());
     requests[1].resolve(unknown());
@@ -146,7 +149,7 @@ describe('implicit account command cohorts', () => {
 
     mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
-    expect(commandHeadersAt(3)).toEqual(shared);
+    expect(operationHeadersAt(3)).toEqual(shared);
   });
 
   it('keeps overlapping operation keys independent', async () => {
@@ -162,14 +165,14 @@ describe('implicit account command cohorts', () => {
       email: 'selina@wayne.test',
     });
     await waitForRequests(1);
-    const uncertainHeaders = commandHeadersAt(0);
+    const uncertainHeaders = operationHeadersAt(0);
     const definitiveCall = invitationRequests.createInvitation({
       companyId: 'a-studio',
       role: 'editor',
       email: 'selina@wayne.test',
     });
     await waitForRequests(2);
-    const definitiveHeaders = commandHeadersAt(1);
+    const definitiveHeaders = operationHeadersAt(1);
     expect(definitiveHeaders).not.toEqual(uncertainHeaders);
 
     uncertain.resolve(unknown());
@@ -182,13 +185,13 @@ describe('implicit account command cohorts', () => {
       role: 'viewer',
       email: 'selina@wayne.test',
     });
-    expect(commandHeadersAt(2)).toEqual(uncertainHeaders);
+    expect(operationHeadersAt(2)).toEqual(uncertainHeaders);
     await invitationRequests.createInvitation({
       companyId: 'a-studio',
       role: 'editor',
       email: 'selina@wayne.test',
     });
-    expect(commandHeadersAt(3)).not.toEqual(definitiveHeaders);
+    expect(operationHeadersAt(3)).not.toEqual(definitiveHeaders);
   });
 
   it('clears an all-definitive cohort only after its last sibling settles', async () => {
@@ -202,7 +205,7 @@ describe('implicit account command cohorts', () => {
     await waitForRequests(1);
     const secondCall = createInvitation();
     await waitForRequests(2);
-    const shared = commandHeadersAt(0);
+    const shared = operationHeadersAt(0);
     first.resolve(ok());
     await firstCall;
 
@@ -210,14 +213,14 @@ describe('implicit account command cohorts', () => {
     mocks.fetchApi.mockImplementationOnce(() => third.promise);
     const thirdCall = createInvitation();
     await waitForRequests(3);
-    expect(commandHeadersAt(2)).toEqual(shared);
+    expect(operationHeadersAt(2)).toEqual(shared);
     second.resolve(ok());
     third.resolve(ok());
     await Promise.all([secondCall, thirdCall]);
 
     mocks.fetchApi.mockResolvedValueOnce(ok());
     await createInvitation();
-    expect(commandHeadersAt(3)).not.toEqual(shared);
+    expect(operationHeadersAt(3)).not.toEqual(shared);
   });
 
   it('retains the cohort when a transport throws while a sibling succeeds', async () => {
@@ -231,7 +234,7 @@ describe('implicit account command cohorts', () => {
     await waitForRequests(1);
     const failedCall = createInvitation();
     await waitForRequests(2);
-    const shared = commandHeadersAt(0);
+    const shared = operationHeadersAt(0);
     failure.reject(new TypeError('network unavailable'));
     await expect(failedCall).rejects.toThrow('network unavailable');
     success.resolve(ok());
@@ -239,7 +242,7 @@ describe('implicit account command cohorts', () => {
 
     mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
-    expect(commandHeadersAt(2)).toEqual(shared);
+    expect(operationHeadersAt(2)).toEqual(shared);
   });
 
   it("does not let an earlier identity's completion clear the current identity's cohort", async () => {
@@ -249,14 +252,14 @@ describe('implicit account command cohorts', () => {
       .mockImplementationOnce(() => identityA.promise)
       .mockImplementationOnce(() => identityB.promise);
 
-    bindStoredAccountCommandsToIdentity('bruce-wayne');
+    bindStoredAccountOperationsToIdentity('bruce-wayne');
     const callA = createInvitation();
     await waitForRequests(1);
-    const headersA = commandHeadersAt(0);
-    bindStoredAccountCommandsToIdentity('clark-kent');
+    const headersA = operationHeadersAt(0);
+    bindStoredAccountOperationsToIdentity('clark-kent');
     const callB = createInvitation();
     await waitForRequests(2);
-    const headersB = commandHeadersAt(1);
+    const headersB = operationHeadersAt(1);
     expect(headersB).not.toEqual(headersA);
 
     identityA.resolve(ok());
@@ -266,40 +269,40 @@ describe('implicit account command cohorts', () => {
 
     mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
-    expect(commandHeadersAt(2)).toEqual(headersB);
+    expect(operationHeadersAt(2)).toEqual(headersB);
   });
 
   it('does not let an in-flight completion recreate state cleared during sign-out', async () => {
     const request = createDeferred<Response>();
     mocks.fetchApi.mockImplementationOnce(() => request.promise);
-    bindStoredAccountCommandsToIdentity('bruce-wayne');
+    bindStoredAccountOperationsToIdentity('bruce-wayne');
     const call = createInvitation();
     await waitForRequests(1);
 
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     request.resolve(ok());
     await call;
 
     mocks.fetchApi.mockResolvedValueOnce(ok());
     await createInvitation();
-    expect(commandHeadersAt(1)).not.toEqual(commandHeadersAt(0));
+    expect(operationHeadersAt(1)).not.toEqual(operationHeadersAt(0));
   });
 
   it('does not let a pre-sign-out completion clear a same-identity cohort created afterward', async () => {
     const stale = createDeferred<Response>();
     mocks.fetchApi.mockImplementationOnce(() => stale.promise);
-    bindStoredAccountCommandsToIdentity('bruce-wayne');
+    bindStoredAccountOperationsToIdentity('bruce-wayne');
     const staleCall = createInvitation();
     await waitForRequests(1);
 
-    clearStoredAccountCommands();
-    bindStoredAccountCommandsToIdentity('bruce-wayne');
+    clearStoredAccountOperations();
+    bindStoredAccountOperationsToIdentity('bruce-wayne');
 
     const fresh = createDeferred<Response>();
     mocks.fetchApi.mockImplementationOnce(() => fresh.promise);
     const freshCall = createInvitation();
     await waitForRequests(2);
-    const freshHeaders = commandHeadersAt(1);
+    const freshHeaders = operationHeadersAt(1);
 
     stale.resolve(ok());
     await staleCall;
@@ -307,7 +310,7 @@ describe('implicit account command cohorts', () => {
     mocks.fetchApi.mockResolvedValueOnce(ok());
     const thirdCall = createInvitation();
     await waitForRequests(3);
-    expect(commandHeadersAt(2)).toEqual(freshHeaders);
+    expect(operationHeadersAt(2)).toEqual(freshHeaders);
 
     fresh.resolve(ok());
     await Promise.all([freshCall, thirdCall]);
@@ -331,13 +334,13 @@ describe('implicit account command cohorts', () => {
 
     const siblings = [createInvitation(), createInvitation()];
     await waitForRequests(2);
-    const shared = commandHeadersAt(0);
+    const shared = operationHeadersAt(0);
     definitive.resolve(ok());
     ambiguous.resolve(unknown());
     await Promise.all(siblings);
 
     mocks.fetchApi.mockResolvedValueOnce(unknown());
     await createInvitation();
-    expect(commandHeadersAt(2)).toEqual(shared);
+    expect(operationHeadersAt(2)).toEqual(shared);
   });
 });

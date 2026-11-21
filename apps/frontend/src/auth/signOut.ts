@@ -1,4 +1,4 @@
-import { clearStoredAccountCommands } from '@/account/accountCommands';
+import { clearStoredAccountOperations } from '@/account/accountOperations';
 import { queryClient } from '@/api/queryClient';
 import { authApi } from './authApi';
 import { useStore } from '@/store/useStore';
@@ -7,7 +7,7 @@ import { useStore } from '@/store/useStore';
 export const AUTH_INVALIDATION_STORAGE_KEY = 'capacitylens/sessionInvalidated';
 
 interface SignOutOptions {
-  clearAccountCommands?: () => void;
+  clearAccountOperations?: () => void;
   reload?: () => void;
 }
 
@@ -15,7 +15,7 @@ interface SignOutOptions {
  * @throws If the request fails, the current screen keeps its state and can offer a retry.
  */
 export async function signOutAndReload({
-  clearAccountCommands = clearStoredAccountCommands,
+  clearAccountOperations = clearStoredAccountOperations,
   reload = () => window.location.reload(),
 }: SignOutOptions = {}): Promise<void> {
   const result = await authApi.signOut();
@@ -24,7 +24,7 @@ export async function signOutAndReload({
   try {
     queryClient.clear();
     useStore.getState().clearPlanning();
-    clearAccountCommands();
+    clearAccountOperations();
   } catch (error) {
     // Local cleanup failure must not keep the signed-out tab open.
     console.error('AuthProvider: could not fully clear signed-out state', error);

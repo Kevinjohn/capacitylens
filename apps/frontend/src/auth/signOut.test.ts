@@ -15,17 +15,17 @@ describe('signOutAndReload', () => {
   it('clears private data and notifies sibling tabs before reloading after success', async () => {
     queryClient.setQueryData(['private-account'], 'sensitive data');
     useStore.setState({ activeCompanyId: 'gotham' });
-    const clearAccountCommands = vi.fn();
+    const clearAccountOperations = vi.fn();
     const reload = vi.fn(() => {
       expect(queryClient.getQueryData(['private-account'])).toBeUndefined();
       expect(useStore.getState().activeCompanyId).toBeNull();
-      expect(clearAccountCommands).toHaveBeenCalledOnce();
+      expect(clearAccountOperations).toHaveBeenCalledOnce();
       expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toMatch(/^[0-9a-f-]{36}$/i);
     });
 
     vi.spyOn(authApi, 'signOut').mockResolvedValue({ data: null, error: null });
     await signOutAndReload({
-      clearAccountCommands,
+      clearAccountOperations,
       reload,
     });
 
@@ -44,14 +44,14 @@ describe('signOutAndReload', () => {
     async (_, requestSignOut, message) => {
       queryClient.setQueryData(['private-account'], 'sensitive data');
       useStore.setState({ activeCompanyId: 'gotham' });
-      const clearAccountCommands = vi.fn();
+      const clearAccountOperations = vi.fn();
       const reload = vi.fn();
 
       vi.spyOn(authApi, 'signOut').mockImplementation(requestSignOut);
-      await expect(signOutAndReload({ clearAccountCommands, reload })).rejects.toThrow(message);
+      await expect(signOutAndReload({ clearAccountOperations, reload })).rejects.toThrow(message);
       expect(localStorage.getItem(AUTH_INVALIDATION_STORAGE_KEY)).toBeNull();
       expect(reload).not.toHaveBeenCalled();
-      expect(clearAccountCommands).not.toHaveBeenCalled();
+      expect(clearAccountOperations).not.toHaveBeenCalled();
       expect(useStore.getState().activeCompanyId).toBe('gotham');
       expect(queryClient.getQueryData(['private-account'])).toBe('sensitive data');
     },
