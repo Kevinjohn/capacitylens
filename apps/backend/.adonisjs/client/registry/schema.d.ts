@@ -77,10 +77,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/installation/company'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/first_company_setup').storeValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/first_company_setup').createFirstCompanyValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/first_company_setup').storeValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/first_company_setup').createFirstCompanyValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/first_company_setup_controller').default['store']>>>
@@ -103,10 +103,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/transfer/preview'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').previewValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').previewValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
@@ -116,10 +116,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/transfer/apply'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').applyValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').applyValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
@@ -155,10 +155,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/anonymise'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/anonymise').companyValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/anonymise').anonymiseCompanyValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/anonymise').companyValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/anonymise').anonymiseCompanyValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
@@ -168,10 +168,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/resources/:id/anonymise'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/anonymise').resourceValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/anonymise').anonymiseResourceValidator)>>
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; id: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/anonymise').resourceValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/anonymise').anonymiseResourceValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
@@ -207,10 +207,10 @@ export interface Registry {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/getting-started'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/getting_started').updateValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/getting_started').updateGettingStartedValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/getting_started').updateValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/getting_started').updateGettingStartedValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
@@ -272,10 +272,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/auth/password-confirmation'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/password_confirmations').passwordValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/password_confirmations').confirmPasswordValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/password_confirmations').passwordValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/password_confirmations').confirmPasswordValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
@@ -363,10 +363,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/auth/verification/inspect'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/verification').inspectValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/verification').inspectVerificationValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/verification').inspectValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/verification').inspectVerificationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
@@ -376,10 +376,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/auth/verification/complete'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/verification').completeValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/verification').completeVerificationValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/verification').completeValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/verification').completeVerificationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
@@ -402,10 +402,10 @@ export interface Registry {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/member-sign-in-tracking'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/members').trackingValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/members').updateMemberTrackingValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/members').trackingValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/members').updateMemberTrackingValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
@@ -441,10 +441,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/invites'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/invitations').createValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/invitations').createInvitationValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/invitations').createValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/invitations').createInvitationValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
@@ -506,10 +506,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/invites/:token/signup'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/invitations').signUpValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/invitations').acceptInvitationSignUpValidator)>>
       paramsTuple: [ParamValue]
       params: { token: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/invitations').signUpValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/invitations').acceptInvitationSignUpValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
@@ -636,10 +636,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/masquerade'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/masquerade').startValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/masquerade').startMasqueradeValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/masquerade').startValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/masquerade').startMasqueradeValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
@@ -662,10 +662,10 @@ export interface Registry {
     methods: ["DELETE"]
     pattern: '/api/masquerade'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/masquerade').endValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/masquerade').endMasqueradeValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/masquerade').endValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/masquerade').endMasqueradeValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
@@ -675,10 +675,10 @@ export interface Registry {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/ownership-transfer'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/ownership').transferValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/ownership').transferOwnershipValidator)>>
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
-      query: ExtractQuery<InferInput<(typeof import('#validators/ownership').transferValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/ownership').transferOwnershipValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>

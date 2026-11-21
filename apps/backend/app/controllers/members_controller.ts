@@ -6,7 +6,11 @@ import { runAccountOperation, parseAccountOperation } from '#services/account_op
 import { changeMemberRole, changeMemberStatus } from '#services/membership/member_mutations';
 import { changeMemberSignInTracking } from '#services/membership/sign_in_tracking';
 import { readMemberDirectory } from '#services/membership/member_directory';
-import { changeRoleValidator, changeStatusValidator, trackingValidator } from '#validators/members';
+import {
+  changeRoleValidator,
+  changeStatusValidator,
+  updateMemberTrackingValidator,
+} from '#validators/members';
 
 function readRouteParam(value: unknown) {
   // Adonis calls the controller after matching a route, so each parameter is already a string.
@@ -54,7 +58,7 @@ export default class MembersController {
   }
 
   async tracking(ctx: HttpContext) {
-    const { enabled } = await ctx.request.validateUsing(trackingValidator, {
+    const { enabled } = await ctx.request.validateUsing(updateMemberTrackingValidator, {
       data: ctx.request.body(),
     });
     const companyId = readRouteParam(ctx.params.companyId);

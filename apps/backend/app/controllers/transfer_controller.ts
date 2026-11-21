@@ -8,11 +8,13 @@ import {
   previewCompanyImport,
   readRequestDocument,
 } from '#services/company_import';
-import { applyValidator, previewValidator } from '#validators/transfer';
+import { applyImportValidator, previewImportValidator } from '#validators/transfer';
 
 export default class TransferController {
   async preview(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(previewValidator, { data: ctx.request.body() });
+    const body = await ctx.request.validateUsing(previewImportValidator, {
+      data: ctx.request.body(),
+    });
     const companyId = body.companyId;
     // The preview names why a document is refused, so the browser never validates it itself.
     const document = readRequestDocument(body.document);
@@ -24,7 +26,9 @@ export default class TransferController {
   }
 
   async apply(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(applyValidator, { data: ctx.request.body() });
+    const body = await ctx.request.validateUsing(applyImportValidator, {
+      data: ctx.request.body(),
+    });
     const { companyId, baseRevision, confirmationId = '' } = body;
     const document = parseRequestDocument(body.document);
     if (!document) return ctx.response.badRequest({ error: 'Invalid beta transfer request.' });

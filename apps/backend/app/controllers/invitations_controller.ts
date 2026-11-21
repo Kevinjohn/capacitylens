@@ -19,7 +19,10 @@ import {
 import { signInWithPassword } from '#services/auth/password_sign_in';
 import db from '@adonisjs/lucid/services/db';
 import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
-import { createValidator, signUpValidator } from '#validators/invitations';
+import {
+  createInvitationValidator,
+  acceptInvitationSignUpValidator,
+} from '#validators/invitations';
 
 function parseInvitationId(value: unknown) {
   const id = Number(value);
@@ -64,7 +67,7 @@ export default class InvitationsController {
 
   async create(ctx: HttpContext) {
     const body = await ctx.request
-      .validateUsing(createValidator, { data: ctx.request.body() })
+      .validateUsing(createInvitationValidator, { data: ctx.request.body() })
       .catch(refuseInvalidAdmissionBody);
     const { email } = body;
     const actorId = await this.manager(ctx, body.companyId);
@@ -150,7 +153,7 @@ export default class InvitationsController {
   async signUp(ctx: HttpContext) {
     setProofHeaders(ctx);
     const body = await ctx.request
-      .validateUsing(signUpValidator, { data: ctx.request.body() })
+      .validateUsing(acceptInvitationSignUpValidator, { data: ctx.request.body() })
       .catch(refuseInvalidAdmissionBody);
     const { name } = body;
     let email: string;

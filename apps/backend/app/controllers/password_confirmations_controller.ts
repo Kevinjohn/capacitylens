@@ -12,11 +12,13 @@ import { classifyLogError } from '#config/logger';
 import { reportPrivateFailure } from '#services/logging_safety';
 import { parseRequestDocument } from '#services/company_import';
 import { managedGuard } from '#services/auth/managed_guard';
-import { passwordValidator } from '#validators/password_confirmations';
+import { confirmPasswordValidator } from '#validators/password_confirmations';
 
 export default class PasswordConfirmationsController {
   async password(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(passwordValidator, { data: ctx.request.body() });
+    const body = await ctx.request.validateUsing(confirmPasswordValidator, {
+      data: ctx.request.body(),
+    });
     let intent: unknown = body.intent;
     if (body.action === 'import') {
       const document = parseRequestDocument(body.intent.document);

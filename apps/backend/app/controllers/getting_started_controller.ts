@@ -9,7 +9,7 @@ import {
   isGettingStartedDismissed,
   readGettingStartedSteps,
 } from '#services/getting_started';
-import { updateValidator } from '#validators/getting_started';
+import { updateGettingStartedValidator } from '#validators/getting_started';
 
 export default class GettingStartedController {
   async show(ctx: HttpContext) {
@@ -26,7 +26,7 @@ export default class GettingStartedController {
   async update(ctx: HttpContext) {
     const { params, request, response } = ctx;
     try {
-      await request.validateUsing(updateValidator, { data: request.body() });
+      await request.validateUsing(updateGettingStartedValidator, { data: request.body() });
     } catch (error) {
       // Route wording: this route answers a Vine failure with its own sentence and no code.
       if (!(error instanceof vineErrors.E_VALIDATION_ERROR)) throw error;

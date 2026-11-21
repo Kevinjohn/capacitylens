@@ -3,15 +3,15 @@ import { allowedFields, fixedMessage, isSupplied } from '#validators/request_rul
 
 // The document keeps its own parser and error type; the validator only requires the key.
 const previewMessage = 'Invalid beta transfer document.';
-export const previewValidator = vine.create(
+export const previewImportValidator = vine.create(
   vine
     .object({ companyId: vine.string().minLength(1), document: vine.any().nullable() })
     .use(allowedFields({ fields: ['companyId', 'document'], message: previewMessage }))
 );
-previewValidator.messagesProvider = fixedMessage(previewMessage);
+previewImportValidator.messagesProvider = fixedMessage(previewMessage);
 
 const applyMessage = 'Invalid beta transfer request.';
-export const applyValidator = vine.create(
+export const applyImportValidator = vine.create(
   vine
     .object({
       companyId: vine.string().minLength(1),
@@ -30,4 +30,4 @@ export const applyValidator = vine.create(
       })
     )
 );
-applyValidator.messagesProvider = fixedMessage(applyMessage);
+applyImportValidator.messagesProvider = fixedMessage(applyMessage);

@@ -5,7 +5,10 @@ import { InvalidTokenError, isCommittedFailure } from '@kevinjohn/adonisjs-accou
 import { isMailConfigured } from '#services/mail_delivery';
 import { setProofHeaders } from '#services/request_helpers';
 import { readCurrentAccount } from '#services/auth/current_actor';
-import { completeValidator, inspectValidator } from '#validators/verification';
+import {
+  completeVerificationValidator,
+  inspectVerificationValidator,
+} from '#validators/verification';
 
 /** Address confirmation for a signed-in identity, reachable before admission. */
 export default class VerificationController {
@@ -35,7 +38,9 @@ export default class VerificationController {
   /** Reports whether a confirmation link is still usable without spending it. */
   async inspect(ctx: HttpContext) {
     setProofHeaders(ctx);
-    const body = await ctx.request.validateUsing(inspectValidator, { data: ctx.request.body() });
+    const body = await ctx.request.validateUsing(inspectVerificationValidator, {
+      data: ctx.request.body(),
+    });
     return ctx.response.ok({
       valid: await accountKit.emailVerification.inspect({ token: body.token }),
     });
@@ -47,7 +52,9 @@ export default class VerificationController {
    */
   async complete(ctx: HttpContext) {
     setProofHeaders(ctx);
-    const body = await ctx.request.validateUsing(completeValidator, { data: ctx.request.body() });
+    const body = await ctx.request.validateUsing(completeVerificationValidator, {
+      data: ctx.request.body(),
+    });
     try {
       await accountKit.emailVerification.complete({
         token: body.token,
