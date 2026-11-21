@@ -322,8 +322,8 @@ framework defaults; any other departure needs a decision recorded here first.
 3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
-4. Columns are snake_case. Lucid model serialisation produces the camelCase wire format and
-   the state transformer projects it for the reader's role. Calendar dates are date-only
+4. Columns are snake_case. The row transformer produces the camelCase wire format from each
+   model's column serialisation and the state transformer projects it for the reader's role. Calendar dates are date-only
    strings; instants may use Lucid date-time columns and serialise to ISO.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
