@@ -14,6 +14,7 @@ import type { BaseModel } from '@adonisjs/lucid/orm';
 import type { QueryClientContract } from '@adonisjs/lucid/types/database';
 import type { ModelColumnOptions } from '@adonisjs/lucid/types/model';
 import { isJsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
+import { transformRow } from '#transformers/row_transformer';
 import type { ProductTable } from '#services/product_tables';
 
 const buildSnakeKey = (key: string) =>
@@ -52,7 +53,7 @@ export function encodeRow(table: ProductTable, row: Record<string, unknown>) {
 }
 
 function serializeRows(rows: InstanceType<typeof BaseModel>[]): Record<string, unknown>[] {
-  return rows.map((model) => model.serialize());
+  return rows.map(transformRow);
 }
 
 /**

@@ -322,9 +322,10 @@ framework defaults; any other departure needs a decision recorded here first.
 3. Product models fail closed without an explicit tenant scope. Retained bulk services authorise
    the company and scope their queries inside a transaction because model hooks do not cover bulk
    updates and deletes.
-4. Columns are snake_case. Lucid model serialisation produces the camelCase wire format and
-   the state transformer projects it for the reader's role. Calendar dates are date-only
-   strings; instants may use Lucid date-time columns and serialise to ISO.
+4. Columns are snake_case. The row transformer produces the camelCase wire format from each
+   model's column serialisation and the state transformer projects it for the reader's role.
+   Calendar dates are date-only strings; instants may use Lucid date-time columns and serialise
+   to ISO.
 5. Product environment variables use the `CAPACITYLENS_` prefix; framework variables keep the
    framework's names.
 6. The backend serves the SPA with the product security headers and a history fallback rather than
@@ -357,6 +358,8 @@ framework defaults; any other departure needs a decision recorded here first.
     through fixture helpers, because Account Kit refuses a connection already in a transaction and
     the rate limiter's database store waits for the one pooled connection the transaction holds.
 18. Routes are registered from one file per area in `start/`. Prettier keeps semicolons.
+19. The exception handler shows debug output in development only (`debug = app.inDev`), so the
+    test environment answers with the same error bodies as production.
 
 ## Installation
 

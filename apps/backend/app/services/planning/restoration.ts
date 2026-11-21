@@ -14,6 +14,7 @@ import { readStateWithClient } from '#services/state_repository';
 import { parseAffectedRows } from '#services/affected_rows';
 import { buildRetainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
 import { tables } from '#services/product_tables';
+import { transformRow } from '#transformers/row_transformer';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { asRecord, requireExistingRow, type WrittenRow } from './writer.js';
 import { PlanningOperationError } from './errors.js';
@@ -216,7 +217,7 @@ export async function restoreGroup(
       rows.push({
         entity,
         id: String(item.row_id),
-        row: stored.serialize() as AppData[typeof entity][number],
+        row: transformRow(stored) as AppData[typeof entity][number],
       });
     } else {
       links.push({
