@@ -5,7 +5,7 @@ As an Owner, I want imports to stay outside undo history so that an accidental u
 **Status:** Current
 **Access:** Owner
 **Entry:** After import → Undo/Redo
-**Documentation:** [Settings](../../docs-src/using/settings.md#beta-transfer-contract)
+**Documentation:** [Settings](../../docs-src/using/settings.md#beta-import-contract)
 **Source:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx)
 
 ## Acceptance criteria

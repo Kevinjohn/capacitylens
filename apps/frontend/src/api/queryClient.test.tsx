@@ -18,10 +18,10 @@ describe('same-origin API requests', () => {
     window.history.replaceState(null, '', '/account/');
 
     try {
-      await client.request('api.auth.me', {});
+      await client.request('api.session.show', {});
       if (requestedUrl === undefined) throw new Error('API request did not reach fetch.');
       expect(new URL(requestedUrl).pathname).toBe('/api/auth/me');
-      expect(buildApiRouteUrl('api.auth.me', {})).toBe('/api/auth/me');
+      expect(buildApiRouteUrl('api.session.show', {})).toBe('/api/auth/me');
     } finally {
       vi.unstubAllGlobals();
       window.history.replaceState(null, '', '/');
@@ -32,8 +32,8 @@ describe('same-origin API requests', () => {
     vi.resetModules();
     try {
       const fresh = await import('./queryClient');
-      expect(fresh.buildApiRouteUrl('api.auth.me', {})).toBe('/api/auth/me');
-      expect(fresh.buildApiReadRouteUrl('api.admission.index', {})).toMatch(/^\/api\//);
+      expect(fresh.buildApiRouteUrl('api.session.show', {})).toBe('/api/auth/me');
+      expect(fresh.buildApiReadRouteUrl('api.admission_requests.index', {})).toMatch(/^\/api\//);
     } finally {
       vi.unstubAllEnvs();
       vi.resetModules();
@@ -51,7 +51,7 @@ describe('same-origin API requests', () => {
       }),
     );
     try {
-      await client.request('api.auth.me', { signal: caller.signal });
+      await client.request('api.session.show', { signal: caller.signal });
       expect(forwardedSignal).toBeInstanceOf(AbortSignal);
       expect(forwardedSignal?.aborted).toBe(true);
     } finally {

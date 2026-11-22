@@ -14,7 +14,7 @@ describe('getting-started account api', () => {
 
   it('reads and dismisses the encoded company URL', async () => {
     const controller = new AbortController();
-    fetchApi.mockResolvedValueOnce(Response.json({ dismissed: false, steps }));
+    fetchApi.mockResolvedValueOnce(Response.json({ data: { dismissed: false, steps } }));
     await expect(gettingStartedApi.read('company / one', controller.signal)).resolves.toEqual({
       dismissed: false,
       steps,
@@ -40,12 +40,12 @@ describe('getting-started account api', () => {
   it('throws for a refused read, an off-spec body or a refused dismissal', async () => {
     fetchApi.mockResolvedValueOnce(new Response(null, { status: 503 }));
     await expect(gettingStartedApi.read('c-1')).rejects.toThrow('(503)');
-    fetchApi.mockResolvedValueOnce(Response.json({ dismissed: 'yes', steps }));
+    fetchApi.mockResolvedValueOnce(Response.json({ data: { dismissed: 'yes', steps } }));
     await expect(gettingStartedApi.read('c-1')).rejects.toThrow('invalid');
-    fetchApi.mockResolvedValueOnce(Response.json({ dismissed: false }));
+    fetchApi.mockResolvedValueOnce(Response.json({ data: { dismissed: false } }));
     await expect(gettingStartedApi.read('c-1')).rejects.toThrow('invalid');
     fetchApi.mockResolvedValueOnce(
-      Response.json({ dismissed: false, steps: { ...steps, scheduled: 'yes' } }),
+      Response.json({ data: { dismissed: false, steps: { ...steps, scheduled: 'yes' } } }),
     );
     await expect(gettingStartedApi.read('c-1')).rejects.toThrow('invalid');
     fetchApi.mockResolvedValueOnce(new Response(null, { status: 403 }));

@@ -51,8 +51,10 @@ function mockInactiveRead() {
       const data = structuredClone(useStore.getState().data);
       const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
-        ...data,
-        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        data: {
+          ...data,
+          clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        },
       });
     }),
   );
@@ -64,7 +66,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
       ...state.planning,
       phase: { kind: 'ready', lastWrite: null },
       context: { identity: 'test-user', companyId: DEFAULT_COMPANY_ID },
-      authority: makePlanningAccess({ role }),
+      access: makePlanningAccess({ role }),
     },
   }));
 }
@@ -222,8 +224,10 @@ describe('ClientList archive flow', () => {
     markClientArchived(client.id);
     setPlanningRole('editor');
     archiveRequest.mockResolvedValueOnce({
-      companyId: DEFAULT_COMPANY_ID,
-      rows: [{ entity: 'clients', id: client.id, label: 'Ferris', archived: true, parent: null }],
+      data: {
+        companyId: DEFAULT_COMPANY_ID,
+        rows: [{ entity: 'clients', id: client.id, label: 'Ferris', archived: true, parent: null }],
+      },
     });
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -240,7 +244,7 @@ describe('ClientList archive flow', () => {
       upserts: [{ entity: 'clients', row: { ...client, archivedAt: null } }],
       removed: [],
     }));
-    archiveRequest.mockResolvedValueOnce({ companyId: DEFAULT_COMPANY_ID, rows: [] });
+    archiveRequest.mockResolvedValueOnce({ data: { companyId: DEFAULT_COMPANY_ID, rows: [] } });
     await user.click(archive.getByRole('button', { name: 'Restore Ferris' }));
     expect(screen.getByTestId('client-row')).toHaveTextContent('Ferris');
     await waitFor(() =>

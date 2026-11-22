@@ -29,7 +29,7 @@ function resolveCompanySelection(
 ): { id: ID | null; unknown: boolean } {
   if (
     rawId === null ||
-    get().data.accounts.some((company) => company.id === rawId) ||
+    get().data.companies.some((company) => company.id === rawId) ||
     get().companySummaries.some((company) => company.id === rawId)
   ) {
     return { id: rawId, unknown: false };

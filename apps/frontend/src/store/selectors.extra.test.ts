@@ -64,7 +64,13 @@ const data: AppData = {
     },
   ],
   resources: [
-    makeResource({ id: 'r1', companyId: DEFAULT_COMPANY_ID, name: 'A', role: 'Dev', color: '#4' }),
+    makeResource({
+      id: 'r1',
+      companyId: DEFAULT_COMPANY_ID,
+      name: 'A',
+      jobTitle: 'Dev',
+      color: '#4',
+    }),
   ],
   allocations: [
     {

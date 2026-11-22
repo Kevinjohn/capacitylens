@@ -18,7 +18,7 @@ describe('planning read capacity window', () => {
   });
 
   it('asks for the default window until a read anchors the grid, then for the grid window', async () => {
-    await resetStoreWithData(makeAppData({ accounts: [makeCompany()] }));
+    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }));
     const transport = getStubPlanningTransport();
     // The first read's anchoring moves the grid onto the server's default window, so no second read.
     await Promise.resolve();
@@ -35,7 +35,7 @@ describe('planning read capacity window', () => {
   });
 
   it('keeps the figures of the read it accepts', async () => {
-    await resetStoreWithData(makeAppData({ accounts: [makeCompany()] }));
+    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }));
     const window = gridWindow();
     const horizon = { from: window.from, to: addDaysISO(window.from, 6) };
     const capacity = {
@@ -57,7 +57,7 @@ describe('planning read capacity window', () => {
   });
 
   it('reads once, for the last window, after several quick moves', async () => {
-    await resetStoreWithData(makeAppData({ accounts: [makeCompany()] }));
+    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }));
     const transport = getStubPlanningTransport();
     const reads = transport.readWindows.length;
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
@@ -74,7 +74,7 @@ describe('planning read capacity window', () => {
   });
 
   it('keeps planning ready while the moved window is read', async () => {
-    await resetStoreWithData(makeAppData({ accounts: [makeCompany()] }));
+    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }));
     const transport = getStubPlanningTransport();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const release = transport.holdNextRead();
@@ -92,7 +92,7 @@ describe('planning read capacity window', () => {
   });
 
   it('reads the moved window during a read in flight, which then resolves with the newer read', async () => {
-    await resetStoreWithData(makeAppData({ accounts: [makeCompany()] }));
+    await resetStoreWithData(makeAppData({ companies: [makeCompany()] }));
     const transport = getStubPlanningTransport();
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const release = transport.holdNextRead();

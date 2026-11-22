@@ -43,7 +43,7 @@ function resource(id: string, kind: Resource['kind'] = 'person'): Resource {
     updatedAt: '2026-01-01T00:00:00.000Z',
     kind,
     name: id,
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio',
     workingHoursPerDay: 8,

@@ -233,7 +233,7 @@ export async function commitPlanningChange(
     .waitForResponse((response) => isPlanningMutation(response.request(), operation))
     .then(async (response) => {
       expect(response.ok(), await response.text()).toBe(true);
-      const receipt = await response.json();
+      const receipt = (await response.json()).data;
       expect(Number.isInteger(receipt.revision)).toBe(true);
       return receipt;
     });
@@ -245,7 +245,7 @@ export async function commitPlanningChange(
     )
       return false;
     const receipt = await written;
-    const snapshot = await response.json();
+    const snapshot = (await response.json()).data;
     return snapshot.revision >= receipt.revision;
   });
   await Promise.all([action(), written, canonical]);

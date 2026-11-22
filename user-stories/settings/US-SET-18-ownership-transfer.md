@@ -37,10 +37,10 @@ F -->|no| H["Read the error and review current access"]
 flowchart TD
   card["OwnershipTransferCard selects active Admin candidate"] --> dialog["PasswordConfirmationDialog issues transfer-ownership confirmation"]
   dialog --> hook["useOwnershipTransfer calls teamAccessApi.transferOwnership"]
-  hook --> route["ownership route dispatches OwnershipController.transfer"]
+  hook --> route["ownership route dispatches OwnershipTransfersController.store"]
   route --> service["transferOwnership checks Owner, active Admin and confirmation"]
   service --> transaction["runAccountOperation withActor transaction transfers membership, revision and audit"]
   transaction --> result["settleTransfer refreshes auth and reprojects access"]
 ```
 
-**Code references:** [OwnershipTransferCard.tsx](../../apps/frontend/src/components/team/OwnershipTransferCard.tsx), [useOwnershipTransfer.ts](../../apps/frontend/src/components/team/useOwnershipTransfer.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [ownership_routes.ts](../../apps/backend/start/ownership_routes.ts), [ownership_controller.ts](../../apps/backend/app/controllers/ownership_controller.ts), [ownership_transfer.ts](../../apps/backend/app/services/membership/ownership_transfer.ts), [account_operations.ts](../../apps/backend/app/services/account_operations.ts)
+**Code references:** [OwnershipTransferCard.tsx](../../apps/frontend/src/components/team/OwnershipTransferCard.tsx), [useOwnershipTransfer.ts](../../apps/frontend/src/components/team/useOwnershipTransfer.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [ownership_routes.ts](../../apps/backend/start/ownership_routes.ts), [ownership_transfers_controller.ts](../../apps/backend/app/controllers/ownership_transfers_controller.ts), [ownership_transfer.ts](../../apps/backend/app/services/membership/ownership_transfer.ts), [account_operations.ts](../../apps/backend/app/services/account_operations.ts)

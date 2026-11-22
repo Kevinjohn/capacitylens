@@ -30,7 +30,7 @@ flowchart TD
   N2["Add time off"]
   N3["choose resource, dates and type"]
   N4["Save"]
-  N5["absence appears in list and schedule"]
+  N5["time off appears in list and schedule"]
   B1["Invalid dates/resource; field error; correct and retry"]
   B2["Save fails; error shown; form stays open"]
   B3["Cancel; no change"]

@@ -6,8 +6,8 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('invitation sign-up client', () => {
   it.each([
-    [Response.json({ email: 'diana@themyscira.example', role: 'editor' }), 'ok'],
-    [Response.json({ email: 42 }), 'unavailable'],
+    [Response.json({ data: { email: 'diana@themyscira.example', role: 'editor' } }), 'ok'],
+    [Response.json({ data: { email: 42 } }), 'unavailable'],
     [new Response(null, { status: 400 }), 'invalid'],
     [new Response(null, { status: 404 }), 'invalid'],
     [new Response(null, { status: 503 }), 'unavailable'],

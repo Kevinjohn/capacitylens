@@ -210,10 +210,10 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
       /role could not be verified/i,
     ],
   ] as const)(
-    'attributes a mutation with no authority after a %s read to access checking, not Viewer membership',
+    'attributes a mutation with no access after a %s read to access checking, not Viewer membership',
     async (_label, phase, message) => {
       useStore.setState((state) => ({
-        planning: { ...state.planning, authority: null, phase },
+        planning: { ...state.planning, access: null, phase },
       }));
 
       await useStore.getState().addResource(makeResourceDraft());

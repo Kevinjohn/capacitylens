@@ -18,8 +18,8 @@ async function fetchOk(url, options = {}) {
 }
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
-export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, contextToken) {
-  const account = fixture.accounts.find((row) => row.id === 'a-studio');
+export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, masqueradeToken) {
+  const account = fixture.companies.find((row) => row.id === 'a-studio');
   assert.ok(account);
   const resource = {
     ...fixture.resources.find((row) => row.kind === 'person' && row.companyId === 'a-studio'),
@@ -35,7 +35,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
         cookie,
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({
         mutationId: randomUUID(),
@@ -46,7 +46,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
           fields: {
             kind: 'person',
             name: resource.name,
-            role: resource.role,
+            jobTitle: resource.jobTitle,
             avatarUrl: null,
             disciplineId: null,
             employmentType: resource.employmentType,
@@ -64,7 +64,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
       }),
     },
   );
-  assert.equal(JSON.parse(createdResource.body).revision, 2);
+  assert.equal(JSON.parse(createdResource.body).data.revision, 2);
 
   const activity = {
     id: randomUUID(),
@@ -81,7 +81,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
         cookie,
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({
         mutationId: randomUUID(),
@@ -97,7 +97,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
       }),
     },
   );
-  assert.equal(JSON.parse(createdActivity.body).revision, 3);
+  assert.equal(JSON.parse(createdActivity.body).data.revision, 3);
 
   const allocation = {
     id: randomUUID(),
@@ -117,7 +117,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
         cookie,
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({
         mutationId: randomUUID(),
@@ -126,6 +126,6 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
       }),
     },
   );
-  assert.equal(JSON.parse(createdAllocation.body).revision, 4);
+  assert.equal(JSON.parse(createdAllocation.body).data.revision, 4);
   return { companyId, resource, activity, allocation };
 }

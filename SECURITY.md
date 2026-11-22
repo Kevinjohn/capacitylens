@@ -21,7 +21,7 @@ Only the latest release and current `main` are supported. Older releases may not
 
 ## Scope
 
-In scope: authentication/authorization bypass, cross-account access, injection, stored/DOM XSS,
+In scope: authentication/authorisation bypass, cross-company access, injection, stored/DOM XSS,
 CSRF, session compromise, import/export attacks, destructive unauthorised actions, sensitive-data
 exposure and meaningful dependency vulnerabilities in the shipped application.
 

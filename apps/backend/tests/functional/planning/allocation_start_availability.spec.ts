@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import { readState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
@@ -10,11 +10,16 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
-const body = (response: { body(): unknown }) =>
-  response.body() as { code: string; error: string; revision: number };
+/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+const body = (response: { body(): unknown; status(): number }) =>
+  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
+    code: string;
+    error: string;
+    revision: number;
+  };
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,

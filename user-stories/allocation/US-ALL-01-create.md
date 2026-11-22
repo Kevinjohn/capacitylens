@@ -59,10 +59,10 @@ flowchart TD
   B -->|invalid| I["Field/form error; dialog remains open"]
   C --> D["Planning cache executes command"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends api.planning.mutate"]
+  E --> F["planningTransport sends api.planning_mutations.store"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Form error; draft remains available"]
-  F --> G["PlanningController.mutatePlanning executes scoped writeRow"]
+  F --> G["PlanningMutationsController.store executes scoped writeRow"]
   G --> H["Acknowledgement reconciles store; Schedule redraws"]
 ```
 
@@ -76,7 +76,7 @@ flowchart TD
 
 - [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
 - [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 - [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)

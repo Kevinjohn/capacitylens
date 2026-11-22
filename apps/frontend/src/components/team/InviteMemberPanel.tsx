@@ -3,7 +3,7 @@ import { APP_NAME } from '@capacitylens/shared/brand';
 import type { InvitationRole } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamInvitation } from '@/account/teamAccessApi';
-import { formatInviteExpiryDate } from '@/components/invites/inviteExpiry';
+import { formatInviteExpiryDate } from '@/components/invitations/inviteExpiry';
 import { resolveRoleLabel, resolveRoleSummary } from '@/lib/accessCopy';
 import { FormDialog, SelectField, TextField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';

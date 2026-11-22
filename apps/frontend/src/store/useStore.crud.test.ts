@@ -16,32 +16,32 @@ beforeEach(async () => {
   s().clearFilters();
 });
 
-const personDraft = makeResourceDraft({ name: 'Person', role: 'Dev', color: '#1' });
+const personDraft = makeResourceDraft({ name: 'Person', jobTitle: 'Dev', color: '#1' });
 
 // Omit the shared draft's false default to cover resources without the optional favourite flag.
 const unflaggedDraft = { ...personDraft };
 delete unflaggedDraft.isFavourite;
 
 describe('store CRUD covers every entity', () => {
-  it('accounts: update', async () => {
-    const company = requireValue(s().data.accounts[0], 'account');
+  it('companies: update', async () => {
+    const company = requireValue(s().data.companies[0], 'account');
     await s().updateCompany(company.id, { name: 'Renamed company' });
-    expect(s().data.accounts[0]?.name).toBe('Renamed company');
+    expect(s().data.companies[0]?.name).toBe('Renamed company');
   });
-  it('accounts: stores working days and keeps the update undoable', async () => {
-    const company = requireValue(s().data.accounts[0], 'account');
+  it('companies: stores working days and keeps the update undoable', async () => {
+    const company = requireValue(s().data.companies[0], 'account');
     await s().updateCompany(company.id, { workingDays: [1, 3, 5] });
-    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
+    expect(s().data.companies[0]?.workingDays).toEqual([1, 3, 5]);
 
     await s().updateCompany(company.id, { workingDays: [2, 4] });
     await s().undoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
-      [1, 3, 5],
-    );
+    expect(
+      s().data.companies.find((candidate) => candidate.id === company.id)?.workingDays,
+    ).toEqual([1, 3, 5]);
     await s().redoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
-      [2, 4],
-    );
+    expect(
+      s().data.companies.find((candidate) => candidate.id === company.id)?.workingDays,
+    ).toEqual([2, 4]);
   });
   it('disciplines: add / update / delete', async () => {
     const d = await requireCreated(s().addDiscipline({ name: 'Design', color: '#1' }));
@@ -101,7 +101,7 @@ describe('store CRUD covers every entity', () => {
     await expect(s().deleteActivity(t.id)).resolves.toMatchObject({ archived });
   });
   it('activities: a general (no-project) activity can be added without a projectId', async () => {
-    const t = await requireCreated(s().addActivity({ name: 'Admin', kind: 'repeatable' }));
+    const t = await requireCreated(s().addActivity({ name: 'Admin', kind: 'allProjects' }));
     expect(t.projectId).toBeNull();
     expect(requireValue(s().data.activities[0], 'activity')).toHaveProperty('projectId', null);
     expect(s().data.activities[0]?.name).toBe('Admin');
@@ -112,8 +112,8 @@ describe('store CRUD covers every entity', () => {
     const t = await requireCreated(
       s().addActivity({ name: 'T', kind: 'project', projectId: p.id }),
     );
-    await s().updateActivity(t.id, { kind: 'repeatable', projectId: null });
-    expect(s().data.activities[0]?.kind).toBe('repeatable');
+    await s().updateActivity(t.id, { kind: 'allProjects', projectId: null });
+    expect(s().data.activities[0]?.kind).toBe('allProjects');
     expect(requireValue(s().data.activities[0], 'activity')).toHaveProperty('projectId', null);
   });
   it('updateActivity preserves the project for a phase-only patch', async () => {
@@ -134,8 +134,8 @@ describe('store CRUD covers every entity', () => {
   });
   it('resources: add / update', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
-    await s().updateResource(r.id, { role: 'Lead' });
-    expect(s().data.resources[0]?.role).toBe('Lead');
+    await s().updateResource(r.id, { jobTitle: 'Lead' });
+    expect(s().data.resources[0]?.jobTitle).toBe('Lead');
   });
   it('resources: defaults legacy people and placeholders to Studio engagement', async () => {
     const legacyPersonDraft = { ...personDraft };
@@ -174,7 +174,7 @@ describe('store CRUD covers every entity', () => {
     expect(requireValue(s().data.resources[0], 'resource')).toHaveProperty('isFavourite', null);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
-  it('blocks a write when the planning authority cannot write, whatever the role', async () => {
+  it('blocks a write when the planning access cannot write, whatever the role', async () => {
     setPlanningAccess({ role: 'owner', canWrite: false });
 
     expect(await s().addClient({ name: 'Wayne Foundation', color: '#1' })).toEqual({

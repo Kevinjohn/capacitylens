@@ -56,7 +56,7 @@ describe('account transition boundary', () => {
     const boundary = await import('./companyTransition');
 
     await expect(
-      boundary.adoptMasqueradeStatus({ active: false, contextToken: 'idle-context' }, isCurrent),
+      boundary.adoptMasqueradeStatus({ active: false, masqueradeToken: 'idle-context' }, isCurrent),
     ).resolves.toBe(false);
     expect(mocks.modelLoaded).toHaveBeenCalledOnce();
     expect(isCurrent).toHaveBeenCalledOnce();
@@ -88,7 +88,7 @@ describe('account transition boundary', () => {
   });
 
   it('adopts server status through the lazy model boundary', async () => {
-    const status = { active: false as const, contextToken: 'idle-context' };
+    const status = { active: false as const, masqueradeToken: 'idle-context' };
     const boundary = await import('./companyTransition');
 
     await expect(boundary.adoptMasqueradeStatus(status)).resolves.toBe(true);
@@ -98,7 +98,7 @@ describe('account transition boundary', () => {
 
   it('ignores a status response that arrives after its captured projection becomes stale', async () => {
     let isCurrent = true;
-    let resolveStatus!: (status: { active: false; contextToken: string }) => void;
+    let resolveStatus!: (status: { active: false; masqueradeToken: string }) => void;
     mocks.captureStatusReconciliation.mockReturnValue(() => isCurrent);
     mocks.status.mockReturnValue(
       new Promise((resolve) => {
@@ -110,7 +110,7 @@ describe('account transition boundary', () => {
 
     await vi.waitFor(() => expect(mocks.status).toHaveBeenCalledWith('a-studio'));
     isCurrent = false;
-    resolveStatus({ active: false, contextToken: 'stale-idle-context' });
+    resolveStatus({ active: false, masqueradeToken: 'stale-idle-context' });
 
     await expect(reconciliation).resolves.toBeUndefined();
     expect(mocks.adoptStatus).not.toHaveBeenCalled();

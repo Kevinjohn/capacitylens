@@ -60,25 +60,27 @@ export function mockApi(
       'status' in members
         ? jsonResponse({}, members.status)
         : jsonResponse({
-            signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
-            members: members.map((member) => makeRawMember(member)),
-            resourceCandidates: useStore
-              .getState()
-              .data.resources.filter(
-                (resource) =>
-                  resource.kind === 'person' && !resource.archivedAt && !resource.deletedAt,
-              )
-              .map((resource) => ({
-                resourceId: resource.id,
-                label: resource.name ?? resource.role,
-              })),
+            data: {
+              signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
+              members: members.map((member) => makeRawMember(member)),
+              resourceCandidates: useStore
+                .getState()
+                .data.resources.filter(
+                  (resource) =>
+                    resource.kind === 'person' && !resource.archivedAt && !resource.deletedAt,
+                )
+                .map((resource) => ({
+                  resourceId: resource.id,
+                  label: resource.name ?? resource.jobTitle,
+                })),
+            },
           }),
-    'GET /invites': () => jsonResponse({ invites: [] }),
+    'GET /invitations': () => jsonResponse({ data: { invites: [] } }),
     'GET /api/companies': () => {
       const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined;
-      return jsonResponse([
-        { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: self?.role ?? 'owner' },
-      ]);
+      return jsonResponse({
+        data: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: self?.role ?? 'owner' }],
+      });
     },
   };
   const routes = { ...defaults, ...overrides };
@@ -107,7 +109,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
     const endpoint = String(url);
     if (endpoint.endsWith('/member-sign-in-tracking') && init?.method === 'PUT') {
       trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
-      return jsonResponse({ enabled: trackingEnabled });
+      return jsonResponse({ data: { enabled: trackingEnabled } });
     }
     if (
       endpoint.endsWith('/members') &&
@@ -115,20 +117,22 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
     ) {
       // Compute signInConfirmed from the live tracking setting so the response tests opt-in changes rather than a fixed per-member value.
       return jsonResponse({
-        signInTrackingEnabled: trackingEnabled,
-        members: members.map((member) => ({
-          status: 'active',
-          createdAt: '2026-01-01T00:00:00.000Z',
-          name: null,
-          email: `${member.userId}@x.io`,
-          isSelf: false,
-          manage: member.isSelf !== true && member.role !== 'owner',
-          ...member,
-          signInConfirmed: trackingEnabled ? member.isSelf === true : null,
-        })),
+        data: {
+          signInTrackingEnabled: trackingEnabled,
+          members: members.map((member) => ({
+            status: 'active',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            name: null,
+            email: `${member.userId}@x.io`,
+            isSelf: false,
+            manage: member.isSelf !== true && member.role !== 'owner',
+            ...member,
+            signInConfirmed: trackingEnabled ? member.isSelf === true : null,
+          })),
+        },
       });
     }
-    if (endpoint.endsWith('/invites')) return jsonResponse({ invites: [] });
+    if (endpoint.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } });
     return new Response(null, { status: 204 });
   });
 }

@@ -1,6 +1,7 @@
 import { isIsoInstant } from '@capacitylens/shared/account/types';
 import { operationOutcomeDecisions, readUnknownAccountOperationOutcome } from './operationOutcome';
 import { extractApiErrorMessage, readApiError } from '@/lib/readApiError';
+import { readApiData } from '@/api/readApiData';
 
 /**
  * The shared shape of every account-administration answer, and the Response handling that produces
@@ -31,7 +32,7 @@ async function parseOkBody<T>(
   response: Response,
   decode: (body: unknown) => T | null,
 ): Promise<TeamAccessResult<T>> {
-  const body: unknown = await response.json().catch(() => null);
+  const body: unknown = await readApiData(response).catch(() => null);
   const value = decode(body);
   return value === null
     ? {

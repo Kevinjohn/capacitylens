@@ -5,20 +5,21 @@ import { canSeePrivateNames, canSeeTimeOffNote } from '@capacitylens/shared/doma
 import { resolveDisplayName, projectForReader } from '#services/planning/restricted_fields';
 
 export default class StateTransformer extends BaseTransformer<AppData> {
-  constructor(
-    resource: AppData,
-    private companyId: string | undefined,
-    private role: Role
-  ) {
+  #companyId: string | undefined;
+  #role: Role;
+
+  constructor(resource: AppData, companyId: string | undefined, role: Role) {
     super(resource);
+    this.#companyId = companyId;
+    this.#role = role;
   }
 
   toObject(): AppData {
     const data = this.resource;
-    const companyId = this.companyId;
+    const companyId = this.#companyId;
     const visibilityFlags = {
-      canSeePrivateNames: canSeePrivateNames(this.role),
-      canSeeTimeOffNote: canSeeTimeOffNote(this.role),
+      canSeePrivateNames: canSeePrivateNames(this.#role),
+      canSeeTimeOffNote: canSeeTimeOffNote(this.#role),
     };
     const scoped = <K extends ScopedEntityKey>(table: K) =>
       (companyId ? data[table].filter((row) => row.companyId === companyId) : data[table]).map(
@@ -28,7 +29,7 @@ export default class StateTransformer extends BaseTransformer<AppData> {
     const named = <K extends 'clients' | 'projects'>(table: K) =>
       scoped(table).map((row) => ({ ...row, displayName: resolveDisplayName(row) })) as AppData[K];
     return {
-      accounts: companyId ? data.accounts.filter((row) => row.id === companyId) : data.accounts,
+      companies: companyId ? data.companies.filter((row) => row.id === companyId) : data.companies,
       clients: named('clients'),
       disciplines: scoped('disciplines'),
       projects: named('projects'),

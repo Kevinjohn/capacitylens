@@ -62,7 +62,7 @@ async function readRoles(
     headers: { cookie },
   });
   expect(response.status()).toBe(200);
-  const members = (await response.json()).members as Array<{ userId: string; role: string }>;
+  const members = (await response.json()).data.members as Array<{ userId: string; role: string }>;
   return userIds.map((userId) => members.find((member) => member.userId === userId)?.role);
 }
 

@@ -1,4 +1,5 @@
 import { APP_DATA_KEYS } from '@capacitylens/shared/types/entities';
+import { readApiData } from '@/api/readApiData';
 import type { AppData, ID } from '@capacitylens/shared/types/entities';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { readApiError } from '@/lib/readApiError';
@@ -46,18 +47,18 @@ export class InactiveRecordsShapeError extends Error {
  */
 export async function fetchInactiveRecords(companyId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await fetchApi(
-    buildApiReadRouteUrl('api.state', { query: { companyId, includeInactive: '1' } }),
+    buildApiReadRouteUrl('api.company_state.show', { query: { companyId, includeInactive: '1' } }),
     { credentials: 'include', ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) set is the heaviest read the app makes, the bulk
     // tier, not the interactive 15s, so a large company's archived records aren't aborted mid-flight.
     API_BULK_TIMEOUT_MS,
   );
   if (!res.ok) throw new InactiveRecordsHttpError(res.status, await readApiError(res));
-  const body: unknown = await res.json();
+  const body: unknown = await readApiData(res);
   if (!isRecord(body) || !APP_DATA_KEYS.every((key) => Array.isArray(body[key]))) {
     throw new InactiveRecordsShapeError();
   }
-  const companies = body.accounts as unknown[];
+  const companies = body.companies as unknown[];
   const company = companies[0];
   if (companies.length !== 1 || !isRecord(company) || company.id !== companyId) {
     throw new InactiveRecordsShapeError();

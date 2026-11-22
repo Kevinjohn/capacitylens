@@ -23,9 +23,9 @@ const update = {
 function snapshot(name: string, revision = 1): FullPlanningSnapshot {
   return {
     revision,
-    authority: makePlanningAccess(),
+    access: makePlanningAccess(),
     data: makeAppData({
-      accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
+      companies: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ companyId: 'wayne', name })],
     }),
     today: '2026-06-03',
@@ -67,7 +67,7 @@ describe('planning request access boundaries', () => {
     const duplicateCompany = makeCompany({ id: 'wayne', name: 'Wayne Enterprises' });
     fixture.read.mockResolvedValueOnce({
       ...snapshot('Wayne Enterprises', 2),
-      data: makeAppData({ accounts: [duplicateCompany, duplicateCompany] }),
+      data: makeAppData({ companies: [duplicateCompany, duplicateCompany] }),
     });
 
     await expect(fixture.cache.refresh()).resolves.toBe(false);
@@ -120,7 +120,7 @@ describe('planning request access boundaries', () => {
       fixture.cache.setContext({ ...context, identity: 'diana-session-2' });
       fixture.read.mockResolvedValueOnce({
         ...snapshot('Gotham', 2),
-        authority: makePlanningAccess({ role: 'editor' }),
+        access: makePlanningAccess({ role: 'editor' }),
       });
       await fixture.cache.refresh();
       pending.reject(new PlanningCacheError('Previous session ended', undefined, 401));
@@ -131,7 +131,7 @@ describe('planning request access boundaries', () => {
     });
   }
 
-  it('rejects an old mutation response after canonical authority changes inside the same company', async () => {
+  it('rejects an old mutation response after canonical access changes inside the same company', async () => {
     const fixture = await setup();
     const pending = createDeferred<Success>();
     fixture.execute.mockImplementationOnce(() => pending.promise);
@@ -142,7 +142,7 @@ describe('planning request access boundaries', () => {
     expect(execution).toBeDefined();
     fixture.read.mockResolvedValueOnce({
       ...snapshot('Gotham', 2),
-      authority: makePlanningAccess({ role: 'editor' }),
+      access: makePlanningAccess({ role: 'editor' }),
     });
     await fixture.cache.refresh();
     pending.resolve({

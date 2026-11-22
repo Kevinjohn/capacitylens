@@ -8,23 +8,19 @@ export function registerMembershipRoutes() {
   router
     .group(() => {
       router
-        .get('/api/companies/:companyId/members', [controllers.Members, 'index'])
-        .as('api.members.index')
+        .get('/companies/:companyId/members', [controllers.Members, 'index'])
         .use(asCompanyMemberOnly());
       router
-        .put('/api/companies/:companyId/member-sign-in-tracking', [controllers.Members, 'tracking'])
-        .as('api.members.tracking')
-        .use(asCompanyMember());
-      router
-        .patch('/api/companies/:companyId/members/:userId', [controllers.Members, 'changeRole'])
-        .as('api.members.role')
-        .use(asCompanyMember());
-      router
-        .patch('/api/companies/:companyId/members/:userId/status', [
-          controllers.Members,
-          'changeStatus',
+        .put('/companies/:companyId/member-sign-in-tracking', [
+          controllers.MemberSignInTracking,
+          'update',
         ])
-        .as('api.members.status')
+        .use(asCompanyMember());
+      router
+        .patch('/companies/:companyId/members/:userId', [controllers.Members, 'update'])
+        .use(asCompanyMember());
+      router
+        .patch('/companies/:companyId/members/:userId/status', [controllers.MemberStatus, 'update'])
         .use(asCompanyMember());
     })
     .use(middleware.accountGate({ access: 'admitted' }));

@@ -22,7 +22,7 @@ export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 const createCompanyFieldSelector =
   <K extends keyof Company>(key: K, fallback: NonNullable<Company[K]>) =>
   (data: AppData, activeCompanyId: ID | null): NonNullable<Company[K]> =>
-    data.accounts.find((company) => company.id === activeCompanyId)?.[key] ?? fallback;
+    data.companies.find((company) => company.id === activeCompanyId)?.[key] ?? fallback;
 
 // Mirror one company date convention into synchronous formatters. Unknown stored
 // styles fall back so a hand-edited row cannot break date rendering.
@@ -93,7 +93,7 @@ export const resolveWeekStart = createCompanyFieldSelector('weekStartsOn', DEFAU
 
 /** Company-wide dates on which a schedule creation gesture may start. */
 export const listCompanyWorkingDays = (data: AppData, activeCompanyId: ID | null): Weekday[] => {
-  const company = data.accounts.find((candidate) => candidate.id === activeCompanyId);
+  const company = data.companies.find((candidate) => candidate.id === activeCompanyId);
   return normalizeCompanyWorkingDays(
     company?.workingDays,
     company?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON,

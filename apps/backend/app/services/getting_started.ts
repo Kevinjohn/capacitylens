@@ -11,7 +11,7 @@ export async function readGettingStartedSteps(trx: TransactionClientContract, co
 /** Whether the company has dismissed its getting-started panel. */
 export async function isGettingStartedDismissed(trx: TransactionClientContract, companyId: string) {
   const row = await trx
-    .from('account_getting_started_dismissals')
+    .from('company_getting_started_dismissals')
     .where('company_id', companyId)
     .first();
   return Boolean(row);
@@ -24,7 +24,7 @@ export async function dismissGettingStarted(
   now: string
 ) {
   await trx
-    .table('account_getting_started_dismissals')
+    .table('company_getting_started_dismissals')
     .insert({
       id: crypto.randomUUID(),
       company_id: companyId,

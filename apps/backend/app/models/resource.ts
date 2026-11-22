@@ -1,9 +1,11 @@
 import { ResourceSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
+import { compose } from '@adonisjs/core/helpers';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
 import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import {
   booleanColumn,
   deletedAtColumn,
@@ -13,10 +15,16 @@ import {
 import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 
 /** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */
-export default class Resource extends SoftDeletes(ResourceSchema) {
+export default class Resource extends compose(ResourceSchema, SoftDeletes) {
   static forCompany = forCompany;
-  @beforeFind() static requireFindScope = requireCompanyScope;
-  @beforeFetch() static requireFetchScope = requireCompanyScope;
+  @beforeFind()
+  static requireFindScope(query: ModelQueryBuilderContract<typeof Resource>) {
+    requireCompanyScope(query);
+  }
+  @beforeFetch()
+  static requireFetchScope(query: ModelQueryBuilderContract<typeof Resource>) {
+    requireCompanyScope(query);
+  }
   @column(jsonColumn('resources', 'working_days', isArrayOf(isWeekday)))
   declare workingDays: Weekday[];
 

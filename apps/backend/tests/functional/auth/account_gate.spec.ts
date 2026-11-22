@@ -3,12 +3,12 @@ import router from '@adonisjs/core/services/router';
 import type { ParsedNamedMiddleware } from '@adonisjs/core/types/http';
 import db from '@adonisjs/lucid/services/db';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, createIdentity, signIn } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
 
 const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
@@ -50,8 +50,8 @@ test.group('account gate', (group) => {
       'POST /api/auth/verification/inspect': 'public',
       'POST /api/auth/verification/send': 'public',
       'GET,HEAD /api/health': 'public',
-      'GET,HEAD /api/invites/:token/preview': 'public',
-      'POST /api/invites/:token/signup': 'public',
+      'GET,HEAD /api/invitations/:token/preview': 'public',
+      'POST /api/invitations/:token/sign-up': 'public',
       'GET,HEAD /api/masquerade': 'public',
       'GET,HEAD /health/live': 'public',
       'GET,HEAD /health/ready': 'public',
@@ -71,9 +71,9 @@ test.group('account gate', (group) => {
       'GET,HEAD /api/companies/:companyId/export': 'admitted',
       'GET,HEAD /api/companies/:companyId/getting-started': 'admitted',
       'PUT /api/companies/:companyId/getting-started': 'admitted',
-      'GET,HEAD /api/companies/:companyId/invites': 'admitted',
-      'DELETE /api/companies/:companyId/invites/:id': 'admitted',
-      'POST /api/companies/:companyId/invites/:id/resend': 'admitted',
+      'GET,HEAD /api/companies/:companyId/invitations': 'admitted',
+      'DELETE /api/companies/:companyId/invitations/:id': 'admitted',
+      'POST /api/companies/:companyId/invitations/:id/resend': 'admitted',
       'PUT /api/companies/:companyId/member-sign-in-tracking': 'admitted',
       'GET,HEAD /api/companies/:companyId/members': 'admitted',
       'PATCH /api/companies/:companyId/members/:userId': 'admitted',
@@ -89,10 +89,10 @@ test.group('account gate', (group) => {
       'POST /api/companies/:companyId/resources/:id/anonymise': 'admitted',
       'GET,HEAD /api/diagnostics': 'admitted',
       'POST /api/installation/company': 'admitted',
-      'POST /api/invites': 'admitted',
+      'POST /api/invitations': 'admitted',
       'GET,HEAD /api/state': 'admitted',
-      'POST /api/transfer/apply': 'admitted',
-      'POST /api/transfer/preview': 'admitted',
+      'POST /api/import/apply': 'admitted',
+      'POST /api/import/preview': 'admitted',
     });
   });
 
@@ -139,10 +139,10 @@ test.group('account gate', (group) => {
     }
     // The body is invalid; the gate answers before the handler reads it.
     const write = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json({ unknown: true })
+      .json({ unknown: true } as never)
       .send();
     write.assertStatus(403);
     assert.equal((write.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
@@ -156,25 +156,30 @@ test.group('account gate', (group) => {
       const reached = await get(path);
       reached.assertStatus(status);
     }
-    const requested = await asDataOwner(client.post('/api/admission/request'), cookie).send();
+    const requested = await asDataOwner(
+      client.visit('api.admission_requests.store'),
+      cookie
+    ).send();
     requested.assertStatus(200);
     // The remaining limited routes pass the gate; their handlers then refuse a person with no
-    // authority, in their own words.
+    // access, in their own words.
     const ownerRow = await db.from('users').where('email', owner).firstOrFail();
     const ownerId = String(ownerRow.id);
     const listed = await get('/api/admission/requests');
     listed.assertStatus(403);
     const limited = [listed];
-    for (const action of ['approve', 'reject', 'revoke']) {
-      limited.push(
-        await asDataOwner(client.post(`/api/admission/${ownerId}/${action}`), cookie).send()
-      );
+    for (const name of [
+      'api.admission_approvals.store',
+      'api.admission_rejections.store',
+      'api.admission_revocations.store',
+    ] as const) {
+      limited.push(await asDataOwner(client.visit(name, { userId: ownerId }), cookie).send());
     }
     limited.push(
-      await asDataOwner(client.post(`/api/companies/${companyId}/masquerade`), cookie)
-        .json({ userId: ownerId })
+      await asDataOwner(client.visit('api.masquerade.store', { companyId }), cookie)
+        .json({ userId: ownerId } as never)
         .send(),
-      await asDataOwner(client.delete('/api/masquerade'), cookie).send()
+      await asDataOwner(client.visit('api.masquerade.destroy'), cookie).send()
     );
     for (const response of limited) {
       assert.notEqual(response.status(), 401);
@@ -184,7 +189,7 @@ test.group('account gate', (group) => {
 
   test('a session that lost its registry handle is refused', async ({ client, assert }) => {
     const { cookieHeader } = await signIn(client, owner);
-    const allowed = await client.get('/api/companies').header('cookie', cookieHeader).send();
+    const allowed = await client.visit('api.companies.index').header('cookie', cookieHeader).send();
     allowed.assertStatus(200);
     const session = await db.from('adonis_sessions').firstOrFail();
     const data = String(session.data);

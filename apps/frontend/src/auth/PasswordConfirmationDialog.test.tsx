@@ -36,9 +36,9 @@ function renderDialog(action: keyof typeof requests = 'import') {
 
 describe('PasswordConfirmationDialog', () => {
   it('submits exactly once with Enter', async () => {
-    request.mockResolvedValue(Response.json({ confirmationId: 'confirmation-1' }));
+    request.mockResolvedValue(Response.json({ data: { confirmationId: 'confirmation-1' } }));
     const onConfirmed = renderDialog();
-    const password = screen.getByLabelText(m.login_password());
+    const password = screen.getByLabelText(m.sign_in_password());
     await userEvent.type(password, 'current-password');
     await userEvent.keyboard('{Enter}');
 
@@ -47,9 +47,9 @@ describe('PasswordConfirmationDialog', () => {
   });
 
   it('submits exactly once with the Continue button', async () => {
-    request.mockResolvedValue(Response.json({ confirmationId: 'confirmation-2' }));
+    request.mockResolvedValue(Response.json({ data: { confirmationId: 'confirmation-2' } }));
     const onConfirmed = renderDialog();
-    fireEvent.change(screen.getByLabelText(m.login_password()), {
+    fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));
@@ -69,14 +69,14 @@ describe('PasswordConfirmationDialog', () => {
 
     fireEvent.submit(form);
     expect(request).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText(m.login_password()), {
+    fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
       target: { value: 'current-password' },
     });
     fireEvent.submit(form);
     expect(screen.getByRole('button', { name: m.reauth_confirming() })).toBeDisabled();
     fireEvent.submit(form);
     expect(request).toHaveBeenCalledOnce();
-    resolveRequest?.(Response.json({ confirmationId: 'confirmation-3' }));
+    resolveRequest?.(Response.json({ data: { confirmationId: 'confirmation-3' } }));
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith('confirmation-3'));
   });
 
@@ -85,7 +85,7 @@ describe('PasswordConfirmationDialog', () => {
     async (action) => {
       request.mockImplementation(() => new Promise<Response>(() => {}));
       renderDialog(action);
-      fireEvent.change(screen.getByLabelText(m.login_password()), {
+      fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
         target: { value: 'current-password' },
       });
       fireEvent.click(screen.getByTestId('password-confirmation-submit'));
@@ -98,9 +98,9 @@ describe('PasswordConfirmationDialog', () => {
   it('allows retry after a rejected confirmation', async () => {
     request
       .mockResolvedValueOnce(Response.json({ error: 'Rejected.' }, { status: 403 }))
-      .mockResolvedValueOnce(Response.json({ confirmationId: 'confirmation-retry' }));
+      .mockResolvedValueOnce(Response.json({ data: { confirmationId: 'confirmation-retry' } }));
     const onConfirmed = renderDialog();
-    fireEvent.change(screen.getByLabelText(m.login_password()), {
+    fireEvent.change(screen.getByLabelText(m.sign_in_password()), {
       target: { value: 'current-password' },
     });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));

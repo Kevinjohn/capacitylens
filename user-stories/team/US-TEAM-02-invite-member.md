@@ -39,7 +39,7 @@ flowchart TD
 flowchart TD
     Panel["InviteMemberPanel opens FormDialog with settings_invite_intro description, then submit"] --> Hook["useMemberInvites submitInvite validates email"]
     Hook --> Client["teamAccessApi.createInvitation → invitationRequests.createInvitation"]
-    Client --> Route["api.invites.create → InvitationsController.create"]
+    Client --> Route["api.invitations.store → InvitationsController.store"]
     Route --> MailConfig{"CAPACITYLENS_MAIL_HOST configured?"}
     MailConfig -- "No" --> Refused["MAIL_UNAVAILABLE; UI shows failure"]
     MailConfig -- "Yes" --> Kit["Account Kit invitations.send stores invitation and sends mail"]
