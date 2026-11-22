@@ -39,7 +39,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   command["Account Kit bootstrap CLI issues invitation"] --> invite["InviteAccept accepts invitation"]
-  invite --> auth["AuthProvider identifies admitted principal"]
+  invite --> auth["AuthProvider identifies admitted user"]
   auth --> setup["companySetupRequired renders CompanySetup"]
   setup --> submit["CompanySetup.submit posts api.first_company_setup.store"]
   submit --> route["FirstCompanySetupController.store validates request"]

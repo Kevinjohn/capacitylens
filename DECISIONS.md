@@ -241,7 +241,7 @@ This is the short, present-tense record of decisions that constrain future work.
   members are deferred; the operator's kit commands cover recovery.
 - Ownership transfer, whole-company import and company-wide people anonymisation each require a
   password confirmation for that action; no time-based fresh-session window replaces it.
-- A password confirmation is single-use, lasts five minutes and binds the real principal, Kit
+- A password confirmation is single-use, lasts five minutes and binds the real user, Kit
   session, live credential revision, company, action and exact intent. It verifies the current
   password and is spent in the same transaction as the change, including ownership transfer's
   idempotency execution boundary.
@@ -258,7 +258,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - The first identity comes from the operator's bootstrap invitation. Accepting it sets that person's
   password; on an empty installation the sole admitted identity then enters a company name in the
   browser and becomes its Owner. The current session, absence of companies/memberships and
-  sole-principal identity are checked under the transaction lock, and defaults, Internal client,
+  sole-user identity are checked under the transaction lock, and defaults, Internal client,
   membership, revision and audit commit together. The server refuses open signup until the first
   company exists, even when open signup is enabled in configuration, and rechecks this under the
   transaction lock used by identity creation. The controlled first identity can still sign in and
