@@ -60,10 +60,10 @@ retry or recovery control offered. Changes are never queued for later. The dispo
 An Admin or Owner normally sets them up. [Clients](/using/projects#clients) ·
 [Projects](/using/projects) · [Activities](/using/activities)
 
-## Is this a timesheet or a leave request?
+## Is this a timesheet or a time-off request?
 
-No. CapacityLens records planned work and absence. Ask your agency how it handles time reporting
-and leave approval.
+No. CapacityLens records planned work and time off. Ask your agency how it handles time reporting
+and time-off approval.
 
 <span id="my-invitation-doesnt-work"></span>
 

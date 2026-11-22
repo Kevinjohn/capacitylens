@@ -1,6 +1,6 @@
 ---
 title: Time off
-description: Check, record and repeat personal absences and company closures so the schedule shows real availability.
+description: Check, record and repeat time off and company closures so the schedule shows real availability.
 prev: false
 next: false
 ---
@@ -18,9 +18,9 @@ above it.
 
 ## Find time off on Schedule
 
-![Schedule showing the same personal absence beside planned work](../screenshots/flows/using_time_off_2.png)
+![Schedule showing the same personal time off beside planned work](../screenshots/flows/using_time_off_2.png)
 
-The same absence appears as a hatched block with no project colour, on the same row as your work.
+The same time off appears as a hatched block with no project colour, on the same row as your work.
 Time-off notes are visible only to Owners and Admins, including in the work list; everyone else
 sees only the dates.
 
@@ -40,7 +40,7 @@ them. [Resources](/using/resources) explains external parties and placeholders.
 
 ![Add time off form with Resource, Start, End, Type, Repeat, Note and Save](../screenshots/flows/using_record_time_off_2.png)
 
-The absence appears as a hatched block on the person's row, and those dates have no available
+The time off appears as a hatched block on the person's row, and those dates have no available
 capacity.
 
 ### Draw time off on Schedule instead
