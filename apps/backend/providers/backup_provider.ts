@@ -31,8 +31,9 @@ export default class BackupProvider {
 
   constructor(protected application: ApplicationService) {}
 
-  protected log(message: string): void {
-    logger.info(message);
+  /** Failures and warnings log above `info`, so a quieter `LOG_LEVEL` still shows them. */
+  protected log(message: string, level: 'info' | 'warn' | 'error' = 'info'): void {
+    logger[level](message);
   }
 
   protected schedule(callback: () => void, delayMs: number): () => void {
@@ -60,10 +61,10 @@ export default class BackupProvider {
         return;
       }
       void this.runBackup().catch((error) => {
-        this.log(`backup FAILED — ${String(error)}`);
+        this.log(`backup FAILED — ${String(error)}`, 'error');
         const cleanupError = (error as { cleanupError?: unknown } | null)?.cleanupError;
         if (cleanupError !== undefined) {
-          this.log(`backup temp cleanup failed: ${String(cleanupError)}`);
+          this.log(`backup temp cleanup failed: ${String(cleanupError)}`, 'error');
         }
       });
     };
@@ -78,15 +79,15 @@ export default class BackupProvider {
     if (!backup) return Promise.reject(new Error('backups have not started'));
     const run = (async () => {
       const created = await backup.create();
-      for (const warning of created.warnings) this.log(`backup warning: ${warning}`);
+      for (const warning of created.warnings) this.log(`backup warning: ${warning}`, 'warn');
       this.log(`backup written ${created.path}`);
       try {
         const result = await backup.prune();
         for (const failure of result.failed) {
-          this.log(`backup retention could not remove ${failure.name}: ${failure.reason}`);
+          this.log(`backup retention could not remove ${failure.name}: ${failure.reason}`, 'error');
         }
       } catch (error) {
-        this.log(`backup retention failed: ${String(error)}`);
+        this.log(`backup retention failed: ${String(error)}`, 'error');
       }
       return created;
     })();

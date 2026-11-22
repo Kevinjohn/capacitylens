@@ -2,6 +2,7 @@ import { test } from '@japa/runner';
 import type { TestContext } from '@japa/runner/core';
 import { mock } from 'node:test';
 import app from '@adonisjs/core/services/app';
+import logger from '@adonisjs/core/services/logger';
 import type { ApplicationService } from '@adonisjs/core/types';
 import { chmodSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -46,10 +47,33 @@ const DAY_MS = 24 * 60 * 60_000;
 
 class LoggedProvider extends BackupProvider {
   messages: string[] = [];
-  protected log(message: string) {
+  levels = new Map<string, string>();
+  protected log(message: string, level = 'info') {
     this.messages.push(message);
+    this.levels.set(message, level);
   }
 }
+
+test('provider messages reach the logger at their own level', ({ assert, cleanup }) => {
+  const calls: string[] = [];
+  for (const level of ['info', 'warn', 'error'] as const) {
+    const original = logger[level];
+    logger[level] = ((message: string) => void calls.push(`${level}: ${message}`)) as never;
+    cleanup(() => {
+      logger[level] = original;
+    });
+  }
+  class ExposedProvider extends BackupProvider {
+    write(message: string, level?: 'info' | 'warn' | 'error') {
+      this.log(message, level);
+    }
+  }
+  const provider = new ExposedProvider(app);
+  provider.write('written');
+  provider.write('warned', 'warn');
+  provider.write('failed', 'error');
+  assert.deepEqual(calls, ['info: written', 'warn: warned', 'error: failed']);
+});
 
 function useClock({ cleanup }: TestContext) {
   mock.timers.enable({ apis: ['setInterval'] });
@@ -292,6 +316,15 @@ test('failed creates skip prune, later daily runs report warnings and retention 
     provider.messages.filter((message) => message.includes('backup FAILED')),
     1
   );
+  // Failures and warnings stay visible when LOG_LEVEL is set above info.
+  assert.deepEqual(Object.fromEntries(provider.levels), {
+    'backup FAILED — Error: copy unavailable': 'error',
+    'backup temp cleanup failed: Error: cleanup unavailable': 'error',
+    'backup warning: journal warning': 'warn',
+    [`backup written ${created.path}`]: 'info',
+    'backup retention could not remove old: permission refused': 'error',
+    'backup retention failed: Error: retention unavailable': 'error',
+  });
   assert.deepEqual(events, ['source', 'directory', 'create', 'create', 'prune', 'create', 'prune']);
 });
 
