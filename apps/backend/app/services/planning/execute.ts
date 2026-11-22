@@ -18,15 +18,18 @@ import { encodeRow } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import type { PlanningAccessGrant } from '#services/planning/access_grant';
-import { requireExistingRow, updateSettings, type WrittenRow } from './writer.js';
-import { writeEntity } from './entity_write.js';
-import { buildAllocationOccurrences, buildTimeOffOccurrences } from './repeat_occurrences.js';
+import { requireExistingRow, updateSettings, type WrittenRow } from '#services/planning/writer';
+import { writeEntity } from '#services/planning/entity_write';
+import {
+  buildAllocationOccurrences,
+  buildTimeOffOccurrences,
+} from '#services/planning/repeat_occurrences';
 import {
   deleteAllocations,
   deleteRows,
   restoreGroup,
   type RestorationIdentity,
-} from './restoration.js';
+} from '#services/planning/restoration';
 import { EntityWriteException } from '#exceptions/entity_write_exception';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 

@@ -8,8 +8,8 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import { PasswordConfirmationException } from '#exceptions/password_confirmation_exception';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
-import { getActiveCompanyRole } from './authorization.js';
-import { requireActor, type CurrentActor } from './current_actor.js';
+import { getActiveCompanyRole } from '#services/auth/authorization';
+import { requireActor, type CurrentActor } from '#services/auth/current_actor';
 
 export const PASSWORD_CONFIRMATION_KINDS = ['transfer-ownership', 'import', 'anonymise'] as const;
 export type PasswordConfirmationKind = (typeof PASSWORD_CONFIRMATION_KINDS)[number];
