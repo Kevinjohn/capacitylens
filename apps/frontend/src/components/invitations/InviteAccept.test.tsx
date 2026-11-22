@@ -48,7 +48,7 @@ describe('InviteAccept outcomes', () => {
   });
 
   it('shows the company name from the preview', async () => {
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       Response.json({ data: preview }),
     );
     renderPage();
@@ -56,7 +56,7 @@ describe('InviteAccept outcomes', () => {
   });
 
   it('hides the company line when the preview has no company name', async () => {
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       Response.json({ data: { ...preview, companyName: null } }),
     );
     renderPage();

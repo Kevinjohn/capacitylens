@@ -21,7 +21,7 @@ describe('invitation sign-up client', () => {
     ['missing', undefined, null],
     ['not a string', 42, null],
   ])('maps a %s companyName from the preview body', async (_label, companyName, expected) => {
-    vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
+    vi.spyOn(invitationSignUpRequests, 'previewInvitation').mockResolvedValue(
       Response.json({ data: { email: 'diana@themyscira.example', role: 'editor', companyName } }),
     );
     await expect(readInvitationPreview('token-1')).resolves.toEqual({
