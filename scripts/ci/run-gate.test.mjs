@@ -247,11 +247,11 @@ test('every scripts/ and tooling/ test file is named by a root package script', 
 test('every gate runs the bundle check once, through the root build script', () => {
   const build = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'))
     .scripts.build;
-  assert.match(build, /&& pnpm run bundle:check$/);
+  assert.match(build, /&& pnpm run check:bundle$/);
   for (const mode of ['app', 'backend', 'all']) {
     const names = gateCommands(mode).map((args) => args.join(' '));
     assert.equal(names.filter((name) => name === 'run build').length, 1, mode);
-    assert.ok(!names.includes('run bundle:check'), mode);
+    assert.ok(!names.includes('run check:bundle'), mode);
   }
 });
 

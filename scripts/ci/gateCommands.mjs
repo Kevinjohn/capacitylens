@@ -39,7 +39,7 @@ const commands = {
     ...toolingChecks,
     ...staticChecks,
     ['--dir', 'apps/frontend', 'exec', 'vitest', 'run', '--coverage'],
-    // The root build script ends with bundle:check, so a failing budget fails this step.
+    // The root build script ends with check:bundle, so a failing budget fails this step.
     ['run', 'build'],
   ],
   backend: [
