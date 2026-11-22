@@ -34,7 +34,7 @@ describe('named lifecycle actions', () => {
     const { result } = renderHook(() => useLifecycleOperations());
     await act(async () => {
       await result.current.archive('clients', 'c-1');
-      await result.current.unarchive('clients', 'c-1');
+      await result.current.restore('clients', 'c-1');
     });
     expect(send.mock.calls.map(([intentRequest]) => intentRequest)).toEqual([
       {
@@ -42,7 +42,7 @@ describe('named lifecycle actions', () => {
         endsHistory: true,
       },
       {
-        intent: { operation: 'catalogue.unarchive', entity: { entity: 'clients', id: 'c-1' } },
+        intent: { operation: 'catalogue.restore', entity: { entity: 'clients', id: 'c-1' } },
         endsHistory: true,
       },
     ]);

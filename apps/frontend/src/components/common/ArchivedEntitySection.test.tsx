@@ -101,7 +101,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
       ...state.planning,
       phase: { kind: 'ready', lastWrite: null },
       context: { identity: 'test-user', companyId: DEFAULT_COMPANY_ID },
-      authority: makePlanningAccess({ role }),
+      access: makePlanningAccess({ role }),
     },
   }));
 }

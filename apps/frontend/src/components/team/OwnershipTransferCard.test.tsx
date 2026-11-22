@@ -166,7 +166,7 @@ describe('OwnershipTransferCard', () => {
     expect(screen.queryByTestId('ownership-transfer-complete')).toBeNull();
   });
 
-  it('retains the same target after an uncertain response and refreshes authority', async () => {
+  it('retains the same target after an uncertain response and refreshes access', async () => {
     client.transferOwnership
       .mockResolvedValueOnce({ kind: 'unknown', status: 503, message: null })
       .mockResolvedValueOnce({

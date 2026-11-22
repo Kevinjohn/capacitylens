@@ -128,14 +128,14 @@ const contracts: Record<string, BodyContract> = {
   },
   'api.invitations.store': {
     method: 'post',
-    url: () => '/api/invites',
+    url: () => '/api/invitations',
     sentence: admission,
     body: (companyId) => ({ companyId, role: 'viewer', email: 'clark.kent@wayne.example' }),
     keySentences: { email: 'Invalid invitation email.' },
   },
   'api.invitation_acceptances.store': {
     method: 'post',
-    url: () => '/api/invites/token/signup',
+    url: () => '/api/invitations/token/sign-up',
     sentence: admission,
     body: () => ({ name: 'Clark Kent', password }),
     keySentences: { name: 'Invalid sign-up details.', password: 'Invalid sign-up details.' },

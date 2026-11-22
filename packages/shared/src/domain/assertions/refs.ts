@@ -13,7 +13,7 @@ import type {
   ScopedEntity,
   ScopedEntityKey,
 } from '../../types/entities.js';
-import { isInCompany } from '../tenancy.js';
+import { isInCompany } from '../companyBoundary.js';
 import { throwDomainError } from '../errors.js';
 import { parseResourceAvatarUrl } from '../resourceAvatarUrl.js';
 import {

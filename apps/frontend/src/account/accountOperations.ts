@@ -17,7 +17,7 @@ export function createBrowserAccountOperation(): BrowserAccountOperation {
   };
 }
 
-const OPERATION_STORAGE_PREFIX = 'capacitylens.account-command.';
+const OPERATION_STORAGE_PREFIX = 'capacitylens.account-operation.';
 const OPERATION_IDENTITY_STORAGE_KEY = `${OPERATION_STORAGE_PREFIX}identity`;
 // sessionStorage can be unavailable in hardened/private browser contexts. Keep the current page's
 // retry ceremony in memory as the minimum safe fallback; successful storage still extends it across

@@ -32,9 +32,9 @@ export function createStoreRules(get: StoreApi<StoreState>['getState']) {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
       return true;
     }
-    if (canWritePlanning(state.planning.authority)) return false;
+    if (canWritePlanning(state.planning.access)) return false;
     let message = m.notice_viewer_read_only();
-    if (state.planning.authority === null) {
+    if (state.planning.access === null) {
       message =
         state.planning.phase.kind === 'failed'
           ? m.access_unavailable_summary()

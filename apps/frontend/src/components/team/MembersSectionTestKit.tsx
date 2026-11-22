@@ -75,7 +75,7 @@ export function mockApi(
                 })),
             },
           }),
-    'GET /invites': () => jsonResponse({ data: { invites: [] } }),
+    'GET /invitations': () => jsonResponse({ data: { invites: [] } }),
     'GET /api/companies': () => {
       const self = Array.isArray(members) ? members.find((member) => member.isSelf) : undefined;
       return jsonResponse({
@@ -132,7 +132,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
         },
       });
     }
-    if (endpoint.endsWith('/invites')) return jsonResponse({ data: { invites: [] } });
+    if (endpoint.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } });
     return new Response(null, { status: 204 });
   });
 }
