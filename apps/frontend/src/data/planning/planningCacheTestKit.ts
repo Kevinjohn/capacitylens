@@ -41,7 +41,7 @@ export function createHarness(
   const snapshots: PlanningSnapshot[] = [];
   let serverSnapshot: PlanningSnapshot = {
     revision: 0,
-    authority: makePlanningAccess(),
+    access: makePlanningAccess(),
     data: makeCanonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),

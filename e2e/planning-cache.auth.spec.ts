@@ -396,7 +396,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
     { entity: 'activities', id: activityId },
     { entity: 'resources', id: firstResourceId },
   ] as const) {
-    for (const action of ['archive', 'unarchive'] as const) {
+    for (const action of ['archive', 'restore'] as const) {
       const beforeLifecycle = await planningSnapshot(request, owner.cookie, companyId);
       const beforeTarget = beforeLifecycle.data[target.entity].find((row) => row.id === target.id);
       if (action === 'archive') expect(beforeTarget?.id).toBe(target.id);
@@ -434,7 +434,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
           .map(({ id }) => id),
       );
       const expectedAllocationIds = groupedSnapshot.data.allocations
-        .filter(({ id }) => action === 'unarchive' || !hiddenAllocationIds.has(id))
+        .filter(({ id }) => action === 'restore' || !hiddenAllocationIds.has(id))
         .map(({ id }) => id)
         .sort();
       expect(afterLifecycle.data.allocations.map(({ id }) => id).sort()).toEqual(

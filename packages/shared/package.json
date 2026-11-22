@@ -48,10 +48,10 @@
       "types": "./src/data/seed.ts",
       "default": "./dist/data/seed.js"
     },
-    "./data/companyDocument": {
-      "development": "./src/data/companyDocument.ts",
-      "types": "./src/data/companyDocument.ts",
-      "default": "./dist/data/companyDocument.js"
+    "./data/companyExport": {
+      "development": "./src/data/companyExport.ts",
+      "types": "./src/data/companyExport.ts",
+      "default": "./dist/data/companyExport.js"
     },
     "./domain/access": {
       "development": "./src/domain/access.ts",
@@ -103,10 +103,10 @@
       "types": "./src/domain/resourceWorkingPattern.ts",
       "default": "./dist/domain/resourceWorkingPattern.js"
     },
-    "./domain/tenancy": {
-      "development": "./src/domain/tenancy.ts",
-      "types": "./src/domain/tenancy.ts",
-      "default": "./dist/domain/tenancy.js"
+    "./domain/companyBoundary": {
+      "development": "./src/domain/companyBoundary.ts",
+      "types": "./src/domain/companyBoundary.ts",
+      "default": "./dist/domain/companyBoundary.js"
     },
     "./lib/calendarToday": {
       "development": "./src/lib/calendarToday.ts",

@@ -39,7 +39,10 @@ async function refusals(client: any, cookie: string) {
   const company = await client
     .visit('api.getting_started.update', { companyId: 'a-studio' })
     .header('sec-fetch-site', 'same-origin')
-    .header('X-Masquerade-Context', (status.body().data as { contextToken: string }).contextToken)
+    .header(
+      'X-Masquerade-Context',
+      (status.body().data as { masqueradeToken: string }).masqueradeToken
+    )
     .withCookie('adonis-session', cookie)
     .json({ dismissed: true })
     .send();
