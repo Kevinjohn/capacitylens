@@ -17,7 +17,7 @@ import {
 const email = 'bruce.wayne@wayne.example';
 const password = 'company-setup-password-2026';
 const companyTables = [
-  'accounts',
+  'companies',
   'clients',
   'memberships',
   'company_planning_revisions',
@@ -80,7 +80,7 @@ test.group('authenticated first company setup', (group) => {
     const setup = await setUp(client, cookie, '  Wayne   Enterprises ');
     setup.assertStatus(201);
     const companyId = setup.body().data.companyId;
-    assert.equal((await db.from('accounts').first())!.name, 'Wayne Enterprises');
+    assert.equal((await db.from('companies').first())!.name, 'Wayne Enterprises');
     assert.deepInclude((await db.from('memberships').first())!, {
       scope_id: companyId,
       user_id: userId,
@@ -104,12 +104,12 @@ test.group('authenticated first company setup', (group) => {
       cookie
     ).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().data.accounts[0].workingDays, [1, 2, 3, 4, 5]);
+    assert.deepEqual(state.body().data.companies[0].workingDays, [1, 2, 3, 4, 5]);
     const after = await asDataOwner(client.visit('api.session.show'), cookie).send();
     assert.isFalse(after.body().data.companySetupRequired);
     const duplicate = await setUp(client, cookie, 'Stark Industries');
     duplicate.assertStatus(409);
-    assert.lengthOf(await db.from('accounts'), 1);
+    assert.lengthOf(await db.from('companies'), 1);
   });
 
   test('a Sunday week start gives the first company Sunday through Thursday working days', async ({
@@ -126,7 +126,7 @@ test.group('authenticated first company setup', (group) => {
       cookie
     ).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().data.accounts[0].workingDays, [0, 1, 2, 3, 4]);
+    assert.deepEqual(state.body().data.companies[0].workingDays, [0, 1, 2, 3, 4]);
   });
 
   for (const choice of [
@@ -153,7 +153,7 @@ test.group('authenticated first company setup', (group) => {
         .json({ name: 'Wayne Enterprises', ...choice.fields } as never)
         .send();
       result.assertStatus(201);
-      const account = await db.from('accounts').first();
+      const account = await db.from('companies').first();
       assert.equal(account.week_starts_on, choice.weekStart);
       assert.equal(account.timezone, choice.timezone);
       for (const table of companyTables) assert.lengthOf(await db.from(table), 1);
@@ -185,7 +185,7 @@ test.group('authenticated first company setup', (group) => {
       .json({ name: 'Wayne Enterprises', weekStartsOn: 0, timeZone: 'America/New_York' })
       .send();
     response.assertStatus(201);
-    const account = await db.from('accounts').first();
+    const account = await db.from('companies').first();
     assert.equal(account.week_starts_on, '0');
     assert.equal(account.timezone, 'America/New_York');
   });
@@ -195,9 +195,9 @@ test.group('authenticated first company setup', (group) => {
     assert,
     cleanup,
   }) => {
-    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
-    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior));
+    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
+    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', prior));
     const route = await client
       .visit('api.new_account.store')
       .header('sec-fetch-site', 'same-origin')
@@ -292,7 +292,7 @@ test.group('authenticated first company setup', (group) => {
     assert.isFalse(me.body().data.companySetupRequired);
     const refused = await setUp(client, cookie);
     refused.assertStatus(409);
-    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('companies'), 0);
   });
 
   test('an unconfirmed or unadmitted identity cannot set up the company', async ({
@@ -311,7 +311,7 @@ test.group('authenticated first company setup', (group) => {
     const pending = await setUp(client, unadmitted.cookie);
     pending.assertStatus(403);
     assert.equal((pending.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
-    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('companies'), 0);
   });
 
   test('an existing company without membership and a revoked sign-in cannot claim setup', async ({
@@ -327,6 +327,6 @@ test.group('authenticated first company setup', (group) => {
     await db.from('account_sessions').delete();
     const revoked = await setUp(client, cookie, 'Stark Industries');
     revoked.assertStatus(401);
-    assert.lengthOf(await db.from('accounts'), 1);
+    assert.lengthOf(await db.from('companies'), 1);
   });
 });

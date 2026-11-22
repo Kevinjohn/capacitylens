@@ -40,7 +40,7 @@ const TS = '2026-05-01T00:00:00.000Z';
 /** A complete Company; override any field per test. */
 export function makeCompany(overrides: Partial<Company> = {}): Company {
   return {
-    ...NULLABLE_FIELDS.accounts,
+    ...NULLABLE_FIELDS.companies,
     id: DEFAULT_COMPANY_ID,
     createdAt: TS,
     updatedAt: TS,
@@ -53,7 +53,7 @@ export function makeCompany(overrides: Partial<Company> = {}): Company {
 
 /** Empty AppData that already contains the default test company. */
 export function makeAppData(overrides: Partial<AppData> = {}): AppData {
-  return { ...createEmptyAppData(), accounts: [makeCompany()], ...overrides };
+  return { ...createEmptyAppData(), companies: [makeCompany()], ...overrides };
 }
 
 /** A valid person Draft<Resource>; override any field per test. */
@@ -61,7 +61,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
   return {
     kind: 'person',
     name: 'Test Person',
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio' as const,
     workingHoursPerDay: 8,
@@ -84,7 +84,7 @@ export function makeResource(overrides: Partial<Resource> = {}): Resource {
     updatedAt: 't',
     kind: 'person',
     name: 'Test Person',
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio',
     workingHoursPerDay: 8,
@@ -205,7 +205,7 @@ export function makeBar(overrides: Partial<BarLayout> = {}): BarLayout {
 
 /** Load test rows explicitly into both the response stub and the frontend cache. */
 export function loadPlanningData(data: AppData): void {
-  const companyId = useStore.getState().activeCompanyId ?? data.accounts[0]?.id ?? 'unit-fixture';
+  const companyId = useStore.getState().activeCompanyId ?? data.companies[0]?.id ?? 'unit-fixture';
   resetPlanningTransport(companyId, data, useStore);
   const today = getStubPlanningTransport().todayFor(companyId);
   useStore.setState((state) => ({
@@ -214,20 +214,20 @@ export function loadPlanningData(data: AppData): void {
   }));
 }
 
-/** Publish a planning authority as the last accepted read's, and have later reads return it. */
+/** Publish a planning access as the last accepted read's, and have later reads return it. */
 export function setPlanningAccess(overrides: Partial<PlanningAccess>): void {
   getStubPlanningTransport().setAccess(overrides);
   useStore.setState((state) => ({
-    planning: { ...state.planning, authority: makePlanningAccess(overrides) },
+    planning: { ...state.planning, access: makePlanningAccess(overrides) },
   }));
 }
 
-/** Reset test data and authority, then wait for the selected canonical company snapshot. */
+/** Reset test data and access, then wait for the selected canonical company snapshot. */
 export function resetStoreWithData(
   data: AppData,
-  companyId: ID = data.accounts[0]?.id ?? DEFAULT_COMPANY_ID,
+  companyId: ID = data.companies[0]?.id ?? DEFAULT_COMPANY_ID,
 ): Promise<boolean> {
-  const company = data.accounts.find(({ id }) => id === companyId);
+  const company = data.companies.find(({ id }) => id === companyId);
   if (!company) throw new Error(`The fixture data must contain account ${companyId}.`);
   useStore.getState().clearPlanning();
   resetPlanningTransport(companyId, data, useStore);
@@ -253,14 +253,14 @@ export function archiveForTest(
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
-export function unarchiveForTest(
+export function restoreForTest(
   entity: LifecycleEntity,
   id: ID,
 ): Promise<PlanningMutationSuccess | undefined> {
   const intent =
     entity === 'resources'
-      ? { operation: 'resource.unarchive' as const, id }
-      : { operation: 'catalogue.unarchive' as const, entity: { entity, id } };
+      ? { operation: 'resource.restore' as const, id }
+      : { operation: 'catalogue.restore' as const, entity: { entity, id } };
   return useStore.getState().sendPlanningIntent({ intent });
 }
 
@@ -269,7 +269,7 @@ export function unarchiveForTest(
  * settles once the planning cache has read the company, so allocation writes can begin. */
 export function resetStoreWithCompany(companyId: ID = DEFAULT_COMPANY_ID): Promise<boolean> {
   const company = makeCompany({ id: companyId });
-  return resetStoreWithData(makeAppData({ accounts: [company] }), companyId);
+  return resetStoreWithData(makeAppData({ companies: [company] }), companyId);
 }
 
 /** Change test-only canonical rows while preserving the store's planning revision and history. */
@@ -282,7 +282,7 @@ export function replaceFixtureData(data: AppData): void {
   const state = useStore.getState();
   useStore.setState({ data: structuredClone(data) });
   updatePlanningFixtureSource(data);
-  if (state.activeCompanyId && !data.accounts.some(({ id }) => id === state.activeCompanyId)) {
+  if (state.activeCompanyId && !data.companies.some(({ id }) => id === state.activeCompanyId)) {
     useStore.getState().setActiveCompany(null);
   }
 }
@@ -319,7 +319,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
 
 /** A read that sent no `ifRevision` carries the complete set; narrow it to one that does. */
 export function requireFullSnapshot(snapshot: PlanningSnapshot): FullPlanningSnapshot {
-  if (snapshot.slice === 'unchanged') throw new Error('Expected a full planning read');
+  if (snapshot.content === 'unchanged') throw new Error('Expected a full planning read');
   return snapshot;
 }
 

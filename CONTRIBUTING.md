@@ -281,7 +281,7 @@ The intended registry policy in [Dependabot configuration](.github/dependabot.ym
 weekly groups for npm patch and minor updates, with majors reviewed manually from the
 [monthly major report](.github/workflows/major-dependency-report.yml). GitHub Actions and Docker
 updates stay monthly and patch-only. Advisories are checked by
-`pnpm run gate:deps`. Keep [pnpm-workspace.yaml](pnpm-workspace.yaml) overrides only for a specific
+`pnpm run check:deps`. Keep [pnpm-workspace.yaml](pnpm-workspace.yaml) overrides only for a specific
 advisory when consumers still allow the affected version; explain the reason beside the override
 and remove it when no longer needed. Track a wider security upgrade and any exception in the issue
 or pull request that owns the change. Dependabot reads its configuration from the default branch,

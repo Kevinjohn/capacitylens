@@ -129,8 +129,8 @@ test.group('atomic ownership transfer', (group) => {
     assert,
   }) => {
     const { ownerId, adminId, ownerCookie, now } = await fixture(client);
-    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' };
-    await db.table('accounts').insert(encodeRow('accounts', otherCompany));
+    const otherCompany = { ...seed().companies[0]!, id: 'a-loft', name: 'Stark Industries' };
+    await db.table('companies').insert(encodeRow('companies', otherCompany));
     await db
       .table('clients')
       .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
@@ -164,7 +164,7 @@ test.group('atomic ownership transfer', (group) => {
         created_at: now,
       });
     const command = {
-      'x-account-command-id': 'ownership-transfer-command-0001',
+      'x-account-operation-id': 'ownership-transfer-command-0001',
       'idempotency-key': 'ownership-transfer-key-0001',
     };
     const confirmationId = await transferProof(client, ownerCookie, adminId);
@@ -236,7 +236,7 @@ test.group('atomic ownership transfer', (group) => {
     self.assertStatus(409);
     const absent = await post(ownerCookie, 'a-studio', 'missing-user');
     absent.assertStatus(404);
-    // An unknown company answers exactly like a company the caller holds no authority in.
+    // An unknown company answers exactly like a company the caller holds no access in.
     const wrongCompany = await post(ownerCookie, 'a-missing', adminId);
     wrongCompany.assertStatus(403);
     assert.deepEqual(wrongCompany.body(), nonOwner.body());
@@ -251,7 +251,7 @@ test.group('atomic ownership transfer', (group) => {
       client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }),
       ownerCookie
     )
-      .header('x-account-command-id', 'ownership-unpaired-command-0001')
+      .header('x-account-operation-id', 'ownership-unpaired-command-0001')
       .json({ toUserId: adminId })
       .send();
     unpaired.assertStatus(400);
@@ -280,7 +280,7 @@ test.group('atomic ownership transfer', (group) => {
   }) => {
     const { ownerId, adminId, ownerCookie, adminCookie } = await fixture(client);
     const command = {
-      'x-account-command-id': 'ownership-cross-actor-command-0001',
+      'x-account-operation-id': 'ownership-cross-actor-command-0001',
       'idempotency-key': 'ownership-cross-actor-key-0001',
     };
     const confirmationId = await transferProof(client, ownerCookie, adminId);
@@ -335,7 +335,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.lengthOf(
       await db
         .from('request_receipts')
-        .where({ scope_id: 'a-studio', command_id: command['x-account-command-id'] }),
+        .where({ scope_id: 'a-studio', command_id: command['x-account-operation-id'] }),
       2
     );
   });
@@ -364,7 +364,7 @@ test.group('atomic ownership transfer', (group) => {
     const tryTransfer = (suffix: string) =>
       signed(client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }), ownerCookie)
         .headers({
-          'x-account-command-id': `ownership-fault-command-${suffix}`,
+          'x-account-operation-id': `ownership-fault-command-${suffix}`,
           'idempotency-key': `ownership-fault-key-${suffix}`,
         })
         .json({ toUserId: adminId, confirmationId })
@@ -434,7 +434,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.deepEqual(retried.body().data, { fromUserId: ownerId, toUserId: adminId });
   });
 
-  test('two distinct concurrent commands produce one swap and one refused stale authority', async ({
+  test('two distinct concurrent commands produce one swap and one refused stale access', async ({
     client,
     assert,
   }) => {
@@ -443,7 +443,7 @@ test.group('atomic ownership transfer', (group) => {
     const request = (suffix: string) =>
       signed(client.visit('api.ownership_transfers.store', { companyId: 'a-studio' }), ownerCookie)
         .headers({
-          'x-account-command-id': `ownership-race-command-${suffix}`,
+          'x-account-operation-id': `ownership-race-command-${suffix}`,
           'idempotency-key': `ownership-race-key-${suffix}`,
         })
         .json({ toUserId: adminId, confirmationId })
@@ -496,7 +496,7 @@ test.group('atomic ownership transfer', (group) => {
       ownerCookie
     )
       .headers({
-        'x-account-command-id': 'ownership-broken-owner-command-0001',
+        'x-account-operation-id': 'ownership-broken-owner-command-0001',
         'idempotency-key': 'ownership-broken-owner-key-0001',
       })
       .json({ toUserId: adminId, confirmationId })

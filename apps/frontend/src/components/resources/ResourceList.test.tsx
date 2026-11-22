@@ -68,7 +68,7 @@ beforeEach(async () => {
 const personDraft = (name: string) => ({
   kind: 'person' as const,
   name,
-  role: 'Developer',
+  jobTitle: 'Developer',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -80,7 +80,7 @@ const personDraft = (name: string) => ({
 const freelancerDraft = (name: string) => ({
   kind: 'person' as const,
   name,
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'freelancer' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -108,12 +108,14 @@ describe('ResourceList display', () => {
     await useStore.getState().addResource(personDraft('Zulu'));
     await useStore.getState().addResource(personDraft('alpha'));
     await useStore.getState().addResource(personDraft('Bravo'));
+    await useStore.getState().addResource({
+      ...personDraft('Zeta Partners'),
+      kind: 'external',
+      jobTitle: 'Partner studio',
+    });
     await useStore
       .getState()
-      .addResource({ ...personDraft('Zeta Partners'), kind: 'external', role: 'Partner studio' });
-    await useStore
-      .getState()
-      .addResource({ ...personDraft('Ferris Print'), kind: 'external', role: 'Print partner' });
+      .addResource({ ...personDraft('Ferris Print'), kind: 'external', jobTitle: 'Print partner' });
     const storedIds = useStore.getState().data.resources.map((resource) => resource.id);
 
     render(<ResourceList />);
@@ -138,11 +140,11 @@ describe('ResourceList display', () => {
     await useStore.getState().addResource({ ...personDraft('Zulu'), isFavourite: true });
     await useStore
       .getState()
-      .addResource({ ...personDraft('Ferris'), kind: 'external', role: 'Print partner' });
+      .addResource({ ...personDraft('Ferris'), kind: 'external', jobTitle: 'Print partner' });
     await useStore.getState().addResource({
       ...personDraft('Zeta'),
       kind: 'external',
-      role: 'Partner studio',
+      jobTitle: 'Partner studio',
       isFavourite: true,
     });
 
@@ -230,7 +232,7 @@ describe('ResourceList display', () => {
 
   it('omits both fixed hours text and dangling metadata separators', async () => {
     await useStore.getState().updateCompany(DEFAULT_COMPANY_ID, { disciplinesEnabled: false });
-    await useStore.getState().addResource({ ...personDraft('Alice'), role: '' });
+    await useStore.getState().addResource({ ...personDraft('Alice'), jobTitle: '' });
     render(<ResourceList />);
 
     const row = screen.getByTestId('resource-row');
@@ -238,19 +240,21 @@ describe('ResourceList display', () => {
     expect(row).not.toHaveTextContent('·');
   });
 
-  it('omits missing and dangling disciplines without losing valid role or discipline metadata', async () => {
+  it('omits missing and dangling disciplines without losing valid job title or discipline metadata', async () => {
     const discipline = await requireCreated(
       useStore.getState().addDiscipline({ name: 'Design', color: '#1b4f98' }),
     );
     await useStore.getState().addResource(personDraft('Role only'));
-    await useStore
-      .getState()
-      .addResource({ ...personDraft('Discipline only'), role: '', disciplineId: discipline.id });
-    await useStore.getState().addResource({ ...personDraft('No metadata'), role: '' });
+    await useStore.getState().addResource({
+      ...personDraft('Discipline only'),
+      jobTitle: '',
+      disciplineId: discipline.id,
+    });
+    await useStore.getState().addResource({ ...personDraft('No metadata'), jobTitle: '' });
     const dangling = await requireCreated(
       useStore
         .getState()
-        .addResource({ ...personDraft('Dangling discipline'), role: 'Researcher' }),
+        .addResource({ ...personDraft('Dangling discipline'), jobTitle: 'Researcher' }),
     );
     // Ordinary writes reject dangling references. Inject one at the view boundary to prove a
     // malformed/legacy set still renders safely rather than exposing a placeholder glyph.
@@ -286,12 +290,14 @@ describe('ResourceList display', () => {
 
   it('gives repeated external-party edit controls distinct contextual names', async () => {
     await setExternalEnabled({ on: true });
+    await useStore.getState().addResource({
+      ...personDraft('Kord Industries'),
+      kind: 'external',
+      jobTitle: 'Partner studio',
+    });
     await useStore
       .getState()
-      .addResource({ ...personDraft('Kord Industries'), kind: 'external', role: 'Partner studio' });
-    await useStore
-      .getState()
-      .addResource({ ...personDraft('Pixel Forge'), kind: 'external', role: 'Print partner' });
+      .addResource({ ...personDraft('Pixel Forge'), kind: 'external', jobTitle: 'Print partner' });
     render(<ResourceList />);
 
     expect(screen.getByRole('button', { name: 'Edit Kord Industries' })).toBeInTheDocument();
@@ -318,7 +324,7 @@ describe('ResourceList display', () => {
     expect(within(row).queryByText('placeholder')).not.toBeInTheDocument();
   });
 
-  it('shows a "placeholder" tag for a placeholder resource and its role as its label', async () => {
+  it('shows a "placeholder" tag for a placeholder resource and its job title as its label', async () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#2d75da' }),
     );
@@ -327,7 +333,7 @@ describe('ResourceList display', () => {
     );
     await useStore.getState().addResource({
       kind: 'placeholder',
-      role: 'Senior Designer',
+      jobTitle: 'Senior Designer',
       employmentType: 'permanent' as const,
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -358,7 +364,7 @@ describe('ResourceList display', () => {
     );
     await useStore.getState().addResource({
       kind: 'placeholder',
-      role: 'Senior Designer',
+      jobTitle: 'Senior Designer',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -392,7 +398,7 @@ describe('ResourceList display', () => {
     await useStore.getState().addResource(freelancerDraft('Bob'));
     await useStore.getState().addResource({
       kind: 'placeholder',
-      role: 'Senior Designer',
+      jobTitle: 'Senior Designer',
       employmentType: 'permanent' as const,
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -503,7 +509,7 @@ describe('ResourceList archive flow', () => {
     const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
-        role: 'Senior Designer',
+        jobTitle: 'Senior Designer',
         employmentType: 'permanent' as const,
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -515,7 +521,7 @@ describe('ResourceList archive flow', () => {
     );
     render(<ResourceList />);
 
-    // Match the secondary role label separately from the fixed Placeholder display name.
+    // Match the secondary job title label separately from the fixed Placeholder display name.
     expect(screen.getByText('Placeholder')).toBeInTheDocument();
     expect(screen.getByText(/Senior Designer/)).toBeInTheDocument();
     expect(screen.getByText('placeholder')).toBeInTheDocument();
@@ -559,7 +565,7 @@ describe('ResourceList archived grouping', () => {
     const placeholder = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
-        role: 'Senior Designer',
+        jobTitle: 'Senior Designer',
         employmentType: 'permanent' as const,
         engagement: 'studio' as const,
         workingHoursPerDay: 8,

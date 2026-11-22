@@ -20,7 +20,7 @@ export function useAppShellViewModel() {
   const dirtyForm = useStore((state) => state.dirtyForm);
   const undo = useStore((state) => state.undoPlanning);
   const redo = useStore((state) => state.redoPlanning);
-  const companies = useStore((state) => state.data.accounts);
+  const companies = useStore((state) => state.data.companies);
   const companySummaries = useStore((state) => state.companySummaries);
   const companySummariesComplete = useStore((state) => state.companySummariesComplete);
   const hydrated = useStore((state) => state.hydrated);

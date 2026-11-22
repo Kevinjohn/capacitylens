@@ -22,7 +22,7 @@ function render(ui: ReactElement) {
 const resourceDraft = {
   kind: 'person' as const,
   name: 'Bruce Wayne',
-  role: 'Director',
+  jobTitle: 'Director',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,

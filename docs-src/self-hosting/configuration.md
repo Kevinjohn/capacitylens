@@ -40,7 +40,7 @@ Set `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS` to a comma-separated list, for example
 `example.com,example.org`, to also require one of those address domains. Unset, any invited address
 may join.
 
-Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration. An
+Keep `CAPACITYLENS_ALLOW_OPEN_SIGN_UP` unset unless you intentionally allow open registration. An
 openly registered identity still needs an Owner or Admin approval before it sees company data.
 
 SQL audit records remain active for every installation; no setting disables them.

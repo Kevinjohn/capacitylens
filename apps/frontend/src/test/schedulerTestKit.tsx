@@ -23,7 +23,7 @@ export function renderWithTooltip(ui: ReactNode, options?: Omit<RenderOptions, '
   return rtlRender(ui, { wrapper: TooltipProvider, ...options });
 }
 
-/** Provides resolved Owner authority and the tooltip ancestor required by ordinary isolated bars. */
+/** Provides resolved Owner access and the tooltip ancestor required by ordinary isolated bars. */
 export function renderWithOwnerAndTooltip(ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) {
   function OwnerPermissionsAndTooltip({ children }: { children: ReactNode }) {
     return (

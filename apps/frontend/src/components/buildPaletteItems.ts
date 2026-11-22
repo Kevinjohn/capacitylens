@@ -105,7 +105,7 @@ function buildResourceItems(input: BuildPaletteItemsInput): PaletteItem[] {
     .map((resource) => ({
       id: `res-${resource.id}`,
       label: `${resolveResourceDisplayName(resource)}${isExternalResource(resource) ? m.palette_resource_external_suffix() : ''}`,
-      ...(resource.kind === 'placeholder' || resource.name ? { sublabel: resource.role } : {}),
+      ...(resource.kind === 'placeholder' || resource.name ? { sublabel: resource.jobTitle } : {}),
       section: m.palette_section_people(),
       onSelect: () => {
         void navigate('/');
@@ -158,7 +158,7 @@ function resolveActivitySublabel(
 ): string | undefined {
   if (activity.kind === 'project') return projectName;
   if (activity.kind === 'internal') return m.palette_activity_internal();
-  return m.palette_activity_repeatable();
+  return m.palette_activity_all_projects();
 }
 
 function buildActivityItems({ data, navigate, onClose }: BuildPaletteItemsInput): PaletteItem[] {

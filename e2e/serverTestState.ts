@@ -138,7 +138,7 @@ export function ensureDbTestAdmin(target: ServerTarget = configuredTarget) {
 }
 
 const companyTables = [
-  'accounts',
+  'companies',
   'clients',
   'disciplines',
   'projects',
@@ -156,7 +156,7 @@ const companyTables = [
   'deleted_rows',
   'account_member_resources',
   'company_settings',
-  'account_getting_started_dismissals',
+  'company_getting_started_dismissals',
   'request_receipts',
   'password_confirmations',
 ] as const;
@@ -204,7 +204,7 @@ export async function prepareServerTemplate(target: ServerTarget): Promise<void>
       db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE');
       try {
         db.exec(
-          "DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM accounts WHERE id <> 'a-studio'",
+          "DELETE FROM audit_entries; DELETE FROM memberships; DELETE FROM companies WHERE id <> 'a-studio'",
         );
         bindFixtureOwner(db);
         db.exec(

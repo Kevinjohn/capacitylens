@@ -237,7 +237,7 @@ export async function restoreGroup(
   }
   if (rows.length === 0) refuseRestorationConflict();
   const dependencies = await readStateWithClient(trx, companyId, true);
-  const company = dependencies.accounts.find((row) => row.id === companyId);
+  const company = dependencies.companies.find((row) => row.id === companyId);
   const companyWorkingDays = normalizeCompanyWorkingDays(
     company?.workingDays,
     company?.weekStartsOn === 0 ? 0 : 1

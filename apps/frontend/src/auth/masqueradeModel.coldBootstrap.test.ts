@@ -29,7 +29,7 @@ describe('MasqueradeModel', () => {
       reproject: vi.fn(async () => {
         useStore.setState({
           data: makeAppData({
-            accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
+            companies: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
           }),
         });
         return true;

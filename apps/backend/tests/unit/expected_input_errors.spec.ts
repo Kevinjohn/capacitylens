@@ -4,7 +4,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import { seed } from '@capacitylens/shared/data/seed';
 import GettingStartedController from '#controllers/getting_started_controller';
 import { parseRequestDocument } from '#services/company_import';

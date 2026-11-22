@@ -65,7 +65,7 @@ export default class ConfigurationProvider {
     if (this.app.getEnvironment() === 'console') return;
     const rows = await db
       .from('sqlite_master')
-      .where({ type: 'table', name: 'accounts' })
+      .where({ type: 'table', name: 'companies' })
       .select('name');
     if (rows.length > 0) {
       await rememberSchemaIntegrity();

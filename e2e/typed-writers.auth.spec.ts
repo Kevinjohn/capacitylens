@@ -87,7 +87,7 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
       (await response.json()) as {
         data: {
           clients: Array<{ name: string }>;
-          accounts: Array<{ id: string; dateStyle: string | null }>;
+          companies: Array<{ id: string; dateStyle: string | null }>;
         };
       }
     ).data;
@@ -103,17 +103,17 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   await monthDay.click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
+    .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
     .toBe('month-day');
 
   await page.getByRole('link', { name: 'Schedule' }).click();
   await page.getByTestId('undo-button').click();
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
+    .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
     .toBeNull();
   await page.getByTestId('redo-button').click();
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
+    .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
     .toBe('month-day');
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
@@ -139,7 +139,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
   });
   // The Time off page lists entries from the current week onward; the fixed dates below stay
   // visible only with the frozen browser date.
@@ -264,7 +264,7 @@ for (const repeat of [false, true]) {
     await createTestPerson(request, owner.cookie, companyId, {
       id: resourceId,
       name: 'Barbara Gordon',
-      role: 'Designer',
+      jobTitle: 'Designer',
     });
     createTestMember(companyId, editor.email, 'editor');
 

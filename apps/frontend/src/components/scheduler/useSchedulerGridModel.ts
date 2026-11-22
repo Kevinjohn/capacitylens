@@ -145,11 +145,11 @@ function useSchedulerModelProjection({
 export function useSchedulerGridPreferences() {
   const data = useActiveScopedData();
   const activeCompany = useStore((state) =>
-    state.data.accounts.find((company) => company.id === state.activeCompanyId),
+    state.data.companies.find((company) => company.id === state.activeCompanyId),
   );
   // Resolve company preferences from one company row to avoid repeated lookups, while retaining each shared selector's absent-field default.
   const companyPreferences = useMemo(() => {
-    const view = { ...createEmptyAppData(), accounts: activeCompany ? [activeCompany] : [] };
+    const view = { ...createEmptyAppData(), companies: activeCompany ? [activeCompany] : [] };
     const id = activeCompany?.id ?? null;
     return {
       placeholdersEnabled: hasPlaceholdersEnabled(view, id),

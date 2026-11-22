@@ -11,7 +11,7 @@ const activeCache = new WeakMap<AppData, AppData>();
  * to another company: the previous one, while a company switch has not reached the planning context.
  */
 export function resolveSharedScopedData(data: AppData, companyId: string | null): AppData {
-  const [company, ...others] = data.accounts;
+  const [company, ...others] = data.companies;
   return companyId !== null && company?.id === companyId && others.length === 0
     ? data
     : emptyScopedData;

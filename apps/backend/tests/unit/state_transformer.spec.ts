@@ -15,7 +15,7 @@ import {
 } from '@capacitylens/shared/data/fixtures';
 
 const data = {
-  accounts: [FIXTURE_COMPANY],
+  companies: [FIXTURE_COMPANY],
   clients: [FIXTURE_CLIENT],
   disciplines: [FIXTURE_DISCIPLINE],
   projects: [FIXTURE_PROJECT],
