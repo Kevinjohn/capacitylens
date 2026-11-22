@@ -556,6 +556,7 @@ test('selection modes cannot be combined', () => {
     ['--static', '--e2e-plan'],
     ['--tests-only', '--static'],
     ['--static-scope', '--tests-only'],
+    ['--push', '--static'],
   ]) {
     const result = spawnSync(
       process.execPath,
@@ -577,6 +578,53 @@ test('the selection modes load no installed dependency, so CI can select before 
 
 const testsOnly = { testsOnly: true };
 const noBackendImporters = { backendImporters: () => [] };
+const pushOnly = { pushOnly: true };
+
+test('--push runs format, lint and the type-check and leaves tests and the docs build to the pull request', () => {
+  const paths = [
+    'apps/frontend/src/App.tsx',
+    'apps/backend/app/a.ts',
+    'apps/backend/tests/unit/b.spec.ts',
+    'scripts/dev/lanes.mjs',
+    'docs-src/index.md',
+  ];
+  const full = planChecks(paths, everything, noImporters);
+  const steps = planChecks(paths, everything, noImporters, pushOnly);
+  for (const label of ['format', 'lint: backend', 'lint: frontend', 'lint: 1 file', 'typecheck']) {
+    assert.deepEqual(step(steps, label), step(full, label), label);
+    assert.ok(step(steps, label).args, label);
+  }
+  for (const label of ['prepare: compile messages', 'prepare: build backend client types'])
+    assert.deepEqual(step(steps, label), step(full, label), label);
+  for (const label of ['test: frontend', 'test: backend', 'test: 1 script test', 'docs: build']) {
+    assert.ok(step(full, label)?.args, label);
+    assert.equal(step(steps, label).skip, "the pull request's checks run it", label);
+    assert.equal(step(steps, label).args, undefined, label);
+  }
+  assert.ok(step(full, 'prepare: stop leftover servers'));
+  assert.ok(step(full, 'prepare: build @capacitylens/shared'));
+  assert.equal(step(steps, 'prepare: stop leftover servers'), undefined);
+  assert.equal(step(steps, 'prepare: build @capacitylens/shared'), undefined);
+  assert.ok(steps.every((item) => item.prepare || item.skip || item.owner === 'static'));
+});
+
+test('--push on a documentation-only change runs the formatter alone', () => {
+  const steps = planChecks(['AGENTS.md', 'CONTRIBUTING.md'], everything, noImporters, pushOnly);
+  assert.deepEqual(labels(steps.filter((item) => item.args)), ['format: 2 file(s)']);
+});
+
+test('--push executes only the steps its plan selects', async (t) => {
+  t.mock.method(console, 'log', () => {});
+  // A real script with a test of its own: the full plan would run that test.
+  const paths = ['scripts/ci/pre-push.mjs'];
+  assert.ok(step(planChecks(paths), 'test: 1 script test').args);
+  const execute = t.mock.fn(async () => ({ passed: true, output: '' }));
+  await main(['--push'], () => paths, execute);
+  assert.deepEqual(
+    execute.mock.calls.map(({ arguments: [item] }) => item.label),
+    ['format: 1 file(s)', 'lint: 1 file(s)', 'typecheck'],
+  );
+});
 
 test('--tests-only leaves format, lint, the type-check and the docs build to their own workflows', () => {
   const paths = [
