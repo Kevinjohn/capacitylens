@@ -78,7 +78,7 @@
     "smoke:packaged-dialogs": "node scripts/release/smoke-packaged-dialogs.mjs",
     "check:node26": "node scripts/ci/check-node26.mjs",
     "policy:sonner-csp:test": "node --test scripts/maintenance/check-sonner-csp.test.mjs",
-    "policy:gate-runner:test": "node --test scripts/ci/run-gate.test.mjs scripts/ci/pre-push.test.mjs",
+    "policy:gate-runner:test": "node --test scripts/ci/run-gate.test.mjs scripts/ci/pre-push.test.mjs scripts/ci/select-validation.test.mjs",
     "policy:check-changed:test": "node --test scripts/ci/check-changed.test.mjs",
     "policy:turbo-graph:test": "node --test scripts/ci/turbo-graph.test.mjs",
     "policy:dependabot": "node scripts/maintenance/check-dependabot.mjs",
