@@ -39,17 +39,17 @@ flowchart TD
     Row["MemberRow opens role edit or More actions"] --> RoleDialog["MemberConfirmations role dialog calls changeRole"]
     RoleDialog --> RoleMutation["createRoleMutation → teamAccessApi.changeMemberRole"]
     RoleMutation --> RoleAPI["memberRequests PATCH api.members.role"]
-    RoleAPI --> RoleServer["MembersController.changeRole → changeMemberRole → Access Control membership update"]
+    RoleAPI --> RoleServer["MembersController.update → changeMemberRole → Access Control membership update"]
     RoleServer --> RoleResult{"Role update succeeded?"}
     RoleResult -->|"Yes"| RefreshRole["useMembersOrchestration refreshDirectory updates role row"]
     RoleResult -->|"No"| RoleError["useFieldError presents the role update error"]
     Row --> StatusConfirm["MemberConfirmations confirms Suspend or Restore"]
     StatusConfirm --> StatusMutation["createStatusMutation → teamAccessApi.changeMemberStatus"]
     StatusMutation --> StatusAPI["memberRequests PATCH api.members.status"]
-    StatusAPI --> StatusServer["MembersController.changeStatus → changeMemberStatus → Access Control membership status"]
+    StatusAPI --> StatusServer["MemberStatusController.update → changeMemberStatus → Access Control membership status"]
     StatusServer --> StatusResult{"Status update succeeded?"}
     StatusResult -->|"Yes"| RefreshStatus["useMembersOrchestration refreshDirectory updates active group"]
     StatusResult -->|"No"| StatusError["useFieldError presents the access update error"]
 ```
 
-**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx), [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [membership_routes.ts](../../apps/backend/start/membership_routes.ts), [members_controller.ts](../../apps/backend/app/controllers/members_controller.ts), [member_mutations.ts](../../apps/backend/app/services/membership/member_mutations.ts)
+**Code references:** [MemberRow.tsx](../../apps/frontend/src/components/team/MemberRow.tsx), [MemberConfirmations.tsx](../../apps/frontend/src/components/team/MemberConfirmations.tsx), [useMembersOrchestration.ts](../../apps/frontend/src/components/team/useMembersOrchestration.ts), [createMemberMutations.ts](../../apps/frontend/src/components/team/createMemberMutations.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [membership_routes.ts](../../apps/backend/start/membership_routes.ts), [members_controller.ts](../../apps/backend/app/controllers/members_controller.ts), [member_status_controller.ts](../../apps/backend/app/controllers/member_status_controller.ts), [member_mutations.ts](../../apps/backend/app/services/membership/member_mutations.ts)

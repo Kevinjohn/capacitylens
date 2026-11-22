@@ -5,14 +5,14 @@ import { controllers } from '#generated/controllers';
 
 export function registerMasqueradeRoutes() {
   router
-    .post('/api/companies/:companyId/masquerade', [controllers.Masquerade, 'start'])
+    .post('/api/companies/:companyId/masquerade', [controllers.Masquerade, 'store'])
     .as('api.masquerade.start')
     // The service compares the context token and refuses a second start itself, so a stale tab
     // gets MASQUERADE_CONTEXT_CHANGED rather than a blocker's MASQUERADE_READ_ONLY.
     .use([middleware.accountGate({ access: 'limited' }), ...asCompanySignedInPerson()]);
-  router.get('/api/masquerade', [controllers.Masquerade, 'status']).as('api.masquerade.status');
+  router.get('/api/masquerade', [controllers.Masquerade, 'show']).as('api.masquerade.status');
   router
-    .delete('/api/masquerade', [controllers.Masquerade, 'end'])
+    .delete('/api/masquerade', [controllers.Masquerade, 'destroy'])
     .as('api.masquerade.end')
     .use([middleware.accountGate({ access: 'limited' }), ...asSignedInPerson()]);
 }

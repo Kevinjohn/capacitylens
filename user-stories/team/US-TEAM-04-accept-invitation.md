@@ -32,14 +32,14 @@ flowchart TD
 ```mermaid
 flowchart TD
     Invite["InviteAccept reads token from /invite/:token"] --> Preview["readInvitationPreview"]
-    Preview --> PreviewRoute["api.invites.preview → InvitationsController.preview"]
+    Preview --> PreviewRoute["api.invites.preview → InvitationLinksController.show"]
     PreviewRoute --> KitInspect["Account Kit invitations.inspect returns offered email and role"]
     KitInspect --> Form["InviteAccept renders Name and Password fields"]
-    Form --> Submit["signupWithInvitation → InvitationsController.signUp"]
+    Form --> Submit["signupWithInvitation → InvitationAcceptancesController.store"]
     Submit --> Accept["Account Kit invitations.accept creates invited identity and membership"]
     Accept --> SignIn["signInWithPassword or sign-in-required response"]
     SignIn --> Reload["InviteAccept reloads app; AuthProvider resolves limited admission screen"]
     PreviewRoute -. "Invalid or expired token" .-> Error["InviteAccept shows invitation error"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitations_controller.ts](../../apps/backend/app/controllers/invitations_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)

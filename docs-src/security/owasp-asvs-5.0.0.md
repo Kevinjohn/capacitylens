@@ -207,7 +207,7 @@ changed rows are supported by the following source evidence:
 | V7.5.3 | `@kevinjohn/adonisjs-confirm-action-with-password` binds single-use, five-minute password confirmations to user, Kit session, live credential revision, company, action and intent; host authority is rechecked through `config/password_confirmations.ts`. |
 | V11.3 | `apps/backend/config/encryption.ts` declares AES-256-GCM using `APP_KEY`; no application call site proving which stored data uses it was identified, so the classifications remain Partial. |
 | V11.4.1–V11.4.4 | SHA-256 is used for token and intent digests (approved hash and adequate digest length); password scrypt meets the selected OWASP minimum profile (Met); the application does not derive encryption keys from passwords (N/A). |
-| V16.3.1, V16.3.3 | `apps/backend/app/middleware/request_logging_middleware.ts` and `apps/backend/app/controllers/auth_controller.ts` are opt-in and record request completion plus password sign-in success, credential failure and throttling with a shared `request_id`; other authority/confirmation/validation/Kit failures are not individually logged, so V16.3.3 is Partial. |
+| V16.3.1, V16.3.3 | `apps/backend/app/middleware/request_logging_middleware.ts` and `apps/backend/app/controllers/session_controller.ts` are opt-in and record request completion plus password sign-in success, credential failure and throttling with a shared `request_id`; other authority/confirmation/validation/Kit failures are not individually logged, so V16.3.3 is Partial. |
 
 ## Input-boundary evidence update (2026-10-10)
 

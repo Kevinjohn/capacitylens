@@ -19,7 +19,7 @@ export function useInactiveCompanyData(): {
   mayViewInactive: boolean;
   reload: () => void;
 } {
-  // The server serves inactive rows only to `members:manage` (exports_controller.ts).
+  // The server serves inactive rows only to `members:manage` (company_state_controller.ts).
   const mayViewInactive = useCan('members:manage');
   const role = useRole();
   const { user } = useAuth();

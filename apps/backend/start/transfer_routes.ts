@@ -8,11 +8,11 @@ export function registerTransferRoutes() {
   router
     .group(() => {
       router
-        .post('/api/transfer/preview', [controllers.Transfer, 'preview'])
+        .post('/api/transfer/preview', [controllers.ImportPreviews, 'store'])
         .as('api.transfer.preview')
         .use(asMember());
       router
-        .post('/api/transfer/apply', [controllers.Transfer, 'apply'])
+        .post('/api/transfer/apply', [controllers.Imports, 'store'])
         .as('api.transfer.apply')
         .use(asMember());
     })

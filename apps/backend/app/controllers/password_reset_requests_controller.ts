@@ -1,0 +1,31 @@
+import type { HttpContext } from '@adonisjs/core/http';
+import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
+import { ThrottledError } from '@kevinjohn/adonisjs-account-kit/errors';
+import { isMailConfigured } from '#services/mail_delivery';
+import { requestResetValidator } from '#validators/credentials';
+
+function parsePrivateErrorCode(error: unknown) {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
+  return typeof code === 'string' && /^[A-Z_]{2,64}$/.test(code) ? code : 'RECOVERY_REQUEST_FAILED';
+}
+
+/** Requests a password reset link by email. */
+export default class PasswordResetRequestsController {
+  async store({ request, response, logger }: HttpContext) {
+    if (!isMailConfigured()) {
+      return response.notFound({ error: 'Password recovery is unavailable.' });
+    }
+    const { email } = await request.validateUsing(requestResetValidator, {
+      data: request.body(),
+    });
+    try {
+      await accountKit.passwordReset.request({ email, clientKey: request.ip() });
+    } catch (error) {
+      if (error instanceof ThrottledError) throw error;
+      // Public recovery does not disclose recipient or delivery state.
+      logger.error({ code: parsePrivateErrorCode(error) }, 'Password recovery request failed');
+    }
+    return response.ok({ ok: true });
+  }
+}

@@ -29,10 +29,10 @@ flowchart TD
 flowchart TD
   A["ArchivedEntitySection Owner/Admin Anonymise control"] --> B["ConfirmDialog onConfirm → useLifecycleOperations.anonymise"]
   B --> C{{"Server anonymisation"}}
-  C --> D["POST resources/:id/anonymise → AnonymiseController.resource"] --> E["anonymiseResources transaction"] --> F["reloadFromServer calls refreshPlanning({ fresh: true })"]
+  C --> D["POST resources/:id/anonymise → ResourceAnonymisationsController.store"] --> E["anonymiseResources transaction"] --> F["reloadFromServer calls refreshPlanning({ fresh: true })"]
   G --> H["obfuscateResource and clear linked notes"]
   H --> I["Archived resource view refreshes"]
   F --> I
 ```
 
-**Code references:** [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts) · [resourceAnonymisation.ts](../../apps/frontend/src/store/resourceAnonymisation.ts) · [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts) · [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts) · [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+**Code references:** [ArchivedEntitySection.tsx](../../apps/frontend/src/components/common/ArchivedEntitySection.tsx) · [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts) · [resourceAnonymisation.ts](../../apps/frontend/src/store/resourceAnonymisation.ts) · [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts) · [resource_anonymisations_controller.ts](../../apps/backend/app/controllers/resource_anonymisations_controller.ts) · [anonymise.ts](../../apps/backend/app/services/anonymise.ts)

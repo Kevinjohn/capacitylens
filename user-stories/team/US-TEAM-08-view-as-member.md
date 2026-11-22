@@ -35,7 +35,7 @@ flowchart TD
     Confirm --> Start["useMembersOrchestration calls accountTransition.startMasquerade"]
     Start --> Model["masqueradeModel.start → masqueradeApi.start"]
     Model --> Request["masqueradeRequests POST api.masquerade.start"]
-    Request --> Server["MasqueradeController.start → auth masquerade service → Masquerade package start"]
+    Request --> Server["MasqueradeController.store → auth masquerade service → Masquerade package start"]
     Server --> Projection["Controller returns readCurrentMasquerade; model loads target projection into store"]
     Projection --> Banner["AppShell renders MasqueradeBanner; permissionContext hides write affordances"]
     Banner --> ReadOnly["Masquerade context middleware refuses product writes while mode is active"]

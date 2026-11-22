@@ -8,7 +8,10 @@ export function registerOwnershipRoutes() {
   router
     .group(() => {
       router
-        .post('/api/companies/:companyId/ownership-transfer', [controllers.Ownership, 'transfer'])
+        .post('/api/companies/:companyId/ownership-transfer', [
+          controllers.OwnershipTransfers,
+          'store',
+        ])
         .as('api.ownership.transfer')
         .use(asCompanyMember());
     })

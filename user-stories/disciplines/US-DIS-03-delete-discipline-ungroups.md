@@ -29,9 +29,9 @@ flowchart TD
 flowchart TD
   A["DisciplineList Delete control"] --> B["ConfirmDialog onConfirm → useConfirmDelete"] --> C["useStore.deleteDiscipline"]
   C --> D["createTypedPlanningActions.deleteDiscipline → catalogue.delete"] --> E["createPlanningTransport → api.planning.mutate"]
-  E --> F["PlanningController.mutate → mutatePlanning begins scoped transaction"] --> G["executePlanningIntent.deleteRows retains discipline and detached-resource links"] --> K["mutatePlanning records revision/audit and commits"]
+  E --> F["PlanningMutationsController.store → mutatePlanning begins scoped transaction"] --> G["executePlanningIntent.deleteRows retains discipline and detached-resource links"] --> K["mutatePlanning records revision/audit and commits"]
   K --> I["selectors.buildDisciplineGroups render remaining resources ungrouped"]
   H --> I
 ```
 
-**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+**Code references:** [DisciplineList.tsx](../../apps/frontend/src/components/disciplines/DisciplineList.tsx) · [useConfirmDelete.ts](../../apps/frontend/src/hooks/useConfirmDelete.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)

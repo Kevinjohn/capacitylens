@@ -244,9 +244,9 @@ Source: [Controllers](https://docs.adonisjs.com/guides/basics/controllers) and
 - An operation that is not one of those becomes its own controller, named for the thing it acts
   on and using a resourceful action (the starter kit's `NewAccountController.store`), or a single
   action controller with one `handle` method. Do not grow a controller into a list of verbs.
-  **Open:** #2334 item 4.
 - An action takes the HTTP context first and destructures only what it uses:
-  `async store({ request, response }: HttpContext)`. **Open:** #2334 item 4.
+  `async store({ request, response }: HttpContext)`. **Open:** #2334 item 1. Actions that hand the
+  context to Account Kit or Masquerade keep it whole until that item lands.
 - A controller has no `private` or `protected` methods. A step two actions share moves to a
   service or a model.
 - A controller does not wrap its work in `try`/`catch` to build an error response. It lets the
