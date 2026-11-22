@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deletesOnly } from './pre-push.mjs';
+import { deletesOnly, pushChecks } from './pre-push.mjs';
 
 const zero = '0'.repeat(40);
 const sha = 'a'.repeat(40);
@@ -32,4 +32,33 @@ test('a push mixing a deletion and an update keeps the checks', () => {
 test('a push with nothing to update keeps the checks', () => {
   assert.equal(deletesOnly(''), false);
   assert.equal(deletesOnly('\n'), false);
+});
+
+const head = 'd'.repeat(40);
+const branchAtHead = `refs/heads/feature ${head} refs/heads/feature ${zero}\n`;
+
+test('a push that only deletes remote branches selects no checks', () => {
+  assert.equal(pushChecks(deletion, head), 'none');
+});
+
+test('pushing the checked-out commit to a branch checks only what the branch changed', () => {
+  assert.equal(pushChecks(branchAtHead, head), 'changed');
+  assert.equal(pushChecks(deletion + branchAtHead, head), 'changed');
+});
+
+test('a commit that is not checked out keeps the whole check', () => {
+  assert.equal(pushChecks(update, head), 'full');
+  assert.equal(pushChecks(branchAtHead + update, head), 'full');
+});
+
+test('a tag keeps the whole check, even at the checked-out commit', () => {
+  assert.equal(pushChecks(`refs/tags/v1.0.0 ${head} refs/tags/v1.0.0 ${zero}\n`, head), 'full');
+  assert.equal(
+    pushChecks(`${branchAtHead}refs/tags/v1.0.0 ${head} refs/tags/v1.0.0 ${zero}\n`, head),
+    'full',
+  );
+});
+
+test('a push with nothing to update keeps the whole check', () => {
+  assert.equal(pushChecks('', head), 'full');
 });

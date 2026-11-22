@@ -7,6 +7,9 @@
 //   pnpm run check:changed --tests-only
 //                                    only the tests; CI's static analysis job owns format, lint and
 //                                    the type-check, and the docs workflow owns the docs build
+//   node scripts/ci/check-changed.mjs --push
+//                                    only format, lint and the type-check, for the pre-push hook;
+//                                    the pull request's checks run the tests and the docs build
 //   node scripts/ci/check-changed.mjs --static-scope [<base>]
 //                                    print `full`, or `format` when only documentation changed
 //   node scripts/ci/check-changed.mjs --tooling-scope [<base>]
@@ -181,7 +184,9 @@ export function toolingScope(paths) {
  * expects existing files. With `staticOnly`, changed test files run on their own and every
  * dependency lookup or whole suite becomes a skip line, for changes that share one full run.
  * With `testsOnly`, format, lint, the type-check and the docs build become skip lines, because CI
- * runs them in their own workflows.
+ * runs them in their own workflows. With `pushOnly`, the reverse: only format, lint and the
+ * type-check run, with what lint needs prepared, and every test and the docs build become skip
+ * lines, because the pull request's checks run them.
  *
  * A backend source change runs the specs that import it. Shared contracts, dependencies,
  * permissions, company data access, schema, configuration, test infrastructure, modules a shared
@@ -191,9 +196,22 @@ export function planChecks(
   paths,
   exists = (path) => existsSync(new URL(path, pathToFileURL(root))),
   testsImporting = scriptTestsImporting,
-  { staticOnly = false, testsOnly = false, backendImporters = backendSpecsImporting } = {},
+  {
+    staticOnly = false,
+    testsOnly = false,
+    pushOnly = false,
+    backendImporters = backendSpecsImporting,
+  } = {},
 ) {
   const steps = planAllChecks(paths, exists, testsImporting, { staticOnly, backendImporters });
+  if (pushOnly)
+    return steps
+      .filter((step) => !step.prepare || step.forLint)
+      .map((step) =>
+        step.prepare || step.skip || step.owner === 'static'
+          ? step
+          : { label: step.label, skip: "the pull request's checks run it", reason: step.reason },
+      );
   if (!testsOnly) return steps;
   const owners = {
     static: 'the static analysis job runs it',
@@ -640,6 +658,7 @@ const modes = [
   '--plan',
   '--static',
   '--tests-only',
+  '--push',
   '--static-scope',
   '--tooling-scope',
   '--e2e-plan',
@@ -707,6 +726,7 @@ export async function main(args, pathsSince = changedPaths, execute = runStep) {
     const plan = planChecks(paths, undefined, undefined, {
       staticOnly: mode === '--static',
       testsOnly: mode === '--tests-only',
+      pushOnly: mode === '--push',
     });
     for (const step of plan) {
       const why = step.reason ? `\n      why: ${step.reason}` : '';
