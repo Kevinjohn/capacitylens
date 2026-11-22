@@ -68,7 +68,10 @@ test.group('company scope middleware', (group) => {
     const expectRefused = async () => {
       const { company, planning } = await refusals(client, cookie);
       company.assertStatus(403);
-      assert.deepEqual(company.body(), { error: 'Forbidden.', code: 'IDENTITY_AUTHORITY_DENIED' });
+      assert.deepEqual(company.body(), {
+        error: 'Forbidden.',
+        code: 'IDENTITY_AUTHORIZATION_DENIED',
+      });
       planning.assertStatus(403);
       assert.deepEqual(planning.body(), {
         error: 'Company membership is unavailable.',

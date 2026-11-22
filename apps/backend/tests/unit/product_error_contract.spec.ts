@@ -121,7 +121,7 @@ test.group('product error adapters', () => {
     };
     assert.deepEqual(await viaHandler(identity), {
       error: 'Invalid membership role.',
-      code: 'IDENTITY_AUTHORITY_DENIED',
+      code: 'IDENTITY_AUTHORIZATION_DENIED',
     });
     assert.deepEqual(await viaPlanning(identity), {
       error: 'Planning access is unavailable.',
@@ -131,7 +131,7 @@ test.group('product error adapters', () => {
     await new HttpExceptionHandler().handle(identity, admissionRoute.ctx);
     assert.deepEqual(admissionRoute.result.body, {
       error: 'Forbidden.',
-      code: 'IDENTITY_AUTHORITY_DENIED',
+      code: 'IDENTITY_AUTHORIZATION_DENIED',
     });
     assert.deepEqual(await viaHandler(admission), {
       error: 'Your access to this company is waiting on admission.',
@@ -158,9 +158,9 @@ test.group('product error adapters', () => {
       {
         error: () => new IdentityAuthorizationException('Invalid membership role.'),
         expected: {
-          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORITY_DENIED' },
+          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
           planning: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORITY_DENIED' },
+          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
         },
       },
       {
