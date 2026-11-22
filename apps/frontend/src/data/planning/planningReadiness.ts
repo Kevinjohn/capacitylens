@@ -5,7 +5,7 @@ import type { PlanningCacheMetadata } from './planningCacheTypes';
 export function isPlanningReadyForChange(planning: PlanningCacheMetadata): boolean {
   return (
     planning.context !== null &&
-    canWritePlanning(planning.authority) &&
+    canWritePlanning(planning.access) &&
     planning.revision !== null &&
     planning.phase.kind === 'ready'
   );

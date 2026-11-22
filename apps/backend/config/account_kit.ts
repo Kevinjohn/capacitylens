@@ -43,7 +43,7 @@ export default defineConfig({
   ],
   // Ordinary registration exists only behind the application's own sign-up route, after setup.
   registration: {
-    availability: env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP') ? 'application' : 'closed',
+    availability: env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP') ? 'application' : 'closed',
     mapFields: (data) => ({ name: requireRegistrationDisplayName(data) }),
   },
   authentication: { strategy: 'session', guard: 'web' },
