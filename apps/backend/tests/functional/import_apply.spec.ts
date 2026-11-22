@@ -86,7 +86,7 @@ async function apply(
     .send();
 }
 
-test.group('beta transfer apply', (group) => {
+test.group('beta import apply', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();

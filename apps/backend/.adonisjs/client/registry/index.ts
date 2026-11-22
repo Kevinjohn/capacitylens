@@ -58,14 +58,14 @@ const routes = {
   },
   'api.import_previews.store': {
     methods: ["POST"],
-    pattern: '/api/transfer/preview',
-    tokens: [[0,"api"],[0,"transfer"],[0,"preview"]],
+    pattern: '/api/import/preview',
+    tokens: [[0,"api"],[0,"import"],[0,"preview"]],
     types: placeholder as Registry['api.import_previews.store']['types'],
   },
   'api.imports.store': {
     methods: ["POST"],
-    pattern: '/api/transfer/apply',
-    tokens: [[0,"api"],[0,"transfer"],[0,"apply"]],
+    pattern: '/api/import/apply',
+    tokens: [[0,"api"],[0,"import"],[0,"apply"]],
     types: placeholder as Registry['api.imports.store']['types'],
   },
   'api.company_state.show': {

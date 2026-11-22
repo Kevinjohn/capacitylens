@@ -75,13 +75,13 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
-      if (String(url).endsWith('/api/transfer/preview')) {
+      if (String(url).endsWith('/api/import/preview')) {
         return previewReply(7);
       }
       if (String(url).endsWith('/api/auth/password-confirmation')) {
         return Response.json({ data: { confirmationId: 'proof-7' } });
       }
-      if (String(url).endsWith('/api/transfer/apply')) return applyResponse;
+      if (String(url).endsWith('/api/import/apply')) return applyResponse;
       throw new Error(`Unexpected request: ${url}`);
     }),
   );
@@ -278,13 +278,13 @@ describe('beta import and export', () => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith('/api/transfer/preview')) {
+        if (path.endsWith('/api/import/preview')) {
           return previewReply(7);
         }
         if (path.endsWith('/api/auth/password-confirmation')) {
           return Response.json({ data: { confirmationId: 'proof-7' } });
         }
-        if (path.endsWith('/api/transfer/apply')) {
+        if (path.endsWith('/api/import/apply')) {
           return Response.json({ data: { imported: 5, changed: true, revision: 8 } });
         }
         throw new Error(`Unexpected request: ${path}`);
@@ -293,14 +293,14 @@ describe('beta import and export', () => {
     renderTools();
     await previewFile(incoming);
     fireEvent.click(screen.getByRole('button', { name: 'Replace data' }));
-    expect(requests.map((request) => request.url)).toEqual(['/api/transfer/preview']);
+    expect(requests.map((request) => request.url)).toEqual(['/api/import/preview']);
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));
     await waitFor(() =>
       expect(requests.map((request) => request.url)).toEqual([
-        '/api/transfer/preview',
+        '/api/import/preview',
         '/api/auth/password-confirmation',
-        '/api/transfer/apply',
+        '/api/import/apply',
       ]),
     );
     expect(requests[1]?.body).toMatchObject({
@@ -350,13 +350,13 @@ describe('beta import and export', () => {
         const path = String(url);
         const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {};
         requests.push({ url: path, body });
-        if (path.endsWith('/api/transfer/preview')) {
+        if (path.endsWith('/api/import/preview')) {
           return new Promise<Response>((resolve) => previews.push(resolve));
         }
         if (path.endsWith('/api/auth/password-confirmation')) {
           return Promise.resolve(Response.json({ data: { confirmationId: 'proof-b' } }));
         }
-        if (path.endsWith('/api/transfer/apply')) {
+        if (path.endsWith('/api/import/apply')) {
           return Promise.resolve(
             Response.json({ data: { imported: 5, changed: true, revision: 23 } }),
           );
@@ -382,13 +382,13 @@ describe('beta import and export', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'current-password' } });
     fireEvent.click(screen.getByTestId('password-confirmation-submit'));
     await waitFor(() =>
-      expect(requests.some((request) => request.url.endsWith('/api/transfer/apply'))).toBe(true),
+      expect(requests.some((request) => request.url.endsWith('/api/import/apply'))).toBe(true),
     );
     const proof = requests.find((request) =>
       request.url.endsWith('/api/auth/password-confirmation'),
     );
     expect(proof?.body.intent).toEqual({ baseRevision: 22, document: second });
-    const apply = requests.find((request) => request.url.endsWith('/api/transfer/apply'));
+    const apply = requests.find((request) => request.url.endsWith('/api/import/apply'));
     expect(apply?.body).toMatchObject({ baseRevision: 22, confirmationId: 'proof-b' });
     expect(apply?.body.document).toEqual(second);
   });

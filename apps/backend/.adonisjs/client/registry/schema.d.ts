@@ -114,12 +114,12 @@ export interface Registry {
   }
   'api.import_previews.store': {
     methods: ["POST"]
-    pattern: '/api/transfer/preview'
+    pattern: '/api/import/preview'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/import').previewImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/import').previewImportValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
@@ -127,12 +127,12 @@ export interface Registry {
   }
   'api.imports.store': {
     methods: ["POST"]
-    pattern: '/api/transfer/apply'
+    pattern: '/api/import/apply'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/import').applyImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/import').applyImportValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>

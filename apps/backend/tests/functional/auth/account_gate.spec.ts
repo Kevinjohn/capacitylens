@@ -91,8 +91,8 @@ test.group('account gate', (group) => {
       'POST /api/installation/company': 'admitted',
       'POST /api/invites': 'admitted',
       'GET,HEAD /api/state': 'admitted',
-      'POST /api/transfer/apply': 'admitted',
-      'POST /api/transfer/preview': 'admitted',
+      'POST /api/import/apply': 'admitted',
+      'POST /api/import/preview': 'admitted',
     });
   });
 
