@@ -729,7 +729,7 @@ test.group('native read-only masquerade', (group) => {
     );
   });
 
-  test('rejects self, inactive target, and malformed session authority', async ({ client }) => {
+  test('rejects self, inactive target, and malformed session access', async ({ client }) => {
     const { cookie, ownerId, targetId } = await fixture(client);
     const self = await startView(client, cookie, ownerId);
     self.assertStatus(400);

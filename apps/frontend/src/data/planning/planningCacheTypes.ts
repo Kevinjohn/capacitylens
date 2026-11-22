@@ -11,7 +11,7 @@ export type { PlanningAccess };
 interface PlanningSnapshotBase {
   revision: number;
   /** Who the read was for, and what that member may do and see, as the server verified it. */
-  authority: PlanningAccess;
+  access: PlanningAccess;
   /** The company's calendar date, resolved by the server in the company time zone. */
   today: ISODate;
   /** The server's per-day capacity figures for the requested window and the overview horizon. */
@@ -129,8 +129,8 @@ export type PlanningPhase =
 
 export interface PlanningCacheMetadata {
   context: PlanningSessionScope | null;
-  /** The authority of the last accepted read; null until a read is accepted. */
-  authority: PlanningAccess | null;
+  /** The access of the last accepted read; null until a read is accepted. */
+  access: PlanningAccess | null;
   revision: number | null;
   /** The company's calendar date from the last accepted read; null until a read is accepted. */
   today: ISODate | null;

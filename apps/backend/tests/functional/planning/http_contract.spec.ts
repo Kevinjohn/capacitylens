@@ -25,7 +25,7 @@ test.group('authenticated typed planning transactions', (group) => {
     await resetPlanningFixture();
   });
 
-  test('read returns current authority, revision and confidential company rows', async ({
+  test('read returns current access, revision and confidential company rows', async ({
     client,
     assert,
     cleanup,
@@ -46,9 +46,9 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(response.body().data.companyId, companyId);
     assert.equal(response.body().data.revision, 0);
     assert.match(response.body().data.today, /^\d{4}-\d{2}-\d{2}$/);
-    assert.equal(response.body().data.authority.actorId, userId);
-    assert.equal(response.body().data.authority.role, 'editor');
-    assert.isTrue(response.body().data.authority.canWrite);
+    assert.equal(response.body().data.access.actorId, userId);
+    assert.equal(response.body().data.access.role, 'editor');
+    assert.isTrue(response.body().data.access.canWrite);
     assert.notInclude(response.text(), 'Wayne secret');
     assert.isTrue(
       response
@@ -198,7 +198,7 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(unchanged.body().data.revision, 1);
     assert.notProperty(unchanged.body().data, 'data');
     assert.property(unchanged.body().data, 'capacity');
-    assert.equal(unchanged.body().data.authority.role, 'editor');
+    assert.equal(unchanged.body().data.access.role, 'editor');
 
     const fullQueries: Array<Record<string, number>> = [{ ifRevision: 0 }, { ifRevision: 2 }, {}];
     for (const query of fullQueries) {
@@ -224,7 +224,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const afterRoleChange = await read({ ifRevision: 1 });
     afterRoleChange.assertStatus(200);
     assert.equal(afterRoleChange.body().data.slice, 'full');
-    assert.equal(afterRoleChange.body().data.authority.role, 'viewer');
+    assert.equal(afterRoleChange.body().data.access.role, 'viewer');
   });
 
   test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({

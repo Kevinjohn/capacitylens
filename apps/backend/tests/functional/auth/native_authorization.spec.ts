@@ -191,7 +191,7 @@ test.group('native authorization and role projections', (group) => {
     assert.equal(foreignRow?.company_id, otherCompanyId);
   });
 
-  test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import authority', async ({
+  test('four roles separate read, ordinary write, resource anonymisation, and whole-slice import access', async ({
     client,
     assert,
     cleanup,

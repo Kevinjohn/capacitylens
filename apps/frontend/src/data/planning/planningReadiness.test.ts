@@ -5,7 +5,7 @@ import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 const ready: PlanningCacheMetadata = {
   context: { identity: 'bruce-user', companyId: 'wayne' },
-  authority: makePlanningAccess(),
+  access: makePlanningAccess(),
   revision: 4,
   today: '2026-06-03',
   capacity: null,
@@ -27,7 +27,7 @@ describe('planning readiness', () => {
     ).toBe(true);
     expect(isPlanningReadyForChange({ ...ready, context: null })).toBe(false);
     expect(
-      isPlanningReadyForChange({ ...ready, authority: makePlanningAccess({ canWrite: false }) }),
+      isPlanningReadyForChange({ ...ready, access: makePlanningAccess({ canWrite: false }) }),
     ).toBe(false);
     expect(isPlanningReadyForChange({ ...ready, revision: null })).toBe(false);
     expect(
@@ -59,10 +59,7 @@ describe('planning readiness', () => {
       isPlanningHistoryReady({ ...ready, history: { canUndo: false, canRedo: true } }, 'redo'),
     ).toBe(true);
     expect(
-      isPlanningHistoryReady(
-        { ...ready, authority: makePlanningAccess({ canWrite: false }) },
-        'undo',
-      ),
+      isPlanningHistoryReady({ ...ready, access: makePlanningAccess({ canWrite: false }) }, 'undo'),
     ).toBe(false);
     expect(
       isPlanningHistoryReady({ ...ready, phase: { kind: 'loading', lastWrite: null } }, 'undo'),

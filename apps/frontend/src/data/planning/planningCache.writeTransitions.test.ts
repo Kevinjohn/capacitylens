@@ -19,7 +19,7 @@ import { createDeferred } from '@/test/createDeferred';
 /** A read without rows, as the harness's server reports it for the revision the page named. */
 const unchanged = (revision: number): PlanningSnapshot => ({
   revision,
-  authority: makePlanningAccess(),
+  access: makePlanningAccess(),
   content: 'unchanged',
   today: '2026-06-03',
   capacity: emptyCapacity(),

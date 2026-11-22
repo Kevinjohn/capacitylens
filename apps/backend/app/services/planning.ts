@@ -76,7 +76,7 @@ export interface PlanningHistoryStepOptions {
 interface PlanningReadBase {
   companyId: string;
   revision: number;
-  authority: PlanningAccess;
+  access: PlanningAccess;
   /** The company's current calendar date in its own time zone. */
   today: ISODate;
   capacity: CapacitySection;
@@ -108,7 +108,7 @@ export async function readPlanning(
   const base: PlanningReadBase = {
     companyId,
     revision,
-    authority: planningAccess,
+    access: planningAccess,
     today,
     // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
     capacity: buildCapacitySection({ data: visible, company, today, window }),

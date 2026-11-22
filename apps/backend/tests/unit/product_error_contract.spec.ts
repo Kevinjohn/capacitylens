@@ -203,7 +203,7 @@ test.group('product error adapters', () => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     const cases = [
       {
-        thrown: new IdentityAuthorizationException('Masquerade company authority changed.'),
+        thrown: new IdentityAuthorizationException('Masquerade company access changed.'),
         expected: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
       },
       {
