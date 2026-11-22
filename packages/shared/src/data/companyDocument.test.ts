@@ -44,7 +44,7 @@ describe('beta-native transfer', () => {
     const account = fixture(source.accounts[0], 'account');
     account.name = 'Wayne Enterprises';
     source.closures.push({
-      id: 'closure-wayne-holiday',
+      id: 'closure-wayne-shutdown',
       companyId,
       createdAt: account.createdAt,
       updatedAt: account.updatedAt,

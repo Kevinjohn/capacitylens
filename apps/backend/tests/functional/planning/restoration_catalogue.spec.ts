@@ -295,7 +295,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       {
         operation: 'closure.create',
         id,
-        fields: { name: 'Gotham holiday', startDate: '2026-11-02', endDate: '2026-11-02' },
+        fields: { name: 'Gotham closure', startDate: '2026-11-02', endDate: '2026-11-02' },
       }
     );
     created.assertStatus(200);

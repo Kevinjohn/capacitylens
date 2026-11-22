@@ -134,7 +134,7 @@ const cases: Array<{ intent: PlanningIntent; restoration?: Restoration }> = [
     },
   },
   {
-    intent: { operation: 'closure.update', id, changes: { name: 'Wayne holiday' } },
+    intent: { operation: 'closure.update', id, changes: { name: 'Wayne closure' } },
   },
   {
     intent: { operation: 'closure.delete', id },

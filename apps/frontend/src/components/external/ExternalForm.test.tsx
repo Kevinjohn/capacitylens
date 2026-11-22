@@ -163,7 +163,7 @@ describe('ExternalForm', () => {
     const closure = await requireCreated(
       useStore
         .getState()
-        .addClosure({ name: 'Gotham holiday', startDate: '2026-12-24', endDate: '2026-12-25' }),
+        .addClosure({ name: 'Gotham closure', startDate: '2026-12-24', endDate: '2026-12-25' }),
     );
     queuePlanningPatch(() => ({ upserts: [], removed: [{ entity: 'closures', id: closure.id }] }), {
       replacementGroupId: 'closure-restore-group',

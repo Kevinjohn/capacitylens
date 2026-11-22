@@ -496,7 +496,7 @@ test.group('authenticated typed planning transactions', (group) => {
         id: ids.closure,
         fields: { name: 'Wayne anniversary', startDate: '2026-12-25', endDate: '2026-12-25' },
       }),
-      () => ({ operation: 'closure.update', id: ids.closure, changes: { name: 'Wayne holiday' } }),
+      () => ({ operation: 'closure.update', id: ids.closure, changes: { name: 'Wayne closure' } }),
       () => ({ operation: 'closure.delete', id: ids.closure }),
       () => ({ operation: 'settings.update', changes: { dateStyle: 'month-day' } }),
     ];

@@ -666,7 +666,7 @@
   "list_closures_title": "Company closures",
   "list_closures_add": "Add closure",
   "list_closures_empty": "No company closures planned.",
-  "list_closures_empty_desc": "Add holidays and shutdowns that make the whole company unavailable.",
+  "list_closures_empty_desc": "Add closures for days when the whole company is unavailable.",
   "list_closures_delete_title": "Delete closure?",
   "list_closures_delete_message": "Remove this company closure?",
   "list_closures_edit_aria": "Edit {name} closure, {range}",

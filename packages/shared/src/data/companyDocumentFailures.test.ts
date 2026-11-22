@@ -22,7 +22,7 @@ const freshDocument = () => {
   source.closures.push({
     id: 'gotham-closure',
     companyId: context.companyId,
-    name: 'Gotham holiday',
+    name: 'Gotham closure',
     startDate: '2026-12-25',
     endDate: '2026-12-25',
     createdAt: account.createdAt,
