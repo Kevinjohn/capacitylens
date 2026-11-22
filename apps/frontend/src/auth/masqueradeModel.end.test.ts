@@ -179,7 +179,7 @@ describe('MasqueradeModel cross-tab reconciliation', () => {
 
     await expect(model.transitionCompany('a-loft')).resolves.toBe(false);
     expect(useStore.getState().notice).toMatchObject({
-      message: 'A newer masquerade is active. End it before switching companies.',
+      message: 'A newer View as member is active. End it before switching companies.',
       tone: 'error',
     });
     expect(dependencies.switchCompany).not.toHaveBeenCalled();

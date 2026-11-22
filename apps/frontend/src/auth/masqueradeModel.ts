@@ -136,12 +136,12 @@ export class MasqueradeModel {
     if (this.store.masquerade.kind !== 'inactive') return false;
     if (flush.kind !== 'clean' || !this.store.planningReadyForReplacement()) {
       return this.fail(
-        'Finish loading or resolving company changes before starting a member view.',
+        'Finish loading or resolving company changes before starting View as member.',
       );
     }
     if (!this.acquireSuspension()) {
       return this.fail(
-        'Finish loading or resolving company changes before starting a member view.',
+        'Finish loading or resolving company changes before starting View as member.',
       );
     }
     this.store.setMasquerade({
@@ -156,7 +156,9 @@ export class MasqueradeModel {
     if (!this.ownsRuntime(generation, 'starting')) return false;
     this.releaseSuspension({ dropParkedEdits: false });
     this.store.setMasquerade({ kind: 'inactive' });
-    return this.fail(error instanceof Error ? error.message : 'Masquerade could not be started.');
+    return this.fail(
+      error instanceof Error ? error.message : 'View as member could not be started.',
+    );
   }
 
   private async finishStartProjection(
@@ -169,7 +171,7 @@ export class MasqueradeModel {
       if (!this.ownsRuntime(generation, 'starting')) return false;
       if (!projected) {
         return this.fail(
-          'The member view started, but its data could not be loaded. Retry or end the masquerade.',
+          'View as member started, but its data could not be loaded. Retry or end it.',
         );
       }
     } catch (error) {
@@ -177,7 +179,7 @@ export class MasqueradeModel {
       if (!this.ownsRuntime(generation, 'starting')) return false;
       console.error('Masquerade target projection could not be loaded', error);
       return this.fail(
-        'The member view started, but its data could not be loaded. Retry or end the masquerade.',
+        'View as member started, but its data could not be loaded. Retry or end it.',
       );
     }
     publishMasqueradeCompany(this.store, state);
@@ -190,11 +192,11 @@ export class MasqueradeModel {
     // duration Infinity, so a double-click would leave a permanent error banner over a working
     // member view. This is ordinary feedback about a duplicate click, not a failure.
     if (this.startPendingGeneration !== null) {
-      this.store.setNotice('A member view is already starting.', 'info');
+      this.store.setNotice('View as member is already starting.', 'info');
       return false;
     }
     if (this.store.masquerade.kind !== 'inactive') {
-      return this.fail('End the current masquerade before starting another.');
+      return this.fail('End the current View as member before starting another.');
     }
     const generation = ++this.generation;
     this.startPendingGeneration = generation;
@@ -241,20 +243,20 @@ export class MasqueradeModel {
     }
     if (!this.acquireSuspension()) {
       return this.fail(
-        'Finish loading or resolving company changes before retrying the member view.',
+        'Finish loading or resolving company changes before retrying View as member.',
       );
     }
     try {
       const projected = await this.dependencies.reproject(state.companyId, false);
       if (!this.ownsRuntime(generation, runtime.kind)) return false;
       if (!projected) {
-        return this.fail('The member view could not be loaded.');
+        return this.fail('View as member could not be loaded.');
       }
     } catch (error) {
       // Keep a failed projection retry visible without letting an older generation overwrite the current view.
       if (!this.ownsRuntime(generation, runtime.kind)) return false;
       console.error('Masquerade projection retry failed', error);
-      return this.fail('The member view could not be loaded.');
+      return this.fail('View as member could not be loaded.');
     }
     publishMasqueradeCompany(this.store, state);
     this.store.setMasquerade({ kind: 'active', state, generation });
@@ -280,18 +282,18 @@ export class MasqueradeModel {
             : {
                 kind: 'failed',
                 message:
-                  'The real account view could not be restored. Retry ending the masquerade.',
+                  'The real account view could not be restored. Retry ending View as member.',
               };
         }
         if (!(await this.dependencies.reproject(state.companyId))) {
           return {
             kind: 'failed',
-            message: 'The real account view could not be restored. Retry ending the masquerade.',
+            message: 'The real account view could not be restored. Retry ending View as member.',
           };
         }
         return { kind: 'finished' };
       },
-      failureMessage: 'Masquerade could not be ended.',
+      failureMessage: 'View as member could not be ended.',
       options: { onNoState: 'succeed' },
     });
     if (ended.kind === 'inactive') navigate?.('/');
@@ -321,7 +323,7 @@ export class MasqueradeModel {
       options: { onNoState: 'wait' },
     });
     if (ended.kind === 'superseded') {
-      return this.fail('A newer masquerade is active. End it before switching companies.');
+      return this.fail('A newer View as member is active. End it before switching companies.');
     }
     return ended.kind === 'inactive';
   }
@@ -336,13 +338,13 @@ export class MasqueradeModel {
     const state = runtime.kind === 'inactive' ? null : runtime.state;
     if (!state) {
       if (options.onNoState === 'succeed') return { kind: 'noop' };
-      this.fail('Wait for the current masquerade transition to finish.');
+      this.fail('Wait for the current View as member change to finish.');
       return { kind: 'failed' };
     }
     const cold =
       runtime.kind !== 'inactive' && this.store.activeCompanyId === null && !this.resumeWrites;
     if (!cold && !this.acquireSuspension()) {
-      this.fail('Finish loading or resolving company changes before ending the member view.');
+      this.fail('Finish loading or resolving company changes before ending View as member.');
       return { kind: 'failed' };
     }
     const generation = ++this.generation;
@@ -440,7 +442,7 @@ export class MasqueradeModel {
       generation,
     });
     if (!this.acquireSuspension()) {
-      this.fail('Finish loading or resolving company changes before entering the member view.');
+      this.fail('Finish loading or resolving company changes before entering View as member.');
       return;
     }
     await this.finishStartProjection(generation, status.companyId, status);
@@ -451,7 +453,7 @@ export class MasqueradeModel {
       const name = await this.dependencies.readBootstrapCompany(state.companyId);
       if (!this.ownsRuntime(generation, 'starting')) return false;
       if (name === null) {
-        return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+        return this.fail('View as member could not be loaded. Retry or end it.');
       }
       this.store.setCompanySummaries({
         list: [{ id: state.companyId, name, role: state.effectiveRole }],
@@ -460,13 +462,13 @@ export class MasqueradeModel {
       this.store.setActiveCompany(state.companyId);
       if (!(await this.dependencies.reproject(state.companyId, false))) {
         if (this.ownsRuntime(generation, 'starting')) {
-          return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+          return this.fail('View as member could not be loaded. Retry or end it.');
         }
         return false;
       }
       if (!this.ownsRuntime(generation, 'starting')) return false;
       if (!this.acquireSuspension()) {
-        return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+        return this.fail('View as member could not be loaded. Retry or end it.');
       }
       publishMasqueradeCompany(this.store, state);
       const loadedName =
@@ -480,7 +482,7 @@ export class MasqueradeModel {
     } catch (error) {
       if (!this.ownsRuntime(generation, 'starting')) return false;
       console.error('Masquerade projection could not be loaded', error);
-      return this.fail('The member view could not be loaded. Retry or end the masquerade.');
+      return this.fail('View as member could not be loaded. Retry or end it.');
     }
   }
 
@@ -531,7 +533,7 @@ export class MasqueradeModel {
           : {
               kind: 'failed',
               message:
-                'The masquerade ended, but the real account view could not be restored. Retry.',
+                'View as member ended, but the real account view could not be restored. Retry.',
             },
       );
       if (projection.kind === 'active') {
@@ -543,7 +545,7 @@ export class MasqueradeModel {
       // A completed remote end still needs visible recovery if reloading the real company fails.
       if (!this.ownsRuntime(generation, 'ending')) return;
       console.error('The real account projection could not be restored', error);
-      this.fail('The masquerade ended, but the real account view could not be restored. Retry.');
+      this.fail('View as member ended, but the real account view could not be restored. Retry.');
       return;
     }
     if (!this.ownsRuntime(generation, 'ending')) return;

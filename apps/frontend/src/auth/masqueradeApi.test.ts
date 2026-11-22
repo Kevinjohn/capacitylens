@@ -75,7 +75,7 @@ describe('masqueradeApi', () => {
     mocks.status.mockResolvedValue(new Response(null, { status: 503 }));
 
     await expect(masqueradeApi.status()).rejects.toThrow(
-      'Masquerade status could not be read (503).',
+      'View as member status could not be read (503).',
     );
   });
 

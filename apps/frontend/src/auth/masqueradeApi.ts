@@ -71,7 +71,7 @@ async function readMasqueradeBody(response: Response, fallback: string): Promise
 async function assertMasqueradeState(response: Response): Promise<MasqueradeState> {
   const body = await readMasqueradeBody(
     response,
-    `Masquerade request failed (${response.status}).`,
+    `View as member request failed (${response.status}).`,
   );
   const state = parseMasqueradeState(body);
   if (!state) {
@@ -88,7 +88,7 @@ export const masqueradeApi = {
     const response = await masqueradeRequests.masqueradeStatus(companyId);
     const body = await readMasqueradeBody(
       response,
-      `Masquerade status could not be read (${response.status}).`,
+      `View as member status could not be read (${response.status}).`,
     );
     if (
       typeof body === 'object' &&
@@ -133,6 +133,6 @@ export const masqueradeApi = {
   async end(token: string, reason: ClientMasqueradeEndReason): Promise<void> {
     const body: EndMasqueradePayload = { token, reason };
     const response = await masqueradeRequests.endMasquerade(body);
-    await readMasqueradeBody(response, `Masquerade could not be ended (${response.status}).`);
+    await readMasqueradeBody(response, `View as member could not be ended (${response.status}).`);
   },
 };

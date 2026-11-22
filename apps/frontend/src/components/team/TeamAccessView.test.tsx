@@ -146,10 +146,12 @@ describe('TeamAccessView access presentation', () => {
 
     const card = screen.getByTestId('current-access');
     expect(card).toHaveTextContent('Admin');
-    expect(card).toHaveTextContent('Masquerade is read-only.');
+    expect(card).toHaveTextContent('View as member is read-only.');
     expect(card).not.toHaveTextContent(/Can edit the schedule/);
     expect(
-      screen.getByText('Invitations and membership changes are not available during a masquerade.'),
+      screen.getByText(
+        'Invitations and membership changes are not available during View as member.',
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/An Owner or Admin manages invitations/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
