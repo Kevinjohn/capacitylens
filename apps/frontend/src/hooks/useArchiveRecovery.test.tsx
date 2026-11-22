@@ -67,8 +67,8 @@ beforeEach(() => {
 describe('archive recovery request boundaries', () => {
   it('requests the generated identity route and refreshes after lifecycle changes', async () => {
     request
-      .mockResolvedValueOnce(payload('a-studio', 'First'))
-      .mockResolvedValueOnce(payload('a-studio', 'Second'));
+      .mockResolvedValueOnce({ data: payload('a-studio', 'First') })
+      .mockResolvedValueOnce({ data: payload('a-studio', 'Second') });
     render(view(new QueryClient()));
     expect(await screen.findByText('First')).toBeInTheDocument();
     expect(request.mock.calls[0]?.[0]).toBe('api.planning.archive');
@@ -77,9 +77,9 @@ describe('archive recovery request boundaries', () => {
     expect(request.mock.calls.every(([name]) => name === 'api.planning.archive')).toBe(true);
   });
   it('hides cached A synchronously on A → B → A and aborts obsolete reads', async () => {
-    const pending = createDeferred<ArchiveRecovery>();
+    const pending = createDeferred<{ data: ArchiveRecovery }>();
     request
-      .mockResolvedValueOnce(payload('a-studio', 'Old A'))
+      .mockResolvedValueOnce({ data: payload('a-studio', 'Old A') })
       .mockReturnValueOnce(pending.promise)
       .mockReturnValueOnce(new Promise(() => {}));
     render(view(new QueryClient()));
@@ -90,13 +90,13 @@ describe('archive recovery request boundaries', () => {
     const signal = args.signal;
     act(() => company('a-studio'));
     expect(screen.getByText('hidden')).toBeInTheDocument();
-    await act(async () => pending.resolve(payload('a-loft', 'Late B')));
+    await act(async () => pending.resolve({ data: payload('a-loft', 'Late B') }));
     expect(signal.aborted).toBe(true);
     expect(screen.queryByText(/Old A|Late B/)).not.toBeInTheDocument();
   });
   it('discards Owner labels on role and same-company user transitions', async () => {
     request
-      .mockResolvedValueOnce(payload('a-studio', 'Owner secret'))
+      .mockResolvedValueOnce({ data: payload('a-studio', 'Owner secret') })
       .mockReturnValue(new Promise(() => {}));
     const cache = new QueryClient();
     useStore.setState((state) => ({
@@ -113,7 +113,7 @@ describe('archive recovery request boundaries', () => {
     expect(screen.queryByText('Owner secret')).not.toBeInTheDocument();
   });
   it('does not read while viewing as another member', async () => {
-    request.mockResolvedValue(payload('a-studio', 'Hidden while viewing as'));
+    request.mockResolvedValue({ data: payload('a-studio', 'Hidden while viewing as') });
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
@@ -130,7 +130,7 @@ describe('archive recovery request boundaries', () => {
   });
   it('refuses Viewer reads and surfaces failed reloads without stale success', async () => {
     request
-      .mockResolvedValueOnce(payload('a-studio', 'First'))
+      .mockResolvedValueOnce({ data: payload('a-studio', 'First') })
       .mockRejectedValueOnce(new Error('Archive read failed'));
     const cache = new QueryClient();
     const rendered = render(view(cache, 'viewer'));
@@ -142,7 +142,7 @@ describe('archive recovery request boundaries', () => {
     expect(screen.queryByText('First')).not.toBeInTheDocument();
   });
   it('aborts a delayed response on sign-out and rejects it after a new projection', async () => {
-    const late = createDeferred<ArchiveRecovery>();
+    const late = createDeferred<{ data: ArchiveRecovery }>();
     request.mockReturnValue(late.promise);
     const cache = new QueryClient();
     const rendered = render(view(cache));
@@ -150,7 +150,7 @@ describe('archive recovery request boundaries', () => {
     const args = request.mock.calls[0]?.[1] as { signal: AbortSignal };
     rendered.rerender(view(cache, 'editor', null));
     expect(screen.getByText('hidden')).toBeInTheDocument();
-    await act(async () => late.resolve(payload('a-studio', 'Late identity')));
+    await act(async () => late.resolve({ data: payload('a-studio', 'Late identity') }));
     expect(args.signal.aborted).toBe(true);
     expect(screen.queryByText('Late identity')).not.toBeInTheDocument();
     act(() =>

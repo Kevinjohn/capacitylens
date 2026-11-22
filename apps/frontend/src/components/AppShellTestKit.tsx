@@ -62,27 +62,29 @@ export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
           if (companyDirectory.refused) {
             return Response.json({ code: 'MULTIPLE_COMPANIES' }, { status: 409 });
           }
-          return Response.json(
-            companyDirectory.response.map(({ id, name, role, roleStatus }) =>
+          return Response.json({
+            data: companyDirectory.response.map(({ id, name, role, roleStatus }) =>
               roleStatus === 'unavailable'
                 ? { id, name, role: 'unknown-role' }
                 : { id, name, role, ...grantFor(role) },
             ),
-          );
+          });
         }
         if (url.pathname.includes('/getting-started')) {
           return Response.json({
-            dismissed: true,
-            steps: {
-              person: false,
-              client: false,
-              project: false,
-              activity: false,
-              scheduled: false,
+            data: {
+              dismissed: true,
+              steps: {
+                person: false,
+                client: false,
+                project: false,
+                activity: false,
+                scheduled: false,
+              },
             },
           });
         }
-        return Response.json({ active: false, contextToken: 'idle' });
+        return Response.json({ data: { active: false, contextToken: 'idle' } });
       }),
     );
     // Seed an active company so these tests exercise the shell.

@@ -297,8 +297,8 @@ const replies: Record<string, Exposure> = {
       const groupId =
         deleted.status() === 200
           ? // A committed delete reply always carries its replacement restoration group.
-            (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
-              .replacementGroupId
+            (deleted.body() as { data: { restoration: { replacementGroupId: string } } }).data
+              .restoration.replacementGroupId
           : randomUUID();
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
         operation: 'planning.restoreGroup',
@@ -427,7 +427,7 @@ async function readContextToken(client: ApiClient, cookie: string) {
   const status = await session(client.get('/api/masquerade'), cookie).send();
   status.assertStatus(200);
   // The status reply is checked by String(); a missing token fails the masquerade start.
-  return String((status.body() as { contextToken: unknown }).contextToken);
+  return String((status.body()!.data as { contextToken: unknown }).contextToken);
 }
 
 async function startMasqueradeAs(client: ApiClient, viewerCookie: string, targetUserId: string) {

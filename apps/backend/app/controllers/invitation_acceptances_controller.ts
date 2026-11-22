@@ -47,19 +47,21 @@ export default class InvitationAcceptancesController {
       }
       // The identity exists; only a follow-up failed, so the person signs in rather than retrying.
       if (isCommittedFailure(error)) {
-        return ctx.response.accepted({ accepted: true, signInRequired: true });
+        return ctx.response.accepted(await ctx.serialize({ accepted: true, signInRequired: true }));
       }
       throw error;
     }
     try {
-      return ctx.response.created({
-        user: await signInWithPassword(ctx, {
-          email,
-          password: body.password,
-          clientAddress: ctx.request.ip(),
-          userAgent: ctx.request.header('user-agent'),
-        }),
-      });
+      return ctx.response.created(
+        await ctx.serialize({
+          user: await signInWithPassword(ctx, {
+            email,
+            password: body.password,
+            clientAddress: ctx.request.ip(),
+            userAgent: ctx.request.header('user-agent'),
+          }),
+        })
+      );
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
@@ -67,7 +69,7 @@ export default class InvitationAcceptancesController {
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
         'Sign-in after invitation acceptance failed'
       );
-      return ctx.response.accepted({ accepted: true, signInRequired: true });
+      return ctx.response.accepted(await ctx.serialize({ accepted: true, signInRequired: true }));
     }
   }
 }

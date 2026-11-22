@@ -34,6 +34,6 @@ export default class CompanyExportsController {
     });
     ctx.response.header('Content-Type', 'application/json; charset=utf-8');
     ctx.response.header('Content-Disposition', 'attachment; filename="capacitylens-data.json"');
-    return ctx.response.send(text);
+    return ctx.response.send(await ctx.serialize.withoutWrapping(text));
   }
 }

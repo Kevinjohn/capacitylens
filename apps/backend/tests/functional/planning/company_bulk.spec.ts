@@ -111,8 +111,8 @@ test.group('typed bulk writer company isolation', (group) => {
       .json(requestBody(0, { operation: 'allocation.deleteGroup', ids: [id] }))
       .send();
     removed.assertStatus(200);
-    const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId;
+    const groupId = (removed.body().data as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
     const intent = { operation: 'planning.restoreGroup', restorationGroupId: groupId };
     const beforeOwn = await readState(companyId, true);
     const beforeOther = await readState(otherCompanyId, true);

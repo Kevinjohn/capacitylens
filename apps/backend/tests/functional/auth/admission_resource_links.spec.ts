@@ -32,26 +32,26 @@ test.group('direct member resource association', (group) => {
       password,
     });
     const ownerCookie = owner.cookie('adonis-session')!.value;
-    const ownerId = (owner.body() as { user: { id: string } }).user.id;
+    const ownerId = (owner.body().data as { user: { id: string } }).user.id;
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const clark = await signUpAndIn(client, {
       email: 'clark.kent@wayne.example',
       name: 'Clark Kent',
       password,
     });
-    const clarkId = (clark.body() as { user: { id: string } }).user.id;
+    const clarkId = (clark.body().data as { user: { id: string } }).user.id;
     const diana = await signUpAndIn(client, {
       email: 'diana.prince@wayne.example',
       name: 'Diana Prince',
       password,
     });
-    const dianaId = (diana.body() as { user: { id: string } }).user.id;
+    const dianaId = (diana.body().data as { user: { id: string } }).user.id;
     const barbara = await signUpAndIn(client, {
       email: 'barbara.gordon@wayne.example',
       name: 'Barbara Gordon',
       password,
     });
-    const barbaraId = (barbara.body() as { user: { id: string } }).user.id;
+    const barbaraId = (barbara.body().data as { user: { id: string } }).user.id;
     const now = new Date().toISOString();
     const orderedAt = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
     await db.table('memberships').insert([
@@ -161,7 +161,7 @@ test.group('direct member resource association', (group) => {
       ownerCookie
     ).send();
     response.assertStatus(200);
-    const body = response.body() as {
+    const body = response.body().data as {
       members: Array<{ userId: string; resourceLink: null | Record<string, unknown> }>;
       resourceCandidates: Array<{ resourceId: string; label: string }>;
     };
@@ -195,7 +195,7 @@ test.group('direct member resource association', (group) => {
     });
     owner.assertStatus(200);
     const ownerCookie = owner.cookie('adonis-session')!.value;
-    const ownerId = (owner.body() as { user: { id: string } }).user.id;
+    const ownerId = (owner.body().data as { user: { id: string } }).user.id;
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const now = new Date().toISOString();
     await db.table('accounts').insert({
@@ -268,8 +268,8 @@ test.group('direct member resource association', (group) => {
     linked.assertStatus(200);
     const replayLinked = await createLinkCommand();
     replayLinked.assertStatus(200);
-    assert.deepEqual(replayLinked.body(), linked.body());
-    const revision = (linked.body() as { revision: string }).revision;
+    assert.deepEqual(replayLinked.body().data, linked.body().data);
+    const revision = (linked.body().data as { revision: string }).revision;
     const revisionRowAfterLink = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
@@ -296,10 +296,10 @@ test.group('direct member resource association', (group) => {
         .send();
     const unchanged = await repeatLink();
     unchanged.assertStatus(200);
-    assert.deepEqual(unchanged.body(), linked.body());
+    assert.deepEqual(unchanged.body().data, linked.body().data);
     const replay = await repeatLink();
     replay.assertStatus(200);
-    assert.deepEqual(replay.body(), linked.body());
+    assert.deepEqual(replay.body().data, linked.body().data);
     const revisionRowAfterNoop = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
@@ -375,7 +375,7 @@ test.group('direct member resource association', (group) => {
       )
         .json({ expectedRevision })
         .send();
-    const ownerCleared = await clear(ownerId, second.body().revision);
+    const ownerCleared = await clear(ownerId, second.body().data.revision);
     ownerCleared.assertStatus(204);
     await db
       .from('memberships')
@@ -387,7 +387,7 @@ test.group('direct member resource association', (group) => {
       .update({ status: 'active' });
     const link = await put(otherId, 'r-barry', null);
     link.assertStatus(200);
-    const expected = link.body().revision;
+    const expected = link.body().data.revision;
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: otherId })

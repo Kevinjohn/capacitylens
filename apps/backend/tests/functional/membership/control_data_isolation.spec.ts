@@ -77,8 +77,8 @@ test.group('membership control-data isolation', (group) => {
       'accountAdmissions',
       'passwordResetTokens',
     ])
-      assert.notProperty(exported.body(), property);
-    const serialized = JSON.stringify(exported.body());
+      assert.notProperty(exported.body().data, property);
+    const serialized = JSON.stringify(exported.body().data);
     for (const secret of [
       'u-control-isolation',
       'clark.kent@wayne.example',

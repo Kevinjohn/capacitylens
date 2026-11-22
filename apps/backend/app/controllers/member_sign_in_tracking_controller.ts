@@ -16,6 +16,6 @@ export default class MemberSignInTrackingController {
       const actor = await assertCompanyPermission(companyId, 'members:signInTracking', trx);
       await changeMemberSignInTracking(trx, { companyId, actorId: actor.actorId, enabled });
     });
-    return ctx.response.ok({ enabled });
+    return ctx.serialize({ enabled });
   }
 }

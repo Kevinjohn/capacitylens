@@ -52,7 +52,7 @@ async function createMember(client: ApiClient, role: Role) {
   signup.assertStatus(200);
   const cookie = signup.cookie('adonis-session')?.value;
   if (!cookie) throw new Error('Sign-up did not return a native session cookie');
-  const userId = String((signup.body() as { user: { id: string } }).user.id);
+  const userId = String((signup.body().data as { user: { id: string } }).user.id);
   const timestamp = new Date().toISOString();
   await db.table('memberships').insert({
     scope_id: companyId,
@@ -203,7 +203,7 @@ test.group('native authorization and role projections', (group) => {
       await setRole(userId, role);
       const read = await stateFor(client, cookie);
       read.assertStatus(200);
-      const body = read.body() as {
+      const body = read.body().data as {
         accounts: Array<{ id: string }>;
         clients: Array<{ companyId: string }>;
       };
@@ -218,7 +218,7 @@ test.group('native authorization and role projections', (group) => {
 
       const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);
-      const planning = currentPlanning.body() as { revision: number };
+      const planning = currentPlanning.body().data as { revision: number };
       const settingsRequest = trusted(
         client.post(`/api/companies/${companyId}/planning/mutations`)
       );
@@ -273,8 +273,8 @@ test.group('native authorization and role projections', (group) => {
       await setRole(userId, role);
       const response = await stateFor(client, cookie);
       response.assertStatus(200);
-      const serialized = JSON.stringify(response.body());
-      const body = response.body() as {
+      const serialized = JSON.stringify(response.body().data);
+      const body = response.body().data as {
         clients: Array<{ id: string; name: string; codeName?: string | null }>;
         projects: Array<{ id: string; name: string; codeName?: string | null }>;
         resources: Array<{ id: string; companyId: string }>;

@@ -20,7 +20,8 @@ function harness(body: unknown, status = 200) {
   const requests: Request[] = [];
   const fetcher = vi.fn<typeof fetch>(async (input, init) => {
     requests.push(new Request(input, init));
-    return Response.json(body, { status });
+    // A 2xx answer arrives inside the `{ data }` envelope; a refusal is flat.
+    return Response.json(status < 300 ? { data: body } : body, { status });
   });
   const client = createTuyau({
     baseUrl: 'http://planning.test',

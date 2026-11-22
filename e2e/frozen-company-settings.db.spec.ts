@@ -118,7 +118,7 @@ test.describe('single-company production entry', () => {
     // The company list refuses an installation with more than one company.
     const companies = await request.get(`${API}/api/companies`);
     expect(companies.status()).toBe(200);
-    expect(await companies.json()).toHaveLength(1);
+    expect((await companies.json()).data).toHaveLength(1);
   });
 });
 

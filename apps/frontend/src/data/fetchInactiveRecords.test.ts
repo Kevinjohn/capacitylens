@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 const ok = (body: unknown): Response =>
-  ({ ok: true, status: 200, json: async () => body }) as unknown as Response;
+  ({ ok: true, status: 200, json: async () => ({ data: body }) }) as unknown as Response;
 
 describe('fetchInactiveRecords', () => {
   it('requests a complete inactive set for the account with credentials', async () => {

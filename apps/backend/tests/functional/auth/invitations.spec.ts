@@ -87,20 +87,20 @@ test.group('company invitations', (group) => {
     const { cookie } = await signIn(client, owner);
     const sent = await invite(client, cookie, 'Clark.Kent@Wayne.example');
     sent.assertStatus(201);
-    assert.include(sent.body(), { role: 'editor', preauthEmail: invitee, emailed: true });
+    assert.include(sent.body().data, { role: 'editor', preauthEmail: invitee, emailed: true });
     const listed = await asDataOwner(
       client.get(`/api/companies/${companyId}/invites`),
       cookie
     ).send();
     assert.deepEqual(
-      listed.body().invites.map((row: { preauthEmail: string }) => row.preauthEmail),
+      listed.body().data.invites.map((row: { preauthEmail: string }) => row.preauthEmail),
       [invitee]
     );
     const token = mail.tokenFor(invitee);
     for (let look = 0; look < 2; look++) {
       const preview = await client.get(`/api/invites/${token}/preview`).send();
       preview.assertStatus(200);
-      assert.deepEqual(preview.body(), {
+      assert.deepEqual(preview.body().data, {
         companyId,
         accountName: 'Wayne Enterprises',
         role: 'editor',
@@ -110,7 +110,7 @@ test.group('company invitations', (group) => {
     const before = await revision();
     const accepted = await accept(client, token);
     accepted.assertStatus(201);
-    const userId = (accepted.body() as { user: { id: string } }).user.id;
+    const userId = (accepted.body().data as { user: { id: string } }).user.id;
     assert.deepInclude(await db.from('memberships').where('user_id', userId).first(), {
       scope_id: companyId,
       role: 'editor',
@@ -127,8 +127,8 @@ test.group('company invitations', (group) => {
     rememberSessionCookie(accepted);
     const inviteeCookie = accepted.cookie('adonis-session')!.value;
     const pending = await asDataOwner(client.get('/api/auth/me'), inviteeCookie).send();
-    assert.isTrue(pending.body().emailVerified);
-    assert.isFalse(pending.body().admission.admitted);
+    assert.isTrue(pending.body().data.emailVerified);
+    assert.isFalse(pending.body().data.admission.admitted);
     const planning = () =>
       asDataOwner(client.get(`/api/companies/${companyId}/planning`), inviteeCookie).send();
     await expectStatus(planning(), 403);
@@ -190,7 +190,7 @@ test.group('company invitations', (group) => {
     assert.lengthOf(await db.from('account_invitations').where('email', invitee), 2);
     const accepted = await accept(client, token);
     accepted.assertStatus(201);
-    const userId = (accepted.body() as { user: { id: string } }).user.id;
+    const userId = (accepted.body().data as { user: { id: string } }).user.id;
     const memberships = await db.from('memberships').where('user_id', userId);
     assert.lengthOf(memberships, 1);
     assert.include(memberships[0], { scope_id: companyId, role: 'admin', status: 'active' });
@@ -205,7 +205,7 @@ test.group('company invitations', (group) => {
     await company();
     const accepted = await accept(client, await bootstrapInvitation(invitee));
     accepted.assertStatus(201);
-    const userId = (accepted.body() as { user: { id: string } }).user.id;
+    const userId = (accepted.body().data as { user: { id: string } }).user.id;
     assert.isEmpty(await db.from('memberships').where('user_id', userId));
     assert.isEmpty(
       await db.from('audit_entries').where({ actor_id: userId, action: 'invitation.accepted' })
@@ -251,19 +251,19 @@ test.group('company invitations', (group) => {
     });
     const sent = await invite(client, cookie, invitee);
     sent.assertStatus(202);
-    assert.deepEqual(sent.body(), { committed: true, emailed: false });
+    assert.deepEqual(sent.body().data, { committed: true, emailed: false });
     assert.lengthOf(await db.from('account_invitations'), 1);
     const listed = await asDataOwner(
       client.get(`/api/companies/${companyId}/invites`),
       cookie
     ).send();
-    const { id } = (listed.body() as { invites: { id: number }[] }).invites[0];
+    const { id } = (listed.body() as { data: { invites: { id: number }[] } }).data.invites[0];
     const resent = await asDataOwner(
       client.post(`/api/companies/${companyId}/invites/${id}/resend`),
       cookie
     ).send();
     resent.assertStatus(202);
-    assert.deepEqual(resent.body(), { committed: true, emailed: false });
+    assert.deepEqual(resent.body().data, { committed: true, emailed: false });
   });
 
   test('an acceptance whose follow-up failed sends the person to sign in', async ({
@@ -280,7 +280,7 @@ test.group('company invitations', (group) => {
     });
     const accepted = await accept(client, 'committed-token');
     accepted.assertStatus(202);
-    assert.deepEqual(accepted.body(), { accepted: true, signInRequired: true });
+    assert.deepEqual(accepted.body().data, { accepted: true, signInRequired: true });
   });
 
   test('accepting an invitation for an existing identity keeps the product 409 response', async ({
@@ -317,7 +317,7 @@ test.group('company invitations', (group) => {
     const { cookie } = await signIn(client, owner);
     const sent = await invite(client, cookie, invitee);
     const first = mail.tokenFor(invitee);
-    const { id } = sent.body() as { id: number };
+    const { id } = sent.body().data as { id: number };
     const resent = await asDataOwner(
       client.post(`/api/companies/${companyId}/invites/${id}/resend`),
       cookie

@@ -14,8 +14,12 @@ import {
 } from './helpers.js';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
-const body = (response: { body(): unknown }) =>
-  response.body() as { code: string; revision: number };
+/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+const body = (response: { body(): unknown; status(): number }) =>
+  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
+    code: string;
+    revision: number;
+  };
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,

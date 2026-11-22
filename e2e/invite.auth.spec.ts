@@ -20,7 +20,9 @@ test.describe('invitation page', () => {
     const email = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(57)}.test`;
     await page.route('**/api/invites/*/preview', (route) =>
       route.fulfill({
-        json: { companyId: 'a-studio', accountName: 'Wayne Enterprises', role: 'editor', email },
+        json: {
+          data: { companyId: 'a-studio', accountName: 'Wayne Enterprises', role: 'editor', email },
+        },
       }),
     );
     await page.goto('/invite/long-address-layout');

@@ -77,19 +77,19 @@ db.exec('COMMIT')`,
       const snapshot = await session(client.get(planningUrl), cookie).send();
       snapshot.assertStatus(200);
       assert.equal(attempted, 3, 'the external writer waits for the snapshot');
-      assert.equal(snapshot.body().revision, 0);
-      assert.equal(snapshot.body().authority.role, 'owner');
-      assert.equal(snapshot.body().data.accounts[0].name, before.accounts[0]!.name);
+      assert.equal(snapshot.body().data.revision, 0);
+      assert.equal(snapshot.body().data.authority.role, 'owner');
+      assert.equal(snapshot.body().data.data.accounts[0].name, before.accounts[0]!.name);
     } finally {
       knex.off('query-response', interleave);
     }
     assert.equal(externalCommit(), 0);
     const current = await session(client.get(planningUrl), cookie).send();
     current.assertStatus(200);
-    assert.equal(current.body().revision, 1);
-    assert.equal(current.body().authority.role, 'viewer');
-    assert.isFalse(current.body().authority.canWrite);
-    assert.equal(current.body().data.accounts[0].name, 'Wayne Revised');
+    assert.equal(current.body().data.revision, 1);
+    assert.equal(current.body().data.authority.role, 'viewer');
+    assert.isFalse(current.body().data.authority.canWrite);
+    assert.equal(current.body().data.data.accounts[0].name, 'Wayne Revised');
   });
 
   test('one allocation update reads the allocations table once', async ({
@@ -199,7 +199,7 @@ db.exec('COMMIT')`,
       1
     );
     const current = await session(client.get(planningUrl), cookie).send();
-    assert.equal(current.body().revision, 1);
+    assert.equal(current.body().data.revision, 1);
   });
 
   test('unknown is compatible with a later commit and simultaneous duplicate requests commit once', async ({
@@ -249,8 +249,8 @@ db.exec('COMMIT')`,
     start.assertStatus(200);
     const snapshot = await session(client.get(planningUrl), owner.cookie).send();
     snapshot.assertStatus(200);
-    assert.equal(snapshot.body().authority.effectiveActorId, target.userId);
-    assert.isFalse(snapshot.body().authority.canWrite);
+    assert.equal(snapshot.body().data.authority.effectiveActorId, target.userId);
+    assert.isFalse(snapshot.body().data.authority.canWrite);
     const allocation = newAllocation(await readState(companyId, true));
     const refused = await session(
       client.post(`/api/companies/${companyId}/planning/mutations`),
@@ -285,7 +285,7 @@ db.exec('COMMIT')`,
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = (started.body() as { contextToken: string }).contextToken;
+      const contextToken = (started.body().data as { contextToken: string }).contextToken;
       const capturedPlanningRead = async () => {
         const response = await fetch(
           `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`,
@@ -301,14 +301,13 @@ db.exec('COMMIT')`,
           status: response.status,
           body: (await response.json()) as {
             code?: string;
-            data?: unknown;
-            authority?: { effectiveActorId?: string };
+            data?: { authority?: { effectiveActorId?: string } };
           },
         };
       };
       const before = await capturedPlanningRead();
       assert.equal(before.status, 200);
-      assert.equal(before.body.authority?.effectiveActorId, target.userId);
+      assert.equal(before.body.data?.authority?.effectiveActorId, target.userId);
       await db
         .from('memberships')
         .where({
@@ -343,7 +342,7 @@ db.exec('COMMIT')`,
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = started.body().contextToken as string;
+      const contextToken = started.body().data.contextToken as string;
       const headers = {
         'cookie': sessionCookieHeader(owner.cookie),
         'X-Masquerade-Context': contextToken,
@@ -353,8 +352,8 @@ db.exec('COMMIT')`,
       const control = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
       assert.equal(control.status, 200);
       assert.equal(
-        ((await control.json()) as { authority: { effectiveActorId: string } }).authority
-          .effectiveActorId,
+        ((await control.json()) as { data: { authority: { effectiveActorId: string } } }).data
+          .authority.effectiveActorId,
         target.userId
       );
       const before = await readState(companyId, true);

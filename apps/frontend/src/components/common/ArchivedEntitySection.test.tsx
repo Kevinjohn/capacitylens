@@ -89,7 +89,7 @@ beforeEach(async () => {
         updatePlanningFixtureSource(serverData);
         return new Response(null, { status: 204 });
       }
-      return Response.json(serverData);
+      return Response.json({ data: serverData });
     }),
   );
 });
@@ -130,7 +130,7 @@ describe('archived resource actions', () => {
 
   it('lets an Editor recover an identity without inactive details or anonymisation', async () => {
     setPlanningRole('editor');
-    request.mockResolvedValue(archivedRecovery(DEFAULT_COMPANY_ID));
+    request.mockResolvedValue({ data: archivedRecovery(DEFAULT_COMPANY_ID) });
     render(
       <QueryClientProvider client={new QueryClient()}>
         {authenticated(<ArchivedEntitySection entity="resources" />, 'editor')}
@@ -148,8 +148,8 @@ describe('archived resource actions', () => {
     await useStore.getState().refreshPlanning();
     setPlanningRole('editor');
     request
-      .mockResolvedValueOnce(archivedRecovery(DEFAULT_COMPANY_ID))
-      .mockResolvedValueOnce({ companyId: DEFAULT_COMPANY_ID, rows: [] });
+      .mockResolvedValueOnce({ data: archivedRecovery(DEFAULT_COMPANY_ID) })
+      .mockResolvedValueOnce({ data: { companyId: DEFAULT_COMPANY_ID, rows: [] } });
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={new QueryClient()}>

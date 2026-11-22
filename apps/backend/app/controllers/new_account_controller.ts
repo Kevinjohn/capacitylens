@@ -56,14 +56,16 @@ export default class NewAccountController {
       ctx.logger.warn({ code: 'REGISTRATION_FOLLOW_UP_FAILED' }, 'Registration follow-up failed');
     }
     try {
-      return ctx.response.created({
-        user: await signInWithPassword(ctx, {
-          email,
-          password: body.password,
-          clientAddress: ctx.request.ip(),
-          userAgent: ctx.request.header('user-agent'),
-        }),
-      });
+      return ctx.response.created(
+        await ctx.serialize({
+          user: await signInWithPassword(ctx, {
+            email,
+            password: body.password,
+            clientAddress: ctx.request.ip(),
+            userAgent: ctx.request.header('user-agent'),
+          }),
+        })
+      );
     } catch (error) {
       // Does work: the account exists, so a failed sign-in is logged and answered as sign-in
       // required.
@@ -71,7 +73,9 @@ export default class NewAccountController {
         { code: error instanceof Error ? error.name : 'UNKNOWN' },
         'Sign-in after registration failed'
       );
-      return ctx.response.accepted({ accountCreated: true, signInRequired: true });
+      return ctx.response.accepted(
+        await ctx.serialize({ accountCreated: true, signInRequired: true })
+      );
     }
   }
 }

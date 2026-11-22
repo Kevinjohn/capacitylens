@@ -358,7 +358,7 @@ test(
         headers: { cookie },
       });
       assert.equal(contextResponse.status, 200);
-      const context = await contextResponse.json();
+      const context = (await contextResponse.json()).data;
       assert.equal(typeof context.contextToken, 'string');
       await waitForApiIdle(target.api);
       for (const table of ['adonis_sessions', 'account_sessions'])

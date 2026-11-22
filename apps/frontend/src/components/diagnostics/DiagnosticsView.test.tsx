@@ -14,11 +14,13 @@ beforeEach(() => {
   fetchMock.fetch.mockResolvedValue({
     ok: true,
     json: async () => ({
-      server: {
-        connectivity: 'ok',
-        database: { status: 'ok' },
-        schema: { migration },
-        backup: { newestSnapshotAt: snapshotAt },
+      data: {
+        server: {
+          connectivity: 'ok',
+          database: { status: 'ok' },
+          schema: { migration },
+          backup: { newestSnapshotAt: snapshotAt },
+        },
       },
     }),
   });
@@ -121,11 +123,13 @@ describe('DiagnosticsView — observation', () => {
         resolveResponse?.({
           ok: true,
           json: async () => ({
-            server: {
-              connectivity: 'ok',
-              database: { status: 'ok' },
-              schema: { migration },
-              backup: { newestSnapshotAt: null },
+            data: {
+              server: {
+                connectivity: 'ok',
+                database: { status: 'ok' },
+                schema: { migration },
+                backup: { newestSnapshotAt: null },
+              },
             },
           }),
         });

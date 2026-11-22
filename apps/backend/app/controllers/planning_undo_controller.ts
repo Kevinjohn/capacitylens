@@ -5,8 +5,10 @@ import { runPlanningHistoryStep } from '#services/planning/history_step';
 /** The planning page's undo. */
 export default class PlanningUndoController {
   async store(ctx: HttpContext) {
-    return runPlanningHistoryStep(ctx, 'undo', () =>
-      ctx.request.validateUsing(planningHistoryStepValidator)
+    return ctx.serialize(
+      await runPlanningHistoryStep(ctx, 'undo', () =>
+        ctx.request.validateUsing(planningHistoryStepValidator)
+      )
     );
   }
 }

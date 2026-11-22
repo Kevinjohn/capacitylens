@@ -63,9 +63,11 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('useInactiveCompanyData', () => {
   it('reads inactive rows under the key the server checks, not the anonymise key', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({ ok: true, status: 200, json: async () => payload('a1', 'Gotham') });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: payload('a1', 'Gotham') }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const admin = permissionValue('admin', 'resolved');
     const permissions = {
@@ -82,11 +84,15 @@ describe('useInactiveCompanyData', () => {
   it('invalidates its private server set after a lifecycle mutation', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => payload('a1', 'First') })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => payload('a1', 'Refreshed'),
+        json: async () => ({ data: payload('a1', 'First') }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: payload('a1', 'Refreshed') }),
       });
     vi.stubGlobal('fetch', fetchMock);
     render(view('admin'));
@@ -100,12 +106,12 @@ describe('useInactiveCompanyData', () => {
     const first = createDeferred<{
       ok: boolean;
       status: number;
-      json: () => Promise<ReturnType<typeof payload>>;
+      json: () => Promise<{ data: ReturnType<typeof payload> }>;
     }>();
     const second = createDeferred<{
       ok: boolean;
       status: number;
-      json: () => Promise<ReturnType<typeof payload>>;
+      json: () => Promise<{ data: ReturnType<typeof payload> }>;
     }>();
     const fetchMock = vi
       .fn()
@@ -114,11 +120,11 @@ describe('useInactiveCompanyData', () => {
     vi.stubGlobal('fetch', fetchMock);
     const rendered = render(view('admin'));
     rendered.rerender(view('editor'));
-    first.resolve({ ok: true, status: 200, json: async () => payload('a1', 'Stale') });
+    first.resolve({ ok: true, status: 200, json: async () => ({ data: payload('a1', 'Stale') }) });
     await waitFor(() => expect(screen.getByText('hidden')).toBeInTheDocument());
     rendered.rerender(view('admin'));
     expect(screen.getByText('hidden')).toBeInTheDocument();
-    second.resolve({ ok: true, status: 200, json: async () => payload('a1', 'Fresh') });
+    second.resolve({ ok: true, status: 200, json: async () => ({ data: payload('a1', 'Fresh') }) });
     expect(await screen.findByText(/Fresh/)).toBeInTheDocument();
     expect(screen.queryByText('Stale')).not.toBeInTheDocument();
   });
@@ -128,8 +134,16 @@ describe('useInactiveCompanyData', () => {
       'fetch',
       vi
         .fn()
-        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => payload('a1', 'Old A') })
-        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => payload('a2', 'B') })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: payload('a1', 'Old A') }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ data: payload('a2', 'B') }),
+        })
         .mockReturnValueOnce(new Promise(() => undefined)),
     );
     render(view('admin'));
@@ -144,7 +158,7 @@ describe('useInactiveCompanyData', () => {
     const next = createDeferred<{
       ok: boolean;
       status: number;
-      json: () => Promise<ReturnType<typeof payload>>;
+      json: () => Promise<{ data: ReturnType<typeof payload> }>;
     }>();
     vi.stubGlobal(
       'fetch',
@@ -153,7 +167,7 @@ describe('useInactiveCompanyData', () => {
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: async () => payload('a1', 'Owner secret'),
+          json: async () => ({ data: payload('a1', 'Owner secret') }),
         })
         .mockReturnValue(next.promise),
     );
@@ -163,7 +177,11 @@ describe('useInactiveCompanyData', () => {
     expect(screen.getByText('hidden')).toBeInTheDocument();
     rendered.rerender(view('admin', 'diana'));
     expect(screen.getByText('hidden')).toBeInTheDocument();
-    next.resolve({ ok: true, status: 200, json: async () => payload('a1', 'Safe cover') });
+    next.resolve({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: payload('a1', 'Safe cover') }),
+    });
     expect(await screen.findByText(/Safe cover/)).toBeInTheDocument();
     expect(screen.queryByText(/Owner secret/)).not.toBeInTheDocument();
   });

@@ -36,7 +36,7 @@ function renderDialog(action: keyof typeof requests = 'import') {
 
 describe('PasswordConfirmationDialog', () => {
   it('submits exactly once with Enter', async () => {
-    request.mockResolvedValue(Response.json({ confirmationId: 'confirmation-1' }));
+    request.mockResolvedValue(Response.json({ data: { confirmationId: 'confirmation-1' } }));
     const onConfirmed = renderDialog();
     const password = screen.getByLabelText(m.login_password());
     await userEvent.type(password, 'current-password');
@@ -47,7 +47,7 @@ describe('PasswordConfirmationDialog', () => {
   });
 
   it('submits exactly once with the Continue button', async () => {
-    request.mockResolvedValue(Response.json({ confirmationId: 'confirmation-2' }));
+    request.mockResolvedValue(Response.json({ data: { confirmationId: 'confirmation-2' } }));
     const onConfirmed = renderDialog();
     fireEvent.change(screen.getByLabelText(m.login_password()), {
       target: { value: 'current-password' },
@@ -76,7 +76,7 @@ describe('PasswordConfirmationDialog', () => {
     expect(screen.getByRole('button', { name: m.reauth_confirming() })).toBeDisabled();
     fireEvent.submit(form);
     expect(request).toHaveBeenCalledOnce();
-    resolveRequest?.(Response.json({ confirmationId: 'confirmation-3' }));
+    resolveRequest?.(Response.json({ data: { confirmationId: 'confirmation-3' } }));
     await waitFor(() => expect(onConfirmed).toHaveBeenCalledWith('confirmation-3'));
   });
 
@@ -98,7 +98,7 @@ describe('PasswordConfirmationDialog', () => {
   it('allows retry after a rejected confirmation', async () => {
     request
       .mockResolvedValueOnce(Response.json({ error: 'Rejected.' }, { status: 403 }))
-      .mockResolvedValueOnce(Response.json({ confirmationId: 'confirmation-retry' }));
+      .mockResolvedValueOnce(Response.json({ data: { confirmationId: 'confirmation-retry' } }));
     const onConfirmed = renderDialog();
     fireEvent.change(screen.getByLabelText(m.login_password()), {
       target: { value: 'current-password' },

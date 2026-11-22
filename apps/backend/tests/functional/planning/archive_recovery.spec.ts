@@ -31,11 +31,11 @@ type PlanningBody = {
 };
 
 function recovery(response: { body(): unknown }) {
-  return response.body() as ArchiveRecovery;
+  return (response.body() as { data: ArchiveRecovery }).data;
 }
 
 function planning(response: { body(): unknown }) {
-  return response.body() as PlanningBody;
+  return (response.body() as { data: PlanningBody }).data;
 }
 
 function requestWithContext<T extends ApiRequest>(request: T, cookie: string, context?: string) {
@@ -188,7 +188,10 @@ test.group('identity-only archive recovery', (suite) => {
       assert.equal(response.status(), 200, response.text());
       const body = recovery(response);
       assert.equal(body.companyId, companyId);
-      assert.deepEqual(Object.keys(response.body() as object).sort(), ['companyId', 'rows']);
+      assert.deepEqual(Object.keys((response.body() as { data: unknown }).data as object).sort(), [
+        'companyId',
+        'rows',
+      ]);
 
       const expectedKeys = ['archived', 'entity', 'id', 'label', 'parent'];
       for (const row of body.rows) {
@@ -325,7 +328,7 @@ test.group('identity-only archive recovery', (suite) => {
     const target = await signIn(client, 'editor');
     const contextResponse = await session(client.get('/api/masquerade'), owner.cookie).send();
     contextResponse.assertStatus(200);
-    const contextToken = (contextResponse.body() as { contextToken?: string }).contextToken;
+    const contextToken = (contextResponse.body()!.data as { contextToken?: string }).contextToken;
     assert.isString(contextToken);
     const started = await requestWithContext(
       trusted(client.post(route('masquerade'))),
@@ -335,7 +338,8 @@ test.group('identity-only archive recovery', (suite) => {
       .json({ targetUserId: target.userId })
       .send();
     started.assertStatus(200);
-    const activeToken = (started.body() as { contextToken: string }).contextToken;
+    const activeToken = ((started.body() as { data: unknown }).data as { contextToken: string })
+      .contextToken;
     const masqueradedRead = await requestWithContext(
       client.get(archiveUrl),
       owner.cookie,
@@ -410,13 +414,16 @@ test.group('identity-only archive recovery', (suite) => {
       response.assertStatus(200);
       // t-brand sits under the project archived above, so archiving it hides nothing more.
       if (id === 't-brand')
-        assert.deepEqual((response.body() as { archived?: unknown }).archived, {
-          projects: 0,
-          phases: 0,
-          activities: 0,
-          allocations: 0,
-          timeOff: 0,
-        });
+        assert.deepEqual(
+          ((response.body() as { data: unknown }).data as { archived?: unknown }).archived,
+          {
+            projects: 0,
+            phases: 0,
+            activities: 0,
+            allocations: 0,
+            timeOff: 0,
+          }
+        );
     }
 
     const archiveRead = await session(client.get(archiveUrl), editor.cookie).send();

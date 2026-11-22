@@ -29,7 +29,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const [allocationId] = await createAllocations(client, cookie, 1);
     const deleted = await deleteOne(client, cookie, allocationId!, 1);
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const before = await readState(companyId, true);
     const target = before.projects.find((row) => !row.isPrivate)!;
     const foreignGroup = randomUUID();
@@ -125,7 +125,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const [allocationId] = await createAllocations(client, cookie, 1);
     const deleted = await deleteOne(client, cookie, allocationId!, 1);
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const before = await readState(companyId, true);
     const activity = before.activities.find((row) => row.kind === 'internal')!;
     const renamed = await send(
@@ -295,7 +295,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       .update({ role: 'owner' });
     const confirmed = await request(1);
     confirmed.assertStatus(200);
-    assert.isNull(await group(deletion.body().restoration.replacementGroupId));
+    assert.isNull(await group(deletion.body().data.restoration.replacementGroupId));
   });
 
   test('a failed privacy transaction retains its data and restoration group', async ({
@@ -308,7 +308,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const [allocationId] = await createAllocations(client, cookie, 1);
     const deleted = await deleteOne(client, cookie, allocationId!, 1);
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const before = await readState(companyId, true);
     const target = before.projects.find((row) => !row.isPrivate)!;
     await db.rawQuery(

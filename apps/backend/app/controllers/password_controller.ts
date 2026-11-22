@@ -37,6 +37,6 @@ export default class PasswordController {
     }
     await managedGuard.forRequest(ctx).terminate();
     if (outcome === 'committed') return ctx.response.serviceUnavailable(credentialUpdateCommitted);
-    return ctx.response.ok({ ok: true, signedOut: true });
+    return ctx.serialize({ ok: true, signedOut: true });
   }
 }

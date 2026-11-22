@@ -97,7 +97,7 @@ test.group('account deletion', (group) => {
 
     const deleted = await deleteAccount(client, cookie, editor.password);
     deleted.assertStatus(200);
-    deleted.assertBodyContains({ ok: true, signedOut: true });
+    deleted.assertBodyContains({ data: { ok: true, signedOut: true } });
 
     const after = await rowsFor(userId);
     assert.lengthOf(after.users, 0);

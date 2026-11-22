@@ -6,7 +6,7 @@ import { runOperation } from './operationRequest';
 import { resolveRefusalMessage, teamAccessApi } from './teamAccessApi';
 
 const json = (body: unknown) =>
-  new Response(JSON.stringify(body), {
+  new Response(JSON.stringify({ data: body }), {
     status: 200,
     headers: { 'content-type': 'application/json' },
   });
@@ -31,7 +31,7 @@ describe('teamAccessApi operation outcomes', () => {
   it('decodes an equivalent successful status instead of reporting a rejected operation', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(invitationRequests, 'createInvitation').mockResolvedValue(
-      new Response(JSON.stringify({ emailed: true }), { status: 200 }),
+      new Response(JSON.stringify({ data: { emailed: true } }), { status: 200 }),
     );
 
     await expect(
@@ -219,7 +219,7 @@ describe('teamAccessApi invitation creation', () => {
   ])('reports whether a %s invitation was emailed', async (status, emailed) => {
     const create = vi
       .spyOn(invitationRequests, 'createInvitation')
-      .mockResolvedValue(new Response(JSON.stringify({ id: 1, emailed }), { status }));
+      .mockResolvedValue(new Response(JSON.stringify({ data: { id: 1, emailed } }), { status }));
     const input = { companyId: 'a1', role: 'editor' as const, email: 'selina@wayne.test' };
 
     await expect(teamAccessApi.createInvitation(input)).resolves.toMatchObject({

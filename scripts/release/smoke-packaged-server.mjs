@@ -280,12 +280,12 @@ export async function runPackagedSmoke({
     assert.ok(cookie, 'Native sign-in did not return a session cookie');
     const session = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(session.user.email, credentials.email);
 
     const mode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(typeof mode.contextToken, 'string');
     const contextToken = mode.contextToken;
     assert.equal(session.companySetupRequired, true);
@@ -300,7 +300,7 @@ export async function runPackagedSmoke({
       body: JSON.stringify({ name: 'Wayne Enterprises' }),
     });
     assert.equal(initialize.status, 201, 'Authenticated browser company setup failed');
-    const { companyId } = await initialize.json();
+    const { companyId } = (await initialize.json()).data;
     const secondInitialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: 'POST',
       headers: {
@@ -314,7 +314,7 @@ export async function runPackagedSmoke({
     assert.equal(secondInitialize.status, 409, 'Second company initialization must be refused');
     const companies = JSON.parse(
       (await fetchOk(`${baseUrl}/api/companies`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(companies.length, 1);
     assert.equal(companies[0].id, companyId);
     assert.equal(companies[0].role, 'owner');
@@ -324,7 +324,7 @@ export async function runPackagedSmoke({
           headers: { cookie },
         })
       ).body,
-    );
+    ).data;
     assert.equal(initializedState.clients.length, 1);
     assert.equal(initializedState.clients[0].builtin, true);
     assert.equal(initializedState.accounts[0].name, 'Wayne Enterprises');
@@ -347,7 +347,7 @@ export async function runPackagedSmoke({
     assert.ok(viewerCookie, 'Packaged Viewer registration did not return a session cookie');
     const viewerIdentity = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie: viewerCookie } })).body,
-    );
+    ).data;
     assert.equal(viewerIdentity.user.email, viewerCredentials.email);
     assert.notEqual(viewerIdentity.user.id, session.user.id);
 
@@ -381,12 +381,12 @@ export async function runPackagedSmoke({
     assert.ok(secondOwnerCookie, 'Second native sign-in did not return a session cookie');
     const idleMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(idleMode.active, false);
     assert.equal(typeof idleMode.contextToken, 'string');
     const secondIdleMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
-    );
+    ).data;
     assert.equal(secondIdleMode.contextToken, idleMode.contextToken);
 
     const { seed } = await import(
@@ -413,7 +413,11 @@ export async function runPackagedSmoke({
       },
       body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
     });
-    const activeMode = await expectJsonStatus(started, 200, 'Packaged member-view start failed');
+    const { data: activeMode } = await expectJsonStatus(
+      started,
+      200,
+      'Packaged member-view start failed',
+    );
     assert.equal(activeMode.active, true);
     assert.equal(activeMode.targetUserId, viewerIdentity.user.id);
     assert.ok(
@@ -423,7 +427,7 @@ export async function runPackagedSmoke({
 
     const otherSessionMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
-    );
+    ).data;
     assert.equal(
       otherSessionMode.active,
       true,
@@ -437,7 +441,7 @@ export async function runPackagedSmoke({
         headers: { cookie: secondOwnerCookie },
       },
     );
-    const memberState = JSON.parse(memberRead.body);
+    const memberState = JSON.parse(memberRead.body).data;
     assert.equal(memberState.accounts[0].id, companyId);
     assert.equal(memberState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
 
@@ -464,11 +468,15 @@ export async function runPackagedSmoke({
       },
       body: JSON.stringify({ token: activeMode.contextToken, reason: 'explicit' }),
     });
-    const endedMode = await expectJsonStatus(ended, 200, 'Packaged member-view end failed');
+    const { data: endedMode } = await expectJsonStatus(
+      ended,
+      200,
+      'Packaged member-view end failed',
+    );
     assert.equal(endedMode.active, false);
     const endedInFirstSession = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(
       endedInFirstSession.active,
       false,
@@ -486,7 +494,7 @@ export async function runPackagedSmoke({
       },
       body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
     });
-    const expiringMode = await expectJsonStatus(
+    const { data: expiringMode } = await expectJsonStatus(
       expiringStart,
       200,
       'Packaged expiring member-view start failed',
@@ -517,7 +525,7 @@ export async function runPackagedSmoke({
     assert.equal(expiredResult.code, 'MASQUERADE_CONTEXT_CHANGED');
     const expiredMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
-    );
+    ).data;
     assert.equal(expiredMode.active, false);
 
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
@@ -556,7 +564,7 @@ export async function runPackagedSmoke({
           headers: { cookie },
         })
       ).body,
-    );
+    ).data;
     assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
     assert.equal(
       state.allocations.find((row) => row.id === allocation.id)?.hoursPerDay,
@@ -588,7 +596,7 @@ export async function runPackagedSmoke({
     await waitUntilReady(baseUrl, child);
     const restoredSession = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(restoredSession.user.email, credentials.email);
     const restoredState = JSON.parse(
       (
@@ -596,7 +604,7 @@ export async function runPackagedSmoke({
           headers: { cookie },
         })
       ).body,
-    );
+    ).data;
     assert.equal(
       restoredState.resources.find((row) => row.id === resource.id)?.name,
       RESOURCE_NAME,

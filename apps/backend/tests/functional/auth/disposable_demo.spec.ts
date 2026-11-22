@@ -102,7 +102,7 @@ test.group('disposable development demo', (group) => {
       .header('cookie', session.cookieHeader)
       .send();
     directory.assertStatus(200);
-    assert.equal(directory.body()[0].role, 'owner');
+    assert.equal(directory.body().data[0].role, 'owner');
   });
 
   test('existing membership independently refuses preparation and seed', async ({ assert }) => {

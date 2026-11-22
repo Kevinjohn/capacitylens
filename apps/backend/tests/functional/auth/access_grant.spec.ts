@@ -60,7 +60,7 @@ test.group('company directory access grant', (group) => {
       const { cookie } = await signIn(client, role);
       const response = await session(client.get('/api/companies'), cookie).send();
       response.assertStatus(200);
-      const [row] = response.body() as Record<string, unknown>[];
+      const [row] = response.body().data as Record<string, unknown>[];
       assert.deepEqual(
         {
           role: row?.role,

@@ -15,7 +15,7 @@ export default class EmailVerificationRequestsController {
     }
     const account = await readCurrentAccount(ctx);
     try {
-      return ctx.response.ok({
+      return ctx.serialize({
         result: await accountKit.emailVerification.send({ userId: account.id }),
       });
     } catch (error) {

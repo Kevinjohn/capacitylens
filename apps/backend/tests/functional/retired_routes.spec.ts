@@ -32,7 +32,7 @@ test.group('retired persistence routes', (group) => {
     const read = await owner.get(`/api/state?companyId=${companyId}`).send();
     read.assertStatus(200);
     assert.deepEqual(
-      read.body().accounts.map((account: { id: string }) => account.id),
+      read.body().data.accounts.map((account: { id: string }) => account.id),
       [companyId]
     );
   });

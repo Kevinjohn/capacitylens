@@ -50,7 +50,7 @@ test.group('data routes', (group) => {
       explicit.assertStatus(['viewer', 'editor'].includes(role) ? 403 : 200);
       const active = await client.get('/api/state?companyId=a-studio').send();
       active.assertStatus(200);
-      const ids = active.body().resources.map((row: { id: string }) => row.id);
+      const ids = active.body().data.resources.map((row: { id: string }) => row.id);
       assert.isFalse(ids.includes(candidate.id), role);
     }
   });
@@ -93,7 +93,7 @@ test.group('data routes', (group) => {
       .update({ deleted_at: '2026-10-13T00:00:00.000Z' });
     const inactive = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
     inactive.assertStatus(200);
-    const body = inactive.body() as ReturnType<typeof seed>;
+    const body = inactive.body().data as ReturnType<typeof seed>;
     assert.isTrue(body.resources.every((row) => row.companyId === 'a-studio'));
     assert.isTrue(body.accounts.every((row) => row.id === 'a-studio'));
     assert.includeMembers(
@@ -118,8 +118,8 @@ test.group('data routes', (group) => {
       .update({ archived_at: '2026-10-13T00:00:00.000Z' });
     const fullResponse = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
     const activeResponse = await client.get('/api/state?companyId=a-studio').send();
-    const full = fullResponse.body() as ReturnType<typeof seed>;
-    const active = activeResponse.body() as ReturnType<typeof seed>;
+    const full = fullResponse.body().data as ReturnType<typeof seed>;
+    const active = activeResponse.body().data as ReturnType<typeof seed>;
     assert.isAtMost(active.resources.length, full.resources.length);
     assert.include(
       full.resources.map((row) => row.id),
@@ -169,8 +169,8 @@ test.group('data routes', (group) => {
     });
     const result = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
     result.assertStatus(200);
-    assert.isAbove((result.body() as ReturnType<typeof seed>).resources.length, 0);
-    const serialized = JSON.stringify(result.body());
+    assert.isAbove((result.body().data as ReturnType<typeof seed>).resources.length, 0);
+    const serialized = JSON.stringify(result.body().data);
     for (const secret of [
       'secret.person@wayne.com',
       'secret-invite-token-hash',
@@ -188,17 +188,17 @@ test.group('data routes', (group) => {
     client = await reset(client, true);
     const route = '/api/companies/a-studio/getting-started';
     const before = await client.get(route).send();
-    before.assertBodyContains({ dismissed: false });
+    before.assertBodyContains({ data: { dismissed: false } });
     const written = await trusted(client.put(route)).json({ dismissed: true }).send();
-    assert.equal(written.status(), 200, JSON.stringify(written.body()));
+    assert.equal(written.status(), 200, JSON.stringify(written.body().data));
     const shared = await client.get(route).send();
     const other = await client.get('/api/companies/a-loft/getting-started').send();
-    assert.equal(shared.body().dismissed, true);
-    assert.equal(other.body().dismissed, false);
+    assert.equal(shared.body().data.dismissed, true);
+    assert.equal(other.body().data.dismissed, false);
     const reverse = await trusted(client.put(route)).json({ dismissed: false }).send();
     reverse.assertStatus(400);
     const stillDismissed = await client.get(route).send();
-    assert.equal(stillDismissed.body().dismissed, true);
+    assert.equal(stillDismissed.body().data.dismissed, true);
   });
 
   test('getting-started reports each milestone from the active company rows', async ({
@@ -212,7 +212,7 @@ test.group('data routes', (group) => {
       const reply = await client.get(`/api/companies/${companyId}/getting-started`).send();
       reply.assertStatus(200);
       // The generated reply type omits the nested steps interface; the route returns it.
-      return (reply.body() as { dismissed: boolean; steps?: Record<string, boolean> }).steps;
+      return (reply.body().data as { dismissed: boolean; steps?: Record<string, boolean> }).steps;
     };
     const all = { person: true, client: true, project: true, activity: true, scheduled: true };
     const loft = await read('a-loft');
@@ -254,11 +254,11 @@ test.group('data routes', (group) => {
       .send();
     extraFields.assertStatus(200);
     const saved = await client.get(route).send();
-    assert.equal(saved.body().dismissed, true);
+    assert.equal(saved.body().data.dismissed, true);
     const invalid = await trusted(client.put(route)).json({ dismissed: null }).send();
     invalid.assertStatus(400);
     const stillDismissed = await client.get(route).send();
-    assert.equal(stillDismissed.body().dismissed, true);
+    assert.equal(stillDismissed.body().data.dismissed, true);
     const missing = await client.get('/api/companies/unknown/getting-started').send();
     missing.assertStatus(403);
   });
@@ -285,8 +285,8 @@ test.group('data routes', (group) => {
     const otherBefore = await readState(otherCompanyId, true);
     const route = '/api/companies/a-example/example-data';
     const first = await trusted(client.post(route)).json({}).send();
-    assert.equal(first.status(), 201, JSON.stringify(first.body()));
-    assert.isAbove((first.body() as { added: number }).added, 0);
+    assert.equal(first.status(), 201, JSON.stringify(first.body().data));
+    assert.isAbove((first.body().data as { added: number }).added, 0);
     assert.deepEqual(await readState(otherCompanyId, true), otherBefore);
     const second = await trusted(client.post(route)).json({}).send();
     second.assertStatus(409);

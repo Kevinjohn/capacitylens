@@ -10,6 +10,8 @@ export default class PlanningMutationsController {
     const input = await ctx.request.validateUsing(planningMutationValidator);
     ctx.planningOperation = input.intent.operation;
     const companyId = String(ctx.params.companyId);
-    return withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, companyId, input }));
+    return ctx.serialize(
+      await withActor(ctx, (actor, trx) => mutatePlanning({ trx, actor, companyId, input }))
+    );
   }
 }

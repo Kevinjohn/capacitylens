@@ -14,7 +14,7 @@ export default class MembersController {
       const actor = await assertCompanyPermission(companyId, 'members:manage', trx);
       return readMemberDirectory(trx, companyId, actor);
     });
-    return ctx.response.ok(directory);
+    return ctx.serialize(directory);
   }
 
   async update(ctx: HttpContext) {
@@ -38,6 +38,6 @@ export default class MembersController {
           role,
         }),
     });
-    return ctx.response.ok(result);
+    return ctx.serialize(result);
   }
 }

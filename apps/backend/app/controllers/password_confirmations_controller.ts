@@ -47,6 +47,6 @@ export default class PasswordConfirmationsController {
         'Password confirmation pruning failed'
       );
     }
-    return ctx.response.ok({ confirmationId });
+    return ctx.serialize({ confirmationId });
   }
 }

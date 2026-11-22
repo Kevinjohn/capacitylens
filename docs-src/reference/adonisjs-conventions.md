@@ -331,8 +331,7 @@ Source: [Transformers](https://docs.adonisjs.com/guides/frontend/transformers).
 - A transformer shapes output. It is never used to describe input; that is a validator.
 - Never return a Lucid model from an action. Return a plain object or a transformer result.
 - The framework's API response is `serialize(Transformer.transform(model))`, which wraps the
-  result in `{ data }`, with `providers/api_provider.ts` supplying `serialize`. **Open:** #2334
-  item 5.
+  result in `{ data }`, with `providers/api_provider.ts` supplying `serialize`.
 - Columns are `snake_case`; the row transformer produces the camelCase wire format and the state
   transformer projects it for the reader's role (departure 4).
 

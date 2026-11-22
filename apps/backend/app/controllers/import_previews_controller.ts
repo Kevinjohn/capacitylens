@@ -17,6 +17,6 @@ export default class ImportPreviewsController {
       await requirePasswordConfirmationActor(companyId, trx, 'import');
       return previewCompanyImport(trx, companyId, document);
     });
-    return ctx.response.ok(result);
+    return ctx.serialize(result);
   }
 }

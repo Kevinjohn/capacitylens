@@ -296,7 +296,7 @@ export async function serverState(
     },
   );
   expect(response.ok()).toBeTruthy();
-  return response.json();
+  return (await response.json()).data;
 }
 /** Returns the named table’s rows without changing the server state.
  * @throws Error when the response omits the table; callers must not treat an omitted table as empty.

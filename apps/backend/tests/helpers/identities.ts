@@ -72,7 +72,7 @@ export async function signIn(client: ApiClient, email: string, password = fixtur
     ?.split(';', 1)[0];
   if (!cookie || !cookieHeader) throw new Error('Sign-in did not create a session.');
   sessionCookieHeaders.set(cookie, cookieHeader);
-  const userId = String((response.body() as { user: { id: string } }).user.id);
+  const userId = String((response.body().data as { user: { id: string } }).user.id);
   return { cookie, cookieHeader, userId };
 }
 

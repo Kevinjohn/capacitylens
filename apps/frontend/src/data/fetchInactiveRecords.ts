@@ -1,4 +1,5 @@
 import { APP_DATA_KEYS } from '@capacitylens/shared/types/entities';
+import { readApiData } from '@/api/readApiData';
 import type { AppData, ID } from '@capacitylens/shared/types/entities';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { readApiError } from '@/lib/readApiError';
@@ -53,7 +54,7 @@ export async function fetchInactiveRecords(companyId: ID, signal?: AbortSignal):
     API_BULK_TIMEOUT_MS,
   );
   if (!res.ok) throw new InactiveRecordsHttpError(res.status, await readApiError(res));
-  const body: unknown = await res.json();
+  const body: unknown = await readApiData(res);
   if (!isRecord(body) || !APP_DATA_KEYS.every((key) => Array.isArray(body[key]))) {
     throw new InactiveRecordsShapeError();
   }

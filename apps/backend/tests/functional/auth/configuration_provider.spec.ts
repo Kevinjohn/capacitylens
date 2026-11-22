@@ -50,7 +50,7 @@ test.group('development bootstrap provider recovery', (group) => {
     const session = await signIn(client, bootstrapEmail, bootstrapPassword);
     const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
     status.assertStatus(200);
-    assert.isTrue(status.body().decision.admitted);
+    assert.isTrue(status.body().data.decision.admitted);
   });
 
   test('an unrelated existing identity at the configured address is never adopted or changed', async ({
@@ -104,7 +104,7 @@ test.group('development bootstrap provider recovery', (group) => {
     const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
     status.assertStatus(200);
     const decision = (
-      status.body() as {
+      status.body().data as {
         decision: { requirements: { invitation: { met: boolean }; approval: { met: boolean } } };
       }
     ).decision;
@@ -144,7 +144,7 @@ test.group('development bootstrap provider recovery', (group) => {
     const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
     status.assertStatus(200);
     const decision = (
-      status.body() as {
+      status.body().data as {
         decision: { requirements: { invitation: { met: boolean }; approval: { met: boolean } } };
       }
     ).decision;

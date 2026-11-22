@@ -58,7 +58,7 @@ async function transferProof(client: ApiClient, cookie: string, toUserId: string
     .json({ action: 'transfer-ownership', companyId: 'a-studio', intent: { toUserId }, password })
     .send();
   result.assertStatus(200);
-  return (result.body() as { confirmationId: string }).confirmationId;
+  return (result.body().data as { confirmationId: string }).confirmationId;
 }
 
 test.group('atomic ownership transfer', (group) => {
@@ -85,7 +85,7 @@ test.group('atomic ownership transfer', (group) => {
       client.post('/api/companies/a-studio/ownership-transfer'),
       ownerCookie
     )
-      .json({ toUserId: adminId, confirmationId: issued.body().confirmationId })
+      .json({ toUserId: adminId, confirmationId: issued.body().data.confirmationId })
       .send();
     response.assertStatus(403);
     assert.deepEqual(response.body(), {
@@ -175,7 +175,7 @@ test.group('atomic ownership transfer', (group) => {
         .send();
     const completed = await transfer(adminId);
     completed.assertStatus(200);
-    assert.deepEqual(completed.body(), { fromUserId: ownerId, toUserId: adminId });
+    assert.deepEqual(completed.body().data, { fromUserId: ownerId, toUserId: adminId });
     const roles = await db
       .from('memberships')
       .where('scope_id', 'a-studio')
@@ -190,7 +190,7 @@ test.group('atomic ownership transfer', (group) => {
     );
     const replay = await transfer(adminId);
     replay.assertStatus(200);
-    assert.deepEqual(replay.body(), completed.body());
+    assert.deepEqual(replay.body().data, completed.body().data);
     const mismatch = await transfer(ownerId);
     mismatch.assertStatus(409);
     const differentCompany = await signed(
@@ -296,7 +296,7 @@ test.group('atomic ownership transfer', (group) => {
     const refused = await ownerRequest();
     refused.assertStatus(403);
     assert.equal((refused.body() as { code: string }).code, 'MASQUERADE_READ_ONLY');
-    const token = (started.body() as { token: string }).token;
+    const token = (started.body().data as { token: string }).token;
     const ended = await signed(client.delete('/api/masquerade'), ownerCookie)
       .json({ token, reason: 'explicit' })
       .send();
@@ -324,10 +324,10 @@ test.group('atomic ownership transfer', (group) => {
         .send();
     const reversed = await reverse();
     reversed.assertStatus(200);
-    assert.deepEqual(reversed.body(), { fromUserId: adminId, toUserId: ownerId });
+    assert.deepEqual(reversed.body().data, { fromUserId: adminId, toUserId: ownerId });
     const replay = await reverse();
     replay.assertStatus(200);
-    assert.deepEqual(replay.body(), reversed.body());
+    assert.deepEqual(replay.body().data, reversed.body().data);
     assert.lengthOf(await db.from('audit_entries').where({ action: 'ownership.transferred' }), 2);
     assert.lengthOf(
       await db
@@ -428,7 +428,7 @@ test.group('atomic ownership transfer', (group) => {
     }
     const retried = await tryTransfer('receipt');
     retried.assertStatus(200);
-    assert.deepEqual(retried.body(), { fromUserId: ownerId, toUserId: adminId });
+    assert.deepEqual(retried.body().data, { fromUserId: ownerId, toUserId: adminId });
   });
 
   test('two distinct concurrent commands produce one swap and one refused stale authority', async ({

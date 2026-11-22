@@ -20,19 +20,20 @@ test.group('authenticated data fixture', (group) => {
       session.cookie
     ).send();
     member.assertStatus(200);
-    assert.equal(member.body().accounts[0]?.id, 'a-studio');
+    assert.equal(member.body().data.accounts[0]?.id, 'a-studio');
     const owner = authenticatedDataClient(client, session.cookie);
     const proxied = await owner.get('/api/state?companyId=a-studio').send();
     proxied.assertStatus(200);
     const context = await owner.get('/api/masquerade').send();
     context.assertStatus(200);
-    const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken;
+    const contextToken = (context.body()!.data as unknown as { contextToken?: unknown })
+      .contextToken;
     assert.isString(contextToken);
     assert.isAbove((contextToken as string).length, 0);
     const write = await owner
       .put('/api/companies/a-studio/getting-started')
       .json({ dismissed: true })
       .send();
-    assert.equal(write.status(), 200, JSON.stringify(write.body()));
+    assert.equal(write.status(), 200, JSON.stringify(write.body().data));
   });
 });

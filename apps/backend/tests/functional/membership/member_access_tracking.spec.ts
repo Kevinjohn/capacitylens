@@ -95,9 +95,9 @@ test.group('company member access and tracking', (group) => {
     const directoryPath = '/api/companies/a-studio/members';
     const initial = await signed(client.get(directoryPath), ownerCookie).send();
     initial.assertStatus(200);
-    assert.isFalse(initial.body().signInTrackingEnabled);
+    assert.isFalse(initial.body().data.signInTrackingEnabled);
     assert.isNull(
-      initial.body().members.find((member: { userId: string }) => member.userId === editorId)
+      initial.body().data.members.find((member: { userId: string }) => member.userId === editorId)
         .signInConfirmed
     );
     const enabled = await signed(
@@ -116,7 +116,7 @@ test.group('company member access and tracking', (group) => {
     const observed = await signed(client.get(directoryPath), ownerCookie).send();
     observed.assertStatus(200);
     assert.isTrue(
-      observed.body().members.find((member: { userId: string }) => member.userId === editorId)
+      observed.body().data.members.find((member: { userId: string }) => member.userId === editorId)
         .signInConfirmed
     );
     const statusPath = `/api/companies/a-studio/members/${editorId}/status`;
@@ -136,7 +136,7 @@ test.group('company member access and tracking', (group) => {
     const after = await signed(client.get(directoryPath), ownerCookie).send();
     after.assertStatus(200);
     assert.isFalse(
-      after.body().members.find((member: { userId: string }) => member.userId === editorId)
+      after.body().data.members.find((member: { userId: string }) => member.userId === editorId)
         .signInConfirmed
     );
   });

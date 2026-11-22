@@ -8,12 +8,12 @@ import { invalidInvitationLink } from '#services/admission/invitation_answers';
 /** What an invitation link offers. */
 export default class InvitationLinksController {
   /** What the link offers, without spending it. */
-  async show({ params, response }: HttpContext) {
+  async show({ params, response, serialize }: HttpContext) {
     setProofHeaders(response);
     const invitation = await accountKit.invitations.inspect({ token: params.token });
     if (!invitation) return response.notFound(invalidInvitationLink);
     const { companyId, accountName } = await getInstallationCompany(db);
-    return response.ok({
+    return serialize({
       companyId,
       accountName,
       // Before the company exists the role is only bootstrap metadata; setup grants Owner.

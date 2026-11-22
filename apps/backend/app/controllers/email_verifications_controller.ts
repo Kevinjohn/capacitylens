@@ -11,12 +11,12 @@ import {
 /** Address confirmation for a signed-in identity, reachable before admission: spending the link. */
 export default class EmailVerificationsController {
   /** Reports whether a confirmation link is still usable without spending it. */
-  async show({ request, response }: HttpContext) {
+  async show({ request, response, serialize }: HttpContext) {
     setProofHeaders(response);
     const body = await request.validateUsing(inspectVerificationValidator, {
       data: request.body(),
     });
-    return response.ok({
+    return serialize({
       valid: await accountKit.emailVerification.inspect({ token: body.token }),
     });
   }
@@ -25,7 +25,7 @@ export default class EmailVerificationsController {
    * Spends the link, confirms the address and sets the chosen password. Holding the link already
    * proves the mailbox, which could reset the password anyway.
    */
-  async update({ request, response }: HttpContext) {
+  async update({ request, response, serialize }: HttpContext) {
     setProofHeaders(response);
     const body = await request.validateUsing(completeVerificationValidator, {
       data: request.body(),
@@ -35,7 +35,7 @@ export default class EmailVerificationsController {
         token: body.token,
         password: body.password,
       });
-      return response.ok({ result: 'verified' });
+      return serialize({ result: 'verified' });
     } catch (error) {
       // Route wording: completion answers INVALID_TOKEN where the handler sends the Kit's own code.
       if (error instanceof InvalidTokenError) {

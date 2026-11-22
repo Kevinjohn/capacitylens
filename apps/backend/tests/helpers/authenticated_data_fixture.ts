@@ -43,7 +43,7 @@ export function asDataOwner<T extends ApiRequest>(request: T, cookie: string): T
         },
       });
       if (!status.ok) throw new Error(`Could not capture masquerade context: ${status.status}`);
-      const body = (await status.json()) as { contextToken?: unknown };
+      const { data: body } = (await status.json()) as { data: { contextToken?: unknown } };
       if (typeof body.contextToken === 'string' && body.contextToken)
         prepared.header('X-Masquerade-Context', body.contextToken);
     })

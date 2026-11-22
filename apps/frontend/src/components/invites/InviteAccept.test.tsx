@@ -50,7 +50,7 @@ describe('InviteAccept outcomes', () => {
   it('sends the person to sign in when the sign-up answer is lost', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
-      Response.json(preview),
+      Response.json({ data: preview }),
     );
     const signup = vi
       .spyOn(invitationSignupRequests, 'signupWithInvitation')
@@ -72,7 +72,7 @@ describe('InviteAccept outcomes', () => {
       code: 'EMAIL_REGISTERED',
     } satisfies ProductHttpErrorBody;
     vi.spyOn(invitationSignupRequests, 'previewInvitation').mockResolvedValue(
-      Response.json(preview),
+      Response.json({ data: preview }),
     );
     const signup = vi
       .spyOn(invitationSignupRequests, 'signupWithInvitation')

@@ -35,7 +35,8 @@ export async function masqueradeTokenHeaders(
   const headers = { 'sec-fetch-site': 'same-origin', ...(cookie ? { cookie } : {}) };
   const response = await request.get(`${origin}/api/masquerade`, { headers });
   expect(response.status(), 'read masquerade context for fixture request').toBe(200);
-  const contextToken = ((await response.json()) as { contextToken?: unknown }).contextToken;
+  const contextToken = ((await response.json()) as { data?: { contextToken?: unknown } }).data
+    ?.contextToken;
   if (typeof contextToken !== 'string' || contextToken.length === 0)
     throw new Error('Authenticated fixture session did not return a masquerade context token.');
   return { ...headers, 'X-Masquerade-Context': contextToken };
@@ -458,7 +459,7 @@ export async function bootstrapOrg(
     headers: { cookie, 'sec-fetch-site': 'same-origin' },
   });
   expect(identity.status(), 'fixture owner must have a real native session').toBe(200);
-  const userId = ((await identity.json()) as { user?: { id?: unknown } }).user?.id;
+  const userId = ((await identity.json()) as { data?: { user?: { id?: unknown } } }).data?.user?.id;
   if (typeof userId !== 'string' || userId.length === 0)
     throw new Error('Auth E2E session has no user.');
   const companyName = name.trim();
@@ -536,7 +537,7 @@ export async function sendPlanningIntent(
     headers,
   });
   expect(snapshot.status(), `read planning revision for ${String(intent.operation)}`).toBe(200);
-  const revision = ((await snapshot.json()) as { revision?: unknown }).revision;
+  const revision = ((await snapshot.json()) as { data?: { revision?: unknown } }).data?.revision;
   if (typeof revision !== 'number' || !Number.isSafeInteger(revision))
     throw new Error('The fixture planning read did not return a revision.');
   const url = `${AUTH_API}/api/companies/${companyId}/planning/mutations`;
@@ -549,7 +550,7 @@ export async function sendPlanningIntent(
     response.status(),
     `seed planning intent ${String(intent.operation)}: ${await response.text()}`,
   ).toBe(200);
-  return response.json();
+  return (await response.json()).data;
 }
 
 /** Creates a fully specified person through the planning mutation route for browser scenarios. */
@@ -595,7 +596,7 @@ export async function signUpUserWithId(
   try {
     const cookie = await postSignUp(ctx, email, name);
     const me = await ctx.get(`${AUTH_API}/api/auth/me`, { headers: { cookie } });
-    const userId = (await me.json()).user.id as string;
+    const userId = (await me.json()).data.user.id as string;
     return { email, cookie, userId };
   } finally {
     await ctx.dispose();

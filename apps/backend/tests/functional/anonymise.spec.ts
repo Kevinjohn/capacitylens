@@ -22,7 +22,7 @@ async function proof(client: ApiClient, cookie: string) {
     .json({ action: 'anonymise', companyId, intent: {}, password: 'fixture-password-2026' })
     .send();
   issued.assertStatus(200);
-  return (issued.body() as { confirmationId: string }).confirmationId;
+  return (issued.body().data as { confirmationId: string }).confirmationId;
 }
 
 async function deleteAllocation(client: ApiClient, cookie: string, resourceId: string) {
@@ -46,8 +46,8 @@ async function deleteAllocation(client: ApiClient, cookie: string, resourceId: s
     })
     .send();
   removed.assertStatus(200);
-  const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
-    .replacementGroupId;
+  const groupId = (removed.body().data as { restoration: { replacementGroupId: string } })
+    .restoration.replacementGroupId;
   return { allocation, groupId, mutationId };
 }
 
@@ -553,8 +553,8 @@ test.group('company anonymisation', (group) => {
       })
       .send();
     removed.assertStatus(200);
-    const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId;
+    const groupId = (removed.body().data as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
     const confirmationId = await proof(client, cookie);
     const scrubbed = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
       .json({ confirmationId })
@@ -629,7 +629,7 @@ test.group('company anonymisation', (group) => {
     otherActorSignup.assertStatus(200);
     const otherActorCookie = otherActorSignup.cookie('adonis-session')?.value;
     assert.isString(otherActorCookie);
-    const otherActorId = String((otherActorSignup.body() as { user: { id: string } }).user.id);
+    const otherActorId = String((otherActorSignup.body().data as { user: { id: string } }).user.id);
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: companyId,

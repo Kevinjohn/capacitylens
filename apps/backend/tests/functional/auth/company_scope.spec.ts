@@ -16,7 +16,7 @@ async function outsider(client: any) {
     name: 'Bruce Wayne',
   });
   owner.assertStatus(200);
-  const ownerId = String((owner.body() as { user: { id: string } }).user.id);
+  const ownerId = String((owner.body().data as { user: { id: string } }).user.id);
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
   const other = await signUpAndIn(client, {
     email: 'selina.kyle@gotham.example',
@@ -26,7 +26,7 @@ async function outsider(client: any) {
   other.assertStatus(200);
   return {
     cookie: other.cookie('adonis-session')!.value,
-    userId: String((other.body() as { user: { id: string } }).user.id),
+    userId: String((other.body().data as { user: { id: string } }).user.id),
   };
 }
 
@@ -36,7 +36,7 @@ async function refusals(client: any, cookie: string) {
   const company = await client
     .put('/api/companies/a-studio/getting-started')
     .header('sec-fetch-site', 'same-origin')
-    .header('X-Masquerade-Context', (status.body() as { contextToken: string }).contextToken)
+    .header('X-Masquerade-Context', (status.body().data as { contextToken: string }).contextToken)
     .withCookie('adonis-session', cookie)
     .json({ dismissed: true })
     .send();

@@ -12,7 +12,7 @@ function parsePrivateErrorCode(error: unknown) {
 
 /** Requests a password reset link by email. */
 export default class PasswordResetRequestsController {
-  async store({ request, response, logger }: HttpContext) {
+  async store({ request, response, logger, serialize }: HttpContext) {
     if (!isMailConfigured()) {
       return response.notFound({ error: 'Password recovery is unavailable.' });
     }
@@ -26,6 +26,6 @@ export default class PasswordResetRequestsController {
       // Public recovery does not disclose recipient or delivery state.
       logger.error({ code: parsePrivateErrorCode(error) }, 'Password recovery request failed');
     }
-    return response.ok({ ok: true });
+    return serialize({ ok: true });
   }
 }

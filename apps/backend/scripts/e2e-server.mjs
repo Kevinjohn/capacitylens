@@ -148,7 +148,7 @@ async function establishAuthFixtureBaseline(signal) {
     headers: { cookie, 'sec-fetch-site': 'same-origin' },
     signal,
   });
-  const mode = await modeResponse.json();
+  const { data: mode } = await modeResponse.json();
   if (modeResponse.status !== 200 || typeof mode.contextToken !== 'string')
     throw new Error(`Auth E2E baseline masquerade context unavailable (${modeResponse.status}).`);
 

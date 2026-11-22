@@ -66,7 +66,7 @@ async function sendOperation(
       body: execution,
       signal,
     }),
-  );
+  ).data;
 }
 
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
@@ -85,7 +85,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             },
             signal,
           }),
-        );
+        ).data;
         if (snapshot.companyId !== context.companyId) {
           throw new PlanningCacheError("The server returned another company's planning data.");
         }
@@ -140,7 +140,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             'api.planning.undo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
-        );
+        ).data;
       } catch (error) {
         throw mapPlanningError(error);
       }
@@ -152,7 +152,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             'api.planning.redo',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
-        );
+        ).data;
       } catch (error) {
         throw mapPlanningError(error);
       }

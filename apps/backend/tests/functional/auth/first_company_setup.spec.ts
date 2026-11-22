@@ -65,11 +65,11 @@ test.group('authenticated first company setup', (group) => {
     anonymous.assertStatus(401);
     assert.isTrue((anonymous.body() as { needsSetup?: boolean }).needsSetup);
     const { token, cookie, accepted } = await acceptBootstrap(client);
-    const userId = (accepted.body() as { user: { id: string } }).user.id;
+    const userId = (accepted.body().data as { user: { id: string } }).user.id;
     const before = await asDataOwner(client.get('/api/auth/me'), cookie).send();
-    assert.isTrue(before.body().emailVerified);
-    assert.isTrue(before.body().admission.admitted);
-    assert.isTrue(before.body().companySetupRequired);
+    assert.isTrue(before.body().data.emailVerified);
+    assert.isTrue(before.body().data.admission.admitted);
+    assert.isTrue(before.body().data.companySetupRequired);
     assert.lengthOf(await db.from('memberships'), 0, 'the bootstrap role grants nothing');
     const reused = await client
       .post(`/api/invites/${token}/signup`)
@@ -79,7 +79,7 @@ test.group('authenticated first company setup', (group) => {
     reused.assertStatus(400);
     const setup = await setUp(client, cookie, '  Wayne   Enterprises ');
     setup.assertStatus(201);
-    const companyId = setup.body().companyId;
+    const companyId = setup.body().data.companyId;
     assert.equal((await db.from('accounts').first())!.name, 'Wayne Enterprises');
     assert.deepInclude((await db.from('memberships').first())!, {
       scope_id: companyId,
@@ -101,9 +101,9 @@ test.group('authenticated first company setup', (group) => {
     });
     const state = await asDataOwner(client.get('/api/state').qs({ companyId }), cookie).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().accounts[0].workingDays, [1, 2, 3, 4, 5]);
+    assert.deepEqual(state.body().data.accounts[0].workingDays, [1, 2, 3, 4, 5]);
     const after = await asDataOwner(client.get('/api/auth/me'), cookie).send();
-    assert.isFalse(after.body().companySetupRequired);
+    assert.isFalse(after.body().data.companySetupRequired);
     const duplicate = await setUp(client, cookie, 'Stark Industries');
     duplicate.assertStatus(409);
     assert.lengthOf(await db.from('accounts'), 1);
@@ -119,11 +119,11 @@ test.group('authenticated first company setup', (group) => {
       .send();
     setup.assertStatus(201);
     const state = await asDataOwner(
-      client.get('/api/state').qs({ companyId: setup.body().companyId }),
+      client.get('/api/state').qs({ companyId: setup.body().data.companyId }),
       cookie
     ).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().accounts[0].workingDays, [0, 1, 2, 3, 4]);
+    assert.deepEqual(state.body().data.accounts[0].workingDays, [0, 1, 2, 3, 4]);
   });
 
   for (const choice of [
@@ -286,7 +286,7 @@ test.group('authenticated first company setup', (group) => {
     const { cookie } = await acceptBootstrap(client);
     await createIdentity('clark.kent@wayne.example', { name: 'Clark Kent' });
     const me = await asDataOwner(client.get('/api/auth/me'), cookie).send();
-    assert.isFalse(me.body().companySetupRequired);
+    assert.isFalse(me.body().data.companySetupRequired);
     const refused = await setUp(client, cookie);
     refused.assertStatus(409);
     assert.lengthOf(await db.from('accounts'), 0);

@@ -26,6 +26,6 @@ export default class MemberStatusController {
           status,
         }),
     });
-    return ctx.response.ok(result);
+    return ctx.serialize(result);
   }
 }

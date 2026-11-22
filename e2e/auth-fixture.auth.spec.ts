@@ -43,7 +43,7 @@ test('native company fixtures preserve baseline data and unrelated users across 
     headers: { cookie: first.cookie },
   });
   expect(firstRead.status()).toBe(200);
-  const firstState = await firstRead.json();
+  const firstState = (await firstRead.json()).data;
   expect(firstState.clients).toEqual([
     expect.objectContaining({
       id: `internal:${firstId}`,
@@ -63,12 +63,14 @@ test('native company fixtures preserve baseline data and unrelated users across 
     headers: { cookie: first.cookie },
   });
   expect(firstAfter.status()).toBe(200);
-  expect(await firstAfter.json()).toEqual(firstState);
+  expect((await firstAfter.json()).data).toEqual(firstState);
   const secondState = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
     headers: { cookie: second.cookie },
   });
   expect(secondState.status()).toBe(200);
-  expect((await secondState.json()).accounts).toEqual([expect.objectContaining({ id: secondId })]);
+  expect((await secondState.json()).data.accounts).toEqual([
+    expect.objectContaining({ id: secondId }),
+  ]);
   const foreignRead = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
     headers: { cookie: first.cookie },
   });
@@ -108,7 +110,7 @@ test('native company fixtures preserve baseline data and unrelated users across 
       });
     } else {
       expect(companies.status()).toBe(200);
-      expect(await companies.json()).toEqual([]);
+      expect(await companies.json()).toEqual({ data: [] });
     }
     const inaccessibleAccountId = baselineBeforeCycle?.account.id ?? firstId;
     const hiddenBaseline = await request.get(
@@ -177,7 +179,7 @@ test('native company fixtures preserve baseline data and unrelated users across 
       await (
         await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
       ).json(),
-    ).toEqual([]);
+    ).toEqual({ data: [] });
   }
 
   for (const user of [first, second]) {
@@ -188,6 +190,6 @@ test('native company fixtures preserve baseline data and unrelated users across 
       await (
         await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
       ).json(),
-    ).toEqual([]);
+    ).toEqual({ data: [] });
   }
 });

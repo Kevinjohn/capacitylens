@@ -67,7 +67,7 @@ async function planningSnapshot(request: APIRequestContext, cookie: string, comp
     headers: { cookie },
   });
   expect(response.status(), 'the authenticated planning read should succeed').toBe(200);
-  return (await response.json()) as { revision: number; data: AppData };
+  return ((await response.json()) as { data: { revision: number; data: AppData } }).data;
 }
 
 function uuid(): string {
@@ -205,7 +205,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
   await page.route(updatePath, async (route) => {
     if (!isPlanningMutation(route.request(), 'allocation.update')) return route.fallback();
     const response = await route.fetch();
-    committedAtServer.resolve({ status: response.status(), body: await response.json() });
+    committedAtServer.resolve({ status: response.status(), body: (await response.json()).data });
     await releaseResponse.promise;
     await route.abort('failed');
   });

@@ -77,15 +77,15 @@ export function useArchiveRecovery() {
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
-      const response = await client.request('api.planning.archive', {
+      const { data: recovery } = await client.request('api.planning.archive', {
         params: { companyId: companyId ?? '' },
         signal,
         headers: { 'X-Masquerade-Context': masqueradeToken ?? '' },
       });
-      if (response.companyId !== companyId) {
+      if (recovery.companyId !== companyId) {
         throw new Error(m.settings_archived_err_incomplete());
       }
-      return response;
+      return recovery;
     },
   });
   if (!enabled) return { data: null, error: null, reload };

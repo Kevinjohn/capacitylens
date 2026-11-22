@@ -1,4 +1,5 @@
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { readApiData } from '@/api/readApiData';
 import { fetchApi } from '@/data/requestTimeout';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
@@ -22,7 +23,7 @@ export const gettingStartedApi = {
       },
     );
     if (!response.ok) throw new Error(`Getting started read failed (${response.status})`);
-    const result: unknown = await response.json();
+    const result: unknown = await readApiData(response);
     if (!isRecord(result) || typeof result.dismissed !== 'boolean') {
       throw new Error('Getting started response was invalid');
     }
