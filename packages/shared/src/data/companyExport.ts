@@ -29,7 +29,7 @@ export interface CompanyImportContext {
   memberResourceLinks: readonly { memberId: string; resourceId: string }[];
 }
 
-/** A validated full import, ready for an atomic account replacement. */
+/** A validated full import, ready for an atomic company replacement. */
 export interface PreparedCompanyImport {
   data: AppData;
   imported: number;
@@ -86,12 +86,12 @@ function assertDocument(value: unknown): CompanyExport {
       ),
     );
   }
-  const accountRows = data.companies;
-  assert(accountRows.length === 1, 'data.companies', 'must contain exactly one company');
+  const companyRows = data.companies;
+  assert(companyRows.length === 1, 'data.companies', 'must contain exactly one company');
   const scoped = APP_DATA_KEYS.filter((key) => key !== 'companies') as ScopedEntityKey[];
-  const account = accountRows[0];
-  assert(account, 'data.companies', 'must contain exactly one company');
-  const companyId = account.id;
+  const company = companyRows[0];
+  assert(company, 'data.companies', 'must contain exactly one company');
+  const companyId = company.id;
   for (const key of scoped) {
     data[key].forEach((row, i) =>
       assert(
@@ -124,7 +124,7 @@ function assertDocument(value: unknown): CompanyExport {
 }
 
 /**
- * Build a portable projection for an account. The caller must authorize and redact the
+ * Build a portable projection for a company. The caller must authorize and redact the
  * supplied data before calling; completeness is metadata and does not grant visibility.
  */
 export function buildCompanyExport(
@@ -170,10 +170,10 @@ export function prepareCompanyImport(
   const validated = assertDocument(document);
   assert(validated.completeness === 'full', 'completeness', 'only full exports can be imported');
   const data = validated.data;
-  const importedAccount = data.companies[0];
-  assert(importedAccount, 'data.companies', 'must contain exactly one company');
+  const importedCompany = data.companies[0];
+  assert(importedCompany, 'data.companies', 'must contain exactly one company');
   // Validate source scope before rebinding; scheduling IDs and their relationships stay portable.
-  importedAccount.id = context.companyId;
+  importedCompany.id = context.companyId;
   for (const key of SCOPED_KEYS) {
     for (const row of data[key]) row.companyId = context.companyId;
   }

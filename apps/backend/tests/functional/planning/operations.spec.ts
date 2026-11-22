@@ -47,8 +47,8 @@ test.group('authenticated planning operations', (group) => {
 
     const { cookie } = await signIn(client);
 
-    const allAccounts = await readState();
-    const foreignResource = allAccounts.resources.find((row) => row.companyId === 'a-loft')!;
+    const fullState = await readState();
+    const foreignResource = fullState.resources.find((row) => row.companyId === 'a-loft')!;
     const foreign = await session(client.post(route('planning/mutations')), cookie)
       .json(
         input(0, {
