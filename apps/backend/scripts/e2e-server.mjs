@@ -2,7 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ports, resolveLane, workerPorts } from '../../../tooling/ports.mjs';
+import { ports, resolvePortLane, workerPorts } from '../../../tooling/ports.mjs';
 import { portInUse } from '../../../tooling/devProcesses.mjs';
 import { admitIdentity } from './e2e-identity.mjs';
 
@@ -12,15 +12,15 @@ if (flavour !== 'db' && flavour !== 'auth') {
   process.exit(2);
 }
 
-const lane = ports();
+const portLane = ports();
 const slotArgument = process.argv.indexOf('--slot');
 const slot = slotArgument === -1 ? null : Number(process.argv[slotArgument + 1]);
 if (slot !== null && flavour !== 'db') throw new Error('Only db fixtures have worker slots.');
 if (flavour === 'db' && slot === null) throw new Error('Database E2E fixtures require --slot <n>.');
-const worker = slot === null ? null : workerPorts(resolveLane(), slot);
-const port = worker?.api ?? lane.authApi;
-const webPort = worker?.web ?? lane.authWeb;
-const database = slot === null ? '.auth-e2e.db' : `.e2e-l${resolveLane()}-w${slot}.db`;
+const worker = slot === null ? null : workerPorts(resolvePortLane(), slot);
+const port = worker?.api ?? portLane.authApi;
+const webPort = worker?.web ?? portLane.authWeb;
+const database = slot === null ? '.auth-e2e.db' : `.e2e-l${resolvePortLane()}-w${slot}.db`;
 if (worker) {
   const [apiOccupied, webOccupied] = await Promise.all([portInUse(port), portInUse(webPort)]);
   if (apiOccupied || webOccupied) {

@@ -23,7 +23,7 @@ const reportUnsupportedNode = `data:text/javascript,${encodeURIComponent(
   "Object.defineProperty(process, 'versions', { value: { ...process.versions, node: '23.9.0' } });",
 )}`;
 
-test('the lane launcher refuses an unsupported runtime before starting its command', () => {
+test('the port lane launcher refuses an unsupported runtime before starting its command', () => {
   const result = spawnSync(
     process.execPath,
     [

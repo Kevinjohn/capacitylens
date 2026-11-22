@@ -98,7 +98,7 @@ several changes. It does not replace the submission gate in
 [Before opening a pull request](#before-opening-a-pull-request).
 
 Run `pnpm check:changed --plan origin/main` to preview the same commands in execution order,
-including preparation, selection reasons and skips. The wrapper claims a lane, but no planned
+including preparation, selection reasons and skips. The wrapper claims a port lane, but no planned
 command runs. The preview reflects the current diff and filesystem. For example, the application
 build drops out once its assets exist.
 

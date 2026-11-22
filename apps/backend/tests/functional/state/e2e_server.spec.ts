@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { test } from '@japa/runner';
 import { portInUse, terminateProcessTree } from '../../../../../tooling/devProcesses.mjs';
-import { ports, resolveLane, workerPorts } from '../../../../../tooling/ports.mjs';
+import { ports, resolvePortLane, workerPorts } from '../../../../../tooling/ports.mjs';
 import { E2E_SCRIPT_TEST_SLOTS } from '../../../../../tooling/e2eTestSlots.mjs';
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -65,9 +65,9 @@ test('both E2E server flavours require sign-in and expose no installation reset 
   assert,
 }) => {
   for (const flavour of ['db', 'auth'] as const) {
-    const lane = ports();
+    const portLane = ports();
     const slot = E2E_SCRIPT_TEST_SLOTS.serverBoundary;
-    const port = flavour === 'db' ? workerPorts(resolveLane(), slot).api : lane.authApi;
+    const port = flavour === 'db' ? workerPorts(resolvePortLane(), slot).api : portLane.authApi;
     const args = ['scripts/e2e-server.mjs', flavour];
     if (flavour === 'db') args.push('--slot', String(slot));
     const child = spawn(process.execPath, args, {

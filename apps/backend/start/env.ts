@@ -105,7 +105,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_CORS_ORIGIN: optional,
   CAPACITYLENS_CREATE_ADMIN_ADMIN: optionalBoolean,
   CAPACITYLENS_DB: optional,
-  // Set by scripts/dev/dev-fullstack.mjs to its lane's Vite origins; ignored outside development.
+  // Set by scripts/dev/dev-fullstack.mjs to its port lane's Vite origins; ignored outside development.
   CAPACITYLENS_DEV_WEB_ORIGINS: optional,
   // Set by scripts/e2e-server.mjs so the server's today matches the browser tests' frozen date.
   CAPACITYLENS_FIXED_TODAY: parseOptionalISODate,

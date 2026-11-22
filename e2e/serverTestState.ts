@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
-import { resolveLane, workerPorts } from '../tooling/ports.mjs';
+import { resolvePortLane, workerPorts } from '../tooling/ports.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, realpathSync, rmSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
@@ -11,7 +11,7 @@ const backendDirectory = fileURLToPath(new URL('../apps/backend/', import.meta.u
 
 /** All endpoints and files belonging to one stable browser-worker slot. */
 export interface ServerTarget {
-  lane: number;
+  portLane: number;
   slot: number;
   api: string;
   web: string;
@@ -20,11 +20,11 @@ export interface ServerTarget {
 }
 
 /** Resolve isolated browser-worker endpoints and disposable database paths. */
-export function serverTarget(lane: number, slot: number): ServerTarget {
-  const endpoints = workerPorts(lane, slot);
-  const databasePath = resolve(backendDirectory, `.e2e-l${lane}-w${slot}.db`);
+export function serverTarget(portLane: number, slot: number): ServerTarget {
+  const endpoints = workerPorts(portLane, slot);
+  const databasePath = resolve(backendDirectory, `.e2e-l${portLane}-w${slot}.db`);
   return Object.freeze({
-    lane,
+    portLane,
     slot,
     api: `http://localhost:${endpoints.api}`,
     web: `http://localhost:${endpoints.web}`,
@@ -33,7 +33,7 @@ export function serverTarget(lane: number, slot: number): ServerTarget {
   });
 }
 
-let configuredTarget = serverTarget(resolveLane(), 0);
+let configuredTarget = serverTarget(resolvePortLane(), 0);
 let resetControlToken: string | undefined;
 let stopOwnedPair: (() => Promise<void>) | undefined;
 /** Current worker API origin; imports observe configuration before a test starts. */

@@ -12,8 +12,8 @@ import { FALLBACK_PRESET_COLOR } from '@capacitylens/shared/lib/color';
 // Keep password-server fixture setup in one place so bootstrap credentials and request shapes remain consistent.
 
 /** The auth-e2e API origin (the password-auth server the *.auth specs drive). */
-// Lane-derived, exactly as playwright.config.ts derives the port it boots that server on: a literal
-// here would point every auth spec at lane 0 while the server moved.
+// Port lane-derived, exactly as playwright.config.ts derives the port it boots that server on: a literal
+// here would point every auth spec at port lane 0 while the server moved.
 export const AUTH_API = `http://localhost:${ports().authApi}`;
 
 /** The password every auth-e2e fixture signs up / signs in with. */
@@ -662,18 +662,18 @@ function printOperatorLink(args: string[], label: string): string {
 }
 
 function operatorFixtureEnvironment(): NodeJS.ProcessEnv {
-  const lane = ports();
+  const portLane = ports();
   return {
     ...process.env,
     NODE_ENV: 'development',
     HOST: '127.0.0.1',
-    PORT: String(lane.authApi),
+    PORT: String(portLane.authApi),
     LOG_LEVEL: 'error',
     APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
-    APP_URL: `http://127.0.0.1:${lane.authApi}`,
+    APP_URL: `http://127.0.0.1:${portLane.authApi}`,
     CAPACITYLENS_DB: '.auth-e2e.db',
     CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
-    CAPACITYLENS_PUBLIC_URL: `http://localhost:${lane.authApi}`,
+    CAPACITYLENS_PUBLIC_URL: `http://localhost:${portLane.authApi}`,
   };
 }

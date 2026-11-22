@@ -7,7 +7,7 @@ import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
-import { resolveLane } from '../../tooling/ports.mjs';
+import { resolvePortLane } from '../../tooling/ports.mjs';
 import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs';
 import {
   acquireExclusiveFile,
@@ -165,7 +165,7 @@ test(
   'company template resets preserve identities and sessions, clear history and honor request drain',
   { timeout: 90_000 },
   async () => {
-    const target = serverTarget(resolveLane(), E2E_SCRIPT_TEST_SLOTS.reset);
+    const target = serverTarget(resolvePortLane(), E2E_SCRIPT_TEST_SLOTS.reset);
     const release = acquireExclusiveFile(`${target.databasePath}.reset-test.lock`);
     const controlToken = createResetControlToken();
     let failNextVitePause = false;

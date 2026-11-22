@@ -22,7 +22,7 @@ async function withApi(handler, run) {
   assert.ok(address && typeof address !== 'string');
   const context = await playwrightRequest.newContext({ timeout: 3_000 });
   const target = {
-    lane: 0,
+    portLane: 0,
     slot: 0,
     api: `http://127.0.0.1:${address.port}`,
     web: 'http://127.0.0.1:1',
