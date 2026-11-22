@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { m } from '@/i18n';
 import { ACCOUNT_LINK } from '@/lib/navLinks';
 import { AppEntryGate } from './AppEntryGate';
-import { useAppShellController } from './useAppShellController';
+import { useAppShellViewModel } from './useAppShellViewModel';
 import { useVisibleRoutes } from './useVisibleRoutes';
 import { AppSidebar } from './AppSidebar';
 import { SidebarProvider, SidebarTrigger, useSidebar } from './ui/sidebar';
@@ -200,18 +200,18 @@ function GatedMain({
 /** Coordinates application routes, navigation, company notices, and global dialogs. */
 export function AppShell() {
   const navigate = useNavigate();
-  const { paletteOpen, closePalette } = useAppShellController();
+  const { paletteOpen, closePalette } = useAppShellViewModel();
   const hydrated = useStore((state) => state.hydrated);
   const masquerade = useStore((state) => state.masquerade);
   const masqueradeBanner = buildMasqueradeBannerContent(masquerade);
   // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
   // explicit light and dark preferences pass through as concrete schemes.
   const themePreference = useStore((state) => state.theme);
-  const companies = useStore((state) => state.data.accounts);
+  const companies = useStore((state) => state.data.companies);
   const companySummaries = useStore((state) => state.companySummaries);
   const companySummariesAmbiguous = useStore((state) => state.companySummariesAmbiguous);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
-  // Company summaries keep the tenant gate valid while the selected company's authoritative slice is still loading. Child content remains behind its hydration boundary.
+  // Company summaries keep the company gate valid while the selected company's authoritative set is still loading. Child content remains behind its hydration boundary.
   const activeCompany =
     companies.find((company) => company.id === activeCompanyId) ??
     companySummaries.find((a) => a.id === activeCompanyId);

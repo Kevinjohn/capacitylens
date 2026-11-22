@@ -13,13 +13,13 @@ export async function readState(
 ): Promise<AppData> {
   const client = db.connection();
   if (companyId !== undefined) return readStateWithClient(client, companyId, includeInactive);
-  const accounts = await client.from('accounts').select('id');
+  const companies = await client.from('companies').select('id');
   const slices: AppData[] = [];
-  for (const account of accounts) {
+  for (const account of companies) {
     slices.push(await readStateWithClient(client, String(account.id), includeInactive));
   }
   return {
-    accounts: slices.flatMap((slice) => slice.accounts),
+    companies: slices.flatMap((slice) => slice.companies),
     clients: slices.flatMap((slice) => slice.clients),
     disciplines: slices.flatMap((slice) => slice.disciplines),
     projects: slices.flatMap((slice) => slice.projects),
@@ -38,18 +38,18 @@ export async function resetState(seedRequested: boolean | 'single') {
   await transaction(db, async (trx) => {
     await trx.from('audit_entries').delete();
     // Memberships restrict company deletion, so the package removes them first.
-    for (const account of await trx.from('accounts').select('id')) {
+    for (const account of await trx.from('companies').select('id')) {
       await access.memberships.removeAllForScope({ scopeId: String(account.id), trx });
     }
     for (const table of Object.values(tables).reverse()) await trx.from(table).delete();
     if (!seedRequested) return;
     const seeded = seed();
-    const firstAccountId = seeded.accounts[0]?.id;
+    const firstAccountId = seeded.companies[0]?.id;
     const data =
       seedRequested === 'single' && firstAccountId
         ? {
             ...seeded,
-            accounts: seeded.accounts.filter((row) => row.id === firstAccountId),
+            companies: seeded.companies.filter((row) => row.id === firstAccountId),
             clients: filterCompanyRows(seeded.clients, firstAccountId),
             disciplines: filterCompanyRows(seeded.disciplines, firstAccountId),
             projects: filterCompanyRows(seeded.projects, firstAccountId),

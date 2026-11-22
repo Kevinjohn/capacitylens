@@ -1,14 +1,16 @@
-import '#start/planning_routes';
 import router from '@adonisjs/core/services/router';
 import app from '@adonisjs/core/services/app';
-import { healthChecks } from '#start/health';
+import { controllers } from '#generated/controllers';
+import { middleware } from '#start/kernel';
+import { throttle } from '#start/limiter';
 import { registerAuthRoutes } from '#start/auth_routes';
 import { registerMembershipRoutes } from '#start/membership_routes';
 import { registerAdmissionRoutes } from '#start/admission_routes';
 import { registerMasqueradeRoutes } from '#start/masquerade_routes';
 import { registerOwnershipRoutes } from '#start/ownership_routes';
+import { registerPlanningRoutes } from '#start/planning_routes';
 import { registerCompanyRoutes } from '#start/company_routes';
-import { registerTransferRoutes } from '#start/transfer_routes';
+import { registerImportRoutes } from '#start/import_routes';
 import { registerExportRoutes } from '#start/export_routes';
 import { registerAnonymiseRoutes } from '#start/anonymise_routes';
 import { registerExampleDataRoutes } from '#start/example_data_routes';
@@ -19,32 +21,40 @@ import { registerDiagnosticsRoutes } from '#start/diagnostics_routes';
 // identifier matches no route and answers 404 instead of reaching the package.
 for (const param of ['companyId', 'userId']) router.where(param, /^.{1,254}$/);
 
-registerCompanyRoutes();
-registerTransferRoutes();
-registerExportRoutes();
-registerAnonymiseRoutes();
-registerExampleDataRoutes();
-registerGettingStartedRoutes();
-registerAuthRoutes();
-registerMembershipRoutes();
-registerAdmissionRoutes();
-registerMasqueradeRoutes();
-registerOwnershipRoutes();
-
-router.get('/api/health', () => ({ ok: true })).as('api.health');
-router.get('/health/live', () => ({ ok: true }));
-router.get('/health/ready', async ({ response }) => {
-  try {
-    const report = await healthChecks.run();
-    return report.isHealthy ? response.ok(report) : response.serviceUnavailable(report);
-  } catch {
-    return response.serviceUnavailable({ isHealthy: false, status: 'error', checks: [] });
-  }
-});
-registerDiagnosticsRoutes();
+// Health is registered first, in its own group, so the API throttle does not count it.
 router
-  .get('/api/*', ({ response }) => response.notFound({ error: 'Not found' }))
-  .as('api.not-found');
+  .group(() => {
+    router.get('/health', [controllers.HealthChecks, 'live']);
+  })
+  .prefix('/api')
+  .as('api');
+
+router
+  .group(() => {
+    registerPlanningRoutes();
+    registerCompanyRoutes();
+    registerImportRoutes();
+    registerExportRoutes();
+    registerAnonymiseRoutes();
+    registerExampleDataRoutes();
+    registerGettingStartedRoutes();
+    registerAuthRoutes();
+    registerMembershipRoutes();
+    registerAdmissionRoutes();
+    registerMasqueradeRoutes();
+    registerOwnershipRoutes();
+    registerDiagnosticsRoutes();
+    router
+      .get('/*', ({ response }) => response.notFound({ error: 'Not found' }))
+      .use(middleware.accountGate({ access: 'limited' }))
+      .as('not_found');
+  })
+  .prefix('/api')
+  .as('api')
+  .use(throttle);
+
+router.get('/health/live', [controllers.HealthChecks, 'live']);
+router.get('/health/ready', [controllers.HealthChecks, 'ready']);
 router.get('*', async ({ request, response }) => {
   const path = request.url().split('?', 1)[0];
   const lastSegment = path.slice(path.lastIndexOf('/') + 1);

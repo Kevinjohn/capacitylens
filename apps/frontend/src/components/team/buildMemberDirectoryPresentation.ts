@@ -1,7 +1,7 @@
 import { ROLES } from '@capacitylens/shared/account/types';
 import type { PermissionKey, Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember as Member } from '@/account/teamAccessClient';
-import type { TeamInvitation } from '@/account/teamAccessClient';
+import type { TeamMember as Member } from '@/account/teamAccessApi';
+import type { TeamInvitation } from '@/account/teamAccessApi';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 
 // Exclude Owner from ordinary role choices because ownership changes only through transfer. Resolve role labels at render so they follow the active locale.

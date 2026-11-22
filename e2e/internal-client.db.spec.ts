@@ -5,7 +5,7 @@ import {
   selectShadOption,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 // Covers US-CLI-04, the built-in "Internal" pseudo-client.
 test.describe('Internal client', () => {

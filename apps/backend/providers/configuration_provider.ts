@@ -4,6 +4,7 @@
 // `masquerade:stop`.
 
 import type { ApplicationService } from '@adonisjs/core/types';
+import logger from '@adonisjs/core/services/logger';
 import capacitylens from '#config/capacitylens';
 import db from '@adonisjs/lucid/services/db';
 import { rememberSchemaIntegrity } from '#services/schema_integrity';
@@ -12,7 +13,7 @@ import { bootstrapDevelopmentCredential } from '#services/development_bootstrap'
 import {
   createMaintenance,
   pruneRequestReceipts,
-  pruneViewAs,
+  pruneExpiredMasquerades,
 } from '#services/storage_maintenance';
 
 const PRUNE_INTERVAL_MS = 60 * 60_000;
@@ -42,7 +43,7 @@ export function assertProductionPosture(options: ProductionPosture) {
 }
 
 export default class ConfigurationProvider {
-  private pruneTimer?: NodeJS.Timeout;
+  #pruneTimer?: NodeJS.Timeout;
 
   constructor(protected app: ApplicationService) {}
   async boot() {
@@ -64,7 +65,7 @@ export default class ConfigurationProvider {
     if (this.app.getEnvironment() === 'console') return;
     const rows = await db
       .from('sqlite_master')
-      .where({ type: 'table', name: 'accounts' })
+      .where({ type: 'table', name: 'companies' })
       .select('name');
     if (rows.length > 0) {
       await rememberSchemaIntegrity();
@@ -75,18 +76,9 @@ export default class ConfigurationProvider {
   /**
    * Expired sign-ins fail at once; pruning removes them at start and hourly, and with them the
    * session-bound proofs and restoration rows that cascade from each one. The same pass removes
-   * completed request receipts and expired view-as modes and events. Queued mail is sent after
-   * the request answers, so a transport failure is only visible here; the log carries the error
-   * name, never the message, which can hold an address or link.
+   * completed request receipts and expired view-as modes and events.
    */
   async ready() {
-    const emitter = await this.app.container.make('emitter');
-    emitter.on('queued:mail:error', ({ error, mailerName }) => {
-      console.error('Queued mail delivery failed', {
-        mailer: mailerName,
-        error: error instanceof Error ? error.name : 'unknown',
-      });
-    });
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
     // Shutdown can begin while an earlier provider is still getting ready; a pass started after
     // that would reopen the database once it has been closed.
@@ -96,18 +88,22 @@ export default class ConfigurationProvider {
       [
         ['Account sign-in pruning', () => accountKit.maintenance.prune()],
         ['Request receipt pruning', () => pruneRequestReceipts()],
-        ['View-as pruning', () => pruneViewAs(this.app)],
+        ['Masquerade pruning', () => pruneExpiredMasquerades(this.app)],
       ],
-      (task, error) => console.error(`${task} failed`, error instanceof Error ? error.name : error)
+      (task, error) =>
+        logger.error(
+          { task, errorName: error instanceof Error ? error.name : 'unknown' },
+          `${task} failed`
+        )
     );
     // A pass still in flight would reopen the database after shutdown closed it.
     this.app.terminating(() => maintenance.stop());
     void maintenance.run();
-    this.pruneTimer = setInterval(() => void maintenance.run(), PRUNE_INTERVAL_MS);
-    this.pruneTimer.unref();
+    this.#pruneTimer = setInterval(() => void maintenance.run(), PRUNE_INTERVAL_MS);
+    this.#pruneTimer.unref();
   }
 
   async shutdown() {
-    if (this.pruneTimer) clearInterval(this.pruneTimer);
+    if (this.#pruneTimer) clearInterval(this.#pruneTimer);
   }
 }

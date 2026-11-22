@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { m } from '@/i18n';
 import { AllocationBar } from './AllocationBar';
 import { PermissionContext } from '@/auth/permissionContext';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithCompany } from '@/test/fixtures';
@@ -17,7 +17,7 @@ import { GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 import {
   barFor,
   getStoredAllocation,
-  seedAllocation,
+  createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 import { permissionValue } from '@/test/permissionGrants';
@@ -39,7 +39,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('AllocationBar keyboard focus and popover interactions', () => {
   it('shows a detail popover on hover and hides it on leave', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     render(
       <AllocationBar
         bar={{ ...barFor(a), project: 'Project Watchtower', client: 'Ferris' }}
@@ -67,7 +67,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     it('gets visible popover separators from the message catalogue', async () => {
       const projectClientMessage = vi.spyOn(m, 'scheduler_bar_pop_project_client');
       const statusMessage = vi.spyOn(m, 'scheduler_bar_pop_status');
-      const allocation = await seedAllocation({ status: 'tentative' });
+      const allocation = await createAllocation({ status: 'tentative' });
       render(
         <AllocationBar
           bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
@@ -92,7 +92,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
 
     it('keeps Viewer details in the tab order without enabling allocation edits', async () => {
       const user = userEvent.setup();
-      const allocation = await seedAllocation({ note: 'Call the client before kickoff' });
+      const allocation = await createAllocation({ note: 'Call the client before kickoff' });
       const onEdit = vi.fn();
       useStore.getState().setBarLabelPref({ key: 'showClient', value: false });
       useStore.getState().setBarLabelPref({ key: 'showProject', value: false });
@@ -146,7 +146,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     });
 
     it('omits the confirmed annotation cleanly when hours are hidden', async () => {
-      const allocation = await seedAllocation();
+      const allocation = await createAllocation();
       render(
         <AllocationBar
           bar={{ ...barFor(allocation), external: true }}
@@ -170,7 +170,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
       ['tentative', 'Tentative'],
       ['completed', 'Completed'],
     ] as const)('keeps the %s annotation in popover and accessible name', async (status, label) => {
-      const allocation = await seedAllocation({ status });
+      const allocation = await createAllocation({ status });
       render(
         <AllocationBar
           bar={barFor(allocation)}
@@ -188,7 +188,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
       expect(bar).toHaveAccessibleName(new RegExp(`8h per day, ${label}, 1 Jun to 3 Jun\\.`));
     });
     it('closes an open popover on Escape while KEEPING focus on the bar', async () => {
-      const allocation = await seedAllocation();
+      const allocation = await createAllocation();
       render(
         <AllocationBar
           bar={{ ...barFor(allocation), project: 'Project Watchtower', client: 'Ferris' }}
@@ -210,7 +210,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     });
 
     it('reopens on a fresh focus EDGE (blur then refocus) after an Escape-close', async () => {
-      const allocation = await seedAllocation();
+      const allocation = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(allocation)}
@@ -231,7 +231,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
       expect(screen.getByTestId('allocation-popover')).toBeInTheDocument();
     });
     it('does NOT swallow Escape mid-drag — the gesture hook still cancels the drag', async () => {
-      const allocation = await seedAllocation();
+      const allocation = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(allocation)}
@@ -257,7 +257,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     });
 
     it('lets Escape PROPAGATE to ancestor handlers when the popover is closed', async () => {
-      const allocation = await seedAllocation();
+      const allocation = await createAllocation();
       const ancestorEsc = vi.fn();
       render(
         <div data-testid="ancestor" onKeyDown={(event) => event.key === 'Escape' && ancestorEsc()}>
@@ -286,7 +286,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
   });
 
   it('opens the editor on Enter (keyboard operable)', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     const onEdit = vi.fn();
     render(
       <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />,
@@ -296,7 +296,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     expect(onEdit).toHaveBeenCalledExactlyOnceWith(a.id);
   });
   it('moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     const { rerender } = render(
       <AllocationBar
         bar={barFor(a)}
@@ -326,11 +326,11 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
   });
 
   it('leaves a stale-revision keyboard move to the refetched schedule without a toast', async () => {
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     const original = useStore.getState().updateAllocation;
     useStore.setState({
       updateAllocation: () =>
-        Promise.reject(new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409)),
+        Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
     });
     try {
       render(
@@ -350,7 +350,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
   });
 
   it("rejects and announces a keyboard move beyond the person's availability", async () => {
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     await useStore
       .getState()
       .updateResource(allocation.resourceId, { lastAvailableDate: '2026-06-03' });
@@ -365,7 +365,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
 
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'The allocation ends after this person is available.',
         'VALIDATION_ERROR',
         400,
@@ -386,7 +386,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     useStore.getState().setOriginDate('2026-06-01');
     useStore.getState().setZoom(1);
     const lastVisibleDay = buildVisibleRange(useStore.getState().ui).end;
-    const allocation = await seedAllocation({
+    const allocation = await createAllocation({
       startDate: lastVisibleDay,
       endDate: lastVisibleDay,
       ignoreWorkingDays: true,
@@ -414,7 +414,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
   it('keeps a keyboard-moved bar focused and scrolls it to the nearest visible position', async () => {
     useStore.getState().setOriginDate('2026-06-01');
     useStore.getState().setZoom(1);
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
       callback(0);
       return 1;
@@ -453,7 +453,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     const cancelFrame = vi
       .spyOn(window, 'cancelAnimationFrame')
       .mockImplementation(() => undefined);
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     const { rerender, unmount } = render(
       <AllocationBar
         bar={barFor(allocation)}
@@ -495,7 +495,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     const cancelFrame = vi
       .spyOn(window, 'cancelAnimationFrame')
       .mockImplementation(() => undefined);
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     const { unmount } = render(
       <AllocationBar
         bar={barFor(allocation)}
@@ -520,7 +520,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
       callback = next;
       return 51;
     });
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(allocation)}
@@ -541,7 +541,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     requestFrame.mockRestore();
   });
   it('does not write, add undo history or announce when a keyboard resize is pinned', async () => {
-    const allocation = await seedAllocation({ startDate: '2026-06-06', endDate: '2026-06-07' });
+    const allocation = await createAllocation({ startDate: '2026-06-06', endDate: '2026-06-07' });
     render(
       <AllocationBar
         bar={barFor(allocation)}

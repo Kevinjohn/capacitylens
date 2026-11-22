@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AUTH_INVALIDATION_STORAGE_KEY, signOutAndReload } from '@/auth/signOut';
-import { authClient } from '@/auth/authClient';
+import { authApi } from '@/auth/authApi';
 import { AuthContext } from '@/auth/authContext';
 import type { AuthContextValue } from '@/auth/authContext';
 
@@ -104,7 +104,7 @@ describe('AccountView', () => {
 
   it('shows a sign-out failure beside the action and allows another attempt', async () => {
     const request = vi
-      .spyOn(authClient, 'signOut')
+      .spyOn(authApi, 'signOut')
       .mockRejectedValueOnce(new Error('Connection lost.'))
       .mockResolvedValueOnce({ data: null, error: null });
     signOut.mockImplementation(() => signOutAndReload({ reload: () => {} }));

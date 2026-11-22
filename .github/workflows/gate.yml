@@ -178,7 +178,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      # The root build script ends with bundle:check, so a failing budget fails this step.
+      # The root build script ends with check:bundle, so a failing budget fails this step.
       - run: pnpm run build
         env:
           NODE_ENV: production

@@ -16,8 +16,8 @@ import {
   AllocationControlColumn,
   AllocationSpanRow,
   DateRangeFields,
-} from './AllocationModalFieldLayout';
-import type { AllocationModalState } from './useAllocationModalState';
+} from './AllocationDialogFieldLayout';
+import type { AllocationDialogState } from './useAllocationDialogState';
 import { roundToHundredths } from '@/lib/roundToHundredths';
 
 const buildRepeatOptions = (): Option[] => [
@@ -36,7 +36,7 @@ const buildHoursPerDayOptions = (): Option[] => [
   { value: '8', label: m.form_allocation_hours_per_day_full_day() },
 ];
 
-type ScheduleProps = AllocationModalState['scheduleFields'];
+type ScheduleProps = AllocationDialogState['scheduleFields'];
 type TaskProps = Pick<
   ScheduleProps,
   'task' | 'setTask' | 'showTaskFieldInSchedule' | 'errorField' | 'errorId'
@@ -169,7 +169,7 @@ type RepeatProps = Pick<
   | 'onRepeatUntilChange'
   | 'repeatUntilMinimum'
   | 'repeatUntilMaximum'
-  | 'repeatProjection'
+  | 'repeatExpansion'
   | 'repeatLastStart'
   | 'errorField'
   | 'errorId'
@@ -198,20 +198,20 @@ function RepeatFields(props: RepeatProps) {
           layout="label-control"
         />
       )}
-      {props.repeatProjection && props.repeatLastStart && <RepeatPreview {...props} />}
+      {props.repeatExpansion && props.repeatLastStart && <RepeatPreview {...props} />}
     </>
   );
 }
 
 function RepeatPreview(props: RepeatProps) {
-  if (!props.repeatProjection || !props.repeatLastStart) return null;
+  if (!props.repeatExpansion || !props.repeatLastStart) return null;
   // Date repeat limits against their first occurrence so a cutoff in another year cannot look earlier than the booking.
-  const anchor = props.repeatProjection.startDates[0] ?? props.repeatLastStart;
+  const anchor = props.repeatExpansion.startDates[0] ?? props.repeatLastStart;
   return (
     <AllocationControlColumn>
       <p className="text-xs text-muted-foreground">
         {m.form_allocation_repeat_preview({
-          count: props.repeatProjection.startDates.length,
+          count: props.repeatExpansion.startDates.length,
           repeatUntil: formatShortDateEndpoint(props.repeatUntil, anchor),
           lastStart: formatShortDateEndpoint(props.repeatLastStart, anchor),
         })}

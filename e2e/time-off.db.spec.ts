@@ -5,7 +5,7 @@ import {
   resetSchedulerScroll,
   selectShadOption,
   setZoom,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.describe('Time off', { tag: '@engine' }, () => {
   // Covers US-TOF-01..05.

@@ -1,6 +1,6 @@
 import { test, expect } from './dbFixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 
 // Light mobile affordances: portrait phones use the ShadCN off-canvas Sidebar,
 // compact landscape layouts use its icon mode, and portrait phones get a
@@ -33,7 +33,7 @@ test.describe('portrait phone', { tag: '@engine' }, () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     // Settle first: hydration swaps the loading shell for the authenticated application, which remounts
-    // the hint. The modal makes that underlying screen inaccessible, so wait for the application's
+    // the hint. The dialog makes that underlying screen inaccessible, so wait for the application's
     // schedule grid to be attached rather than querying a hidden accessible role.
     await expect(page.getByTestId('scheduler-grid')).toBeAttached();
     const dialog = page.getByRole('dialog', { name: 'Best in landscape' });

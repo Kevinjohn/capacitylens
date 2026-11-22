@@ -13,7 +13,7 @@ import type {
   ScopedEntity,
   ScopedEntityKey,
 } from '../../types/entities.js';
-import { isInCompany } from '../tenancy.js';
+import { isInCompany } from '../companyBoundary.js';
 import { throwDomainError } from '../errors.js';
 import { parseResourceAvatarUrl } from '../resourceAvatarUrl.js';
 import {
@@ -35,7 +35,7 @@ export function getOwned<K extends ScopedEntityKey>(
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
   if (!row) return null;
   if (!isInCompany(row, companyId)) {
-    throwDomainError('record_wrong_account', 'That record does not belong to the active company.');
+    throwDomainError('record_wrong_company', 'That record does not belong to the active company.');
   }
   return row as AppData[K][number];
 }
@@ -95,7 +95,7 @@ function createScopedRefsContext(
       !isInCompany(resolved, companyId) ||
       !isEffectivelyActive({ data, table, row: resolved, ...lookupOptions })
     ) {
-      throwDomainError('reference_wrong_account', message);
+      throwDomainError('reference_wrong_company', message);
     }
   };
   return {
@@ -126,7 +126,7 @@ function assertRequiredRef(
     return;
   }
   if (existing === undefined || fullRow === true || context.isSupplied(field)) {
-    throwDomainError('reference_wrong_account', message);
+    throwDomainError('reference_wrong_company', message);
   }
 }
 
@@ -139,7 +139,7 @@ function assertActivityKind(context: ScopedRefsContext): void {
       'A project-specific activity must be assigned to a project.',
     );
   }
-  if (record.kind !== 'internal' && record.kind !== 'repeatable') return;
+  if (record.kind !== 'internal' && record.kind !== 'allProjects') return;
   if (isPresent('projectId')) {
     throwDomainError(
       'activity_project_forbidden',
@@ -166,14 +166,14 @@ function assertActivityPhase(context: ScopedRefsContext): void {
   if (isUnchanged('phaseId') && isUnchanged('projectId')) {
     if (phase && !ownedPhase) {
       throwDomainError(
-        'activity_phase_wrong_account',
+        'activity_phase_wrong_company',
         'Activity phase must belong to this company.',
       );
     }
     return;
   }
   if (!ownedPhase) {
-    throwDomainError('activity_phase_wrong_account', 'Activity phase must belong to this company.');
+    throwDomainError('activity_phase_wrong_company', 'Activity phase must belong to this company.');
   }
   if (!isPresent('projectId')) {
     throwDomainError(
@@ -246,7 +246,7 @@ function assertResourceKindImmutable(
 
 /** Check catalog references within companyId without checking the record’s own tenancy.
  * Allocation and time-off references have separate validators. Existing must be the owned stored row.
- * Unchanged references may be absent from an active-only client slice; their missing/inactive target checks are skipped, but a resolved foreign-account target still fails.
+ * Unchanged references may be absent from an active-only client set; their missing/inactive target checks are skipped, but a resolved foreign-account target still fails.
  * Creates and full project/phase rows require their parent; partial updates may omit the parent but cannot clear it.
  * Ordinary resource updates cannot change kind.
  * @throws DomainError on a violation; callers must not persist the write. */
@@ -299,7 +299,7 @@ export function assertScopedRefs(
 }
 
 // An allocation must reference a real resource and activity in the active account. Changed
-// repeatable attribution may reference only a live project, and placeholder allocations must
+// all-projects attribution may reference only a live project, and placeholder allocations must
 // remain effective under their bound project. External resources have no capacity and may carry
 // only zero load. Requiring `hoursPerDay` makes every allocation write check that rule.
 type AllocationRefsArgs = [
@@ -423,7 +423,7 @@ export function assertAllocationRefs(
     );
   }
   assertValid(validateAllocationAssignment(resource, resolvedProjectId));
-  // External / 3rd parties have no capacity: their allocations carry no load (hoursPerDay 0). The
+  // External parties have no capacity: their allocations carry no load (hoursPerDay 0). The
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only, enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
   // resource (the scheduler hides it, so it would persist invisibly). Import validates the same rule
@@ -432,7 +432,7 @@ export function assertAllocationRefs(
   if (hoursPerDay !== 0 && isExternalResource(resource)) {
     throwDomainError(
       'external_allocation_hours',
-      'An external / 3rd-party resource’s allocation can’t carry hours.',
+      'An external party’s allocation can’t carry hours.',
     );
   }
 }

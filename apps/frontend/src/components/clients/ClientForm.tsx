@@ -5,7 +5,13 @@ import { useEditSubmit } from '@/hooks/useEditSubmit';
 import { useFieldError } from '@/hooks/useFieldError';
 import { validatePresetColor, parseName } from '@/lib/validation';
 import { m } from '@/i18n';
-import { ColorField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import {
+  ColorField,
+  FormButtons,
+  FormDialog,
+  RequiredLegend,
+  TextField,
+} from '@/components/common/ui';
 import { PrivateNameFields } from '@/components/common/PrivateNameFields';
 import { usePrivateNameFields } from '@/components/common/usePrivateNameFields';
 import { FieldError } from '@/components/ui/field';
@@ -106,13 +112,13 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
   };
 
   return (
-    <Modal
+    <FormDialog
       title={client ? m.form_client_edit_title() : m.form_client_add_title()}
       onClose={onClose}
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <ClientFormFields
         name={name}
@@ -125,6 +131,6 @@ export function ClientForm({ client, onClose: close }: { client?: Client; onClos
         error={error}
         pending={pending}
       />
-    </Modal>
+    </FormDialog>
   );
 }

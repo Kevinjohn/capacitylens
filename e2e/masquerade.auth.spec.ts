@@ -1,13 +1,7 @@
 import { expect, test } from './fixtures';
 import type { Page, Request } from '@playwright/test';
-import {
-  AUTH_API,
-  AUTH_PASSWORD,
-  bootstrapOrg,
-  seedFixtureMember,
-  signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, createTestMember, signUpUser } from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -28,7 +22,7 @@ async function signIn(page: Page, email: string) {
   await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
 }
 
-async function expectNoOnboardingNoise(page: Page, requests: string[]) {
+async function expectNoGettingStartedNoise(page: Page, requests: string[]) {
   await expect(page.getByTestId('getting-started-progress')).toHaveCount(0);
   await expect(page.getByTestId('getting-started')).toHaveCount(0);
   await expect(
@@ -46,7 +40,7 @@ test.describe('member masquerade', () => {
     const owner = await signUpUser(OWNER_EMAIL);
     const viewer = await signUpUser(VIEWER_EMAIL);
     const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-    seedFixtureMember(companyId, viewer.email, 'viewer');
+    createTestMember(companyId, viewer.email, 'viewer');
 
     await page.goto('/');
     await page.getByRole('heading', { name: 'Sign in' }).waitFor();
@@ -61,12 +55,12 @@ test.describe('member masquerade', () => {
     await viewerRow.getByTestId('member-masquerade').click();
     const confirmation = page.getByRole('alertdialog');
     await expect(confirmation).toContainText(VIEWER_EMAIL);
-    await confirmation.getByRole('button', { name: 'Start masquerade' }).click();
+    await confirmation.getByRole('button', { name: 'View as member' }).click();
 
     const banner = page.getByTestId('masquerade-banner');
     await expect(banner).toBeVisible();
     await expect(banner).toHaveAttribute('role', 'status');
-    await expect(banner).toContainText('Masquerading as');
+    await expect(banner).toContainText('Viewing as');
     await expect(banner).toContainText('Ends');
     await expect(banner.getByRole('button', { name: 'End now' })).toBeVisible();
     await expect(page.getByTestId('current-access')).toContainText('Viewer');
@@ -82,7 +76,7 @@ test.describe('member masquerade', () => {
     await expect(page.getByTestId('members-section')).toBeVisible();
   });
 
-  test('an Editor projection skips onboarding requests and the real Editor still gets onboarding', async ({
+  test('an Editor projection skips getting-started requests and the real Editor still gets getting started', async ({
     page,
     request,
     context,
@@ -91,40 +85,40 @@ test.describe('member masquerade', () => {
     const owner = await signUpUser(`masq-editor-owner-${STAMP}@capacitylens.dev`, 'Bruce Wayne');
     const editor = await signUpUser(EDITOR_EMAIL, 'Clark Kent');
     const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Enterprises ${STAMP}`);
-    seedFixtureMember(companyId, editor.email, 'editor');
+    createTestMember(companyId, editor.email, 'editor');
 
     await signIn(page, owner.email);
     await expect(page.getByTestId('getting-started')).toBeVisible();
 
-    const onboardingPath = `/api/companies/${companyId}/getting-started`;
+    const gettingStartedPath = `/api/companies/${companyId}/getting-started`;
     const ownerRouteRead = page.waitForResponse(
       (response) =>
         response.status() === 200 &&
         response.request().method() === 'GET' &&
-        new URL(response.url()).pathname === onboardingPath,
+        new URL(response.url()).pathname === gettingStartedPath,
     );
     await page.getByRole('link', { name: 'Team & access' }).click();
     await expect(page.getByTestId('current-access')).toContainText('Owner');
     await ownerRouteRead;
 
-    const onboardingRequests: string[] = [];
-    const observeOnboardingRequest = (browserRequest: Request) => {
+    const gettingStartedRequests: string[] = [];
+    const observeGettingStartedRequest = (browserRequest: Request) => {
       const url = new URL(browserRequest.url());
-      if (url.pathname === onboardingPath)
-        onboardingRequests.push(`${browserRequest.method()} ${url.pathname}`);
+      if (url.pathname === gettingStartedPath)
+        gettingStartedRequests.push(`${browserRequest.method()} ${url.pathname}`);
     };
-    page.on('request', observeOnboardingRequest);
+    page.on('request', observeGettingStartedRequest);
 
     const editorRow = page.getByTestId('member-row').filter({ hasText: editor.email });
     await editorRow.getByTestId('member-masquerade').click();
     const confirmation = page.getByRole('alertdialog');
     await expect(confirmation).toContainText(editor.email);
-    await confirmation.getByRole('button', { name: 'Start masquerade' }).click();
+    await confirmation.getByRole('button', { name: 'View as member' }).click();
 
     const banner = page.getByTestId('masquerade-banner');
-    await expect(banner).toContainText('Masquerading as');
+    await expect(banner).toContainText('Viewing as');
     await expect(page.getByTestId('current-access')).toContainText('Editor');
-    await expectNoOnboardingNoise(page, onboardingRequests);
+    await expectNoGettingStartedNoise(page, gettingStartedRequests);
 
     const projectionCookies = await context.cookies(AUTH_API);
     const cookie = projectionCookies.map(({ name, value }) => `${name}=${value}`).join('; ');
@@ -136,18 +130,19 @@ test.describe('member masquerade', () => {
       },
     );
     expect(status.status()).toBe(200);
-    const contextToken = ((await status.json()) as { contextToken: string }).contextToken;
-    expect(contextToken).not.toBe('');
+    const masqueradeToken = ((await status.json()) as { data: { masqueradeToken: string } }).data
+      .masqueradeToken;
+    expect(masqueradeToken).not.toBe('');
     const headers = {
       cookie,
       'sec-fetch-site': 'same-origin',
-      'X-Masquerade-Context': contextToken,
+      'X-Masquerade-Context': masqueradeToken,
     };
     const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
       headers,
     });
     expect(planning.status()).toBe(200);
-    const revision = ((await planning.json()) as { revision: number }).revision;
+    const revision = ((await planning.json()) as { data: { revision: number } }).data.revision;
     const refusedWrite = await request.post(
       `${AUTH_API}/api/companies/${companyId}/planning/mutations`,
       {
@@ -171,15 +166,15 @@ test.describe('member masquerade', () => {
 
     await page.getByRole('link', { name: 'Resources' }).click();
     await expect(page.getByRole('heading', { name: 'Resources' })).toBeVisible();
-    await expectNoOnboardingNoise(page, onboardingRequests);
+    await expectNoGettingStartedNoise(page, gettingStartedRequests);
     await page.getByRole('link', { name: 'Activities' }).click();
     await expect(page.getByRole('heading', { name: 'Activities', exact: true })).toBeVisible();
-    await expectNoOnboardingNoise(page, onboardingRequests);
+    await expectNoGettingStartedNoise(page, gettingStartedRequests);
     await page.getByRole('link', { name: 'Schedule' }).click();
     await expect(page.getByTestId('scheduler-grid')).toBeVisible();
-    await expectNoOnboardingNoise(page, onboardingRequests);
+    await expectNoGettingStartedNoise(page, gettingStartedRequests);
 
-    page.off('request', observeOnboardingRequest);
+    page.off('request', observeGettingStartedRequest);
     await banner.getByRole('button', { name: 'End now' }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByTestId('masquerade-banner')).toHaveCount(0);

@@ -36,11 +36,11 @@ flowchart TD
 flowchart TD
     Dialog["MemberResourceDialog renders eligible choices"] --> Select["MemberResourceEditor change calls the member's request from useMemberResourceLinkRequests, owned by useMembersOrchestration"]
     Select --> Choose{"Person selected?"}
-    Choose -->|"Yes"| SetClient["teamAccessClient.setMemberResourceLink → memberRequests PUT resource-link"]
-    SetClient --> SetRoute["api.member-resources.set → MemberResourcesController.setLink"]
+    Choose -->|"Yes"| SetClient["teamAccessApi.setMemberResourceLink → memberRequests PUT resource-link"]
+    SetClient --> SetRoute["api.member_resource_links.update → MemberResourceLinksController.update"]
     SetRoute --> SetLink["setMemberResourceLink updates account_member_resources"]
-    Choose -->|"None"| ClearClient["teamAccessClient.clearMemberResourceLink → memberRequests DELETE resource-link"]
-    ClearClient --> ClearRoute["api.member-resources.clear → MemberResourcesController.clearLink"]
+    Choose -->|"None"| ClearClient["teamAccessApi.clearMemberResourceLink → memberRequests DELETE resource-link"]
+    ClearClient --> ClearRoute["api.member_resource_links.destroy → MemberResourceLinksController.destroy"]
     ClearRoute --> ClearLink["clearMemberResourceLink removes account_member_resources row"]
     SetLink --> Reload["Request hook reloads directory"]
     ClearLink --> Reload
@@ -48,4 +48,4 @@ flowchart TD
     Fence --> Row["Member row shows refreshed link or a visible error; the editor is available again"]
 ```
 
-**Code references:** [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx), [useMemberResourceLinkRequest.ts](../../apps/frontend/src/components/team/useMemberResourceLinkRequest.ts), [useTeamDirectory.ts](../../apps/frontend/src/components/team/useTeamDirectory.ts), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [member_resources_controller.ts](../../apps/backend/app/controllers/member_resources_controller.ts), [links.ts](../../apps/backend/app/services/member_resources/links.ts)
+**Code references:** [MemberResourceLink.tsx](../../apps/frontend/src/components/team/MemberResourceLink.tsx), [useMemberResourceLinkRequest.ts](../../apps/frontend/src/components/team/useMemberResourceLinkRequest.ts), [useTeamDirectory.ts](../../apps/frontend/src/components/team/useTeamDirectory.ts), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts), [memberRequests.ts](../../apps/frontend/src/account/memberRequests.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [member_resource_links_controller.ts](../../apps/backend/app/controllers/member_resource_links_controller.ts), [links.ts](../../apps/backend/app/services/member_resources/links.ts)

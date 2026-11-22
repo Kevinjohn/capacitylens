@@ -1,7 +1,7 @@
 import { loadPlanningData } from '@/test/fixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { Modal, SelectField } from '@/components/common/ui';
+import { FormDialog, SelectField } from '@/components/common/ui';
 import { useStore } from '@/store/useStore';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
 
@@ -168,12 +168,12 @@ describe('SelectField', () => {
     fireEvent.click(screen.getByRole('option', { name: 'None' }));
     expect(onChange).toHaveBeenLastCalledWith('');
   });
-  it('marks a changed selection dirty inside a Modal', () => {
+  it('marks a changed selection dirty inside a FormDialog', () => {
     const onClose = vi.fn();
     render(
-      <Modal title="Select modal" onClose={onClose}>
+      <FormDialog title="Select dialog" onClose={onClose}>
         <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />
-      </Modal>,
+      </FormDialog>,
     );
     const select = screen.getByLabelText('Pick one');
     fireEvent.keyDown(select, { key: 'ArrowDown' });

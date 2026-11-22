@@ -19,7 +19,7 @@ import type {
 } from '@adonisjs/lucid/types/database';
 import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { canViewAs } from '@capacitylens/shared/domain/access';
+import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { buildAccessGrant } from '#services/auth/access_grant';
 
@@ -52,7 +52,7 @@ export async function readCurrentMasquerade(
     }
   }
   const view = await service.status(ctx);
-  if (!view.isMasquerading) return { active: false as const, contextToken: view.contextToken };
+  if (!view.isMasquerading) return { active: false as const, masqueradeToken: view.contextToken };
   const actor = await nativeAdapter.authenticateActor(ctx);
   const target = await client
     .from('users')
@@ -65,7 +65,7 @@ export async function readCurrentMasquerade(
   if (requestedCompanyId) {
     const actorRole = await getActiveCompanyRole(actor.id, requestedCompanyId, undefined);
     const targetRole = await getActiveCompanyRole(view.targetId, requestedCompanyId, undefined);
-    if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
+    if (actorRole && targetRole && canMasqueradeAs(actorRole, targetRole)) {
       companyId = requestedCompanyId;
       effectiveRole = targetRole;
     }
@@ -78,7 +78,7 @@ export async function readCurrentMasquerade(
     for (const candidate of memberships) {
       const actorRole = await getActiveCompanyRole(actor.id, candidate, undefined);
       const targetRole = await getActiveCompanyRole(view.targetId, candidate, undefined);
-      if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
+      if (actorRole && targetRole && canMasqueradeAs(actorRole, targetRole)) {
         companyId = candidate;
         effectiveRole = targetRole;
         break;
@@ -98,9 +98,9 @@ export async function readCurrentMasquerade(
     effectiveRole,
     startedAt: view.startedAt,
     expiresAt: view.expiresAt,
-    contextToken: view.contextToken,
+    masqueradeToken: view.contextToken,
     token: view.contextToken,
-    principal: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
+    actor: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
     ...buildAccessGrant(effectiveRole, true),
   };
 }
@@ -134,12 +134,12 @@ export async function resolveEffectiveReadUser(
   if (context.isMasquerading) {
     // Without a company there is no rank to check, so a view never reads company-free.
     if (!companyId) {
-      throw new IdentityAuthorizationException('Masquerade company authority changed.');
+      throw new IdentityAuthorizationException('Masquerade company access changed.');
     }
     const actorRole = await getActiveCompanyRole(actor.userId, companyId, trx);
     const targetRole = await getActiveCompanyRole(context.effectiveId, companyId, trx);
-    if (!actorRole || !targetRole || !canViewAs(actorRole, targetRole)) {
-      throw new IdentityAuthorizationException('Masquerade company authority changed.');
+    if (!actorRole || !targetRole || !canMasqueradeAs(actorRole, targetRole)) {
+      throw new IdentityAuthorizationException('Masquerade company access changed.');
     }
   }
   return {

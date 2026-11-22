@@ -5,7 +5,7 @@ As a signed-in person who cannot yet open company data, I want to see and comple
 **Status:** Current
 **Access:** Signed-in person at an admission or membership gate.
 **Entry:** Account access screen
-**Documentation:** [Sign-in and access](../../docs-src/company-login/index.md)
+**Documentation:** [Sign-in and access](../../docs-src/sign-in/index.md)
 **Source:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria
@@ -31,13 +31,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  gate["AuthProvider renders AccessScreen for accessGate"] --> request["AdmissionStep calls authClient.requestAdmission"]
-  request --> kit["AdmissionController.request calls Account Kit admission service"]
-  gate --> join["MembershipStep calls authClient.completeMembership"]
-  join --> service["AdmissionController.complete calls completeMembership"]
+  gate["AuthProvider renders AccessScreen for accessGate"] --> request["AdmissionStep calls authApi.requestAdmission"]
+  request --> kit["AdmissionRequestsController.store calls Account Kit admission service"]
+  gate --> join["MembershipStep calls authApi.completeMembership"]
+  join --> service["MembershipsController.store calls completeMembership"]
   request --> refresh["AccessScreen onRefresh rechecks AuthProvider status"]
   join --> refresh
   refresh --> outcome["AuthProvider renders refreshed gate or company access"]
 ```
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_controller.ts](../../apps/backend/app/controllers/admission_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)
+**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [admission_requests_controller.ts](../../apps/backend/app/controllers/admission_requests_controller.ts), [memberships_controller.ts](../../apps/backend/app/controllers/memberships_controller.ts), [admission_membership.ts](../../apps/backend/app/services/membership/admission_membership.ts)

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed } from '#tests/helpers/state_fixture';
 
 const companyId = 'a-studio';

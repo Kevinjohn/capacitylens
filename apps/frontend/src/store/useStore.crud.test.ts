@@ -5,7 +5,7 @@ import {
   makeResourceDraft,
   requireValue,
   resetStoreWithCompany,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
@@ -16,32 +16,32 @@ beforeEach(async () => {
   s().clearFilters();
 });
 
-const personDraft = makeResourceDraft({ name: 'Person', role: 'Dev', color: '#1' });
+const personDraft = makeResourceDraft({ name: 'Person', jobTitle: 'Dev', color: '#1' });
 
 // Omit the shared draft's false default to cover resources without the optional favourite flag.
 const unflaggedDraft = { ...personDraft };
 delete unflaggedDraft.isFavourite;
 
 describe('store CRUD covers every entity', () => {
-  it('accounts: update', async () => {
-    const company = requireValue(s().data.accounts[0], 'account');
+  it('companies: update', async () => {
+    const company = requireValue(s().data.companies[0], 'account');
     await s().updateCompany(company.id, { name: 'Renamed company' });
-    expect(s().data.accounts[0]?.name).toBe('Renamed company');
+    expect(s().data.companies[0]?.name).toBe('Renamed company');
   });
-  it('accounts: stores working days and keeps the update undoable', async () => {
-    const company = requireValue(s().data.accounts[0], 'account');
+  it('companies: stores working days and keeps the update undoable', async () => {
+    const company = requireValue(s().data.companies[0], 'account');
     await s().updateCompany(company.id, { workingDays: [1, 3, 5] });
-    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
+    expect(s().data.companies[0]?.workingDays).toEqual([1, 3, 5]);
 
     await s().updateCompany(company.id, { workingDays: [2, 4] });
     await s().undoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
-      [1, 3, 5],
-    );
+    expect(
+      s().data.companies.find((candidate) => candidate.id === company.id)?.workingDays,
+    ).toEqual([1, 3, 5]);
     await s().redoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
-      [2, 4],
-    );
+    expect(
+      s().data.companies.find((candidate) => candidate.id === company.id)?.workingDays,
+    ).toEqual([2, 4]);
   });
   it('disciplines: add / update / delete', async () => {
     const d = await requireCreated(s().addDiscipline({ name: 'Design', color: '#1' }));
@@ -101,7 +101,7 @@ describe('store CRUD covers every entity', () => {
     await expect(s().deleteActivity(t.id)).resolves.toMatchObject({ archived });
   });
   it('activities: a general (no-project) activity can be added without a projectId', async () => {
-    const t = await requireCreated(s().addActivity({ name: 'Admin', kind: 'repeatable' }));
+    const t = await requireCreated(s().addActivity({ name: 'Admin', kind: 'allProjects' }));
     expect(t.projectId).toBeNull();
     expect(requireValue(s().data.activities[0], 'activity')).toHaveProperty('projectId', null);
     expect(s().data.activities[0]?.name).toBe('Admin');
@@ -112,8 +112,8 @@ describe('store CRUD covers every entity', () => {
     const t = await requireCreated(
       s().addActivity({ name: 'T', kind: 'project', projectId: p.id }),
     );
-    await s().updateActivity(t.id, { kind: 'repeatable', projectId: null });
-    expect(s().data.activities[0]?.kind).toBe('repeatable');
+    await s().updateActivity(t.id, { kind: 'allProjects', projectId: null });
+    expect(s().data.activities[0]?.kind).toBe('allProjects');
     expect(requireValue(s().data.activities[0], 'activity')).toHaveProperty('projectId', null);
   });
   it('updateActivity preserves the project for a phase-only patch', async () => {
@@ -134,8 +134,8 @@ describe('store CRUD covers every entity', () => {
   });
   it('resources: add / update', async () => {
     const r = await requireCreated(s().addResource({ ...personDraft }));
-    await s().updateResource(r.id, { role: 'Lead' });
-    expect(s().data.resources[0]?.role).toBe('Lead');
+    await s().updateResource(r.id, { jobTitle: 'Lead' });
+    expect(s().data.resources[0]?.jobTitle).toBe('Lead');
   });
   it('resources: defaults legacy people and placeholders to Studio engagement', async () => {
     const legacyPersonDraft = { ...personDraft };
@@ -168,14 +168,14 @@ describe('store CRUD covers every entity', () => {
   it('resources: a viewer cannot change an account favourite', async () => {
     const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     await s().updateResource(resource.id, { isFavourite: true });
 
     expect(requireValue(s().data.resources[0], 'resource')).toHaveProperty('isFavourite', null);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
-  it('blocks a write when the planning authority cannot write, whatever the role', async () => {
-    setPlanningAuthority({ role: 'owner', canWrite: false });
+  it('blocks a write when the planning access cannot write, whatever the role', async () => {
+    setPlanningAccess({ role: 'owner', canWrite: false });
 
     expect(await s().addClient({ name: 'Wayne Foundation', color: '#1' })).toEqual({
       kind: 'blocked',
@@ -268,18 +268,18 @@ describe('store UI + history extras', () => {
     const afterUndo = s().data;
     const historyAfterUndo = s().planning.history;
 
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     expect(await s().redoPlanning()).toBe(false);
     expect(s().data).toBe(afterUndo);
     expect(s().planning.history).toBe(historyAfterUndo);
     expect(s().notice).toMatchObject({ tone: 'error' });
 
-    setPlanningAuthority({ role: 'editor' });
+    setPlanningAccess({ role: 'editor' });
     await s().redoPlanning();
     const afterRedo = s().data;
     const historyAfterRedo = s().planning.history;
     s().setNotice(null);
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     expect(await s().undoPlanning()).toBe(false);
     expect(s().data).toBe(afterRedo);
     expect(s().planning.history).toBe(historyAfterRedo);
@@ -287,7 +287,7 @@ describe('store UI + history extras', () => {
   });
 });
 
-const seedAlloc = async () => {
+const createTestAllocation = async () => {
   const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#111111' }));
   const p = await requireCreated(s().addProject({ name: 'P', clientId: c.id, color: '#222222' }));
   const t = await requireCreated(s().addActivity({ name: 'T', kind: 'project', projectId: p.id }));
@@ -297,7 +297,7 @@ const seedAlloc = async () => {
 
 describe('store allocation and resource defaults', () => {
   it('preserves a valid 24-hour allocation', async () => {
-    const { r, t } = await seedAlloc();
+    const { r, t } = await createTestAllocation();
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,
@@ -312,7 +312,7 @@ describe('store allocation and resource defaults', () => {
     expect(s().data.allocations[0]?.hoursPerDay).toBe(24);
   });
   it('updateAllocation applies a status-only patch while retaining dates', async () => {
-    const { r, t } = await seedAlloc();
+    const { r, t } = await createTestAllocation();
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,
@@ -403,7 +403,7 @@ describe('store colour and role behavior', () => {
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe('#7adae3');
   });
   it('a viewer cannot add a client', async () => {
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     const returned = await s().addClient({ name: 'Ferris', color: '#2d75da' });
     expect(s().data.clients).toHaveLength(0);
     expect(s().notice).toMatchObject({ tone: 'error' });
@@ -411,7 +411,7 @@ describe('store colour and role behavior', () => {
   });
   it('a viewer cannot update a client colour', async () => {
     const client = await requireCreated(s().addClient({ name: 'Ferris', color: '#7adae3' }));
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     await s().updateClient(client.id, { color: '#e02727' });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe('#7adae3');
     expect(s().notice).toMatchObject({ tone: 'error' });

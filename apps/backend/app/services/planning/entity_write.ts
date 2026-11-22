@@ -13,9 +13,9 @@ import {
   assertAllocationStartIsAvailable,
   assertAllocationStartsOnWorkingDay,
 } from '#services/planning/entity_validation/domain';
-import { isRetainedTable } from './retained_rows.js';
-import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
-import { asRecord, writeRow, type WrittenRow } from './writer.js';
+import { isRetainedTable } from '#services/planning/retained_rows';
+import { reclaimRetainedId, type RestorationIdentity } from '#services/planning/restoration';
+import { asRecord, writeRow, type WrittenRow } from '#services/planning/writer';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 interface WriteEntityOptions<K extends ScopedEntityKey> {
@@ -64,7 +64,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
     resourceHasTimeOff: (companyId, resourceId) =>
       data.timeOff.some((row) => row.companyId === companyId && row.resourceId === resourceId),
     companyWorkingDays: (companyId): Weekday[] => {
-      const company = data.accounts.find((row) => row.id === companyId);
+      const company = data.companies.find((row) => row.id === companyId);
       return normalizeCompanyWorkingDays(company?.workingDays, company?.weekStartsOn === 0 ? 0 : 1);
     },
   };
@@ -74,7 +74,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
  * Validates and writes one row in the caller's transaction, then mutates its unprojected company state.
  * Later compound entries validate against those changes. The caller owns rollback and atomic
  * revision, audit and commitment recording. Only later occurrences of a repeated create may use
- * permissiveRepeatStart; creates, duplicates and the first occurrence retain the working-day gate.
+ * permissiveRepeatStart; creates, duplicates and the first occurrence retain the working-day check.
  * Reusing a retained id requires the deleting actor's original native session; otherwise the
  * existing id-conflict refusal leaves the pending deletion intact. Identity is server-verified.
  */

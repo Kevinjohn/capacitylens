@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SegmentedControl } from './SegmentedControl';
 
-// The rest of this control's behaviour is covered in the Modal tests in dialogs.test.tsx.
+// The rest of this control's behaviour is covered in the FormDialog tests in dialogs.test.tsx.
 // Variant interaction lives here because it is about how two presentation options combine.
 describe('SegmentedControl variants', () => {
   const options = [

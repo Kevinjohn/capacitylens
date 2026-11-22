@@ -7,7 +7,7 @@ import { existsSync, rmSync } from 'node:fs';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
-import { resolveLane } from '../../tooling/ports.mjs';
+import { resolvePortLane } from '../../tooling/ports.mjs';
 import { E2E_SCRIPT_TEST_SLOTS } from '../../tooling/e2eTestSlots.mjs';
 import {
   acquireExclusiveFile,
@@ -53,7 +53,7 @@ function waitForChildMessage(child, type, timeoutMs = 10_000) {
   });
 }
 
-function requestPendingConfirmation(target, cookie, contextToken) {
+function requestPendingConfirmation(target, cookie, masqueradeToken) {
   const url = new URL('/api/auth/password-confirmation', target.api);
   const request = http.request(url, {
     method: 'POST',
@@ -61,7 +61,7 @@ function requestPendingConfirmation(target, cookie, contextToken) {
       cookie,
       origin: target.api,
       'sec-fetch-site': 'same-origin',
-      'x-masquerade-context': contextToken,
+      'x-masquerade-context': masqueradeToken,
       'content-type': 'application/json',
     },
   });
@@ -165,7 +165,7 @@ test(
   'company template resets preserve identities and sessions, clear history and honor request drain',
   { timeout: 90_000 },
   async () => {
-    const target = serverTarget(resolveLane(), E2E_SCRIPT_TEST_SLOTS.reset);
+    const target = serverTarget(resolvePortLane(), E2E_SCRIPT_TEST_SLOTS.reset);
     const release = acquireExclusiveFile(`${target.databasePath}.reset-test.lock`);
     const controlToken = createResetControlToken();
     let failNextVitePause = false;
@@ -332,7 +332,7 @@ test(
         .run('receipt', 'a-studio', 'command', 'operation', 'key', 'hash', 'committed', now, now);
       database
         .prepare(
-          'INSERT INTO account_getting_started_dismissals (id, company_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
+          'INSERT INTO company_getting_started_dismissals (id, company_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
         )
         .run('dismissed', 'a-studio', now, now);
 
@@ -358,8 +358,8 @@ test(
         headers: { cookie },
       });
       assert.equal(contextResponse.status, 200);
-      const context = await contextResponse.json();
-      assert.equal(typeof context.contextToken, 'string');
+      const context = (await contextResponse.json()).data;
+      assert.equal(typeof context.masqueradeToken, 'string');
       await waitForApiIdle(target.api);
       for (const table of ['adonis_sessions', 'account_sessions'])
         preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
@@ -382,13 +382,13 @@ test(
       assert.deepEqual(
         nativeActivity.pendingRequests.map(({ method, path }) => ({ method, path })),
         [{ method: 'GET', path: '/api/masquerade' }],
-        'native accounting sees the request before Adonis begins handling it',
+        'native accounting sees the request before AdonisJS begins handling it',
       );
       assert.ok(nativeActivity.pendingRequests[0].elapsedMs >= 0);
       await assert.rejects(
         resetServer({ target }),
         /api pause failed:.*pause timed out with 1 active handlers/i,
-        'reset refuses before SQLite while the native handler has not entered Adonis',
+        'reset refuses before SQLite while the native handler has not entered AdonisJS',
       );
       assert.equal(
         database.prepare("SELECT name FROM clients WHERE id='c-acme'").get().name,
@@ -405,7 +405,7 @@ test(
 
       const entered = waitForChildMessage(server, 'entered-verification');
       server.send({ type: 'arm' });
-      const pending = requestPendingConfirmation(target, cookie, context.contextToken);
+      const pending = requestPendingConfirmation(target, cookie, context.masqueradeToken);
       await entered;
       pending.request.destroy();
       await pending.socketClosed;
@@ -460,7 +460,7 @@ test(
       assert.equal(
         (await bufferedDispatchCount).count,
         0,
-        'the incomplete request on the retired API socket never reaches Adonis after resume',
+        'the incomplete request on the retired API socket never reaches AdonisJS after resume',
       );
       assert.equal((await fetch(`${target.api}/health/ready`)).ok, true);
       assert.deepEqual(database.prepare('SELECT * FROM clients ORDER BY id').all(), clients);
@@ -472,7 +472,7 @@ test(
         'deleted_groups',
         'deleted_rows',
         'request_receipts',
-        'account_getting_started_dismissals',
+        'company_getting_started_dismissals',
       ])
         assert.equal(
           database.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get().count,
@@ -489,9 +489,9 @@ test(
       );
       failNextVitePause = true;
       await assert.rejects(resetServer({ target }), /in-flight API sockets/);
-      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM accounts').get().count, 1);
+      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 1);
       await resetServer({ target, withSeed: false });
-      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM accounts').get().count, 0);
+      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 0);
       assert.equal(database.prepare('SELECT COUNT(*) AS count FROM memberships').get().count, 0);
       assert.deepEqual(
         database.prepare('SELECT * FROM adonis_sessions').all(),
@@ -514,7 +514,7 @@ test(
       database.prepare('DELETE FROM memberships WHERE user_id = ?').run(admin.id);
       database.prepare('DELETE FROM users WHERE id = ?').run(admin.id);
       await assert.rejects(resetServer({ target }), /administrator is unavailable; restart/);
-      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM accounts').get().count, 1);
+      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 1);
       const replacementId = randomUUID();
       for (const table of ['users', 'account_admissions']) {
         const original = preserved[table][0];

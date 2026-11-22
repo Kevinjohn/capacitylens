@@ -18,23 +18,23 @@ import { isAccountEmail } from '../../packages/shared/src/account/validation.ts'
 import { createResetControlServer } from '../../tooling/e2e_reset_control.ts';
 import { createRetirableListener } from '../../tooling/e2e_retirable_listener.ts';
 
-// Lane-derived ports keep concurrent worktrees on disjoint service endpoints.
-const lanePorts = ports();
+// Port lane-derived ports keep concurrent worktrees on disjoint service endpoints.
+const portLanePorts = ports();
 const devApiPort = parsePort(
   process.env.CAPACITYLENS_DEV_API_PORT,
-  lanePorts.dbApi,
+  portLanePorts.dbApi,
   'CAPACITYLENS_DEV_API_PORT',
 );
 // One Vite config serves several dev servers on different ports (the core app, and the db/auth
-// flavours Playwright boots). The service name selects which lane port this invocation binds,
+// flavours Playwright boots). The service name selects which port lane port this invocation binds,
 // so no script has to pass a literal `--port`.
 const viteService = process.env.CAPACITYLENS_VITE_SERVICE ?? 'web';
-if (!Object.hasOwn(lanePorts, viteService)) {
+if (!Object.hasOwn(portLanePorts, viteService)) {
   throw new Error(
-    `CAPACITYLENS_VITE_SERVICE must name a lane port; received ${JSON.stringify(viteService)}.`,
+    `CAPACITYLENS_VITE_SERVICE must name a port lane port; received ${JSON.stringify(viteService)}.`,
   );
 }
-const servicePort = lanePorts[viteService as keyof typeof lanePorts];
+const servicePort = portLanePorts[viteService as keyof typeof portLanePorts];
 const e2eWorker = process.env.CAPACITYLENS_E2E_WORKER === '1';
 const e2eResetToken = process.env.CAPACITYLENS_E2E_RESET_TOKEN;
 /**
@@ -184,7 +184,7 @@ function createE2eProxyDrainProbe() {
   return { plugin, proxyOptions: { agent, configure } };
 }
 
-/** Configures application builds and lane-local development, refusing invalid client deployment settings. */
+/** Configures application builds and port-lane-local development, refusing invalid client deployment settings. */
 export default defineConfig(({ mode, command }) => {
   const workerServe = command === 'serve' && e2eWorker;
   const drainProbe = workerServe ? createE2eProxyDrainProbe() : null;
@@ -247,10 +247,10 @@ export default defineConfig(({ mode, command }) => {
       host: '127.0.0.1',
       port: vitePort,
       strictPort: true,
-      // The dev proxy and full-stack launcher share the configured lane API port so browser requests stay same-origin.
+      // The dev proxy and full-stack launcher share the configured port lane API port so browser requests stay same-origin.
       proxy: {
         '/api': {
-          // Keep this `CAPACITYLENS_DEV_API_PORT ?? lane dbApi` default identical to
+          // Keep this `CAPACITYLENS_DEV_API_PORT ?? port lane dbApi` default identical to
           // scripts/dev/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
@@ -263,14 +263,14 @@ export default defineConfig(({ mode, command }) => {
         },
       },
     },
-    // `vite preview` and scripts/e2e/serve-dist.mjs both default to 4173, so this needs a lane too.
+    // `vite preview` and scripts/e2e/serve-dist.mjs both default to 4173, so this needs a port lane too.
     preview: {
       host: '127.0.0.1',
-      port: lanePorts.preview,
+      port: portLanePorts.preview,
       strictPort: true,
     },
     test: {
-      // Without a reserved share, use the same half-core ceiling as a solo lane claim.
+      // Without a reserved share, use the same half-core ceiling as a solo port lane claim.
       maxWorkers: testShare(),
       environment: 'jsdom',
       env: { TZ: 'UTC' },

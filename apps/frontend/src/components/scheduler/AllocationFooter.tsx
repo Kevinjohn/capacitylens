@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/common/dialogs';
 import { RepeatedAllocationDeleteDialog } from './RepeatedAllocationDeleteDialog';
 import { buildUndoShortcut } from '@/lib/keyboardShortcuts';
-import type { AllocationModalState } from './useAllocationModalState';
+import type { AllocationDialogState } from './useAllocationDialogState';
 
-type AllocationFooterProps = AllocationModalState['footer'];
+type AllocationFooterProps = AllocationDialogState['footer'];
 
 /** Shows allocation form actions and validation status. */
 export function AllocationFooter({

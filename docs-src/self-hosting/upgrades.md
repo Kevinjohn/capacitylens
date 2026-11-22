@@ -1,12 +1,12 @@
 ---
 title: Upgrades
-description: Upgrade the native CapacityLens archive with a verified pre-migration snapshot and the Adonis migration command.
+description: Upgrade the native CapacityLens archive with a verified pre-migration backup and the AdonisJS migration command.
 ---
 
 # Upgrade CapacityLens
 
 Keep the database and backup directory outside versioned release folders. Before changing the
-running code, read the release notes and confirm that a recent snapshot can be read. Use one
+running code, read the release notes and confirm that a recent backup can be read. Use one
 process and stop it before replacing files or running the migration command.
 
 ## Upgrade with the install command
@@ -31,6 +31,12 @@ Download the archive for the host's operating system and architecture. Verify it
 it next to the current release, and move the `current` link to the new version. Do not overwrite an
 existing release folder.
 
+If nginx serves the site from a copy of the release's `capacitylens.nginx.conf`, compare that copy
+with the new release's file and copy over any changed `location` blocks before starting the service.
+Upgrades never replace it, and its `location` blocks keep secret-bearing sign-in and invitation
+paths out of the access log. Invitation paths are now `/api/invitations/<token>/...` and
+`/invitation/<token>`; an older copy logs the tokens in them.
+
 ## Upgrade the database
 
 From the new release's `backend/` directory, with the same environment used by the service, run:
@@ -39,19 +45,19 @@ From the new release's `backend/` directory, with the same environment used by t
 node ace.js app:upgrade
 ```
 
-For an existing database, this command writes and verifies an online pre-upgrade snapshot before
-running `migration:run --force --no-schema-generate`. A fresh database is initialized without a
-pre-upgrade snapshot. Schema drift refuses the upgrade. Do not start the new
+For an existing database, this command writes and verifies an online pre-upgrade backup before
+running `migration:run --force --no-schema-generate`. A fresh database is initialised without a
+pre-upgrade backup. Schema drift refuses the upgrade. Do not start the new
 service after a failed upgrade; retain the source database and recovery files and investigate the
 reported refusal.
 
-After a successful upgrade, start the service and check `/health/ready`. Keep the snapshot until the
-new release has passed sign-in, reads, writes and backup checks. Pre-upgrade snapshots are kept
+After a successful upgrade, start the service and check `/health/ready`. Keep the backup until the
+new release has passed sign-in, reads, writes and backup checks. Pre-upgrade backups are kept
 separately from daily/manual retention; copy them off-host and keep the needed recovery points.
 
 ## Restore beta planning into a fresh installation
 
-A full beta-native JSON export can transfer planning without upgrading the source database. While
+A full beta-native JSON export can move planning without upgrading the source database. While
 the source still runs, sign in as its Owner and download **Export JSON** from **Settings → Data and
 support → Import and export**. Keep the file unchanged and preserve the source database.
 
@@ -63,7 +69,7 @@ and sign-in records remain local. Scheduling IDs and relationships are preserved
 and establish their person links as needed.
 
 Check all imported records and settings, make an allocation edit, and reload before retiring the
-source installation. This transfers only full `capacitylens-beta` version `2` documents. It does
+source installation. This imports only full `capacitylens-beta` version `2` documents. It does
 not convert alpha exports or migrate authentication. Redacted and malformed documents are refused.
 
 ## Databases the upgrade refuses
@@ -75,7 +81,7 @@ and startup refuse it with a `Database schema drift` message. Start a fresh data
 
 1. Stop the service and keep the old database file where it is.
 2. Point `CAPACITYLENS_DB` at a new, unused path.
-3. Run `node ace.js app:upgrade` to initialize it, then start the service.
+3. Run `node ace.js app:upgrade` to initialise it, then start the service.
 4. Print a setup link with `node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer`
    and send it to the Owner, who recreates the company and invites everyone again.
 
@@ -88,9 +94,9 @@ Scheduling exports do not contain this control data.
 ## Roll back
 
 Migrations are forward-only; there are no down migrations. To roll back an application release,
-stop the service and restore the verified pre-upgrade snapshot to a separate database path, then
+stop the service and restore the verified pre-upgrade backup to a separate database path, then
 point `CAPACITYLENS_DB` at that restored copy before starting the earlier release. Preserve the
 upgraded database and all recovery files until the rollback is confirmed.
 
-See [Backups and restore](/self-hosting/backups-and-restore) for snapshot handling and
+See [Backups and restore](/self-hosting/backups-and-restore) for backup handling and
 [Monitoring](/self-hosting/monitoring) for readiness checks.

@@ -2,15 +2,15 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamDirectory, TeamMember } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamDirectory, TeamMember } from '@/account/teamAccessApi';
 import { AuthContext } from '@/auth/authContext';
 import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { holdCalls } from '@/test/holdCalls';
-import { makeAuthValue } from './MembersSection.testSupport';
+import { makeAuthValue } from './MembersSectionTestKit';
 import { useTeamDirectory } from './useTeamDirectory';
 
-type MembersRead = Awaited<ReturnType<typeof teamAccessClient.listMembers>>;
+type MembersRead = Awaited<ReturnType<typeof teamAccessApi.listMembers>>;
 
 function makeDirectory(
   resourceLink: NonNullable<TeamMember['resourceLink']> | null,
@@ -39,10 +39,10 @@ function makeDirectory(
 function controlMemberReads() {
   const reads = holdCalls<MembersRead>();
   const listMembers = vi
-    .spyOn(teamAccessClient, 'listMembers')
+    .spyOn(teamAccessApi, 'listMembers')
     .mockResolvedValueOnce({ kind: 'ok', status: 200, value: makeDirectory(null) })
     .mockImplementation(() => new Promise((resolve) => reads.calls.push(resolve)));
-  vi.spyOn(teamAccessClient, 'listInvitations').mockResolvedValue({
+  vi.spyOn(teamAccessApi, 'listInvitations').mockResolvedValue({
     kind: 'ok',
     status: 200,
     value: [],

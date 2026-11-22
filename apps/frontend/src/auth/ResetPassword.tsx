@@ -13,7 +13,7 @@ import {
 } from '@capacitylens/shared/domain/password';
 import { resolveResetPasswordFailureMessage } from './resetPasswordFailure';
 import { m } from '@/i18n';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 
 // Password recovery must render before a session exists. The server enforces token consumption and password policy.
 
@@ -152,7 +152,7 @@ export function ResetPassword() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   // Stable ids so both inputs can point at the shared form-level error (WCAG 3.3.1), the
-  // LoginScreen idiom: describedby re-announces the reason as the user navigates back.
+  // SignInScreen idiom: describedby re-announces the reason as the user navigates back.
   const passwordId = useId();
   const confirmId = useId();
   const errorId = useId();
@@ -175,7 +175,7 @@ export function ResetPassword() {
     setError(null);
     setState({ kind: 'working' });
     try {
-      const res = await authClient.resetPassword({ newPassword: password, token });
+      const res = await authApi.resetPassword({ newPassword: password, token });
       if (!res.error) {
         setState({ kind: 'done' });
         return;

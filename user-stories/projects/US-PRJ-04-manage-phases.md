@@ -37,7 +37,7 @@ flowchart TD
   A["ProjectList opens ProjectForm"] --> B["ProjectForm contains no phase add, edit or delete controls"]
   B --> C["No current UI call path to addPhase, updatePhase or deletePhase"]
   D["typedPlanningActions retains phase catalogue actions"] --> E["planningTransport maps phase create, update and delete routes"]
-  E --> F["PlanningController.mutate / phaseUpdate / phaseDelete"]
+  E --> F["PlanningMutationsController.store / phaseUpdate / phaseDelete"]
 ```
 
-**Code references:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)
+**Code references:** [ProjectList.tsx](../../apps/frontend/src/components/projects/ProjectList.tsx) · [ProjectForm.tsx](../../apps/frontend/src/components/projects/ProjectForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [execute.ts](../../apps/backend/app/services/planning/execute.ts)

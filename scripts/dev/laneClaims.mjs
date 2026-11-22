@@ -1,10 +1,10 @@
-// Claiming a port lane and a share of the machine's CPUs. tooling/ports.mjs maps a lane to ports
+// Claiming a port lane and a share of the machine's CPUs. tooling/ports.mjs maps a port lane to ports
 // and is pure; everything that touches the filesystem or another process lives here, and
 // scripts/dev/with-lane.mjs is the only caller in normal use.
 //
 // Two invariants this file exists to hold:
-//   1. Two runs never hold the same lane. Scanning for a free lane and writing the claim happen
-//      under a directory mutex, so two starters cannot both decide the same stale lane is theirs.
+//   1. Two runs never hold the same port lane. Scanning for a free port lane and writing the claim happen
+//      under a directory mutex, so two starters cannot both decide the same stale port lane is theirs.
 //   2. A release never deletes someone else's claim. Release re-reads the file and unlinks only
 //      when the recorded token is still ours; otherwise a slow releaser would delete the lock a
 //      successor had just created.
@@ -24,14 +24,14 @@ import {
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
-  LANE_CEILING,
-  LANE_CLAIM_ENVIRONMENT_KEY,
-  LANE_ENVIRONMENT_KEY,
-  portsForLane,
-  WORKER_SLOTS_PER_LANE,
+  PORT_LANE_CEILING,
+  PORT_LANE_CLAIM_ENVIRONMENT_KEY,
+  PORT_LANE_ENVIRONMENT_KEY,
+  portsForPortLane,
+  WORKER_SLOTS_PER_PORT_LANE,
   workerPorts,
   reservationCeiling,
-  resolveLane,
+  resolvePortLane,
   soloShare,
   testShare,
 } from '../../tooling/ports.mjs';
@@ -43,8 +43,8 @@ const LEGACY_PUBLISH_GRACE_MS = 5_000;
 const MUTEX_WAIT_ARRAY = new Int32Array(new SharedArrayBuffer(4));
 let claimSequence = 0;
 
-/** Returns the shared lane-claim directory selected by XDG_CACHE_HOME or the user’s cache directory, without creating it. */
-export function laneDirectory(environment = process.env) {
+/** Returns the shared port-lane-claim directory selected by XDG_CACHE_HOME or the user’s cache directory, without creating it. */
+export function portLaneDirectory(environment = process.env) {
   const cacheHome = environment.XDG_CACHE_HOME || join(environment.HOME || homedir(), '.cache');
   return join(cacheHome, 'capacitylens', 'lanes');
 }
@@ -55,7 +55,7 @@ function processAlive(pid) {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    // EPERM means the process exists but belongs to another user, which still makes the lane taken.
+    // EPERM means the process exists but belongs to another user, which still makes the port lane taken.
     return error.code === 'EPERM';
   }
 }
@@ -66,7 +66,7 @@ function readClaim(path) {
     text = readFileSync(path, 'utf8');
   } catch (error) {
     if (error.code === 'ENOENT') return null;
-    // Any other read failure says nothing about the holder, so reaping the lane would break
+    // Any other read failure says nothing about the holder, so reaping the port lane would break
     // invariant 1.
     throw error;
   }
@@ -206,12 +206,12 @@ function removeQuietly(path) {
   }
 }
 
-function claimPath(directory, lane) {
-  return join(directory, `${lane}.json`);
+function claimPath(directory, portLane) {
+  return join(directory, `${portLane}.json`);
 }
 
 /**
- * Live claims by lane, read without the mutex and without deleting anything, so a report can never
+ * Live claims by port lane, read without the mutex and without deleting anything, so a report can never
  * remove a claim that a concurrent starter is still writing.
  */
 export function readLiveClaims(directory) {
@@ -239,11 +239,11 @@ function collectLiveClaimsAndPruneStaleFiles(directory) {
   for (const name of readdirSync(directory)) {
     const match = /^(\d+)\.json$/.exec(name);
     if (!match) continue;
-    const lane = Number(match[1]);
+    const portLane = Number(match[1]);
     const path = join(directory, name);
     const claim = readClaim(path);
     if (claim && !claim.corrupt && processAlive(claim.pid)) {
-      claims.set(lane, claim);
+      claims.set(portLane, claim);
       continue;
     }
     removeQuietly(path);
@@ -285,7 +285,7 @@ export function listenerPid(port, run = execFileSync) {
   }
 }
 
-/** A listener's working directory, included when reporting an occupied lane. */
+/** A listener's working directory, included when reporting an occupied port lane. */
 export function listenerDirectory(pid, run = execFileSync) {
   try {
     const output = String(
@@ -309,67 +309,68 @@ export function listenerDirectory(pid, run = execFileSync) {
 }
 
 /**
- * Refuse a freshly claimed lane when any of its ports are occupied. Occupancy is not ownership, so
+ * Refuse a freshly claimed port lane when any of its ports are occupied. Occupancy is not ownership, so
  * the launcher reports the listener and leaves stopping it to the developer.
  * Does not stop listeners.
  * @throws When an endpoint is occupied or listener inspection fails.
  */
-export async function assertLaneFree(
-  lane,
+export async function assertPortLaneFree(
+  portLane,
   { probe = portInUse, owner = listenerPid, directoryOf = listenerDirectory } = {},
 ) {
-  const endpoints = Object.entries(portsForLane(lane));
-  for (let slot = 0; slot < WORKER_SLOTS_PER_LANE; slot += 1)
-    for (const [service, port] of Object.entries(workerPorts(lane, slot)))
+  const endpoints = Object.entries(portsForPortLane(portLane));
+  for (let slot = 0; slot < WORKER_SLOTS_PER_PORT_LANE; slot += 1)
+    for (const [service, port] of Object.entries(workerPorts(portLane, slot)))
       endpoints.push([`worker ${slot} ${service}`, port]);
   for (const [service, port] of endpoints) {
     if (!(await probe(port))) continue;
     const pid = owner(port);
     if (pid === null)
       throw new Error(
-        `lane ${lane}: port ${port} (${service}) is held by a process lsof cannot identify. Free it before retrying.`,
+        `port lane ${portLane}: port ${port} (${service}) is held by a process lsof cannot identify. Free it before retrying.`,
       );
     const directory = directoryOf(pid);
     throw new Error(
-      `lane ${lane}: port ${port} (${service}) is held by pid ${pid} running in ${directory ?? 'an unknown directory'}. ` +
-        `Stop it with kill ${pid}, or choose another lane with CAPACITYLENS_PORT_LANE=<n>.`,
+      `port lane ${portLane}: port ${port} (${service}) is held by pid ${pid} running in ${directory ?? 'an unknown directory'}. ` +
+        `Stop it with kill ${pid}, or choose another port lane with CAPACITYLENS_PORT_LANE=<n>.`,
     );
   }
 }
 
 /**
- * Claim a selected lane, or the lowest free lane, plus a CPU share. Returns the lane, share, claim
+ * Claim a selected port lane, or the lowest free port lane, plus a CPU share. Returns the port lane, share, claim
  * token, and a release that is safe to call more than once.
  * Creates a filesystem reservation; releasing the returned claim is idempotent.
- * @throws When no lane is available, mutex acquisition times out or filesystem operations fail.
+ * @throws When no port lane is available, mutex acquisition times out or filesystem operations fail.
  */
-export function claimLane({
+export function claimPortLane({
   worktree,
   environment = process.env,
   cores,
-  lane: requestedLane,
+  portLane: requestedPortLane,
 } = {}) {
-  const directory = laneDirectory(environment);
+  const directory = portLaneDirectory(environment);
   mkdirSync(directory, { recursive: true });
   return withMutex(directory, () => {
     const claims = collectLiveClaimsAndPruneStaleFiles(directory);
-    const heldClaim = requestedLane === undefined ? undefined : claims.get(requestedLane);
+    const heldClaim = requestedPortLane === undefined ? undefined : claims.get(requestedPortLane);
     if (heldClaim)
       throw new Error(
-        `lane ${requestedLane} is held by pid ${heldClaim.pid} in ${heldClaim.worktree}`,
+        `port lane ${requestedPortLane} is held by pid ${heldClaim.pid} in ${heldClaim.worktree}`,
       );
-    const lane =
-      requestedLane ?? [...Array(LANE_CEILING).keys()].find((candidate) => !claims.has(candidate));
-    if (lane === undefined) {
+    const portLane =
+      requestedPortLane ??
+      [...Array(PORT_LANE_CEILING).keys()].find((candidate) => !claims.has(candidate));
+    if (portLane === undefined) {
       const holders = [...claims.entries()]
-        .map(([held, claim]) => `  lane ${held}: pid ${claim.pid} in ${claim.worktree}`)
+        .map(([held, claim]) => `  port lane ${held}: pid ${claim.pid} in ${claim.worktree}`)
         .join('\n');
       throw new Error(
-        `All ${LANE_CEILING} port lanes are held:\n${holders}\nWait for one to finish, or stop one of those runs.`,
+        `All ${PORT_LANE_CEILING} port lanes are held:\n${holders}\nWait for one to finish, or stop one of those runs.`,
       );
     }
     const share = shareForClaims(claims, cores);
-    const path = claimPath(directory, lane);
+    const path = claimPath(directory, portLane);
     const token = `${process.pid}-${Date.now()}-${++claimSequence}`;
     const descriptor = openSync(path, 'wx', 0o600);
     try {
@@ -380,13 +381,13 @@ export function claimLane({
     } finally {
       closeSync(descriptor);
     }
-    return { lane, share, token, release: () => releaseLane(directory, lane, token) };
+    return { portLane, share, token, release: () => releasePortLane(directory, portLane, token) };
   });
 }
 
 /** Releases only the current process’s matching claim token so a slow releaser cannot delete a successor’s claim. */
-export function releaseLane(directory, lane, token) {
-  const path = claimPath(directory, lane);
+export function releasePortLane(directory, portLane, token) {
+  const path = claimPath(directory, portLane);
   const claim = readClaim(path);
   if (!claim || claim.pid !== process.pid || claim.token !== token) return false;
   removeQuietly(path);
@@ -394,29 +395,29 @@ export function releaseLane(directory, lane, token) {
 }
 
 /**
- * The lane a launch runs in. A lane is inherited only when an outer launcher supplied both its lane
- * and claim marker; that claim is never released here. Otherwise this launch claims its own lane,
- * the one selected by hand when the lane variable is set, else the lowest free one.
+ * The port lane a launch runs in. A port lane is inherited only when an outer launcher supplied both its port lane
+ * and claim marker; that claim is never released here. Otherwise this launch claims its own port lane,
+ * the one selected by hand when the port lane variable is set, else the lowest free one.
  */
 export function resolveLaunchClaim({
   worktree,
   environment = process.env,
-  claim = claimLane,
+  claim = claimPortLane,
 } = {}) {
-  const selected = Boolean(environment[LANE_ENVIRONMENT_KEY]);
-  if (selected && environment[LANE_CLAIM_ENVIRONMENT_KEY]) {
+  const selected = Boolean(environment[PORT_LANE_ENVIRONMENT_KEY]);
+  if (selected && environment[PORT_LANE_CLAIM_ENVIRONMENT_KEY]) {
     return {
       inherited: true,
-      lane: resolveLane(environment),
+      portLane: resolvePortLane(environment),
       share: testShare(environment),
-      token: environment[LANE_CLAIM_ENVIRONMENT_KEY],
+      token: environment[PORT_LANE_CLAIM_ENVIRONMENT_KEY],
       release: () => false,
     };
   }
   const claimed = claim({
     worktree,
     environment,
-    ...(selected ? { lane: resolveLane(environment) } : {}),
+    ...(selected ? { portLane: resolvePortLane(environment) } : {}),
   });
   return { inherited: false, ...claimed };
 }

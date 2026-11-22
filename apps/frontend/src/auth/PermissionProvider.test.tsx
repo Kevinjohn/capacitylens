@@ -11,13 +11,13 @@ import { useCompanySummaries } from './useCompanySummaries';
 import * as companyTransition from './companyTransition';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { isRole } from '@capacitylens/shared/account/types';
-import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
+import { grantFor, masqueradeGrantFor } from '@/test/permissionGrants';
 import { createDeferred } from '@/test/createDeferred';
 
 const permissionMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -70,14 +70,16 @@ function renderSharedDirectoryProvider() {
 
 function companyResponse(id: string, role: string) {
   return new Response(
-    JSON.stringify([
-      {
-        id,
-        name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries',
-        role,
-        ...(isRole(role) ? grantFor(role) : {}),
-      },
-    ]),
+    JSON.stringify({
+      data: [
+        {
+          id,
+          name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries',
+          role,
+          ...(isRole(role) ? grantFor(role) : {}),
+        },
+      ],
+    }),
     {
       status: 200,
     },
@@ -87,7 +89,7 @@ function companyResponse(id: string, role: string) {
 function addSecondCompany() {
   loadPlanningData(
     makeAppData({
-      accounts: [
+      companies: [
         makeCompany({ id: 'acct-test' }),
         makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' }),
       ],
@@ -99,7 +101,7 @@ function addSecondCompany() {
 beforeEach(async () => {
   permissionMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   await resetStoreWithCompany();
   useStore.setState({ masquerade: { kind: 'inactive' } });
 });
@@ -123,7 +125,7 @@ describe('PermissionProvider authenticated lookup posture', () => {
           targetUserId: 'u-viewer',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
-          ...viewAsGrantFor('viewer'),
+          ...masqueradeGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',
@@ -164,14 +166,16 @@ describe('PermissionProvider refresh behavior', () => {
       'fetch',
       vi.fn().mockResolvedValue(
         new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeCompanyId,
-              name: 'Wayne Enterprises',
-              role: 'editor',
-              ...grantFor('editor'),
-            },
-          ]),
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role: 'editor',
+                ...grantFor('editor'),
+              },
+            ],
+          }),
           { status: 200 },
         ),
       ),
@@ -185,7 +189,7 @@ describe('PermissionProvider refresh behavior', () => {
 
 describe('PermissionProvider membership invalidation', () => {
   it('starts the directory read only after status resolves and adopts status before publishing the role', async () => {
-    let resolveStatus!: (status: { active: false; contextToken: string }) => void;
+    let resolveStatus!: (status: { active: false; masqueradeToken: string }) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -194,14 +198,16 @@ describe('PermissionProvider membership invalidation', () => {
     );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify([
-          {
-            id: useStore.getState().activeCompanyId,
-            name: 'Wayne Enterprises',
-            role: 'owner',
-            ...grantFor('owner'),
-          },
-        ]),
+        JSON.stringify({
+          data: [
+            {
+              id: useStore.getState().activeCompanyId,
+              name: 'Wayne Enterprises',
+              role: 'owner',
+              ...grantFor('owner'),
+            },
+          ],
+        }),
         { status: 200 },
       ),
     );
@@ -213,7 +219,7 @@ describe('PermissionProvider membership invalidation', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
-    resolveStatus({ active: false, contextToken: 'idle' });
+    resolveStatus({ active: false, masqueradeToken: 'idle' });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
 
@@ -230,14 +236,16 @@ describe('PermissionProvider membership generation', () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeCompanyId,
-              name: 'Wayne Enterprises',
-              role,
-              ...grantFor(role),
-            },
-          ]),
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role,
+                ...grantFor(role),
+              },
+            ],
+          }),
           { status: 200 },
         ),
     );
@@ -258,14 +266,16 @@ describe('PermissionProvider membership generation', () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeCompanyId,
-              name: 'Wayne Enterprises',
-              role,
-              ...grantFor(role),
-            },
-          ]),
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role,
+                ...grantFor(role),
+              },
+            ],
+          }),
           { status: 200 },
         ),
     );
@@ -308,10 +318,10 @@ describe('PermissionProvider account-switch safety', () => {
 
   it("does not adopt an old account's delayed masquerade status after a switch", async () => {
     addSecondCompany();
-    const aStatus = createDeferred<{ active: false; contextToken: string }>();
+    const aStatus = createDeferred<{ active: false; masqueradeToken: string }>();
     permissionMocks.masqueradeStatus
       .mockImplementationOnce(() => aStatus.promise)
-      .mockResolvedValueOnce({ active: false, contextToken: 'idle' });
+      .mockResolvedValueOnce({ active: false, masqueradeToken: 'idle' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(companyResponse('a-studio', 'editor')));
     const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
     renderProvider();
@@ -321,12 +331,12 @@ describe('PermissionProvider account-switch safety', () => {
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
 
-    await act(async () => aStatus.resolve({ active: false, contextToken: 'idle' }));
+    await act(async () => aStatus.resolve({ active: false, masqueradeToken: 'idle' }));
     expect(adoptStatus).toHaveBeenCalledTimes(1);
     expect(screen.getByText('resolved:editor:edit')).toBeInTheDocument();
   });
 
-  it('ignores a delayed active status after a local controller transition', async () => {
+  it('ignores a delayed active status after a local masquerade model transition', async () => {
     await resetStoreWithCompany('a-studio');
     let resolveStatus!: (status: MasqueradeStatus) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
@@ -337,14 +347,14 @@ describe('PermissionProvider account-switch safety', () => {
     );
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const { masqueradeController } = await import('./masqueradeControllerInstance');
+    const { masqueradeModel } = await import('./masqueradeModelInstance');
     const inactiveProjection = useStore.getState().masquerade;
     const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
     renderProvider();
 
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
     act(() => {
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
       useStore.setState({ masquerade: inactiveProjection });
     });
     await act(async () =>
@@ -354,11 +364,11 @@ describe('PermissionProvider account-switch safety', () => {
         targetUserId: 'u-viewer',
         targetName: 'Selina Kyle',
         effectiveRole: 'viewer',
-        ...viewAsGrantFor('viewer'),
+        ...masqueradeGrantFor('viewer'),
         startedAt: '2026-09-01T10:00:00.000Z',
         expiresAt: '2026-09-01T10:15:00.000Z',
         token: 'stale-mode-token',
-        contextToken: 'stale-mode-token',
+        masqueradeToken: 'stale-mode-token',
       }),
     );
 
@@ -431,16 +441,20 @@ describe('PermissionProvider fail-closed responses', () => {
   it('publishes unavailable with no keys for a directory row without a grant', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(
-            JSON.stringify([
-              { id: useStore.getState().activeCompanyId, name: 'Wayne Enterprises', role: 'owner' },
-            ]),
-            { status: 200 },
-          ),
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role: 'owner',
+              },
+            ],
+          }),
+          { status: 200 },
         ),
+      ),
     );
     renderProvider();
 

@@ -1,0 +1,45 @@
+import { useEffect, useState } from 'react';
+import { formatDiagnostics, readBrowserDiagnostics, readDiagnostics } from '@/data/buildInfo';
+import { readServerDiagnostics } from '@/data/serverDiagnostics';
+
+type ServerObservation = { response: unknown; observedAt: string | undefined };
+
+/** Observes the server once, then combines that snapshot with this client's live facts. */
+export function useDiagnosticsViewModel() {
+  const [observation, setObservation] = useState<ServerObservation>(() => ({
+    response: null,
+    observedAt: undefined,
+  }));
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  useEffect(() => {
+    const controller = new AbortController();
+    void readServerDiagnostics(controller.signal)
+      .then(setObservation)
+      .catch(() => {
+        // An unavailable diagnostics read is itself represented in the fixed projection. The
+        // caught error is intentionally not rendered or copied, because it may contain internals.
+        if (!controller.signal.aborted) {
+          setObservation({ response: null, observedAt: new Date().toISOString() });
+        }
+      });
+    return () => controller.abort();
+  }, []);
+  const report = formatDiagnostics(
+    readDiagnostics(observation.response, observation.observedAt, {
+      browser: readBrowserDiagnostics(),
+    }),
+  );
+  const copyReport = async () => {
+    try {
+      if (!('clipboard' in navigator) || typeof navigator.clipboard.writeText !== 'function') {
+        throw new Error('Clipboard unavailable.');
+      }
+      await navigator.clipboard.writeText(report);
+      setCopyState('copied');
+    } catch {
+      // Clipboard failures are reflected in the copy state shown by the view.
+      setCopyState('failed');
+    }
+  };
+  return { report, copyState, copyReport };
+}

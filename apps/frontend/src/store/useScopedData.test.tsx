@@ -37,7 +37,7 @@ function clientRows() {
 function twoCompanyData(): AppData {
   return {
     ...createEmptyAppData(),
-    accounts: companyRows(),
+    companies: companyRows(),
     disciplines: [
       {
         id: 'd-a',
@@ -128,7 +128,7 @@ async function activateFixtureCompany(data: AppData, companyId: string): Promise
   loadPlanningData(data);
   useStore.getState().clearPlanning();
   useStore.getState().setCompanySummaries({
-    list: data.accounts.map(({ id, name }) => ({ id, name, role: 'owner' })),
+    list: data.companies.map(({ id, name }) => ({ id, name, role: 'owner' })),
   });
   useStore.getState().setActiveCompany(companyId);
   expect(await useStore.getState().refreshPlanning({ fresh: true })).toBe(true);
@@ -141,7 +141,7 @@ beforeEach(() => {
 
 describe('scoped data', () => {
   it("selects another company's dataset as empty", () => {
-    const data = { ...createEmptyAppData(), accounts: [makeCompany({ id: COMPANY_B })] };
+    const data = { ...createEmptyAppData(), companies: [makeCompany({ id: COMPANY_B })] };
 
     expect(resolveSharedScopedData(data, COMPANY_A)).toEqual(createEmptyAppData());
     expect(resolveSharedScopedData(data, COMPANY_B)).toBe(data);

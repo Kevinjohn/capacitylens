@@ -522,7 +522,7 @@ test('all shipped nginx configs suppress browser bearer routes', async () => {
       }),
     );
     const bearerRoutes = [
-      ['/invite/opaque-bearer', '/InViTe/opaque-bearer/'],
+      ['/invitation/opaque-bearer', '/InViTaTiOn/opaque-bearer/'],
       ['/reset-password/opaque-bearer', '/ReSeT-PaSsWoRd/opaque-bearer/'],
       ['/verify-email/opaque-bearer', '/VeRiFy-EmAiL/opaque-bearer/'],
     ];
@@ -531,7 +531,7 @@ test('all shipped nginx configs suppress browser bearer routes', async () => {
       assert.ok(location, `${path}: ${route}`);
       assert.match(location.body, /access_log off;/);
     }
-    for (const route of ['/projects/ordinary-path', '/invite', '/invitees/ordinary-path']) {
+    for (const route of ['/projects/ordinary-path', '/invitation', '/invitees/ordinary-path']) {
       const location = locations.find(({ matcher }) => matcher.test(route));
       assert.equal(location, undefined, `${path}: ordinary route ${route} must not match`);
     }

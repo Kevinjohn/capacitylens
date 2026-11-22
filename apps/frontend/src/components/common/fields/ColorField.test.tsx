@@ -2,7 +2,7 @@ import { loadPlanningData } from '@/test/fixtures';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Modal, ColorField } from '@/components/common/ui';
+import { FormDialog, ColorField } from '@/components/common/ui';
 import { useStore } from '@/store/useStore';
 import { resolveColorName, SWATCHES } from '@/lib/palette';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
@@ -142,30 +142,30 @@ describe('ColorField', () => {
     await user.click(screen.getByRole('button', { name: 'Outside' }));
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
   });
-  it('closes the popup on Escape without closing the surrounding Modal', async () => {
+  it('closes the popup on Escape without closing the surrounding FormDialog', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <Modal title="Edit" onClose={onClose}>
+      <FormDialog title="Edit" onClose={onClose}>
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
-      </Modal>,
+      </FormDialog>,
     );
     await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
     // Move focus into the grid, then Escape: the popup must close and the keydown must
-    // not reach the surrounding handler (the Modal's Escape-to-close in real use).
+    // not reach the surrounding handler (the FormDialog's Escape-to-close in real use).
     const swatch = screen.getByRole('radio', { name: resolveColorName(RED) });
     swatch.focus();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('radio', { name: resolveColorName(RED) })).not.toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
   });
-  it('dismisses only the popup, not the surrounding Modal, on a backdrop click', async () => {
+  it('dismisses only the popup, not the surrounding FormDialog, on a backdrop click', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     render(
-      <Modal title="Edit" onClose={onClose}>
+      <FormDialog title="Edit" onClose={onClose}>
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
-      </Modal>,
+      </FormDialog>,
     );
     await user.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
     expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toBeInTheDocument();
@@ -178,12 +178,12 @@ describe('ColorField', () => {
     const user = userEvent.setup();
     const onSiblingDown = vi.fn();
     render(
-      <Modal title="Edit" onClose={() => {}}>
+      <FormDialog title="Edit" onClose={() => {}}>
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
         <button type="button" data-testid="sibling" onMouseDown={onSiblingDown}>
           Other field
         </button>
-      </Modal>,
+      </FormDialog>,
     );
     fireEvent.click(screen.getByRole('button', { name: `Colour (${resolveColorName(BLUE)})` }));
     expect(screen.getByRole('radio', { name: resolveColorName(RED) })).toBeInTheDocument();

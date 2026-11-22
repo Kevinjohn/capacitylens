@@ -11,7 +11,7 @@ import {
 import type { PermissionContextValue } from './permissionContext';
 import { ROLES } from '@capacitylens/shared/account/types';
 import type { PermissionKey } from '@capacitylens/shared/domain/access';
-import { grantFor, permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { grantFor, permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 // Decisions follow the grant the server sent; the role is never evaluated.
 
@@ -23,7 +23,7 @@ const ACTIONS = [
   'members:manage',
   'members:signInTracking',
   'invitations:manage',
-  'viewAs:use',
+  'masquerade:use',
   'resources:anonymise',
   'company:import',
   'company:anonymise',
@@ -82,7 +82,7 @@ describe('useCan', () => {
     const value = {
       role: 'owner' as const,
       status: 'resolved' as const,
-      grant: viewAsGrantFor('owner'),
+      grant: masqueradeGrantFor('owner'),
     };
     for (const action of ACTIONS) {
       const { result } = renderHook(() => useCan(action), { wrapper: withValue(value) });

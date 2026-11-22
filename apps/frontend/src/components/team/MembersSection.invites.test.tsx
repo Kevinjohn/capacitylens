@@ -11,7 +11,7 @@ import {
   ownerAndEditor,
   makeRawMember,
   renderSection,
-} from './MembersSection.testSupport';
+} from './MembersSectionTestKit';
 
 interface InviteFailureCaseInput {
   status: number;
@@ -96,17 +96,19 @@ describe('MembersSection — invite mint', () => {
       .spyOn(Date.prototype, 'toLocaleDateString')
       .mockReturnValue('LOCAL INVITE DATE');
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-      'GET /invites': () =>
+      'GET /invitations': () =>
         jsonResponse({
-          invites: [
-            {
-              id: 1,
-              role: 'viewer',
-              preauthEmail: 'existing@example.test',
-              expiresAt,
-              createdAt: '2026-07-17T00:00:00.000Z',
-            },
-          ],
+          data: {
+            invites: [
+              {
+                id: 1,
+                role: 'viewer',
+                preauthEmail: 'existing@example.test',
+                expiresAt,
+                createdAt: '2026-07-17T00:00:00.000Z',
+              },
+            ],
+          },
         }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -126,17 +128,19 @@ describe('MembersSection — invite mint', () => {
     vi.setSystemTime(new Date('2026-07-17T12:00:00.000Z'));
     const expiresAt = new Date(Date.now() + expiryDelay).toISOString();
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-      'GET /invites': () =>
+      'GET /invitations': () =>
         jsonResponse({
-          invites: [
-            {
-              id: 2,
-              role: 'viewer',
-              preauthEmail: 'expiring@example.test',
-              expiresAt,
-              createdAt: '2026-07-17T00:00:00.000Z',
-            },
-          ],
+          data: {
+            invites: [
+              {
+                id: 2,
+                role: 'viewer',
+                preauthEmail: 'expiring@example.test',
+                expiresAt,
+                createdAt: '2026-07-17T00:00:00.000Z',
+              },
+            ],
+          },
         }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -163,13 +167,13 @@ describe('MembersSection — invite mint', () => {
     };
     let invitationReads = 0;
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-      'GET /invites': () => {
+      'GET /invitations': () => {
         invitationReads += 1;
         return invitationReads === 1
-          ? jsonResponse({ invites: [existingInvite] })
+          ? jsonResponse({ data: { invites: [existingInvite] } })
           : jsonResponse({ error: 'Invite reload failed.' }, 503);
       },
-      'POST /api/invites': () => jsonResponse({ id: 3, emailed: true }, 201),
+      'POST /api/invitations': () => jsonResponse({ data: { id: 3, emailed: true } }, 201),
     });
     vi.stubGlobal('fetch', fetchMock);
     await renderInviteSection();
@@ -181,7 +185,7 @@ describe('MembersSection — invite mint', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Invite reload failed.');
     expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
   });
-  it('ignores a late unknown mutation outcome after the user has switched accounts', async () => {
+  it('ignores a late unknown mutation outcome after the user has switched companies', async () => {
     const nextCompanyId = 'acc_second';
     let resolveCreate: ((response: Response) => void) | undefined;
     const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
@@ -190,22 +194,24 @@ describe('MembersSection — invite mint', () => {
       if (target.endsWith('/members') && isRead) {
         const second = target.includes(`/${nextCompanyId}/`);
         return jsonResponse({
-          members: [
-            second
-              ? makeRawMember({
-                  userId: 'second-owner',
-                  role: 'owner',
-                  email: 'second@example.test',
-                  isSelf: true,
-                })
-              : makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
-          ],
+          data: {
+            members: [
+              second
+                ? makeRawMember({
+                    userId: 'second-owner',
+                    role: 'owner',
+                    email: 'second@example.test',
+                    isSelf: true,
+                  })
+                : makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
+            ],
+          },
         });
       }
-      if (target.endsWith('/invites') && isRead) {
-        return jsonResponse({ invites: [] });
+      if (target.endsWith('/invitations') && isRead) {
+        return jsonResponse({ data: { invites: [] } });
       }
-      if (target.endsWith('/api/invites') && init?.method === 'POST') {
+      if (target.endsWith('/api/invitations') && init?.method === 'POST') {
         return await new Promise<Response>((resolve) => {
           resolveCreate = resolve;
         });
@@ -239,8 +245,8 @@ describe('MembersSection — invite mint', () => {
     ],
   ])('emails a new invitation and reports a %s delivery', async (status, emailed, notice) => {
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-      'POST /api/invites': () =>
-        jsonResponse(emailed ? { id: 1, emailed } : { committed: true, emailed }, status),
+      'POST /api/invitations': () =>
+        jsonResponse({ data: emailed ? { id: 1, emailed } : { committed: true, emailed } }, status),
     });
     vi.stubGlobal('fetch', fetchMock);
     await renderInviteSection();
@@ -276,7 +282,7 @@ describe('MembersSection — invite mint', () => {
   it('shows a terminal invite rejection after closing a pending request', async () => {
     let resolveCreate: ((response: Response) => void) | undefined;
     const fetchMock = mockApi(ownerAndEditor, {
-      'POST /api/invites': () =>
+      'POST /api/invitations': () =>
         new Promise<Response>((resolve) => {
           resolveCreate = resolve;
         }),
@@ -339,7 +345,7 @@ describe('MembersSection — invite mint', () => {
       vi.stubGlobal(
         'fetch',
         mockApi(ownerAndEditor, {
-          'POST /api/invites': () => jsonResponse(body, status),
+          'POST /api/invitations': () => jsonResponse(body, status),
         }),
       );
       await renderInviteSection();
@@ -363,7 +369,7 @@ describe('MembersSection — invite mint', () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-        'POST /api/invites': () => Promise.reject(new Error('invite transport lost')),
+        'POST /api/invitations': () => Promise.reject(new Error('invite transport lost')),
       }),
     );
     await renderInviteSection();
@@ -400,11 +406,11 @@ describe('MembersSection — invite mint', () => {
       vi.stubGlobal(
         'fetch',
         mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-          'GET /invites': () => {
+          'GET /invitations': () => {
             inviteReads += 1;
-            return jsonResponse({ invites: [invite] });
+            return jsonResponse({ data: { invites: [invite] } });
           },
-          'DELETE /invites/1': () => jsonResponse(body, status),
+          'DELETE /invitations/1': () => jsonResponse(body, status),
         }),
       );
       await renderInviteSection();
@@ -432,11 +438,11 @@ describe('MembersSection — invite mint', () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-        'GET /invites': () => {
+        'GET /invitations': () => {
           inviteReads += 1;
-          return jsonResponse({ invites: [invite] });
+          return jsonResponse({ data: { invites: [invite] } });
         },
-        'DELETE /invites/1': () => Promise.reject(new Error('revoke transport lost')),
+        'DELETE /invitations/1': () => Promise.reject(new Error('revoke transport lost')),
       }),
     );
     await renderInviteSection();

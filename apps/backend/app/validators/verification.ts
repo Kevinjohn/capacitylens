@@ -8,14 +8,14 @@ import {
 
 const message = 'Invalid confirmation request.';
 
-export const inspectValidator = vine.create(
+export const inspectVerificationValidator = vine.create(
   vine
     .object({ token: vine.string().use(bearerToken()) })
     .use(allowedFields({ fields: ['token'], message }))
 );
-inspectValidator.messagesProvider = fixedMessage(message);
+inspectVerificationValidator.messagesProvider = fixedMessage(message);
 
-export const completeValidator = vine.create(
+export const completeVerificationValidator = vine.create(
   vine
     .object({
       token: vine.string().use(bearerToken()),
@@ -23,4 +23,4 @@ export const completeValidator = vine.create(
     })
     .use(allowedFields({ fields: ['token', 'password'], message }))
 );
-completeValidator.messagesProvider = fixedMessage(message);
+completeVerificationValidator.messagesProvider = fixedMessage(message);

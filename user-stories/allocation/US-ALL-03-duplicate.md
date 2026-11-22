@@ -10,7 +10,7 @@ As an Editor, I want to duplicate an allocation so that I can reuse its resource
 
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 
 ## Acceptance criteria
 
@@ -39,7 +39,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationModal edit footer: Duplicate"] --> B["allocationSubmit duplicateAllocation validates draft"]
+  A["AllocationDialog edit footer: Duplicate"] --> B["allocationSubmit duplicateAllocation validates draft"]
   B -->|valid| C["allocationSlice.duplicateAllocation(source id, draft)"]
   B -->|invalid| D["Field error; no copy"]
   C --> E["allocationSlice typed write and reconciliation"]
@@ -49,8 +49,8 @@ flowchart TD
 
 **Code references:**
 
-- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 - [AllocationFooter.tsx](../../apps/frontend/src/components/scheduler/AllocationFooter.tsx)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

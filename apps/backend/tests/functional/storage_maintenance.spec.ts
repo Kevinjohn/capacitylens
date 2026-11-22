@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   REQUEST_RECEIPT_RETENTION_MS,
@@ -18,7 +18,7 @@ test.group('storage maintenance', (group) => {
     const now = new Date('2026-11-13T12:00:00.000Z');
     const past = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS - 1).toISOString();
     const atWindow = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS).toISOString();
-    const account = await db.from('accounts').select('id').firstOrFail();
+    const account = await db.from('companies').select('id').firstOrFail();
     const companyId = account.id as string;
     const receipt = (id: string, state: 'pending' | 'completed', updatedAt: string) => ({
       id,

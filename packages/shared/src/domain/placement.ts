@@ -46,7 +46,7 @@ export interface ReconcileReassignedHoursInput {
 }
 
 /** Hours/day an allocation should carry after being reassigned (dragged) to `target`. An external
- * / 3rd party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged off an
+ * party always carries no load (0). In Hours/Days mode, a zero-hour booking dragged off an
  * external is promoted to the target's working day because those forms require positive load.
  * Blocks mode deliberately permits and preserves zero; existing positive historical values are
  * also retained for a real→real reassign. The server applies this to `allocation.reassign`. */
