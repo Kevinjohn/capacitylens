@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 import { m } from '@/i18n';
 import { formatDayMonth, formatMonthYear } from '@/lib/dateDisplay';
 import { useDateStyle } from '@/store/useDateStyle';

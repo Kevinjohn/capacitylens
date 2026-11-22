@@ -1,4 +1,8 @@
-import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from 'date-fns';
+import { addDays } from 'date-fns/addDays';
+import { differenceInCalendarDays } from 'date-fns/differenceInCalendarDays';
+import { format } from 'date-fns/format';
+import { parseISO } from 'date-fns/parseISO';
+import { startOfWeek } from 'date-fns/startOfWeek';
 import type { ISODate, Weekday } from '../types/entities.js';
 
 /** Defensive allocation ceiling for materialised date arrays (~100 calendar years).

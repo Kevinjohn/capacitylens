@@ -230,6 +230,25 @@ export default defineConfig([
     },
   },
 
+  // The date-fns barrels load every function and every locale: about three seconds for each test
+  // file that reaches them, and the same again whenever the backend starts.
+  {
+    files: ['apps/frontend/src/**/*.{ts,tsx}', 'packages/shared/src/**/*.{ts,tsx,mts,cts}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: ['date-fns', 'date-fns/locale'].map((name) => ({
+            name,
+            allowTypeImports: true,
+            message:
+              'Import each function or locale from its own path, such as date-fns/format or date-fns/locale/en-GB.',
+          })),
+        },
+      ],
+    },
+  },
+
   // Apply this rule to authored production code.
   {
     files: ['apps/frontend/src/**/*.{ts,tsx}', 'packages/shared/src/**/*.{ts,tsx,mts,cts}'],

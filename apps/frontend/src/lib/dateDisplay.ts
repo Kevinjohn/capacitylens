@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 import { countDaysInclusive, parseDate } from '@capacitylens/shared/lib/dateMath';
 import { readActiveDateLocale, m } from '@/i18n';
 import { DATE_STYLES, DEFAULT_DATE_STYLE } from '@capacitylens/shared/types/entities';
