@@ -13,7 +13,7 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
@@ -44,14 +44,14 @@ describe('ProjectForm', () => {
     const closure = await requireCreated(
       useStore
         .getState()
-        .addClosure({ name: 'Gotham holiday', startDate: '2026-12-24', endDate: '2026-12-25' }),
+        .addClosure({ name: 'Gotham closure', startDate: '2026-12-24', endDate: '2026-12-25' }),
     );
     queuePlanningPatch(() => ({ upserts: [], removed: [{ entity: 'closures', id: closure.id }] }), {
       replacementGroupId: 'closure-restore-group',
     });
     await useStore.getState().deleteClosure(closure.id);
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'This change clears 1 restorable item.',
         'RESTORATION_CONFIRMATION_REQUIRED',
         409,
@@ -122,7 +122,7 @@ describe('ProjectForm', () => {
 
     const codeName = screen.getByLabelText('Code name');
     const hint = screen.getByText(
-      'Only account owners can see real names. Everyone else sees the code name.',
+      'Only Owners can see real names. Everyone else sees the code name.',
     );
     const alert = screen.getByRole('alert');
     expect(codeName).toHaveAttribute('aria-invalid', 'true');
@@ -152,9 +152,7 @@ describe('ProjectForm', () => {
 
     expect(screen.queryByRole('switch', { name: 'Use code name' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toBeDisabled();
-    expect(
-      screen.getByText('Only an account owner can change this private name.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Only an Owner can change this private name.')).toBeInTheDocument();
   });
 
   it('refuses to save a project without a client', async () => {

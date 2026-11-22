@@ -39,7 +39,7 @@ describe('reprojectAccess', () => {
     expect(refreshPlanning).not.toHaveBeenCalled();
   });
 
-  it('reports an account-slice reload failure', async () => {
+  it('reports an account-set reload failure', async () => {
     refreshPlanning.mockResolvedValue(false);
 
     await expect(reprojectAccess('a-studio')).resolves.toBe(false);

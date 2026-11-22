@@ -6,7 +6,7 @@ import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AuthUser } from './authContext';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 import type { AccessGate, AdmissionSummary } from './authStatus';
 
 type AccessScreenProps = {
@@ -81,7 +81,7 @@ function useStep() {
       await action();
     } catch (failure) {
       console.warn('AccessScreen: request failed', failure);
-      setError(m.login_network_error());
+      setError(m.sign_in_network_error());
     } finally {
       setBusy(false);
     }
@@ -123,7 +123,7 @@ function VerifyEmailStep() {
         disabled={step.busy}
         onClick={() =>
           void step.run(async () => {
-            const { error } = await authClient.sendEmailVerification();
+            const { error } = await authApi.sendEmailVerification();
             if (error) {
               step.setError(
                 error.code === 'MAIL_UNAVAILABLE' ? m.limited_mail_unavailable() : error.message,
@@ -167,7 +167,7 @@ function AdmissionStep({
           disabled={step.busy}
           onClick={() =>
             void step.run(async () => {
-              const { error } = await authClient.requestAdmission();
+              const { error } = await authApi.requestAdmission();
               if (error) step.setError(error.message);
               else await onRefresh();
             })
@@ -200,7 +200,7 @@ function MembershipStep({ onRefresh }: { onRefresh: () => Promise<void> }) {
         disabled={step.busy}
         onClick={() =>
           void step.run(async () => {
-            const { error } = await authClient.completeMembership();
+            const { error } = await authApi.completeMembership();
             if (error) step.setError(error.message);
             else await onRefresh();
           })

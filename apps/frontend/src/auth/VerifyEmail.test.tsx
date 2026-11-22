@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 import { VerifyEmail } from './VerifyEmail';
 
 const chosen = 'chosen-password-2026';
@@ -20,7 +20,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('VerifyEmail outcomes', () => {
   it('offers a retry, not an invalid link, when the link cannot be checked', async () => {
-    vi.spyOn(authClient, 'inspectEmailVerification')
+    vi.spyOn(authApi, 'inspectEmailVerification')
       .mockResolvedValueOnce({ data: null, error: { message: 'Unavailable', status: 503 } })
       .mockResolvedValueOnce({ data: { valid: true }, error: null });
     renderPage();
@@ -31,7 +31,7 @@ describe('VerifyEmail outcomes', () => {
   });
 
   it('still reports a link the server rejected as invalid', async () => {
-    vi.spyOn(authClient, 'inspectEmailVerification').mockResolvedValue({
+    vi.spyOn(authApi, 'inspectEmailVerification').mockResolvedValue({
       data: { valid: false },
       error: null,
     });
@@ -40,11 +40,11 @@ describe('VerifyEmail outcomes', () => {
   });
 
   it('reports a committed confirmation as done even when a later step failed', async () => {
-    vi.spyOn(authClient, 'inspectEmailVerification').mockResolvedValue({
+    vi.spyOn(authApi, 'inspectEmailVerification').mockResolvedValue({
       data: { valid: true },
       error: null,
     });
-    vi.spyOn(authClient, 'completeEmailVerification').mockResolvedValue({
+    vi.spyOn(authApi, 'completeEmailVerification').mockResolvedValue({
       data: null,
       error: { message: 'Confirmed', status: 503, code: 'VERIFICATION_COMMITTED' },
     });
@@ -57,12 +57,12 @@ describe('VerifyEmail outcomes', () => {
 
   it('does not return to the form when the confirmation answer is lost', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(authClient, 'inspectEmailVerification').mockResolvedValue({
+    vi.spyOn(authApi, 'inspectEmailVerification').mockResolvedValue({
       data: { valid: true },
       error: null,
     });
     const complete = vi
-      .spyOn(authClient, 'completeEmailVerification')
+      .spyOn(authApi, 'completeEmailVerification')
       .mockRejectedValue(new TypeError('offline'));
     renderPage();
     fireEvent.change(await screen.findByTestId('verify-password'), { target: { value: chosen } });

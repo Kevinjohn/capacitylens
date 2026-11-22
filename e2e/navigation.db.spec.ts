@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from './browserTestSupport';
+import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from './browserTestKit';
 
 // Covers route navigation and theme switching. Database resilience specs exercise load failures and recovery.
 const deepDestinations = [

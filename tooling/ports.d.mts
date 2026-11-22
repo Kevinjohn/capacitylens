@@ -1,7 +1,7 @@
 /**
- * Names a service port assigned to each lane.
+ * Names a service port assigned to each port lane.
  */
-export type LanePortName =
+export type PortLanePortName =
   | 'web'
   | 'dbWeb'
   | 'authWeb'
@@ -15,37 +15,37 @@ export type LanePortName =
 /**
  * Number of concurrent port lanes.
  */
-export const LANE_CEILING: number;
+export const PORT_LANE_CEILING: number;
 /**
  * Environment variable containing the selected port lane.
  */
-export const LANE_ENVIRONMENT_KEY: string;
+export const PORT_LANE_ENVIRONMENT_KEY: string;
 /**
  * Environment variable containing the run's worker share.
  */
 export const SHARE_ENVIRONMENT_KEY: string;
 /**
- * Validates and returns a lane number.
- * @throws When the lane is outside the supported range.
+ * Validates and returns a port lane number.
+ * @throws When the port lane is outside the supported range.
  */
-export function assertLane(lane: number): number;
+export function assertPortLane(portLane: number): number;
 /**
- * Returns the frozen service-port map for a lane.
- * @throws When the lane is outside the supported range.
+ * Returns the frozen service-port map for a port lane.
+ * @throws When the port lane is outside the supported range.
  */
-export function portsForLane(lane: number): Readonly<Record<LanePortName, number>>;
+export function portsForPortLane(portLane: number): Readonly<Record<PortLanePortName, number>>;
 /**
- * Reads the lane from the supplied environment, defaulting an unset or empty value to lane 0.
- * @throws When a non-empty configured lane is not an integer from 0 to LANE_CEILING - 1.
+ * Reads the port lane from the supplied environment, defaulting an unset or empty value to port lane 0.
+ * @throws When a non-empty configured port lane is not an integer from 0 to PORT_LANE_CEILING - 1.
  */
-export function resolveLane(environment?: Readonly<Record<string, string | undefined>>): number;
+export function resolvePortLane(environment?: Readonly<Record<string, string | undefined>>): number;
 /**
- * Returns service ports for the selected environment lane.
- * @throws When a configured lane is outside the supported range.
+ * Returns service ports for the selected environment port lane.
+ * @throws When a configured port lane is outside the supported range.
  */
 export function ports(
   environment?: Readonly<Record<string, string | undefined>>,
-): Readonly<Record<LanePortName, number>>;
+): Readonly<Record<PortLanePortName, number>>;
 /**
  * Returns the configured or default worker share.
  * @throws When the configured share is not a positive integer.
@@ -62,7 +62,7 @@ export function reservationCeiling(cores?: number): number;
 
 /** First isolated worker port. */
 export const WORKER_BASE: number;
-/** API/web worker slots per lane. */
-export const WORKER_SLOTS_PER_LANE: number;
-/** Returns an isolated API/web pair; invalid lane or slot throws RangeError. */
-export function workerPorts(lane: number, slot: number): Readonly<{ api: number; web: number }>;
+/** API/web worker slots per port lane. */
+export const WORKER_SLOTS_PER_PORT_LANE: number;
+/** Returns an isolated API/web pair; invalid port lane or slot throws RangeError. */
+export function workerPorts(portLane: number, slot: number): Readonly<{ api: number; web: number }>;

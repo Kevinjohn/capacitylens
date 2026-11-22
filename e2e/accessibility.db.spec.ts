@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, resetSchedulerScroll, setZoom } from './browserTestSupport';
+import { openApp, resetSchedulerScroll, setZoom } from './browserTestKit';
 
 test.describe('Keyboard & accessibility', { tag: '@engine' }, () => {
   // Covers US-KBD-01..03, 05. (US-KBD-04 axe lives in e2e/a11y.spec.ts.)
@@ -22,7 +22,7 @@ test.describe('Keyboard & accessibility', { tag: '@engine' }, () => {
     await expect(bar).toHaveAccessibleName(/2 Jun to 5 Jun/);
     await expect(bar).toBeFocused();
   });
-  test('a modal traps focus, closes on Escape, and restores its trigger', async ({ page }) => {
+  test('a dialog traps focus, closes on Escape, and restores its trigger', async ({ page }) => {
     await openApp(page, '/resources');
     const trigger = page.getByRole('button', { name: 'Add resource' });
     await trigger.focus();

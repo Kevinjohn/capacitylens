@@ -15,7 +15,7 @@ export function operatorFixture() {
     CAPACITYLENS_PUBLIC_URL: 'http://localhost:8787',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
     CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: '',
-    APP_KEY: 'zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi',
+    APP_KEY: 'capacitylens-test-key-0123456789abcdef',
     APP_URL: 'http://localhost:8787',
     LOG_LEVEL: 'fatal',
   };
@@ -54,7 +54,7 @@ export function operatorFixture() {
 export function insertOwner(database: DatabaseSync) {
   const now = new Date().toISOString();
   database
-    .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
+    .prepare('INSERT INTO companies (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
     .run('a-studio', 'Wayne Enterprises', '#6366f1', now, now);
   database
     .prepare(

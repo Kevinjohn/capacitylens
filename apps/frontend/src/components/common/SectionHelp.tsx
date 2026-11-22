@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { CircleHelp } from 'lucide-react';
 import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { Modal } from './dialogs';
+import { FormDialog } from './dialogs';
 
 /** Keeps explanatory section content collapsed until requested. */
 export function SectionHelp({ title, children }: { title: string; children: ReactNode }) {
@@ -23,9 +23,9 @@ export function SectionHelp({ title, children }: { title: string; children: Reac
         <CircleHelp aria-hidden="true" />
       </Button>
       {open && (
-        <Modal
+        <FormDialog
           title={title}
-          guardDirty={false}
+          warnOnDirty={false}
           onClose={() => setOpen(false)}
           footer={
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
@@ -34,7 +34,7 @@ export function SectionHelp({ title, children }: { title: string; children: Reac
           }
         >
           <div className="flex flex-col gap-3 text-sm text-muted-foreground">{children}</div>
-        </Modal>
+        </FormDialog>
       )}
     </>
   );

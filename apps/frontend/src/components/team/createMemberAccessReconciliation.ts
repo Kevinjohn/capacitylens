@@ -1,11 +1,11 @@
 import { m } from '@/i18n';
-import { teamAccessClient } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
 import { resolveErrorMessage } from '@/lib/errorMessage';
-import type { MemberActionDependencies } from './MemberActionDependencies';
+import type { MemberOperationDependencies } from './MemberOperationDependencies';
 import type { useTeamDirectory } from './useTeamDirectory';
 
 type MemberAccessDependencies = Pick<
-  MemberActionDependencies,
+  MemberOperationDependencies,
   'requestCompanyId' | 'isActiveCompany' | 'fail' | 'setNotice'
 > & {
   replaceAuthorizedDirectory: ReturnType<typeof useTeamDirectory>['replaceAuthorizedDirectory'];
@@ -26,8 +26,8 @@ async function reloadAuthorizedDirectory({
 }): Promise<{ kind: 'ready' } | { kind: 'stale' } | { kind: 'failed'; error: unknown }> {
   try {
     const [memberResult, inviteResult] = await Promise.all([
-      teamAccessClient.listMembers(companyId),
-      teamAccessClient.listInvitations(companyId),
+      teamAccessApi.listMembers(companyId),
+      teamAccessApi.listInvitations(companyId),
     ]);
     if (!isActiveCompany(companyId)) return { kind: 'stale' };
     if (memberResult.kind !== 'ok' || inviteResult.kind !== 'ok') {

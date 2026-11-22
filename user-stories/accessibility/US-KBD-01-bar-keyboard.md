@@ -34,9 +34,9 @@ flowchart TD
   grid["SchedulerGrid renders AllocationBar"] --> label["buildAriaLabel describes bar and role"]
   label --> bar["AllocationBar receives keyboard event"]
   bar --> action["dispatchBarKeyboardAction"]
-  action -->|Enter or Space| edit["onEdit opens AllocationModal when supplied"]
+  action -->|Enter or Space| edit["onEdit opens AllocationDialog when supplied"]
   action -->|arrow key| nudge["nudgeBarFromKeyboard calls nudge mode"]
   nudge --> gesture["useAllocationGesture applies move or resize"]
 ```
 
-**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx); [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx); [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts); [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx); [AllocationBarView.tsx](../../apps/frontend/src/components/scheduler/AllocationBarView.tsx); [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts); [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)

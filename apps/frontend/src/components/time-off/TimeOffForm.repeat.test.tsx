@@ -8,7 +8,7 @@ import { useStore } from '@/store/useStore';
 import { TimeOffForm } from './TimeOffForm';
 import type { ReactElement } from 'react';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningFixtures';
+import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningTestKit';
 import { permissionValue } from '@/test/permissionGrants';
 
 function render(ui: ReactElement) {
@@ -22,7 +22,7 @@ function render(ui: ReactElement) {
 const resourceDraft = {
   kind: 'person' as const,
   name: 'Bruce Wayne',
-  role: 'Director',
+  jobTitle: 'Director',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,

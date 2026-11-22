@@ -3,9 +3,9 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveLifecycleStatus,
   canArchive,
-  canUnarchive,
+  canRestore,
   archive,
-  unarchive,
+  restore,
   obfuscateResource,
   isLifecycleEntityKey,
   LifecycleTransitionError,
@@ -16,7 +16,7 @@ import type { Resource } from '../types/entities.js';
 
 // These tests are an independent oracle of the lifecycle state machine: the expected states /
 // booleans below are hand-derived from the contract (deletedAt wins; archive needs active;
-// unarchive needs archived), not copied from the
+// restore needs archived), not copied from the
 // implementation. If lifecycle.ts and these tables disagree, that's the test doing its job.
 
 // Fixed ISO consts so every assertion is deterministic (no ambient clock anywhere in the machine).
@@ -108,7 +108,7 @@ describe('canArchive — public archive affordance over active/archived/deleted'
   }
 });
 
-describe.each([['canUnarchive', canUnarchive]] as const)(
+describe.each([['canRestore', canRestore]] as const)(
   '%s — public archived-state affordance',
   (_name, predicate) => {
     it.each([
@@ -162,10 +162,10 @@ describe('archive — active → archived (immutable, fail-loud)', () => {
   });
 });
 
-describe('unarchive — archived → active (clears archivedAt to null, immutable, fail-loud)', () => {
+describe('restore — archived → active (clears archivedAt to null, immutable, fail-loud)', () => {
   it('from archived: archivedAt is null, status active', () => {
     const input = makeArchived();
-    const result = unarchive(input);
+    const result = restore(input);
     expect(result.archivedAt).toBeNull();
     expect(result.deletedAt).toBeNull();
     expect(resolveLifecycleStatus(result)).toBe('active');
@@ -174,18 +174,18 @@ describe('unarchive — archived → active (clears archivedAt to null, immutabl
   });
   it('does NOT mutate the input (immutability)', () => {
     const input = makeArchived();
-    unarchive(input);
+    restore(input);
     expect(input.archivedAt).toBe(T_ARCH);
     expect(resolveLifecycleStatus(input)).toBe('archived');
   });
   it('from active: throws', () => {
-    expect(() => unarchive(makeActive())).toThrow(/not archived/);
+    expect(() => restore(makeActive())).toThrow(/not archived/);
   });
-  it('from deleted: throws (cannot unarchive a tombstone)', () => {
-    expect(() => unarchive(makeDeleted())).toThrow(/not archived/);
+  it('from deleted: throws (cannot restore a tombstone)', () => {
+    expect(() => restore(makeDeleted())).toThrow(/not archived/);
   });
   it('recovers an archived row carrying a malformed deletion tombstone', () => {
-    const result = unarchive({ ...makeArchived(), deletedAt: 'not-a-date' });
+    const result = restore({ ...makeArchived(), deletedAt: 'not-a-date' });
     expect(result.archivedAt).toBeNull();
     expect(result.deletedAt).toBeNull();
     expect(resolveLifecycleStatus(result)).toBe('active');
@@ -204,7 +204,7 @@ describe('isLifecycleEntityKey — narrowing guard for the tombstone-carrying ta
     expect(isLifecycleEntityKey('allocations')).toBe(false);
     expect(isLifecycleEntityKey('timeOff')).toBe(false);
     expect(isLifecycleEntityKey('disciplines')).toBe(false);
-    expect(isLifecycleEntityKey('accounts')).toBe(false);
+    expect(isLifecycleEntityKey('companies')).toBe(false);
     expect(isLifecycleEntityKey('nonsense')).toBe(false);
   });
 });
@@ -218,7 +218,7 @@ const RESOURCE_BASE: Resource = {
   companyId: 'acc-1',
   kind: 'person',
   name: 'Barbara Gordon',
-  role: 'Senior Designer',
+  jobTitle: 'Senior Designer',
   disciplineId: 'disc-1',
   employmentType: 'permanent',
   engagement: 'studio' as const,
@@ -253,7 +253,7 @@ describe("obfuscateResource — scrub a Resource's PII at soft-delete (pure, imm
     expect(result.id).toBe(input.id);
     expect(result.companyId).toBe(input.companyId);
     expect(result.kind).toBe(input.kind);
-    expect(result.role).toBe('Removed resource');
+    expect(result.jobTitle).toBe('Removed resource');
     expect(result.disciplineId).toBe(input.disciplineId);
     expect(result.employmentType).toBe(input.employmentType);
     expect(result.engagement).toBe(input.engagement);

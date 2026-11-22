@@ -63,11 +63,11 @@ Favourites are shared with the whole company, not a personal preference. Favouri
 parties lead the External group.
 
 When disciplines are off, people move into **Studio** and **Supplementary** bands, with **External
-/ 3rd party** last. People without a discipline also fall back to these bands, after the
+party** last. People without a discipline also fall back to these bands, after the
 discipline groups. A team with no active Supplementary people gets one band instead:
 **Unassigned** when disciplines are on, or **Resources** when they are off.
 
-![The Schedule grouped into Studio, Supplementary and External / 3rd party bands after disciplines have been turned off](../screenshots/flows/schedule_engagement_groups.jpg)
+![The Schedule grouped into Studio, Supplementary and External party bands after disciplines have been turned off](../screenshots/flows/schedule_engagement_groups.jpg)
 
 Select a group heading to collapse it, and again to expand it. A collapsed group shows its hidden
 row count, such as `4 hidden`, and an average utilisation if that is turned on in Settings. The

@@ -64,7 +64,7 @@ interface PreviewDropQuery {
 
 /** Would a drop starting on `date` be refused because `resourceId` does not work that day? The one
  * answer the live drag preview and the commit both ask, so the bar cannot draw a placement the
- * release is about to reject. An absent resource is not blocked, its own gate rejects it. */
+ * release is about to reject. An absent resource is not blocked, its own check rejects it. */
 export function isDropStartBlocked({
   calendar,
   resourceId,
@@ -82,7 +82,7 @@ export function isDropStartBlocked({
 }
 
 /** The preview already resolved the destination's effective week for this gesture frame. Keep the
- * gate on that snapshot rather than resolving the same resource and store state a second time. */
+ * check on that snapshot rather than resolving the same resource and store state a second time. */
 export function isDropStartBlockedForWorkingDays({
   workingDays,
   date,
@@ -92,7 +92,7 @@ export function isDropStartBlockedForWorkingDays({
   return !workingDays.includes(getWeekday(date));
 }
 
-/** Apply the destination start gate to the effective week already memoised for this preview. */
+/** Apply the destination start check to the effective week already memoised for this preview. */
 export function isPreviewDropBlocked({
   workingDays,
   result,

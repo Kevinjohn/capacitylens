@@ -6,12 +6,12 @@ function hasOpaqueCredentialShape(value: unknown): value is string {
   return typeof value === 'string' && OPAQUE_CREDENTIAL_RE.test(value);
 }
 
-/** Validate the reconciliation handle for one account command. */
+/** Validate the reconciliation handle for one account operation. */
 export function isAccountCommandId(value: unknown): value is string {
   return hasOpaqueCredentialShape(value);
 }
 
-/** Validate the independent idempotency key for one account command. */
+/** Validate the independent idempotency key for one account operation. */
 export function isAccountIdempotencyKey(value: unknown): value is string {
   return hasOpaqueCredentialShape(value);
 }

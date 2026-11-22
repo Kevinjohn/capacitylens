@@ -41,4 +41,4 @@ flowchart TD
   router --> outlet["Outlet renders destination"]
 ```
 
-**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [router.tsx](../../apps/frontend/src/router.tsx)
+**Code references:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts); [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [router.tsx](../../apps/frontend/src/router.tsx)

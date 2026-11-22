@@ -7,8 +7,8 @@ import { useFieldError } from '@/hooks/useFieldError';
 import { parseName } from '@/lib/validation';
 import { m } from '@/i18n';
 import {
-  FormActions,
-  Modal,
+  FormButtons,
+  FormDialog,
   RequiredLegend,
   SegmentedField,
   SelectField,
@@ -25,7 +25,7 @@ import { ACTIVITY_KIND_ORDER } from './activityKinds';
 const buildKindOptions = (): { value: ActivityKind; label: string }[] => {
   const labels: Record<ActivityKind, string> = {
     internal: m.form_activity_kind_internal(),
-    repeatable: m.form_activity_kind_repeatable(),
+    allProjects: m.form_activity_kind_all_projects(),
     project: m.form_activity_kind_project(),
   };
   return ACTIVITY_KIND_ORDER.map((value) => ({ value, label: labels[value] }));
@@ -171,13 +171,13 @@ export function ActivityForm({
   };
 
   return (
-    <Modal
+    <FormDialog
       title={activity ? m.form_activity_edit_title() : m.form_activity_add_title()}
       onClose={onClose}
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <ActivityFields
         name={name}
@@ -192,6 +192,6 @@ export function ActivityForm({
         error={error}
         pending={pending}
       />
-    </Modal>
+    </FormDialog>
   );
 }

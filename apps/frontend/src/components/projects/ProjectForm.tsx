@@ -13,8 +13,8 @@ import { byName } from '@/lib/displayOrder';
 import { m } from '@/i18n';
 import {
   ColorField,
-  FormActions,
-  Modal,
+  FormButtons,
+  FormDialog,
   RequiredLegend,
   SelectField,
   TextField,
@@ -39,7 +39,7 @@ export function ProjectForm({
   const update = useStore((state) => state.updateProject);
   const data = useActiveScopedData();
   const clients = data.clients;
-  // Keep the raw scoped slice for the archived-parent label when the server returns an archived
+  // Keep the raw scoped set for the archived-parent label when the server returns an archived
   // parent alongside a child that still references it.
   const rawClients = useScopedData().clients;
 
@@ -85,13 +85,13 @@ export function ProjectForm({
     prepareProjectSave({ project, name, clientId, color, privateNameFields, fail, add, update });
 
   return (
-    <Modal
+    <FormDialog
       title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <ProjectNameFields
@@ -121,7 +121,7 @@ export function ProjectForm({
           disabled={pending}
         />
       </fieldset>
-    </Modal>
+    </FormDialog>
   );
 }
 

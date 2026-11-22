@@ -23,7 +23,7 @@ function createResourceVisibility({
     if (!isResourceKindEnabled(resource, { placeholdersEnabled, externalEnabled })) return false;
     if (filteredDisciplineId && resource.disciplineId !== filteredDisciplineId) return false;
     if (!search) return true;
-    const text = [resolveResourceDisplayName(resource), resource.name, resource.role].join(' ');
+    const text = [resolveResourceDisplayName(resource), resource.name, resource.jobTitle].join(' ');
     return foldForSearch(text).includes(search);
   };
 }

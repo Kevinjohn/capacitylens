@@ -4,11 +4,11 @@ import { noteAuditWarning } from '@/lib/auditWarning';
 import { readApiErrorCode } from '@/lib/readApiError';
 
 let masqueradeEndedHandler: (() => void) | null = null;
-let readMasqueradeContextToken: () => string | null = () => null;
+let readMasqueradeToken: () => string | null = () => null;
 
 /** Register the reader of the current masquerade context proof sent with every request. */
-export function setMasqueradeContextReader(reader: () => string | null): void {
-  readMasqueradeContextToken = reader;
+export function setMasqueradeTokenReader(reader: () => string | null): void {
+  readMasqueradeToken = reader;
 }
 
 /** Register the session-projection recovery hook without coupling the common fetch layer to React. */
@@ -16,12 +16,12 @@ export function setMasqueradeEndedHandler(handler: (() => void) | null): void {
   masqueradeEndedHandler = handler;
 }
 
-// Interactive calls fail quickly; whole-slice reads and writes need a longer deadline
+// Interactive calls fail quickly; whole-set reads and writes need a longer deadline
 // to complete on a healthy but slow server. A timed-out batch has an uncertain commit
 // boundary and requires authoritative reconciliation before another write.
 /** Default deadline for interactive API requests. */
 export const API_REQUEST_TIMEOUT_MS = 15_000;
-/** Longer deadline for whole-slice API reads and writes. */
+/** Longer deadline for whole-set API reads and writes. */
 export const API_BULK_TIMEOUT_MS = 120_000;
 
 /** Browser fetch failures that mean the service was unreachable rather than semantically invalid. */
@@ -96,7 +96,7 @@ function buildMasqueradeHeaders(
     requestOptions.method ?? (input instanceof Request ? input.method : 'GET')
   ).toUpperCase();
   if (method === 'OPTIONS') return requestOptions.headers;
-  const token = readMasqueradeContextToken();
+  const token = readMasqueradeToken();
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(requestOptions.headers).forEach((value, name) => headers.set(name, value));
   if (!headers.has('X-Masquerade-Context') && token !== null) {

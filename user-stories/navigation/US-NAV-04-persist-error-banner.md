@@ -10,7 +10,7 @@ As a company member, I want failed or uncertain server operations shown clearly 
 
 **Documentation:** [Incidents](../../docs-src/self-hosting/incidents.md)
 
-**Source:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+**Source:** [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
 
 ## Acceptance criteria
 
@@ -33,8 +33,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  request["planningCacheController stores planning status"] --> status["readPlanningProblem derives unavailable or refused notice"]
+  request["planningCache stores planning status"] --> status["readPlanningProblem derives unavailable or refused notice"]
   status --> alert["AppShell renders destructive Alert"]
 ```
 
-**Code references:** [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useStore.ts](../../apps/frontend/src/store/useStore.ts)
+**Code references:** [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [useStore.ts](../../apps/frontend/src/store/useStore.ts)

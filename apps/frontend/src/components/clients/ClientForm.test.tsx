@@ -34,7 +34,7 @@ it('defaults privacy off and requires a code name when the owner enables it', as
 
   const codeName = screen.getByLabelText('Code name');
   const hint = screen.getByText(
-    'Only account owners can see real names. Everyone else sees the code name.',
+    'Only Owners can see real names. Everyone else sees the code name.',
   );
   const alert = screen.getByRole('alert');
   expect(codeName).toHaveAttribute('aria-invalid', 'true');
@@ -213,9 +213,7 @@ it('hides owner-only privacy controls and locks the redacted name for a non-owne
 
   expect(screen.queryByRole('switch', { name: 'Use code name' })).not.toBeInTheDocument();
   expect(screen.getByLabelText('Name')).toBeDisabled();
-  expect(
-    screen.getByText('Only an account owner can change this private name.'),
-  ).toBeInTheDocument();
+  expect(screen.getByText('Only an Owner can change this private name.')).toBeInTheDocument();
 });
 
 it('pre-fills the name field with the existing client name', async () => {

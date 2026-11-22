@@ -25,7 +25,7 @@ export interface BarLayout {
   client?: string;
   /** Last surviving end date in a linked repeat series; absent for one-offs and unlinked batches. */
   seriesEnd?: ISODate;
-  /** True when the assignee is an external / 3rd-party resource, the bar hides its hours. */
+  /** True when the assignee is an external-party resource, the bar hides its hours. */
   external: boolean;
 }
 
@@ -79,7 +79,7 @@ export interface GroupModel {
   key: string;
   title: string;
   color?: string;
-  /** True for the external / 3rd-party band. The view reads this (not the key string) to suppress
+  /** True for the external-party band. The view reads this (not the key string) to suppress
    * its utilisation average. */
   external: boolean;
   rows: RowModel[];

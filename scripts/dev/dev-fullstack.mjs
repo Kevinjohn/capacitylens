@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { parsePort } from './parsePort.mjs';
 import { spawnPnpm } from '../shared/pnpmSpawn.mjs';
-import { ports, resolveLane } from '../../tooling/ports.mjs';
+import { ports, resolvePortLane } from '../../tooling/ports.mjs';
 import { createDisposableDemoStorage } from './disposableDemoStorage.mjs';
 import {
   isProcessTreeRunning,
@@ -26,14 +26,14 @@ export async function runDevelopmentStack({ demo = false } = {}) {
       `https://nodejs.org.`,
   );
 
-  // Use the configured API port, defaulting to this lane's port, for the server and Vite proxy.
-  const lanePorts = ports();
+  // Use the configured API port, defaulting to this port lane's port, for the server and Vite proxy.
+  const portLanePorts = ports();
   const API_PORT = parsePort(
     process.env.CAPACITYLENS_DEV_API_PORT,
-    lanePorts.dbApi,
+    portLanePorts.dbApi,
     'CAPACITYLENS_DEV_API_PORT',
   );
-  const WEB_PORT = lanePorts.web;
+  const WEB_PORT = portLanePorts.web;
 
   // Check both ports before starting either child so a collision cannot leave a half-started stack.
   if (await portInUse(API_PORT)) {
@@ -114,15 +114,15 @@ export async function runDevelopmentStack({ demo = false } = {}) {
   }
 
   try {
-    // Browser writes reach the API through the Vite proxy carrying this lane's web origin, which the
-    // API's built-in development origins cover only on lane 0. The API appends these to its own
+    // Browser writes reach the API through the Vite proxy carrying this port lane's web origin, which the
+    // API's built-in development origins cover only on port lane 0. The API appends these to its own
     // resolved CAPACITYLENS_CORS_ORIGIN, so the operator's environment files keep their meaning.
     const apiEnvironment = {
       PORT: String(API_PORT),
       CAPACITYLENS_DEV_WEB_ORIGINS: `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`,
     };
     if (demo) {
-      demoStorage = await createDisposableDemoStorage(resolveLane());
+      demoStorage = await createDisposableDemoStorage(resolvePortLane());
       Object.assign(apiEnvironment, {
         NODE_ENV: 'development',
         HOST: '127.0.0.1',

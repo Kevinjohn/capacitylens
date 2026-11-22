@@ -13,7 +13,7 @@ const structuralChecks = [
 
 // Repository policy, dependency and packaging checks that need no application build.
 const toolingChecks = [
-  ['run', 'gate:deps'],
+  ['run', 'check:deps'],
   ['run', 'policy:dependabot'],
   ['run', 'policy:dependabot:test'],
   ['run', 'dependency:major-report:test'],
@@ -25,7 +25,7 @@ const toolingChecks = [
   ['run', 'policy:script-processes:test'],
 ];
 const staticChecks = [
-  ['run', 'ui:check'],
+  ['run', 'check:ui'],
   ['run', 'format:check'],
   ['run', 'typecheck'],
   ['run', 'lint'],
@@ -39,7 +39,7 @@ const commands = {
     ...toolingChecks,
     ...staticChecks,
     ['--dir', 'apps/frontend', 'exec', 'vitest', 'run', '--coverage'],
-    // The root build script ends with bundle:check, so a failing budget fails this step.
+    // The root build script ends with check:bundle, so a failing budget fails this step.
     ['run', 'build'],
   ],
   backend: [

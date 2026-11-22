@@ -6,7 +6,6 @@ import { AccountAdmission, admissionMiddleware } from '@kevinjohn/adonisjs-accou
 import { InvalidSessionError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { managedAccountMiddleware } from '@kevinjohn/adonisjs-account-kit/http';
 import { managedGuard } from '#services/auth/managed_guard';
-import { resolveRouteAccess } from '#services/auth/route_access';
 
 const checks = {
   limited: managedAccountMiddleware({
@@ -20,32 +19,30 @@ const checks = {
   }),
 };
 
+/** What the gate asks of a route: `limited` needs a valid sign-in; `admitted` also needs admission. */
+export type GatedRouteAccess = 'limited' | 'admitted';
+
 /**
- * Applies each route's account gate before the handler runs: Account Kit's managed guard checks the
- * sign-in, and admission on product routes. This one router middleware covers every route, and the
- * route's name selects the check. A route name in no list gets the strictest check; only the health
- * probes and the application shell have no name. Routes under `/api/auth` are public at the gate
- * because their handlers answer a signed-out caller themselves. Handlers still verify the actor
- * inside their own transaction.
+ * Applies a route's account gate before the handler runs: Account Kit's managed guard checks the
+ * sign-in, and admission on product routes. The route's group, or the route itself, names the check
+ * with the `access` option; a route without the gate is public, and its handler answers a signed-out
+ * caller itself. Handlers still verify the actor inside their own transaction.
  */
 export default class AccountGateMiddleware {
-  async handle(ctx: HttpContext, next: NextFn) {
-    const access = resolveRouteAccess(ctx.route?.name);
-    if (access !== 'public') {
-      try {
-        // The check runs alone, so a refusal raised later by the handler is not mistaken for it.
-        await checks[access](ctx, async () => undefined);
-      } catch (error) {
-        // Route wording: the gate answers a missing session as SIGN_IN_REQUIRED, where the
-        // handler sends the Kit's own code; every other refusal reaches the handler.
-        if (error instanceof InvalidSessionError) {
-          return ctx.response.unauthorized({
-            error: 'Sign-in required.',
-            code: 'SIGN_IN_REQUIRED',
-          });
-        }
-        throw error;
+  async handle(ctx: HttpContext, next: NextFn, options: { access: GatedRouteAccess }) {
+    try {
+      // The check runs alone, so a refusal raised later by the handler is not mistaken for it.
+      await checks[options.access](ctx, async () => undefined);
+    } catch (error) {
+      // Route wording: the gate answers a missing session as SIGN_IN_REQUIRED, where the
+      // handler sends the Kit's own code; every other refusal reaches the handler.
+      if (error instanceof InvalidSessionError) {
+        return ctx.response.unauthorized({
+          error: 'Sign-in required.',
+          code: 'SIGN_IN_REQUIRED',
+        });
       }
+      throw error;
     }
     return next();
   }

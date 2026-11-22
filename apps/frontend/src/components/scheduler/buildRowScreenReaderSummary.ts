@@ -6,7 +6,7 @@ import type { DrawMode } from '@/store/useStore';
 
 /** View preferences and the visible window label used by the row's accessible summary. */
 export interface RowSummaryContext {
-  /** The per-person utilisation view pref, the same gate the visible figure uses. */
+  /** The per-person utilisation view pref, the same setting the visible figure uses. */
   showPersonalUtilisation: boolean;
   /** Long form of the visible span ("4 weeks"), so the % says what it was measured over. */
   visibleSpanLabel: string;
@@ -45,7 +45,7 @@ export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryCo
       }),
     );
   }
-  // Time-off draw mode is about absences, not bookings: an allocation count would be noise there.
+  // Time-off draw mode is about time off, not bookings: an allocation count would be noise there.
   if (context.drawMode !== 'timeOff') {
     const count = row.bars.length;
     parts.push(

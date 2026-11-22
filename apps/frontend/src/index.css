@@ -74,7 +74,7 @@
   /* Named layer tiers keep sticky chrome below drags, dialogs, floating content, tooltips, and the focused skip link. */
   --z-index-sticky: 40;
   --z-index-drag: 50;
-  --z-index-modal: 55;
+  --z-index-dialog: 55;
   --z-index-popover: 60;
   --z-index-tooltip: 65;
   --z-index-skip-link: 70;
@@ -535,7 +535,7 @@ body[data-scroll-locked]:not([data-scroll-lock-no-important]).width-before-scrol
     0 0 0 3px var(--c-focus-halo);
 }
 
-/* Drawing time off dims work and highlights existing absences while a new range is
+/* Drawing time off dims work and highlights existing time off while a new range is
    placed. The grid attribute drives the visual change; inert is applied to the bars
    layer so other memoized rows do not rerender. */
 [data-draw-mode="timeOff"] .scheduler-bar {

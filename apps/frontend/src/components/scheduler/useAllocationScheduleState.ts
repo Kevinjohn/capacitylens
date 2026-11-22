@@ -21,18 +21,18 @@ import { useMemo, useState } from 'react';
 import type { RepeatSelection } from '@/lib/repeatingAllocations';
 import { useRepeatUntil } from '@/hooks/useRepeatUntil';
 
-import type { AllocationModalSeed } from './buildAllocationModalSeed';
+import type { AllocationDialogSeed } from './buildAllocationDialogSeed';
 import {
   buildEffectiveAllocationValues,
   roundDays,
   hasWorkingSpan,
-} from './allocationModalSelection';
+} from './allocationDialogSelection';
 interface ScheduleInput {
   selectedResource: Resource | undefined;
   mode: SchedulingMode;
   companyWorkingDays: ReturnType<typeof normalizeCompanyWorkingDays>;
   today: ISODate;
-  seed: AllocationModalSeed;
+  seed: AllocationDialogSeed;
 }
 
 function useEffectiveSchedule(input: {
@@ -89,7 +89,7 @@ function resolveRepeatRange(startDate: ISODate, repeatToday: ISODate) {
   };
 }
 
-function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
+function resolveInitialDaysOfWork(seed: AllocationDialogSeed): number {
   const { editing, initialCapacityHours, initialDaysOver } = seed;
   if (editing) {
     return roundDays(calculateDaysOfWork(editing.hoursPerDay, initialDaysOver, FULL_DAY_HOURS));
@@ -99,14 +99,14 @@ function resolveInitialDaysOfWork(seed: AllocationModalSeed): number {
   );
 }
 
-function resolveInitialDates(seed: AllocationModalSeed, today: ISODate) {
+function resolveInitialDates(seed: AllocationDialogSeed, today: ISODate) {
   return {
     startDate: seed.initialStart,
     endDate: seed.editing?.endDate ?? seed.create?.endDate ?? today,
   };
 }
 
-function resolveInitialDetails(seed: AllocationModalSeed) {
+function resolveInitialDetails(seed: AllocationDialogSeed) {
   return {
     hoursPerDay: seed.editing?.hoursPerDay ?? (seed.initialScheduledHours || FULL_DAY_HOURS),
     status: seed.editing?.status ?? 'confirmed',
@@ -116,7 +116,7 @@ function resolveInitialDetails(seed: AllocationModalSeed) {
   };
 }
 
-function useScheduleFields(seed: AllocationModalSeed, today: ISODate) {
+function useScheduleFields(seed: AllocationDialogSeed, today: ISODate) {
   const initialDates = resolveInitialDates(seed, today);
   const initialDetails = resolveInitialDetails(seed);
   const [startDate, setStartDate] = useState<ISODate>(initialDates.startDate);

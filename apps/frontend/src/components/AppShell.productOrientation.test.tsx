@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  loadPlanningData(makeAppData({ accounts: [makeCompany()] }));
+  loadPlanningData(makeAppData({ companies: [makeCompany()] }));
   useStore.getState().setCompanySummaries({
     list: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' }],
   });
@@ -33,7 +33,7 @@ beforeEach(() => {
         const state = useStore.getState();
         const summaries = state.companySummaries.length
           ? state.companySummaries
-          : state.data.accounts.map((company) => ({ ...company, role: 'owner' as const }));
+          : state.data.companies.map((company) => ({ ...company, role: 'owner' as const }));
         return Promise.resolve(
           Response.json(
             summaries.map((summary) => ({
@@ -61,7 +61,7 @@ beforeEach(() => {
           }),
         );
       }
-      return Promise.resolve(Response.json({ active: false, contextToken: 'idle' }));
+      return Promise.resolve(Response.json({ active: false, masqueradeToken: 'idle' }));
     }),
   );
 });
@@ -272,7 +272,7 @@ describe('AppShell product orientation', () => {
           );
         }
         return Promise.resolve(
-          new Response(JSON.stringify({ active: false, contextToken: 'idle' }), {
+          new Response(JSON.stringify({ active: false, masqueradeToken: 'idle' }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
           }),

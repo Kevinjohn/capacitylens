@@ -12,7 +12,7 @@ Check your role in this company and what it lets you do.
 ![Team and access showing a Viewer's access explanation](../screenshots/flows/viewer_access_current.jpg)
 
 Open **Team & access** near the bottom of the left menu. **Your access** is where you read your role; the left menu doesn't show it. Select
-**See full capabilities** to check what you can do.
+**See all permissions** to check what you can do.
 
 If you need different access, ask your agency's Owner or Admin.
 [Roles and permissions](/getting-started/roles-and-permissions) compares every role.

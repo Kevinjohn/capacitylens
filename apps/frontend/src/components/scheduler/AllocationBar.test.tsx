@@ -20,7 +20,7 @@ import { permissionValue } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetStoreWithData(
-    { ...createEmptyAppData(), accounts: [makeCompany({ id: 'acct-test' })] },
+    { ...createEmptyAppData(), companies: [makeCompany({ id: 'acct-test' })] },
     'acct-test',
   );
   useStore.getState().clearFilters();
@@ -57,7 +57,7 @@ async function setTaskFieldVisibility({ enabled }: SetTaskFieldVisibilityOptions
   await resetStoreWithData(
     {
       ...createEmptyAppData(),
-      accounts: [makeCompany({ id: 'acct-test', showTaskFieldInSchedule: enabled })],
+      companies: [makeCompany({ id: 'acct-test', showTaskFieldInSchedule: enabled })],
     },
     'acct-test',
   );
@@ -68,7 +68,7 @@ describe('AllocationBar rendering', () => {
     await resetStoreWithData(
       {
         ...createEmptyAppData(),
-        accounts: [makeCompany({ id: 'acct-test', dateStyle: 'day-month' })],
+        companies: [makeCompany({ id: 'acct-test', dateStyle: 'day-month' })],
       },
       'acct-test',
     );
@@ -206,9 +206,9 @@ describe('AllocationBar rendering', () => {
 
   it('hides hours in blocks mode, showing the activity name only', async () => {
     const data = createEmptyAppData();
-    data.accounts = [
+    data.companies = [
       {
-        ...NULLABLE_FIELDS.accounts,
+        ...NULLABLE_FIELDS.companies,
         id: 'acct-test',
         createdAt: 't',
         updatedAt: 't',

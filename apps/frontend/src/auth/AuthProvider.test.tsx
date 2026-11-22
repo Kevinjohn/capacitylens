@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { AUTH_INVALIDATION_STORAGE_KEY } from './signOut';
-import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 import { createDeferred } from '@/test/createDeferred';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -18,7 +18,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -26,21 +26,21 @@ afterEach(() => {
 });
 
 describe('AuthProvider — server mode', () => {
-  it('signals tenant-data access only after a successful auth check', async () => {
+  it('signals company-data access only after a successful auth check', async () => {
     const auth = createDeferred<Response>();
     vi.stubGlobal(
       'fetch',
       vi.fn(() => auth.promise),
     );
-    const onTenantAccessReady = vi.fn();
+    const onCompanyAccessReady = vi.fn();
     const { AuthProvider } = await renderFreshProvider();
     render(
-      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
+      <AuthProvider onCompanyAccessReady={onCompanyAccessReady}>
         <div>app-content</div>
       </AuthProvider>,
     );
 
-    expect(onTenantAccessReady).not.toHaveBeenCalled();
+    expect(onCompanyAccessReady).not.toHaveBeenCalled();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Checking your session…');
 
@@ -57,9 +57,9 @@ describe('AuthProvider — server mode', () => {
     });
 
     expect(await screen.findByText('app-content')).toBeInTheDocument();
-    await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledOnce());
+    await waitFor(() => expect(onCompanyAccessReady).toHaveBeenCalledOnce());
   });
-  it('hides tenant data immediately when a sibling tab signs out, then rechecks the session', async () => {
+  it('hides company data immediately when a sibling tab signs out, then rechecks the session', async () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(
@@ -73,10 +73,10 @@ describe('AuthProvider — server mode', () => {
     const { queryClient } = await import('@/api/queryClient');
     render(
       <AuthProvider>
-        <div>tenant-content</div>
+        <div>company-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByText('tenant-content')).toBeInTheDocument();
+    expect(await screen.findByText('company-content')).toBeInTheDocument();
     queryClient.setQueryData(['private-account'], 'sensitive data');
     useStore.setState({ activeCompanyId: 'a-studio' });
 
@@ -95,21 +95,21 @@ describe('AuthProvider — server mode', () => {
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
-  it('does not signal tenant-data access for a signed-out boot', async () => {
+  it('does not signal company-data access for a signed-out boot', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => makeMeResponse(401, {})),
     );
-    const onTenantAccessReady = vi.fn();
+    const onCompanyAccessReady = vi.fn();
     const { AuthProvider } = await renderFreshProvider();
     render(
-      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
+      <AuthProvider onCompanyAccessReady={onCompanyAccessReady}>
         <div>app-content</div>
       </AuthProvider>,
     );
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
-    expect(onTenantAccessReady).not.toHaveBeenCalled();
+    expect(onCompanyAccessReady).not.toHaveBeenCalled();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });
   it('refreshes a visible selected company every minute and stops after unmount', async () => {
@@ -180,7 +180,7 @@ describe('AuthProvider — server mode', () => {
   ])(
     'holds a signed-in identity on its limited screen until every gate passes (%o)',
     async (gates, screenId) => {
-      const onTenantAccessReady = vi.fn();
+      const onCompanyAccessReady = vi.fn();
       vi.stubGlobal(
         'fetch',
         vi
@@ -191,13 +191,13 @@ describe('AuthProvider — server mode', () => {
       );
       const { AuthProvider } = await renderFreshProvider();
       render(
-        <AuthProvider onTenantAccessReady={onTenantAccessReady}>
+        <AuthProvider onCompanyAccessReady={onCompanyAccessReady}>
           <div>app-content</div>
         </AuthProvider>,
       );
       expect(await screen.findByTestId(screenId)).toBeInTheDocument();
       expect(screen.queryByText('app-content')).not.toBeInTheDocument();
-      expect(onTenantAccessReady).not.toHaveBeenCalled();
+      expect(onCompanyAccessReady).not.toHaveBeenCalled();
     },
   );
 });

@@ -17,7 +17,7 @@ import {
 import { useStore } from '@/store/useStore';
 import { ArchivedEntitySection } from './ArchivedEntitySection';
 import { permissionValue } from '@/test/permissionGrants';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('@/api/queryClient', async (original) => ({
@@ -44,7 +44,7 @@ function authenticated(children: ReactNode, role: 'owner' | 'editor') {
   return (
     <AuthContext.Provider
       value={{
-        user: { id: 'test-principal' },
+        user: { id: 'test-user' },
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
@@ -62,7 +62,7 @@ beforeEach(async () => {
     id: 'resource-archive',
     companyId: DEFAULT_COMPANY_ID,
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
     avatarUrl: 'https://images.example/diana.png',
     archivedAt: '2026-01-01T00:00:00.000Z',
     createdAt: '2025-01-01T00:00:00.000Z',
@@ -89,7 +89,7 @@ beforeEach(async () => {
         updatePlanningFixtureSource(serverData);
         return new Response(null, { status: 204 });
       }
-      return Response.json(serverData);
+      return Response.json({ data: serverData });
     }),
   );
 });
@@ -100,8 +100,8 @@ function setPlanningRole(role: 'owner' | 'editor') {
     planning: {
       ...state.planning,
       phase: { kind: 'ready', lastWrite: null },
-      context: { identity: 'test-principal', companyId: DEFAULT_COMPANY_ID },
-      authority: makePlanningAuthority({ role }),
+      context: { identity: 'test-user', companyId: DEFAULT_COMPANY_ID },
+      access: makePlanningAccess({ role }),
     },
   }));
 }
@@ -130,7 +130,7 @@ describe('archived resource actions', () => {
 
   it('lets an Editor recover an identity without inactive details or anonymisation', async () => {
     setPlanningRole('editor');
-    request.mockResolvedValue(archivedRecovery(DEFAULT_COMPANY_ID));
+    request.mockResolvedValue({ data: archivedRecovery(DEFAULT_COMPANY_ID) });
     render(
       <QueryClientProvider client={new QueryClient()}>
         {authenticated(<ArchivedEntitySection entity="resources" />, 'editor')}
@@ -138,18 +138,18 @@ describe('archived resource actions', () => {
     );
     expect(await screen.findByRole('button', { name: 'Restore Diana Prince' })).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith(
-      'api.planning.archive',
+      'api.planning_archive.show',
       expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
     expect(screen.queryByText('Designer')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Anonymise/ })).not.toBeInTheDocument();
   });
-  it('restores an Editor identity through the typed planning command', async () => {
+  it('restores an Editor identity through the typed planning intent', async () => {
     await useStore.getState().refreshPlanning();
     setPlanningRole('editor');
     request
-      .mockResolvedValueOnce(archivedRecovery(DEFAULT_COMPANY_ID))
-      .mockResolvedValueOnce({ companyId: DEFAULT_COMPANY_ID, rows: [] });
+      .mockResolvedValueOnce({ data: archivedRecovery(DEFAULT_COMPANY_ID) })
+      .mockResolvedValueOnce({ data: { companyId: DEFAULT_COMPANY_ID, rows: [] } });
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -162,7 +162,7 @@ describe('archived resource actions', () => {
     );
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeNull();
     expect(request).toHaveBeenCalledWith(
-      'api.planning.archive',
+      'api.planning_archive.show',
       expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
   });

@@ -12,7 +12,7 @@ import type { Route } from '@capacitylens/backend/registry';
  * The frontend constructs typed intents with real numbers and booleans; the server validator
  * remains authoritative for every persisted mutation.
  */
-type PlanningMutationBody = Route.Body<'api.planning.mutate'>;
+type PlanningMutationBody = Route.Body<'api.planning_mutations.store'>;
 
 /** Execution metadata the browser only ever holds as server-issued integers. */
 type ServerIssuedIntegers = Pick<
@@ -36,11 +36,14 @@ export type PlanningExecution = Omit<
   [Field in keyof ServerIssuedIntegers]: Extract<ServerIssuedIntegers[Field], number>;
 } & { intent: PlanningIntent };
 
-/** Refusals are sent through the response object, so the generated reply also admits `void`. */
+/**
+ * Refusals are sent through the response object, so the generated reply also admits `void`. A
+ * success arrives inside the `{ data }` envelope.
+ */
 export type PlanningMutationSuccess = Extract<
-  Route.Response<'api.planning.mutate'>,
+  Exclude<Route.Response<'api.planning_mutations.store'>, void>['data'],
   { status: 'committed' }
 >;
 
 /** Who the last accepted planning read was for, and what that member may do and see. */
-export type PlanningAuthority = Exclude<Route.Response<'api.planning.show'>, void>['authority'];
+export type PlanningAccess = Exclude<Route.Response<'api.planning.show'>, void>['data']['access'];

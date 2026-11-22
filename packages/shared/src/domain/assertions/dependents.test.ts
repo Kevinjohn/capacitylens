@@ -30,7 +30,7 @@ const A1 = 'a-studio';
 
 const meta = (id: ID) => ({ id, companyId: A1, createdAt: TS, updatedAt: TS });
 const company: Company = {
-  ...NULLABLE_FIELDS.accounts,
+  ...NULLABLE_FIELDS.companies,
   id: A1,
   name: 'Wayne Enterprises',
   color: '#3b82f6',
@@ -55,7 +55,7 @@ const person = (id: ID, overrides: Partial<Resource> = {}): Resource => ({
   ...meta(id),
   kind: 'person',
   name: 'Bruce Wayne',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio',
   workingHoursPerDay: 8,
@@ -95,7 +95,7 @@ const timeOff = (id: ID, resourceId: ID): TimeOff => ({
 function data(overrides: Partial<AppData> = {}): AppData {
   return {
     ...createEmptyAppData(),
-    accounts: [company],
+    companies: [company],
     clients: [client],
     projects: [project('p1'), project('p2'), project('p3')],
     activities: [projectActivity('t1', 'p1')],

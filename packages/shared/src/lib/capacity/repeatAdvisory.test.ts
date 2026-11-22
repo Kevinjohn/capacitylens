@@ -4,7 +4,7 @@ import type { Allocation, Closure, Resource, TimeOff, Weekday } from '../../type
 import { resolveEffectiveWorkingWeek } from '../effectiveWorkingWeek.js';
 import { generateRepeatingStartDates } from '../repeatingDates.js';
 import { buildRepeatedAllocationDrafts } from '../repeatingOccurrences.js';
-import type { RepeatProjectionContext } from '../repeatingOccurrences.js';
+import type { RepeatExpansionInput } from '../repeatingOccurrences.js';
 import { buildRepeatingAllocationAdvisory as repeatingAllocationAdvisoryWithWeek } from './repeatAdvisory.js';
 
 type AllocationDraft = Pick<
@@ -13,8 +13,8 @@ type AllocationDraft = Pick<
 > &
   Partial<Pick<Allocation, 'note' | 'ignoreWorkingDays'>>;
 
-interface RepeatContextTestInput {
-  schedulingMode: RepeatProjectionContext['schedulingMode'];
+interface RepeatExpansionTestInput {
+  schedulingMode: RepeatExpansionInput['schedulingMode'];
   daysOver: number;
   resource?: ReturnType<typeof resourceContext> | undefined;
   companyWorkingDays?: Weekday[] | undefined;
@@ -40,7 +40,7 @@ const baseDraft = (overrides: Partial<AllocationDraft> = {}): AllocationDraft =>
   ...overrides,
 });
 
-type TestRepeatResource = RepeatProjectionContext['resource'] & { workingDays: Weekday[] };
+type TestRepeatResource = RepeatExpansionInput['resource'] & { workingDays: Weekday[] };
 
 const resourceContext = (overrides: Partial<TestRepeatResource> = {}): TestRepeatResource => ({
   id: 'r1',
@@ -54,7 +54,7 @@ const repeatContext = ({
   daysOver,
   resource = resourceContext(),
   companyWorkingDays = [1, 2, 3, 4, 5],
-}: RepeatContextTestInput): RepeatProjectionContext => ({
+}: RepeatExpansionTestInput): RepeatExpansionInput => ({
   schedulingMode,
   daysOver,
   resource,
@@ -71,7 +71,7 @@ const fullResource = (
   updatedAt: 't',
   kind: 'person',
   name: 'Person',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio' as const,
   workingHoursPerDay: 8,

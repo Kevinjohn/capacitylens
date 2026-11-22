@@ -57,7 +57,7 @@ describe('typed undo restores cascade bindings', () => {
     expect(send.mock.calls[0]?.[1]).toMatchObject({ expectedUpdatedAt: restoredAt });
   });
 
-  it('undoes a creation in a large tenant without losing its existing rows', async () => {
+  it('undoes a creation in a large company without losing its existing rows', async () => {
     const clients = Array.from({ length: 75_000 }, (_, index) => ({
       ...NULLABLE_FIELDS.clients,
       ...meta,

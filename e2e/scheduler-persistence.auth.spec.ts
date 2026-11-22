@@ -5,12 +5,12 @@ import {
   AUTH_API,
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  revokeFixtureSessions,
-  sendPlanningFixtureCommand,
+  createTestPerson,
+  revokeTestSessions,
+  sendPlanningIntent,
   signUpUser,
-  masqueradeContextHeaders,
-} from './authTestSupport';
+  masqueradeTokenHeaders,
+} from './authTestKit';
 import {
   boundingBoxOrThrow,
   goToSeedWeek,
@@ -18,7 +18,7 @@ import {
   selectShadOption,
   setZoom,
   waitForAppLanding,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -45,17 +45,17 @@ async function createScenario(request: APIRequestContext) {
   const activityId = crypto.randomUUID();
   const owner = await signUpUser(ownerEmail);
   const companyId = await bootstrapOrg(request, owner.cookie, company);
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Bruce Wayne',
-    role: 'Planner',
+    jobTitle: 'Planner',
   });
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: secondResourceId,
     name: 'Clark Kent',
-    role: 'Planner',
+    jobTitle: 'Planner',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -63,7 +63,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { name: 'Wayne Enterprises', color: '#76a5e7' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -71,7 +71,7 @@ async function createScenario(request: APIRequestContext) {
       fields: { clientId, name: 'Gotham Renewal', color: '#e776b8' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'activities',
@@ -130,7 +130,7 @@ async function persistedAllocations(request: APIRequestContext, cookie: string, 
     maxRetries: 1,
   });
   expect(response.status()).toBe(200);
-  return ((await response.json()) as { allocations: Allocation[] }).allocations;
+  return ((await response.json()) as { data: { allocations: Allocation[] } }).data.allocations;
 }
 
 async function createAllocation(page: Page, projectId: string, activityId: string) {
@@ -421,7 +421,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
 }) => {
   const { owner, companyId, ownerEmail, resourceId, activityId } = await createScenario(request);
   const allocationId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: allocationId,
@@ -460,10 +460,10 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
-  const { revision } = (await planning.json()) as { revision: number };
+  const { revision } = ((await planning.json()) as { data: { revision: number } }).data;
   const deletion = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
     headers: {
-      ...(await masqueradeContextHeaders(request, owner.cookie)),
+      ...(await masqueradeTokenHeaders(request, owner.cookie)),
       'content-type': 'application/json',
     },
     data: {
@@ -484,7 +484,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   expect(refreshed.status()).toBe(200);
   // The page names the revision it holds; the other session's change makes it stale.
   expect(new URL(refreshed.url()).searchParams.has('ifRevision')).toBe(true);
-  expect(((await refreshed.json()) as { slice: string }).slice).toBe('full');
+  expect(((await refreshed.json()) as { data: { content: string } }).data.content).toBe('full');
   await refreshed.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
@@ -663,7 +663,7 @@ test('a weekly repeat persists all 14 occurrences as one series through one type
 }) => {
   const { owner, companyId, ownerEmail, resourceId, projectId, activityId } =
     await createScenario(request);
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: crypto.randomUUID(),
@@ -762,10 +762,10 @@ test('a stale-revision scheduler write shows server state without a toast or his
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
-  const { revision } = (await planning.json()) as { revision: number };
+  const { revision } = ((await planning.json()) as { data: { revision: number } }).data;
   const external = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
     headers: {
-      ...(await masqueradeContextHeaders(request, owner.cookie)),
+      ...(await masqueradeTokenHeaders(request, owner.cookie)),
       'content-type': 'application/json',
     },
     data: {
@@ -810,7 +810,7 @@ test('an ended session (401) clears the scheduler cache and history', async ({ p
     .toBe('2026-06-01');
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
-  revokeFixtureSessions(ownerEmail);
+  revokeTestSessions(ownerEmail);
   await page.context().clearCookies();
   expect((await page.request.get(`${AUTH_API}/api/companies/${companyId}/planning`)).status()).toBe(
     401,

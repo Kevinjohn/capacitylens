@@ -38,15 +38,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["SchedulerToolbarSections sets drawMode=timeOff"] --> B["ResourceLane draw reaches SchedulerGrid.openDrawModal"]
-  B --> C["SchedulerModal renders TimeOffForm with resource and dates"]
+  A["SchedulerToolbarSections sets drawMode=timeOff"] --> B["ResourceLane draw reaches SchedulerGrid.openDrawDialog"]
+  B --> C["SchedulerDialog renders TimeOffForm with resource and dates"]
   C --> D["TimeOffForm calls saveTimeOff, which invokes the addTimeOff store action"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
   E --> F["planningTransport sends timeOff.create API operation"]
-  F --> G["PlanningController.mutate calls mutatePlanning"]
+  F --> G["PlanningMutationsController.store calls mutatePlanning"]
   G --> H["executePlanningIntent and writer persist in transaction"]
-  H --> J["planningCacheController publishes returned snapshot"]
+  H --> J["planningCache publishes returned snapshot"]
   I --> J
 ```
 
-**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx), [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [SchedulerGrid.tsx](../../apps/frontend/src/components/scheduler/SchedulerGrid.tsx), [ResourceLane.tsx](../../apps/frontend/src/components/scheduler/ResourceLane.tsx), [useResourceLaneInteraction.ts](../../apps/frontend/src/components/scheduler/useResourceLaneInteraction.ts), [TimeOffForm.tsx](../../apps/frontend/src/components/time-off/TimeOffForm.tsx), [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts), [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [writer.ts](../../apps/backend/app/services/planning/writer.ts)

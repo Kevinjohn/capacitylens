@@ -175,4 +175,4 @@ Saving creates the whole series, and one **Undo** removes it. After that, each o
 edited on its own. Deleting one lets you remove only that occurrence or it and every later one.
 With an All-projects activity, every occurrence keeps the chosen project.
 
-Next: [Time off](/using/time-off) — record absences.
+Next: [Time off](/using/time-off) — record time off.

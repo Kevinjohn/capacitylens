@@ -9,7 +9,7 @@ import { InviteMemberPanel } from './InviteMemberPanel';
 import { MemberConfirmations } from './MemberConfirmations';
 import { MemberRow } from './MemberRow';
 import { useMembersOrchestration } from './useMembersOrchestration';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 
 // Member controls require an authoritative Owner/Admin directory read, while server authorization remains independent. Fresh invitation secrets are displayed once and never read back.
 
@@ -24,7 +24,7 @@ export function MembersSection() {
   return <CompanyMembersSection key={scope} activeCompanyId={activeCompanyId} />;
 }
 
-// Member intent belongs to one principal, company and projection lifetime.
+// Member intent belongs to one user, company and projection lifetime.
 function CompanyMembersSection({ activeCompanyId }: { activeCompanyId: string | null }) {
   const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeCompanyId);
 

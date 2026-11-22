@@ -1,6 +1,6 @@
 # US-TOF-07 — Create repeated personal time off
 
-As an Editor, I want to create a finite batch of repeating time-off entries so that regular absences can be recorded in one form.
+As an Editor, I want to create a finite batch of repeating time-off entries so that regular time off can be recorded in one form.
 
 **Status:** Current
 **Access:** Editor, Admin or Owner
@@ -57,6 +57,6 @@ flowchart TD
 - [TimeOffRepeatFields.tsx](../../apps/frontend/src/components/time-off/TimeOffRepeatFields.tsx)
 - [timeOffFormSubmission.ts](../../apps/frontend/src/components/time-off/timeOffFormSubmission.ts)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)
 - [execute.ts](../../apps/backend/app/services/planning/execute.ts)
 - [repeat_occurrences.ts](../../apps/backend/app/services/planning/repeat_occurrences.ts)

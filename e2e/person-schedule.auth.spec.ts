@@ -3,12 +3,12 @@ import type { APIRequestContext, Page } from './fixtures';
 import {
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  seedFixtureMember,
-  sendPlanningFixtureCommand,
+  createTestPerson,
+  createTestMember,
+  sendPlanningIntent,
   signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -26,16 +26,16 @@ const PRIVATE_NOTE = 'Owner-only medical appointment';
 const REAL_CLIENT = 'Kane Industries Acquisition';
 const REAL_PROJECT = 'Gotham Renewal';
 
-async function seedPrivacyScenario(request: APIRequestContext) {
+async function createPrivacyScenario(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: RESOURCE_ID,
     name: 'Victor Stone',
-    role: 'Developer',
+    jobTitle: 'Developer',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'timeOff.create',
     timeOff: {
       id: TIME_OFF_ID,
@@ -46,7 +46,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       note: PRIVATE_NOTE,
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -54,7 +54,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -68,7 +68,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'activities',
@@ -81,7 +81,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
       },
     },
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'allocation.create',
     allocation: {
       id: ALLOCATION_ID,
@@ -95,7 +95,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
     },
   });
 
-  seedFixtureMember(companyId, viewer.email, 'viewer');
+  createTestMember(companyId, viewer.email, 'viewer');
   return { owner, viewer };
 }
 
@@ -126,7 +126,7 @@ test('viewer cannot read personal time-off notes, while the owner can', async ({
   request,
   context,
 }) => {
-  const { owner, viewer } = await seedPrivacyScenario(request);
+  const { owner, viewer } = await createPrivacyScenario(request);
 
   await signIn(page, viewer.email);
   const viewerSheet = await openPrivacyDrawer(page);

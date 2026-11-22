@@ -5,7 +5,7 @@ As a signed-in person with an unconfirmed address, I want to confirm my email so
 **Status:** Current
 **Access:** Signed-in person at the email-confirmation gate; a valid emailed confirmation link is required to complete confirmation.
 **Entry:** Account access → Email me a confirmation link; emailed link
-**Documentation:** [Sign-in and access](../../docs-src/company-login/index.md)
+**Documentation:** [Sign-in and access](../../docs-src/sign-in/index.md)
 **Source:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx); [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria
@@ -34,12 +34,12 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  access["AccessScreen sends confirmation request"] --> send["authClient.sendEmailVerification"]
-  send --> mail["VerificationController.send calls Account Kit emailVerification.send"]
-  link["VerifyEmail inspects link and displays password form"] --> inspect["authClient.inspectEmailVerification"]
-  inspect --> kitInspect["VerificationController.inspect calls Account Kit emailVerification.inspect"]
-  form["VerifyEmail.submit sends token and password"] --> complete["VerificationController.complete calls Account Kit emailVerification.complete"]
+  access["AccessScreen sends confirmation request"] --> send["authApi.sendEmailVerification"]
+  send --> mail["EmailVerificationRequestsController.store calls Account Kit emailVerification.send"]
+  link["VerifyEmail inspects link and displays password form"] --> inspect["authApi.inspectEmailVerification"]
+  inspect --> kitInspect["EmailVerificationsController.show calls Account Kit emailVerification.inspect"]
+  form["VerifyEmail.submit sends token and password"] --> complete["EmailVerificationsController.update calls Account Kit emailVerification.complete"]
   complete --> result["VerifyEmail renders success, invalid, unavailable or uncertain result"]
 ```
 
-**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [verification_controller.ts](../../apps/backend/app/controllers/verification_controller.ts)
+**Code references:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [email_verification_requests_controller.ts](../../apps/backend/app/controllers/email_verification_requests_controller.ts), [email_verifications_controller.ts](../../apps/backend/app/controllers/email_verifications_controller.ts)

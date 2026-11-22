@@ -34,7 +34,7 @@ flowchart TD
 flowchart TD
   A["TimeOffList.buildTimeOffGroups keeps resource, date and duration in list"] --> B["schedulerRowModel maps time-off type to display label"]
   B --> C["ResourceLane renders the timeoff-block with that label"]
-  C --> D["Schedule shows type on the matching absence block"]
+  C --> D["Schedule shows type on the matching time-off block"]
 ```
 
 **Code references:**

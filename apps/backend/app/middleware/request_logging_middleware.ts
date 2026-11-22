@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http';
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 import { normalizeRequestMethod, normalizeRoutePattern } from '#services/logging_safety';
 
 declare module '@adonisjs/core/http' {
@@ -16,7 +16,7 @@ export default class RequestLoggingMiddleware {
     try {
       await next();
     } finally {
-      if (env.get('CAPACITYLENS_LOG') === '1') {
+      if (capacitylens.requestLogging) {
         const status = ctx.response.getStatus();
         const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info';
         const path = normalizeRoutePattern(ctx.route?.pattern);

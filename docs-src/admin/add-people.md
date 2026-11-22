@@ -16,7 +16,7 @@ sign-in. Editors, Admins and the Owner can add and edit people; Viewers cannot.
 ![Resources: Add resource and the person form with Working days](../screenshots/flows/admin_add_person_form.jpg)
 
 1. Open **Resources** and select **Add resource**.
-2. Enter the **Name**, then add a **Role**, choose **Engagement** and, if your company uses them, a
+2. Enter the **Name**, then add a **Job title**, choose **Engagement** and, if your company uses them, a
    **Discipline**. Create disciplines on the [Disciplines page](/using/disciplines) first.
 3. Set **Working days** to their usual week. Use **Start date** and **End date** if they are only
    available for a set period.
@@ -33,7 +33,7 @@ sign-in. Editors, Admins and the Owner can add and edit people; Viewers cannot.
   [external party](/using/resources#add-an-external-party). It carries no hours and never counts
   towards capacity or utilisation.
 - A role you haven't hired yet: a [placeholder](#plan-an-unfilled-role), bound to one project.
-- Holidays and absences: [time off](/using/time-off#record-time-off) on the person's row.
+- Time off, including holidays: [time off](/using/time-off#record-time-off) on the person's row.
 - Office closures: a [company closure](/admin/ongoing-administration#add-a-company-closure).
 
 ## Connect their sign-in

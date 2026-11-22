@@ -11,13 +11,13 @@ const activeCache = new WeakMap<AppData, AppData>();
  * to another company: the previous one, while a company switch has not reached the planning context.
  */
 export function resolveSharedScopedData(data: AppData, companyId: string | null): AppData {
-  const [company, ...others] = data.accounts;
+  const [company, ...others] = data.companies;
   return companyId !== null && company?.id === companyId && others.length === 0
     ? data
     : emptyScopedData;
 }
 
-/** Memoizes the active-only projection of a company-scoped slice. */
+/** Memoizes the active-only projection of a company-scoped set. */
 export function resolveSharedActiveData(data: AppData): AppData {
   let active = activeCache.get(data);
   if (!active) {
@@ -28,12 +28,12 @@ export function resolveSharedActiveData(data: AppData): AppData {
 }
 
 /**
- * The read-side seam for multi-tenancy. Components receive only the active account's entities.
+ * The read-side seam for company scoping. Components receive only the active account's entities.
  *
  * Returns the store's own `data` or one shared empty value, so the result is stable between renders,
  * avoiding the `useSyncExternalStore` fresh-object trap.
  *
- * @returns The active account's {@link AppData} slice, or an empty `AppData` when no account is active.
+ * @returns The active account's {@link AppData} set, or an empty `AppData` when no account is active.
  */
 export function useScopedData(): AppData {
   return useStore((state) => resolveSharedScopedData(state.data, state.activeCompanyId));
@@ -50,7 +50,7 @@ export function useScopedData(): AppData {
  * on the scoped base so the projected object is stable between renders (same `useSyncExternalStore`
  * stability contract as {@link useScopedData}).
  *
- * @returns The active account's {@link AppData} slice with archived/soft-deleted rows excluded.
+ * @returns The active account's {@link AppData} set with archived/soft-deleted rows excluded.
  */
 export function useActiveScopedData(): AppData {
   const base = useScopedData();

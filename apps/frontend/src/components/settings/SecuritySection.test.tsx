@@ -9,8 +9,8 @@ import { SecuritySection } from './SecuritySection';
 
 const changePassword = vi.fn();
 const deleteAccount = vi.fn();
-vi.mock('@/auth/authClient', () => ({
-  authClient: {
+vi.mock('@/auth/authApi', () => ({
+  authApi: {
     changePassword: (...args: unknown[]) => changePassword(...args),
     deleteAccount: (...args: unknown[]) => deleteAccount(...args),
   },
@@ -146,7 +146,7 @@ it.each(['p'.repeat(257), '𠀀'.repeat(129)])(
       target: { value: 'a-strong-new-password' },
     });
     fireEvent.click(screen.getByRole('button', { name: m.settings_security_change_password() }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(m.login_password_input_too_long());
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.sign_in_password_input_too_long());
     expect(changePassword).not.toHaveBeenCalled();
   },
 );
