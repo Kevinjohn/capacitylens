@@ -32,7 +32,7 @@ describe('AppShell navigation links', () => {
 
     expect(screen.getByRole('link', { name: 'Account' })).toHaveAttribute('aria-current', 'page');
   });
-  it('resolves navigation labels again after the account locale changes', async () => {
+  it('resolves navigation labels again after the company locale changes', async () => {
     let secondLocale = false;
     vi.spyOn(m, 'nav_resources').mockImplementation(
       () => (secondLocale ? 'Ressources' : 'Resources') as ReturnType<typeof m.nav_resources>,
@@ -55,9 +55,9 @@ describe('AppShell navigation links', () => {
     expect(document.title).toBe('Ressources · CapacityLens');
   });
   it("preserves the last locale while a selected company's set is still loading", async () => {
-    const currentAccount = makeCompany({ language: 'en' });
+    const currentCompany = makeCompany({ language: 'en' });
     const destinationCompany = makeCompany({ id: 'acct-other', name: 'Other Co' });
-    loadPlanningData(makeAppData({ companies: [currentAccount] }));
+    loadPlanningData(makeAppData({ companies: [currentCompany] }));
     renderAppShell({});
     await waitFor(() => expect(i18nMocks.syncLocaleFromCompany).toHaveBeenCalledWith('en'));
     i18nMocks.syncLocaleFromCompany.mockClear();

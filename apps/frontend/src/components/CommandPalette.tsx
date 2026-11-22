@@ -141,8 +141,8 @@ function PaletteResults({
 
 /** Renders the command palette and manages its active result and search state. */
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-  // Per-account view pref (default off): when off, placeholders are not offered as jump targets.
-  // Per-account view pref (default off): when off, external parties are not offered as
+  // Per-company view pref (default off): when off, placeholders are not offered as jump targets.
+  // Per-company view pref (default off): when off, external parties are not offered as
   // jump targets, their schedule row is hidden, so jumping to it would scroll to nothing.
   // Active Internal projects remain searchable. Internal activities open the management list.
 

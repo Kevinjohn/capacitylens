@@ -86,7 +86,7 @@ describe('SettingsView — Overview access', () => {
     ).toHaveProperty('capacityOverviewAccess', 'everyone');
   });
 
-  it('shows the policy read-only to editors', () => {
+  it('shows the access setting read-only to editors', () => {
     render(
       <PermissionContext.Provider value={permissionValue('editor', 'resolved')}>
         <SettingsView />
@@ -122,7 +122,7 @@ describe('SettingsView — section help', () => {
     }
   });
 
-  it('keeps help and the account summary available while company controls remain read-only for viewers', () => {
+  it('keeps help and the company summary available while company controls remain read-only for viewers', () => {
     render(
       <PermissionContext.Provider value={permissionValue('viewer', 'resolved')}>
         <SettingsView />
@@ -395,7 +395,7 @@ describe('SettingsView — Schedule (minimise weekends)', () => {
   });
 });
 
-describe('SettingsView — account toggle wiring', () => {
+describe('SettingsView — company toggle wiring', () => {
   // Pin each absent-field default independently as a literal so changing the selector cannot silently change the expected behaviour too.
   it.each([
     ['Use disciplines', 'disciplinesEnabled', true],
@@ -403,7 +403,7 @@ describe('SettingsView — account toggle wiring', () => {
     ['Show external resources', 'externalEnabled', false],
     ['Inline activity creation', 'inlineActivityCreateEnabled', false],
     ['Show task field in schedule', 'showTaskFieldInSchedule', false],
-  ] as const)('wires %s to account.%s (empty reads as %s)', async (label, key, whenAbsent) => {
+  ] as const)('wires %s to company.%s (empty reads as %s)', async (label, key, whenAbsent) => {
     const user = userEvent.setup();
     render(<SettingsView />);
     const before = useStore
@@ -499,7 +499,7 @@ it('keeps Device data and Deleted items unavailable in Settings', () => {
   expect(screen.queryByTestId('archived-section')).not.toBeInTheDocument();
 });
 
-describe('SettingsView — account options selected at creation', () => {
+describe('SettingsView — company options selected at creation', () => {
   it('shows the three frozen values in a compact read-only table at the bottom', () => {
     render(<SettingsView />);
 

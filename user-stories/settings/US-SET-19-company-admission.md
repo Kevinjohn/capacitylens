@@ -1,6 +1,6 @@
 # US-SET-19 — Approve company admission
 
-As an Owner or Admin, I want to approve or decline admission so that company access follows our admission policy.
+As an Owner or Admin, I want to approve or decline admission so that company access follows our admission rules.
 
 **Status:** Current
 **Access:** Owner, Admin; invited person

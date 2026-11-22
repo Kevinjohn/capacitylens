@@ -157,7 +157,7 @@ describe('MembersSection — invite mint', () => {
     expect(screen.getByText(/expired/i)).toBeInTheDocument();
     expect(screen.queryByTestId('invite-revoke')).not.toBeInTheDocument();
   });
-  it('keeps the last authoritative invite list when a same-account invite reload fails', async () => {
+  it('keeps the last authoritative invite list when a same-company invite reload fails', async () => {
     const existingInvite = {
       id: 1,
       role: 'viewer',
@@ -279,7 +279,7 @@ describe('MembersSection — invite mint', () => {
     expect(field.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   });
-  it('shows a terminal invite rejection after closing a pending request', async () => {
+  it('shows a terminal invite refusal after closing a pending request', async () => {
     let resolveCreate: ((response: Response) => void) | undefined;
     const fetchMock = mockApi(ownerAndEditor, {
       'POST /api/invitations': () =>
@@ -340,7 +340,7 @@ describe('MembersSection — invite mint', () => {
       fieldError: true,
     },
   ])(
-    'handles a $status invite-create response on the current account',
+    'handles a $status invite-create response on the current company',
     async ({ status, body, expected, fieldError }: InviteFailureCaseInput) => {
       vi.stubGlobal(
         'fetch',

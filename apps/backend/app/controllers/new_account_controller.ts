@@ -13,10 +13,10 @@ import type { ProductHttpErrorBody } from '@capacitylens/shared/api/httpErrors';
 import { hasNoCompany } from '#services/installation_company';
 import { requireAuthRequestMessage } from '#services/auth/auth_request_message';
 
-/** Open registration of a new account. */
+/** Open sign-up of a new account. */
 export default class NewAccountController {
   /**
-   * Open registration, when the operator enables it, creates a limited identity that still needs
+   * Open sign-up, when the operator enables it, creates a limited identity that still needs
    * a confirmed address and admission. The first identity always comes from the bootstrap invitation.
    */
   async store(ctx: HttpContext) {

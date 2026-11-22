@@ -23,7 +23,7 @@ As an Editor, I want to resize an allocation by its edge so that I can change it
 flowchart TD
   A["Editor drags an allocation edge"]
   B["The bar previews its snapped date range"]
-  C["Release saves the updated dates; rejection leaves the booking unchanged"]
+  C["Release saves the updated dates; a refusal leaves the booking unchanged"]
   A --> B
   B --> C
 ```

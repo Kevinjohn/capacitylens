@@ -5,7 +5,7 @@ import { canConfirmPassword } from '#services/auth/password_confirmation';
 
 export default defineConfig({
   authorize: async ({ account, trx }, { action, scope }) => {
-    // Deleting one's own account needs no company authority, as the deletion route needs none.
+    // Deleting one's own account needs no company permission, as the deletion route needs none.
     if (action === 'delete-account') return scope === String(account.id);
     await requireConfirmedAdmission(account, trx);
     return canConfirmPassword(await getActiveCompanyRole(String(account.id), scope, trx), action);

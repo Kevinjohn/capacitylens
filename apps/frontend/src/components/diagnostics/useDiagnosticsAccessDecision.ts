@@ -2,7 +2,7 @@ import { resolveCapacityOverviewAccessDecision } from '@/auth/capacityOverviewAc
 import type { CapacityOverviewAccessDecision } from '@/auth/capacityOverviewAccess';
 import { usePermissionStatus, useRole } from '@/auth/permissionContext';
 
-/** Resolves Diagnostics access: Owners/Admins, plus contexts without membership policy. */
+/** Resolves Diagnostics access: Owners/Admins, plus contexts without membership rules. */
 export function resolveDiagnosticsAccessDecision(
   input: Omit<Parameters<typeof resolveCapacityOverviewAccessDecision>[0], 'access'>,
 ): CapacityOverviewAccessDecision {

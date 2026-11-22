@@ -514,7 +514,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
     cancelFrame.mockRestore();
   });
 
-  it('does not focus a matching allocation id after the active account changes', async () => {
+  it('does not focus a matching allocation id after the active company changes', async () => {
     let callback: FrameRequestCallback | undefined;
     const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((next) => {
       callback = next;
@@ -534,7 +534,7 @@ describe('AllocationBar keyboard focus and popover interactions', () => {
 
     fireEvent.keyDown(bar, { key: 'ArrowRight' });
     await settlePlanning();
-    useStore.setState({ activeCompanyId: 'other-account' });
+    useStore.setState({ activeCompanyId: 'other-company' });
     callback?.(0);
 
     expect(focus).not.toHaveBeenCalled();

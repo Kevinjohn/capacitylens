@@ -29,7 +29,7 @@ test.group('company member administration', (group) => {
     await db.from('users').delete();
   });
 
-  test('role command replays its semantic result, binds payload and keeps recovery links', async ({
+  test('role operation replays its semantic result, binds payload and keeps recovery links', async ({
     client,
     assert,
   }) => {

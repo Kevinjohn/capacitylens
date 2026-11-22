@@ -13,7 +13,7 @@ export default class User extends UserSchema {
 
   /**
    * Account Kit creates identities through this model inside its locked transaction. Until the
-   * first company exists, only one invited identity may exist: an ordinary registration sets
+   * first company exists, only one invited identity may exist: an ordinary sign-up sets
    * `unverifiedEmail`, an invitation acceptance leaves it null.
    */
   @beforeCreate()

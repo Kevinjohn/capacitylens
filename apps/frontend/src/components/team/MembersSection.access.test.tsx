@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 describe('MembersSection — self-gate', () => {
-  it('hides the previous account directory while the next account is authorizing', async () => {
+  it('hides the previous company directory while the next company is authorizing', async () => {
     const nextCompanyId = 'acc_second';
     let resolveNextMembers: ((response: Response) => void) | undefined;
     const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
@@ -238,7 +238,7 @@ describe('MembersSection — directory error retention', () => {
     expect(result.current.directory.kind).toBe('loading');
   });
 
-  it('clears the authorized directory snapshot when a same-account refresh loses access', async () => {
+  it('clears the authorized directory snapshot when a same-company refresh loses access', async () => {
     const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const;
     let memberReads = 0;
     vi.stubGlobal(
@@ -288,7 +288,7 @@ describe('MembersSection — directory error retention', () => {
 });
 
 describe('MembersSection — transient directory state', () => {
-  it('retains the authorized directory snapshot across a transient same-account failure', async () => {
+  it('retains the authorized directory snapshot across a transient same-company failure', async () => {
     const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const;
     let memberReads = 0;
     vi.stubGlobal(

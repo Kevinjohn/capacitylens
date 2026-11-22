@@ -7,7 +7,7 @@ import type { ApiQueryScope } from './queryClient';
 
 const previousScopeByCache = new WeakMap<QueryClient, ApiQueryScope>();
 
-/** Clears server data when its user, active account, or masquerade projection changes. */
+/** Clears server data when its user, active company, or masquerade projection changes. */
 export function QueryCacheLifecycle({ cache = queryClient }: { cache?: QueryClient }) {
   const { user } = useAuth();
   const companyId = useStore((state) => state.activeCompanyId);

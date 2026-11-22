@@ -206,7 +206,7 @@ describe('ResourceForm disciplines', () => {
     );
     await useStore
       .getState()
-      .updateCompany(requireValue(useStore.getState().data.companies[0], 'account').id, {
+      .updateCompany(requireValue(useStore.getState().data.companies[0], 'company').id, {
         disciplinesEnabled: false,
       });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
@@ -482,7 +482,7 @@ it('does not let a late typed write response close a form after its company chan
   }
 });
 
-it('does not surface a late typed write rejection after its company changed', async () => {
+it('does not surface a late typed write refusal after its company changed', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   let releaseWrite!: () => void;
@@ -529,7 +529,7 @@ it('saves a placeholder once a bound project is chosen', async () => {
   const onClose = vi.fn();
   await useStore
     .getState()
-    .updateCompany(requireValue(useStore.getState().data.companies[0], 'account').id, {
+    .updateCompany(requireValue(useStore.getState().data.companies[0], 'company').id, {
       workingDays: [1, 3, 5],
     });
   const client = await requireCreated(

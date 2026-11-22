@@ -93,12 +93,12 @@ test('operator setup creates the first Owner, one company and its default client
       email: 'clark@wayne.example',
       password: 'first-company-teammate-password-2026',
     };
-    const prematureSignup = await request.post(`${origin}/api/auth/sign-up`, {
+    const prematureSignUp = await request.post(`${origin}/api/auth/sign-up`, {
       data: additionalIdentity,
       headers: { 'sec-fetch-site': 'same-origin' },
     });
-    expect(prematureSignup.status()).toBe(403);
-    expect((await prematureSignup.json()).code).toBe('SIGN_UP_CLOSED');
+    expect(prematureSignUp.status()).toBe(403);
+    expect((await prematureSignUp.json()).code).toBe('SIGN_UP_CLOSED');
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     await page.getByLabel('Email', { exact: true }).fill('bruce@wayne.example');
     await page.getByLabel('Password', { exact: true }).fill('first-company-password-2026');
@@ -141,11 +141,11 @@ test('operator setup creates the first Owner, one company and its default client
       headers: await masqueradeTokenHeaders(page.request, undefined, origin),
     });
     expect(duplicate.status()).toBe(409);
-    const permittedSignup = await request.post(`${origin}/api/auth/sign-up`, {
+    const permittedSignUp = await request.post(`${origin}/api/auth/sign-up`, {
       data: additionalIdentity,
       headers: { 'sec-fetch-site': 'same-origin' },
     });
-    expect(permittedSignup.status()).toBe(201);
+    expect(permittedSignUp.status()).toBe(201);
     await page.reload();
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
     await expect(page.getByTestId('company-setup')).toHaveCount(0);

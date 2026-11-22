@@ -5,7 +5,7 @@ import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-passw
 import { applyCompanyImport, parseRequestDocument } from '#services/company_import';
 import { applyImportValidator } from '#validators/import';
 
-/** Imports a company document after a password confirmation. */
+/** Imports a company export after a password confirmation. */
 export default class ImportsController {
   async store(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(applyImportValidator, {

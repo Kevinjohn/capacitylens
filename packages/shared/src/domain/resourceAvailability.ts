@@ -51,7 +51,7 @@ export function assertAllocationWithinResourceAvailability({
   }
 }
 
-/** Validate a person availability pair without applying an allocation placement policy. */
+/** Validate a person availability pair without applying the allocation placement rules. */
 export function validateResourceAvailabilityPair(
   firstAvailableDate?: ISODate | null,
   lastAvailableDate?: ISODate | null,

@@ -82,7 +82,7 @@ describe('SignInScreen — per-control error cues (WCAG 3.3.1)', () => {
     }
   });
 
-  it('surfaces the product API message for password sign-in rejection', async () => {
+  it('surfaces the product API message for password sign-in refusal', async () => {
     signInEmail.mockResolvedValue({ data: null, error: { message: 'Invalid email or password.' } });
     render(<SignInScreen onSignedIn={vi.fn()} />);
 

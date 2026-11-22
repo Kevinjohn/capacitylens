@@ -57,7 +57,7 @@ describe('AuthProvider — server mode', () => {
     expect(useStore.getState().masquerade.kind).toBe('active');
   });
 
-  it('bootstraps a cold active member view only after its scoped canonical company read', async () => {
+  it('bootstraps a cold active masquerade only after its scoped canonical company read', async () => {
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
       companyId: 'a-studio',

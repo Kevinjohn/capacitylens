@@ -13,7 +13,7 @@ import {
 
 const buildScripts = fileURLToPath(new URL('./', import.meta.url));
 
-// Copies the budget scripts beside a fake build output whose index.html is the given markup.
+// Copies the budget scripts beside a stub build output whose index.html is the given markup.
 function arrange(context, html) {
   const directory = mkdtempSync(join(tmpdir(), 'capacitylens-bundle-budget-'));
   context.after(() => rmSync(directory, { recursive: true, force: true }));

@@ -219,7 +219,7 @@ export default defineConfig(({ mode, command }) => {
       staticSpaRouteDocuments(),
       // Paraglide generates messages from committed sources during dev and builds. Package scripts
       // precompile them so direct type-check and Vitest commands can resolve the output. The
-      // account-scoped locale stays client-only in a global variable; baseLocale keeps English as
+      // company-scoped locale stays client-only in a global variable; baseLocale keeps English as
       // the fallback without a page reload or server round-trip.
       ...(!workerServe
         ? [

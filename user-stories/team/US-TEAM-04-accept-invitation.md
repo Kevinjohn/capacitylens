@@ -10,7 +10,7 @@ As an invited person, I want to accept my email invitation so that I can request
 
 ## Acceptance criteria
 
-- Use the **Name** and **Password** fields in [Create my account from an invitation](../account/US-ACCOUNT-06-register.md).
+- Use the **Name** and **Password** fields in [Create my account from an invitation](../account/US-ACCOUNT-06-sign-up.md) .
 
 - The page shows the invited company and role, then **Accept invitation** creates the invited sign-in and membership. The person must still ask for access and receive approval before seeing company data.
 
@@ -35,11 +35,11 @@ flowchart TD
     Preview --> PreviewRoute["api.invitation_links.show → InvitationLinksController.show"]
     PreviewRoute --> KitInspect["Account Kit invitations.inspect returns offered email and role"]
     KitInspect --> Form["InviteAccept renders Name and Password fields"]
-    Form --> Submit["signupWithInvitation → InvitationAcceptancesController.store"]
+    Form --> Submit["signUpWithInvitation → InvitationAcceptancesController.store"]
     Submit --> Accept["Account Kit invitations.accept creates invited identity and membership"]
     Accept --> SignIn["signInWithPassword or sign-in-required response"]
     SignIn --> Reload["InviteAccept reloads app; AuthProvider resolves limited admission screen"]
     PreviewRoute -. "Invalid or expired token" .-> Error["InviteAccept shows invitation error"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx), [invitationSignUpApi.ts](../../apps/frontend/src/account/invitationSignUpApi.ts), [admission_routes.ts](../../apps/backend/start/admission_routes.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx)

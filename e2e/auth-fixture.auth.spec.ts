@@ -18,13 +18,13 @@ test('native company fixtures preserve baseline data and unrelated users across 
   );
 
   const baseline = readAuthE2EBaselineSnapshot();
-  expect(baseline.account).toMatchObject({
+  expect(baseline.company).toMatchObject({
     name: 'Daily Planet E2E Baseline',
     scheduling_mode: 'days',
     inline_activity_create_enabled: 0,
   });
   expect(baseline.client).toMatchObject({
-    id: `internal:${baseline.account.id}`,
+    id: `internal:${baseline.company.id}`,
     name: 'Internal',
     builtin: 1,
   });
@@ -112,22 +112,22 @@ test('native company fixtures preserve baseline data and unrelated users across 
       expect(companies.status()).toBe(200);
       expect(await companies.json()).toEqual({ data: [] });
     }
-    const inaccessibleAccountId = baselineBeforeCycle?.account.id ?? firstId;
+    const inaccessibleCompanyId = baselineBeforeCycle?.company.id ?? firstId;
     const hiddenBaseline = await request.get(
-      `${AUTH_API}/api/state?companyId=${inaccessibleAccountId}`,
+      `${AUTH_API}/api/state?companyId=${inaccessibleCompanyId}`,
       {
         headers: { cookie: user.cookie },
       },
     );
     expect(hiddenBaseline.status()).toBe(403);
 
-    const temporaryAccountId = await bootstrapOrg(
+    const temporaryCompanyId = await bootstrapOrg(
       request,
       user.cookie,
       `Cleanup Company ${cycle} ${suffix}`,
     );
     const temporaryState = await request.get(
-      `${AUTH_API}/api/state?companyId=${temporaryAccountId}`,
+      `${AUTH_API}/api/state?companyId=${temporaryCompanyId}`,
       {
         headers: { cookie: user.cookie },
       },
@@ -136,10 +136,10 @@ test('native company fixtures preserve baseline data and unrelated users across 
     clearAuthE2ECompanies();
 
     const restoredBaseline = readAuthE2EBaselineSnapshot();
-    expect(restoredBaseline.account.id).not.toBe(
-      baselineBeforeCycle?.account.id ?? baseline.account.id,
+    expect(restoredBaseline.company.id).not.toBe(
+      baselineBeforeCycle?.company.id ?? baseline.company.id,
     );
-    expect(restoredBaseline.account).toMatchObject({
+    expect(restoredBaseline.company).toMatchObject({
       name: 'Daily Planet E2E Baseline',
       scheduling_mode: 'days',
       week_starts_on: 1,
@@ -150,7 +150,7 @@ test('native company fixtures preserve baseline data and unrelated users across 
       inline_activity_create_enabled: 0,
     });
     expect(restoredBaseline.client).toMatchObject({
-      id: `internal:${restoredBaseline.account.id}`,
+      id: `internal:${restoredBaseline.company.id}`,
       name: 'Internal',
       builtin: 1,
     });
@@ -169,7 +169,7 @@ test('native company fixtures preserve baseline data and unrelated users across 
       (await request.get(`${AUTH_API}/api/auth/me`, { headers: { cookie: user.cookie } })).status(),
     ).toBe(200);
     const hiddenRestoredBaseline = await request.get(
-      `${AUTH_API}/api/state?companyId=${restoredBaseline.account.id}`,
+      `${AUTH_API}/api/state?companyId=${restoredBaseline.company.id}`,
       {
         headers: { cookie: user.cookie },
       },

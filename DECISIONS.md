@@ -93,13 +93,13 @@ This is the short, present-tense record of decisions that constrain future work.
   companies itself.
 - Code that works across several companies stays on purpose: view-as searches every membership when
   no company is named. An export always names its company.
-- A planning read returns current authority, one integer company revision and the complete,
+- A planning read returns the current access grant, one integer company revision and the complete,
   confidentially projected company slice, or no slice when the reader names the revision it already
   holds and that revision is current, from one transaction. Every typed mutation carries the
   company revision it was drafted against; a mismatch returns 409 and the client refetches. An edit
   form's update also carries the row's `updatedAt` from when the form opened, and a mismatch
   returns the same 409. No automatic rebase or replay. A revision advances once per transaction
-  that changes planning data, planning projection or membership authority; session activity, mail
+  that changes planning data, planning projection or membership access; session activity, mail
   and configuration edits that change neither do not advance it.
 - A planning mutation is identified by a client-minted UUID recorded with the audit row in the
   same transaction; reusing a committed identity returns 409. When a write's reply is lost, the
@@ -109,7 +109,7 @@ This is the short, present-tense record of decisions that constrain future work.
   to that writer's sign-in, the page's history id and the company revision. The row holds up to 50
   changes, and its stored inverses never leave the server. Deleted planning rows remain in their
   own tables under package-managed soft deletion, bound to a session, actor and company through the
-  recovery ledger. Restore is one atomic operation under current authority;
+  recovery ledger. Restore is one atomic operation under current authorization;
   internal deletion fields and hidden values never leave the server.
   Restoration groups are removed in the same transaction as anonymisation and import.
   A change to a client or project privacy or code-name field, or to an activity kind, also clears that company's
@@ -134,7 +134,7 @@ This is the short, present-tense record of decisions that constrain future work.
   Identity, sessions, membership and admission records are never part of the export. The server
   builds the export for the reader's role, labels it full or redacted and serves it as a download;
   the browser only saves the file.
-- Beta import uses the versioned full company document, binds the exported company scope to
+- Beta import uses the versioned full company export, binds the exported company scope to
   the selected destination company, preserves scheduling IDs and existing member links, and replaces
   supported company settings. Validate every source row against the exported company before binding;
   retain the destination company ID and its identity, membership, session and admission records.
@@ -158,7 +158,7 @@ This is the short, present-tense record of decisions that constrain future work.
   lifecycle, import and erasure keep their Owner/Admin gates.
 - Time zone and week start are chosen when the company is created and cannot be changed
   afterwards; a field that was never stored accepts its first value.
-- Account colours come from the preset palette. Ordinary writes reject anything else.
+- Colours come from the preset palette. Ordinary writes reject anything else.
 - Client/project privacy is opt-in and Owner-managed. Real names remain stored; only Owners receive
   them. Every other role receives the quoted code name, and non-Owner writes preserve the protected
   fields. The built-in Internal client is always public and active.
@@ -196,7 +196,7 @@ This is the short, present-tense record of decisions that constrain future work.
   dataset that store logic reads, such as the company directory. TanStack Query owns server reads
   that one screen reads and no store logic reads: archive recovery, the ownership transfer
   candidates, and the team members and invitations. No dataset is held in both. Undo history is
-  held by the server; the planning controller keeps only the page's history id.
+  held by the server; the planning cache keeps only the page's history id.
 - Ordinary device preferences live in localStorage. The disposable demo uses the same server-owned
   planning data path as an installation.
 
@@ -222,7 +222,7 @@ This is the short, present-tense record of decisions that constrain future work.
   membership with the invited role; approval is still required. A person who is signed in but not
   admitted reaches only the limited screens, which show the step that applies. Approval, rejection
   and revocation are enforced on the next request; nothing is pushed to the browser. An admitted
-  person without a membership (operator-granted evidence or an approved registration) joins
+  person without a membership (operator-granted evidence or an approved sign-up) joins
   explicitly, with the invited role or Viewer, never Owner. A suspended member cannot rejoin this
   way; only an Owner or Admin restores them. A new identity always needs fresh invitation evidence
   and approval.
@@ -251,7 +251,7 @@ This is the short, present-tense record of decisions that constrain future work.
   20-minute block. A successful confirmation resets only that account's budget.
 - Cleaning up old confirmations never fails the confirmation being issued.
 - Deleting an account also requires a password confirmation for that action, scoped to the person
-  with no company authority and spent just before the deletion.
+  with no company permission and spent just before the deletion.
 - Password hashing uses the framework's default hasher through the kit. There is no breach
   screening and no custom hashing queue.
 - Production requires an HTTPS public URL; plain HTTP is accepted only for loopback development.
@@ -259,10 +259,10 @@ This is the short, present-tense record of decisions that constrain future work.
   password; on an empty installation the sole admitted identity then enters a company name in the
   browser and becomes its Owner. The current session, absence of companies/memberships and
   sole-user identity are checked under the transaction lock, and defaults, Internal client,
-  membership, revision and audit commit together. The server refuses open signup until the first
-  company exists, even when open signup is enabled in configuration, and rechecks this under the
+  membership, revision and audit commit together. The server refuses open sign-up until the first
+  company exists, even when open sign-up is enabled in configuration, and rechecks this under the
   transaction lock used by identity creation. The controlled first identity can still sign in and
-  finish setup. Once the first company exists, the configured signup policy applies. The
+  finish setup. Once the first company exists, the configured sign-up rules apply. The
   stopped-server operator initialiser remains a recovery option, never the normal install path, and
   also requires an admitted identity. Neither path creates credentials or changes identity
   admission. No environment variable grants company ownership.
@@ -292,7 +292,7 @@ This is the short, present-tense record of decisions that constrain future work.
   in no list gets the strictest check; unnamed routes (the health probes and the application shell)
   have no gate. The gate adds an early refusal; it does not replace the check inside the product
   transaction.
-- Each route declares its view-as policy where it is registered. No route allows writes under
+- Each route declares its view-as rule where it is registered. No route allows writes under
   view-as; some reads are refused outright, and a request carrying a stale view-as context is
   refused, reads included.
 - View-as control state and events stay in database backups, outside scheduling exports.

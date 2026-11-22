@@ -4,7 +4,7 @@ import { openApp } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
-// These account values are captured at company creation and frozen thereafter. Settings presents
+// These company values are captured at company creation and frozen thereafter. Settings presents
 // them as a compact read-only summary; the server's 409 backstop remains in frozen-company-settings.db.spec.ts.
 test.describe('Company details', () => {
   test(

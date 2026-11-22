@@ -44,7 +44,7 @@ Where a backend file goes, what it is called and how each framework layer is use
 
 - Backend files are `snake_case`, as the framework requires and `@unicorn/filename-case`
   enforces: `app/controllers/members_controller.ts`, `app/middleware/security_headers_middleware.ts`.
-- Frontend and shared files keep their current names. Match a principal component or type export
+- Frontend and shared files keep their current names. Match the main component or type export
   with a PascalCase filename and a hook or utility with a camelCase one when you add a file; do
   not rename existing files to fit.
 - shadcn primitives keep their registry names.

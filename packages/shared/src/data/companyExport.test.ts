@@ -41,13 +41,13 @@ describe('beta-native transfer', () => {
 
   it('round-trips every table, supported private content, archived rows, settings and IDs', () => {
     const source = structuredClone(original);
-    const account = fixture(source.companies[0], 'account');
-    account.name = 'Wayne Enterprises';
+    const company = fixture(source.companies[0], 'company');
+    company.name = 'Wayne Enterprises';
     source.closures.push({
       id: 'closure-wayne-shutdown',
       companyId,
-      createdAt: account.createdAt,
-      updatedAt: account.updatedAt,
+      createdAt: company.createdAt,
+      updatedAt: company.updatedAt,
       name: 'Wayne Foundation Day',
       startDate: '2026-12-25',
       endDate: '2026-12-25',
@@ -158,7 +158,7 @@ describe('beta-native transfer', () => {
       [
         'scope',
         (doc) => {
-          fixture(doc.data.resources[0], 'resource').companyId = 'other-account';
+          fixture(doc.data.resources[0], 'resource').companyId = 'other-company';
         },
       ],
       [
@@ -213,7 +213,7 @@ describe('beta-native transfer', () => {
     );
   });
 
-  it('refuses serializer input containing a row from another account', () => {
+  it('refuses serializer input containing a row from another company', () => {
     const document = buildCompanyExport(original, { companyId, completeness: 'full' });
     const foreign = fixture(
       original.resources.find(({ companyId: owner }) => owner !== companyId),

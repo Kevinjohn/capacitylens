@@ -8,7 +8,7 @@ export interface CreateInvitationBody {
 }
 
 /** The name and password an invitee chooses; the invitation fixes the address. */
-export interface InvitationSignupBody {
+export interface InvitationSignUpBody {
   name: string;
   password: string;
 }

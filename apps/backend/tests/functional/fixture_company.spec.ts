@@ -53,7 +53,7 @@ test.group('isolated company fixtures', (group) => {
       if (previous === undefined) delete process.env.CAPACITYLENS_DB;
       else process.env.CAPACITYLENS_DB = previous;
     }
-    const accountCount = await db.from('companies').count('* as total').first();
-    assert.equal(accountCount?.total, 0);
+    const companyCount = await db.from('companies').count('* as total').first();
+    assert.equal(companyCount?.total, 0);
   });
 });

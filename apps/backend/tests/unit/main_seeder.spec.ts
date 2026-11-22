@@ -15,18 +15,18 @@ test.group('main seeder', () => {
       const first = fixture.command(['db:seed']);
       assert.equal(first.status, 0, first.output);
       const database = fixture.inspect();
-      const account = database.prepare('SELECT id FROM companies ORDER BY id LIMIT 1').get() as {
+      const company = database.prepare('SELECT id FROM companies ORDER BY id LIMIT 1').get() as {
         id: string;
       };
       const now = new Date().toISOString();
       database
         .prepare('UPDATE companies SET name = ? WHERE id = ?')
-        .run('Wayne Operations', account.id);
+        .run('Wayne Operations', company.id);
       database
         .prepare(
           'INSERT INTO audit_entries (id,company_id,action,entity,created_at,updated_at) VALUES (?,?,?,?,?,?)'
         )
-        .run('seed-survival', account.id, 'operator.note', 'installation', now, now);
+        .run('seed-survival', company.id, 'operator.note', 'installation', now, now);
       const before = Object.fromEntries(
         [
           'companies',
@@ -53,7 +53,7 @@ test.group('main seeder', () => {
       const after = fixture.inspect();
       assert.equal(
         (
-          after.prepare('SELECT name FROM companies WHERE id = ?').get(account.id) as {
+          after.prepare('SELECT name FROM companies WHERE id = ?').get(company.id) as {
             name: string;
           }
         ).name,

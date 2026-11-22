@@ -7,7 +7,7 @@
 // checkbox, inline-image, and overlay siblings keep each screenshot bound to its own ID.
 //
 // The checkbox opens with Space but not Enter and cannot be deep-linked. Focus stays on it; Tab or
-// clicking the overlay closes it. The overlay is not a modal, so it never traps focus or hides the
+// clicking the overlay closes it. The overlay is not a modal dialog, so it never traps focus or hides the
 // article from assistive technology. The retained inline handler adds Escape and Tab closing.
 //
 // Both image copies use the same src so the browser reuses the download. The overlay image is

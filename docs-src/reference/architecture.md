@@ -6,7 +6,7 @@ description: Where each CapacityLens capability lives, how a planning write trav
 # Architecture
 
 This page is for contributors reading the code for the first time. It names the module that owns
-each capability, the transaction it runs in, where authority is checked, where the response is
+each capability, the transaction it runs in, where authorization is checked, where the response is
 projected, and the tests that pin it. Product rules and framework departures are recorded in
 [`DECISIONS.md`](https://github.com/Kevinjohn/capacitylens/blob/main/DECISIONS.md); naming and
 error rules are in [Code standards](./code-standards.md). The page cites files, not line numbers.
@@ -22,7 +22,7 @@ apps/backend/
   app/validators/         Vine schemas; the only runtime schema for request bodies
   app/services/
     planning.ts           planning facade: read, archive read, mutate
-    planning/             planning internals: execute, writer, restoration, entity policy
+    planning/             planning internals: execute, writer, restoration, entity rules
     planning_revision.ts  company planning revision (shared by every product writer)
     state_repository.ts   reads one company's rows on a given transaction
     auth/                 withActor, live company role, view-as, password confirmation, sign-in glue
@@ -30,7 +30,7 @@ apps/backend/
     admission/            admission HTTP mapping and errors
     membership/           member directory, role and status changes, ownership transfer
     member_resources/     member-to-resource links
-    operations/           stopped-server operator work: reset, owner recovery, initialisation
+    operator/             stopped-server operator work: reset, owner recovery, initialisation
     health/               database readiness check
   app/models/             Lucid models; every scoped row carries its company id
   app/transformers/       role-based projection of company state
@@ -46,7 +46,7 @@ apps/backend/
 apps/frontend/src/
   components/             screens and editors, grouped by feature
   data/planning/          planning cache, intent builders, two transports
-  store/                  zustand store; slices wire the controller into the UI
+  store/                  zustand store; slices wire the planning cache into the UI
   auth/                   session status, access screens, view-as and permission context
   lib/                    pure UI helpers
   api/planningContracts.ts  planning wire types derived from the generated route registry
@@ -54,7 +54,7 @@ packages/shared/src/
   domain/                 roles and access thresholds, lifecycle, company separation, placement rules
   types/                  entity types
   lib/                    dates, working days, colours, ids, integrity checks
-  account/, api/, data/   account policy, HTTP error shapes, export format and seed data
+  account/, api/, data/   account roles and validation, HTTP error shapes, export format and seed data
 ```
 
 The rest of `apps/backend/app/services` includes single-purpose modules: `anonymise.ts`,
@@ -107,7 +107,7 @@ Then, in order:
    `withCurrent` transaction. The Kit checks the session, credential revision and registry row
    under the account lock; the product then requires an active, confirmed, admitted account and
    binds the captured view-as context. Every later step uses this one transaction handle.
-6. `currentAuthority` resolves the effective actor (view-as re-check in
+6. `resolvePlanningAccess` resolves the effective actor (view-as re-check in
    `apps/backend/app/services/auth/masquerade.ts`), the live membership role
    (`getActiveMembership` in `apps/backend/app/services/auth/authorization.ts`), the Access Control
    `planning:read` permission for that role and the company row. `canWrite` is the `planning:write`
@@ -194,7 +194,7 @@ in the browser, and nothing is persisted.
   `apps/frontend/src/api/planningContracts.ts`. They are type aliases only; the backend Vine
   validators are the only runtime schema.
 
-Controller statuses are `idle`, `loading`, `ready`, `pending`, `refused` and `error`.
+Planning cache statuses are `idle`, `loading`, `ready`, `pending`, `refused` and `error`.
 
 | From | Event | To |
 | --- | --- | --- |
@@ -235,11 +235,11 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 `withCurrent` transaction opened by `withActor` unless the row says otherwise; "live role" means
 `getActiveCompanyRole` or `assertCompanyPermission` read inside that transaction.
 
-| Capability | Entry | Owning module | Transaction owner | Live authority check | Projection point | Failure codes | Tests |
+| Capability | Entry | Owning module | Transaction owner | Live authorization check | Projection point | Failure codes | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Planning read | `GET …/planning`; scheduler | `app/services/planning.ts` `readPlanning` | Read-only `withActor`; access, revision and rows on one handle; no rows when `ifRevision` is the current revision | `resolvePlanningAccess`: view-as actor, live membership, `planning:read` ability | `transformState` by role | `ACCOUNT_MEMBERSHIP_LOST`, `AUTHORIZATION_DENIED`, 401, Kit codes | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/transactions.spec.ts`, `tests/unit/state_transformer.spec.ts` |
-| Archive recovery read | `GET …/planning/archive`; archive screens | `app/services/planning.ts` `readArchiveRecovery` | Read-only `withActor` | `currentAuthority` plus `canWrite` (false under view-as) | `archiveRecovery` identity-only rows | `AUTHORIZATION_DENIED`, `MASQUERADE_READ_ONLY`, `ACCOUNT_MEMBERSHIP_LOST` | `tests/functional/planning/archive_recovery.spec.ts` |
-| Allocation intents | `POST …/planning/mutations`, `allocation.*`; scheduler | `app/services/planning/execute.ts`, `app/services/planning/writer.ts` | `withActor` in `mutatePlanning` | `currentAuthority`, `planning:write` ability, access grant re-check, privacy gate | `buildProjectionChanges` | Planning failure table | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/availability.spec.ts`, `tests/functional/planning/company_bulk.spec.ts` |
+| Archive recovery read | `GET …/planning/archive`; archive screens | `app/services/planning.ts` `readArchiveRecovery` | Read-only `withActor` | `resolvePlanningAccess` plus `canWrite` (false under view-as) | `archiveRecovery` identity-only rows | `AUTHORIZATION_DENIED`, `MASQUERADE_READ_ONLY`, `ACCOUNT_MEMBERSHIP_LOST` | `tests/functional/planning/archive_recovery.spec.ts` |
+| Allocation intents | `POST …/planning/mutations`, `allocation.*`; scheduler | `app/services/planning/execute.ts`, `app/services/planning/writer.ts` | `withActor` in `mutatePlanning` | `resolvePlanningAccess`, `planning:write` ability, access grant re-check, privacy gate | `buildProjectionChanges` | Planning failure table | `tests/functional/planning/http_contract.spec.ts`, `tests/functional/planning/availability.spec.ts`, `tests/functional/planning/company_bulk.spec.ts` |
 | Catalogue intents | `POST …/planning/mutations`, `catalogue.*`; catalogue editors | `app/services/planning/execute.ts`, `app/services/planning/entity_rules.ts` | `withActor` in `mutatePlanning` | As allocation, plus owner-only privacy fields and the built-in client | `buildProjectionChanges` | Failure table, restoration confirmation, codeless 409 | `tests/functional/planning/operations.spec.ts`, `tests/functional/planning/independent_operations.spec.ts` |
 | Resource intents | `POST …/planning/mutations`, `resource.*`; people screens | `app/services/planning/execute.ts` | `withActor` in `mutatePlanning` | As allocation | `buildProjectionChanges` | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning/operations.spec.ts`, `tests/unit/planning_typed_operations.spec.ts` |
 | Time-off intents | `POST …/planning/mutations`, `timeOff.*`; time-off screen | `app/services/planning/execute.ts`, `app/services/planning/restoration.ts` | `withActor` in `mutatePlanning` | As allocation, plus note visibility | `buildProjectionChanges`; notes nulled by role | `VALIDATION_ERROR`, `AUTHORIZATION_DENIED`, `NO_CHANGE` | `tests/functional/planning/restoration_catalogue.spec.ts`, `tests/functional/planning_operations.spec.ts` |
@@ -267,7 +267,7 @@ Backend paths are relative to `apps/backend/`. Every product transaction is the 
 
 Backend test paths are relative to `apps/backend/`.
 
-- **Authority.** `tests/functional/planning/operations.spec.ts` (Viewer and route mismatches),
+- **Authorization.** `tests/functional/planning/operations.spec.ts` (Viewer and route mismatches),
   `tests/functional/auth/native_authorization.spec.ts` (four-role matrix, next-transaction role
   changes), `tests/functional/auth/password_sessions.spec.ts` (revocation between admission and
   write), `tests/functional/auth/admission.spec.ts`, `tests/functional/auth/invitations.spec.ts`,
@@ -346,7 +346,7 @@ versions. `data` contains exactly one account and all scoped tables, preserving 
 and supported company settings. It excludes identity, sessions, memberships, roles, admission
 records and device preferences. Only a full-completeness document can be prepared for import.
 
-Shared preparation strictly validates fields and references, including account scope and current
+Shared preparation strictly validates fields and references, including company scope and current
 member-to-person links. It rejects invalid data instead of repairing or remapping it. Export callers
 must redact confidential values before document construction; the completeness marker does not
 redact data. A redacted export cannot be restored as a full replacement.
@@ -355,7 +355,7 @@ The public entry point is `@capacitylens/shared/data/companyExport`: `buildCompa
 `serializeCompanyExport`, `parseCompanyExport` and `prepareCompanyImport`. Preparation receives explicit
 server-owned `{ companyId, memberResourceLinks }` context and returns `{ data, imported }`, where
 `imported` includes the company row. Export callers must supply an authorised, confidentially
-projected dataset; the completeness marker grants no authority.
+projected dataset; the completeness marker grants no permission.
 
 Settings uses this contract for import/export, including the disposable demo. Preview and apply go
 through `POST /api/import/preview` and `POST /api/import/apply`. Apply requires the live Owner and a single-use password

@@ -71,7 +71,7 @@ describe('store scheduler UI', () => {
 
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS));
   });
-  it('preserves the visible week when refreshing the currently loaded account', async () => {
+  it('preserves the visible week when refreshing the currently loaded company', async () => {
     s().goToDate('2026-09-09');
     // Moving the grid reads the capacity for its new window; let that read land first.
     await s().refreshPlanning();
@@ -81,18 +81,18 @@ describe('store scheduler UI', () => {
     };
 
     updatePlanningFixtureSource(
-      makeAppData({ companies: [makeCompany({ name: 'Updated account name' })] }),
+      makeAppData({ companies: [makeCompany({ name: 'Updated company name' })] }),
     );
     await s().refreshPlanning();
 
-    expect(s().data.companies[0]?.name).toBe('Updated account name');
+    expect(s().data.companies[0]?.name).toBe('Updated company name');
     expect({
       originDate: s().ui.originDate,
       focusDate: s().ui.focusDate,
     }).toEqual(before);
   });
 
-  it('preserves undo and redo across an unchanged same-account replacement', async () => {
+  it('preserves undo and redo across an unchanged same-company replacement', async () => {
     await s().addClient({ name: 'Undoable', color: '#111111' });
     await s().undoPlanning();
     expect(s().planning.history.canRedo).toBe(true);
@@ -105,7 +105,7 @@ describe('store scheduler UI', () => {
     expect(s().data.clients.some((client) => client.name === 'Undoable')).toBe(true);
   });
 
-  it('clears history when a same-account replacement contains a remote revision', async () => {
+  it('clears history when a same-company replacement contains a remote revision', async () => {
     const client = await requireCreated(s().addClient({ name: 'Local', color: '#111111' }));
     await s().addClient({ name: 'Another local client', color: '#222222' });
     await s().undoPlanning();
@@ -154,10 +154,10 @@ describe('store scheduler UI', () => {
   });
 
   it.each([0, 1] as const)(
-    're-anchors the first canonical snapshot to the selected account week start (%s)',
+    're-anchors the first canonical snapshot to the selected company week start (%s)',
     async (weekStartsOn) => {
-      const companyId = 'late-account';
-      s().setCompanySummaries({ list: [{ id: companyId, name: 'Late account', role: 'owner' }] });
+      const companyId = 'late-company';
+      s().setCompanySummaries({ list: [{ id: companyId, name: 'Late company', role: 'owner' }] });
       updatePlanningFixtureSource(
         makeAppData({
           companies: [makeCompany({ id: companyId, weekStartsOn })],
@@ -178,9 +178,9 @@ describe('store scheduler UI', () => {
     expect(s().weekSnapEnabled).toBe(true);
   });
 
-  it('the date format is account data: undoable and mirrored to the formatters', async () => {
+  it('the date format is company data: undoable and mirrored to the formatters', async () => {
     const companyId = s().activeCompanyId;
-    if (!companyId) throw new Error('Expected an active account.');
+    if (!companyId) throw new Error('Expected an active company.');
     await s().updateCompany(companyId, { dateStyle: 'month-day' });
     expect(resolveDateStyle(s().data, companyId)).toBe('month-day');
 
@@ -343,7 +343,7 @@ describe('store scheduler UI', () => {
     expect(s().ui.originDate).toBe(addDaysISO('2026-09-07', -PAST_BUFFER_DAYS));
   });
 
-  it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', async () => {
+  it('goToDate snaps to the company week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', async () => {
     const sunStart = 'acct-sun';
     await resetStoreWithData(
       makeAppData({

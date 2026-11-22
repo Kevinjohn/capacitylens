@@ -98,7 +98,7 @@ export interface SchedulerModelOptions {
   capacity: CapacitySection | null;
   filters: Filters;
   preferences: {
-    // When false (account.disciplinesEnabled === false), discipline bands disappear and the
+    // When false (company.disciplinesEnabled === false), discipline bands disappear and the
     // discipline filter is ignored. Capacity-tracked rows instead use the engagement fallback
     // bands, derived from the data (see hasSupplementaryResources in store/selectors.ts).
     disciplinesEnabled: boolean;
@@ -106,7 +106,7 @@ export interface SchedulerModelOptions {
     placeholdersEnabled: boolean;
     // When disabled, external data remains persisted but neither its rows nor an empty group header appear. The setting defaults off.
     externalEnabled: boolean;
-    /** Account-wide hard boundary for the start of a schedule creation gesture. */
+    /** Company-wide hard boundary for the start of a schedule creation gesture. */
     companyWorkingDays?: Weekday[];
   };
   // Lane geometry controls both bar positions and row heights. The grid supplies its density projection; callers omitting it receive the base layout.

@@ -74,12 +74,12 @@ export const restore = (
   restorationGroupId: string,
   baseRevision: number,
   mutationId?: string,
-  account = companyId
+  company = companyId
 ) =>
   send(
     client,
     cookie,
-    `/api/companies/${account}/planning/mutations`,
+    `/api/companies/${company}/planning/mutations`,
     baseRevision,
     { operation: 'planning.restoreGroup', restorationGroupId },
     mutationId
@@ -121,9 +121,9 @@ export async function readAllocationIds(client: ApiClient, cookie: string) {
   ).data.allocations.map((row) => row.id);
 }
 
-export async function currentRevision(client: ApiClient, cookie: string, account = companyId) {
+export async function currentRevision(client: ApiClient, cookie: string, company = companyId) {
   const snapshot = await session(
-    client.visit('api.planning.show', { companyId: account }),
+    client.visit('api.planning.show', { companyId: company }),
     cookie
   ).send();
   snapshot.assertStatus(200);

@@ -1,7 +1,7 @@
 import type { ISODate, Weekday } from '../types/entities.js';
 import { addDaysISO, countDaysInclusive, getWeekday } from './dateMath.js';
 
-// Working-week policy over the calendar arithmetic in dateMath: which days of a resource's week
+// Working-week rules over the calendar arithmetic in dateMath: which days of a resource's week
 // carry work, and how many working days a date range holds.
 
 /** Should weekend/non-working days be treated specially? True only when the

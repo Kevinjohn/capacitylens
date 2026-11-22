@@ -7,7 +7,7 @@ import { resolveWeekdayLabel } from '@/lib/weekdays';
 import { useMarkFormDirty } from '@/components/common/formDirty';
 import type { WorkingDayOption } from './fieldTypes';
 
-// Resolve weekday labels at render time so they follow account locale changes. The picker's Monday-first order is independent of numeric weekday order.
+// Resolve weekday labels at render time so they follow company locale changes. The picker's Monday-first order is independent of numeric weekday order.
 const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
 function buildWorkingDayOptions(): Array<{ value: WorkingDayOption; label: string }> {

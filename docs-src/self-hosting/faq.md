@@ -30,7 +30,7 @@ enters **Company name** in the browser and selects **Create company**. The compa
 identity as Owner. No company command or service restart is needed. See
 [first-company setup](/owner/create-your-company).
 
-The server blocks additional open signup until the first company exists, even when enabled in
+The server blocks additional open sign-up until the first company exists, even when enabled in
 configuration. If multiple identities already exist before the company,
 browser setup refuses; resolving that exceptional state currently needs the hosting operator's
 stopped-server `company:initialize` initialiser. It is not part of the normal installation.

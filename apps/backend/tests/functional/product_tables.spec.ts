@@ -14,8 +14,8 @@ test.group('product table map', (group) => {
     assert.sameMembers(Object.keys(tables), [...APP_DATA_KEYS]);
     const companies = await db.from('companies').select('id');
     const read = Object.fromEntries(APP_DATA_KEYS.map((key) => [key, 0]));
-    for (const account of companies) {
-      const state = await readStateWithClient(db.connection(), String(account.id), true);
+    for (const company of companies) {
+      const state = await readStateWithClient(db.connection(), String(company.id), true);
       assert.sameMembers(Object.keys(state), [...APP_DATA_KEYS]);
       for (const key of APP_DATA_KEYS) read[key] += state[key].length;
     }

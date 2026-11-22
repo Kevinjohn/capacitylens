@@ -34,7 +34,7 @@ export function resolveSwatchIndex(hex: string): number {
 }
 
 // Use localized hue and shade names so swatches have meaningful accessible labels.
-// Resolve them at lookup to follow the active account locale.
+// Resolve them at lookup to follow the active company locale.
 const listSwatchHues = (): readonly string[] => [
   m.swatch_hue_red(),
   m.swatch_hue_orange(),

@@ -19,7 +19,7 @@ interface ResolveGestureInput {
   isDays: boolean;
 }
 
-// Pure date and load policy belongs here; DOM hit testing and store commits remain at the gesture boundary. Unexpected computation errors must propagate rather than be swallowed.
+// Pure date and hours rules belong here; DOM hit testing and store commits remain at the gesture boundary. Unexpected computation errors must propagate rather than be swallowed.
 
 /** Preserves days-mode work volume while resizing and reports when the hours cap truncates it. Unmeasurable source or destination spans preserve the stored hours without reporting a clamp. */
 export function resolveVolumePreservingHours({

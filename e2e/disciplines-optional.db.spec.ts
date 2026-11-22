@@ -29,7 +29,7 @@ async function restoreDisciplines(page: Page) {
   await expect(page.getByTestId('discipline-group').first()).toBeVisible();
 }
 
-// The account-level "Use disciplines" toggle (Settings → Company features). Off should hide
+// The company-level "Use disciplines" toggle (Settings → Company features). Off should hide
 // discipline surfaces and use engagement fallback bands on the schedule; on restores disciplines.
 test(
   'turning disciplines off hides every surface; turning it back on restores them',
@@ -41,7 +41,7 @@ test(
     // bands are exercised in the browser, not just inferred from model tests.
     await moveDianaToSupplementary(page);
 
-    // Enable External (default off) so its final band is present; it's an independent account pref.
+    // Enable External (default off) so its final band is present; it's an independent company pref.
     const showExternal = page.getByRole('switch', { name: 'Show external resources' });
     await changeCompanySetting(page, () => showExternal.click());
     await expect(showExternal).toHaveAttribute('aria-checked', 'true');

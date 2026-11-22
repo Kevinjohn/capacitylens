@@ -136,7 +136,7 @@ it("recovers a selected company after its canonical read fails, but refuses anot
   expect(useStore.getState().planning.phase.kind).toBe('ready');
 });
 
-it('ends a selected cold member view even while canonical reads keep failing', async () => {
+it('ends a selected cold masquerade even while canonical reads keep failing', async () => {
   const { model, api, switchCompany } = modelWithNativeData();
   await failSelectedCanonicalRead(model);
   expect(await model.end()).toBe(true);

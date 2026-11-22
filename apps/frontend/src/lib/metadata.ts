@@ -7,7 +7,7 @@ import type {
 import { m } from '@/i18n';
 
 // Exhaustive message-function tables keep enum presentation synchronized. Resolve
-// functions only at lookup so account locale changes cannot reuse import-time copy.
+// functions only at lookup so company locale changes cannot reuse import-time copy.
 
 /** A `<select>`/segmented-control option. `V` carries the enum union through the derivation, so a
  * caller binding `options={buildAllocationStatusOptions()}` gets `value: AllocationStatus` rather than a

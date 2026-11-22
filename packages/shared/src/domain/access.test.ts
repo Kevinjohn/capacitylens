@@ -119,7 +119,7 @@ describe('canMasqueradeAs(actorRole, targetRole) — view-as rank rule', () => {
   });
 });
 
-describe('canViewCapacityOverview(role, access) — account setting policy', () => {
+describe('canViewCapacityOverview(role, access) — company setting rule', () => {
   const settings: readonly CapacityOverviewAccess[] = [
     'owner_admin',
     'owner_admin_editor',

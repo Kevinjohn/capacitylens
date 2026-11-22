@@ -1,7 +1,7 @@
 import type { AccountErrorCode } from '@capacitylens/shared/account/errors';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 
-// These currently defined 409 codes prove that the server reached a terminal rejection. A new or
+// These currently defined 409 codes prove that the server reached a terminal refusal. A new or
 // malformed code stays unknown, preserving the retry handle rather than risking a duplicate operation.
 const TERMINAL_OPERATION_CONFLICT_CODES = new Set<string>([
   'INVITATION_USED',
@@ -67,7 +67,7 @@ export async function readUnknownAccountOperationOutcome(
     const code = body.code;
     return typeof code !== 'string' || !terminalCodes.has(code);
   } catch {
-    // Status alone cannot distinguish a terminal rejection from an in-flight operation. Retain the
+    // Status alone cannot distinguish a terminal refusal from an in-flight operation. Retain the
     // identity unless a readable, known code proves finality.
     return true;
   }

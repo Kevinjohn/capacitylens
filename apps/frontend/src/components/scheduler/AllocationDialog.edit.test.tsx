@@ -653,7 +653,7 @@ describe('AllocationDialog edit', () => {
     });
   });
 
-  it('rejects duplicating a zero-hour block after the account switches to Hours mode', async () => {
+  it('rejects duplicating a zero-hour block after the company switches to Hours mode', async () => {
     const a = await requireCreated(
       useStore.getState().addResource({ ...person('Diana Prince'), workingDays: [1, 2, 3, 4, 5] }),
     );

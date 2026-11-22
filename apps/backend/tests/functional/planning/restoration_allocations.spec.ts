@@ -293,7 +293,7 @@ test.group('session-bound allocation restoration', (suite) => {
   test('a group beyond the SQLite variable limit deletes exactly its listed rows in one group', async ({
     assert,
   }) => {
-    // 32,766 ids plus the account filter exceed SQLite's 32,766 bound variables in one statement.
+    // 32,766 ids plus the company filter exceed SQLite's 32,766 bound variables in one statement.
     const listedCount = 32_766;
     const seeded = await readState(companyId, true);
     const now = new Date().toISOString();
