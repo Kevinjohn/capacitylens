@@ -29,7 +29,7 @@ const WEEK: EffectiveWorkingWeek = { kind: 'days', days: WORKDAYS };
 const person = makeResource();
 const external = makeResource({ id: 'ext', kind: 'external' });
 const internalActivity = makeActivity({ id: 'ti', kind: 'internal', projectId: null });
-const repeatableActivity = makeActivity({ id: 'tr', kind: 'repeatable', projectId: null });
+const allProjectsActivity = makeActivity({ id: 'tr', kind: 'allProjects', projectId: null });
 const projectActivity = makeActivity({ id: 'tp', kind: 'project', projectId: 'p1' });
 // Exactly MAX_SPAN_DAYS calendar days remain from this start, one fewer from the next day.
 const LAST_UNLIMITED_START = addDaysISO(MAX_ISO_DATE, -(MAX_SPAN_DAYS - 1));
@@ -56,7 +56,7 @@ describe('project selection helpers', () => {
   });
 
   it('resolveProjectSelection maps each activity kind to its selector choice', () => {
-    expect(resolveProjectSelection(repeatableActivity)).toBe(ANY_PROJECT_SELECTION);
+    expect(resolveProjectSelection(allProjectsActivity)).toBe(ANY_PROJECT_SELECTION);
     expect(resolveProjectSelection(projectActivity)).toBe('p1');
     expect(resolveProjectSelection(makeActivity({ kind: 'project', projectId: null }))).toBe(
       INTERNAL_PROJECT_SELECTION,
@@ -66,11 +66,11 @@ describe('project selection helpers', () => {
   });
 
   it('resolveAttributedProject returns a project only for an all-projects activity with a concrete choice', () => {
-    expect(resolveAttributedProject(repeatableActivity, 'p1')).toBe('p1');
+    expect(resolveAttributedProject(allProjectsActivity, 'p1')).toBe('p1');
     expect(
-      resolveAttributedProject(repeatableActivity, INTERNAL_PROJECT_SELECTION),
+      resolveAttributedProject(allProjectsActivity, INTERNAL_PROJECT_SELECTION),
     ).toBeUndefined();
-    expect(resolveAttributedProject(repeatableActivity, ANY_PROJECT_SELECTION)).toBeUndefined();
+    expect(resolveAttributedProject(allProjectsActivity, ANY_PROJECT_SELECTION)).toBeUndefined();
     expect(resolveAttributedProject(projectActivity, 'p1')).toBeUndefined();
     expect(resolveAttributedProject(undefined, 'p1')).toBeUndefined();
   });
@@ -78,13 +78,13 @@ describe('project selection helpers', () => {
   it('isActivityInProjectSelection follows the kind × selection truth table', () => {
     const table: Array<[Parameters<typeof isActivityInProjectSelection>[0], string, boolean]> = [
       [{ kind: 'internal' }, INTERNAL_PROJECT_SELECTION, true],
-      [{ kind: 'repeatable' }, INTERNAL_PROJECT_SELECTION, false],
+      [{ kind: 'allProjects' }, INTERNAL_PROJECT_SELECTION, false],
       [{ kind: 'project', projectId: 'p1' }, INTERNAL_PROJECT_SELECTION, false],
       [{ kind: 'internal' }, ANY_PROJECT_SELECTION, false],
-      [{ kind: 'repeatable' }, ANY_PROJECT_SELECTION, true],
+      [{ kind: 'allProjects' }, ANY_PROJECT_SELECTION, true],
       [{ kind: 'project', projectId: 'p1' }, ANY_PROJECT_SELECTION, false],
       [{ kind: 'internal' }, 'p1', false],
-      [{ kind: 'repeatable' }, 'p1', true],
+      [{ kind: 'allProjects' }, 'p1', true],
       [{ kind: 'project', projectId: 'p1' }, 'p1', true],
       [{ kind: 'project', projectId: 'p2' }, 'p1', false],
     ];
@@ -98,7 +98,7 @@ describe('project selection helpers', () => {
 
   it('buildActivityScope inverts the selector choice', () => {
     expect(buildActivityScope(INTERNAL_PROJECT_SELECTION)).toEqual({ kind: 'internal' });
-    expect(buildActivityScope(ANY_PROJECT_SELECTION)).toEqual({ kind: 'repeatable' });
+    expect(buildActivityScope(ANY_PROJECT_SELECTION)).toEqual({ kind: 'allProjects' });
     expect(buildActivityScope('p1')).toEqual({ kind: 'project', projectId: 'p1' });
   });
 });

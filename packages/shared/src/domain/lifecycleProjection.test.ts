@@ -25,7 +25,7 @@ const makeActiveOnlyResource = (id: string, name: string, tombstones: LifecycleF
   companyId: ACTIVE_ONLY_COMPANY,
   kind: 'person' as const,
   name,
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -384,7 +384,7 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
     expect(out.activities.map(({ id }) => id)).toEqual(['activity-with-null-parents']);
     expect(out.allocations.map(({ id }) => id)).toEqual(['allocation-1']);
   });
-  it('hides a repeatable allocation attributed to an inactive project', () => {
+  it('hides a all-projects allocation attributed to an inactive project', () => {
     const input: AppData = {
       ...createEmptyAppData(),
       projects: [
@@ -494,7 +494,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
       companyId: ARCHIVE_IMPACT_COMPANY,
       kind: 'person',
       name: 'R',
-      role: 'Dev',
+      jobTitle: 'Dev',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,

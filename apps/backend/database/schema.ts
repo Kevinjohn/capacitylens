@@ -687,7 +687,7 @@ export class RequestReceiptSchema extends BaseModel {
 }
 
 export class ResourceSchema extends BaseModel {
-  static $columns = ['archivedAt', 'avatarUrl', 'color', 'companyId', 'createdAt', 'deletedAt', 'disciplineId', 'employmentType', 'engagement', 'firstAvailableDate', 'halfDays', 'id', 'isFavourite', 'kind', 'lastAvailableDate', 'name', 'projectId', 'role', 'updatedAt', 'workingDays', 'workingHoursPerDay'] as const
+  static $columns = ['archivedAt', 'avatarUrl', 'color', 'companyId', 'createdAt', 'deletedAt', 'disciplineId', 'employmentType', 'engagement', 'firstAvailableDate', 'halfDays', 'id', 'isFavourite', 'jobTitle', 'kind', 'lastAvailableDate', 'name', 'projectId', 'updatedAt', 'workingDays', 'workingHoursPerDay'] as const
   $columns = ResourceSchema.$columns
   @column.dateTime()
   declare archivedAt: DateTime | null
@@ -716,6 +716,8 @@ export class ResourceSchema extends BaseModel {
   @column()
   declare isFavourite: boolean | null
   @column()
+  declare jobTitle: string
+  @column()
   declare kind: import('@capacitylens/shared/types/entities').ResourceKind
   @column()
   declare lastAvailableDate: import('@capacitylens/shared/types/entities').ISODate | null
@@ -723,8 +725,6 @@ export class ResourceSchema extends BaseModel {
   declare name: string | null
   @column()
   declare projectId: string | null
-  @column()
-  declare role: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
   @column()

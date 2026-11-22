@@ -30,7 +30,7 @@ describe('SPA content security policy', () => {
     // finding the required CSP text somewhere else in the configuration.
     for (const declaration of [
       'location ^~ /assets/ {',
-      'location ~* ^/(invite|reset-password|verify-email)/ {',
+      'location ~* ^/(invitation|reset-password|verify-email)/ {',
       'location / {',
     ]) {
       expect(locationBlock(nginx, declaration)).toContain(
@@ -46,7 +46,7 @@ describe('SPA content security policy', () => {
     expect(nginx).not.toMatch(/proxy_ssl_|capacitylens-internal-tls/);
     for (const declaration of [
       'location /api/ {',
-      'location ~ ^/api/invites/[^/]+/(accept|signup|preview)$ {',
+      'location ~ ^/api/invitations/[^/]+/(accept|sign-up|preview)$ {',
       'location ~ ^/api/auth/(callback|oauth2/callback)/ {',
     ]) {
       const block = locationBlock(nginx, declaration);

@@ -6,7 +6,7 @@ import { invitationSignupRequests } from './invitationSignupRequests';
 
 /** What an invitation link shows before sign-up. */
 export interface InvitationPreview {
-  accountName: string | null;
+  companyName: string | null;
   role: string | null;
   email: string;
 }
@@ -33,7 +33,7 @@ function parsePreview(body: unknown): InvitationPreview | null {
   if (!isRecord(body) || typeof body.email !== 'string') return null;
   return {
     email: body.email,
-    accountName: typeof body.accountName === 'string' ? body.accountName : null,
+    companyName: typeof body.companyName === 'string' ? body.companyName : null,
     role: typeof body.role === 'string' ? body.role : null,
   };
 }

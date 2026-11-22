@@ -183,11 +183,11 @@ const cases: Array<[string, AppDataKey, Record<string, unknown>, string]> = [
     { status: 'maybe' },
     'entityField: status is not supported.',
   ],
-  ['activity kind', 'activities', { kind: 'repeatable' }, 'accepted'],
+  ['activity kind', 'activities', { kind: 'allProjects' }, 'accepted'],
   [
     'activity kind on a resource',
     'resources',
-    { kind: 'repeatable' },
+    { kind: 'allProjects' },
     'entityField: kind is not supported.',
   ],
   ['unknown language', 'companies', { language: 'fr' }, 'entityField: language is not supported.'],

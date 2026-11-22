@@ -40,7 +40,7 @@ describe('typed planning domain rejections', () => {
     await expect(
       useStore.getState().updateClient(foreign.id, { name: 'Changed' }),
     ).rejects.toMatchObject({
-      code: 'record_wrong_account',
+      code: 'record_wrong_company',
     });
     await expect(
       useStore.getState().updateClient('missing', { name: 'Changed' }),

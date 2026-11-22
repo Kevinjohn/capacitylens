@@ -34,7 +34,7 @@ export async function createAllocation(overrides: Partial<Allocation> = {}): Pro
     s.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
   );
   const r = await requireCreated(
-    s.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    s.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
   );
   return requireCreated(
     await s.addAllocation({
@@ -67,7 +67,7 @@ export async function createVisibleAllocationWithHiddenCapacity(): Promise<Alloc
     st.addActivity({ name: 'Visible work', kind: 'project', projectId: visibleProject.id }),
   );
   const resource = await requireCreated(
-    st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#5' })),
+    st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#5' })),
   );
   await st.addAllocation({
     resourceId: resource.id,

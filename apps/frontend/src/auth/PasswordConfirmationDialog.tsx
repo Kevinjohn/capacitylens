@@ -69,7 +69,7 @@ export function PasswordConfirmationDialog({
       onConfirmed(result.confirmationId);
     } catch (cause) {
       console.error('Password confirmation failed', cause);
-      setError(m.login_network_error());
+      setError(m.sign_in_network_error());
       setBusy(false);
     }
   };
@@ -89,7 +89,7 @@ export function PasswordConfirmationDialog({
     >
       <div className="flex flex-col gap-3">
         <Field>
-          <FieldLabel htmlFor="password-confirmation-input">{m.login_password()}</FieldLabel>
+          <FieldLabel htmlFor="password-confirmation-input">{m.sign_in_password()}</FieldLabel>
           <Input
             id="password-confirmation-input"
             type="password"

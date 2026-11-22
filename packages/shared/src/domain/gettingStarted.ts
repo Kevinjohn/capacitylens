@@ -68,7 +68,7 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
     }
     const activity = activities.get(allocation.activityId);
     return (
-      activity?.kind !== 'repeatable' ||
+      activity?.kind !== 'allProjects' ||
       allocation.projectId == null ||
       isCoherentProject(allocation.projectId)
     );

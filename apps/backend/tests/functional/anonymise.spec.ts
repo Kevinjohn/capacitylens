@@ -177,7 +177,7 @@ test.group('company anonymisation', (group) => {
       scrubbed.name,
       `Removed person #${target.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`
     );
-    assert.equal(scrubbed.role, 'Removed resource');
+    assert.equal(scrubbed.job_title, 'Removed resource');
     assert.isNull(scrubbed.avatar_url);
     const untouched = await db.from('resources').where('id', other.id).first();
     assert.equal(untouched.name, other.name);
@@ -334,7 +334,7 @@ test.group('company anonymisation', (group) => {
         savedResource.name,
         `Removed person #${savedResource.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`
       );
-      assert.equal(savedResource.role, 'Removed resource');
+      assert.equal(savedResource.job_title, 'Removed resource');
       assert.isNull(savedResource.avatar_url);
     }
     assert.lengthOf(await db.from('deleted_groups').where('company_id', companyId), 0);

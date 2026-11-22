@@ -10,7 +10,7 @@ export interface PersonScheduleTriggerProps {
   resourceId: ID;
   /** Resolved title used in the "View {name}'s schedule" trigger label. */
   scheduleTitle: string;
-  /** Name (or role, for an unnamed placeholder) the avatar derives initials from. */
+  /** Name (or job title, for an unnamed placeholder) the avatar derives initials from. */
   avatarName: string;
   color: string;
   placeholder: boolean;

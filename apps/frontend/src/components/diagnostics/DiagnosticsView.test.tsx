@@ -6,7 +6,7 @@ import { DiagnosticsView } from './DiagnosticsView';
 
 const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 const migration = 'database/migrations/202610220002_add_planning_restoration_origin';
-const snapshotAt = '2026-09-10T12:00:00.000Z';
+const backupAt = '2026-09-10T12:00:00.000Z';
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock.fetch);
@@ -19,7 +19,7 @@ beforeEach(() => {
           connectivity: 'ok',
           database: { status: 'ok' },
           schema: { migration },
-          backup: { newestSnapshotAt: snapshotAt },
+          backup: { newestBackupAt: backupAt },
         },
       },
     }),
@@ -72,14 +72,14 @@ describe('DiagnosticsView — report', () => {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration },
-          backup: { newestSnapshotAt: snapshotAt },
+          backup: { newestBackupAt: backupAt },
           secret: 'must not render',
         },
       }),
     });
     render(<DiagnosticsView />);
 
-    await waitFor(() => expect(reportText()).toHaveTextContent(`Newest snapshot: ${snapshotAt}`));
+    await waitFor(() => expect(reportText()).toHaveTextContent(`Newest backup: ${backupAt}`));
     expect(reportText()).toHaveTextContent('Database: unavailable');
     expect(reportText()).toHaveTextContent('Schema migration: Unknown');
     expect(reportText()).not.toHaveTextContent('must not render');
@@ -98,7 +98,7 @@ describe('DiagnosticsView — observation', () => {
         await Promise.resolve();
         await Promise.resolve();
       });
-      expect(reportText()).toHaveTextContent(`Snapshot observed: ${observedAt}`);
+      expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`);
     } finally {
       vi.useRealTimers();
     }
@@ -117,7 +117,7 @@ describe('DiagnosticsView — observation', () => {
     );
     try {
       render(<DiagnosticsView />);
-      expect(reportText()).toHaveTextContent('Snapshot observed: Unknown');
+      expect(reportText()).toHaveTextContent('Observed at: Unknown');
 
       await act(async () => {
         resolveResponse?.({
@@ -128,7 +128,7 @@ describe('DiagnosticsView — observation', () => {
                 connectivity: 'ok',
                 database: { status: 'ok' },
                 schema: { migration },
-                backup: { newestSnapshotAt: null },
+                backup: { newestBackupAt: null },
               },
             },
           }),
@@ -136,9 +136,9 @@ describe('DiagnosticsView — observation', () => {
         await Promise.resolve();
         await Promise.resolve();
       });
-      expect(reportText()).toHaveTextContent(`Snapshot observed: ${observedAt}`);
+      expect(reportText()).toHaveTextContent(`Observed at: ${observedAt}`);
       expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`);
-      expect(reportText()).toHaveTextContent('Newest snapshot: Unknown');
+      expect(reportText()).toHaveTextContent('Newest backup: Unknown');
     } finally {
       vi.useRealTimers();
     }
@@ -153,7 +153,7 @@ describe('DiagnosticsView — clipboard', () => {
     render(<DiagnosticsView />);
 
     await waitFor(() => expect(reportText()).toHaveTextContent(`Schema migration: ${migration}`));
-    expect(reportText()).toHaveTextContent(`Newest snapshot: ${snapshotAt}`);
+    expect(reportText()).toHaveTextContent(`Newest backup: ${backupAt}`);
     const fetchCountBeforeCopy = fetchMock.fetch.mock.calls.length;
 
     await user.click(screen.getByTestId('copy-diagnostics'));

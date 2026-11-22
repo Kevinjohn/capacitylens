@@ -26,7 +26,7 @@ type PlanningSessionSlice = Pick<
   | 'redoPlanning'
 >;
 
-// Planning identity is page-local: sign-in and sign-out reload the page, and authority changes
+// Planning identity is page-local: sign-in and sign-out reload the page, and access changes
 // within it arrive through the transport's access key.
 const PAGE_IDENTITY = Symbol('page planning identity');
 

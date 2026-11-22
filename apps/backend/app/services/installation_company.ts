@@ -40,7 +40,7 @@ export async function getInstallationCompany(reader: CompanyReader) {
   const company = companyId
     ? await reader.from('companies').where('id', companyId).select('name').first()
     : null;
-  return { companyId, accountName: (company?.name as string | undefined) ?? null };
+  return { companyId, companyName: (company?.name as string | undefined) ?? null };
 }
 
 /** Whether any identity exists yet; before the first one, sign-in offers setup instead. */

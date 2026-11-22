@@ -183,14 +183,14 @@ test.group('ordinary authentication request contracts', (group) => {
   }) => {
     const userId = await createIdentity('bruce.wayne@wayne.example', { name: 'Bruce Wayne' });
     await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio');
-    const previousSignup = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
+    const previousSignUp = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
     const originalRegister = accountKit.registration.register;
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
     accountKit.registration.register = async () => {
       throw new RegistrationEmailAlreadyRegisteredError();
     };
     cleanup(() => {
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previousSignup);
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', previousSignUp);
       accountKit.registration.register = originalRegister;
     });
 
