@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import { buildCapacityWindow } from '@capacitylens/shared/lib/capacity';
@@ -56,13 +57,11 @@ function resource(id: string, changes: Partial<Resource> = {}): Resource {
   };
 }
 
-let nextId = 0;
 function allocation(changes: Partial<Allocation> & Pick<Allocation, 'startDate'>): Allocation {
-  nextId += 1;
   return {
     ...NULLABLE_FIELDS.allocations,
     ...stamp,
-    id: `al-${nextId}`,
+    id: `al-${randomUUID()}`,
     resourceId: 'r-diana',
     activityId: 'act-1',
     endDate: changes.startDate,

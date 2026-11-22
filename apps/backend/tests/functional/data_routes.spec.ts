@@ -12,15 +12,12 @@ import { seed } from '@capacitylens/shared/data/seed';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 
-let dataOwnerId: string;
-
 const trusted = <T extends { header(name: string, value: string): T }>(request: T) =>
   request.header('sec-fetch-site', 'same-origin');
 
 async function reset(client: ApiClient, seeded = true) {
   const session = await resetAuthenticatedData(client, seeded);
-  dataOwnerId = session.userId;
-  return authenticatedDataClient(client, session.cookie);
+  return { client: authenticatedDataClient(client, session.cookie), userId: session.userId };
 }
 
 test.group('data routes', (group) => {
@@ -35,7 +32,8 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    client = await reset(client, true);
+    const dataOwner = await reset(client, true);
+    client = dataOwner.client;
     const candidate = await db.from('resources').where('company_id', 'a-studio').first();
     await db
       .from('resources')
@@ -44,7 +42,7 @@ test.group('data routes', (group) => {
     for (const role of ['viewer', 'editor', 'admin', 'owner']) {
       await db
         .from('memberships')
-        .where({ user_id: dataOwnerId, scope_id: 'a-studio' })
+        .where({ user_id: dataOwner.userId, scope_id: 'a-studio' })
         .update({ role });
       const explicit = await client
         .visit('api.company_state.show')
@@ -62,14 +60,15 @@ test.group('data routes', (group) => {
   });
 
   test('example data requires Admin authority', async ({ client }) => {
-    client = await reset(client, false);
+    const dataOwner = await reset(client, false);
+    client = dataOwner.client;
     const account = { ...seed().accounts[0]!, id: 'a-example' };
     await db.table('accounts').insert(encodeRow('accounts', account));
-    await grantDataOwner(dataOwnerId, account.id);
+    await grantDataOwner(dataOwner.userId, account.id);
     for (const role of ['editor', 'admin']) {
       await db
         .from('memberships')
-        .where({ user_id: dataOwnerId, scope_id: account.id })
+        .where({ user_id: dataOwner.userId, scope_id: account.id })
         .update({ role });
       const response = await trusted(
         client.visit('api.example_data.store', { companyId: account.id })
@@ -84,7 +83,8 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    client = await reset(client, true);
+    const dataOwner = await reset(client, true);
+    client = dataOwner.client;
     const candidates = await db
       .from('resources')
       .select('id')
@@ -117,7 +117,8 @@ test.group('data routes', (group) => {
   });
 
   test('default export excludes inactive rows', async ({ client, assert }) => {
-    client = await reset(client, true);
+    const dataOwner = await reset(client, true);
+    client = dataOwner.client;
     const candidate = await db
       .from('resources')
       .select('id')
@@ -152,7 +153,8 @@ test.group('data routes', (group) => {
   });
 
   test('export excludes membership, invitation and session secrets', async ({ client, assert }) => {
-    client = await reset(client, true);
+    const dataOwner = await reset(client, true);
+    client = dataOwner.client;
     const stamp = '2026-10-13T00:00:00.000Z';
     await db.table('users').insert({
       id: 'u-export',
@@ -205,7 +207,8 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    client = await reset(client, true);
+    const dataOwner = await reset(client, true);
+    client = dataOwner.client;
     const route = '/api/companies/a-studio/getting-started';
     const before = await client.get(route).send();
     before.assertBodyContains({ data: { dismissed: false } });
@@ -225,7 +228,8 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    client = await reset(client, true);
+    const dataOwner = await reset(client, true);
+    client = dataOwner.client;
     const now = new Date().toISOString();
     const studio = (table: string) => db.from(table).where('company_id', 'a-studio');
     const read = async (companyId = 'a-studio') => {
@@ -272,7 +276,8 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    client = await reset(client, true);
+    const dataOwner = await reset(client, true);
+    client = dataOwner.client;
     const route = '/api/companies/a-studio/getting-started';
     const extraFields = await trusted(client.put(route))
       .json({ dismissed: true, extra: 'value' })
@@ -289,12 +294,13 @@ test.group('data routes', (group) => {
   });
 
   test('example data inserts once and refuses a second request', async ({ client, assert }) => {
-    client = await reset(client, false);
+    const dataOwner = await reset(client, false);
+    client = dataOwner.client;
     const account = { ...seed().accounts[0]!, id: 'a-example' };
     await db.table('accounts').insert(encodeRow('accounts', account));
-    await grantDataOwner(dataOwnerId, account.id);
+    await grantDataOwner(dataOwner.userId, account.id);
     const otherCompanyId = await createFixtureCompanyForOwner(
-      dataOwnerId,
+      dataOwner.userId,
       'Stark Industries',
       'a-example-other'
     );
@@ -325,10 +331,11 @@ test.group('data routes', (group) => {
     client,
     assert,
   }) => {
-    client = await reset(client, false);
+    const dataOwner = await reset(client, false);
+    client = dataOwner.client;
     const account = { ...seed().accounts[0]!, id: 'a-example' };
     await db.table('accounts').insert(encodeRow('accounts', account));
-    await grantDataOwner(dataOwnerId, account.id);
+    await grantDataOwner(dataOwner.userId, account.id);
     const resource = {
       ...seed().resources[0]!,
       id: 'r-existing',
@@ -347,10 +354,11 @@ test.group('data routes', (group) => {
   });
 
   test('example data rejects archived-only work and unknown company', async ({ client }) => {
-    client = await reset(client, false);
+    const dataOwner = await reset(client, false);
+    client = dataOwner.client;
     const account = { ...seed().accounts[0]!, id: 'a-example' };
     await db.table('accounts').insert(encodeRow('accounts', account));
-    await grantDataOwner(dataOwnerId, account.id);
+    await grantDataOwner(dataOwner.userId, account.id);
     const resource = {
       ...seed().resources[0]!,
       id: 'r-archived',
@@ -373,10 +381,11 @@ test.group('data routes', (group) => {
 
   test('example data refuses existing client and project work', async ({ client }) => {
     for (const kind of ['client', 'project'] as const) {
-      client = await reset(client, false);
+      const dataOwner = await reset(client, false);
+      client = dataOwner.client;
       const account = { ...seed().accounts[0]!, id: 'a-example' };
       await db.table('accounts').insert(encodeRow('accounts', account));
-      await grantDataOwner(dataOwnerId, account.id);
+      await grantDataOwner(dataOwner.userId, account.id);
       const clientRow = {
         ...seed().clients.find((row) => row.builtin !== true)!,
         id: 'c-example',
