@@ -74,7 +74,8 @@ test.group('HTTP parser regressions', (group) => {
     const cookie = fixture.cookie;
     const context = await client.get('/api/masquerade').send();
     context.assertStatus(200);
-    const contextToken = (context.body() as unknown as { contextToken?: unknown }).contextToken;
+    const contextToken = (context.body()!.data as unknown as { contextToken?: unknown })
+      .contextToken;
     assert.isString(contextToken);
     const oversized = await postRaw(
       '/api/companies/a-studio/example-data',

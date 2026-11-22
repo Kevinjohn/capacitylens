@@ -48,7 +48,7 @@ test.group('HTTP contract', (group) => {
     const scoped = await client.get('/api/state?companyId=a-studio');
     assert.equal(scoped.status(), 200);
     assert.deepEqual(
-      scoped.body().accounts.map(({ id }: { id: string }) => id),
+      scoped.body().data.accounts.map(({ id }: { id: string }) => id),
       ['a-studio']
     );
     for (const key of [
@@ -65,7 +65,7 @@ test.group('HTTP contract', (group) => {
       assert.isTrue(
         scoped
           .body()
-          [key].every(({ companyId }: { companyId: string }) => companyId === 'a-studio'),
+          .data[key].every(({ companyId }: { companyId: string }) => companyId === 'a-studio'),
         key
       );
   });
@@ -138,7 +138,7 @@ test.group('HTTP contract', (group) => {
     const writePath = '/api/companies/a-studio/planning/mutations';
     const write = {
       mutationId: randomUUID(),
-      baseRevision: (planning.body() as { revision: number }).revision,
+      baseRevision: (planning.body().data as { revision: number }).revision,
       intent: {
         operation: 'catalogue.create',
         entity: {

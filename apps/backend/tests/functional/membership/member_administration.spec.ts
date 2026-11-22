@@ -82,7 +82,10 @@ test.group('company member administration', (group) => {
       signed(client.patch(path), ownerCookie).headers(identity).json({ role }).send();
     const changed = await requestRole('admin');
     changed.assertStatus(200);
-    assert.deepEqual(changed.body(), { userId: editorId, role: 'admin' });
+    assert.deepEqual((changed.body() as { data: unknown }).data, {
+      userId: editorId,
+      role: 'admin',
+    });
     const changedRevision = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
@@ -94,7 +97,10 @@ test.group('company member administration', (group) => {
     );
     const replay = await requestRole('admin');
     replay.assertStatus(200);
-    assert.deepEqual(replay.body(), changed.body());
+    assert.deepEqual(
+      (replay.body() as { data: unknown }).data,
+      (changed.body() as { data: unknown }).data
+    );
     const mismatch = await requestRole('viewer');
     mismatch.assertStatus(409);
     assert.deepEqual(mismatch.body(), {
@@ -171,10 +177,13 @@ test.group('company member administration', (group) => {
         .send();
     const changedRole = await role();
     changedRole.assertStatus(200);
-    assert.deepEqual(changedRole.body(), { userId: editorId, role: 'admin' });
+    assert.deepEqual((changedRole.body() as { data: unknown }).data, {
+      userId: editorId,
+      role: 'admin',
+    });
     const changedStatus = await status();
     changedStatus.assertStatus(200);
-    assert.deepEqual(changedStatus.body(), {
+    assert.deepEqual(changedStatus.body().data, {
       userId: editorId,
       status: 'suspended',
     });
@@ -190,10 +199,13 @@ test.group('company member administration', (group) => {
       .update({ role: 'viewer', status: 'active' });
     const replayRole = await role();
     replayRole.assertStatus(200);
-    assert.deepEqual(replayRole.body(), changedRole.body());
+    assert.deepEqual(
+      (replayRole.body() as { data: unknown }).data,
+      (changedRole.body() as { data: unknown }).data
+    );
     const replayStatus = await status();
     replayStatus.assertStatus(200);
-    assert.deepEqual(replayStatus.body(), changedStatus.body());
+    assert.deepEqual(replayStatus.body().data, changedStatus.body().data);
     const replayedMember = await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: editorId })

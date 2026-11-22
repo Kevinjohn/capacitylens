@@ -102,7 +102,9 @@ async function createClosure(
       const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
-      const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
+      const state = (
+        (await response.json()) as { data: { closures: Array<{ id: string; name: string }> } }
+      ).data;
       closureId = state.closures.find((closure) => closure.name === 'Long weekend')?.id ?? '';
       return closureId;
     })
@@ -198,7 +200,7 @@ async function assertEditedAndDeletedClosure(
       const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
-      const state = (await response.json()) as { closures: Array<{ id: string }> };
+      const state = ((await response.json()) as { data: { closures: Array<{ id: string }> } }).data;
       return state.closures.some((closure) => closure.id === closureId);
     })
     .toBe(false);
@@ -215,7 +217,9 @@ async function assertEditedAndDeletedClosure(
       const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
-      const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
+      const state = (
+        (await response.json()) as { data: { closures: Array<{ id: string; name: string }> } }
+      ).data;
       return state.closures.find((closure) => closure.id === closureId)?.name;
     })
     .toBe('Studio shutdown');

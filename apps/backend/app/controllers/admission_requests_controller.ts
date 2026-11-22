@@ -12,7 +12,7 @@ export default class AdmissionRequestsController {
   async store(ctx: HttpContext) {
     const service = await resolveAdmission();
     const record = await service.request(await managedGuard.current(ctx));
-    return ctx.response.ok({ requestedAt: record.requestedAt });
+    return ctx.serialize({ requestedAt: record.requestedAt });
   }
 
   async index(ctx: HttpContext) {
@@ -27,6 +27,6 @@ export default class AdmissionRequestsController {
     const actor = await readCurrentAccount(ctx);
     const service = await resolveAdmission();
     const page = await service.list({ actorId: actor.id, status, cursor, limit: 100 });
-    return ctx.response.ok(page);
+    return ctx.serialize(page);
   }
 }

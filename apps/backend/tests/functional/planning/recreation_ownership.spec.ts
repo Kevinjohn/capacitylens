@@ -31,7 +31,7 @@ async function sendPlanning({ client, cookie, path, baseRevision, intent }: Send
     .json({ mutationId: randomUUID(), baseRevision, intent })
     .send();
   // Callers assert 200 before reading success fields; refusal bodies are compared as whole values.
-  return response as ApiResponse<PlanningMutationSuccess>;
+  return response as ApiResponse<{ data: PlanningMutationSuccess }>;
 }
 
 async function readPlanningStorage() {
@@ -76,7 +76,7 @@ test.group('retained id recreation ownership', (suite) => {
         intent: { operation: 'allocation.delete', id: allocation.id },
       });
       deleted.assertStatus(200);
-      const groupId = String(deleted.body().restoration.replacementGroupId);
+      const groupId = String(deleted.body().data.restoration.replacementGroupId);
       let cookie: string;
       if (attempt === 'another editor') {
         const editor = await signIn(client, 'editor');
@@ -86,9 +86,9 @@ test.group('retained id recreation ownership', (suite) => {
       }
       const snapshot = await session(client.get(planningUrl), cookie).send();
       snapshot.assertStatus(200);
-      assert.equal(snapshot.body().authority.role, 'editor');
-      assert.isTrue(snapshot.body().authority.canWrite);
-      assert.equal(snapshot.body().revision, 2);
+      assert.equal(snapshot.body().data.authority.role, 'editor');
+      assert.isTrue(snapshot.body().data.authority.canWrite);
+      assert.equal(snapshot.body().data.revision, 2);
       const before = await readPlanningStorage();
       const refused = await sendPlanning({
         client,
@@ -111,7 +111,7 @@ test.group('retained id recreation ownership', (suite) => {
         intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
       });
       restored.assertStatus(200);
-      assert.equal(restored.body().revision, 3);
+      assert.equal(restored.body().data.revision, 3);
       const row = await db.from('allocations').where('id', allocation.id).first();
       assert.isNull(row.deleted_at);
       assert.equal(Number(row.hours_per_day), allocation.hoursPerDay);
@@ -142,7 +142,7 @@ test.group('retained id recreation ownership', (suite) => {
       intent: { operation: 'allocation.delete', id: allocation.id },
     });
     deleted.assertStatus(200);
-    const groupId = String(deleted.body().restoration.replacementGroupId);
+    const groupId = String(deleted.body().data.restoration.replacementGroupId);
     const recreated = await sendPlanning({
       client,
       cookie,
@@ -151,7 +151,7 @@ test.group('retained id recreation ownership', (suite) => {
       intent: { operation: 'allocation.create', allocation: { ...allocation, hoursPerDay: 6 } },
     });
     recreated.assertStatus(200);
-    assert.equal(recreated.body().revision, 3);
+    assert.equal(recreated.body().data.revision, 3);
     const replacement = await db.from('allocations').where('id', allocation.id).first();
     assert.isNull(replacement.deleted_at);
     assert.equal(Number(replacement.hours_per_day), 6);

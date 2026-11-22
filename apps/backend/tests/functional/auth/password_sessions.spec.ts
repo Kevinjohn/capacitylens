@@ -123,7 +123,7 @@ test.group('password sign-in and sessions', (group) => {
     const unconfirmed = await signIn(client, email, password);
     const me = await asDataOwner(client.get('/api/auth/me'), unconfirmed.cookie).send();
     me.assertStatus(200);
-    assert.isFalse(me.body().emailVerified);
+    assert.isFalse(me.body().data.emailVerified);
     await expectStatus(planning(client, unconfirmed.cookie), 403);
     await expectStatus(dismiss(client, unconfirmed.cookie), 403);
 
@@ -139,7 +139,7 @@ test.group('password sign-in and sessions', (group) => {
       .update({ approval_status: 'revoked' });
     await expectStatus(planning(client, unconfirmed.cookie), 403);
     const limited = await asDataOwner(client.get('/api/auth/me'), unconfirmed.cookie).send();
-    assert.isFalse(limited.body().admission.admitted);
+    assert.isFalse(limited.body().data.admission.admitted);
 
     await db
       .from('account_admissions')
@@ -167,7 +167,7 @@ test.group('password sign-in and sessions', (group) => {
       .json({ currentPassword: password, newPassword: 'another-batman-2026' })
       .send();
     changed.assertStatus(200);
-    assert.deepEqual(changed.body(), { ok: true, signedOut: true });
+    assert.deepEqual(changed.body().data, { ok: true, signedOut: true });
     await expectStatus(accounts(client, laptop.cookie), 401);
     await expectStatus(accounts(client, phone.cookie), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 0);

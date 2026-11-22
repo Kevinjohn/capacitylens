@@ -42,7 +42,7 @@ export default class MemberResourceLinksController {
         command,
       });
     });
-    return ctx.response.ok(result);
+    return ctx.serialize(result);
   }
 
   async destroy(ctx: HttpContext) {

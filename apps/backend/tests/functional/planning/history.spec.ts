@@ -46,7 +46,8 @@ class Page {
         ...body,
       })
       .send();
-    const reply = response.body() as Reply;
+    const answer: unknown = response.body();
+    const reply = (response.status() === 200 ? (answer as { data: Reply }).data : answer) as Reply;
     if (response.status() === 200) this.revision = reply.revision;
     return { ...reply, status: response.status() };
   }
@@ -67,7 +68,7 @@ class Page {
     const query = this.historyId === null ? '' : `?historyId=${this.historyId}`;
     const response = await session(this.client.get(`${planningUrl}${query}`), this.cookie).send();
     response.assertStatus(200);
-    const reply = response.body() as Reply & {
+    const reply = response.body().data as Reply & {
       data: { allocations: Array<{ id: string; updatedAt: string }> };
     };
     this.revision = reply.revision;

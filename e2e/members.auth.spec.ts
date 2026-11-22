@@ -137,7 +137,7 @@ async function manageAdminMembers(
       const res = await request.get(`${API}/api/companies/${companyId}/members`, {
         headers: { cookie: admin.cookie },
       });
-      const members = (await res.json()).members as Array<{ userId: string; role: string }>;
+      const members = (await res.json()).data.members as Array<{ userId: string; role: string }>;
       return members.find((member) => member.userId === editor.userId)?.role;
     })
     .toBe('viewer');
@@ -205,7 +205,7 @@ async function manageOwnerMembers(
       const res = await request.get(`${API}/api/companies/${companyId}/members`, {
         headers: { cookie: owner.cookie },
       });
-      const members = (await res.json()).members as Array<{ userId: string; status: string }>;
+      const members = (await res.json()).data.members as Array<{ userId: string; status: string }>;
       return members.find((member) => member.userId === editor.userId)?.status;
     })
     .toBe('suspended');

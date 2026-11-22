@@ -261,7 +261,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       const me = await fetch(`${origin}/api/auth/me`, { headers: { cookie } });
       assert.equal(me.status, 200);
       const companies = await fetch(`${origin}/api/companies`, { headers: { cookie } });
-      assert.deepEqual(await companies.json(), [
+      assert.deepEqual(((await companies.json()) as { data: unknown }).data, [
         {
           id: companyId,
           name: 'Wayne Enterprises',
@@ -287,9 +287,11 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
         headers: { cookie },
       });
       assert.equal(state.status, 200);
-      const data = (await state.json()) as {
-        clients: { builtin: boolean }[];
-        accounts: { weekStartsOn: number; workingDays: number[] }[];
+      const { data } = (await state.json()) as {
+        data: {
+          clients: { builtin: boolean }[];
+          accounts: { weekStartsOn: number; workingDays: number[] }[];
+        };
       };
       assert.deepEqual(data.accounts[0]!.workingDays, [1, 2, 3, 4, 5]);
       assert.equal(data.accounts[0]!.weekStartsOn, 1);
@@ -298,7 +300,7 @@ test('the bootstrap invitation then stopped-server initialization opens one Owne
       const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } });
       const modeBody = await modeResponse.text();
       assert.equal(modeResponse.status, 200, modeBody);
-      const mode = JSON.parse(modeBody) as { contextToken?: unknown };
+      const { data: mode } = JSON.parse(modeBody) as { data: { contextToken?: unknown } };
       assert.isString(mode.contextToken);
       const { seed } = await import('@capacitylens/shared/data/seed');
       const { allocation } = await writeSmokeSchedule(

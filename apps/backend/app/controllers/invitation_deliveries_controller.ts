@@ -20,11 +20,11 @@ export default class InvitationDeliveriesController {
     if (!isMailConfigured()) return answerMailUnavailable(ctx.response);
     try {
       const invitation = await accountKit.invitations.resend({ actorId, invitationId: id });
-      return ctx.response.ok({ ...buildInvitationView(invitation), emailed: true });
+      return ctx.serialize({ ...buildInvitationView(invitation), emailed: true });
     } catch (error) {
       // Does work: a committed resend whose email failed is answered 202.
       if (!isCommittedFailure(error)) throw error;
-      return ctx.response.accepted({ committed: true, emailed: false });
+      return ctx.response.accepted(await ctx.serialize({ committed: true, emailed: false }));
     }
   }
 }

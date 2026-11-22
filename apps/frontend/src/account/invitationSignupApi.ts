@@ -1,4 +1,5 @@
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { readApiData } from '@/api/readApiData';
 import { readApiError, readApiErrorCode } from '@/lib/readApiError';
 import type { InvitationSignupBody } from './accountRequestTypes';
 import { invitationSignupRequests } from './invitationSignupRequests';
@@ -47,7 +48,7 @@ export async function readInvitationPreview(token: string): Promise<InvitationPr
   if (response.status === 400 || response.status === 404) return { kind: 'invalid' };
   if (!response.ok) return { kind: 'unavailable' };
   // An unreadable body is an off-spec answer and is reported as unavailable.
-  const preview = parsePreview(await response.json().catch(() => null));
+  const preview = parsePreview(await readApiData(response).catch(() => null));
   return preview ? { kind: 'ok', preview } : { kind: 'unavailable' };
 }
 

@@ -22,8 +22,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// A 2xx answer arrives inside the `{ data }` envelope; a refusal is flat.
 const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
+  new Response(JSON.stringify(status < 300 ? { data: body } : body), {
     status,
     headers: { 'content-type': 'application/json' },
   });

@@ -54,7 +54,9 @@ describe('MembersSection — mutation failure reconciliation', () => {
         'GET /members': () =>
           mutationSent
             ? jsonResponse({ error: 'Reload failed.' }, 500)
-            : jsonResponse({ members: ownerAndEditor.map((member) => makeRawMember(member)) }),
+            : jsonResponse({
+                data: { members: ownerAndEditor.map((member) => makeRawMember(member)) },
+              }),
       }),
     );
     renderSection();
@@ -96,7 +98,9 @@ describe('MembersSection — mutation failure reconciliation', () => {
         },
         'GET /members': () => {
           if (mutationSent) useStore.setState({ activeCompanyId: nextCompanyId });
-          return jsonResponse({ members: ownerAndEditor.map((member) => makeRawMember(member)) });
+          return jsonResponse({
+            data: { members: ownerAndEditor.map((member) => makeRawMember(member)) },
+          });
         },
       }),
     );
@@ -124,7 +128,9 @@ describe('MembersSection — mutation failure reconciliation', () => {
         mockApi(ownerAndEditor, {
           'GET /members': () => {
             memberReads += 1;
-            return jsonResponse({ members: ownerAndEditor.map((member) => makeRawMember(member)) });
+            return jsonResponse({
+              data: { members: ownerAndEditor.map((member) => makeRawMember(member)) },
+            });
           },
           'PATCH /members/ed': () => jsonResponse(body, status),
         }),

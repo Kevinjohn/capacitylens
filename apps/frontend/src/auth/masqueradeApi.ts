@@ -1,3 +1,4 @@
+import { readApiData } from '@/api/readApiData';
 import type {
   ClientMasqueradeEndReason,
   EndMasqueradePayload,
@@ -61,11 +62,11 @@ export type MasqueradeBootstrapStatus = MasqueradeStatus & {
 };
 
 async function readMasqueradeBody(response: Response, fallback: string): Promise<unknown> {
-  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
     throw new Error(extractApiErrorMessage(body) ?? fallback);
   }
-  return body;
+  return readApiData(response);
 }
 
 async function assertMasqueradeState(response: Response): Promise<MasqueradeState> {

@@ -43,17 +43,17 @@ test.group('authenticated typed planning transactions', (group) => {
       .update({ name: 'Wayne secret', is_private: true, code_name: 'Nightwing' });
     const response = await session(client.get(planningUrl), cookie).send();
     response.assertStatus(200);
-    assert.equal(response.body().companyId, companyId);
-    assert.equal(response.body().revision, 0);
-    assert.match(response.body().today, /^\d{4}-\d{2}-\d{2}$/);
-    assert.equal(response.body().authority.actorId, userId);
-    assert.equal(response.body().authority.role, 'editor');
-    assert.isTrue(response.body().authority.canWrite);
+    assert.equal(response.body().data.companyId, companyId);
+    assert.equal(response.body().data.revision, 0);
+    assert.match(response.body().data.today, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(response.body().data.authority.actorId, userId);
+    assert.equal(response.body().data.authority.role, 'editor');
+    assert.isTrue(response.body().data.authority.canWrite);
     assert.notInclude(response.text(), 'Wayne secret');
     assert.isTrue(
       response
         .body()
-        .data.clients.every((row: { companyId: string }) => row.companyId === companyId)
+        .data.data.clients.every((row: { companyId: string }) => row.companyId === companyId)
     );
     const foreign = await session(client.get('/api/companies/a-loft/planning'), cookie).send();
     foreign.assertStatus(403);
@@ -77,7 +77,7 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
-    const { capacity } = read.body();
+    const { capacity } = read.body().data;
     assert.deepEqual(capacity.window, { from: '2026-05-04', to: '2026-09-28' });
     assert.deepEqual(capacity.horizon, { from: '2026-06-03', to: '2026-08-23' });
     assert.sameMembers(
@@ -96,8 +96,11 @@ test.group('authenticated typed planning transactions', (group) => {
       cookie
     ).send();
     requested.assertStatus(200);
-    assert.deepEqual(requested.body().capacity.window, { from: '2026-01-05', to: '2026-01-11' });
-    assert.deepEqual(requested.body().capacity.horizon, capacity.horizon);
+    assert.deepEqual(requested.body().data.capacity.window, {
+      from: '2026-01-05',
+      to: '2026-01-11',
+    });
+    assert.deepEqual(requested.body().data.capacity.horizon, capacity.horizon);
   });
 
   test('read capacity leaves deleted allocations and those of an archived activity out', async ({
@@ -122,7 +125,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const readWindow = async () => {
       const response = await session(client.get(planningUrl), cookie).send();
       response.assertStatus(200);
-      const { capacity } = response.body();
+      const { capacity } = response.body().data;
       return {
         from: capacity.window.from as string,
         days: capacity.resources[resourceId] as { window: Days },
@@ -188,18 +191,18 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const unchanged = await read({ ifRevision: 1 });
     unchanged.assertStatus(200);
-    assert.equal(unchanged.body().slice, 'unchanged');
-    assert.equal(unchanged.body().revision, 1);
-    assert.notProperty(unchanged.body(), 'data');
-    assert.property(unchanged.body(), 'capacity');
-    assert.equal(unchanged.body().authority.role, 'editor');
+    assert.equal(unchanged.body().data.slice, 'unchanged');
+    assert.equal(unchanged.body().data.revision, 1);
+    assert.notProperty(unchanged.body().data, 'data');
+    assert.property(unchanged.body().data, 'capacity');
+    assert.equal(unchanged.body().data.authority.role, 'editor');
 
     const fullQueries: Array<Record<string, number>> = [{ ifRevision: 0 }, { ifRevision: 2 }, {}];
     for (const query of fullQueries) {
       const full = await read(query);
       full.assertStatus(200);
-      assert.equal(full.body().slice, 'full', JSON.stringify(query));
-      assert.isArray(full.body().data.clients, JSON.stringify(query));
+      assert.equal(full.body().data.slice, 'full', JSON.stringify(query));
+      assert.isArray(full.body().data.data.clients, JSON.stringify(query));
     }
     for (const ifRevision of ['-1', '1.5', 'abc']) {
       const refused = await read({ ifRevision });
@@ -217,8 +220,8 @@ test.group('authenticated typed planning transactions', (group) => {
     });
     const afterRoleChange = await read({ ifRevision: 1 });
     afterRoleChange.assertStatus(200);
-    assert.equal(afterRoleChange.body().slice, 'full');
-    assert.equal(afterRoleChange.body().authority.role, 'viewer');
+    assert.equal(afterRoleChange.body().data.slice, 'full');
+    assert.equal(afterRoleChange.body().data.authority.role, 'viewer');
   });
 
   test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({
@@ -247,7 +250,7 @@ test.group('authenticated typed planning transactions', (group) => {
       cookie
     ).send();
     longest.assertStatus(200);
-    const [resource] = Object.values(longest.body().capacity.resources) as Array<{
+    const [resource] = Object.values(longest.body().data.capacity.resources) as Array<{
       window: { over: boolean[] };
     }>;
     assert.lengthOf(resource!.window.over, 366);
@@ -256,7 +259,10 @@ test.group('authenticated typed planning transactions', (group) => {
       cookie
     ).send();
     leapYear.assertStatus(200);
-    assert.deepEqual(leapYear.body().capacity.window, { from: '2028-01-01', to: '2028-12-31' });
+    assert.deepEqual(leapYear.body().data.capacity.window, {
+      from: '2028-01-01',
+      to: '2028-12-31',
+    });
   });
 
   test('create and move commit once, stale and duplicate identities never commit again', async ({
@@ -281,9 +287,9 @@ test.group('authenticated typed planning transactions', (group) => {
       .json(input)
       .send();
     created.assertStatus(200);
-    assert.equal(created.body().revision, 1);
-    assert.equal(created.body().status, 'committed');
-    const { changes, ...receipt } = created.body();
+    assert.equal(created.body().data.revision, 1);
+    assert.equal(created.body().data.status, 'committed');
+    const { changes, ...receipt } = created.body().data;
     assert.deepEqual(receipt, {
       status: 'committed',
       mutationId,
@@ -302,9 +308,9 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.deepEqual(changes.removed, []);
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
-    assert.equal(read.body().revision, 1);
+    assert.equal(read.body().data.revision, 1);
     assert.isTrue(
-      read.body().data.allocations.some((row: { id: string }) => row.id === allocation.id)
+      read.body().data.data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
     const duplicate = await session(
       client.post(`/api/companies/${companyId}/planning/mutations`),
@@ -345,7 +351,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     moved.assertStatus(200);
-    assert.equal(moved.body().revision, 2);
+    assert.equal(moved.body().data.revision, 2);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 2);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -510,8 +516,8 @@ test.group('authenticated typed planning transactions', (group) => {
         .json({ mutationId: randomUUID(), baseRevision: revision, intent })
         .send();
       assert.equal(reply.status(), 200, `${String(intent.operation)}: ${reply.text()}`);
-      assert.equal(reply.body().status, 'committed');
-      restorationGroupId = reply.body().restoration?.replacementGroupId ?? restorationGroupId;
+      assert.equal(reply.body().data.status, 'committed');
+      restorationGroupId = reply.body().data.restoration?.replacementGroupId ?? restorationGroupId;
     }
   });
 
@@ -599,7 +605,7 @@ test.group('authenticated typed planning transactions', (group) => {
       .json(input)
       .send();
     response.assertStatus(200);
-    assert.equal(response.body().revision, 1);
+    assert.equal(response.body().data.revision, 1);
     const after = await readState(companyId, true);
     const copy = after.allocations.find((row) => row.id === id)!;
     assert.isDefined(copy);
@@ -691,7 +697,10 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const response = await session(client.get(planningUrl), cookie).send();
     response.assertStatus(200);
-    const resources = response.body().data.resources as { id: string; avatarUrl: string | null }[];
+    const resources = response.body().data.data.resources as {
+      id: string;
+      avatarUrl: string | null;
+    }[];
     for (const person of [linked, unlinked, suspendedLink]) {
       assert.equal(
         resources.find((row) => row.id === person.id)?.avatarUrl,
@@ -792,6 +801,6 @@ test.group('authenticated typed planning transactions', (group) => {
       0
     );
     const current = await session(client.get(planningUrl), cookie).send();
-    assert.equal(current.body().revision, 0);
+    assert.equal(current.body().data.revision, 0);
   });
 });

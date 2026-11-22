@@ -30,7 +30,7 @@ const requestReset = (client: ApiClient, email: string) =>
 const inspect = async (client: ApiClient, token: string) => {
   const response = await post(client, '/api/auth/inspect-reset', { token });
   response.assertStatus(200);
-  return (response.body() as { valid: boolean }).valid;
+  return ((response.body() as { data: unknown }).data as { valid: boolean }).valid;
 };
 
 async function company() {
@@ -68,7 +68,7 @@ test.group('password recovery', (group) => {
     for (const email of [editor, 'joker@wayne.example']) {
       const response = await requestReset(client, email);
       response.assertStatus(200);
-      assert.deepEqual(response.body(), { ok: true });
+      assert.deepEqual((response.body() as { data: unknown }).data, { ok: true });
     }
     assert.equal(mail.count(editor), 1);
     assert.equal(mail.count('joker@wayne.example'), 0);

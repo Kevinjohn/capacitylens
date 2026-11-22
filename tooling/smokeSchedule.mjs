@@ -64,7 +64,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
       }),
     },
   );
-  assert.equal(JSON.parse(createdResource.body).revision, 2);
+  assert.equal(JSON.parse(createdResource.body).data.revision, 2);
 
   const activity = {
     id: randomUUID(),
@@ -97,7 +97,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
       }),
     },
   );
-  assert.equal(JSON.parse(createdActivity.body).revision, 3);
+  assert.equal(JSON.parse(createdActivity.body).data.revision, 3);
 
   const allocation = {
     id: randomUUID(),
@@ -126,6 +126,6 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
       }),
     },
   );
-  assert.equal(JSON.parse(createdAllocation.body).revision, 4);
+  assert.equal(JSON.parse(createdAllocation.body).data.revision, 4);
   return { companyId, resource, activity, allocation };
 }

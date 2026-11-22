@@ -145,7 +145,7 @@ test.group('backup diagnostics', (group) => {
     const response = await owner.get('/api/diagnostics');
     const latest = await db.from('adonis_schema').select('name').orderBy('id', 'desc').first();
     assert.equal(response.status(), 200);
-    assert.deepEqual(response.body(), {
+    assert.deepEqual(response.body().data, {
       server: {
         connectivity: 'ok',
         database: { status: 'ok' },
@@ -175,7 +175,7 @@ test.group('backup diagnostics', (group) => {
       assert.notInclude(output, root);
       assert.notInclude(output, 'ENOENT');
       assert.notInclude(output, 'PRIVATE_BACKUP_TOKEN');
-      assert.deepEqual(response.body(), {
+      assert.deepEqual(response.body().data, {
         server: {
           connectivity: 'ok',
           database: { status: 'ok' },
@@ -248,7 +248,7 @@ test.group('backup diagnostics', (group) => {
       env.set('CAPACITYLENS_BACKUP_DIR', dir);
       const response = await owner.get('/api/diagnostics');
       assert.equal(response.status(), 200);
-      assert.containsSubset(response.body(), {
+      assert.containsSubset(response.body().data, {
         server: { backup: { newestSnapshotAt: '2026-10-21T23:00:00.000Z' } },
       });
     } finally {
@@ -266,7 +266,9 @@ test.group('backup diagnostics', (group) => {
       env.set('CAPACITYLENS_BACKUP_DIR', dir);
       const response = await owner.get('/api/diagnostics');
       assert.equal(response.status(), 200);
-      assert.containsSubset(response.body(), { server: { backup: { newestSnapshotAt: null } } });
+      assert.containsSubset(response.body().data, {
+        server: { backup: { newestSnapshotAt: null } },
+      });
     } finally {
       env.set('CAPACITYLENS_BACKUP_DIR', original ?? '');
       rmSync(dir, { recursive: true, force: true });

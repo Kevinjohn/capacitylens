@@ -58,7 +58,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const restored = await restore(
       client,
       cookie,
-      deleted.body().restoration.replacementGroupId,
+      deleted.body().data.restoration.replacementGroupId,
       1
     );
     restored.assertStatus(200);
@@ -94,7 +94,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       { operation: 'catalogue.delete', entity: { entity: 'disciplines', id: discipline.id } }
     );
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     await db.from('resources').where('id', children[1]!.id).update({ discipline_id: other.id });
     const auditBefore = await planningAudit();
     const mutationsBefore = await markers();
@@ -138,7 +138,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       }
     );
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const afterDelete = await readState(companyId, true);
     assert.isNull(afterDelete.activities.find((row) => row.id === activity.id)?.phaseId);
     const detachedActivity = await db.from('activities').where('id', activity.id).first();
@@ -208,7 +208,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       { operation: 'catalogue.delete', entity: { entity: 'phases', id: phaseId } }
     );
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     await db.from('projects').where('id', projectId).delete();
     const auditBefore = await planningAudit();
     const mutationsBefore = await markers();
@@ -263,7 +263,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const restored = await restore(
       client,
       cookie,
-      deleted.body().restoration.replacementGroupId,
+      deleted.body().data.restoration.replacementGroupId,
       1
     );
     restored.assertStatus(200);
@@ -314,7 +314,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     deleted.assertStatus(200);
     const afterDelete = await readState(companyId, true);
     assert.isUndefined(afterDelete.closures.find((row) => row.id === id));
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const restored = await restore(client, cookie, groupId, 2);
     restored.assertStatus(200);
     const afterRestore = await readState(companyId, true);

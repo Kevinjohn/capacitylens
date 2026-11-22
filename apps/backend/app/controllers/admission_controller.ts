@@ -7,6 +7,6 @@ export default class AdmissionController {
   async show(ctx: HttpContext) {
     const service = await resolveAdmission();
     const { decision } = await service.current(await managedGuard.current(ctx));
-    return ctx.response.ok({ decision });
+    return ctx.serialize({ decision });
   }
 }

@@ -130,7 +130,8 @@ test.describe('member masquerade', () => {
       },
     );
     expect(status.status()).toBe(200);
-    const contextToken = ((await status.json()) as { contextToken: string }).contextToken;
+    const contextToken = ((await status.json()) as { data: { contextToken: string } }).data
+      .contextToken;
     expect(contextToken).not.toBe('');
     const headers = {
       cookie,
@@ -141,7 +142,7 @@ test.describe('member masquerade', () => {
       headers,
     });
     expect(planning.status()).toBe(200);
-    const revision = ((await planning.json()) as { revision: number }).revision;
+    const revision = ((await planning.json()) as { data: { revision: number } }).data.revision;
     const refusedWrite = await request.post(
       `${AUTH_API}/api/companies/${companyId}/planning/mutations`,
       {

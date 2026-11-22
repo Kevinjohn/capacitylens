@@ -36,11 +36,17 @@ export type PlanningExecution = Omit<
   [Field in keyof ServerIssuedIntegers]: Extract<ServerIssuedIntegers[Field], number>;
 } & { intent: PlanningIntent };
 
-/** Refusals are sent through the response object, so the generated reply also admits `void`. */
+/**
+ * Refusals are sent through the response object, so the generated reply also admits `void`. A
+ * success arrives inside the `{ data }` envelope.
+ */
 export type PlanningMutationSuccess = Extract<
-  Route.Response<'api.planning.mutate'>,
+  Exclude<Route.Response<'api.planning.mutate'>, void>['data'],
   { status: 'committed' }
 >;
 
 /** Who the last accepted planning read was for, and what that member may do and see. */
-export type PlanningAccess = Exclude<Route.Response<'api.planning.show'>, void>['authority'];
+export type PlanningAccess = Exclude<
+  Route.Response<'api.planning.show'>,
+  void
+>['data']['authority'];

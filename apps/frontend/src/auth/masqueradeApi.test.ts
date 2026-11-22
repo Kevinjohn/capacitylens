@@ -34,8 +34,9 @@ const activeStatus = {
   principal: { id: 'u-actor', email: 'actor@example.test' },
 };
 
+// A 2xx answer arrives inside the `{ data }` envelope; a refusal is flat.
 function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify(status < 300 ? { data: body } : body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });

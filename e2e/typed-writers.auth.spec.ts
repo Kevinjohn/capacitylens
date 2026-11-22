@@ -83,10 +83,14 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
-    return (await response.json()) as {
-      clients: Array<{ name: string }>;
-      accounts: Array<{ id: string; dateStyle: string | null }>;
-    };
+    return (
+      (await response.json()) as {
+        data: {
+          clients: Array<{ name: string }>;
+          accounts: Array<{ id: string; dateStyle: string | null }>;
+        };
+      }
+    ).data;
   };
   await expect
     .poll(async () => (await state()).clients.some((row) => row.name === 'Wayne Foundation'))
@@ -153,10 +157,14 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
-    return (await response.json()) as {
-      disciplines: Array<{ id: string; name: string }>;
-      timeOff: Array<{ id: string; note: string }>;
-    };
+    return (
+      (await response.json()) as {
+        data: {
+          disciplines: Array<{ id: string; name: string }>;
+          timeOff: Array<{ id: string; note: string }>;
+        };
+      }
+    ).data;
   };
 
   await page.getByRole('link', { name: 'Disciplines' }).click();
@@ -297,9 +305,11 @@ for (const repeat of [false, true]) {
       headers: { cookie: owner.cookie },
     });
     expect(stored.status()).toBe(200);
-    const state = (await stored.json()) as {
-      timeOff: Array<{ resourceId: string; note: string | null }>;
-    };
+    const state = (
+      (await stored.json()) as {
+        data: { timeOff: Array<{ resourceId: string; note: string | null }> };
+      }
+    ).data;
     expect(state.timeOff.filter((entry) => entry.resourceId === resourceId)).toHaveLength(
       repeat ? 2 : 1,
     );

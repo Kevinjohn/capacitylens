@@ -28,11 +28,13 @@ function document() {
 function previewReply(baseRevision: number) {
   const data = document().data;
   return Response.json({
-    baseRevision,
-    imported: 5,
-    changed: true,
-    companyName: 'Wayne Enterprises',
-    counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, data[key].length])),
+    data: {
+      baseRevision,
+      imported: 5,
+      changed: true,
+      companyName: 'Wayne Enterprises',
+      counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, data[key].length])),
+    },
   });
 }
 
@@ -77,7 +79,7 @@ async function submitServerImport(applyResponse: Response): Promise<void> {
         return previewReply(7);
       }
       if (String(url).endsWith('/api/auth/password-confirmation')) {
-        return Response.json({ confirmationId: 'proof-7' });
+        return Response.json({ data: { confirmationId: 'proof-7' } });
       }
       if (String(url).endsWith('/api/transfer/apply')) return applyResponse;
       throw new Error(`Unexpected request: ${url}`);
@@ -280,10 +282,10 @@ describe('beta import and export', () => {
           return previewReply(7);
         }
         if (path.endsWith('/api/auth/password-confirmation')) {
-          return Response.json({ confirmationId: 'proof-7' });
+          return Response.json({ data: { confirmationId: 'proof-7' } });
         }
         if (path.endsWith('/api/transfer/apply')) {
-          return Response.json({ imported: 5, changed: true, revision: 8 });
+          return Response.json({ data: { imported: 5, changed: true, revision: 8 } });
         }
         throw new Error(`Unexpected request: ${path}`);
       }),
@@ -328,7 +330,7 @@ describe('beta import and export', () => {
 
   it('keeps intents suspended and requires reload when a committed import refresh fails', async () => {
     refreshOverride.result = { kind: 'failed' };
-    await submitServerImport(Response.json({ imported: 5, changed: true, revision: 8 }));
+    await submitServerImport(Response.json({ data: { imported: 5, changed: true, revision: 8 } }));
     await screen.findByTestId('import-reload-required');
     expect(planningProbe.releases).toBe(0);
     expect(useStore.getState().notice?.tone).toBe('error');
@@ -352,10 +354,12 @@ describe('beta import and export', () => {
           return new Promise<Response>((resolve) => previews.push(resolve));
         }
         if (path.endsWith('/api/auth/password-confirmation')) {
-          return Promise.resolve(Response.json({ confirmationId: 'proof-b' }));
+          return Promise.resolve(Response.json({ data: { confirmationId: 'proof-b' } }));
         }
         if (path.endsWith('/api/transfer/apply')) {
-          return Promise.resolve(Response.json({ imported: 5, changed: true, revision: 23 }));
+          return Promise.resolve(
+            Response.json({ data: { imported: 5, changed: true, revision: 23 } }),
+          );
         }
         throw new Error(`Unexpected request: ${path}`);
       }),

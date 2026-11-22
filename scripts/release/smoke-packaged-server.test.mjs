@@ -137,7 +137,9 @@ test('authenticated smoke writes a typed allocation under its isolated company',
   const requests = [];
   globalThis.fetch = async (url, options) => {
     requests.push({ url, headers: options.headers, body: JSON.parse(options.body) });
-    return new Response(JSON.stringify({ revision: requests.length + 1 }), { status: 200 });
+    return new Response(JSON.stringify({ data: { revision: requests.length + 1 } }), {
+      status: 200,
+    });
   };
   try {
     const fixture = {

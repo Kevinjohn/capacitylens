@@ -15,8 +15,9 @@ import {
 } from './helpers.js';
 import { listCreatedAllocationIds } from './restoration_helpers.js';
 
-const body = (response: { body(): unknown }) =>
-  response.body() as {
+/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+const body = (response: { body(): unknown; status(): number }) =>
+  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
     code: string;
     revision: number;
   };
@@ -218,7 +219,7 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(body(refused).code, 'VALIDATION_ERROR');
     assert.deepEqual(await readState(companyId, true), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 0);
+    assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 
@@ -280,7 +281,7 @@ test.group('authenticated planning operations', (group) => {
       mutationsBefore
     );
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 0);
+    assert.equal(snapshot.body().data.revision, 0);
   });
 
   test('Editor preserves confidential values and cannot change privacy controls or notes', async ({
@@ -392,7 +393,7 @@ test.group('authenticated planning operations', (group) => {
     };
     const read = async () => {
       const response = await session(client.get(planningUrl), cookie).send();
-      return response.body() as Read;
+      return (response.body() as { data: Read }).data;
     };
     // Row order is not part of the read, so both sides are compared by id.
     const byId = (rows: AppData) =>
@@ -457,7 +458,7 @@ test.group('authenticated planning operations', (group) => {
             )
             .send();
           // The server minted the later occurrence; the group delete below names it.
-          groupIds = listCreatedAllocationIds(reply.body());
+          groupIds = listCreatedAllocationIds((reply.body() as { data: unknown }).data);
           return reply;
         },
       ],
@@ -473,7 +474,10 @@ test.group('authenticated planning operations', (group) => {
       const before = await read();
       const reply = await write(before.revision);
       assert.equal(reply.status(), 200, name);
-      const { changes, revision } = reply.body() as { changes: Changes; revision: number };
+      const { changes, revision } = (reply.body() as { data: unknown }).data as {
+        changes: Changes;
+        revision: number;
+      };
       assert.isNotEmpty([...changes.upserts, ...changes.removed], name);
       const after = await read();
       assert.equal(after.revision, revision, name);
@@ -509,7 +513,7 @@ test.group('authenticated planning operations', (group) => {
     // The client sends the first occurrence and the pattern; the server mints the later ids.
     const created = await repeatGroup('2026-11-23');
     created.assertStatus(200);
-    const ids = listCreatedAllocationIds(created.body());
+    const ids = listCreatedAllocationIds((created.body() as { data: unknown }).data);
     assert.lengthOf(ids, 4);
     assert.equal(ids[0], allocation.id);
     const rows = () =>
@@ -530,8 +534,9 @@ test.group('authenticated planning operations', (group) => {
       .send();
     undone.assertStatus(200);
     assert.deepEqual(await rows(), [undefined, undefined, undefined, undefined]);
-    const restorationGroupId = (undone.body() as { restoration: { replacementGroupId: string } })
-      .restoration.replacementGroupId;
+    const restorationGroupId = (
+      (undone.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
+    ).restoration.replacementGroupId;
     const redone = await session(client.post(route('planning/mutations')), cookie)
       .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
       .send();
@@ -558,7 +563,7 @@ test.group('authenticated planning operations', (group) => {
       repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-23' },
     });
     created.assertStatus(200);
-    const ids = listCreatedAllocationIds(created.body());
+    const ids = listCreatedAllocationIds((created.body() as { data: unknown }).data);
     assert.lengthOf(ids, 4);
     const oneOff = { ...newAllocation(data), startDate: '2026-11-17', endDate: '2026-11-17' };
     const single = await mutate(1, { operation: 'allocation.create', allocation: oneOff });
@@ -580,8 +585,9 @@ test.group('authenticated planning operations', (group) => {
     const tail = await mutate(2, { operation: 'allocation.delete', id: ids[1], scope: 'future' });
     tail.assertStatus(200);
     assert.deepEqual(await present(), [true, false, false, false, true]);
-    const restorationGroupId = (tail.body() as { restoration: { replacementGroupId: string } })
-      .restoration.replacementGroupId;
+    const restorationGroupId = (
+      (tail.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
+    ).restoration.replacementGroupId;
     const restored = await mutate(3, { operation: 'planning.restoreGroup', restorationGroupId });
     restored.assertStatus(200);
     assert.deepEqual(await present(), [true, true, true, true, true]);
@@ -646,8 +652,9 @@ test.group('authenticated planning operations', (group) => {
       .send();
     undone.assertStatus(200);
     assert.deepEqual(await rows(), [undefined, undefined, undefined]);
-    const restorationGroupId = (undone.body() as { restoration: { replacementGroupId: string } })
-      .restoration.replacementGroupId;
+    const restorationGroupId = (
+      (undone.body() as { data: unknown }).data as { restoration: { replacementGroupId: string } }
+    ).restoration.replacementGroupId;
     const redone = await session(client.post(route('planning/mutations')), cookie)
       .json(input(2, { operation: 'planning.restoreGroup', restorationGroupId }))
       .send();
@@ -666,7 +673,7 @@ test.group('authenticated planning operations', (group) => {
     // Bruce works eight hours Monday to Friday and has nothing booked in November.
     const allocation = { ...newAllocation(data), hoursPerDay: 5 };
     const advisory = (response: { body(): unknown }) =>
-      (response.body() as { advisory?: unknown }).advisory;
+      (response.body() as { data: { advisory?: unknown } }).data.advisory;
 
     // The saved row is not counted against itself.
     const created = await session(client.post(route('planning/mutations')), cookie)
@@ -696,7 +703,7 @@ test.group('authenticated planning operations', (group) => {
       .send();
     updated.assertStatus(200);
     assert.deepEqual(advisory(updated), { overDays: 0, timeOffDays: 0 });
-    assert.notProperty(updated.body(), 'repeatAdvisory');
+    assert.notProperty((updated.body() as { data: unknown }).data, 'repeatAdvisory');
 
     const timeOff = await session(client.post(route('planning/mutations')), cookie)
       .json(
@@ -713,7 +720,7 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     timeOff.assertStatus(200);
-    assert.notProperty(timeOff.body(), 'advisory');
+    assert.notProperty((timeOff.body() as { data: unknown }).data, 'advisory');
 
     // Monthly from Monday 2 November: 2 November meets eight booked hours, 2 December is time off,
     // 2 January is a Saturday and 2 February is clear.
@@ -732,12 +739,15 @@ test.group('authenticated planning operations', (group) => {
       )
       .send();
     repeated.assertStatus(200);
-    assert.deepEqual((repeated.body() as { repeatAdvisory?: unknown }).repeatAdvisory, {
-      overCapacityAllocations: 1,
-      timeOffAllocations: 1,
-      nonEffectiveStartAllocations: 1,
-    });
-    assert.notProperty(repeated.body(), 'advisory');
+    assert.deepEqual(
+      ((repeated.body() as { data: unknown }).data as { repeatAdvisory?: unknown }).repeatAdvisory,
+      {
+        overCapacityAllocations: 1,
+        timeOffAllocations: 1,
+        nonEffectiveStartAllocations: 1,
+      }
+    );
+    assert.notProperty((repeated.body() as { data: unknown }).data, 'advisory');
   });
 
   test('time-off repeat rolls back its first entry when the ids do not match; closure and settings commit with correct projection', async ({
@@ -801,7 +811,7 @@ test.group('authenticated planning operations', (group) => {
     assert.equal(body(setting).revision, 2);
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
-    const snapshot = read.body() as {
+    const snapshot = read.body().data as {
       revision: number;
       data: { accounts: Array<{ id: string; weekStartsOn: number | null }> };
     };
@@ -880,7 +890,7 @@ test.group('authenticated planning operations', (group) => {
     const before = await readState(companyId, true);
     // The browser sends the timestamp it read, so take the row from the planning read.
     const read = await session(client.get(planningUrl), cookie).send();
-    const row = (read.body() as { data: AppData }).data.clients.find(
+    const row = (read.body() as { data: { data: AppData } }).data.data.clients.find(
       (entry) => entry.companyId === companyId && !entry.builtin
     )!;
     const edit = (expectedUpdatedAt: string) =>

@@ -86,7 +86,7 @@ async function createFixture(client: Parameters<typeof signUpAndIn>[0]) {
   });
   const contextResponse = await asDataOwner(client.get('/api/masquerade'), ownerCookie).send();
   contextResponse.assertStatus(200);
-  const contextBody: unknown = contextResponse.body();
+  const contextBody: unknown = contextResponse.body()!.data;
   const contextToken =
     typeof contextBody === 'object' &&
     contextBody !== null &&
@@ -158,12 +158,15 @@ test.group('member directory malformed storage', (group) => {
     const path = `/api/companies/${companyId}/members`;
     const baseline = await ownerGet({ client, path, ownerCookie, contextToken }).send();
     baseline.assertStatus(200);
-    assert.deepInclude(readDirectoryMemberEntry(baseline.body(), memberId), {
-      userId: memberId,
-      role: 'editor',
-      status: 'active',
-      manage: true,
-    });
+    assert.deepInclude(
+      readDirectoryMemberEntry((baseline.body() as { data: unknown }).data, memberId),
+      {
+        userId: memberId,
+        role: 'editor',
+        status: 'active',
+        manage: true,
+      }
+    );
 
     for (const corruption of corruptions) {
       await writeCorruption(corruption, memberId);
@@ -196,12 +199,15 @@ test.group('member directory malformed storage', (group) => {
       });
       const restored = await ownerGet({ client, path, ownerCookie, contextToken }).send();
       restored.assertStatus(200);
-      assert.deepInclude(readDirectoryMemberEntry(restored.body(), memberId), {
-        userId: memberId,
-        role: 'editor',
-        status: 'active',
-        manage: true,
-      });
+      assert.deepInclude(
+        readDirectoryMemberEntry((restored.body() as { data: unknown }).data, memberId),
+        {
+          userId: memberId,
+          role: 'editor',
+          status: 'active',
+          manage: true,
+        }
+      );
     }
   });
 
@@ -226,8 +232,14 @@ test.group('member directory malformed storage', (group) => {
     const path = `/api/companies/${companyId}/members`;
     const isolated = await ownerGet({ client, path, ownerCookie, contextToken }).send();
     isolated.assertStatus(200);
-    assert.notInclude(JSON.stringify(isolated.body()), foreignMemberId);
-    assert.notInclude(JSON.stringify(isolated.body()), 'foreign-invalid-role-sentinel');
-    assert.notInclude(JSON.stringify(isolated.body()), 'foreign-invalid-status-sentinel');
+    assert.notInclude(JSON.stringify((isolated.body() as { data: unknown }).data), foreignMemberId);
+    assert.notInclude(
+      JSON.stringify((isolated.body() as { data: unknown }).data),
+      'foreign-invalid-role-sentinel'
+    );
+    assert.notInclude(
+      JSON.stringify((isolated.body() as { data: unknown }).data),
+      'foreign-invalid-status-sentinel'
+    );
   });
 });

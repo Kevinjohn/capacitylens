@@ -63,6 +63,6 @@ export default class AccountController {
     }
     await managedGuard.forRequest(ctx).terminate();
     if (outcome === 'committed') return ctx.response.serviceUnavailable(deletionCommitted);
-    return ctx.response.ok({ ok: true, signedOut: true });
+    return ctx.serialize({ ok: true, signedOut: true });
   }
 }

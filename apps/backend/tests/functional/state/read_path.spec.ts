@@ -64,7 +64,9 @@ test.group('read path', (group) => {
                 return body;
               })()
             : expected.body;
-      assert.deepEqual(response.body(), expectedBody);
+      // Main recorded unwrapped bodies; a success now answers inside `data`, health excepted.
+      const wrapped = expected.status < 300 && expected.path !== '/api/health';
+      assert.deepEqual(response.body(), wrapped ? { data: expectedBody } : expectedBody);
       for (const header of [
         'content-security-policy',
         'cross-origin-opener-policy',
@@ -87,7 +89,7 @@ test.group('read path', (group) => {
     client = await resetAuthenticatedClient(client, true);
     const identity = await client.get('/api/auth/me');
     identity.assertStatus(200);
-    assert.equal(identity.body().user.email, 'bruce.wayne@wayne.example');
+    assert.equal(identity.body().data.user.email, 'bruce.wayne@wayne.example');
   });
 
   test('exposes liveness and readiness', async ({ client, assert }) => {

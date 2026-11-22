@@ -6,6 +6,8 @@ import { withActor } from '#services/auth/current_actor';
 export default class PlanningArchiveController {
   async show(ctx: HttpContext) {
     const companyId = String(ctx.params.companyId);
-    return withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, companyId));
+    return ctx.serialize(
+      await withActor(ctx, (_actor, trx) => readArchiveRecovery(trx, companyId))
+    );
   }
 }

@@ -31,12 +31,14 @@ export default class InvitationsController {
         role: body.role,
         scope: body.companyId,
       });
-      return ctx.response.created({ ...buildInvitationView(invitation), emailed: true });
+      return ctx.response.created(
+        await ctx.serialize({ ...buildInvitationView(invitation), emailed: true })
+      );
     } catch (error) {
       // Does work: a committed invitation whose email failed is logged and answered 202.
       if (!isCommittedFailure(error)) throw error;
       ctx.logger.warn({ code: 'INVITATION_DELIVERY_FAILED' }, 'Invitation delivery failed');
-      return ctx.response.accepted({ committed: true, emailed: false });
+      return ctx.response.accepted(await ctx.serialize({ committed: true, emailed: false }));
     }
   }
 
@@ -55,7 +57,7 @@ export default class InvitationsController {
       invites.push(...page.items.map(buildInvitationView));
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
-    return ctx.response.ok({ invites });
+    return ctx.serialize({ invites });
   }
 
   async destroy(ctx: HttpContext) {

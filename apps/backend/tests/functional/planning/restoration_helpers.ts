@@ -10,9 +10,14 @@ export const note = 'Gotham night shift briefing';
 
 export interface Reply {
   revision: number;
+  restoration: { consumedGroupId: string | null; replacementGroupId: string };
+}
+
+/** A success is wrapped in `data`; a refusal is flat. */
+interface ReplyBody {
+  data: Reply;
   code?: string;
   restorableItemCount?: number;
-  restoration: { consumedGroupId: string | null; replacementGroupId: string };
 }
 
 export async function send(
@@ -33,7 +38,7 @@ export async function send(
     })
     .send();
   // Only the receipt fields exercised by these restoration tests are read.
-  return response as unknown as Omit<typeof response, 'body'> & { body(): Reply };
+  return response as unknown as Omit<typeof response, 'body'> & { body(): ReplyBody };
 }
 
 export const deleteOne = (
@@ -99,7 +104,7 @@ export async function createAllocations(client: ApiClient, cookie: string, count
           },
         });
   created.assertStatus(200);
-  return count === 1 ? [allocation.id] : listCreatedAllocationIds(created.body());
+  return count === 1 ? [allocation.id] : listCreatedAllocationIds(created.body().data);
 }
 
 export async function stored(id: string) {
@@ -111,15 +116,15 @@ export async function stored(id: string) {
 export async function readAllocationIds(client: ApiClient, cookie: string) {
   const snapshot = await session(client.get(`/api/companies/${companyId}/planning`), cookie).send();
   snapshot.assertStatus(200);
-  return (snapshot.body() as { data: { allocations: Array<{ id: string }> } }).data.allocations.map(
-    (row) => row.id
-  );
+  return (
+    snapshot.body().data as { data: { allocations: Array<{ id: string }> } }
+  ).data.allocations.map((row) => row.id);
 }
 
 export async function currentRevision(client: ApiClient, cookie: string, account = companyId) {
   const snapshot = await session(client.get(`/api/companies/${account}/planning`), cookie).send();
   snapshot.assertStatus(200);
-  return Number((snapshot.body() as { revision: number }).revision);
+  return Number((snapshot.body().data as { revision: number }).revision);
 }
 
 export const markers = () => db.from('planning_mutations').where('company_id', companyId);

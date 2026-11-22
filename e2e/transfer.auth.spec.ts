@@ -26,7 +26,7 @@ async function companyState(
     },
   );
   expect(response.status()).toBe(200);
-  return (await response.json()) as AppData;
+  return ((await response.json()) as { data: AppData }).data;
 }
 
 async function chooseFile(page: Page, document: ReturnType<typeof buildCompanyExport>) {

@@ -19,5 +19,5 @@ export async function decideAdmission(ctx: HttpContext, decision: 'approve' | 'r
   const actor = await readCurrentAccount(ctx);
   const service = await resolveAdmission();
   const record = await service[decision]({ actorId: actor.id, userId });
-  return ctx.response.ok({ userId: String(record.userId), approval: record.approval });
+  return ctx.serialize({ userId: String(record.userId), approval: record.approval });
 }

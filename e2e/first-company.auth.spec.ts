@@ -125,11 +125,11 @@ test('operator setup creates the first Owner, one company and its default client
     await expect(page.getByTestId('company-setup')).toHaveCount(0);
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
     const companies = await page.request.get(`${origin}/api/companies`);
-    const accounts = (await companies.json()) as { id: string; role: string }[];
+    const accounts = ((await companies.json()) as { data: { id: string; role: string }[] }).data;
     expect(accounts).toHaveLength(1);
     expect(accounts[0]!.role).toBe('owner');
     const state = await page.request.get(`${origin}/api/state?companyId=${accounts[0]!.id}`);
-    const data = await state.json();
+    const data = (await state.json()).data;
     expect(data.accounts[0].name).toBe('Wayne Enterprises');
     expect(data.accounts[0].weekStartsOn).toBe(0);
     expect(data.accounts[0].timezone).toBe('America/New_York');

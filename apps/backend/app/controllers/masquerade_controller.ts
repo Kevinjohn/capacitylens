@@ -39,7 +39,7 @@ export default class MasqueradeController {
         ctx.request.header('X-Masquerade-Context') ?? ''
       );
       if (!started.isMasquerading) throw new MasqueradeError('E_MASQUERADE_UNAVAILABLE');
-      return ctx.response.ok({
+      return ctx.serialize({
         ...(await readCurrentMasquerade(ctx, db.connection(), companyId)),
         companyId,
       });
@@ -50,22 +50,22 @@ export default class MasqueradeController {
     return runWithAuthorizationRefusal(ctx, async () => {
       try {
         const signIn = await getSignedInSession(ctx);
-        if (!signIn) return ctx.response.ok({ active: false, contextToken: null });
+        if (!signIn) return ctx.serialize({ active: false, contextToken: null });
         const input: unknown = ctx.request.input('companyId');
         const companyId = typeof input === 'string' && input ? input : undefined;
         if (companyId) {
           const mode = await readCurrentMasquerade(ctx, db.connection(), companyId);
-          if (mode.active) return ctx.response.ok(mode);
+          if (mode.active) return ctx.serialize(mode);
           if (!(await getActiveCompanyRole(signIn.userId, companyId, undefined))) {
             throw new IdentityAuthorizationException('Company membership is unavailable.');
           }
-          return ctx.response.ok({ ...mode, companyId });
+          return ctx.serialize({ ...mode, companyId });
         }
-        return ctx.response.ok(await readCurrentMasquerade(ctx, db.connection(), undefined));
+        return ctx.serialize(await readCurrentMasquerade(ctx, db.connection(), undefined));
       } catch (error) {
         // Does work: no session is the inactive status, not a refusal.
         if (error instanceof InvalidSessionError) {
-          return ctx.response.ok({ active: false, contextToken: null });
+          return ctx.serialize({ active: false, contextToken: null });
         }
         throw error;
       }
@@ -83,7 +83,7 @@ export default class MasqueradeController {
       }
       if (header !== body.token) throw new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED');
       const mode = await endMasquerade(ctx, header);
-      return ctx.response.ok({ active: false, contextToken: mode.contextToken });
+      return ctx.serialize({ active: false, contextToken: mode.contextToken });
     });
   }
 }

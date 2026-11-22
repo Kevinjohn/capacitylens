@@ -8,25 +8,25 @@ import { inspectResetValidator, resetPasswordValidator } from '#validators/crede
 /** A password reset link: whether it is still usable, and spending it to set a new password. */
 export default class PasswordResetsController {
   /** Reports whether a reset link is still usable without spending it. */
-  async show({ request, response }: HttpContext) {
+  async show({ request, response, serialize }: HttpContext) {
     setProofHeaders(response);
     const body = await request.validateUsing(inspectResetValidator, {
       data: request.body(),
     });
-    return response.ok({
+    return serialize({
       valid: await accountKit.passwordReset.inspect({ token: body.token }),
     });
   }
 
   /** Every sign-in, including any on this device, ends with the old password. */
-  async update({ request, response }: HttpContext) {
+  async update({ request, response, serialize }: HttpContext) {
     setProofHeaders(response);
     const body = await request.validateUsing(resetPasswordValidator, {
       data: request.body(),
     });
     try {
       await accountKit.passwordReset.reset({ token: body.token, password: body.newPassword });
-      return response.ok({ ok: true });
+      return serialize({ ok: true });
     } catch (error) {
       // Route wording: reset answers INVALID_TOKEN where the handler sends the Kit's own code.
       if (error instanceof InvalidTokenError) {

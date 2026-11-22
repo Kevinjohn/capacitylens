@@ -39,7 +39,7 @@ function asSession<
 async function contextToken(client: any, cookie: string) {
   const response = await asSession(client.get('/api/masquerade'), cookie).send();
   response.assertStatus(200);
-  const token = response.body()?.contextToken;
+  const token = response.body().data?.contextToken;
   if (typeof token !== 'string') throw new Error('Masquerade context token was not returned.');
   return token;
 }
@@ -63,7 +63,7 @@ async function fixture(client: any, targetRole: 'viewer' | 'editor' | 'admin' = 
   });
   owner.assertStatus(200);
   const cookie = owner.cookie('adonis-session')!.value;
-  const ownerId = String((owner.body() as { user: { id: string } }).user.id);
+  const ownerId = String((owner.body().data as { user: { id: string } }).user.id);
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
   const targetId = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -201,7 +201,7 @@ test.group('native read-only masquerade', (group) => {
       .json({ targetUserId: targetId })
       .send();
     started.assertStatus(200);
-    const mode = started.body() as { contextToken: string };
+    const mode = started.body().data as { contextToken: string };
     const capturedIdleStart = await asSession(
       client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
@@ -245,14 +245,14 @@ test.group('native read-only masquerade', (group) => {
         canSeePrivateNames: false,
         canSeeTimeOffNote,
       };
-      assert.deepEqual(grantOf(started.body()), readOnly);
+      assert.deepEqual(grantOf(started.body().data), readOnly);
       const status = await asSession(
         client.get('/api/masquerade?companyId=a-studio'),
         cookie
       ).send();
       status.assertStatus(200);
-      assert.isTrue(status.body().active);
-      assert.deepEqual(grantOf(status.body()), readOnly);
+      assert.isTrue(status.body().data.active);
+      assert.deepEqual(grantOf(status.body().data), readOnly);
     });
   }
 
@@ -266,7 +266,7 @@ test.group('native read-only masquerade', (group) => {
 
     const started = await startView(client, secondSession.cookie, targetId);
     started.assertStatus(200);
-    const activeToken = (started.body() as { contextToken: string }).contextToken;
+    const activeToken = (started.body().data as { contextToken: string }).contextToken;
 
     const staleIdleRead = await asSession(
       client.get('/api/companies/a-studio/planning'),
@@ -373,7 +373,7 @@ test.group('native read-only masquerade', (group) => {
       );
       const status = await asSession(client.get('/api/masquerade'), cookie).send();
       status.assertStatus(200);
-      const activeToken = (status.body() as { contextToken: string }).contextToken;
+      const activeToken = (status.body()!.data as { contextToken: string }).contextToken;
       const ended = await asSession(
         client.delete('/api/masquerade').header('sec-fetch-site', 'same-origin'),
         cookie,
@@ -395,7 +395,7 @@ test.group('native read-only masquerade', (group) => {
     const { cookie: sessionCookie, targetId } = await fixture(client);
     const started = await startView(client, sessionCookie, targetId);
     started.assertStatus(200);
-    const activeToken = (started.body() as { contextToken: string }).contextToken;
+    const activeToken = (started.body().data as { contextToken: string }).contextToken;
     const service = await masqueradeAdmission();
     const serviceWithTestGate = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
@@ -464,10 +464,10 @@ test.group('native read-only masquerade', (group) => {
     });
     const ownerRead = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     ownerRead.assertStatus(200);
-    assert.include(JSON.stringify(ownerRead.body()), 'Wayne Confidential Client');
+    assert.include(JSON.stringify(ownerRead.body().data), 'Wayne Confidential Client');
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
-    const state = started.body() as {
+    const state = started.body().data as {
       companyId: string;
       targetUserId: string;
       effectiveRole: string;
@@ -487,7 +487,7 @@ test.group('native read-only masquerade', (group) => {
     projected.assertStatus(200);
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
-    const active = status.body() as {
+    const active = status.body()!.data as {
       active: boolean;
       principal: { id: string; email: string };
       contextToken: string;
@@ -504,9 +504,9 @@ test.group('native read-only masquerade', (group) => {
       secondSession.cookie
     ).send();
     secondStatus.assertStatus(200);
-    assert.isTrue((secondStatus.body() as { active: boolean }).active);
+    assert.isTrue((secondStatus.body()!.data as { active: boolean }).active);
     assert.equal(
-      (secondStatus.body() as { contextToken: string }).contextToken,
+      (secondStatus.body()!.data as { contextToken: string }).contextToken,
       state.contextToken
     );
     const secondProjected = await asSession(
@@ -529,8 +529,8 @@ test.group('native read-only masquerade', (group) => {
     assert.lengthOf(await db.from('audit_entries').where('action', 'anonymise'), auditCount);
     const read = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     read.assertStatus(200);
-    assert.notInclude(JSON.stringify(read.body()), 'Wayne Confidential Client');
-    assert.include(JSON.stringify(read.body()), 'Nightwing');
+    assert.notInclude(JSON.stringify(read.body().data), 'Wayne Confidential Client');
+    assert.include(JSON.stringify(read.body().data), 'Nightwing');
     const inactiveExport = await asSession(
       client.get('/api/state?companyId=a-studio&includeInactive=1'),
       cookie
@@ -555,7 +555,7 @@ test.group('native read-only masquerade', (group) => {
       .json({ token: state.token, reason: 'explicit' })
       .send();
     ended.assertStatus(200);
-    assert.isFalse((ended.body() as { active: boolean }).active);
+    assert.isFalse((ended.body()!.data as { active: boolean }).active);
     const capturedActiveStart = await asSession(
       client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
@@ -584,7 +584,7 @@ test.group('native read-only masquerade', (group) => {
     const { cookie, targetId } = await fixture(client, 'editor');
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
-    assert.equal((started.body() as { effectiveRole: string }).effectiveRole, 'editor');
+    assert.equal((started.body().data as { effectiveRole: string }).effectiveRole, 'editor');
     const editorRead = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     editorRead.assertStatus(200);
     const examples = [
@@ -593,32 +593,32 @@ test.group('native read-only masquerade', (group) => {
           .put('/api/companies/a-studio/getting-started')
           .header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body() as { contextToken: string }).contextToken
+        (started.body().data as { contextToken: string }).contextToken
       ).json({}),
       asSession(
         client.post('/api/no-such-route').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body() as { contextToken: string }).contextToken
+        (started.body().data as { contextToken: string }).contextToken
       ).json({}),
       asSession(
         client.post('/api/masquerade').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body() as { contextToken: string }).contextToken
+        (started.body().data as { contextToken: string }).contextToken
       ).json({}),
       asSession(
         client.post('/no-such-route').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body() as { contextToken: string }).contextToken
+        (started.body().data as { contextToken: string }).contextToken
       ).json({}),
       asSession(
         client.post<string>('/api/auth/sign-in').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body() as { contextToken: string }).contextToken
+        (started.body().data as { contextToken: string }).contextToken
       ).json({}),
       asSession(
         client.post('/api/auth/register').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body() as { contextToken: string }).contextToken
+        (started.body().data as { contextToken: string }).contextToken
       ).json({}),
       asSession(client.get('/api/auth/me'), cookie),
       asSession(client.get('/api/companies/a-studio/members'), cookie),
@@ -638,7 +638,7 @@ test.group('native read-only masquerade', (group) => {
         .header('sec-fetch-site', 'same-origin')
         .header('content-type', 'application/json'),
       cookie,
-      (started.body() as { contextToken: string }).contextToken
+      (started.body().data as { contextToken: string }).contextToken
     ).setup((request) => {
       request.request.send('{');
     });
@@ -658,7 +658,7 @@ test.group('native read-only masquerade', (group) => {
       await db
         .from('masquerade_modes')
         .where({
-          actor_id: (started.body() as { principal: { id: string } }).principal?.id,
+          actor_id: (started.body().data as { principal: { id: string } }).principal?.id,
           state: 'active',
         })
         .count('* as total')
@@ -681,7 +681,7 @@ test.group('native read-only masquerade', (group) => {
       cookie
     ).send();
     elsewhere.assertStatus(200);
-    const body = elsewhere.body() as {
+    const body = elsewhere.body().data as {
       active: boolean;
       companyId: string;
       targetUserId: string;
@@ -690,7 +690,7 @@ test.group('native read-only masquerade', (group) => {
     assert.isTrue(body.active);
     assert.equal(body.companyId, 'a-studio');
     assert.equal(body.targetUserId, targetId);
-    assert.equal(body.contextToken, (started.body() as { contextToken: string }).contextToken);
+    assert.equal(body.contextToken, (started.body().data as { contextToken: string }).contextToken);
   });
 
   test('rejects self, inactive target, and malformed session authority', async ({ client }) => {
@@ -760,7 +760,7 @@ test.group('native read-only masquerade', (group) => {
     read.assertStatus(409);
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
-    const current = status.body() as { active: boolean; contextToken: string };
+    const current = status.body()!.data as { active: boolean; contextToken: string };
     assert.isFalse(current.active);
     const ended = await asSession(
       client.delete('/api/masquerade').header('sec-fetch-site', 'same-origin'),
@@ -783,7 +783,7 @@ test.group('native read-only masquerade', (group) => {
       .update({ created_at: new Date(Date.now() - 16 * 60_000).toISOString() });
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
-    assert.equal((started.body() as { targetUserId: string }).targetUserId, targetId);
+    assert.equal((started.body().data as { targetUserId: string }).targetUserId, targetId);
   });
 
   test('the scheduled prune ends an expired mode and deletes events past retention', async ({
@@ -826,7 +826,7 @@ test.group('native read-only masquerade', (group) => {
     const { cookie, ownerId, targetId } = await fixture(client);
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
-    const token = (started.body() as { contextToken: string }).contextToken;
+    const token = (started.body().data as { contextToken: string }).contextToken;
     const now = Date.now();
     await db
       .from('masquerade_modes')
@@ -838,12 +838,12 @@ test.group('native read-only masquerade', (group) => {
 
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
-    assert.isFalse((status.body() as { active: boolean }).active);
+    assert.isFalse((status.body()!.data as { active: boolean }).active);
     assert.lengthOf(
       await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'expired' }),
       1
     );
-    assert.notEqual((status.body() as { contextToken: string }).contextToken, token);
+    assert.notEqual((status.body()!.data as { contextToken: string }).contextToken, token);
     const staleWrite = await asSession(
       client.post('/api/companies/a-studio/masquerade').header('sec-fetch-site', 'same-origin'),
       cookie,
@@ -868,7 +868,7 @@ test.group('native read-only masquerade', (group) => {
       .update({ credentials_changed_at: new Date().toISOString() });
     const credentialStatus = await asSession(client.get('/api/masquerade'), cookie).send();
     credentialStatus.assertStatus(200);
-    assert.isFalse((credentialStatus.body() as { active: boolean }).active);
+    assert.isFalse((credentialStatus.body()!.data as { active: boolean }).active);
 
     const restarted = await startView(client, cookie, targetId);
     restarted.assertStatus(200);
@@ -876,7 +876,7 @@ test.group('native read-only masquerade', (group) => {
     await db.from('users').where('id', targetId).delete();
     const status = await asSession(client.get('/api/masquerade'), cookie).send();
     status.assertStatus(200);
-    assert.isFalse((status.body() as { active: boolean }).active);
+    assert.isFalse((status.body()!.data as { active: boolean }).active);
     assert.lengthOf(
       await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'invalidated' }),
       2
@@ -918,7 +918,7 @@ test.group('native read-only masquerade', (group) => {
     );
     assert.deepEqual(starts.map((response) => response.status()).sort(), [200, 409]);
     const active = starts.find((response) => response.status() === 200)!;
-    const activeToken = (active.body() as { contextToken: string }).contextToken;
+    const activeToken = (active.body() as { data: { contextToken: string } }).data.contextToken;
     const stops = await Promise.all(
       [0, 1].map(() =>
         asSession(
@@ -995,14 +995,14 @@ test.group('native read-only masquerade', (group) => {
   }) => {
     const anonymous = await client.get('/api/masquerade').send();
     anonymous.assertStatus(200);
-    assert.deepEqual(anonymous.body(), { active: false, contextToken: null });
+    assert.deepEqual(anonymous.body()!.data, { active: false, contextToken: null });
     const { cookie, targetId } = await fixture(client);
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
     await db.from('account_sessions').delete();
     const revoked = await asSession(client.get('/api/masquerade'), cookie).send();
     revoked.assertStatus(200);
-    assert.deepEqual(revoked.body(), { active: false, contextToken: null });
+    assert.deepEqual(revoked.body()!.data, { active: false, contextToken: null });
     const deniedRead = await asSession(client.get('/api/state?companyId=a-studio'), cookie).send();
     deniedRead.assertStatus(401);
     const anonymousStart = await client
@@ -1091,7 +1091,7 @@ test.group('native read-only masquerade', (group) => {
     refused.assertStatus(403);
     const status = await asSession(client.get('/api/masquerade?companyId=a-studio'), cookie).send();
     status.assertStatus(200);
-    assert.isFalse((status.body() as { active: boolean }).active);
+    assert.isFalse((status.body().data as { active: boolean }).active);
   });
 
   test('lets an Admin view as an Admin, Editor or Viewer', async ({ client, assert }) => {
@@ -1103,7 +1103,7 @@ test.group('native read-only masquerade', (group) => {
         .update({ role });
       const started = await startView(client, cookie, targetId);
       started.assertStatus(200);
-      assert.equal((started.body() as { effectiveRole: string }).effectiveRole, role);
+      assert.equal((started.body().data as { effectiveRole: string }).effectiveRole, role);
       const read = await asSession(client.get('/api/companies/a-studio/planning'), cookie).send();
       read.assertStatus(200);
       await endView(client, cookie);
@@ -1142,7 +1142,7 @@ test.group('native read-only masquerade', (group) => {
         cookie
       ).send();
       status.assertStatus(200);
-      const current = status.body() as { active: boolean; effectiveRole?: string };
+      const current = status.body().data as { active: boolean; effectiveRole?: string };
       assert.isFalse(current.active, path);
       assert.notEqual(current.effectiveRole, 'owner', path);
     }
@@ -1238,7 +1238,7 @@ test.group('native read-only masquerade', (group) => {
       const status = await asSession(client.get(path), cookie).send();
       status.assertStatus(200);
       assert.deepInclude(
-        status.body(),
+        (status.body() as { data: unknown }).data,
         { active: true, companyId: 'a-tower', effectiveRole: 'editor' },
         path
       );

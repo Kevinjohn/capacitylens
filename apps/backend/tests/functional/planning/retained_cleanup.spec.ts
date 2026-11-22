@@ -49,7 +49,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
   deleted.assertStatus(200);
   return {
     allocationId: allocation.id,
-    groupId: (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
+    groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId,
   };
 }
@@ -68,7 +68,7 @@ async function deleteExistingAllocation(client: ApiClient, cookie: string, alloc
   deleted.assertStatus(200);
   return {
     allocationId,
-    groupId: (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
+    groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId,
   };
 }

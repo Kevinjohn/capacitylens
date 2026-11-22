@@ -156,11 +156,11 @@ test.group('package proof adoption boundaries', (group) => {
     });
     const response = await issue(client, cookie);
     response.assertStatus(200);
-    assert.deepEqual(Object.keys(response.body()), ['confirmationId']);
+    assert.deepEqual(Object.keys(response.body().data), ['confirmationId']);
     assert.equal(called, 1);
     const row = await db
       .from('password_confirmations')
-      .where('id', response.body().confirmationId)
+      .where('id', response.body().data.confirmationId)
       .firstOrFail();
     assert.isNull(row.consumed_at);
   });

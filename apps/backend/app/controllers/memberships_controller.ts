@@ -7,6 +7,6 @@ export default class MembershipsController {
   /** Creates the admitted caller's missing membership; never reactivates or changes one. */
   async store(ctx: HttpContext) {
     const result = await withActor(ctx, (actor, trx) => completeMembership(actor.userId, trx));
-    return ctx.response.ok(result);
+    return ctx.serialize(result);
   }
 }

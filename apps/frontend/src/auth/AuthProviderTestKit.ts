@@ -14,9 +14,12 @@ const admittedGates = {
 export const makeMeResponse = (status: number, body: unknown) =>
   new Response(
     JSON.stringify(
+      // A 2xx answer arrives inside the `{ data }` envelope; a refusal is flat.
       status === 200 && body && typeof body === 'object' && !Array.isArray(body)
-        ? { ...admittedGates, ...body }
-        : body,
+        ? { data: { ...admittedGates, ...body } }
+        : status >= 200 && status < 300
+          ? { data: body }
+          : body,
     ),
     {
       status,

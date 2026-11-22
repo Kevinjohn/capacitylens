@@ -20,6 +20,6 @@ export default class OwnershipTransfersController {
     const receipt = await withActor(ctx, (actor, trx) =>
       transferOwnership({ trx, actor, companyId, toUserId, confirmationId, command })
     );
-    return ctx.response.ok(receipt);
+    return ctx.serialize(receipt);
   }
 }

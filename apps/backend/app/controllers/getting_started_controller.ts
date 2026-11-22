@@ -12,18 +12,20 @@ import { updateGettingStartedValidator } from '#validators/getting_started';
 
 export default class GettingStartedController {
   async show(ctx: HttpContext) {
-    const { params, response } = ctx;
-    return withActor(ctx, async (_actor, trx) => {
-      await assertCompanyPermission(params.companyId, 'planning:read', trx);
-      return response.ok({
-        dismissed: await isGettingStartedDismissed(trx, params.companyId),
-        steps: await readGettingStartedSteps(trx, params.companyId),
-      });
-    });
+    const { params, serialize } = ctx;
+    return serialize(
+      await withActor(ctx, async (_actor, trx) => {
+        await assertCompanyPermission(params.companyId, 'planning:read', trx);
+        return {
+          dismissed: await isGettingStartedDismissed(trx, params.companyId),
+          steps: await readGettingStartedSteps(trx, params.companyId),
+        };
+      })
+    );
   }
 
   async update(ctx: HttpContext) {
-    const { params, request, response } = ctx;
+    const { params, request, response, serialize } = ctx;
     const [validationError] = await request.tryValidateUsing(updateGettingStartedValidator, {
       data: request.body(),
     });
@@ -37,6 +39,6 @@ export default class GettingStartedController {
       }
       await dismissGettingStarted(trx, params.companyId, now);
     });
-    return response.ok({ dismissed: true });
+    return serialize({ dismissed: true });
   }
 }

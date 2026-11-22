@@ -13,8 +13,13 @@ import {
   signIn,
 } from './helpers.js';
 
-const body = (response: { body(): unknown }) =>
-  response.body() as { code: string; revision: number; message?: string };
+/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+const body = (response: { body(): unknown; status(): number }) =>
+  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
+    code: string;
+    revision: number;
+    message?: string;
+  };
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
@@ -639,7 +644,7 @@ test.group('planning request rule boundaries', (group) => {
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
     const row = (
-      read.body() as { data: { clients: Array<{ id: string; displayName?: string }> } }
+      read.body().data as { data: { clients: Array<{ id: string; displayName?: string }> } }
     ).data.clients.find((candidate) => candidate.id === id);
     assert.equal(row?.displayName, 'Daily Planet');
     assert.notInclude(read.text(), 'Injected');

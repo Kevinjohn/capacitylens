@@ -54,7 +54,7 @@ async function deleteForRestoration(
     })
     .send();
   response.assertStatus(200);
-  const body = response.body() as {
+  const body = response.body().data as {
     restoration: { replacementGroupId: string };
   };
   return { groupId: body.restoration.replacementGroupId, mutationId, allocationId: allocation.id };
@@ -66,7 +66,7 @@ async function proof(client: ApiClient, cookie: string, intent: unknown, action 
     .json({ action, companyId, intent, password } as never)
     .send();
   result.assertStatus(200);
-  return (result.body() as { confirmationId: string }).confirmationId;
+  return (result.body().data as { confirmationId: string }).confirmationId;
 }
 
 async function apply(
@@ -108,18 +108,18 @@ test.group('beta transfer apply', (group) => {
       .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
-    assert.deepInclude(preview.body(), {
+    assert.deepInclude(preview.body().data, {
       companyName: full.data.accounts[0]!.name,
       counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, full.data[key].length])),
     });
-    const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
+    const baseRevision = (preview.body().data as { baseRevision: number }).baseRevision;
     const confirmationId = await proof(client, cookie, {
       baseRevision,
       document: asExportFile(full),
     });
     const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
-    assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
+    assert.deepInclude(result.body().data, { changed: true, revision: baseRevision + 1 });
     const expected = structuredClone(full.data);
     expected.accounts[0]!.id = companyId;
     for (const key of [
@@ -144,7 +144,7 @@ test.group('beta transfer apply', (group) => {
       .json({ companyId, document: asExportFile(full) })
       .send();
     repeatPreview.assertStatus(200);
-    assert.isFalse((repeatPreview.body() as { changed: boolean }).changed);
+    assert.isFalse((repeatPreview.body().data as { changed: boolean }).changed);
   });
 
   test('preview replies with the reason a document is refused', async ({ client, assert }) => {
@@ -206,7 +206,7 @@ test.group('beta transfer apply', (group) => {
     const validProof = await proof(client, cookie, { baseRevision, document: asExportFile(full) });
     const unchanged = await apply(client, cookie, full, baseRevision, validProof);
     unchanged.assertStatus(200);
-    assert.deepInclude(unchanged.body(), { changed: false, revision: baseRevision });
+    assert.deepInclude(unchanged.body().data, { changed: false, revision: baseRevision });
     const again = await apply(client, cookie, full, baseRevision, validProof);
     again.assertStatus(403);
     assert.equal(await revision(), baseRevision);
@@ -238,15 +238,15 @@ test.group('beta transfer apply', (group) => {
       .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
-    assert.equal((preview.body() as { changed: boolean }).changed, true);
-    const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
+    assert.equal((preview.body().data as { changed: boolean }).changed, true);
+    const baseRevision = (preview.body().data as { baseRevision: number }).baseRevision;
     const confirmationId = await proof(client, cookie, {
       baseRevision,
       document: asExportFile(full),
     });
     const result = await apply(client, cookie, full, baseRevision, confirmationId);
     result.assertStatus(200);
-    assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
+    assert.deepInclude(result.body().data, { changed: true, revision: baseRevision + 1 });
     const after = await readState(companyId, true);
     assert.deepEqual(after, full.data);
     assert.equal(after.resources.find((row) => row.id === linkedPerson.id)?.id, linkedPerson.id);
@@ -295,7 +295,7 @@ test.group('beta transfer apply', (group) => {
     });
     const result = await apply(client, cookie, selected, baseRevision, confirmationId);
     result.assertStatus(200);
-    assert.deepInclude(result.body(), { changed: true, revision: baseRevision + 1 });
+    assert.deepInclude(result.body().data, { changed: true, revision: baseRevision + 1 });
     assert.isNull(
       await db.from('deleted_groups').where('group_id', selectedDelete.groupId).first()
     );
@@ -399,7 +399,7 @@ test.group('beta transfer apply', (group) => {
       .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
-    const baseRevision = (preview.body() as { baseRevision: number }).baseRevision;
+    const baseRevision = (preview.body().data as { baseRevision: number }).baseRevision;
     const confirmationId = await proof(client, cookie, {
       baseRevision,
       document: asExportFile(full),

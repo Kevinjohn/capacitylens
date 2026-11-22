@@ -24,6 +24,6 @@ export default class ImportsController {
       });
       return applyCompanyImport(trx, companyId, document, baseRevision, actor.userId);
     });
-    return ctx.response.ok(result);
+    return ctx.serialize(result);
   }
 }

@@ -14,12 +14,14 @@ export default class PlanningController {
       }
     );
     const window = from !== undefined && to !== undefined ? { from, to } : undefined;
-    return withActor(ctx, (actor, trx) =>
-      readPlanning(trx, companyId, window, {
-        sessionId: actor.sessionId,
-        historyId,
-        ifRevision,
-      })
+    return ctx.serialize(
+      await withActor(ctx, (actor, trx) =>
+        readPlanning(trx, companyId, window, {
+          sessionId: actor.sessionId,
+          historyId,
+          ifRevision,
+        })
+      )
     );
   }
 }

@@ -1,4 +1,5 @@
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { readApiData } from '@/api/readApiData';
 import { fetchApi, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
@@ -39,7 +40,7 @@ const parseCount = (value: unknown): number | null =>
 /** Reads the summary of a committed import response, consuming its body. */
 export async function readImportSummary(response: Response): Promise<ImportSummary> {
   // An unreadable body is an off-spec success, reported with the generic completion notice.
-  const body: unknown = await response.json().catch(() => null);
+  const body: unknown = await readApiData(response).catch(() => null);
   const imported = parseCount(isRecord(body) ? body.imported : undefined);
   const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
   const unchanged = isRecord(body) && body.changed === false;
@@ -71,7 +72,7 @@ export const companyDataRequests = {
         (await readApiError(response)) ?? m.data_import_failed({ status: response.status }),
       );
     }
-    const result: unknown = await response.json();
+    const result: unknown = await readApiData(response);
     const counts = isRecord(result) && isRecord(result.counts) ? result.counts : null;
     if (
       !isRecord(result) ||

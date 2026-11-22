@@ -32,7 +32,7 @@ test.group('password confirmation bindings', (group) => {
         .json({ action, companyId, intent, password: fixturePassword } as never)
         .send();
       response.assertStatus(200);
-      return (response.body() as { confirmationId: string }).confirmationId;
+      return (response.body().data as { confirmationId: string }).confirmationId;
     };
     const anonymiseProof = await issue('anonymise', {});
     const importProof = await issue('import', { baseRevision, document });
@@ -107,7 +107,7 @@ test.group('password confirmation bindings', (group) => {
       })
       .send();
     response.assertStatus(200);
-    const importProof = (response.body() as { confirmationId: string }).confirmationId;
+    const importProof = (response.body().data as { confirmationId: string }).confirmationId;
     const anonymise = await asDataOwner(
       client.post(`/api/companies/${companyId}/anonymise`),
       cookie

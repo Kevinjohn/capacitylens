@@ -46,7 +46,7 @@ async function readContextToken(
 ) {
   const response = await asDataOwner(client.get('/api/masquerade'), cookie).send();
   response.assertStatus(200);
-  const token = (response.body() as { contextToken?: unknown }).contextToken;
+  const token = (response.body()!.data as { contextToken?: unknown }).contextToken;
   if (typeof token !== 'string' || !token)
     throw new Error('The authenticated fixture did not provide a masquerade context.');
   return token;

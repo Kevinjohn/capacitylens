@@ -25,22 +25,24 @@ export default class SessionController {
    */
   async show(ctx: HttpContext) {
     try {
-      return await withActor(
-        ctx,
-        async (actor, trx) => {
-          const admission = await requireAdmissionDecision(actor.userId, trx);
-          const admitted = actor.emailVerified && admission.admitted;
-          return {
-            user: buildUserProjection(actor),
-            emailVerified: actor.emailVerified,
-            admission,
-            companySetupRequired:
-              admitted && (await isFirstCompanySetupRequired(actor.userId, trx)),
-            // Admitted but not yet a member: the person completes their membership explicitly.
-            membershipRequired: admitted && (await isMembershipRequired(actor.userId, trx)),
-          };
-        },
-        { limited: true }
+      return ctx.serialize(
+        await withActor(
+          ctx,
+          async (actor, trx) => {
+            const admission = await requireAdmissionDecision(actor.userId, trx);
+            const admitted = actor.emailVerified && admission.admitted;
+            return {
+              user: buildUserProjection(actor),
+              emailVerified: actor.emailVerified,
+              admission,
+              companySetupRequired:
+                admitted && (await isFirstCompanySetupRequired(actor.userId, trx)),
+              // Admitted but not yet a member: the person completes their membership explicitly.
+              membershipRequired: admitted && (await isMembershipRequired(actor.userId, trx)),
+            };
+          },
+          { limited: true }
+        )
       );
     } catch (error) {
       // Does work: a missing session reads whether any identity exists for the 401 body.
@@ -73,7 +75,7 @@ export default class SessionController {
         clientAddress: ctx.request.ip(),
         userAgent: ctx.request.header('user-agent'),
       });
-      return ctx.response.ok({ user });
+      return ctx.serialize({ user });
     } catch (error) {
       // Route wording: sign-in names a credential failure; the handler sends the Kit's generic one.
       if (error instanceof InvalidCredentialsError) {
@@ -93,6 +95,6 @@ export default class SessionController {
       if (!(error instanceof InvalidSessionError)) throw error;
     }
     await accountKit.authentication.logout(managedGuard.forRequest(ctx), undefined, current);
-    return ctx.response.ok({ ok: true });
+    return ctx.serialize({ ok: true });
   }
 }

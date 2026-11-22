@@ -58,7 +58,7 @@ assert.equal(signup.status, 201, 'First-identity setup failed');
 let cookie = await signIn();
 const mode = await fetch(`${baseUrl}/api/masquerade`, { headers: { cookie } });
 assert.equal(mode.status, 200, 'Session context lookup failed');
-const { contextToken } = await mode.json();
+const { contextToken } = (await mode.json()).data;
 assert.equal(typeof contextToken, 'string', 'Session context token is missing');
 assert.ok(contextToken, 'Session context token is empty');
 const company = await fetch(`${baseUrl}/api/installation/company`, {
@@ -83,7 +83,7 @@ assert.equal(recreated.status, 0, recreated.output);
 cookie = await signIn();
 const accounts = await fetch(`${baseUrl}/api/companies`, { headers: { cookie } });
 assert.equal(accounts.status, 200);
-const companies = await accounts.json();
+const companies = (await accounts.json()).data;
 assert.ok(
   companies.some((row) => row.name === 'Wayne Enterprises' && row.role === 'owner'),
   'The company did not survive API recreation',

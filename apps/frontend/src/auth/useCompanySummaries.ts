@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { readApiData } from '@/api/readApiData';
 import { useStore } from '@/store/useStore';
 import type { CompanySummary } from '@/store/useStore';
 import { isRole } from '@capacitylens/shared/account/types';
@@ -99,7 +100,7 @@ export async function readSoleCompanyOwnership(): Promise<boolean> {
   if (!response.ok) {
     throw new Error('Could not verify company access. Refresh the page to try again.');
   }
-  const companies: unknown = await response.json();
+  const companies: unknown = await readApiData(response);
   const company: unknown = Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
   return isRecord(company) && company.role === 'owner' && typeof company.id === 'string';
 }
@@ -121,7 +122,7 @@ export async function fetchCompanySummaries(requestOptions?: {
       }
       return null;
     }
-    const body: unknown = await res.json();
+    const body: unknown = await readApiData(res);
     const parsed = parseCompanySummaryList(body);
     reportCompanySummaryParse(parsed, isCurrent);
     if (parsed.kind === 'rejected') return null;

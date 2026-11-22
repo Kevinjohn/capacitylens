@@ -43,7 +43,7 @@ async function request<Name extends AuthRoute>(
   method: 'GET' | 'POST',
   name: Name,
   body: string | null,
-): Promise<AuthApiResult<ResponseOf<ProductRoutes[Name]>>> {
+): Promise<AuthApiResult<ResponseOf<ProductRoutes[Name]>['data']>> {
   const response = await fetchApi(buildApiRouteUrl<AuthRoute>(name, {}), {
     method,
     credentials: 'include',
@@ -52,7 +52,8 @@ async function request<Name extends AuthRoute>(
   });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) return { data: null, error: readErrorMessage(payload, response.status) };
-  return { data: payload as ResponseOf<ProductRoutes[Name]>, error: null };
+  // A success without a readable envelope carries no data, as an unreadable body did before.
+  return { data: (payload as ResponseOf<ProductRoutes[Name]> | null)?.data ?? null, error: null };
 }
 
 const post = <Name extends AuthRoute>(name: Name, body: Route.Body<Name>) =>
@@ -88,7 +89,7 @@ export const authApi = {
           error: readErrorMessage(received.response.payload, received.response.status),
         };
       }
-      if (!error) return { data, error: null };
+      if (!error) return { data: data.data, error: null };
       if (received.response) return { data: null, error: null };
       // Before a response, callers still receive the native fetch or abort failure.
       if (error.kind === 'network') throw error.cause;

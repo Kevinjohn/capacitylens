@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Route } from '@capacitylens/backend/registry';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { readApiData } from '@/api/readApiData';
 import { fetchApi } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { FormDialog } from '@/components/common/ui';
@@ -52,7 +53,7 @@ export function PasswordConfirmationDialog({
         setBusy(false);
         return;
       }
-      const result: unknown = await response.json();
+      const result: unknown = await readApiData(response);
       if (
         !result ||
         typeof result !== 'object' ||

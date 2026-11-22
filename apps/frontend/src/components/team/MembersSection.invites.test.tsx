@@ -98,15 +98,17 @@ describe('MembersSection — invite mint', () => {
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
       'GET /invites': () =>
         jsonResponse({
-          invites: [
-            {
-              id: 1,
-              role: 'viewer',
-              preauthEmail: 'existing@example.test',
-              expiresAt,
-              createdAt: '2026-07-17T00:00:00.000Z',
-            },
-          ],
+          data: {
+            invites: [
+              {
+                id: 1,
+                role: 'viewer',
+                preauthEmail: 'existing@example.test',
+                expiresAt,
+                createdAt: '2026-07-17T00:00:00.000Z',
+              },
+            ],
+          },
         }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -128,15 +130,17 @@ describe('MembersSection — invite mint', () => {
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
       'GET /invites': () =>
         jsonResponse({
-          invites: [
-            {
-              id: 2,
-              role: 'viewer',
-              preauthEmail: 'expiring@example.test',
-              expiresAt,
-              createdAt: '2026-07-17T00:00:00.000Z',
-            },
-          ],
+          data: {
+            invites: [
+              {
+                id: 2,
+                role: 'viewer',
+                preauthEmail: 'expiring@example.test',
+                expiresAt,
+                createdAt: '2026-07-17T00:00:00.000Z',
+              },
+            ],
+          },
         }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -166,10 +170,10 @@ describe('MembersSection — invite mint', () => {
       'GET /invites': () => {
         invitationReads += 1;
         return invitationReads === 1
-          ? jsonResponse({ invites: [existingInvite] })
+          ? jsonResponse({ data: { invites: [existingInvite] } })
           : jsonResponse({ error: 'Invite reload failed.' }, 503);
       },
-      'POST /api/invites': () => jsonResponse({ id: 3, emailed: true }, 201),
+      'POST /api/invites': () => jsonResponse({ data: { id: 3, emailed: true } }, 201),
     });
     vi.stubGlobal('fetch', fetchMock);
     await renderInviteSection();
@@ -190,20 +194,22 @@ describe('MembersSection — invite mint', () => {
       if (target.endsWith('/members') && isRead) {
         const second = target.includes(`/${nextCompanyId}/`);
         return jsonResponse({
-          members: [
-            second
-              ? makeRawMember({
-                  userId: 'second-owner',
-                  role: 'owner',
-                  email: 'second@example.test',
-                  isSelf: true,
-                })
-              : makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
-          ],
+          data: {
+            members: [
+              second
+                ? makeRawMember({
+                    userId: 'second-owner',
+                    role: 'owner',
+                    email: 'second@example.test',
+                    isSelf: true,
+                  })
+                : makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
+            ],
+          },
         });
       }
       if (target.endsWith('/invites') && isRead) {
-        return jsonResponse({ invites: [] });
+        return jsonResponse({ data: { invites: [] } });
       }
       if (target.endsWith('/api/invites') && init?.method === 'POST') {
         return await new Promise<Response>((resolve) => {
@@ -240,7 +246,7 @@ describe('MembersSection — invite mint', () => {
   ])('emails a new invitation and reports a %s delivery', async (status, emailed, notice) => {
     const fetchMock = mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
       'POST /api/invites': () =>
-        jsonResponse(emailed ? { id: 1, emailed } : { committed: true, emailed }, status),
+        jsonResponse({ data: emailed ? { id: 1, emailed } : { committed: true, emailed } }, status),
     });
     vi.stubGlobal('fetch', fetchMock);
     await renderInviteSection();
@@ -402,7 +408,7 @@ describe('MembersSection — invite mint', () => {
         mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
           'GET /invites': () => {
             inviteReads += 1;
-            return jsonResponse({ invites: [invite] });
+            return jsonResponse({ data: { invites: [invite] } });
           },
           'DELETE /invites/1': () => jsonResponse(body, status),
         }),
@@ -434,7 +440,7 @@ describe('MembersSection — invite mint', () => {
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
         'GET /invites': () => {
           inviteReads += 1;
-          return jsonResponse({ invites: [invite] });
+          return jsonResponse({ data: { invites: [invite] } });
         },
         'DELETE /invites/1': () => Promise.reject(new Error('revoke transport lost')),
       }),

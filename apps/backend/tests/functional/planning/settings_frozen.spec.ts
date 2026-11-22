@@ -47,7 +47,7 @@ test.group('typed company calendar settings', (group) => {
         cookie
       ).send();
       planning.assertStatus(200);
-      assert.equal(planning.body().revision, revision);
+      assert.equal(planning.body().data.revision, revision);
     }
   });
 });

@@ -4,6 +4,7 @@ import { withActor } from '#services/auth/current_actor';
 import { hasMultipleCompanies } from '#services/installation_company';
 import { buildAccessGrant } from '#services/auth/access_grant';
 import { isRole } from '@capacitylens/shared/account/types';
+import CompanySummaryTransformer from '#transformers/company_summary_transformer';
 
 /** Returns the companies this user may enter, or 409 while the installation has more than one. */
 export default class CompaniesController {
@@ -33,6 +34,6 @@ export default class CompaniesController {
         code: 'MULTIPLE_COMPANIES',
       });
     }
-    return ctx.response.ok(summaries);
+    return ctx.serialize(CompanySummaryTransformer.transform(summaries));
   }
 }

@@ -173,8 +173,8 @@ test.group('retained restoration reads', (suite) => {
     created.assertStatus(200);
     const deleted = await deleteTarget(client, cookie, 'allocations', allocation.id, 1);
     deleted.assertStatus(200);
-    const groupId = (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId;
+    const groupId = (deleted.body().data as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
     const restoredRowBeforeReuse = await db.from('allocations').where('id', allocation.id).first();
     assert.exists(restoredRowBeforeReuse);
     assert.equal(restoredRowBeforeReuse.deletion_group_id, groupId);
@@ -237,8 +237,8 @@ test.group('retained restoration reads', (suite) => {
     );
     const deleted = await deleteTarget(client, cookie, 'allocations', allocation.id, 0);
     deleted.assertStatus(200);
-    const groupId = (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId;
+    const groupId = (deleted.body().data as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
     const rowsBefore = await readState(companyId, true);
     const markersBefore = await db
       .from('planning_mutations')

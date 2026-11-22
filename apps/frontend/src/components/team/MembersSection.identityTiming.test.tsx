@@ -37,30 +37,34 @@ beforeEach(async () => {
     },
     'GET /invites': () =>
       jsonResponse({
-        invites: [
-          {
-            id: 1,
-            role: 'editor',
-            preauthEmail: 'clark@wayne.test',
-            expiresAt: '2099-01-01T00:00:00.000Z',
-            createdAt: '2026-01-01T00:00:00.000Z',
-          },
-        ],
+        data: {
+          invites: [
+            {
+              id: 1,
+              role: 'editor',
+              preauthEmail: 'clark@wayne.test',
+              expiresAt: '2099-01-01T00:00:00.000Z',
+              createdAt: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        },
       }),
     'POST /api/invites': () => {
       writes += 1;
-      return heldMutation ?? jsonResponse({ emailed: true }, 201);
+      return heldMutation ?? jsonResponse({ data: { emailed: true } }, 201);
     },
     'POST /resend': () => {
       writes += 1;
-      return heldMutation ?? jsonResponse({ emailed: true });
+      return heldMutation ?? jsonResponse({ data: { emailed: true } });
     },
     'GET /api/auth/me': () =>
       jsonResponse({
-        user: { id: currentUserId, email: `${currentUserId}@wayne.test` },
-        emailVerified: true,
-        membershipRequired: false,
-        admission: { admitted: true, requirements: {} },
+        data: {
+          user: { id: currentUserId, email: `${currentUserId}@wayne.test` },
+          emailVerified: true,
+          membershipRequired: false,
+          admission: { admitted: true, requirements: {} },
+        },
       }),
   });
   vi.stubGlobal(
@@ -70,7 +74,7 @@ beforeEach(async () => {
         invitationReads += 1;
       }
       if (String(url).includes('/api/masquerade')) {
-        return Promise.resolve(jsonResponse({ active: false, contextToken: 'idle' }));
+        return Promise.resolve(jsonResponse({ data: { active: false, contextToken: 'idle' } }));
       }
       return base(url, init);
     }),
@@ -83,12 +87,14 @@ afterEach(() => {
 });
 function directory() {
   return jsonResponse({
-    members: [
-      makeRawMember({ userId: currentUserId, role: 'owner', isSelf: true }),
-      makeRawMember({ userId: 'clark', role: 'editor', name: 'Clark Kent' }),
-    ],
-    resourceCandidates: [],
-    signInTrackingEnabled: false,
+    data: {
+      members: [
+        makeRawMember({ userId: currentUserId, role: 'owner', isSelf: true }),
+        makeRawMember({ userId: 'clark', role: 'editor', name: 'Clark Kent' }),
+      ],
+      resourceCandidates: [],
+      signInTrackingEnabled: false,
+    },
   });
 }
 function renderMembers() {
@@ -134,7 +140,7 @@ it.each(['create', 'resend'] as const)(
       const invitesBefore = invitationReads;
       useStore.getState().setNotice('Current user notice');
       await act(async () =>
-        held.resolve(jsonResponse({ emailed: true }, action === 'create' ? 201 : 200)),
+        held.resolve(jsonResponse({ data: { emailed: true } }, action === 'create' ? 201 : 200)),
       );
       expect(useStore.getState().notice?.message).toBe('Current user notice');
       expect(screen.getByRole('textbox', { name: /email/i })).toHaveValue('barbara@wayne.test');
@@ -142,7 +148,7 @@ it.each(['create', 'resend'] as const)(
       expect(invitationReads).toBe(invitesBefore);
       expect(writes).toBe(1);
     } finally {
-      await act(async () => held.resolve(jsonResponse({ emailed: true })));
+      await act(async () => held.resolve(jsonResponse({ data: { emailed: true } })));
       heldMutation = null;
     }
   },

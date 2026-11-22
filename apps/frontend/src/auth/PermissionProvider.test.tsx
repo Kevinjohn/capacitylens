@@ -70,14 +70,16 @@ function renderSharedDirectoryProvider() {
 
 function companyResponse(id: string, role: string) {
   return new Response(
-    JSON.stringify([
-      {
-        id,
-        name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries',
-        role,
-        ...(isRole(role) ? grantFor(role) : {}),
-      },
-    ]),
+    JSON.stringify({
+      data: [
+        {
+          id,
+          name: id === 'a-studio' ? 'Wayne Enterprises' : 'Stark Industries',
+          role,
+          ...(isRole(role) ? grantFor(role) : {}),
+        },
+      ],
+    }),
     {
       status: 200,
     },
@@ -164,14 +166,16 @@ describe('PermissionProvider refresh behavior', () => {
       'fetch',
       vi.fn().mockResolvedValue(
         new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeCompanyId,
-              name: 'Wayne Enterprises',
-              role: 'editor',
-              ...grantFor('editor'),
-            },
-          ]),
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role: 'editor',
+                ...grantFor('editor'),
+              },
+            ],
+          }),
           { status: 200 },
         ),
       ),
@@ -194,14 +198,16 @@ describe('PermissionProvider membership invalidation', () => {
     );
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify([
-          {
-            id: useStore.getState().activeCompanyId,
-            name: 'Wayne Enterprises',
-            role: 'owner',
-            ...grantFor('owner'),
-          },
-        ]),
+        JSON.stringify({
+          data: [
+            {
+              id: useStore.getState().activeCompanyId,
+              name: 'Wayne Enterprises',
+              role: 'owner',
+              ...grantFor('owner'),
+            },
+          ],
+        }),
         { status: 200 },
       ),
     );
@@ -230,14 +236,16 @@ describe('PermissionProvider membership generation', () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeCompanyId,
-              name: 'Wayne Enterprises',
-              role,
-              ...grantFor(role),
-            },
-          ]),
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role,
+                ...grantFor(role),
+              },
+            ],
+          }),
           { status: 200 },
         ),
     );
@@ -258,14 +266,16 @@ describe('PermissionProvider membership generation', () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(
-          JSON.stringify([
-            {
-              id: useStore.getState().activeCompanyId,
-              name: 'Wayne Enterprises',
-              role,
-              ...grantFor(role),
-            },
-          ]),
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role,
+                ...grantFor(role),
+              },
+            ],
+          }),
           { status: 200 },
         ),
     );
@@ -431,16 +441,20 @@ describe('PermissionProvider fail-closed responses', () => {
   it('publishes unavailable with no keys for a directory row without a grant', async () => {
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(
-            JSON.stringify([
-              { id: useStore.getState().activeCompanyId, name: 'Wayne Enterprises', role: 'owner' },
-            ]),
-            { status: 200 },
-          ),
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: useStore.getState().activeCompanyId,
+                name: 'Wayne Enterprises',
+                role: 'owner',
+              },
+            ],
+          }),
+          { status: 200 },
         ),
+      ),
     );
     renderProvider();
 
