@@ -8,6 +8,12 @@ export type { Route, Path } from './schema.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'api.health': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/health',
+    tokens: [[0,"api"],[0,"health"]],
+    types: placeholder as Registry['api.health']['types'],
+  },
   'api.planning.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/companies/:companyId/planning',
@@ -319,12 +325,6 @@ const routes = {
     pattern: '/api/companies/:companyId/ownership-transfer',
     tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"ownership-transfer"]],
     types: placeholder as Registry['api.ownership_transfers.store']['types'],
-  },
-  'api.health': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/health',
-    tokens: [[0,"api"],[0,"health"]],
-    types: placeholder as Registry['api.health']['types'],
   },
   'api.diagnostics.show': {
     methods: ["GET","HEAD"],

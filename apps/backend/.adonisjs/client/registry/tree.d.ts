@@ -3,6 +3,7 @@ import type { routes } from './index.ts'
 
 export interface ApiDefinition {
   api: {
+    health: typeof routes['api.health']
     planning: {
       show: typeof routes['api.planning.show']
     }
@@ -135,7 +136,6 @@ export interface ApiDefinition {
     ownershipTransfers: {
       store: typeof routes['api.ownership_transfers.store']
     }
-    health: typeof routes['api.health']
     diagnostics: {
       show: typeof routes['api.diagnostics.show']
     }

@@ -8,6 +8,19 @@ import type { routes } from './index.ts'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'api.health': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/health'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+    }
+  }
   'api.planning.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/planning'
@@ -682,19 +695,6 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ownership_transfers_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ownership_transfers_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/ownership_transfers_controller').default['store']>>>
-    }
-  }
-  'api.health': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/health'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
     }
   }
   'api.diagnostics.show': {

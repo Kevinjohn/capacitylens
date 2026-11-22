@@ -397,7 +397,10 @@ export function mapHttpError(
     return { status: 400, body: { error: error.message } };
   }
   if (error instanceof limiterErrors.E_TOO_MANY_REQUESTS) {
-    return { status: 429, body: { error: 'Rate limit exceeded.' } };
+    const headers = Object.fromEntries(
+      Object.entries(error.getDefaultHeaders()).map(([name, value]) => [name, String(value)])
+    );
+    return { status: 429, headers, body: { error: 'Rate limit exceeded.' } };
   }
   return buildParserFailureResponse(error) ?? buildFrameworkCodeResponse(error);
 }

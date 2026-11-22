@@ -319,7 +319,7 @@ Source: [Exception handling](https://docs.adonisjs.com/guides/basics/exception-h
 - The handler shows debug output in development only (departure 19). Every error leaves in the
   flat error contract, and the handler does not call `super.handle` or `super.report`
   (departure 2).
-- A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers. **Open:** #2334 item 11.
+- A 429 keeps the limiter's `X-RateLimit-*` and `Retry-After` headers.
 
 ## Responses and transformers
 
@@ -435,7 +435,7 @@ Source: [Authentication](https://docs.adonisjs.com/guides/auth/introduction),
   the product transaction through the Access Control package (departure 11).
 - Hash with the `hash` service and encrypt with the `encryption` service. No custom hashing.
 - A rate limit is a named throttle defined in `start/limiter.ts` with `limiter.define` and
-  applied with `.use()`. **Open:** #2334 item 11.
+  applied with `.use()`.
 - `config/cors.ts` lists real origins. Never pair `credentials: true` with a wildcard origin.
 - `config/shield.ts` carries CSP, HSTS, frame and content-type settings. CSRF is the Origin and
   Sec-Fetch-Site check, not Shield's token (departure 8).

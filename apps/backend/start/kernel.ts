@@ -27,7 +27,6 @@ server.use([
   // Security headers come first so static files and server-stack refusals carry them; Shield repeats them on routed responses.
   () => import('#middleware/security_headers_middleware'),
   () => import('#middleware/origin_guard_middleware'),
-  () => import('#middleware/api_rate_limit_middleware'),
   () => import('@adonisjs/static/static_middleware'),
   () => import('#middleware/force_json_response_middleware'),
   () => import('#middleware/container_bindings_middleware'),
