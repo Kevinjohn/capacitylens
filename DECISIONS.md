@@ -276,7 +276,7 @@ This is the short, present-tense record of decisions that constrain future work.
 - Members and schedulable Resources are separate records linked explicitly. Adding a Resource never
   grants access; inviting a member never creates a person. Team & access is visible to every role;
   only Owner/Admin see invitation and access-management controls.
-- View-as-member is identity-wide and read-only, with durable lifecycle audit and a fixed 15-minute
+- View as member is identity-wide and read-only, with durable lifecycle audit and a fixed 15-minute
   expiry. Every signed-in session observes the same mode on its next request; focus and visibility
   reconciliation refresh the browser. Company navigation ends the mode globally; signing out ends
   only the current session. Each company request checks both real-actor and target permissions. No

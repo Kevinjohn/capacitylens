@@ -34,7 +34,7 @@ from missing controls. See [the template](TEMPLATE.md#diagram-conventions) for m
   client/project identities, transfer ownership and perform whole-company import or anonymisation.
 - Signed-in people can manage their own account. Confirmation, admission and membership may limit
   access to company screens. A schedulable resource is separate from an account or membership.
-- View-as-member is read-only. Device display preferences and navigation do not grant write access.
+- View as member is read-only. Device display preferences and navigation do not grant write access.
 - The product serves one company. The disposable demo uses the real server and sign-in; changes
   survive refresh and reset on command restart.
 - Feature switches can hide disciplines, placeholders, external parties, inline activity creation
