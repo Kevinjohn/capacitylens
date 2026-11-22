@@ -136,7 +136,7 @@ describe('AuthProvider — server mode', () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByTestId('login-setup-needed')).toBeInTheDocument();
+    expect(await screen.findByTestId('sign-in-setup-needed')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });

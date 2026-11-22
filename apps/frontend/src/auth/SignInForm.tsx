@@ -62,7 +62,7 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
       <FieldGroup className="gap-3">
         <SignInField
           id={ids.email}
-          label={m.login_email()}
+          label={m.sign_in_email()}
           type="email"
           autoComplete="email"
           value={passwordSignIn.email}
@@ -72,7 +72,7 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
         />
         <SignInField
           id={ids.password}
-          label={m.login_password()}
+          label={m.sign_in_password()}
           type="password"
           autoComplete="current-password"
           value={passwordSignIn.password}
@@ -81,11 +81,11 @@ function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordF
           aria-describedby={passwordTooLong || error ? ids.error : undefined}
         />
         <FieldError id={ids.error}>
-          {passwordTooLong ? m.login_password_input_too_long() : error}
+          {passwordTooLong ? m.sign_in_password_input_too_long() : error}
         </FieldError>
         <div className="flex justify-end">
           <Button size="sm" type="submit" disabled={busy}>
-            {m.login_sign_in()}
+            {m.sign_in_button()}
           </Button>
         </div>
       </FieldGroup>
