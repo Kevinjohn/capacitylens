@@ -76,18 +76,9 @@ export default class ConfigurationProvider {
   /**
    * Expired sign-ins fail at once; pruning removes them at start and hourly, and with them the
    * session-bound proofs and restoration rows that cascade from each one. The same pass removes
-   * completed request receipts and expired view-as modes and events. Queued mail is sent after
-   * the request answers, so a transport failure is only visible here; the log carries the error
-   * name, never the message, which can hold an address or link.
+   * completed request receipts and expired view-as modes and events.
    */
   async ready() {
-    const emitter = await this.app.container.make('emitter');
-    emitter.on('queued:mail:error', ({ error, mailerName }) => {
-      logger.error(
-        { mailer: mailerName, errorName: error instanceof Error ? error.name : 'unknown' },
-        'Queued mail delivery failed'
-      );
-    });
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
     // Shutdown can begin while an earlier provider is still getting ready; a pass started after
     // that would reopen the database once it has been closed.
