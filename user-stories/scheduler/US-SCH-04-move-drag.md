@@ -23,7 +23,7 @@ As an Editor, I want to drag an allocation along its lane so that I can change i
 flowchart TD
   A["Editor drags an allocation body along its lane"]
   B["The bar previews its snapped date range"]
-  C["Release saves the updated dates; rejection leaves the booking unchanged"]
+  C["Release saves the updated dates; a refusal leaves the booking unchanged"]
   A --> B
   B --> C
 ```
@@ -33,7 +33,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["AllocationBar calls useAllocationGesture"] --> B["useAllocationGestureViewModel previews snapped movement"]
-  B --> C["resolveGesture preserves the dates and load policy"]
+  B --> C["resolveGesture preserves the dates and hours rules"]
   C --> D["savePointerCommit dispatches updateAllocation"]
   D --> E["planningTransport sends request to PlanningMutationsController"]
   E --> F["mutatePlanning commits writer transaction or returns refusal"]

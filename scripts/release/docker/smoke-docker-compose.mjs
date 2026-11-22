@@ -48,12 +48,12 @@ const setupLink = /"url":"([^"]+)"/.exec(bootstrap.output)?.[1];
 assert.ok(setupLink, 'The bootstrap command printed no setup link.');
 const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
 
-const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
+const signUp = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
   method: 'POST',
   headers: json,
   body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
 });
-assert.equal(signup.status, 201, 'First-identity setup failed');
+assert.equal(signUp.status, 201, 'First-identity setup failed');
 
 let cookie = await signIn();
 const mode = await fetch(`${baseUrl}/api/masquerade`, { headers: { cookie } });

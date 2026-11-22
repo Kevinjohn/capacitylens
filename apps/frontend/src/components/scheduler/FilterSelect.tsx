@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/select';
 import type { FilterOption } from './toolbarFilterOptions';
 
-/** Selects a nullable entity filter through the application's all sentinel. Resolve supplied label functions during render so account locale changes update the options. */
+/** Selects a nullable entity filter through the application's all sentinel. Resolve supplied label functions during render so company locale changes update the options. */
 export function FilterSelect({
   value,
   onValueChange,

@@ -26,7 +26,7 @@ vi.mock('./components/capacity-overview/CapacityOverviewView', () => ({
   CapacityOverviewView: () => <div>Overview content</div>,
 }));
 
-describe('router loading boundary', () => {
+describe('router loading fallback', () => {
   it('keeps top-level lazy routes inside a visible main landmark', () => {
     render(<RouteLoading />);
 
@@ -128,14 +128,14 @@ describe('Overview route access', () => {
   it('allows a viewer when the company setting allows everyone', async () => {
     await resetStoreWithCompany();
     const companyId = useStore.getState().activeCompanyId;
-    if (!companyId) throw new Error('Expected an active account');
+    if (!companyId) throw new Error('Expected an active company');
     await useStore.getState().updateCompany(companyId, { capacityOverviewAccess: 'everyone' });
     renderRoute('viewer', 'resolved');
 
     expect(await screen.findByText('Overview content')).toBeInTheDocument();
   });
 
-  it('redirects a viewer under the default policy', async () => {
+  it('redirects a viewer under the default access setting', async () => {
     await resetStoreWithCompany();
     renderRoute('viewer', 'resolved');
 

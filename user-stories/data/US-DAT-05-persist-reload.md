@@ -28,11 +28,11 @@ flowchart TD
 ```mermaid
 flowchart TD
   action["createTypedPlanningActions builds a typed intent"] --> slice["allocationSlice.sendPlanningIntent enters planningCache"]
-  slice --> controller["planningCache executes through PlanningTransport"]
-  controller --> transport["planningTransport sends the generated planning route"]
+  slice --> cache["planningCache executes through PlanningTransport"]
+  cache --> transport["planningTransport sends the generated planning route"]
   transport --> endpoint["PlanningMutationsController validates and calls mutatePlanning"]
   endpoint --> persist["mutatePlanning calls executePlanningIntent and writer in the request transaction"]
-  persist --> refresh["Controller refresh reads the canonical planning snapshot"]
+  persist --> refresh["planningCache refresh reads the canonical planning snapshot"]
   refresh --> reload["Reloaded app reads PlanningController.show into planning state"]
   endpoint --> refusal["Server refusal returns through planningCache to visible planning state"]
 ```

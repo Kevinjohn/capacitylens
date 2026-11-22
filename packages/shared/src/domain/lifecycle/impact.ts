@@ -36,7 +36,7 @@ const ARCHIVE_IMPACT_SENTINEL = '2000-01-01T00:00:00.000Z' as ISOTimestamp;
  * `clients`; a project has no descendant projects; a resource no descendant resources; an activity's
  * own row is excluded, so `projects` is reported only for a client and `timeOff` only for a resource.
  *
- * @param data   account-scoped AppData with archived rows included; the function applies the active
+ * @param data   company-scoped AppData with archived rows included; the function applies the active
  * projection itself. An active row under an archived parent is missing from that projection, so
  * passing it already projected throws for such a row.
  * @param entity which lifecycle table the archived row lives in.

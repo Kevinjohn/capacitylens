@@ -309,7 +309,7 @@ test.group('company anonymisation', (group) => {
       .from('audit_entries')
       .where('company_id', 'a-loft')
       .select('*');
-    const accountBefore = await db.from('companies').where('id', companyId).first();
+    const companyBefore = await db.from('companies').where('id', companyId).first();
     const before = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const missing = await asDataOwner(
       client.visit('api.company_anonymisations.store', { companyId }),
@@ -385,7 +385,7 @@ test.group('company anonymisation', (group) => {
         .whereNotNull('note'),
       0
     );
-    assert.deepEqual(await db.from('companies').where('id', companyId).first(), accountBefore);
+    assert.deepEqual(await db.from('companies').where('id', companyId).first(), companyBefore);
     const memberships = await db.from('memberships').where('scope_id', companyId);
     assert.isAbove(memberships.length, 0);
     assert.deepEqual(memberships, membershipBefore);
@@ -648,15 +648,15 @@ test.group('company anonymisation', (group) => {
     wrongCompany.assertStatus(403);
     assert.equal((wrongCompany.body() as unknown as { code: string }).code, 'AUTHORIZATION_DENIED');
 
-    const otherActorSignup = await signUpAndIn(client, {
+    const otherActorSignUp = await signUpAndIn(client, {
       email: 'diana.prince@wayne.example',
       password,
       name: 'Diana Prince',
     });
-    otherActorSignup.assertStatus(200);
-    const otherActorCookie = otherActorSignup.cookie('adonis-session')?.value;
+    otherActorSignUp.assertStatus(200);
+    const otherActorCookie = otherActorSignUp.cookie('adonis-session')?.value;
     assert.isString(otherActorCookie);
-    const otherActorId = String((otherActorSignup.body().data as { user: { id: string } }).user.id);
+    const otherActorId = String((otherActorSignUp.body().data as { user: { id: string } }).user.id);
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: companyId,

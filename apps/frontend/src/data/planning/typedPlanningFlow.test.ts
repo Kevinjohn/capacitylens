@@ -42,7 +42,7 @@ describe('typed planning flow', () => {
     const { cache, state } = flow(initial);
     await cache.refresh();
     const original = state().data.companies[0];
-    if (!original) throw new Error('Expected account.');
+    if (!original) throw new Error('Expected company.');
     const intentRequest = buildSettingsUpdate({
       data: state().data,
       companyId,

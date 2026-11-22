@@ -30,7 +30,7 @@ export type LifecycleAncestryLookup = (
 
 /**
  * `hidden` only when a resolved ancestor is archived or deleted; unresolved, malformed or
- * cross-account references stay `visible` because missing refs remain the FK guard's job.
+ * cross-company references stay `visible` because missing refs remain the FK guard's job.
  */
 export type LifecycleAncestryResult =
   | { kind: 'visible' }
@@ -89,7 +89,7 @@ export type LifecycleAncestryMemo = Map<string, LifecycleAncestryResult>;
 /**
  * Inspect only an entity's lifecycle ancestry, not the entity's own lifecycle state. `buildActiveData`
  * combines this with its own-state filter; generic writes reject a `hidden` result so ordinary
- * missing/cross-account references retain their existing validation messages.
+ * missing/cross-company references retain their existing validation messages.
  */
 export function inspectLifecycleAncestry(
   table: AppDataKey,
@@ -112,7 +112,7 @@ export function inspectAncestry({
     const parentId = row[relation.field];
     if (relation.optional && parentId == null) continue;
     // This projection hides lifecycle state, not integrity damage. A missing, malformed or
-    // cross-account reference is not evidence that an ancestor is archived/deleted; retain the row
+    // cross-company reference is not evidence that an ancestor is archived/deleted; retain the row
     // so normal views can surface their existing "Unknown …" fallbacks and integrity tooling can
     // diagnose it. Generic writes independently reject the broken reference.
     if (typeof parentId !== 'string') continue;

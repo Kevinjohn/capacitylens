@@ -212,7 +212,7 @@ describe('planning intent builders', () => {
 
   it('treats null and false privacy as the same public value for client and project patches', () => {
     const client = makeClient({ id: 'client-1', companyId, isPrivate: null });
-    const clientCommand = buildCatalogueUpdate({
+    const clientIntent = buildCatalogueUpdate({
       data: makeAppData({ clients: [client] }),
       companyId,
       original: client,
@@ -222,7 +222,7 @@ describe('planning intent builders', () => {
         changes: { name: 'Updated client', isPrivate: false },
       },
     });
-    expect(clientCommand).toEqual({
+    expect(clientIntent).toEqual({
       intent: {
         operation: 'catalogue.update',
         entity: { entity: 'clients', id: client.id, changes: { name: 'Updated client' } },
@@ -230,7 +230,7 @@ describe('planning intent builders', () => {
     });
 
     const project = makeProject({ id: 'project-1', companyId, isPrivate: null });
-    const projectCommand = buildCatalogueUpdate({
+    const projectIntent = buildCatalogueUpdate({
       data: makeAppData({ projects: [project] }),
       companyId,
       original: project,
@@ -240,7 +240,7 @@ describe('planning intent builders', () => {
         changes: { name: 'Updated project', isPrivate: false },
       },
     });
-    expect(projectCommand).toEqual({
+    expect(projectIntent).toEqual({
       intent: {
         operation: 'catalogue.update',
         entity: { entity: 'projects', id: project.id, changes: { name: 'Updated project' } },

@@ -22,7 +22,7 @@ async function signIn(page: Page, email: string) {
   await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
 }
 
-test('the account access setting gates viewer navigation and direct routes', async ({
+test('the company access setting gates viewer navigation and direct routes', async ({
   page,
   request,
 }) => {

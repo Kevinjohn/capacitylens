@@ -1,11 +1,11 @@
 import { test, expect } from './dbFixtures';
 import { openApp } from './browserTestKit';
 
-// Covers US-SET-06. Placeholders are a per-account view pref (`placeholdersEnabled` on the active
+// Covers US-SET-06. Placeholders are a per-company view pref (`placeholdersEnabled` on the active
 // Account, absent = false), default off, hidden everywhere out of the box, but their data is
 // untouched and returns when the switch goes on. The seed has one placeholder (r-ph-designer,
 // role "Senior Designer", bound to Project Watchtower) so the toggle is demonstrable.
-test.describe('Placeholders (per-account pref, default off)', () => {
+test.describe('Placeholders (per-company pref, default off)', () => {
   test('hidden by default: the seeded placeholder is absent from the schedule and Resources list', async ({
     page,
   }) => {

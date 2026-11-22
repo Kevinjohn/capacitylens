@@ -91,7 +91,7 @@ const RESOURCES: AppData['resources'] = [
     projectId: 'p-acme',
   },
   // External partner studio: assignable to activities but has no capacity/utilisation,
-  // once the default-off account setting is enabled, it renders neutral in its own band at the
+  // once the default-off company setting is enabled, it renders neutral in its own band at the
   // bottom of the schedule (see ResourceKind). Its working hours/days are unused silent defaults.
   {
     ...NULLABLE_FIELDS.resources,

@@ -24,12 +24,12 @@ delete unflaggedDraft.isFavourite;
 
 describe('store CRUD covers every entity', () => {
   it('companies: update', async () => {
-    const company = requireValue(s().data.companies[0], 'account');
+    const company = requireValue(s().data.companies[0], 'company');
     await s().updateCompany(company.id, { name: 'Renamed company' });
     expect(s().data.companies[0]?.name).toBe('Renamed company');
   });
   it('companies: stores working days and keeps the update undoable', async () => {
-    const company = requireValue(s().data.companies[0], 'account');
+    const company = requireValue(s().data.companies[0], 'company');
     await s().updateCompany(company.id, { workingDays: [1, 3, 5] });
     expect(s().data.companies[0]?.workingDays).toEqual([1, 3, 5]);
 
@@ -156,7 +156,7 @@ describe('store CRUD covers every entity', () => {
     );
     expect(placeholder.engagement).toBe('studio');
   });
-  it('resources: favourite updates are account data and undoable', async () => {
+  it('resources: favourite updates are company data and undoable', async () => {
     const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
     await s().updateResource(resource.id, { isFavourite: true });
@@ -165,7 +165,7 @@ describe('store CRUD covers every entity', () => {
     await s().undoPlanning();
     expect(requireValue(s().data.resources[0], 'resource')).toHaveProperty('isFavourite', null);
   });
-  it('resources: a viewer cannot change an account favourite', async () => {
+  it('resources: a viewer cannot change a company favourite', async () => {
     const resource = await requireCreated(s().addResource({ ...unflaggedDraft }));
 
     setPlanningAccess({ role: 'viewer', canWrite: false });

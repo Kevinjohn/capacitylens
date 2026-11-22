@@ -37,7 +37,7 @@ const weekly = (until: string) => ({
 });
 
 describe('atomic time-off creation: happy path', () => {
-  it('sends the first entry and the pattern, then returns every entry with unique ids, account stamps, and the copied note', async () => {
+  it('sends the first entry and the pattern, then returns every entry with unique ids, company stamps, and the copied note', async () => {
     const { draft } = await timeOffSetup();
     const publishedBatchSizes: number[] = [];
     let data = state().data;
@@ -117,11 +117,11 @@ describe('atomic time-off creation: atomic validation', () => {
 });
 
 describe('atomic time-off creation: resource validation', () => {
-  it('rejects dangling, cross-account, and external resources before publication', async () => {
+  it('rejects dangling, cross-company, and external resources before publication', async () => {
     const { draft, resource } = await timeOffSetup();
     const foreignResource: Resource = makeResource({
       id: 'foreign-resource',
-      companyId: 'foreign-account',
+      companyId: 'foreign-company',
     });
     useStore.setState({
       data: { ...state().data, resources: [...state().data.resources, foreignResource] },

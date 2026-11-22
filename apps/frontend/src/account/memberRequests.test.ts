@@ -16,7 +16,7 @@ vi.mock('@/data/requestTimeout', () => ({
 import { clearStoredAccountOperations } from './accountOperations';
 import { hasUnknownAccountOperationOutcome } from './operationOutcome';
 import { invitationRequests } from './invitationRequests';
-import { invitationSignupRequests } from './invitationSignupRequests';
+import { invitationSignUpRequests } from './invitationSignUpRequests';
 import { masqueradeRequests } from '@/auth/masqueradeRequests';
 import { memberRequests } from './memberRequests';
 import { operation, expectOperation } from './accountOperationsTestKit';
@@ -84,14 +84,14 @@ describe('browser account api', () => {
     expectOperation(unlinkInit, 'DELETE');
     expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: 'revision-1' });
   });
-  it('owns member, invitation preview, and signup routes', async () => {
+  it('owns member, invitation preview, and sign-up routes', async () => {
     await memberRequests.listMembers('company / one');
     await invitationRequests.listInvitations('company / one');
     await masqueradeRequests.startMasquerade('company / one', { targetUserId: 'person / one' });
     await masqueradeRequests.masqueradeStatus();
     await masqueradeRequests.endMasquerade({ token: 'token-1', reason: 'explicit' });
-    await invitationSignupRequests.previewInvitation('token / one');
-    await invitationSignupRequests.signupWithInvitation('token / one', {
+    await invitationSignUpRequests.previewInvitation('token / one');
+    await invitationSignUpRequests.signUpWithInvitation('token / one', {
       name: 'New user',
       password: 'example-password',
     });

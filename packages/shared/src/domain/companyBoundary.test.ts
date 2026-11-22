@@ -8,10 +8,10 @@ const rows = [
   { id: 'a-row-2', companyId: 'a' },
 ] as ScopedEntity[];
 
-describe('tenant predicates', () => {
-  it('compares the exact account id', () => {
+describe('company predicates', () => {
+  it('compares the exact company id', () => {
     const row = rows[0];
-    if (row === undefined) throw new Error('Fixture must include an account-a row.');
+    if (row === undefined) throw new Error('Fixture must include a company-a row.');
     expect(isInCompany(row, 'a')).toBe(true);
     expect(isInCompany(row, 'A')).toBe(false);
     expect(isInCompany(row, 'b')).toBe(false);

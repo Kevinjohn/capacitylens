@@ -85,7 +85,7 @@ export function buildScopeQueryKey<const T extends readonly unknown[]>(
   ] as const;
 }
 
-/** Remove every cached result before a different user or account projection can render. */
+/** Remove every cached result before a different user or company projection can render. */
 export function clearQueryCacheForScopeChange(
   cache: QueryClient,
   previous: ApiQueryScope,

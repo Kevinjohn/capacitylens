@@ -26,7 +26,7 @@ function renderDialog(action: keyof typeof requests = 'import') {
   render(
     <PasswordConfirmationDialog
       {...requests[action]}
-      companyId="account-1"
+      companyId="company-1"
       onConfirmed={onConfirmed}
       onCancel={vi.fn()}
     />,

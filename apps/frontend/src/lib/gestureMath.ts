@@ -120,7 +120,7 @@ function applyMove({
   const shiftedStart = addDaysISO(range.startDate, deltaDays);
   // The destination's week decides where the range starts. An origin with nothing to carry must
   // still snap when it is being placed in a different week: a start the destination does not work
-  // is refused at commit, so leaving it unsnapped turns the drop into a rejection toast. Within one
+  // is refused at commit, so leaving it unsnapped turns the drop into a refusal toast. Within one
   // week there is nothing to re-place, and a range already sitting on non-working days stays put.
   const snaps = deltaDays !== 0 && targetDays && (sourceSpan > 0 || placesIntoAnotherWeek);
   const newStart = snaps

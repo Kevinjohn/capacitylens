@@ -359,7 +359,7 @@ test.describe('Allocation editor', () => {
     ).toBeVisible();
   });
   test('snaps the project to a placeholder bound project when chosen', async ({ page }) => {
-    // Placeholders are hidden by default (per-account pref), turn them on in Settings first so
+    // Placeholders are hidden by default (per-company pref), turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
     await page.getByRole('link', { name: 'Settings', exact: true }).click();
     await showPlaceholders(page);

@@ -160,7 +160,7 @@ describe('MasqueradeModel cross-tab reconciliation', () => {
     expect(resume).not.toHaveBeenCalled();
   });
 
-  it('refuses an account switch when DELETE is superseded by a newer masquerade', async () => {
+  it('refuses a company switch when DELETE is superseded by a newer masquerade', async () => {
     const newer = {
       ...state,
       targetUserId: 'u-editor',
@@ -187,7 +187,7 @@ describe('MasqueradeModel cross-tab reconciliation', () => {
     expect(useStore.getState().masquerade).toMatchObject({ kind: 'active', state: newer });
   });
 
-  it('refuses an account switch when DELETE fails and keeps writes suspended', async () => {
+  it('refuses a company switch when DELETE fails and keeps writes suspended', async () => {
     const { model, dependencies, resume } = createHarness({
       api: {
         status: vi.fn(async () => ({ active: true, ...state })),

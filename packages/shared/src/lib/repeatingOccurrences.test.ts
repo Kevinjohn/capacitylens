@@ -77,7 +77,7 @@ describe('projectAllocationDates', () => {
     expect(expanded[2]).toEqual({ ...base, startDate: '2027-03-31', endDate: '2027-04-02' });
   });
 
-  it('checks External first and preserves its validated zero-load literal span in every account mode', () => {
+  it('checks External first and preserves its validated zero-load literal span in every company mode', () => {
     const base = baseDraft({ hoursPerDay: 0, ignoreWorkingDays: true });
     for (const schedulingMode of ['hourly', 'days', 'blocks'] as const) {
       const expanded = buildRepeatedAllocationDrafts(

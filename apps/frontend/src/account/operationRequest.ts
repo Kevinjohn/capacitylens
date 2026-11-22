@@ -34,7 +34,7 @@ export async function runOperation({
   try {
     const response = await request(operation);
     // A transport failure, HTTP 408, 5xx or ambiguous 409 has an unknown commit outcome, so retain
-    // the same operation. A definitive success or decoded known caller/policy rejection closes it.
+    // the same operation. A definitive success or decoded known caller or permission refusal closes it.
     const outcomeUnknown =
       response.status === ambiguousStatus || (await readUnknownAccountOperationOutcome(response));
     operationOutcomeDecisions.set(response, outcomeUnknown);

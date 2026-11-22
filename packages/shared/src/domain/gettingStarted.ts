@@ -4,7 +4,7 @@ import { resolveLifecycleStatus } from './lifecycle.js';
 
 // Getting-started milestones from a company's active projection; the server sends the result.
 
-/** Which getting-started steps the active account has completed. */
+/** Which getting-started steps the active company has completed. */
 export interface GettingStartedSteps {
   person: boolean;
   client: boolean;
@@ -14,7 +14,7 @@ export interface GettingStartedSteps {
 }
 
 /**
- * Derive checklist completion from an account's active-only scoped {@link AppData}.
+ * Derive checklist completion from a company's active-only scoped {@link AppData}.
  *
  * Production callers pass the active projection, while lifecycle checks here keep the pure
  * contract safe for imported or independently constructed data. Activity ancestry and every

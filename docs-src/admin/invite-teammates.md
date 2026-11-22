@@ -20,8 +20,8 @@ Admin can do this. An Editor or Viewer who opens **Team & access** sees their ow
 ![Team & access: Invite someone](../screenshots/flows/admin_invite_editor_form.jpg)
 
 1. Open **Team & access** and select **Invite someone**.
-2. Choose the **Role**. The dialog spells out what the role can and can't do, and **See full
-   capabilities** lists everything. [Roles and permissions](/getting-started/roles-and-permissions)
+2. Choose the **Role**. The dialog spells out what the role can and can't do, and **See all
+   permissions** lists everything. [Roles and permissions](/getting-started/roles-and-permissions)
    compares the roles.
 3. Enter the teammate's email. Only that address can accept the invitation.
 4. Select **Create invite**. CapacityLens emails the link.

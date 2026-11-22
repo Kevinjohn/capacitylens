@@ -13,7 +13,7 @@ vi.mock('@/i18n', async (importOriginal) => ({
 
 setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
-it('consumes a joined-account query only once and preserves later route queries', async () => {
+it('consumes a joined-company query only once and preserves later route queries', async () => {
   renderAppShell({
     initialEntries: [`/?joinedAccount=${DEFAULT_COMPANY_ID}`],
     includeLocationProbe: true,
@@ -26,7 +26,7 @@ it('consumes a joined-account query only once and preserves later route queries'
   );
 });
 
-it('removes only the joined-account handoff from the entry query', async () => {
+it('removes only the joined-company handoff from the entry query', async () => {
   renderAppShell({
     initialEntries: [`/?tab=security&joinedAccount=${DEFAULT_COMPANY_ID}&view=archived#members`],
     includeLocationProbe: true,
@@ -39,7 +39,7 @@ it('removes only the joined-account handoff from the entry query', async () => {
   );
 });
 
-it('waits for initial hydration before consuming a joined-account handoff', async () => {
+it('waits for initial hydration before consuming a joined-company handoff', async () => {
   useStore.getState().setActiveCompany(null);
   useStore.getState().setHydrated(false);
 
@@ -57,7 +57,7 @@ it('waits for initial hydration before consuming a joined-account handoff', asyn
   await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
 });
 
-it('does not reactivate a consumed joined-account handoff after a later account-list refresh', async () => {
+it('does not reuse a consumed joined-company handoff after a later company-list refresh', async () => {
   const otherCompanyId = 'acct-other';
   const companies = [makeCompany(), makeCompany({ id: otherCompanyId, name: 'Other Co' })];
   companyDirectory.response = companies.map(({ id, name }) => ({ id, name, role: 'owner' }));
@@ -81,7 +81,7 @@ it('does not reactivate a consumed joined-account handoff after a later account-
   expect(useStore.getState().activeCompanyId).toBe(otherCompanyId);
 });
 
-it('does not apply a late joined-account handoff after an explicit company choice', async () => {
+it('does not apply a late joined-company handoff after an explicit company choice', async () => {
   const lateCompanyId = 'acct-late';
   useStore.getState().setActiveCompany(null);
 
@@ -105,7 +105,7 @@ it('does not apply a late joined-account handoff after an explicit company choic
   expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID);
 });
 
-it('shows an installation error when the account directory contains multiple memberships', async () => {
+it('shows an installation error when the company directory contains multiple memberships', async () => {
   const companies = [makeCompany(), makeCompany({ id: 'acct-other', name: 'Other Co' })];
   companyDirectory.refused = true;
   loadPlanningData(makeAppData({ companies }));
@@ -149,7 +149,7 @@ it('loads until the directory is complete, then opens its sole company', async (
 it('waits when the sole membership role is unavailable', async () => {
   companyDirectory.response = [
     {
-      id: 'unavailable-account',
+      id: 'unavailable-company',
       name: 'Unavailable Co',
       role: 'viewer',
       roleStatus: 'unavailable',
@@ -160,7 +160,7 @@ it('waits when the sole membership role is unavailable', async () => {
     activeCompanyId: null,
     companySummaries: [
       {
-        id: 'unavailable-account',
+        id: 'unavailable-company',
         name: 'Unavailable Co',
         role: 'viewer',
         roleStatus: 'unavailable',

@@ -9,7 +9,7 @@ import test from 'node:test';
 const script = fileURLToPath(new URL('./published-image-state.sh', import.meta.url));
 
 /**
- * Runs the script against a fake `docker` whose nth call gives the nth answer (the last repeats).
+ * Runs the script against a stub `docker` whose nth call gives the nth answer (the last repeats).
  *
  * @param {Array<{ stderr?: string, status: number }>} answers
  * @param {Record<string, string>} [env]

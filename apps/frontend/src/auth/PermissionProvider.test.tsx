@@ -114,7 +114,7 @@ afterEach(() => {
 });
 
 describe('PermissionProvider authenticated lookup posture', () => {
-  it('uses the active target role without requesting account membership', async () => {
+  it('uses the active target role without requesting company membership', async () => {
     useStore.setState({
       activeCompanyId: 'a-studio',
       masquerade: {
@@ -261,7 +261,7 @@ describe('PermissionProvider membership generation', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('shares one account-directory read per membership generation with the shell hook', async () => {
+  it('shares one company-directory read per membership generation with the shell hook', async () => {
     let role: 'owner' | 'admin' = 'owner';
     const fetchMock = vi.fn(
       async () =>
@@ -294,8 +294,8 @@ describe('PermissionProvider membership generation', () => {
   });
 });
 
-describe('PermissionProvider account-switch safety', () => {
-  it('fails closed in context immediately after switching from an owner account', async () => {
+describe('PermissionProvider company-switch safety', () => {
+  it('fails closed in context immediately after switching from a company the caller owns', async () => {
     addSecondCompany();
     const b = createDeferred<Response>();
     vi.stubGlobal(
@@ -316,7 +316,7 @@ describe('PermissionProvider account-switch safety', () => {
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
   });
 
-  it("does not adopt an old account's delayed masquerade status after a switch", async () => {
+  it("does not adopt an old company's delayed masquerade status after a switch", async () => {
     addSecondCompany();
     const aStatus = createDeferred<{ active: false; masqueradeToken: string }>();
     permissionMocks.masqueradeStatus
@@ -461,7 +461,7 @@ describe('PermissionProvider fail-closed responses', () => {
     expect(await screen.findByText('unavailable:viewer:read')).toBeInTheDocument();
   });
 
-  it('does not request permissions until an active account is selected', async () => {
+  it('does not request permissions until an active company is selected', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     useStore.setState({ activeCompanyId: null });

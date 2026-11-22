@@ -37,7 +37,7 @@ vi.mock('./masqueradeModelInstance', () => ({
     }),
 }));
 
-describe('account transition boundary', () => {
+describe('company transition boundary', () => {
   beforeEach(() => {
     vi.resetModules();
     mocks.modelLoaded.mockReset();
@@ -63,7 +63,7 @@ describe('account transition boundary', () => {
     expect(mocks.adoptStatus).not.toHaveBeenCalled();
   });
 
-  it('delegates account changes to the masquerade transition boundary', async () => {
+  it('delegates company changes to the masquerade transition boundary', async () => {
     mocks.transitionCompany.mockResolvedValue(true);
     const boundary = await import('./companyTransition');
 
@@ -71,7 +71,7 @@ describe('account transition boundary', () => {
     expect(mocks.transitionCompany).toHaveBeenCalledWith('a-loft');
   });
 
-  it('delegates account clearing through the same boundary', async () => {
+  it('delegates company clearing through the same boundary', async () => {
     mocks.transitionCompany.mockResolvedValue(false);
     const boundary = await import('./companyTransition');
 

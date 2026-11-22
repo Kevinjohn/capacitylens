@@ -40,7 +40,7 @@ from missing controls. See [the template](TEMPLATE.md#diagram-conventions) for m
 - Feature switches can hide disciplines, placeholders, external parties, inline activity creation
   Task and Overview. An absence caused by a configured switch is not a removed feature.
 
-Source of role authority: [shared permissions](../packages/shared/src/domain/access.ts)
+Source of role permissions: [shared permissions](../packages/shared/src/domain/access.ts)
 [company abilities](../apps/backend/app/services/auth/authorization.ts) and each action's server
 handler. A story's role label is descriptive; the server owns enforcement.
 

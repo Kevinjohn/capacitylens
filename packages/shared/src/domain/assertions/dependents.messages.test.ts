@@ -26,7 +26,7 @@ import {
   makeBaseData,
 } from './assertionMessagesTestKit.js';
 
-// These specs check each rule's rejection message without the store or React. The server uses
+// These specs check each rule's refusal message without the store or React. The server uses
 // the same module, so these assertions pin the validation rules for both callers.
 
 describe('assertDateRange', () => {
@@ -53,11 +53,11 @@ describe('assertDateRange', () => {
 });
 
 describe('assertResourceExists', () => {
-  it('passes when the resource is in the account', () => {
+  it('passes when the resource is in the company', () => {
     const data = { ...makeBaseData(), resources: [makePerson('r1', A1)] };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).not.toThrow();
   });
-  it('throws for a missing / cross-account resource', () => {
+  it('throws for a missing / cross-company resource', () => {
     const data = { ...makeBaseData(), resources: [makePerson('r1', A2)] };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'r1' })).toThrow(
       'Time off must reference an existing resource in this company.',
@@ -242,8 +242,8 @@ describe('assertResourceKindAllowsDependents', () => {
     ).not.toThrow();
   });
 
-  it('only considers THIS resource’s dependents in THIS account', () => {
-    // Another resource's loaded allocation + a same-id dependent in a different account must not block.
+  it('only considers THIS resource’s dependents in THIS company', () => {
+    // Another resource's loaded allocation + a same-id dependent in a different company must not block.
     const data: AppData = {
       ...makeBaseData(),
       resources: [makePerson('r1', A1), makePerson('other', A1)],

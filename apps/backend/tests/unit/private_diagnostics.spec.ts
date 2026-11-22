@@ -58,7 +58,7 @@ test.group('private diagnostics', () => {
     for (const [error, status] of [
       [new InvalidSessionError(), 401],
       [new UnverifiedEmailError(), 403],
-      [new IdentityAuthorizationException('PRIVATE_AUTHORITY'), 403],
+      [new IdentityAuthorizationException('PRIVATE_AUTHORIZATION'), 403],
       [new PasswordConfirmationException(), 403],
       [new PasswordConfirmationRequiredException(), 403],
     ] as const) {

@@ -18,7 +18,7 @@ test.group('HTTP contract', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
 
-  test('validates state queries and scopes the account read', async ({ client, assert }) => {
+  test('validates state queries and scopes the company read', async ({ client, assert }) => {
     client = await resetAuthenticatedClient(client, true);
     const empty = await client.visit('api.company_state.show').qs({ companyId: '' });
     assert.equal(empty.status(), 400);

@@ -24,7 +24,7 @@ export type SchedulingMode = (typeof SCHEDULING_MODES)[number];
 export const SCHEDULING_MODES = ['hourly', 'days', 'blocks'] as const;
 /** Who may open the Capacity Overview for a company. Null means owner/admin only. */
 export type CapacityOverviewAccess = (typeof CAPACITY_OVERVIEW_ACCESS_VALUES)[number];
-/** The valid access policies; the settings validator refuses anything else. */
+/** The valid access settings; the settings validator refuses anything else. */
 export const CAPACITY_OVERVIEW_ACCESS_VALUES = [
   'owner_admin',
   'owner_admin_editor',
@@ -114,7 +114,7 @@ export interface Company extends Entity {
    * of the box, like placeholdersEnabled) so new companies start with external off. When false,
    * external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
   externalEnabled: boolean | null;
-  /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
+  /** Whether the scheduler's allocation dialog offers the inline "Add activity" input + button.
    * Null = false (hidden). When false the inline creator is not rendered; the Activity picker
    * itself still works normally. */
   inlineActivityCreateEnabled: boolean | null;

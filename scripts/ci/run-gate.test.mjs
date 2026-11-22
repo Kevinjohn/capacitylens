@@ -60,11 +60,11 @@ function fixture(t, installCommand = true) {
 }
 
 test('all gates execute their ordered commands once, from the repository, with inherited environment', (t) => {
-  const fake = fixture(t);
+  const stub = fixture(t);
   for (const gate of ['app', 'backend', 'all', 'tooling', 'static']) {
-    const result = fake.run([gate]);
+    const result = stub.run([gate]);
     assert.equal(result.status, 0, result.stderr);
-    const entries = fake.entries();
+    const entries = stub.entries();
     assert.deepEqual(
       entries.map(({ args }) => args),
       gateCommands(gate),
@@ -78,50 +78,50 @@ test('all gates execute their ordered commands once, from the repository, with i
 });
 
 test('a command failure keeps its exit code and prevents every later check', (t) => {
-  const fake = fixture(t);
+  const stub = fixture(t);
   for (const gate of ['app', 'backend', 'all']) {
     const commands = gateCommands(gate);
     const failing = commands.findIndex((args) => args.includes('policy:ports'));
     assert.ok(failing > 0);
-    const result = fake.run([gate], {
+    const result = stub.run([gate], {
       CAPACITYLENS_GATE_FAIL_COMMAND: JSON.stringify(commands[failing]),
       CAPACITYLENS_GATE_FAIL_CODE: '17',
     });
     assert.equal(result.status, 17, result.stderr);
     assert.deepEqual(
-      fake.entries().map(({ args }) => args),
+      stub.entries().map(({ args }) => args),
       commands.slice(0, failing + 1),
     );
   }
 });
 
 test('a terminated child is reported through the repository launcher policy and stops the gate', (t) => {
-  const fake = fixture(t);
+  const stub = fixture(t);
   const first = gateCommands('app')[0];
-  const result = fake.run(['app'], {
+  const result = stub.run(['app'], {
     CAPACITYLENS_GATE_FAIL_COMMAND: JSON.stringify(first),
     CAPACITYLENS_GATE_SIGNAL: 'SIGTERM',
   });
   assert.notEqual(result.status, 0);
   if (process.platform !== 'win32') assert.match(result.stderr, /terminated by SIGTERM/);
-  assert.equal(fake.entries().length, 1);
+  assert.equal(stub.entries().length, 1);
 });
 
 test('a missing executable fails visibly before another command can run', (t) => {
-  const fake = fixture(t, false);
-  const result = fake.run(['backend']);
+  const stub = fixture(t, false);
+  const result = stub.run(['backend']);
   assert.equal(result.status, 2);
   assert.match(result.stderr, /could not start/);
-  assert.deepEqual(fake.entries(), []);
+  assert.deepEqual(stub.entries(), []);
 });
 
 test('invalid modes and extra arguments fail before launching anything', (t) => {
-  const fake = fixture(t);
+  const stub = fixture(t);
   for (const args of [[], ['unknown'], ['constructor'], ['__proto__'], ['app', 'extra']]) {
-    const result = fake.run(args);
+    const result = stub.run(args);
     assert.equal(result.status, 2);
     assert.match(result.stderr, /Expected app, backend, all, tooling or static/);
-    assert.deepEqual(fake.entries(), []);
+    assert.deepEqual(stub.entries(), []);
   }
 });
 
@@ -275,13 +275,13 @@ test('backend and combined gates build application assets once before runtime ch
 });
 
 test('only the root production build receives production settings while tests retain their environment', (t) => {
-  const fake = fixture(t);
-  const result = fake.run(['app'], {
+  const stub = fixture(t);
+  const result = stub.run(['app'], {
     NODE_ENV: 'test',
     CAPACITYLENS_PUBLIC_URL: 'https://inherited.example',
   });
   assert.equal(result.status, 0, result.stderr);
-  for (const entry of fake.entries()) {
+  for (const entry of stub.entries()) {
     const build = entry.args[0] === 'run' && entry.args[1] === 'build';
     assert.equal(entry.nodeEnv, build ? 'production' : 'test', entry.args.join(' '));
     assert.equal(

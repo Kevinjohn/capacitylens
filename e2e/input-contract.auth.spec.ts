@@ -10,11 +10,11 @@ test('sign-in preserves long Unicode credentials and normalizes a maximum-length
   const email = `${localPart}@${domain}`;
   const password = '𠀀'.repeat(128);
   expect(new TextEncoder().encode(email)).toHaveLength(254);
-  const signup = await request.post(`${AUTH_API}/api/auth/sign-up`, {
+  const signUp = await request.post(`${AUTH_API}/api/auth/sign-up`, {
     data: { email, password, name: 'Bruce Wayne' },
     headers: { 'sec-fetch-site': 'same-origin' },
   });
-  expect(signup.ok()).toBeTruthy();
+  expect(signUp.ok()).toBeTruthy();
 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();

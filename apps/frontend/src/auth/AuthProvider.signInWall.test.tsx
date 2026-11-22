@@ -87,7 +87,7 @@ describe('AuthProvider — server mode', () => {
     // The body couldn't be trusted at all, so the sign-in wall says its configuration is a guess.
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
-  it('password invite routes render before sign-in so the token can onboard a new identity', async () => {
+  it('password invite routes render before sign-in so the token can sign up a new identity', async () => {
     window.history.pushState({}, '', '/invitation/invite-token');
     try {
       vi.stubGlobal(

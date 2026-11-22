@@ -54,7 +54,7 @@ With the service stopped, run `node ace.js app:upgrade` from `current/backend` u
 environment. Start the service, check `/health/ready`, then print the one-time setup link with
 `node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer` under the same
 environment. Open the link, choose a password, and enter the company name to become Owner and open
-Schedule. No company command or restart is needed. The server blocks additional open signup until
+Schedule. No company command or restart is needed. The server blocks additional open sign-up until
 the first company exists, even when enabled in configuration. Configure mail delivery before
 handover: invitations and password resets are emailed.
 

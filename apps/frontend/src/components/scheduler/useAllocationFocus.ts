@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { ID } from '@capacitylens/shared/types/entities';
 import { useStore } from '@/store/useStore';
 
-/** Focus action that locates an allocation within the active account. */
+/** Focus action that locates an allocation within the active company. */
 export type ScheduleAllocationFocus = (allocationId: ID, companyId: ID | null) => void;
 
 /** Schedules focus for an allocation after its row becomes visible. */
