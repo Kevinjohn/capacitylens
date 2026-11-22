@@ -395,8 +395,8 @@ export function assertRow(
   assert(isTimestamp(row.updatedAt), `${path}.updatedAt`, 'must be an ISO timestamp');
   if (key !== 'companies') {
     assert(
-      isId(row.accountId),
-      `${path}.accountId`,
+      isId(row.companyId),
+      `${path}.companyId`,
       'must be a bounded non-empty id without whitespace',
     );
   }

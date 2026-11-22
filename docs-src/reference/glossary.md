@@ -9,7 +9,7 @@ Each term links to the page that covers it in depth.
 
 | Term | Meaning |
 | ---- | ------- |
-| <span id="account">account</span> | In the app, **Account** is the personal page for your sign-in, password and sessions. Exports and technical records call a company an account; screens and these docs say **company**. See [Roles and permissions](/getting-started/roles-and-permissions). |
+| <span id="account">account</span> | In the app, **Account** is the personal page for your sign-in, password and sessions. Screens, exports and these docs say **company**. See [Roles and permissions](/getting-started/roles-and-permissions). |
 | <span id="activity">activity</span> | The work placed on the schedule. It can belong to one project, be internal work with no project under the built-in **Internal** client, or be reusable across all projects. See [Schedule and change work](/using/schedule-work). |
 | <span id="admin">Admin</span> | The role below Owner. An Admin can invite and manage members, see time-off notes and restore archived records, but cannot act on the Owner. The Owner transfers ownership to an eligible Admin immediately; the Admin does not separately accept. See [Roles and permissions](/getting-started/roles-and-permissions). |
 | <span id="all-projects">All projects</span> | An activity that can be booked against any active project, such as account management. Each booking may count towards one chosen active project whose client is also active; **No specific project** leaves it unattributed. See [Schedule and change work](/using/schedule-work). |

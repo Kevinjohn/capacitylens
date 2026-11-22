@@ -202,8 +202,13 @@ describe('company import failure boundaries', () => {
     const row = requireValue(document.data.clients.find((item) => !item.builtin));
     row.name = 'N'.repeat(101);
     row.isPrivate = false;
-    const file = JSON.stringify(document).replaceAll('"companyId":', '"accountId":');
+    const file = JSON.stringify(document);
     expect(() => parseCompanyExport(file)).toThrow(/data\.clients\[\d+\]\.name/);
+  });
+
+  it('refuses a file whose rows name their company accountId', () => {
+    const file = JSON.stringify(freshDocument()).replaceAll('"companyId":', '"accountId":');
+    expect(() => parseCompanyExport(file)).toThrow(/data\.disciplines\[0\]\.companyId/);
   });
 
   it.each(['closure/one', '_closure', 'götham', 'x'.repeat(129)])(
