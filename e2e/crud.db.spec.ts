@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { isPlanningMutation, openApp } from './browserTestSupport';
+import { isPlanningMutation, openApp } from './browserTestKit';
 
 test.describe('CRUD and persistent company transfer', () => {
   test('a project cannot be saved without a client', async ({ page }) => {
@@ -25,7 +25,7 @@ test.describe('CRUD and persistent company transfer', () => {
     await page.getByRole('button', { name: 'Save' }).click();
     const response = await committed;
     expect(response.status()).toBe(200);
-    expect(await response.json()).toMatchObject({ status: 'committed' });
+    expect((await response.json()).data).toMatchObject({ status: 'committed' });
 
     await expect(page.getByText('Persisted Client')).toBeVisible();
 

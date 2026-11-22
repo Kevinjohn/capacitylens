@@ -4,11 +4,11 @@ import {
   AUTH_API,
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  seedFixtureMember,
-  sendPlanningFixtureCommand,
+  createTestPerson,
+  createTestMember,
+  sendPlanningIntent,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 import { buildExternalCapacityDefaults } from '@capacitylens/shared/types/entities';
 import {
   computedStyles,
@@ -18,7 +18,7 @@ import {
   goToSeedWeek,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -42,27 +42,27 @@ async function signInAsEditor(page: Page) {
   await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
 }
 
-async function seedClosureAccount(request: APIRequestContext) {
+async function createClosureCompany(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const editor = await signUpUser(EDITOR);
   const companyId = await bootstrapOrg(request, owner.cookie, ORG);
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'settings.update',
     changes: { externalEnabled: true },
   });
 
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: IDS.person,
     name: 'Barbara Gordon',
-    role: 'Designer',
+    jobTitle: 'Designer',
   });
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'resource.create',
     id: IDS.external,
     fields: {
       kind: 'external',
       name: 'Kord Industries',
-      role: 'Partner studio',
+      jobTitle: 'Partner studio',
       avatarUrl: null,
       disciplineId: null,
       ...buildExternalCapacityDefaults(),
@@ -74,7 +74,7 @@ async function seedClosureAccount(request: APIRequestContext) {
     },
   });
 
-  seedFixtureMember(companyId, editor.email, 'editor');
+  createTestMember(companyId, editor.email, 'editor');
   return { companyId, editorCookie: editor.cookie };
 }
 
@@ -102,7 +102,9 @@ async function createClosure(
       const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
-      const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
+      const state = (
+        (await response.json()) as { data: { closures: Array<{ id: string; name: string }> } }
+      ).data;
       closureId = state.closures.find((closure) => closure.name === 'Long weekend')?.id ?? '';
       return closureId;
     })
@@ -198,7 +200,7 @@ async function assertEditedAndDeletedClosure(
       const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
-      const state = (await response.json()) as { closures: Array<{ id: string }> };
+      const state = ((await response.json()) as { data: { closures: Array<{ id: string }> } }).data;
       return state.closures.some((closure) => closure.id === closureId);
     })
     .toBe(false);
@@ -215,7 +217,9 @@ async function assertEditedAndDeletedClosure(
       const response = await request.get(`${AUTH_API}/api/state?companyId=${companyId}`, {
         headers: { cookie: editorCookie },
       });
-      const state = (await response.json()) as { closures: Array<{ id: string; name: string }> };
+      const state = (
+        (await response.json()) as { data: { closures: Array<{ id: string; name: string }> } }
+      ).data;
       return state.closures.find((closure) => closure.id === closureId)?.name;
     })
     .toBe('Studio shutdown');
@@ -225,7 +229,7 @@ test('an editor creates, edits, deletes and restores a literal company closure b
   page,
   request,
 }) => {
-  const { companyId, editorCookie } = await seedClosureAccount(request);
+  const { companyId, editorCookie } = await createClosureCompany(request);
 
   await signInAsEditor(page);
   const closureId = await createClosure(page, request, companyId, editorCookie);

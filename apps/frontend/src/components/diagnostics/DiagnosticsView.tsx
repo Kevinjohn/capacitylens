@@ -3,11 +3,11 @@ import { ListPage } from '@/components/common/ui';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Button } from '@/components/ui/button';
 import { DiagnosticsBuildDetails } from './DiagnosticsBuildDetails';
-import { useDiagnosticsController } from './useDiagnosticsController';
+import { useDiagnosticsViewModel } from './useDiagnosticsViewModel';
 
 /** Shows the privacy-safe support report exactly as it is copied, for Owners and Admins. */
 export function DiagnosticsView() {
-  const { report, copyState, copyReport } = useDiagnosticsController();
+  const { report, copyState, copyReport } = useDiagnosticsViewModel();
   return (
     <ListPage title={m.diagnostics_title()}>
       <div className="flex flex-col gap-6">

@@ -1,26 +1,26 @@
-// Each long-running local server uses a lane-derived port. A lane is an integer from 0–9, and each
-// port is `base + lane`, so ten concurrent worktrees do not overlap. Lane 0 preserves the ports
+// Each long-running local server uses a port-lane-derived port. A port lane is an integer from 0–9, and each
+// port is `base + port lane`, so ten concurrent worktrees do not overlap. Port lane 0 preserves the ports
 // used by CI, documentation, and a single checkout.
 //
-// This module is pure: it maps a lane to ports and reads already-resolved environment values.
-// Claiming a lane (and the CPU reservation that rides with it) lives in scripts/dev/laneClaims.mjs,
+// This module is pure: it maps a port lane to ports and reads already-resolved environment values.
+// Claiming a port lane (and the CPU reservation that rides with it) lives in scripts/dev/laneClaims.mjs,
 // and scripts/dev/with-lane.mjs is the launcher that owns both for the lifetime of a command.
-// Configurations only read the selected lane; the launcher owns its claim.
+// Configurations only read the selected port lane; the launcher owns its claim.
 import { availableParallelism } from 'node:os';
 
-// Ten lanes, deliberately. The auth API base is spaced from other lane bases so each
+// Ten port lanes, deliberately. The auth API base is spaced from other port lane bases so each
 // checkout receives a disjoint service set.
 /** Number of disjoint service-port lanes available to concurrent runs. */
-export const LANE_CEILING = 10;
+export const PORT_LANE_CEILING = 10;
 
-/** The launcher-selected lane key, read before configuration evaluation because global setup occurs too late to claim a lane. */
-export const LANE_ENVIRONMENT_KEY = 'CAPACITYLENS_PORT_LANE';
+/** The launcher-selected port lane key, read before configuration evaluation because global setup occurs too late to claim a port lane. */
+export const PORT_LANE_ENVIRONMENT_KEY = 'CAPACITYLENS_PORT_LANE';
 /** Environment key identifying the outer launcher’s claim so nested launchers do not release it. */
-export const LANE_CLAIM_ENVIRONMENT_KEY = 'CAPACITYLENS_LANE_CLAIM';
+export const PORT_LANE_CLAIM_ENVIRONMENT_KEY = 'CAPACITYLENS_PORT_LANE_CLAIM';
 /** Environment key containing the run’s reserved worker share. */
 export const SHARE_ENVIRONMENT_KEY = 'CAPACITYLENS_TEST_SHARE';
 
-// Lane 0 preserves the documented and CI endpoints.
+// Port lane 0 preserves the documented and CI endpoints.
 const BASES = Object.freeze({
   web: 5173,
   dbWeb: 5273,
@@ -35,63 +35,63 @@ const BASES = Object.freeze({
 
 /** First API port in the isolated browser-worker range. */
 export const WORKER_BASE = 10000;
-/** Number of API/web pairs reserved per lane. */
-export const WORKER_SLOTS_PER_LANE = 50;
+/** Number of API/web pairs reserved per port lane. */
+export const WORKER_SLOTS_PER_PORT_LANE = 50;
 
-/** Return the isolated API and web ports for a lane and stable parallel-worker slot. */
-export function workerPorts(lane, slot) {
-  assertLane(lane);
-  if (!Number.isInteger(slot) || slot < 0 || slot >= WORKER_SLOTS_PER_LANE) {
+/** Return the isolated API and web ports for a port lane and stable parallel-worker slot. */
+export function workerPorts(portLane, slot) {
+  assertPortLane(portLane);
+  if (!Number.isInteger(slot) || slot < 0 || slot >= WORKER_SLOTS_PER_PORT_LANE) {
     throw new RangeError(
-      `A worker slot must be an integer from 0 to ${WORKER_SLOTS_PER_LANE - 1}; received ${JSON.stringify(slot)}.`,
+      `A worker slot must be an integer from 0 to ${WORKER_SLOTS_PER_PORT_LANE - 1}; received ${JSON.stringify(slot)}.`,
     );
   }
-  const api = WORKER_BASE + lane * WORKER_SLOTS_PER_LANE * 2 + slot * 2;
+  const api = WORKER_BASE + portLane * WORKER_SLOTS_PER_PORT_LANE * 2 + slot * 2;
   return Object.freeze({ api, web: api + 1 });
 }
 
-/** Return an integer lane from 0 to `LANE_CEILING - 1`, or throw `RangeError`. */
-export function assertLane(lane) {
-  if (!Number.isInteger(lane) || lane < 0 || lane >= LANE_CEILING) {
+/** Return an integer port lane from 0 to `PORT_LANE_CEILING - 1`, or throw `RangeError`. */
+export function assertPortLane(portLane) {
+  if (!Number.isInteger(portLane) || portLane < 0 || portLane >= PORT_LANE_CEILING) {
     throw new RangeError(
-      `A port lane must be an integer from 0 to ${LANE_CEILING - 1}; received ${JSON.stringify(lane)}.`,
+      `A port lane must be an integer from 0 to ${PORT_LANE_CEILING - 1}; received ${JSON.stringify(portLane)}.`,
     );
   }
-  return lane;
+  return portLane;
 }
 
-/** Map a valid lane to frozen service ports; invalid lanes throw `RangeError`. */
-export function portsForLane(lane) {
-  assertLane(lane);
+/** Map a valid port lane to frozen service ports; invalid port lanes throw `RangeError`. */
+export function portsForPortLane(portLane) {
+  assertPortLane(portLane);
   return Object.freeze(
-    Object.fromEntries(Object.entries(BASES).map(([service, base]) => [service, base + lane])),
+    Object.fromEntries(Object.entries(BASES).map(([service, base]) => [service, base + portLane])),
   );
 }
 
 /**
- * Reads the selected lane without claiming it, defaulting unset or empty input to lane 0.
- * @throws RangeError when a configured lane is invalid.
+ * Reads the selected port lane without claiming it, defaulting unset or empty input to port lane 0.
+ * @throws RangeError when a configured port lane is invalid.
  */
-export function resolveLane(environment = process.env) {
-  const raw = environment[LANE_ENVIRONMENT_KEY];
+export function resolvePortLane(environment = process.env) {
+  const raw = environment[PORT_LANE_ENVIRONMENT_KEY];
   if (raw === undefined || raw === '') return 0;
-  const lane = Number(raw);
-  if (!Number.isInteger(lane)) {
+  const portLane = Number(raw);
+  if (!Number.isInteger(portLane)) {
     throw new RangeError(
-      `${LANE_ENVIRONMENT_KEY} must be an integer from 0 to ${LANE_CEILING - 1}; received ${JSON.stringify(raw)}.`,
+      `${PORT_LANE_ENVIRONMENT_KEY} must be an integer from 0 to ${PORT_LANE_CEILING - 1}; received ${JSON.stringify(raw)}.`,
     );
   }
-  return assertLane(lane);
+  return assertPortLane(portLane);
 }
 
-/** Return this process's lane-derived ports; invalid lane values throw `RangeError`. */
+/** Return this process's port-lane-derived ports; invalid port lane values throw `RangeError`. */
 export function ports(environment = process.env) {
-  return portsForLane(resolveLane(environment));
+  return portsForPortLane(resolvePortLane(environment));
 }
 
 /**
  * A run's own CPU reservation: how many test workers it may start. scripts/dev/laneClaims.mjs reserves
- * this from a machine-wide pool and exports it. A suite run by hand, outside a lane, gets the same
+ * this from a machine-wide pool and exports it. A suite run by hand, outside a port lane, gets the same
  * ceiling a solo claim would receive, half the available cores (see reservationCeiling).
  * An invalid configured value throws `RangeError`.
  */

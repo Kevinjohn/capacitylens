@@ -1,6 +1,6 @@
 import { test, expect } from './dbFixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { freezeBrowserDate } from './browserTestSupport';
+import { freezeBrowserDate } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

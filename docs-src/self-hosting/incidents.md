@@ -19,17 +19,17 @@ diagnostic details publicly.
 ## A backup failed or the disk is full
 
 Keep the service available only if its database remains safe to write. Check free space and
-permissions for `CAPACITYLENS_BACKUP_DIR`. Do not delete the only known-good snapshot to clear
-space. Copy a verified snapshot off-host, resolve the capacity issue, then run
+permissions for `CAPACITYLENS_BACKUP_DIR`. Do not delete the only known-good backup to clear
+space. Copy a verified backup off-host, resolve the capacity issue, then run
 `node ace.js db:backup create` from `backend/`. Confirm it exits successfully, names a READY bundle,
-and that the snapshot can be restored; `/health/ready` does not track backup success. For
+and that the backup can be restored; `/health/ready` does not track backup success. For
 restoration, follow
 [Backups and restore](/self-hosting/backups-and-restore).
 
 ## An upgrade failed
 
 Do not start the new release after `node ace.js app:upgrade` refuses or fails. Preserve the current
-database, the pre-upgrade snapshot and the service logs. Do not edit the migration journal
+database, the pre-upgrade backup and the service logs. Do not edit the migration journal
 or retry over a partial destination.
 Use [Upgrades](/self-hosting/upgrades) for rollback and recovery.
 
@@ -56,5 +56,5 @@ be the browser-visible HTTPS address.
 ## Preserve incident evidence
 
 Record the release version, incident time, affected operation and redacted readiness output. Keep
-the database and snapshots access-controlled. Do not share passwords, session tokens, invitation
+the database and backups access-controlled. Do not share passwords, session tokens, invitation
 links, reset links, raw customer data or unredacted request logs in public issues.

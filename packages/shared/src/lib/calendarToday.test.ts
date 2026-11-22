@@ -81,7 +81,7 @@ describe('resolveCalendarToday with mocked out-of-range years', () => {
 
     it('throws RangeError (not a silent pseudo-ISODate) when the resolved year is outside the four-digit domain', async () => {
       // Mock malformed formatter output to verify that an out-of-domain year is rejected.
-      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function FakeDateTimeFormat() {
+      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function StubDateTimeFormat() {
         return {
           formatToParts: () => [
             { type: 'year', value: '99' },
@@ -105,7 +105,7 @@ describe('resolveCalendarToday with mocked out-of-range years', () => {
       // real bug as a benign invalid-zone case and return the (wrong) local date instead of
       // throwing per the module's contract.
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function FakeDateTimeFormat() {
+      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function StubDateTimeFormat() {
         return {
           formatToParts: () => [
             { type: 'year', value: '10000' },
@@ -135,7 +135,7 @@ describe('resolveCalendarToday formatter caching', () => {
       return await import('./calendarToday.js');
     }
     it('still returns a valid zero-padded ISODate on the normal timezone path', async () => {
-      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function FakeDateTimeFormat() {
+      vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function StubDateTimeFormat() {
         return {
           formatToParts: () => [
             { type: 'year', value: '2026' },
@@ -156,7 +156,7 @@ describe('resolveCalendarToday formatter caching', () => {
       // per-zone cache is load-bearing, not incidental.
       const ctorSpy = vi
         .spyOn(Intl, 'DateTimeFormat')
-        .mockImplementation(function FakeDateTimeFormat() {
+        .mockImplementation(function StubDateTimeFormat() {
           return {
             formatToParts: () => [
               { type: 'year', value: '2026' },

@@ -33,9 +33,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["SchedulerToolbarSections button calls runHistoryAction"] --> B["SchedulerToolbar passes undoPlanning or redoPlanning"]
-  B --> C["allocationSlice delegates to planningCacheController.undo/redo"]
+  B --> C["allocationSlice delegates to planningCache.undo/redo"]
   C --> D["planningTransport executes typed history command"]
   D --> E["Store publishes response; SchedulerGrid rerenders or Toolbar shows error"]
 ```
 
-**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
+**Code references:** [SchedulerToolbarSections.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbarSections.tsx), [SchedulerToolbar.tsx](../../apps/frontend/src/components/scheduler/SchedulerToolbar.tsx), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)

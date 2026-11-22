@@ -5,8 +5,8 @@ import { useActiveScopedData, useScopedData } from '@/store/useScopedData';
 import { useFieldError } from '@/hooks/useFieldError';
 import { m } from '@/i18n';
 import {
-  FormActions,
-  Modal,
+  FormButtons,
+  FormDialog,
   RequiredLegend,
   SegmentedField,
   SelectField,
@@ -37,7 +37,10 @@ function resolveFormTitle({ resource, isPlaceholder }: ResolveFormTitleOptions) 
     : m.form_resource_add_resource_title();
 }
 
-type ResourceFieldsState = Pick<ResourceFormState, 'name' | 'setName' | 'role' | 'setRole'> &
+type ResourceFieldsState = Pick<
+  ResourceFormState,
+  'name' | 'setName' | 'jobTitle' | 'setJobTitle'
+> &
   Pick<ResourceFormState, 'disciplineId' | 'setDisciplineId' | 'engagement' | 'setEngagement'> &
   Pick<ResourceFormState, 'projectId' | 'setProjectId'>;
 
@@ -82,11 +85,11 @@ function ResourceFields(props: ResourceFieldsProps) {
           layout="label-control"
         />
         <TextField
-          label={m.form_resource_role_label()}
-          value={form.role}
-          onChange={form.setRole}
-          placeholder={m.form_resource_role_placeholder()}
-          invalid={errorField === 'role'}
+          label={m.form_resource_job_title_label()}
+          value={form.jobTitle}
+          onChange={form.setJobTitle}
+          placeholder={m.form_resource_job_title_placeholder()}
+          invalid={errorField === 'jobTitle'}
           describedById={errorId}
           layout="label-control"
         />
@@ -179,7 +182,7 @@ function ResourceFormBody({
 function buildResourceSubmitDraft(form: ResourceFormState): ResourceSubmitDraft {
   return {
     name: form.name,
-    role: form.role,
+    jobTitle: form.jobTitle,
     disciplineId: form.disciplineId,
     engagement: form.engagement,
     workingDays: form.workingDays,
@@ -231,13 +234,13 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     readActiveCompanyId: () => useStore.getState().activeCompanyId,
   });
   return (
-    <Modal
+    <FormDialog
       title={resolveFormTitle({ resource, isPlaceholder })}
       onClose={onClose}
       onSubmit={() => {
         submit().catch((cause: unknown) => fail(null, resolveErrorMessage(cause)));
       }}
-      footer={<FormActions onCancel={onClose} disabled={submitting} />}
+      footer={<FormButtons onCancel={onClose} disabled={submitting} />}
     >
       <ResourceFormBody
         form={form}
@@ -251,6 +254,6 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
         errorField={errorField}
         errorId={errorId}
       />
-    </Modal>
+    </FormDialog>
   );
 }

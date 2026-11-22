@@ -1,4 +1,4 @@
-# US-ALL-08 — The modal rejects bad input
+# US-ALL-08 — The dialog rejects bad input
 
 As an Editor, I want invalid allocation fields to be identified so that I can correct the booking before it is saved.
 
@@ -10,7 +10,7 @@ As an Editor, I want invalid allocation fields to be identified so that I can co
 
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 
 ## Acceptance criteria
 
@@ -45,7 +45,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationModal submit"] --> B["allocationSubmit.parseAllocationCommandDraft"]
+  A["AllocationDialog submit"] --> B["allocationSubmit.parseAllocationIntentDraft"]
   B --> C["validateAllocationDraft checks date range and mode quantity"]
   C -->|invalid| D["fail(field, message); return without mutation"]
   C -->|valid| E["assignment and placement checks"]
@@ -55,6 +55,6 @@ flowchart TD
 
 **Code references:**
 
-- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
 - [allocationDraft.ts](../../apps/frontend/src/components/scheduler/allocationDraft.ts)

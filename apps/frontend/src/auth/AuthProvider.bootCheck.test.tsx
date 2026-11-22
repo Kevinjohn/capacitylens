@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
-import { renderFreshProvider, makeMeResponse } from './AuthProvider.testSupport';
+import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -16,7 +16,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -138,10 +138,10 @@ describe('AuthProvider — server mode', () => {
     );
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { AuthProvider } = await renderFreshProvider();
-    const onTenantAccessReady = vi.fn();
+    const onCompanyAccessReady = vi.fn();
 
     render(
-      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
+      <AuthProvider onCompanyAccessReady={onCompanyAccessReady}>
         <div>app-content</div>
       </AuthProvider>,
     );
@@ -159,7 +159,7 @@ describe('AuthProvider — server mode', () => {
       screen.getByText('The authentication service could not be reached.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/stored-user/)).not.toBeInTheDocument();
-    expect(onTenantAccessReady).not.toHaveBeenCalled();
+    expect(onCompanyAccessReady).not.toHaveBeenCalled();
   });
   it.each([
     ['no user', null],

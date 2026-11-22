@@ -5,7 +5,7 @@ import {
   commitPlanningChange,
   openApp,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 async function moveDianaToSupplementary(page: Page) {
   await page
@@ -92,7 +92,7 @@ test(
       element.scrollTop = element.scrollHeight;
     });
     await expect(
-      page.getByTestId('discipline-group').filter({ hasText: 'External / 3rd party' }),
+      page.getByTestId('discipline-group').filter({ hasText: 'External party' }),
     ).toBeVisible();
     await expect(page.getByLabel('Filter by discipline')).toHaveCount(0);
 

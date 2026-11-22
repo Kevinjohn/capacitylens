@@ -11,7 +11,7 @@ import {
   geom,
   start,
   makeDatasetWithExternal,
-} from './schedulerModel.testSupport';
+} from './schedulerModelTestKit';
 
 describe('buildSchedulerModel — mutation-testing gap-fill', () => {
   it('positions overlapping bars on the SAME resource at DIFFERENT lane tops (laneById is a real Map, not empty)', () => {

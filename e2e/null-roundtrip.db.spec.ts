@@ -1,6 +1,6 @@
 import { expect, test } from './dbFixtures';
 import type { APIRequestContext, Page } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 import { API } from './serverTestState';
 
 type Availability = {
@@ -12,7 +12,7 @@ type Availability = {
 async function persistedAvailability(request: APIRequestContext): Promise<Availability> {
   const response = await request.get(`${API}/api/state?companyId=a-studio&includeInactive=1`);
   expect(response.status()).toBe(200);
-  const state = (await response.json()) as { resources: Availability[] };
+  const state = ((await response.json()) as { data: { resources: Availability[] } }).data;
   const resource = state.resources.find(({ id }) => id === 'r-tyler');
   if (!resource) throw new Error('The seeded person must survive availability edits');
   expect(resource).toHaveProperty('firstAvailableDate');

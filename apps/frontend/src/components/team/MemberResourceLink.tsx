@@ -2,8 +2,8 @@ import { isOwnerOrAdmin } from '@capacitylens/shared/domain/access';
 import { useEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessClient';
-import { Modal, SelectField } from '@/components/common/ui';
+import type { TeamMember } from '@/account/teamAccessApi';
+import { FormDialog, SelectField } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { Link as LinkIcon } from 'lucide-react';
 import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
@@ -57,7 +57,7 @@ function buildMemberResourceView(
   };
 }
 
-/** Account-admin control linking a login member to one eligible person Resource. */
+/** Account-admin control linking a member to one eligible person Resource. */
 export function MemberResourceLink(props: MemberResourceLinkProps) {
   const { member, myRole, linkedResourceIds, resourceCandidates } = props;
   if (!isOwnerOrAdmin(myRole)) return <td className="py-2 px-4" />;
@@ -193,11 +193,11 @@ export function MemberResourceDialog({
         <LinkIcon />
       </Button>
       {open && (
-        <Modal
+        <FormDialog
           title={m.settings_member_col_scheduled_person()}
           description={memberLabel}
           onClose={() => setOpen(false)}
-          guardDirty={false}
+          warnOnDirty={false}
           footer={
             <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
               {m.settings_help_close()}
@@ -210,7 +210,7 @@ export function MemberResourceDialog({
             request={request}
             view={buildMemberResourceView(member, linkedResourceIds, resourceCandidates)}
           />
-        </Modal>
+        </FormDialog>
       )}
     </>
   );

@@ -7,18 +7,18 @@ import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import { PostCommitError } from '@kevinjohn/adonisjs-account-kit/errors';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import {
   captureMail,
   clearIdentities,
   createIdentity,
   signIn,
   expectStatus,
-} from '../../helpers/identities.js';
+} from '#tests/helpers/identities';
 
 const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
@@ -64,12 +64,12 @@ test.group('admission and membership completion', (group) => {
   }) => {
     captureMail(cleanup);
     const body = { error: 'Sign-in required.', code: 'SIGN_IN_REQUIRED', passwordResetEmail: true };
-    const first = await client.get('/api/auth/me').send();
+    const first = await client.visit('api.session.show').send();
     first.assertStatus(401);
     assert.deepEqual(first.body(), { ...body, needsSetup: true });
 
     await createIdentity(person);
-    const existing = await client.get('/api/auth/me').send();
+    const existing = await client.visit('api.session.show').send();
     existing.assertStatus(401);
     assert.deepEqual(existing.body(), body);
   });
@@ -83,24 +83,24 @@ test.group('admission and membership completion', (group) => {
     const { cookie } = await signIn(api, person, password);
     const status = await as(cookie).get(api, '/api/admission');
     status.assertStatus(200);
-    assert.isFalse(status.body().decision.admitted);
+    assert.isFalse(status.body().data.decision.admitted);
     await expectStatus(planning(api, cookie), 403);
     await expectStatus(as(cookie).post(api, '/api/admission/complete'), 403);
     const requested = await as(cookie).post(api, '/api/admission/request');
     requested.assertStatus(200);
-    assert.isString(requested.body().requestedAt);
+    assert.isString(requested.body().data.requestedAt);
     const pending = await as(ownerSession.cookie).get(
       api,
       '/api/admission/requests?status=pending'
     );
     pending.assertStatus(200);
     assert.deepEqual(
-      pending.body().items.map((item: { userId: string }) => String(item.userId)),
+      pending.body().data.items.map((item: { userId: string }) => String(item.userId)),
       [userId]
     );
     const approved = await as(ownerSession.cookie).post(api, `/api/admission/${userId}/approve`);
     approved.assertStatus(200);
-    assert.equal(approved.body().approval.status, 'approved');
+    assert.equal(approved.body().data.approval.status, 'approved');
     const revision = async () => {
       const row = await db
         .from('company_planning_revisions')
@@ -110,16 +110,16 @@ test.group('admission and membership completion', (group) => {
     };
     const membershipRequired = async () => {
       const me = await as(cookie).get(api, '/api/auth/me');
-      return me.body().membershipRequired;
+      return me.body().data.membershipRequired;
     };
     assert.isTrue(await membershipRequired());
     const before = await revision();
     const completed = await as(cookie).post(api, '/api/admission/complete');
     completed.assertStatus(200);
-    assert.deepEqual(completed.body(), { companyId, role: 'editor', created: true });
+    assert.deepEqual(completed.body().data, { companyId, role: 'editor', created: true });
     assert.equal(await revision(), before + 1);
     const again = await as(cookie).post(api, '/api/admission/complete');
-    assert.deepEqual(again.body(), { companyId, role: 'editor', created: false });
+    assert.deepEqual(again.body().data, { companyId, role: 'editor', created: false });
     assert.isFalse(await membershipRequired());
     await expectStatus(planning(api, cookie), 200);
   });
@@ -133,21 +133,21 @@ test.group('admission and membership completion', (group) => {
     const firstSignIn = await signIn(api, recoveryEmail, password);
     const pending = await as(firstSignIn.cookie).get(api, '/api/admission');
     pending.assertStatus(200);
-    assert.isFalse(pending.body().decision.admitted);
-    assert.isFalse(pending.body().decision.requirements.invitation.met);
+    assert.isFalse(pending.body().data.decision.admitted);
+    assert.isFalse(pending.body().data.decision.requirements.invitation.met);
 
     const admission = await app.container.make(AccountAdmission);
     await admission.operator.grantInvitation({ email: recoveryEmail, role: 'admin' });
     const invited = await as(firstSignIn.cookie).get(api, '/api/admission');
     invited.assertStatus(200);
-    assert.isFalse(invited.body().decision.admitted);
-    assert.isTrue(invited.body().decision.requirements.invitation.met);
+    assert.isFalse(invited.body().data.decision.admitted);
+    assert.isTrue(invited.body().data.decision.requirements.invitation.met);
     await admission.operator.approve({ email: recoveryEmail });
 
     const secondSignIn = await signIn(api, recoveryEmail, password);
     const admitted = await as(secondSignIn.cookie).get(api, '/api/admission');
     admitted.assertStatus(200);
-    assert.isTrue(admitted.body().decision.admitted);
+    assert.isTrue(admitted.body().data.decision.admitted);
     const recoveryUsers = await db.from('users').where('email', recoveryEmail).select('id');
     assert.equal(recoveryUsers.length, 1);
   });
@@ -161,7 +161,7 @@ test.group('admission and membership completion', (group) => {
     await as(ownerSession.cookie).post(api, `/api/admission/${userId}/approve`);
     const { cookie } = await signIn(api, person, password);
     const completed = await as(cookie).post(api, '/api/admission/complete');
-    assert.deepEqual(completed.body(), { companyId, role: 'viewer', created: true });
+    assert.deepEqual(completed.body().data, { companyId, role: 'viewer', created: true });
   });
 
   test('rejection and revocation deny company data on the next request', async ({
@@ -265,7 +265,7 @@ test.group('address confirmation', (group) => {
     const token = mail.tokenFor(person);
     const inspect = async () => {
       const response = await as(cookie).post(api, '/api/auth/verification/inspect', { token });
-      return (response.body() as { valid: boolean }).valid;
+      return (response.body() as { data: { valid: boolean } }).data.valid;
     };
     assert.isTrue(await inspect());
     assert.isTrue(await inspect(), 'inspection does not spend the link');
@@ -284,9 +284,9 @@ test.group('address confirmation', (group) => {
     assert.isFalse(await inspect());
     const signedIn = await signIn(api, person, chosen);
     const me = await as(signedIn.cookie).get(api, '/api/auth/me');
-    assert.isTrue(me.body().emailVerified);
+    assert.isTrue(me.body().data.emailVerified);
     const old = await api
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email: person, password })
       .send();

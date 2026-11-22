@@ -7,17 +7,17 @@ import {
   bootstrapOrg,
   signUpUser as signUp,
   signUpUserWithId,
-  seedFixtureMember,
-  masqueradeContextHeaders,
-} from './authTestSupport';
-import { waitForAppLanding, selectShadOption } from './browserTestSupport';
+  createTestMember,
+  masqueradeTokenHeaders,
+} from './authTestKit';
+import { waitForAppLanding, selectShadOption } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 // This spec exercises owner and admin member management against the password-mode auth server. Owner A
 // creates the first company and seeds admin B plus editor C in the disposable database. As B, it changes C's
 // role, creates and revokes an invite, and verifies that owners cannot be assigned or changed, that
-// nobody changes their own membership, and that members cannot be read across accounts. Owner A then
+// nobody changes their own membership, and that members cannot be read across companies. Owner A then
 // suspends and restores C from the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
 const STAMP = Date.now();
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`;
@@ -35,31 +35,31 @@ async function setupMembersApi(request: APIRequestContext) {
     [admin, 'admin'],
     [editor, 'editor'],
   ] as const) {
-    seedFixtureMember(companyId, who.email, role);
+    createTestMember(companyId, who.email, role);
   }
   const grant = await request.patch(`${API}/api/companies/${companyId}/members/${editor.userId}`, {
-    headers: await masqueradeContextHeaders(request, admin.cookie),
+    headers: await masqueradeTokenHeaders(request, admin.cookie),
     data: { role: 'owner' },
   });
   expect(grant.status()).toBe(400);
   const touchOwner = await request.patch(
     `${API}/api/companies/${companyId}/members/${owner.userId}`,
     {
-      headers: await masqueradeContextHeaders(request, admin.cookie),
+      headers: await masqueradeTokenHeaders(request, admin.cookie),
       data: { role: 'editor' },
     },
   );
   expect(touchOwner.status()).toBe(403);
   // Only the current Owner can confirm the atomic handover, covered by ownership-transfer.auth.spec.
   const adminTransfer = await request.post(`${API}/api/companies/${companyId}/ownership-transfer`, {
-    headers: await masqueradeContextHeaders(request, admin.cookie),
+    headers: await masqueradeTokenHeaders(request, admin.cookie),
     data: { toUserId: editor.userId },
   });
   expect(adminTransfer.status()).toBe(403);
   const selfSuspend = await request.patch(
     `${API}/api/companies/${companyId}/members/${owner.userId}/status`,
     {
-      headers: await masqueradeContextHeaders(request, owner.cookie),
+      headers: await masqueradeTokenHeaders(request, owner.cookie),
       data: { status: 'suspended' },
     },
   );
@@ -67,18 +67,18 @@ async function setupMembersApi(request: APIRequestContext) {
   const selfRole = await request.patch(
     `${API}/api/companies/${companyId}/members/${owner.userId}`,
     {
-      headers: await masqueradeContextHeaders(request, owner.cookie),
+      headers: await masqueradeTokenHeaders(request, owner.cookie),
       data: { role: 'editor' },
     },
   );
   expect(selfRole.status()).toBe(403);
-  const crossTenant = await request.get(
+  const crossCompany = await request.get(
     `${API}/api/companies/some-other-account-${STAMP}/members`,
     {
       headers: { cookie: admin.cookie },
     },
   );
-  expect(crossTenant.status()).toBe(403);
+  expect(crossCompany.status()).toBe(403);
   return { owner, admin, editor, companyId };
 }
 
@@ -114,9 +114,9 @@ async function manageAdminMembers(
   await expect(page.getByTestId('current-access')).toContainText('Admin');
   await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
   await expect(page.getByText('View the schedule')).toHaveCount(0);
-  await page.getByTestId('capabilities-toggle').click();
+  await page.getByTestId('permissions-toggle').click();
   await expect(page.getByText('View the schedule')).toBeVisible();
-  await page.getByTestId('capabilities-toggle').click();
+  await page.getByTestId('permissions-toggle').click();
   const rows = page.getByTestId('member-row');
   await expect(rows).toHaveCount(3);
   await expect(page.getByText(OWNER)).toBeVisible();
@@ -137,7 +137,7 @@ async function manageAdminMembers(
       const res = await request.get(`${API}/api/companies/${companyId}/members`, {
         headers: { cookie: admin.cookie },
       });
-      const members = (await res.json()).members as Array<{ userId: string; role: string }>;
+      const members = (await res.json()).data.members as Array<{ userId: string; role: string }>;
       return members.find((member) => member.userId === editor.userId)?.role;
     })
     .toBe('viewer');
@@ -161,7 +161,7 @@ async function assertOwnershipIsNotAMemberRowAction(
 ) {
   await expect(ownerPage.getByTestId('member-make-owner')).toHaveCount(0);
   const retired = await request.post(`${API}/api/companies/${companyId}/transfer-ownership`, {
-    headers: await masqueradeContextHeaders(request, owner.cookie),
+    headers: await masqueradeTokenHeaders(request, owner.cookie),
     data: { toUserId: editor.userId },
   });
   expect(retired.status()).toBe(404);
@@ -205,7 +205,7 @@ async function manageOwnerMembers(
       const res = await request.get(`${API}/api/companies/${companyId}/members`, {
         headers: { cookie: owner.cookie },
       });
-      const members = (await res.json()).members as Array<{ userId: string; status: string }>;
+      const members = (await res.json()).data.members as Array<{ userId: string; status: string }>;
       return members.find((member) => member.userId === editor.userId)?.status;
     })
     .toBe('suspended');
@@ -232,7 +232,7 @@ async function manageOwnerMembers(
   );
 }
 
-test('admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak', async ({
+test('admin manages members but not owner-only ops; ownership changes only by transfer; no cross-company leak', async ({
   page,
   request,
   newObservedContext,

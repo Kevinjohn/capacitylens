@@ -26,10 +26,10 @@ flowchart TD
 ```mermaid
 flowchart TD
   entry["AccountView or AccessScreen calls auth.signOut"] --> provider["AuthProvider signOut delegates to signOutAndReload"]
-  provider --> client["authClient.signOut posts sign-out"]
-  client --> route["auth_routes maps sign-out to AuthController.signOut"]
+  provider --> client["authApi.signOut posts sign-out"]
+  client --> route["auth_routes maps sign-out to SessionController.destroy"]
   route --> kit["Account Kit authentication.logout ends this session"]
   kit --> reload["signOutAndReload reloads the page"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [signOut.ts](../../apps/frontend/src/auth/signOut.ts), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [auth_controller.ts](../../apps/backend/app/controllers/auth_controller.ts)
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [signOut.ts](../../apps/frontend/src/auth/signOut.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [session_controller.ts](../../apps/backend/app/controllers/session_controller.ts)

@@ -196,7 +196,7 @@ async function exerciseDialogs(page, { origin, resourceName, outputDir }) {
     await orientation.getByRole('button', { name: 'Got it' }).click();
 
   // Real overflow makes scrollbar compensation measurable even on this one-person installation.
-  // Only fixture geometry is added; native app controls, stylesheets and modal code stay unchanged.
+  // Only fixture geometry is added; native app controls, stylesheets and dialog code stay unchanged.
   await page.evaluate(() => {
     const spacer = document.createElement('div');
     spacer.id = 'packaged-scroll-fixture';

@@ -9,7 +9,7 @@ interface BuildGesturePreviewDatesInput {
   mode: DragMode;
   deltaDays: number;
   /** The lane the pointer is over: the week the previewed range is placed in, and the one the
-   * drop gate below judges. */
+   * drop check below judges. */
   previewDays: Weekday[] | undefined;
   /** The dragged bar's own week, passed only when the pointer is over a different lane. It sizes
    * the previewed range so the preview matches what the commit will write. */

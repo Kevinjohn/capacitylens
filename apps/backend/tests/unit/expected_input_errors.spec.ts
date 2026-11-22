@@ -4,7 +4,7 @@ import { errors as vineErrors } from '@vinejs/vine';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import { seed } from '@capacitylens/shared/data/seed';
 import GettingStartedController from '#controllers/getting_started_controller';
 import { parseRequestDocument } from '#services/company_import';
@@ -45,7 +45,9 @@ test.group('expected input errors', () => {
         params: { companyId: 'a-studio' },
         request: {
           body: () => ({}),
-          validateUsing: async () => {
+          // Mirrors the framework: Vine failures are returned, anything else is re-thrown.
+          tryValidateUsing: async () => {
+            if (failure instanceof vineErrors.E_VALIDATION_ERROR) return [failure, null];
             throw failure;
           },
         },

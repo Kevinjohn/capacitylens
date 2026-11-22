@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isRole } from '@capacitylens/shared/account/types';
 import { m } from '@/i18n';
-import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
-import type { AdmissionRequest } from '@/account/teamAccessClient';
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
+import type { AdmissionRequest } from '@/account/teamAccessApi';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ type Listing =
 
 async function fetchListing(signal: AbortSignal): Promise<Listing> {
   try {
-    const result = await teamAccessClient.listAdmissionRequests(signal);
+    const result = await teamAccessApi.listAdmissionRequests(signal);
     return result.kind === 'ok' ? { kind: 'ready', requests: result.value } : { kind: 'failed' };
   } catch (failure) {
     // A retired panel cannot surface a late read failure to its successor context.
@@ -55,10 +55,10 @@ export function AdmissionRequestsPanel() {
     setBusy(true);
     setError(null);
     try {
-      const result = await teamAccessClient.decideAdmission(request.userId, decision);
+      const result = await teamAccessApi.decideAdmission(request.userId, decision);
       if (controllerRef.current !== controller) return;
       if (result.kind !== 'ok') {
-        setError(resolveRejectionMessage(result, m.settings_admission_failed()));
+        setError(resolveRefusalMessage(result, m.settings_admission_failed()));
       }
       await load(signal);
     } catch (failure) {

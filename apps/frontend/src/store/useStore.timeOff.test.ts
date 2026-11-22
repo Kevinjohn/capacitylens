@@ -7,12 +7,12 @@ import {
   makeResource,
   makeResourceDraft,
   resetStoreWithCompany,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
-import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningFixtures';
+import { queueTimeOffRepeatResponse } from '@/test/planning/queuePlanningTestKit';
 
 const state = () => useStore.getState();
 
@@ -97,11 +97,7 @@ describe('atomic time-off creation: atomic validation', () => {
       }
     });
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
-        'The server refused the time-off batch.',
-        'VALIDATION_ERROR',
-        400,
-      ),
+      new PlanningCacheError('The server refused the time-off batch.', 'VALIDATION_ERROR', 400),
     );
     await expect(
       requireCreated(state().addRepeatedTimeOff(draft(), weekly('2026-06-15'), 3)),
@@ -157,7 +153,7 @@ describe('atomic time-off creation: resource validation', () => {
       requireCreated(
         state().addRepeatedTimeOff(draft({ resourceId: external.id }), weekly('2026-06-08'), 2),
       ),
-    ).rejects.toThrow(/external.*3rd-party/i);
+    ).rejects.toThrow(/external party/i);
 
     expect(state().data.timeOff).toHaveLength(0);
     expect(state().data.resources.map(({ id }) => id)).toContain(resource.id);
@@ -194,7 +190,7 @@ describe('atomic time-off creation: viewer guard', () => {
   it('applies the Viewer guard to the whole batch without data or history mutation', async () => {
     const { draft } = await timeOffSetup();
     const historyBefore = state().planning.history;
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     const returned = await state().addRepeatedTimeOff(draft(), weekly('2026-06-08'), 2);
 
     expect(returned).toEqual({ kind: 'blocked' });

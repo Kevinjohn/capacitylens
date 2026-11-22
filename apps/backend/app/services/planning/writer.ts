@@ -97,10 +97,10 @@ export async function updateSettings(
     throw new PlanningOperationException(
       403,
       'AUTHORIZATION_DENIED',
-      'This setting requires an administrator.'
+      'This setting requires an Owner or Admin.'
     );
   }
-  const existing = requireExistingRow(data, 'accounts', companyId);
+  const existing = requireExistingRow(data, 'companies', companyId);
   const candidate = { ...existing, ...changes };
   try {
     assertFrozenCompanyFields(changes, candidate, existing);
@@ -110,15 +110,15 @@ export async function updateSettings(
   }
   const now = createServerRevision(existing.updatedAt);
   candidate.updatedAt = now;
-  const validated = await validateRow('accounts', candidate);
+  const validated = await validateRow('companies', candidate);
   validated.name = cleanText(validated.name);
   // Vine drops a null field from its output; the stored column becomes null, so the copy must too.
-  fillNullableFields('accounts', validated);
+  fillNullableFields('companies', validated);
   await trx
-    .from('accounts')
+    .from('companies')
     .where('id', companyId)
-    .update(encodeRow('accounts', asRecord(validated)));
+    .update(encodeRow('companies', asRecord(validated)));
   const before = { ...existing };
   Object.assign(existing, validated);
-  written.push({ entity: 'accounts', id: companyId, before, after: { ...existing } });
+  written.push({ entity: 'companies', id: companyId, before, after: { ...existing } });
 }

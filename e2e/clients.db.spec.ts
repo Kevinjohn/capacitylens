@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, showScheduleFilters } from './browserTestSupport';
+import { openApp, showScheduleFilters } from './browserTestKit';
 
 test.describe('Clients', () => {
   // Covers US-CLI-01..03.

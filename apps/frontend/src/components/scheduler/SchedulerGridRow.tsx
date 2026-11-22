@@ -14,7 +14,7 @@ import type { ISODate } from '@capacitylens/shared/types/entities';
 import { Button } from '@/components/ui/button';
 import { PersonScheduleTrigger } from '@/components/person-schedule/PersonScheduleTrigger';
 import { resolveResourceAvatarUrl } from '@/account/resolveResourceAvatarUrl';
-import type { ModalState } from './schedulerGridModal';
+import type { DialogState } from './schedulerGridDialog';
 import type { SchedulerUI, StoreState } from '@/store/useStore';
 
 type LaneProps = ComponentProps<typeof ResourceLane>;
@@ -29,7 +29,7 @@ export interface SchedulerGridRowProps {
   ui: Pick<SchedulerUI, 'drawMode'>;
   canEdit: boolean;
   visibleStartDate: () => ISODate;
-  setModal: Dispatch<SetStateAction<ModalState | null>>;
+  setDialog: Dispatch<SetStateAction<DialogState | null>>;
   days: LaneProps['days'];
   todayX: LaneProps['todayX'];
   geom: LaneProps['geom'];
@@ -70,7 +70,7 @@ function ResourceIdentity({
       <PersonScheduleTrigger
         resourceId={resource.id}
         scheduleTitle={scheduleTitle}
-        avatarName={resource.name ?? resource.role}
+        avatarName={resource.name ?? resource.jobTitle}
         color={avatarColor}
         placeholder={resource.kind === 'placeholder'}
         {...(imageUrl ? { imageUrl } : {})}
@@ -82,7 +82,7 @@ function ResourceIdentity({
             {resolveResourceDisplayName(resource)}
           </span>
         </div>
-        <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
+        <span className="block truncate text-xs text-muted-foreground">{resource.jobTitle}</span>
       </div>
     </div>
   );
@@ -98,7 +98,7 @@ function UtilisationCell({
     : m.scheduler_util_title({ span: visibleWeeksLabel });
   return (
     <span
-      data-testid="utilization"
+      data-testid="utilisation"
       title={title}
       className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
         overSoon ? 'font-semibold text-danger' : 'text-faint'
@@ -114,7 +114,7 @@ function ResourceActions({
   ui,
   canEdit,
   visibleStartDate,
-  setModal,
+  setDialog,
   utilisationPrefs,
   visibleWeeksLabel,
 }: Pick<
@@ -123,7 +123,7 @@ function ResourceActions({
   | 'ui'
   | 'canEdit'
   | 'visibleStartDate'
-  | 'setModal'
+  | 'setDialog'
   | 'utilisationPrefs'
   | 'visibleWeeksLabel'
 >) {
@@ -138,7 +138,7 @@ function ResourceActions({
           size="icon"
           onClick={() => {
             const day = visibleStartDate();
-            setModal({
+            setDialog({
               kind: ui.drawMode === 'timeOff' ? 'timeOff' : 'create',
               resourceId: resource.id,
               startDate: day,
@@ -179,7 +179,7 @@ type RowHeaderProps = Pick<
   | 'ui'
   | 'canEdit'
   | 'visibleStartDate'
-  | 'setModal'
+  | 'setDialog'
   | 'personScheduleTitlesByResourceId'
   | 'onViewSchedule'
 >;
@@ -252,7 +252,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         ui={props.ui}
         canEdit={canEdit}
         visibleStartDate={props.visibleStartDate}
-        setModal={props.setModal}
+        setDialog={props.setDialog}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
         onViewSchedule={props.onViewSchedule}
       />

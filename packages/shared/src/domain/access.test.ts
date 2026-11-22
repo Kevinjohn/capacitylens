@@ -3,7 +3,7 @@ import {
   can,
   canSeeTimeOffNote,
   canSeePrivateNames,
-  canViewAs,
+  canMasqueradeAs,
   canViewCapacityOverview,
   isOwnerOrAdmin,
 } from './access.js';
@@ -20,7 +20,7 @@ const LOWEST_ROLE: Record<PermissionKey, Role> = {
   'members:manage': 'admin',
   'members:signInTracking': 'owner',
   'invitations:manage': 'admin',
-  'viewAs:use': 'admin',
+  'masquerade:use': 'admin',
   'resources:anonymise': 'admin',
   'company:import': 'owner',
   'company:anonymise': 'owner',
@@ -94,7 +94,7 @@ describe('canSeePrivateNames(role) — field-level rule (owner only)', () => {
   });
 });
 
-describe('canViewAs(actorRole, targetRole) — view-as rank rule', () => {
+describe('canMasqueradeAs(actorRole, targetRole) — view-as rank rule', () => {
   // Rows are the actor, columns the target, written by hand from DECISIONS.md: only Owner and Admin
   // may view as, and never as a member who ranks above them.
   const allowed: Record<Role, Record<Role, boolean>> = {
@@ -107,15 +107,15 @@ describe('canViewAs(actorRole, targetRole) — view-as rank rule', () => {
   for (const actor of ROLES) {
     for (const target of ROLES) {
       const expected = allowed[actor][target];
-      it(`canViewAs('${actor}', '${target}') === ${expected}`, () => {
-        expect(canViewAs(actor, target)).toBe(expected);
+      it(`canMasqueradeAs('${actor}', '${target}') === ${expected}`, () => {
+        expect(canMasqueradeAs(actor, target)).toBe(expected);
       });
     }
   }
 
   it('fails closed for an unknown actor or target role', () => {
-    expect(canViewAs('superuser' as Role, 'viewer')).toBe(false);
-    expect(canViewAs('owner', 'superuser' as Role)).toBe(false);
+    expect(canMasqueradeAs('superuser' as Role, 'viewer')).toBe(false);
+    expect(canMasqueradeAs('owner', 'superuser' as Role)).toBe(false);
   });
 });
 

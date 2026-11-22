@@ -11,7 +11,7 @@ import {
   barFor,
   getStoredAllocation,
   rect,
-  seedAllocation,
+  createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 
@@ -30,7 +30,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
       st.addResource({
         kind: 'person',
         name: 'Sev',
-        role: 'Dev',
+        jobTitle: 'Dev',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -43,7 +43,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
       st.addResource({
         kind: 'person',
         name: 'Wk',
-        role: 'Dev',
+        jobTitle: 'Dev',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -113,10 +113,10 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
       st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
     );
     const src = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
     const dst = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Sam', role: 'Dev', color: '#4' })),
+      st.addResource(makeResourceDraft({ name: 'Sam', jobTitle: 'Dev', color: '#4' })),
     );
     const a = requireCreated(
       await st.addAllocation({
@@ -178,7 +178,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   const renderedLeft = (from: string, to: string) =>
     buildAllocationBarInset(GEOM.getDateX(from), GEOM.getDatesWidth(from, to)).insetLeft;
 
-  async function seedCrossWeekPair() {
+  async function createCrossWeekPair() {
     const st = useStore.getState();
     const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
     const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
@@ -187,12 +187,17 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     );
     const src = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Mid', role: 'Dev', color: '#3', workingDays: [...midWeek] }),
+        makeResourceDraft({ name: 'Mid', jobTitle: 'Dev', color: '#3', workingDays: [...midWeek] }),
       ),
     );
     const dst = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Full', role: 'Dev', color: '#4', workingDays: [...monToFri] }),
+        makeResourceDraft({
+          name: 'Full',
+          jobTitle: 'Dev',
+          color: '#4',
+          workingDays: [...monToFri],
+        }),
       ),
     );
 
@@ -210,7 +215,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   }
 
   it('a cross-row reassign keeps the duration the SOURCE measured, so the bar shrinks', async () => {
-    const { src, dst, a } = await seedCrossWeekPair();
+    const { src, dst, a } = await createCrossWeekPair();
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -274,12 +279,17 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     );
     const src = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Full', role: 'Dev', color: '#3', workingDays: [...monToFri] }),
+        makeResourceDraft({
+          name: 'Full',
+          jobTitle: 'Dev',
+          color: '#3',
+          workingDays: [...monToFri],
+        }),
       ),
     );
     const dst = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Mid', role: 'Dev', color: '#4', workingDays: [...midWeek] }),
+        makeResourceDraft({ name: 'Mid', jobTitle: 'Dev', color: '#4', workingDays: [...midWeek] }),
       ),
     );
     const a = requireCreated(
@@ -354,12 +364,17 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     );
     const src = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Full', role: 'Dev', color: '#3', workingDays: [...monToFri] }),
+        makeResourceDraft({
+          name: 'Full',
+          jobTitle: 'Dev',
+          color: '#3',
+          workingDays: [...monToFri],
+        }),
       ),
     );
     const dst = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Mid', role: 'Dev', color: '#4', workingDays: [...midWeek] }),
+        makeResourceDraft({ name: 'Mid', jobTitle: 'Dev', color: '#4', workingDays: [...midWeek] }),
       ),
     );
     const a = requireCreated(
@@ -432,12 +447,22 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     );
     const src = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Full', role: 'Dev', color: '#3', workingDays: [...monToFri] }),
+        makeResourceDraft({
+          name: 'Full',
+          jobTitle: 'Dev',
+          color: '#3',
+          workingDays: [...monToFri],
+        }),
       ),
     );
     const dst = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Full', role: 'Dev', color: '#4', workingDays: [...monToFri] }),
+        makeResourceDraft({
+          name: 'Full',
+          jobTitle: 'Dev',
+          color: '#4',
+          workingDays: [...monToFri],
+        }),
       ),
     );
     // The stored range ends on a Sunday. Reinterpreting its seven target working days should end
@@ -529,7 +554,12 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
     );
     const r = await requireCreated(
       st.addResource(
-        makeResourceDraft({ name: 'Full', role: 'Dev', color: '#3', workingDays: [...monToFri] }),
+        makeResourceDraft({
+          name: 'Full',
+          jobTitle: 'Dev',
+          color: '#3',
+          workingDays: [...monToFri],
+        }),
       ),
     );
     // Thu 06-04 - Sun 06-07: two working days drawn over four calendar days, so re-deriving the
@@ -599,7 +629,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
       st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
     );
     const r = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
 
     const a = requireCreated(
@@ -646,7 +676,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   });
 
   it('saves a same-person drag onto a non-working start after their working week changes', async () => {
-    const allocation = await seedAllocation({ endDate: '2026-06-01' });
+    const allocation = await createAllocation({ endDate: '2026-06-01' });
     await useStore.getState().updateResource(allocation.resourceId, { workingDays: [6] });
     render(
       <div data-testid="lane" data-resource-id={allocation.resourceId}>
@@ -671,7 +701,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   });
 
   it('aborts a drag on pointercancel without committing or leaking listeners', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(a)}

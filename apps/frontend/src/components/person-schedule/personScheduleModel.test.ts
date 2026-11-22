@@ -117,16 +117,16 @@ describe('buildPersonSchedule inclusion and ordering', () => {
 
 describe('buildPersonSchedule allocation projection', () => {
   it('projects attribution, colours, hourly load, notes, and the maximum linked-series end', () => {
-    const repeatable = withoutProjectId(
+    const allProjects = withoutProjectId(
       makeActivity({
-        id: 'repeatable',
-        kind: 'repeatable',
+        id: 'allProjects',
+        kind: 'allProjects',
         name: 'Workshop',
       }),
     );
     const selected = makeAllocation({
       id: 'occurrence-1',
-      activityId: repeatable.id,
+      activityId: allProjects.id,
       projectId: project.id,
       seriesId: 'series-1',
       startDate: '2026-09-10',
@@ -138,7 +138,7 @@ describe('buildPersonSchedule allocation projection', () => {
     const laterOtherResource = makeAllocation({
       id: 'occurrence-2',
       resourceId: 'other-resource',
-      activityId: repeatable.id,
+      activityId: allProjects.id,
       projectId: project.id,
       seriesId: 'series-1',
       startDate: '2027-02-01',
@@ -150,7 +150,7 @@ describe('buildPersonSchedule allocation projection', () => {
         resources: [resource],
         clients: [client],
         projects: [project],
-        activities: [repeatable],
+        activities: [allProjects],
         allocations: [selected, laterOtherResource],
       },
     });

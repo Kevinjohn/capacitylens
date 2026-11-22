@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { acquireExclusiveFile, terminateProcessTree } from './devProcesses.mjs';
 
-class FakeChild extends EventEmitter {
+class StubChild extends EventEmitter {
   constructor(pid = 1234) {
     super();
     this.pid = pid;
@@ -38,7 +38,7 @@ test('exclusive files reject a second owner and are reusable after release', () 
 });
 
 test('a graceful POSIX tree exit avoids force escalation', async () => {
-  const child = new FakeChild();
+  const child = new StubChild();
   const signals = [];
   await terminateProcessTree(child, {
     platform: 'darwin',
@@ -53,7 +53,7 @@ test('a graceful POSIX tree exit avoids force escalation', async () => {
 });
 
 test('an unresponsive POSIX tree escalates from SIGTERM to SIGKILL', async () => {
-  const child = new FakeChild();
+  const child = new StubChild();
   const signals = [];
   await terminateProcessTree(child, {
     platform: 'linux',
@@ -154,7 +154,7 @@ test('a POSIX group is escalated when its root exits but a descendant ignores SI
 });
 
 test('an unresponsive Windows tree escalates to forced taskkill', async () => {
-  const child = new FakeChild(4321);
+  const child = new StubChild(4321);
   const invocations = [];
   await terminateProcessTree(child, {
     platform: 'win32',
@@ -163,7 +163,7 @@ test('an unresponsive Windows tree escalates to forced taskkill', async () => {
     spawnProcess: (command, args) => {
       invocations.push([command, args]);
       if (args.includes('/F')) child.exit('SIGKILL');
-      return new FakeChild();
+      return new StubChild();
     },
   });
   assert.deepEqual(invocations, [
@@ -173,14 +173,14 @@ test('an unresponsive Windows tree escalates to forced taskkill', async () => {
 });
 
 test('a child that failed to start has no PID to signal', async () => {
-  const child = new FakeChild();
+  const child = new StubChild();
   child.pid = undefined;
   const invocations = [];
   await terminateProcessTree(child, {
     platform: 'win32',
     spawnProcess: (...args) => {
       invocations.push(args);
-      return new FakeChild();
+      return new StubChild();
     },
   });
   assert.deepEqual(invocations, []);

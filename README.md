@@ -54,7 +54,7 @@ Doing all of it yourself? [The whole setup on one page](https://kevinjohn.github
 ## Try it in two minutes
 
 For people comfortable with a terminal: the demo runs the full server and web app on your computer
-with sample data. It needs Node 24, git and [pnpm](https://pnpm.io/installation). Node 26 is an
+with demo data. It needs Node 24, git and [pnpm](https://pnpm.io/installation). Node 26 is an
 experimental, best-effort option. Install pnpm separately before running these commands; Node 25
 and later no longer bundle Corepack. Sign in with the credentials printed in the
 terminal. Changes survive refresh and reset when you restart the command. Everyone else can watch
@@ -66,7 +66,7 @@ pnpm run dev:demo
 ```
 
 Open the address printed in the terminal and sign in with the printed development account. The
-sample company's schedule opens automatically.
+demo company's schedule opens automatically.
 
 ## What you get
 
@@ -74,7 +74,7 @@ sample company's schedule opens automatically.
 - **Early warning:** over-capacity days in red, plus a 14-day warning for trouble off screen.
 - **Work you haven't won yet:** tentative bookings, placeholders for roles you haven't filled, and
   external parties who don't count against your capacity.
-- **Time off in the same picture:** holidays, closures and each person's start and end dates sit
+- **Time off in the same picture:** each person's time off, company closures, and start and end dates sit
   beside the work.
 - **How full everyone is:** utilisation per person and across the weeks on screen.
 - **Server-owned scheduling:** a connection is required; failed requests show an error and retry controls.
@@ -127,7 +127,7 @@ support remains optional; see
 For the native installation, proxies in separate containers or on separate machines are not yet
 supported; use the native same-machine proxy setup for the first release. Sign-in is by password,
 and invitations and password resets need email delivery. See
-[sign-in and access](https://kevinjohn.github.io/capacitylens/company-login/index.html).
+[sign-in and access](https://kevinjohn.github.io/capacitylens/sign-in/index.html).
 
 ## Documentation
 
@@ -167,7 +167,7 @@ the [architecture reference](docs-src/reference/architecture.md) and the
 | To change…                                        | Edit                                                                                                                                        |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | A screen, form or the schedule grid               | [`apps/frontend/`](apps/frontend/) (React SPA)                                                                                              |
-| An API route, authorization, a migration or a job | [`apps/backend/`](apps/backend/) (AdonisJS server)                                                                                          |
+| An API route, authorisation, a migration or a job | [`apps/backend/`](apps/backend/) (AdonisJS server)                                                                                          |
 | A scheduling or validation rule both sides share  | [`packages/shared/`](packages/shared/), for example [`src/domain/`](packages/shared/src/domain/) and [`src/lib/`](packages/shared/src/lib/) |
 | A user guide                                      | [`docs-src/`](docs-src/), the guide sources                                                                                                 |
 | The offline documentation site                    | Nothing: `docs/` is generated from `docs-src/` by `pnpm run docs:build` and not committed                                                   |

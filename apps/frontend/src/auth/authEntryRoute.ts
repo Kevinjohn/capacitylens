@@ -6,12 +6,12 @@ export type PublicAuthEntry = 'password-reset' | 'invitation' | 'email-verificat
 /** Route patterns for token-based public authentication entries. */
 export const PUBLIC_AUTH_ENTRY_PATHS = {
   passwordReset: '/reset-password/:token',
-  invitation: '/invite/:token',
+  invitation: '/invitation/:token',
   emailVerification: '/verify-email/:token',
 } as const;
 
 /** Classify the only routes allowed to render before authentication using the same patterns and
- * matching semantics as the router. Malformed or nested URLs remain behind the normal login wall. */
+ * matching semantics as the router. Malformed or nested URLs remain behind the normal sign-in wall. */
 export function resolvePublicAuthEntry(pathname: string): PublicAuthEntry {
   if (matchPath(PUBLIC_AUTH_ENTRY_PATHS.passwordReset, pathname)) return 'password-reset';
   if (matchPath(PUBLIC_AUTH_ENTRY_PATHS.invitation, pathname)) return 'invitation';

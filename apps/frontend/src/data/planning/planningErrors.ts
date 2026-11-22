@@ -1,5 +1,5 @@
-/** The failure a planning transport throws when the controller must act on it; see `PlanningTransport`. */
-export class PlanningControllerError extends Error {
+/** The failure a planning transport throws when the cache must act on it; see `PlanningTransport`. */
+export class PlanningCacheError extends Error {
   readonly code: string | undefined;
   readonly status: number | undefined;
   readonly uncertain: boolean;
@@ -13,7 +13,7 @@ export class PlanningControllerError extends Error {
     restorableItemCount?: number,
   ) {
     super(message);
-    this.name = 'PlanningControllerError';
+    this.name = 'PlanningCacheError';
     this.code = code;
     this.status = status;
     this.uncertain = uncertain;

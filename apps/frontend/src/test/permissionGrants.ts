@@ -13,7 +13,7 @@ const GRANTS: Readonly<Record<Role, AccessGrant>> = {
       'members:manage',
       'members:signInTracking',
       'invitations:manage',
-      'viewAs:use',
+      'masquerade:use',
       'resources:anonymise',
       'ownership:transfer',
       'company:import',
@@ -29,7 +29,7 @@ const GRANTS: Readonly<Record<Role, AccessGrant>> = {
       'members:list',
       'members:manage',
       'invitations:manage',
-      'viewAs:use',
+      'masquerade:use',
       'resources:anonymise',
     ],
     canSeePrivateNames: false,
@@ -54,7 +54,7 @@ export function grantFor(role: Role): AccessGrant {
 }
 
 /** The grant the server sends while viewing as a member of `role`: the role's flags, read only. */
-export function viewAsGrantFor(role: Role): AccessGrant {
+export function masqueradeGrantFor(role: Role): AccessGrant {
   return { ...grantFor(role), permissions: ['planning:read'] };
 }
 

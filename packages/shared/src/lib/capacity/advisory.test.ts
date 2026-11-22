@@ -11,7 +11,7 @@ import {
   makeTimeOff,
   makeClosure,
   makeProposal,
-} from './capacity.test.support.js';
+} from './capacityTestKit.js';
 
 describe('capacityAdvisory', () => {
   const r = makeResource();

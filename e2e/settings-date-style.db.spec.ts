@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 import { serverState, requireStateRows } from './serverTestState';
 
 // Reload reads the committed company date convention from SQLite.
@@ -16,7 +16,7 @@ test.describe('Settings — date format is account data', () => {
     await expect
       .poll(
         async () =>
-          requireStateRows(await serverState(request), 'accounts').some(
+          requireStateRows(await serverState(request), 'companies').some(
             (account) => (account as { dateStyle?: string }).dateStyle === 'month-day',
           ),
         { timeout: 10_000 },

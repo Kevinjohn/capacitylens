@@ -22,14 +22,14 @@ Investigate readiness failures before restarting repeatedly. Check that the data
 its parent directory is writable by the service user, and `node ace.js app:upgrade` has run for the
 current release.
 
-Check backup success independently: inspect the service logs for failed snapshots or retention
-errors, free disk space and directory permissions, then confirm a recent completed snapshot in
+Check backup success independently: inspect the service logs for failed backups or retention
+errors, free disk space and directory permissions, then confirm a recent completed backup in
 `CAPACITYLENS_BACKUP_DIR`. Backups run at startup and every 24 hours while the service runs.
 Readiness has no backup health latch; a healthy response does not prove recovery is available.
-The Diagnostics support report names the last applied migration and the newest completed snapshot
+The Diagnostics support report names the last applied migration and the newest completed backup
 manifest creation time when a READY bundle is available. Confirm backup integrity separately before recovery.
 
-Run `node ace.js db:backup create` from `backend/` for an operator-requested snapshot. See
+Run `node ace.js db:backup create` from `backend/` for an operator-requested backup. See
 [Backups and restore](/self-hosting/backups-and-restore).
 
 ## Logs and operational limits

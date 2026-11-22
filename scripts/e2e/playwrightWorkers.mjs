@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { freemem } from 'node:os';
-import { testShare, WORKER_SLOTS_PER_LANE } from '../../tooling/ports.mjs';
+import { testShare, WORKER_SLOTS_PER_PORT_LANE } from '../../tooling/ports.mjs';
 import { resolvePlaywrightRunMode } from './playwrightRunMode.mjs';
 
 // Baseline full-stack RSS in KiB: API tree, warmed Vite tree and largest representative browser worker/tree (WebKit).
@@ -65,7 +65,7 @@ export function browserWorkerCount(
       `insufficient memory for one worker: needs ${Math.ceil(workerBytes / 1024 ** 2)} MB, has ${Math.floor(usableBytes / 1024 ** 2)} MB`,
     );
   }
-  return Math.min(testShare(environment), WORKER_SLOTS_PER_LANE, memorySlots);
+  return Math.min(testShare(environment), WORKER_SLOTS_PER_PORT_LANE, memorySlots);
 }
 
 const ADMITTED_WORKERS = 'CAPACITYLENS_E2E_ADMITTED_WORKERS';
@@ -74,7 +74,7 @@ const ADMITTED_WORKERS = 'CAPACITYLENS_E2E_ADMITTED_WORKERS';
 export function configurationWorkerCount(environment = process.env, memory) {
   if (environment.TEST_WORKER_INDEX !== undefined) {
     const admitted = environment[ADMITTED_WORKERS];
-    if (!admitted || !/^[1-9]\d*$/.test(admitted) || Number(admitted) > WORKER_SLOTS_PER_LANE)
+    if (!admitted || !/^[1-9]\d*$/.test(admitted) || Number(admitted) > WORKER_SLOTS_PER_PORT_LANE)
       throw new Error('Playwright worker is missing a valid coordinator memory admission.');
     return Number(admitted);
   }

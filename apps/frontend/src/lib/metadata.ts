@@ -88,7 +88,7 @@ export function buildTimeOffTypeLabels(): Record<TimeOffType, string> {
   return buildLabels(timeOffTypeMessages);
 }
 
-/** Returns the localized placeholder label; role and discipline remain separate secondary text. */
+/** Returns the localized placeholder label; job title and discipline remain separate secondary text. */
 export function resolvePlaceholderDisplayName(): string {
   return m.placeholder_display_name();
 }
@@ -111,10 +111,10 @@ export function resolveAvatarInitials(name: string, placeholder = false): string
   );
 }
 
-/** Returns the placeholder label for slots, otherwise the resource name with role fallback. */
+/** Returns the placeholder label for slots, otherwise the resource name with job title fallback. */
 export function resolveResourceDisplayName(resource: Resource): string {
   if (resource.kind === 'placeholder') return resolvePlaceholderDisplayName();
-  return resolveTrimmedValue(resource.name, resource.role);
+  return resolveTrimmedValue(resource.name, resource.jobTitle);
 }
 
 /** Builds allocation status choices for form controls. */

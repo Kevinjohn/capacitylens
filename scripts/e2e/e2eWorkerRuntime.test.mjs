@@ -6,7 +6,7 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { resolveLane, workerPorts } from '../../tooling/ports.mjs';
+import { resolvePortLane, workerPorts } from '../../tooling/ports.mjs';
 import { startE2eWorkerServer, recoverE2eWorker } from './e2eWorkerRuntime.mjs';
 import {
   cleanupResetControlEndpoints,
@@ -14,10 +14,10 @@ import {
   resetControlEndpoint,
 } from '../../tooling/e2e_reset_control.ts';
 
-const lane = resolveLane();
+const portLane = resolvePortLane();
 const slot = E2E_SCRIPT_TEST_SLOTS.runtime;
 const target = (databasePath, apiPort, webPort) => ({
-  lane,
+  portLane,
   slot,
   api: `http://127.0.0.1:${apiPort}`,
   web: `http://127.0.0.1:${webPort}`,
@@ -40,7 +40,7 @@ import { syncBuiltinESMExports } from 'node:module';
 const stage = process.env.CAPACITYLENS_CRASH_STAGE;
 const marker = process.env.CAPACITYLENS_CRASH_MARKER;
 const target = JSON.parse(process.env.CAPACITYLENS_CRASH_TARGET);
-const lane = Number(process.env.CAPACITYLENS_CRASH_LANE);
+const portLane = Number(process.env.CAPACITYLENS_CRASH_LANE);
 const slot = Number(process.env.CAPACITYLENS_CRASH_SLOT);
 const originalWriteFileSync = fs.writeFileSync;
 const originalRenameSync = fs.renameSync;
@@ -72,11 +72,11 @@ if (stage === 'before-owner' || stage === 'after-owner') {
 
 const { startE2eWorkerServer } = await import(process.env.CAPACITYLENS_CRASH_RUNTIME_URL);
 if (stage === 'active') {
-  await startE2eWorkerServer(target, lane, slot);
+  await startE2eWorkerServer(target, portLane, slot);
   writeMarker({ active: true, pid: process.pid });
   pause();
 } else {
-  await startE2eWorkerServer(target, lane, slot);
+  await startE2eWorkerServer(target, portLane, slot);
 }
 `;
 
@@ -116,7 +116,7 @@ function waitForExit(child) {
 }
 
 test('occupied API and web endpoints leave the existing database untouched', async () => {
-  const ports = workerPorts(lane, slot);
+  const ports = workerPorts(portLane, slot);
   for (const [kind, port] of [
     ['API', ports.api],
     ['web', ports.web],
@@ -126,7 +126,7 @@ test('occupied API and web endpoints leave the existing database untouched', asy
     const listener = await listen(port);
     try {
       await assert.rejects(
-        startE2eWorkerServer(target(temp, ports.api, ports.web), lane, slot),
+        startE2eWorkerServer(target(temp, ports.api, ports.web), portLane, slot),
         new RegExp(`${kind} \\d+ port is occupied; refusing to remove its database`),
       );
       assert.equal(await readFile(temp, 'utf8'), 'preserve this database');
@@ -143,7 +143,7 @@ test(
   'the real E2E API launcher failure reaches the guardian stderr stream',
   { skip: process.platform === 'win32' },
   async () => {
-    const ports = workerPorts(lane, slot);
+    const ports = workerPorts(portLane, slot);
     const listener = await listen(ports.api);
     const guardian = spawn(
       process.execPath,
@@ -175,7 +175,7 @@ test(
         ],
         options: {
           cwd: process.cwd(),
-          env: { ...process.env, CAPACITYLENS_PORT_LANE: String(lane) },
+          env: { ...process.env, CAPACITYLENS_PORT_LANE: String(portLane) },
         },
       });
       await exited;
@@ -239,9 +239,9 @@ test(
   { skip: process.platform === 'win32' },
   async () => {
     const db = join(tmpdir(), `capacitylens-e2e-stale-${process.pid}.db`);
-    const cache = join(process.cwd(), 'node_modules', `.vite-e2e-l${lane}-w${slot}`);
+    const cache = join(process.cwd(), 'node_modules', `.vite-e2e-l${portLane}-w${slot}`);
     const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
-    const id = `l${lane}-w${slot}`;
+    const id = `l${portLane}-w${slot}`;
     const lock = join(leaseDirectory, `${id}.lock`);
     const ownerName = 'owner-999999999-dead.json';
     const owner = join(lock, ownerName);
@@ -292,7 +292,7 @@ test(
       assert.equal(crash.status, 0, crash.stderr);
       await access(endpoint);
       await putOwner([], resetToken);
-      await runtime.recoverE2eWorker(target(db, 1, 2), lane, slot);
+      await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
       await assert.rejects(access(endpoint), { code: 'ENOENT' });
 
       // Crash after spawn but before recording the guardian: no service has been STARTed.
@@ -304,7 +304,7 @@ test(
       await unrecordedExit;
       assert.throws(() => process.kill(-unrecorded.pid, 0), { code: 'ESRCH' });
       await writeFile(db, 'stale pre-record');
-      await runtime.recoverE2eWorker(target(db, 1, 2), lane, slot);
+      await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
       await assert.rejects(access(db), { code: 'ENOENT' });
 
       // Crash after the guardian PID is atomically recorded but before START.
@@ -317,7 +317,7 @@ test(
       await writeFile(db, 'stale');
       await writeFile(`${db}.template`, 'stale template');
       await mkdir(cache, { recursive: true });
-      await runtime.recoverE2eWorker(target(db, 1, 2), lane, slot);
+      await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
       await assert.rejects(access(db), { code: 'ENOENT' });
       await assert.rejects(access(`${db}.template`), { code: 'ENOENT' });
       await assert.rejects(access(owner), { code: 'ENOENT' });
@@ -349,7 +349,7 @@ test(
       active.disconnect();
       await activeExit;
       await writeFile(db, 'stale active');
-      await runtime.recoverE2eWorker(target(db, 1, 2), lane, slot);
+      await runtime.recoverE2eWorker(target(db, 1, 2), portLane, slot);
       assert.throws(() => process.kill(-active.pid, 0), { code: 'ESRCH' });
       assert.throws(() => process.kill(descendantPid, 0), { code: 'ESRCH' });
       assert.equal(
@@ -373,10 +373,10 @@ test(
   'SIGKILL of the real worker parent reaps guardians before recovery and restart',
   { skip: process.platform === 'win32' },
   async () => {
-    const db = join(process.cwd(), 'apps/backend', `.e2e-l${lane}-w${slot}.db`);
-    const cache = join(process.cwd(), 'node_modules', `.vite-e2e-l${lane}-w${slot}`);
+    const db = join(process.cwd(), 'apps/backend', `.e2e-l${portLane}-w${slot}.db`);
+    const cache = join(process.cwd(), 'node_modules', `.vite-e2e-l${portLane}-w${slot}`);
     const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
-    const lock = join(leaseDirectory, `l${lane}-w${slot}.lock`);
+    const lock = join(leaseDirectory, `l${portLane}-w${slot}.lock`);
     const runtimeUrl = new URL('./e2eWorkerRuntime.mjs', import.meta.url).href;
     const temp = join(tmpdir(), `capacitylens-e2e-parent-crash-${process.pid}`);
     await mkdir(temp, { recursive: true });
@@ -387,8 +387,8 @@ test(
       await mkdir(cache, { recursive: true });
       await writeFile(join(cache, 'stale'), 'stale worker cache');
       await recoverE2eWorker(
-        target(db, workerPorts(lane, slot).api, workerPorts(lane, slot).web),
-        lane,
+        target(db, workerPorts(portLane, slot).api, workerPorts(portLane, slot).web),
+        portLane,
         slot,
       );
       for (const path of [db, `${db}.template`, cache])
@@ -405,9 +405,9 @@ test(
           CAPACITYLENS_CRASH_MARKER: marker,
           CAPACITYLENS_CRASH_RUNTIME_URL: runtimeUrl,
           CAPACITYLENS_CRASH_TARGET: JSON.stringify(
-            target(db, workerPorts(lane, slot).api, workerPorts(lane, slot).web),
+            target(db, workerPorts(portLane, slot).api, workerPorts(portLane, slot).web),
           ),
-          CAPACITYLENS_CRASH_LANE: String(lane),
+          CAPACITYLENS_CRASH_LANE: String(portLane),
           CAPACITYLENS_CRASH_SLOT: String(slot),
         },
         stdio: ['ignore', 'ignore', 'pipe'],
@@ -460,8 +460,8 @@ test(
       await runStage('active');
 
       const restarted = await startE2eWorkerServer(
-        target(db, workerPorts(lane, slot).api, workerPorts(lane, slot).web),
-        lane,
+        target(db, workerPorts(portLane, slot).api, workerPorts(portLane, slot).web),
+        portLane,
         slot,
       );
       try {
@@ -487,7 +487,7 @@ test(
   { skip: process.platform === 'win32' },
   async () => {
     const db = join(tmpdir(), `capacitylens-e2e-preserved-${process.pid}.db`);
-    const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${lane}-w${slot}.lock`);
+    const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${portLane}-w${slot}.lock`);
     const ownerPath = join(lock, 'owner-999999999-dead.json');
     await mkdir(lock, { recursive: true });
     await writeFile(db, 'preserve');
@@ -505,7 +505,7 @@ test(
       });
       await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [unrelated.pid] }));
       await assert.rejects(
-        recoverE2eWorker(target(db, 1, 2), lane, slot),
+        recoverE2eWorker(target(db, 1, 2), portLane, slot),
         /preserving the lease and worker files/,
       );
       assert.equal(await readFile(db, 'utf8'), 'preserve');
@@ -537,7 +537,7 @@ test(
   { skip: process.platform === 'win32' },
   async () => {
     const leaseDirectory = join(tmpdir(), 'capacitylens-e2e-workers');
-    const lock = join(leaseDirectory, `l${lane}-w${slot}.lock`);
+    const lock = join(leaseDirectory, `l${portLane}-w${slot}.lock`);
     const ownerPath = join(lock, 'owner-999999999-dead.json');
     await mkdir(lock, { recursive: true });
     const owner = spawn(
@@ -578,10 +578,10 @@ test(
       await ownerReady;
       await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [owner.pid] }));
       const first = import('./e2eWorkerRuntime.mjs').then(({ acquireE2eWorkerLease }) =>
-        acquireE2eWorkerLease(lane, slot),
+        acquireE2eWorkerLease(portLane, slot),
       );
       const second = import('./e2eWorkerRuntime.mjs').then(({ acquireE2eWorkerLease }) =>
-        acquireE2eWorkerLease(lane, slot),
+        acquireE2eWorkerLease(portLane, slot),
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
       owner.send({ type: 'exit' });
@@ -605,14 +605,14 @@ test(
 );
 
 test('a dead owner interrupted before publishing a record update is recovered', async () => {
-  const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${lane}-w${slot}.lock`);
+  const lock = join(tmpdir(), 'capacitylens-e2e-workers', `l${portLane}-w${slot}.lock`);
   const ownerPath = join(lock, 'owner-999999999-dead.json');
   await mkdir(lock, { recursive: true });
   try {
     await writeFile(ownerPath, JSON.stringify({ pid: 999_999_999, groups: [] }));
     await writeFile(`${ownerPath}.999999999.tmp`, JSON.stringify({ pid: 999_999_999, groups: [] }));
     const { acquireE2eWorkerLease, releaseE2eWorkerLease } = await import('./e2eWorkerRuntime.mjs');
-    const lease = await acquireE2eWorkerLease(lane, slot);
+    const lease = await acquireE2eWorkerLease(portLane, slot);
     assert.deepEqual(await readdir(lease.paths.lock), [lease.paths.owner.split('/').at(-1)]);
     await releaseE2eWorkerLease(lease.paths);
   } finally {

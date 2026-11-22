@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { teamAccessClient } from '@/account/teamAccessClient';
+import { teamAccessApi } from '@/account/teamAccessApi';
 import { useMemberInvites } from './useMemberInvites';
 
 function renderInvites(email: string) {
@@ -28,7 +28,7 @@ describe('useMemberInvites', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('refuses an invitation without an address', async () => {
-    const createInvitation = vi.spyOn(teamAccessClient, 'createInvitation');
+    const createInvitation = vi.spyOn(teamAccessApi, 'createInvitation');
     const { fail, submit } = renderInvites('  ');
 
     await act(async () => submit());
@@ -46,7 +46,7 @@ describe('useMemberInvites', () => {
     ],
   ])('says whether the invitation was emailed (%s)', async (emailed, notice, tone) => {
     const createInvitation = vi
-      .spyOn(teamAccessClient, 'createInvitation')
+      .spyOn(teamAccessApi, 'createInvitation')
       .mockResolvedValue({ kind: 'ok', status: emailed ? 201 : 202, value: { emailed } });
     const { setNotice, submit } = renderInvites(' diana@example.com ');
 

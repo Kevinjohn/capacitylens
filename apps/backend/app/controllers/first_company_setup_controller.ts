@@ -2,7 +2,10 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { parseFirstCompanyInput, isFirstCompanySetupRequired } from '#services/first_company_setup';
 import { createInitialCompany } from '#services/initial_company_defaults';
-import { firstCompanySetupMessage, storeValidator } from '#validators/first_company_setup';
+import {
+  firstCompanySetupMessage,
+  createFirstCompanyValidator,
+} from '#validators/first_company_setup';
 
 /**
  * Establishes company access only for the sole confirmed, admitted user on an empty
@@ -10,7 +13,9 @@ import { firstCompanySetupMessage, storeValidator } from '#validators/first_comp
  */
 export default class FirstCompanySetupController {
   async store(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(storeValidator, { data: ctx.request.body() });
+    const body = await ctx.request.validateUsing(createFirstCompanyValidator, {
+      data: ctx.request.body(),
+    });
     const input = parseFirstCompanyInput(body);
     if (input === null) {
       return ctx.response.badRequest({ error: firstCompanySetupMessage, code: 'VALIDATION_ERROR' });
@@ -31,6 +36,6 @@ export default class FirstCompanySetupController {
         code: 'COMPANY_SETUP_UNAVAILABLE',
       });
     }
-    return ctx.response.created({ companyId: result.companyId });
+    return ctx.response.created(await ctx.serialize({ companyId: result.companyId }));
   }
 }

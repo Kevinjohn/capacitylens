@@ -20,7 +20,7 @@ const baseProps = {
 };
 
 describe('AppEntryGate', () => {
-  it('shows only a neutral loading boundary before hydration completes', () => {
+  it('shows only a neutral loading gate before hydration completes', () => {
     render(<AppEntryGate {...baseProps} hydrated={false} />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading…');

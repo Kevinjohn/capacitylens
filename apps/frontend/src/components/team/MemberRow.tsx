@@ -1,8 +1,8 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { m } from '@/i18n';
-import { canViewAs } from '@capacitylens/shared/domain/access';
+import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamMember } from '@/account/teamAccessClient';
+import type { TeamMember } from '@/account/teamAccessApi';
 import { useCan } from '@/auth/permissionContext';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Badge } from '@/components/ui/badge';
@@ -12,19 +12,23 @@ import type { MemberRoleEdit } from './MemberConfirmations';
 import { resolveMemberLabel } from './memberConfirmationCopy';
 import type { MemberConfirmationAction } from './memberConfirmationCopy';
 import { MemberResourceDialog, MemberResourceLink } from './MemberResourceLink';
-import { MemberActionsDialog } from './MemberActionsDialog';
+import { MemberMenuDialog } from './MemberMenuDialog';
 import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 // The server decides `manage` with the Access Control package and authorizes each operation again.
 function buildMemberAffordances(
-  mayViewAs: boolean,
+  canUseMasquerade: boolean,
   myRole: Role | undefined,
   member: TeamMember,
 ): { mayMasquerade: boolean; mayTouch: boolean; hasMenu: boolean } {
   const active = member.status === 'active';
   return {
     mayMasquerade:
-      active && !member.isSelf && mayViewAs && !!myRole && canViewAs(myRole, member.role),
+      active &&
+      !member.isSelf &&
+      canUseMasquerade &&
+      !!myRole &&
+      canMasqueradeAs(myRole, member.role),
     mayTouch: active && member.manage,
     hasMenu: member.manage,
   };
@@ -197,7 +201,7 @@ export function MemberRow({
   companyId: string | null;
   resourceLinkRequest: MemberResourceLinkRequest;
 }) {
-  const affordances = buildMemberAffordances(useCan('viewAs:use'), myRole, member);
+  const affordances = buildMemberAffordances(useCan('masquerade:use'), myRole, member);
   const memberLabel = resolveMemberLabel(member);
   return (
     <tr
@@ -241,7 +245,7 @@ export function MemberRow({
           />
         }
         settingsMenu={
-          <MemberActionsDialog
+          <MemberMenuDialog
             memberLabel={memberLabel}
             hasExistingActions={affordances.hasMenu}
             busy={busy}
@@ -266,7 +270,7 @@ export function MemberRow({
                 chooseMemberAction={chooseMemberAction}
               />
             )}
-          </MemberActionsDialog>
+          </MemberMenuDialog>
         }
       />
     </tr>

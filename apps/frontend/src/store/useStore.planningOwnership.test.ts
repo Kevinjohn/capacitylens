@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { readPlanningProblem } from '@/data/planning/planningNotices';
 import { useStore } from '@/store/useStore';
 import {
@@ -45,7 +45,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
   };
 });
 
-async function seedTypedAllocation() {
+async function createTypedAllocation() {
   const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
   const activity = await requireCreated(
     useStore.getState().addActivity({ name: 'Operations', kind: 'internal' }),
@@ -77,7 +77,7 @@ afterEach(() => {
   failure.onHeldRead = null;
 });
 
-describe('planning authority publication', () => {
+describe('planning access publication', () => {
   it('clears the cache and typed planning history together when authentication is lost', async () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),
@@ -86,13 +86,13 @@ describe('planning authority publication', () => {
       expect.objectContaining({ id: client.id }),
     );
     await useStore.getState().refreshPlanning();
-    await seedTypedAllocation();
+    await createTypedAllocation();
     expect(useStore.getState().planning.history.canUndo).toBe(true);
     await useStore.getState().undoPlanning();
     expect(useStore.getState().planning.history.canUndo).toBe(true);
     expect(useStore.getState().planning.history.canRedo).toBe(true);
 
-    failure.read = new PlanningControllerError('Sign in again.', undefined, 401);
+    failure.read = new PlanningCacheError('Sign in again.', undefined, 401);
     const beforeAuthLoss = useStore.getState().planningAuthLossVersion;
     await useStore.getState().refreshPlanning({ fresh: true });
 
@@ -108,11 +108,11 @@ describe('planning authority publication', () => {
   });
 
   it('keeps rows and history and shows a refusal when a change loses company membership', async () => {
-    const allocation = await seedTypedAllocation();
+    const allocation = await createTypedAllocation();
     const data = useStore.getState().data;
     const history = useStore.getState().planning.history;
     const authLossVersion = useStore.getState().planningAuthLossVersion;
-    failure.execute = new PlanningControllerError(
+    failure.execute = new PlanningCacheError(
       'You no longer belong to this company.',
       'ACCOUNT_MEMBERSHIP_LOST',
       403,
@@ -132,7 +132,7 @@ describe('planning authority publication', () => {
   });
 
   it('shows the server state after a lost write and asks the person to check it', async () => {
-    const allocation = await seedTypedAllocation();
+    const allocation = await createTypedAllocation();
     failure.execute = new TypeError('response lost');
     await expect(
       useStore.getState().updateAllocation(allocation.id, { endDate: '2026-06-03' }),
@@ -151,11 +151,15 @@ describe('planning ownership of allocations', () => {
   it('opens the planning context for a company as soon as it becomes active', async () => {
     const data = {
       ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, makeCompany({ id: 'a2' })],
+      companies: [...useStore.getState().data.companies, makeCompany({ id: 'a2' })],
     };
     replaceFixtureData(data);
     useStore.getState().setCompanySummaries({
-      list: data.accounts.map((company) => ({ id: company.id, name: company.name, role: 'owner' })),
+      list: data.companies.map((company) => ({
+        id: company.id,
+        name: company.name,
+        role: 'owner',
+      })),
     });
 
     useStore.getState().setActiveCompany('a2');
@@ -194,7 +198,7 @@ describe('planning ownership of allocations', () => {
   });
 
   it('undoes the latest typed allocation edit without removing a preceding catalogue change', async () => {
-    const allocation = await seedTypedAllocation();
+    const allocation = await createTypedAllocation();
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),
     );

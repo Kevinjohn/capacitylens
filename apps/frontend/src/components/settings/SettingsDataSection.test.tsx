@@ -41,7 +41,7 @@ const section = () => screen.queryByTestId('settings-example-data');
 const originalPlanning = {
   refreshPlanning: useStore.getState().refreshPlanning,
   planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
-  suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
+  suspendPlanningIntents: useStore.getState().suspendPlanningIntents,
 };
 const planningProbe = { reads: 0, freshReads: 0, suspends: 0, releases: 0, ready: true };
 
@@ -62,7 +62,7 @@ beforeEach(async () => {
       return true;
     },
     planningReadyForReplacement: () => planningProbe.ready,
-    suspendPlanningCommands: () => {
+    suspendPlanningIntents: () => {
       planningProbe.suspends += 1;
       if (!planningProbe.ready) return null;
       return () => {
@@ -144,7 +144,7 @@ describe('Settings example data', () => {
 
   it('does not dispatch example data while a different replacement is unresolved', async () => {
     const add = vi.spyOn(companyDataRequests, 'addExampleData');
-    useStore.setState({ suspendPlanningCommands: () => null });
+    useStore.setState({ suspendPlanningIntents: () => null });
     renderSection();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
     expect(add).not.toHaveBeenCalled();
@@ -234,7 +234,7 @@ describe('Company-wide people anonymisation', () => {
   });
 
   it('refuses company anonymisation when another replacement owns the view', async () => {
-    useStore.setState({ suspendPlanningCommands: () => null });
+    useStore.setState({ suspendPlanningIntents: () => null });
     renderSection({ role: 'owner' });
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Anonymise all people' }));
@@ -247,7 +247,7 @@ describe('Company-wide people anonymisation', () => {
   });
 
   it.each([408, 500])(
-    'keeps planning commands suspended after an uncertain HTTP %s',
+    'keeps planning intents suspended after an uncertain HTTP %s',
     async (status) => {
       vi.mocked(fetchApi).mockResolvedValue(new Response(null, { status }));
       renderSection({ role: 'owner' });
@@ -265,7 +265,7 @@ describe('Company-wide people anonymisation', () => {
     },
   );
 
-  it('keeps planning commands suspended after a lost response', async () => {
+  it('keeps planning intents suspended after a lost response', async () => {
     vi.mocked(fetchApi).mockRejectedValue(new Error('Connection lost'));
     renderSection({ role: 'owner' });
     const user = userEvent.setup();
@@ -279,7 +279,7 @@ describe('Company-wide people anonymisation', () => {
     expect(planningProbe.releases).toBe(0);
   });
 
-  it('releases suspended planning commands after a definitive refusal', async () => {
+  it('releases suspended planning intents after a definitive refusal', async () => {
     vi.mocked(fetchApi).mockResolvedValue(
       new Response(JSON.stringify({ error: 'Forbidden.' }), { status: 403 }),
     );

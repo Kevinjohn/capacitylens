@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { createPlanningCacheState } from './planningCacheController';
+import { createPlanningCacheState } from './planningCache';
 import { isSoleAcknowledgedAdvance } from './planningReadiness';
-import type { PlanningControllerMetadata } from './planningCacheTypes';
+import type { PlanningCacheMetadata } from './planningCacheTypes';
 
 const context = { identity: 'actor-1', companyId: 'company-1' };
 const basis = { context, revision: 4 };
 
-function acknowledgedAt(revision: number): PlanningControllerMetadata['phase'] {
+function acknowledgedAt(revision: number): PlanningCacheMetadata['phase'] {
   return { kind: 'ready', lastWrite: { kind: 'acknowledged', mutationId: 'mutation-1', revision } };
 }
 
-function planningAt(overrides: Partial<PlanningControllerMetadata>): PlanningControllerMetadata {
+function planningAt(overrides: Partial<PlanningCacheMetadata>): PlanningCacheMetadata {
   return {
     ...createPlanningCacheState().planning,
     context,

@@ -8,14 +8,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { resolveLane, workerPorts } from '../../tooling/ports.mjs';
+import { resolvePortLane, workerPorts } from '../../tooling/ports.mjs';
 import { assertE2eProxyDrained } from './e2eWorkerRuntime.mjs';
 import { createResetControlToken, requestResetControl } from '../../tooling/e2e_reset_control.ts';
 
 const frontend = join(process.cwd(), 'apps/frontend');
-const lane = resolveLane();
+const portLane = resolvePortLane();
 const slot = E2E_SCRIPT_TEST_SLOTS.proxy;
-const ports = workerPorts(lane, slot);
+const ports = workerPorts(portLane, slot);
 
 test('the Vite drain probe refuses open upstream sockets even when no proxy request is active', async () => {
   const previousEnvironment = new Map(

@@ -14,261 +14,268 @@ function tableCount(database: DatabaseSync, table: string) {
   return database.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n;
 }
 
-test('app reset archives all account and credential state and initializes a separate empty database', ({
-  assert,
-  test: t,
-}) => {
-  t.timeout(90000);
-  const f = operatorFixture();
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0);
-    const source = f.inspect();
-    insertOwner(source);
-    const now = new Date().toISOString();
-    source
-      .prepare(
-        'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
-      )
-      .run('bruce', 'a'.repeat(64), now, now, '2999-01-01T00:00:00.000Z');
-    source.close();
-    const destination = join(f.root, 'fresh.db');
-    const reset = f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable']);
-    assert.equal(reset.status, 0, reset.output);
-    const result = JSON.parse(reset.stdout.trim()) as {
-      archivePath: string;
-      backupPath: string;
-      databasePath: string;
-    };
-    assert.equal(result.databasePath, destination);
-    const backup = listBundles(dirname(result.archivePath))[0]!;
-    assert.equal(verifyBundle(dirname(result.archivePath), backup.name).path, backup.path);
-    assert.equal(result.backupPath, join(backup.path, 'db.sqlite'));
-    assert.isFalse(existsSync(f.databasePath));
-    for (const path of [result.archivePath, result.backupPath]) {
-      const archived = new DatabaseSync(path, { readOnly: true });
-      assert.equal(tableCount(archived, 'users'), 1);
-      assert.equal(tableCount(archived, 'account_sessions'), 1);
-      archived.close();
-    }
-    const fresh = new DatabaseSync(destination);
-    for (const table of [
-      'users',
-      'accounts',
-      'memberships',
-      'account_invitations',
-      'account_admissions',
-      'password_reset_tokens',
-      'email_verification_tokens',
-      'login_link_tokens',
-      'account_sessions',
-      'company_planning_revisions',
-      'planning_mutations',
-      'password_confirmations',
-    ])
-      assert.equal(tableCount(fresh, table), 0, table);
-    assert.deepEqual(fresh.prepare('SELECT name FROM adonis_schema ORDER BY id').all(), [
-      { name: 'database/migrations/202610120001_create_capacitylens_baseline' },
-    ]);
-    fresh.close();
-  } finally {
-    f.cleanup();
-  }
-});
-
-test('app reset refuses absent stop intent, occupied paths and sidecars without changing the source', ({
-  assert,
-  test: t,
-}) => {
-  t.timeout(90000);
-  const f = operatorFixture();
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0);
-    const destination = join(f.root, 'fresh.db');
-    const missingStopIntent = f.command(['app:reset', destination, '--disposable']);
-    assert.notEqual(missingStopIntent.status, 0);
-    assert.include(missingStopIntent.output, '--confirm-server-stopped');
-    assert.isFalse(existsSync(destination));
-    writeFileSync(destination, 'operator file');
-    assert.notEqual(
-      f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable']).status,
-      0
-    );
-    const sidecar = join(f.root, 'other.db');
-    writeFileSync(`${sidecar}-wal`, 'operator sidecar');
-    assert.notEqual(
-      f.command(['app:reset', sidecar, '--confirm-server-stopped', '--disposable']).status,
-      0
-    );
-    assert.isTrue(existsSync(f.databasePath));
-    assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')));
-  } finally {
-    f.cleanup();
-  }
-});
-
-test('a lock reset refusal preserves the source without reserving a destination', ({
-  assert,
-  test: t,
-}) => {
-  t.timeout(90000);
-  const f = operatorFixture();
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0);
-    const source = f.inspect();
-    const destination = join(f.root, 'fresh.db');
-    source.exec('BEGIN IMMEDIATE');
-    const locked = f.command([
-      'app:reset',
-      destination,
-      '--confirm-server-stopped',
-      '--disposable',
-    ]);
-    assert.notEqual(locked.status, 0);
-    source.exec('ROLLBACK');
-    source.close();
-    assert.isTrue(existsSync(f.databasePath));
-    assert.isFalse(existsSync(destination));
-  } finally {
-    f.cleanup();
-  }
-});
-
-test('a replacement upgrade failure preserves the verified recovery files and names the partial destination', ({
-  assert,
-  test: t,
-}) => {
-  t.timeout(90000);
-  const f = operatorFixture();
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0);
-    const source = f.inspect();
-    insertOwner(source);
-    source.close();
-    const scratch = join(f.root, 'backend');
-    cpSync(process.cwd(), scratch, { recursive: true, filter: scratchBackendFilter });
-    symlinkSync(join(process.cwd(), 'node_modules'), join(scratch, 'node_modules'), 'dir');
-    const originalAce = readFileSync(join(scratch, 'ace.js'));
-    writeFileSync(join(scratch, 'ace.original.js'), originalAce);
-    writeFileSync(
-      join(scratch, 'ace.js'),
-      "if (process.argv[2] === 'app:upgrade') process.exit(44); await import('./ace.original.js');\n"
-    );
-    const destination = join(f.root, 'partial.db');
-    const result = f.command(
-      ['app:reset', destination, '--confirm-server-stopped', '--disposable'],
-      {},
-      scratch
-    );
-    assert.notEqual(result.status, 0);
-    assert.include(result.output, 'new database upgrade');
-    assert.include(result.output, destination);
-    const archive = readdirSync(f.root).find((name) => name.includes('.reset-archive-'))!;
-    const archiveDirectory = join(f.root, archive);
-    const bundle = listBundles(archiveDirectory)[0]!;
-    verifyBundle(archiveDirectory, bundle.name);
-    for (const file of ['original.db', join(bundle.name, 'db.sqlite')]) {
-      const saved = new DatabaseSync(join(f.root, archive, file), { readOnly: true });
-      assert.equal(tableCount(saved, 'users'), 1);
-      saved.close();
-    }
-    assert.isTrue(existsSync(destination));
-    assert.isFalse(existsSync(f.databasePath));
-  } finally {
-    f.cleanup();
-  }
-});
-
-test('a failed backup reports only completed recovery artifacts and leaves the source in place', ({
-  assert,
-  test: t,
-}) => {
-  t.timeout(90000);
-  const f = operatorFixture();
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0);
-    const source = f.inspect();
-    insertOwner(source);
-    source.exec('PRAGMA foreign_keys=OFF');
-    source
-      .prepare(
-        'INSERT INTO memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
-      )
-      .run(
-        'a-studio',
-        'missing-user',
-        'viewer',
-        'active',
-        new Date().toISOString(),
-        new Date().toISOString()
-      );
-    source.close();
-    const destination = join(f.root, 'fresh.db');
-    const result = f.command([
-      'app:reset',
-      destination,
-      '--confirm-server-stopped',
-      '--disposable',
-    ]);
-    assert.notEqual(result.status, 0);
-    assert.include(result.output, 'No verified backup was completed');
-    assert.include(result.output, `Original source remains at: ${f.databasePath}`);
-    assert.notInclude(result.output, 'Original archive:');
-    assert.isTrue(existsSync(f.databasePath));
-  } finally {
-    f.cleanup();
-  }
-});
-
-test('app reset refuses production even with disposable confirmation, preserving a populated source', ({
-  assert,
-}) => {
-  const f = operatorFixture();
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0);
-    const source = f.inspect();
-    insertOwner(source);
-    source.close();
-    const destination = join(f.root, 'fresh.db');
-    const result = f.command(
-      ['app:reset', destination, '--confirm-server-stopped', '--disposable'],
-      {
-        NODE_ENV: 'production',
-        CAPACITYLENS_ALLOW_RESET: 'false',
-        APP_URL: 'https://capacity.example.test',
-        CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test',
+test.group('app reset command', () => {
+  test('app reset archives all account and credential state and initializes a separate empty database', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(90000);
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const source = f.inspect();
+      insertOwner(source);
+      const now = new Date().toISOString();
+      source
+        .prepare(
+          'INSERT INTO account_sessions (user_id,handle_hash,created_at,last_seen_at,expires_at) VALUES (?,?,?,?,?)'
+        )
+        .run('bruce', 'a'.repeat(64), now, now, '2999-01-01T00:00:00.000Z');
+      source.close();
+      const destination = join(f.root, 'fresh.db');
+      const reset = f.command([
+        'app:reset',
+        destination,
+        '--confirm-server-stopped',
+        '--disposable',
+      ]);
+      assert.equal(reset.status, 0, reset.output);
+      const result = JSON.parse(reset.stdout.trim()) as {
+        archivePath: string;
+        backupPath: string;
+        databasePath: string;
+      };
+      assert.equal(result.databasePath, destination);
+      const backup = listBundles(dirname(result.archivePath))[0]!;
+      assert.equal(verifyBundle(dirname(result.archivePath), backup.name).path, backup.path);
+      assert.equal(result.backupPath, join(backup.path, 'db.sqlite'));
+      assert.isFalse(existsSync(f.databasePath));
+      for (const path of [result.archivePath, result.backupPath]) {
+        const archived = new DatabaseSync(path, { readOnly: true });
+        assert.equal(tableCount(archived, 'users'), 1);
+        assert.equal(tableCount(archived, 'account_sessions'), 1);
+        archived.close();
       }
-    );
-    assert.notEqual(result.status, 0);
-    assert.include(result.output, 'app:reset is unavailable in production');
-    const unchanged = f.inspect();
-    assert.equal(tableCount(unchanged, 'users'), 1);
-    unchanged.close();
-    assert.isFalse(existsSync(destination));
-    assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')));
-  } finally {
-    f.cleanup();
-  }
-});
+      const fresh = new DatabaseSync(destination);
+      for (const table of [
+        'users',
+        'companies',
+        'memberships',
+        'account_invitations',
+        'account_admissions',
+        'password_reset_tokens',
+        'email_verification_tokens',
+        'login_link_tokens',
+        'account_sessions',
+        'company_planning_revisions',
+        'planning_mutations',
+        'password_confirmations',
+      ])
+        assert.equal(tableCount(fresh, table), 0, table);
+      assert.deepEqual(fresh.prepare('SELECT name FROM adonis_schema ORDER BY id').all(), [
+        { name: 'database/migrations/202610120001_create_capacitylens_baseline' },
+      ]);
+      fresh.close();
+    } finally {
+      f.cleanup();
+    }
+  });
 
-test('app reset requires disposable confirmation before changing a populated source', ({
-  assert,
-}) => {
-  const f = operatorFixture();
-  try {
-    assert.equal(f.command(['app:upgrade']).status, 0);
-    const source = f.inspect();
-    insertOwner(source);
-    source.close();
-    const destination = join(f.root, 'fresh.db');
-    const result = f.command(['app:reset', destination, '--confirm-server-stopped']);
-    assert.notEqual(result.status, 0);
-    assert.include(result.output, '--disposable');
-    const unchanged = f.inspect();
-    assert.equal(tableCount(unchanged, 'users'), 1);
-    unchanged.close();
-    assert.isFalse(existsSync(destination));
-    assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')));
-  } finally {
-    f.cleanup();
-  }
+  test('app reset refuses absent stop intent, occupied paths and sidecars without changing the source', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(90000);
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const destination = join(f.root, 'fresh.db');
+      const missingStopIntent = f.command(['app:reset', destination, '--disposable']);
+      assert.notEqual(missingStopIntent.status, 0);
+      assert.include(missingStopIntent.output, '--confirm-server-stopped');
+      assert.isFalse(existsSync(destination));
+      writeFileSync(destination, 'operator file');
+      assert.notEqual(
+        f.command(['app:reset', destination, '--confirm-server-stopped', '--disposable']).status,
+        0
+      );
+      const sidecar = join(f.root, 'other.db');
+      writeFileSync(`${sidecar}-wal`, 'operator sidecar');
+      assert.notEqual(
+        f.command(['app:reset', sidecar, '--confirm-server-stopped', '--disposable']).status,
+        0
+      );
+      assert.isTrue(existsSync(f.databasePath));
+      assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')));
+    } finally {
+      f.cleanup();
+    }
+  });
+
+  test('a lock reset refusal preserves the source without reserving a destination', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(90000);
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const source = f.inspect();
+      const destination = join(f.root, 'fresh.db');
+      source.exec('BEGIN IMMEDIATE');
+      const locked = f.command([
+        'app:reset',
+        destination,
+        '--confirm-server-stopped',
+        '--disposable',
+      ]);
+      assert.notEqual(locked.status, 0);
+      source.exec('ROLLBACK');
+      source.close();
+      assert.isTrue(existsSync(f.databasePath));
+      assert.isFalse(existsSync(destination));
+    } finally {
+      f.cleanup();
+    }
+  });
+
+  test('a replacement upgrade failure preserves the verified recovery files and names the partial destination', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(90000);
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const source = f.inspect();
+      insertOwner(source);
+      source.close();
+      const scratch = join(f.root, 'backend');
+      cpSync(process.cwd(), scratch, { recursive: true, filter: scratchBackendFilter });
+      symlinkSync(join(process.cwd(), 'node_modules'), join(scratch, 'node_modules'), 'dir');
+      const originalAce = readFileSync(join(scratch, 'ace.js'));
+      writeFileSync(join(scratch, 'ace.original.js'), originalAce);
+      writeFileSync(
+        join(scratch, 'ace.js'),
+        "if (process.argv[2] === 'app:upgrade') process.exit(44); await import('./ace.original.js');\n"
+      );
+      const destination = join(f.root, 'partial.db');
+      const result = f.command(
+        ['app:reset', destination, '--confirm-server-stopped', '--disposable'],
+        {},
+        scratch
+      );
+      assert.notEqual(result.status, 0);
+      assert.include(result.output, 'new database upgrade');
+      assert.include(result.output, destination);
+      const archive = readdirSync(f.root).find((name) => name.includes('.reset-archive-'))!;
+      const archiveDirectory = join(f.root, archive);
+      const bundle = listBundles(archiveDirectory)[0]!;
+      verifyBundle(archiveDirectory, bundle.name);
+      for (const file of ['original.db', join(bundle.name, 'db.sqlite')]) {
+        const saved = new DatabaseSync(join(f.root, archive, file), { readOnly: true });
+        assert.equal(tableCount(saved, 'users'), 1);
+        saved.close();
+      }
+      assert.isTrue(existsSync(destination));
+      assert.isFalse(existsSync(f.databasePath));
+    } finally {
+      f.cleanup();
+    }
+  });
+
+  test('a failed backup reports only completed recovery artifacts and leaves the source in place', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(90000);
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const source = f.inspect();
+      insertOwner(source);
+      source.exec('PRAGMA foreign_keys=OFF');
+      source
+        .prepare(
+          'INSERT INTO memberships (scope_id,user_id,role,status,created_at,updated_at) VALUES (?,?,?,?,?,?)'
+        )
+        .run(
+          'a-studio',
+          'missing-user',
+          'viewer',
+          'active',
+          new Date().toISOString(),
+          new Date().toISOString()
+        );
+      source.close();
+      const destination = join(f.root, 'fresh.db');
+      const result = f.command([
+        'app:reset',
+        destination,
+        '--confirm-server-stopped',
+        '--disposable',
+      ]);
+      assert.notEqual(result.status, 0);
+      assert.include(result.output, 'No verified backup was completed');
+      assert.include(result.output, `Original source remains at: ${f.databasePath}`);
+      assert.notInclude(result.output, 'Original archive:');
+      assert.isTrue(existsSync(f.databasePath));
+    } finally {
+      f.cleanup();
+    }
+  });
+
+  test('app reset refuses production even with disposable confirmation, preserving a populated source', ({
+    assert,
+  }) => {
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const source = f.inspect();
+      insertOwner(source);
+      source.close();
+      const destination = join(f.root, 'fresh.db');
+      const result = f.command(
+        ['app:reset', destination, '--confirm-server-stopped', '--disposable'],
+        {
+          NODE_ENV: 'production',
+          CAPACITYLENS_ALLOW_RESET: 'false',
+          APP_URL: 'https://capacity.example.test',
+          CAPACITYLENS_PUBLIC_URL: 'https://capacity.example.test',
+        }
+      );
+      assert.notEqual(result.status, 0);
+      assert.include(result.output, 'app:reset is unavailable in production');
+      const unchanged = f.inspect();
+      assert.equal(tableCount(unchanged, 'users'), 1);
+      unchanged.close();
+      assert.isFalse(existsSync(destination));
+      assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')));
+    } finally {
+      f.cleanup();
+    }
+  });
+
+  test('app reset requires disposable confirmation before changing a populated source', ({
+    assert,
+  }) => {
+    const f = operatorFixture();
+    try {
+      assert.equal(f.command(['app:upgrade']).status, 0);
+      const source = f.inspect();
+      insertOwner(source);
+      source.close();
+      const destination = join(f.root, 'fresh.db');
+      const result = f.command(['app:reset', destination, '--confirm-server-stopped']);
+      assert.notEqual(result.status, 0);
+      assert.include(result.output, '--disposable');
+      const unchanged = f.inspect();
+      assert.equal(tableCount(unchanged, 'users'), 1);
+      unchanged.close();
+      assert.isFalse(existsSync(destination));
+      assert.isFalse(readdirSync(f.root).some((name) => name.includes('archive')));
+    } finally {
+      f.cleanup();
+    }
+  });
 });

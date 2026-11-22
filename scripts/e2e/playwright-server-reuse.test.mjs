@@ -31,7 +31,7 @@ test('every automatically started Playwright server refuses an existing endpoint
 test('the standard profile waits for real database readiness through both Vite proxies', () => {
   const probes = [
     ...configSource.matchAll(
-      /url:\s*`http:\/\/127\.0\.0\.1:\$\{lanePorts\.(authApi|authWeb)\}([^`]*)`/g,
+      /url:\s*`http:\/\/127\.0\.0\.1:\$\{portLanePorts\.(authApi|authWeb)\}([^`]*)`/g,
     ),
   ].map((match) => `${match[1]}${match[2]}`);
 
