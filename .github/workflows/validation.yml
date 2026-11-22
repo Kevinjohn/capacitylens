@@ -2,7 +2,7 @@ name: Validation
 
 # One entry point for every post-merge validation:
 # - a main push checks that the merged app works: build, full application tests and the
-#   Chromium journey;
+#   Chromium journey, unless a manual run already passed the identical tree (the `select` job);
 # - the weekly schedule, a `v*` tag and manual dispatch run full validation: every tooling check,
 #   frontend coverage, the native packages and every browser.
 # Release publication waits for this workflow's tag run (scripts/release/require-release-validation.mjs).
@@ -20,7 +20,8 @@ on:
         default: true
 
 permissions:
-  # The tooling selection reads the last successful Validation run on main.
+  # The tooling selection reads the last successful Validation run on main, and the `select` job
+  # reads the manual runs on a merged branch head.
   actions: read
   contents: read
 
@@ -30,32 +31,68 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A pull request merged into an unchanged main has the tree of its head. When a manual run has
+  # already passed that head, the main push repeats nothing but the sign-off check. Selection needs
+  # only Node, git and the run history; if it fails, every job runs.
+  select:
+    name: Select validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.select.outputs.scope }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The merge commit and both parents.
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Skip a tree a manual run already passed
+        id: select
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: echo "scope=$(node scripts/ci/select-validation.mjs)" >> "$GITHUB_OUTPUT"
+
   validation:
+    needs: [select]
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/gate.yml
     with:
       full: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.full) }}
+      tree_validated: ${{ needs.select.outputs.scope == 'skip' }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   browsers:
+    needs: [select]
+    if: ${{ !cancelled() && needs.select.outputs.scope != 'skip' }}
     uses: ./.github/workflows/e2e.yml
     with:
       full: ${{ github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.full) }}
 
   gate:
     name: Validation
-    needs: [validation, browsers]
+    needs: [select, validation, browsers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require successful validation
         env:
+          SCOPE: ${{ needs.select.outputs.scope }}
           VALIDATION_RESULT: ${{ needs.validation.result }}
           BROWSER_RESULT: ${{ needs.browsers.result }}
         run: |
           test "$VALIDATION_RESULT" = success
-          test "$BROWSER_RESULT" = success
+          if [ "$SCOPE" = skip ]; then
+            test "$BROWSER_RESULT" = skipped
+          else
+            test "$BROWSER_RESULT" = success
+          fi
 
   # Scheduled runs have no pull request or pusher watching them.
   notify:
