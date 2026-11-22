@@ -74,7 +74,7 @@ beforeEach(async () => {
         invitationReads += 1;
       }
       if (String(url).includes('/api/masquerade')) {
-        return Promise.resolve(jsonResponse({ data: { active: false, contextToken: 'idle' } }));
+        return Promise.resolve(jsonResponse({ data: { active: false, masqueradeToken: 'idle' } }));
       }
       return base(url, init);
     }),

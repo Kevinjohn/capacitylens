@@ -149,7 +149,7 @@ async function establishAuthFixtureBaseline(signal) {
     signal,
   });
   const { data: mode } = await modeResponse.json();
-  if (modeResponse.status !== 200 || typeof mode.contextToken !== 'string')
+  if (modeResponse.status !== 200 || typeof mode.masqueradeToken !== 'string')
     throw new Error(`Auth E2E baseline masquerade context unavailable (${modeResponse.status}).`);
 
   const company = await fetch(`${origin}/api/installation/company`, {
@@ -158,7 +158,7 @@ async function establishAuthFixtureBaseline(signal) {
       'content-type': 'application/json',
       cookie,
       'sec-fetch-site': 'same-origin',
-      'X-Masquerade-Context': mode.contextToken,
+      'X-Masquerade-Context': mode.masqueradeToken,
     },
     signal,
     body: JSON.stringify({ name: 'Daily Planet E2E Baseline' }),

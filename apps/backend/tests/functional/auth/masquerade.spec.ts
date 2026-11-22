@@ -36,16 +36,16 @@ function asSession<
   });
 }
 
-async function contextToken(client: any, cookie: string) {
+async function masqueradeToken(client: any, cookie: string) {
   const response = await asSession(client.visit('api.masquerade.show'), cookie).send();
   response.assertStatus(200);
-  const token = response.body().data?.contextToken;
+  const token = response.body().data?.masqueradeToken;
   if (typeof token !== 'string') throw new Error('Masquerade context token was not returned.');
   return token;
 }
 
 async function startView(client: any, cookie: string, targetUserId: string) {
-  const token = await contextToken(client, cookie);
+  const token = await masqueradeToken(client, cookie);
   return asSession(
     client
       .visit('api.masquerade.store', { companyId: 'a-studio' })
@@ -148,7 +148,7 @@ async function insertPrivateClient() {
 }
 
 async function endView(client: any, cookie: string) {
-  const token = await contextToken(client, cookie);
+  const token = await masqueradeToken(client, cookie);
   const ended = await asSession(
     client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
     cookie,
@@ -189,7 +189,7 @@ test.group('native read-only masquerade', (group) => {
       'MASQUERADE_CONTEXT_REQUIRED'
     );
 
-    const idleToken = await contextToken(client, cookie);
+    const idleToken = await masqueradeToken(client, cookie);
     const stale = await asSession(
       client
         .visit('api.masquerade.store', { companyId: 'a-studio' })
@@ -212,7 +212,7 @@ test.group('native read-only masquerade', (group) => {
       .json({ targetUserId: targetId })
       .send();
     started.assertStatus(200);
-    const mode = (started.body() as { data: unknown }).data as { contextToken: string };
+    const mode = (started.body() as { data: unknown }).data as { masqueradeToken: string };
     const capturedIdleStart = await asSession(
       client
         .visit('api.masquerade.store', { companyId: 'a-studio' })
@@ -232,7 +232,7 @@ test.group('native read-only masquerade', (group) => {
         .visit('api.getting_started.update', { companyId: 'a-studio' })
         .header('sec-fetch-site', 'same-origin'),
       cookie,
-      mode.contextToken
+      mode.masqueradeToken
     )
       .json({} as never)
       .send();
@@ -281,11 +281,11 @@ test.group('native read-only masquerade', (group) => {
   }) => {
     const { cookie, targetId } = await fixture(client);
     const secondSession = await signIn(client, 'bruce.wayne@wayne.example', password);
-    const idleToken = await contextToken(client, cookie);
+    const idleToken = await masqueradeToken(client, cookie);
 
     const started = await startView(client, secondSession.cookie, targetId);
     started.assertStatus(200);
-    const activeToken = (started.body().data as { contextToken: string }).contextToken;
+    const activeToken = (started.body().data as { masqueradeToken: string }).masqueradeToken;
 
     const staleIdleRead = await asSession(
       client.visit('api.planning.show', { companyId: 'a-studio' }),
@@ -353,7 +353,7 @@ test.group('native read-only masquerade', (group) => {
     assert,
   }) => {
     const { cookie, targetId } = await fixture(client);
-    const idleToken = await contextToken(client, cookie);
+    const idleToken = await masqueradeToken(client, cookie);
     const service = await masqueradeAdmission();
     const serviceWithTestGate = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
@@ -392,7 +392,7 @@ test.group('native read-only masquerade', (group) => {
       );
       const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
       status.assertStatus(200);
-      const activeToken = (status.body()!.data as { contextToken: string }).contextToken;
+      const activeToken = (status.body()!.data as { masqueradeToken: string }).masqueradeToken;
       const ended = await asSession(
         client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
         cookie,
@@ -414,7 +414,7 @@ test.group('native read-only masquerade', (group) => {
     const { cookie: sessionCookie, targetId } = await fixture(client);
     const started = await startView(client, sessionCookie, targetId);
     started.assertStatus(200);
-    const activeToken = (started.body().data as { contextToken: string }).contextToken;
+    const activeToken = (started.body().data as { masqueradeToken: string }).masqueradeToken;
     const service = await masqueradeAdmission();
     const serviceWithTestGate = service as unknown as {
       resolve(request: HttpContext): Promise<ResolvedContext>;
@@ -494,13 +494,13 @@ test.group('native read-only masquerade', (group) => {
       targetUserId: string;
       effectiveRole: string;
       token: string;
-      contextToken: string;
+      masqueradeToken: string;
       expiresAt: string;
     };
     assert.equal(state.companyId, 'a-studio');
     assert.equal(state.targetUserId, targetId);
     assert.equal(state.effectiveRole, 'viewer');
-    assert.equal(state.contextToken, state.token);
+    assert.equal(state.masqueradeToken, state.token);
     assert.isAbove(Date.parse(state.expiresAt), Date.now());
     const projected = await asSession(
       client.visit('api.planning.show', { companyId: 'a-studio' }),
@@ -512,13 +512,13 @@ test.group('native read-only masquerade', (group) => {
     const active = status.body()!.data as {
       active: boolean;
       actor: { id: string; email: string };
-      contextToken: string;
+      masqueradeToken: string;
       expiresAt: string;
     };
     assert.isTrue(active.active);
     assert.equal(active.actor.id, ownerId);
     assert.equal(active.actor.email, 'bruce.wayne@wayne.example');
-    assert.equal(active.contextToken, state.contextToken);
+    assert.equal(active.masqueradeToken, state.masqueradeToken);
     assert.equal(active.expiresAt, state.expiresAt);
     const secondSession = await signIn(client, 'bruce.wayne@wayne.example', password);
     const secondStatus = await asSession(
@@ -528,8 +528,8 @@ test.group('native read-only masquerade', (group) => {
     secondStatus.assertStatus(200);
     assert.isTrue((secondStatus.body()!.data as { active: boolean }).active);
     assert.equal(
-      (secondStatus.body()!.data as { contextToken: string }).contextToken,
-      state.contextToken
+      (secondStatus.body()!.data as { masqueradeToken: string }).masqueradeToken,
+      state.masqueradeToken
     );
     const secondProjected = await asSession(
       client.visit('api.planning.show', { companyId: 'a-studio' }),
@@ -543,7 +543,7 @@ test.group('native read-only masquerade', (group) => {
         .visit('api.resource_anonymisations.store', { companyId: 'a-studio', id: 'unavailable' })
         .header('sec-fetch-site', 'same-origin'),
       cookie,
-      state.contextToken
+      state.masqueradeToken
     )
       .json({})
       .send();
@@ -578,7 +578,7 @@ test.group('native read-only masquerade', (group) => {
     const ended = await asSession(
       client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
       cookie,
-      state.contextToken
+      state.masqueradeToken
     )
       .json({ token: state.token, reason: 'explicit' })
       .send();
@@ -589,7 +589,7 @@ test.group('native read-only masquerade', (group) => {
         .visit('api.masquerade.store', { companyId: 'a-studio' })
         .header('sec-fetch-site', 'same-origin'),
       cookie,
-      state.contextToken
+      state.masqueradeToken
     )
       .json({ targetUserId: targetId })
       .send();
@@ -626,32 +626,32 @@ test.group('native read-only masquerade', (group) => {
           .visit('api.getting_started.update', { companyId: 'a-studio' })
           .header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body().data as { contextToken: string }).contextToken
+        (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({} as never),
       asSession(
         client.post('/api/no-such-route').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body().data as { contextToken: string }).contextToken
+        (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
         client.post('/api/masquerade').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body().data as { contextToken: string }).contextToken
+        (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
         client.post('/no-such-route').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body().data as { contextToken: string }).contextToken
+        (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
         client.post<string>('/api/auth/sign-in').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body().data as { contextToken: string }).contextToken
+        (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(
         client.post('/api/auth/register').header('sec-fetch-site', 'same-origin'),
         cookie,
-        (started.body().data as { contextToken: string }).contextToken
+        (started.body().data as { masqueradeToken: string }).masqueradeToken
       ).json({}),
       asSession(client.visit('api.session.show'), cookie),
       asSession(client.visit('api.members.index', { companyId: 'a-studio' }), cookie),
@@ -671,7 +671,7 @@ test.group('native read-only masquerade', (group) => {
         .header('sec-fetch-site', 'same-origin')
         .header('content-type', 'application/json'),
       cookie,
-      (started.body().data as { contextToken: string }).contextToken
+      (started.body().data as { masqueradeToken: string }).masqueradeToken
     ).setup((request) => {
       request.request.send('{');
     });
@@ -718,12 +718,15 @@ test.group('native read-only masquerade', (group) => {
       active: boolean;
       companyId: string;
       targetUserId: string;
-      contextToken: string;
+      masqueradeToken: string;
     };
     assert.isTrue(body.active);
     assert.equal(body.companyId, 'a-studio');
     assert.equal(body.targetUserId, targetId);
-    assert.equal(body.contextToken, (started.body().data as { contextToken: string }).contextToken);
+    assert.equal(
+      body.masqueradeToken,
+      (started.body().data as { masqueradeToken: string }).masqueradeToken
+    );
   });
 
   test('rejects self, inactive target, and malformed session authority', async ({ client }) => {
@@ -798,14 +801,14 @@ test.group('native read-only masquerade', (group) => {
     read.assertStatus(409);
     const status = await asSession(client.visit('api.masquerade.show'), cookie).send();
     status.assertStatus(200);
-    const current = status.body()!.data as { active: boolean; contextToken: string };
+    const current = status.body()!.data as { active: boolean; masqueradeToken: string };
     assert.isFalse(current.active);
     const ended = await asSession(
       client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
       cookie,
-      current.contextToken
+      current.masqueradeToken
     )
-      .json({ token: current.contextToken, reason: 'explicit' })
+      .json({ token: current.masqueradeToken, reason: 'explicit' })
       .send();
     ended.assertStatus(200);
   });
@@ -864,7 +867,7 @@ test.group('native read-only masquerade', (group) => {
     const { cookie, ownerId, targetId } = await fixture(client);
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
-    const token = (started.body().data as { contextToken: string }).contextToken;
+    const token = (started.body().data as { masqueradeToken: string }).masqueradeToken;
     const now = Date.now();
     await db
       .from('masquerade_modes')
@@ -881,7 +884,7 @@ test.group('native read-only masquerade', (group) => {
       await db.from('masquerade_events').where({ actor_id: ownerId, kind: 'expired' }),
       1
     );
-    assert.notEqual((status.body()!.data as { contextToken: string }).contextToken, token);
+    assert.notEqual((status.body()!.data as { masqueradeToken: string }).masqueradeToken, token);
     const staleWrite = await asSession(
       client
         .visit('api.masquerade.store', { companyId: 'a-studio' })
@@ -947,7 +950,7 @@ test.group('native read-only masquerade', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const idleToken = await contextToken(client, cookie);
+    const idleToken = await masqueradeToken(client, cookie);
     const starts = await Promise.all(
       [targetId, secondTargetId].map((userId) =>
         asSession(
@@ -963,7 +966,8 @@ test.group('native read-only masquerade', (group) => {
     );
     assert.deepEqual(starts.map((response) => response.status()).sort(), [200, 409]);
     const active = starts.find((response) => response.status() === 200)!;
-    const activeToken = (active.body() as { data: { contextToken: string } }).data.contextToken;
+    const activeToken = (active.body() as { data: { masqueradeToken: string } }).data
+      .masqueradeToken;
     const stops = await Promise.all(
       [0, 1].map(() =>
         asSession(
@@ -1040,14 +1044,14 @@ test.group('native read-only masquerade', (group) => {
   }) => {
     const anonymous = await client.visit('api.masquerade.show').send();
     anonymous.assertStatus(200);
-    assert.deepEqual(anonymous.body()!.data, { active: false, contextToken: null });
+    assert.deepEqual(anonymous.body()!.data, { active: false, masqueradeToken: null });
     const { cookie, targetId } = await fixture(client);
     const started = await startView(client, cookie, targetId);
     started.assertStatus(200);
     await db.from('account_sessions').delete();
     const revoked = await asSession(client.visit('api.masquerade.show'), cookie).send();
     revoked.assertStatus(200);
-    assert.deepEqual(revoked.body()!.data, { active: false, contextToken: null });
+    assert.deepEqual(revoked.body()!.data, { active: false, masqueradeToken: null });
     const deniedRead = await asSession(
       client.visit('api.company_state.show').qs({ companyId: 'a-studio' }),
       cookie
@@ -1096,7 +1100,7 @@ test.group('native read-only masquerade', (group) => {
       error: 'Masquerade is already active.',
       code: 'MASQUERADE_ACTIVE',
     });
-    const activeToken = await contextToken(client, cookie);
+    const activeToken = await masqueradeToken(client, cookie);
     const ended = await asSession(
       client.visit('api.masquerade.destroy').header('sec-fetch-site', 'same-origin'),
       cookie,

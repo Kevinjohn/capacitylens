@@ -288,15 +288,16 @@ db.exec('COMMIT')`,
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = ((started.body() as { data: unknown }).data as { contextToken: string })
-        .contextToken;
+      const masqueradeToken = (
+        (started.body() as { data: unknown }).data as { masqueradeToken: string }
+      ).masqueradeToken;
       const capturedPlanningRead = async () => {
         const response = await fetch(
           `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`,
           {
             headers: {
               'cookie': sessionCookieHeader(owner.cookie),
-              'X-Masquerade-Context': contextToken,
+              'X-Masquerade-Context': masqueradeToken,
               'sec-fetch-site': 'same-origin',
             },
           }
@@ -346,11 +347,11 @@ db.exec('COMMIT')`,
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = (started.body() as unknown as { data: { contextToken: string } }).data
-        .contextToken;
+      const masqueradeToken = (started.body() as unknown as { data: { masqueradeToken: string } })
+        .data.masqueradeToken;
       const headers = {
         'cookie': sessionCookieHeader(owner.cookie),
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
         'sec-fetch-site': 'same-origin',
       };
       const url = `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`;

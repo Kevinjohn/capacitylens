@@ -52,7 +52,7 @@ export async function readCurrentMasquerade(
     }
   }
   const view = await service.status(ctx);
-  if (!view.isMasquerading) return { active: false as const, contextToken: view.contextToken };
+  if (!view.isMasquerading) return { active: false as const, masqueradeToken: view.contextToken };
   const actor = await nativeAdapter.authenticateActor(ctx);
   const target = await client
     .from('users')
@@ -98,7 +98,7 @@ export async function readCurrentMasquerade(
     effectiveRole,
     startedAt: view.startedAt,
     expiresAt: view.expiresAt,
-    contextToken: view.contextToken,
+    masqueradeToken: view.contextToken,
     token: view.contextToken,
     actor: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
     ...buildAccessGrant(effectiveRole, true),

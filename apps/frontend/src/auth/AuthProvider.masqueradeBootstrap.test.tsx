@@ -8,7 +8,7 @@ import { masqueradeGrantFor } from '@/test/permissionGrants';
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -18,7 +18,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -37,7 +37,7 @@ describe('AuthProvider — server mode', () => {
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
-      contextToken: 'session-token',
+      masqueradeToken: 'session-token',
       actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     const fetchSpy = vi.fn();
@@ -68,7 +68,7 @@ describe('AuthProvider — server mode', () => {
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
-      contextToken: 'session-token',
+      masqueradeToken: 'session-token',
       actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     vi.doMock('@/data/planning/storePlanningTransport', async () => {

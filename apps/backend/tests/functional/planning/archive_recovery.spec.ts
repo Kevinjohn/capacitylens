@@ -328,18 +328,19 @@ test.group('identity-only archive recovery', (suite) => {
     const target = await signIn(client, 'editor');
     const contextResponse = await session(client.visit('api.masquerade.show'), owner.cookie).send();
     contextResponse.assertStatus(200);
-    const contextToken = (contextResponse.body()!.data as { contextToken?: string }).contextToken;
-    assert.isString(contextToken);
+    const masqueradeToken = (contextResponse.body()!.data as { masqueradeToken?: string })
+      .masqueradeToken;
+    assert.isString(masqueradeToken);
     const started = await requestWithContext(
       trusted(client.post(route('masquerade'))),
       owner.cookie,
-      contextToken
+      masqueradeToken
     )
       .json({ targetUserId: target.userId })
       .send();
     started.assertStatus(200);
-    const activeToken = ((started.body() as { data: unknown }).data as { contextToken: string })
-      .contextToken;
+    const activeToken = ((started.body() as { data: unknown }).data as { masqueradeToken: string })
+      .masqueradeToken;
     const masqueradedRead = await requestWithContext(
       client.get(archiveUrl),
       owner.cookie,
