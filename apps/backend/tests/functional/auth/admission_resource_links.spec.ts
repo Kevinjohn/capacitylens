@@ -97,7 +97,7 @@ test.group('direct member resource association', (group) => {
       company_id: companyId,
       kind: 'person',
       name: id,
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,
@@ -210,7 +210,7 @@ test.group('direct member resource association', (group) => {
       company_id: companyId,
       kind,
       name: id,
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,
@@ -259,7 +259,7 @@ test.group('direct member resource association', (group) => {
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-link-command-0001',
+          'x-account-operation-id': 'member-link-command-0001',
           'idempotency-key': 'member-link-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: null })
@@ -289,7 +289,7 @@ test.group('direct member resource association', (group) => {
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-link-noop-command-0001',
+          'x-account-operation-id': 'member-link-noop-command-0001',
           'idempotency-key': 'member-link-noop-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: revision })
@@ -323,7 +323,7 @@ test.group('direct member resource association', (group) => {
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-unlink-command-0001',
+          'x-account-operation-id': 'member-unlink-command-0001',
           'idempotency-key': 'member-unlink-idempotency-0001',
         })
         .json({ expectedRevision: revision })

@@ -3,12 +3,12 @@ import { seed } from './seed.js';
 import {
   COMPANY_EXPORT_FORMAT,
   COMPANY_EXPORT_SCHEMA_VERSION,
-  CompanyDocumentError,
+  CompanyExportError,
   buildCompanyExport,
   parseCompanyExport,
   prepareCompanyImport,
   serializeCompanyExport,
-} from './companyDocument.js';
+} from './companyExport.js';
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import { buildInternalClientId } from './internalClient.js';
 
@@ -106,18 +106,16 @@ describe('beta-native transfer', () => {
     expect(COMPANY_EXPORT_SCHEMA_VERSION).toBe(2);
   });
 
-  it('names the row company accountId in the file and companyId in memory', () => {
+  it('names the row company companyId in the file and in memory', () => {
     const json = serializeCompanyExport(
       buildCompanyExport(structuredClone(original), { companyId, completeness: 'full' }),
     );
     const wire = JSON.parse(json) as { data: { resources: Record<string, unknown>[] } };
     const wireRow = fixture(wire.data.resources[0], 'exported resource');
-    expect(wireRow.accountId).toBe(companyId);
-    expect(wireRow).not.toHaveProperty('companyId');
+    expect(wireRow.companyId).toBe(companyId);
 
     const parsedRow = fixture(parseCompanyExport(json).data.resources[0], 'parsed resource');
     expect(parsedRow.companyId).toBe(companyId);
-    expect(parsedRow).not.toHaveProperty('accountId');
   });
 
   it('projects named portable fields while preserving source objects', () => {
@@ -188,10 +186,10 @@ describe('beta-native transfer', () => {
     for (const [name, corrupt] of cases) {
       const changed = structuredClone(document);
       corrupt(changed);
-      expect(() => prepareCompanyImport(changed, context), name).toThrow(CompanyDocumentError);
+      expect(() => prepareCompanyImport(changed, context), name).toThrow(CompanyExportError);
     }
     expect(() => parseCompanyExport(JSON.stringify({ schemaVersion: 24, data: original }))).toThrow(
-      CompanyDocumentError,
+      CompanyExportError,
     );
   });
 
@@ -222,7 +220,7 @@ describe('beta-native transfer', () => {
       'foreign resource',
     );
     document.data.resources.push(structuredClone(foreign));
-    expect(() => serializeCompanyExport(document)).toThrow(/accountId/i);
+    expect(() => serializeCompanyExport(document)).toThrow(/companyId/i);
   });
 
   it('keeps malformed JSON errors display-safe while retaining the parser cause', () => {
@@ -232,7 +230,7 @@ describe('beta-native transfer', () => {
     } catch (caught) {
       error = caught;
     }
-    expect(error).toBeInstanceOf(CompanyDocumentError);
+    expect(error).toBeInstanceOf(CompanyExportError);
     expect((error as Error).message).not.toContain('do not echo');
     expect((error as Error).cause).toBeInstanceOf(SyntaxError);
   });

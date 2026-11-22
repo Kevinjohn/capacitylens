@@ -2,21 +2,21 @@ import { APP_DATA_KEYS, SCOPED_KEYS } from '../types/entityKeys.js';
 import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
-import { assert, fail, isId, isOneOf, hasOwn } from './companyDocument.errors.js';
-import { FIELDS } from './companyDocument.fields.js';
-import { projectCompanyData } from './companyDocument.projection.js';
-import { assertRow } from './companyDocument.validation.js';
-import { assertCompanyReferences } from './companyDocument.references.js';
-import { CompanyDocumentError } from './companyDocument.errors.js';
+import { assert, fail, isId, isOneOf, hasOwn } from './companyExport.errors.js';
+import { FIELDS } from './companyExport.fields.js';
+import { projectCompanyData } from './companyExport.projection.js';
+import { assertRow } from './companyExport.validation.js';
+import { assertCompanyReferences } from './companyExport.references.js';
+import { CompanyExportError } from './companyExport.errors.js';
 
-export { CompanyDocumentError };
+export { CompanyExportError };
 
 /** Stable identifier for the beta-native interchange format. */
 export const COMPANY_EXPORT_FORMAT = 'capacitylens-beta' as const;
 /** Beta interchange schema version, independent of the database schema. */
 export const COMPANY_EXPORT_SCHEMA_VERSION = 2 as const;
 
-export interface CompanyExportDocument {
+export interface CompanyExport {
   format: typeof COMPANY_EXPORT_FORMAT;
   schemaVersion: typeof COMPANY_EXPORT_SCHEMA_VERSION;
   completeness: 'full' | 'redacted';
@@ -37,40 +37,8 @@ export interface PreparedCompanyImport {
 
 type Row = Record<string, unknown>;
 
-/**
- * Renames each scoped row's company field; the export names it `accountId`, the domain `companyId`.
- * Anything that is not a well-formed table is passed through for validation to report.
- */
-function renameScope(data: unknown, from: string, to: string): unknown {
-  if (!isRecord(data)) return data;
-  const renamed: Row = { ...data };
-  for (const key of SCOPED_KEYS) {
-    const rows = data[key];
-    if (!Array.isArray(rows)) continue;
-    renamed[key] = rows.map((row: unknown) => {
-      if (!isRecord(row) || !hasOwn(row, from)) return row;
-      const { [from]: companyId, ...rest } = row;
-      return { ...rest, [to]: companyId };
-    });
-  }
-  return renamed;
-}
-
-function buildWireDocument(document: unknown): unknown {
-  if (!isRecord(document)) return document;
-  return { ...document, data: renameScope(document.data, 'companyId', 'accountId') };
-}
-
-function buildCompanyDocument(document: CompanyExportDocument): CompanyExportDocument {
-  return {
-    ...document,
-    data: renameScope(document.data, 'accountId', 'companyId') as AppData,
-  };
-}
-
-// Checks the interchange shape and throws on the first fault; the returned rows still carry
-// `accountId`.
-function assertDocument(value: unknown): CompanyExportDocument {
+// Checks the interchange shape and throws on the first fault.
+function assertDocument(value: unknown): CompanyExport {
   assert(isRecord(value), 'document', 'must be an object');
   assert(
     value.format === COMPANY_EXPORT_FORMAT,
@@ -123,12 +91,12 @@ function assertDocument(value: unknown): CompanyExportDocument {
   const scoped = APP_DATA_KEYS.filter((key) => key !== 'companies') as ScopedEntityKey[];
   const account = accountRows[0];
   assert(account, 'data.companies', 'must contain exactly one company');
-  const accountId = account.id;
+  const companyId = account.id;
   for (const key of scoped) {
-    (data[key] as unknown as Array<{ accountId: string }>).forEach((row, i) =>
+    data[key].forEach((row, i) =>
       assert(
-        row.accountId === accountId,
-        `data.${key}[${i}].accountId`,
+        row.companyId === companyId,
+        `data.${key}[${i}].companyId`,
         'does not match the exported company',
       ),
     );
@@ -162,39 +130,36 @@ function assertDocument(value: unknown): CompanyExportDocument {
 export function buildCompanyExport(
   data: AppData,
   options: { companyId: string; completeness: 'full' | 'redacted' },
-): CompanyExportDocument {
+): CompanyExport {
   const document = {
     format: COMPANY_EXPORT_FORMAT,
     schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
     completeness: options.completeness,
-    data: projectCompanyData(
-      renameScope(data, 'companyId', 'accountId') as AppData,
-      options.companyId,
-    ),
+    data: projectCompanyData(data, options.companyId),
   };
-  return buildCompanyDocument(assertDocument(document));
+  return assertDocument(document);
 }
 
 /** Serialize the named portable fields as formatted JSON after validating the entire document. */
-export function serializeCompanyExport(document: CompanyExportDocument): string {
-  const validated = assertDocument(buildWireDocument(document));
+export function serializeCompanyExport(document: CompanyExport): string {
+  const validated = assertDocument(document);
   return JSON.stringify(validated, null, 2);
 }
 
 /** Parse and strictly validate a beta-native export, projecting away undeclared properties. */
-export function parseCompanyExport(json: string): CompanyExportDocument {
+export function parseCompanyExport(json: string): CompanyExport {
   let raw: unknown;
   try {
     raw = JSON.parse(json) as unknown;
   } catch (cause) {
-    throw new CompanyDocumentError('document', 'is not valid JSON', { cause });
+    throw new CompanyExportError('document', 'is not valid JSON', { cause });
   }
-  return buildCompanyDocument(assertDocument(raw));
+  return assertDocument(raw);
 }
 
 /** Validate a full source document and bind its company scope to the selected destination. */
 export function prepareCompanyImport(
-  document: CompanyExportDocument,
+  document: CompanyExport,
   context: CompanyImportContext,
 ): PreparedCompanyImport {
   assert(
@@ -202,7 +167,7 @@ export function prepareCompanyImport(
     'context',
     'companyId and memberResourceLinks are required',
   );
-  const validated = buildCompanyDocument(assertDocument(buildWireDocument(document)));
+  const validated = assertDocument(document);
   assert(validated.completeness === 'full', 'completeness', 'only full exports can be imported');
   const data = validated.data;
   const importedAccount = data.companies[0];

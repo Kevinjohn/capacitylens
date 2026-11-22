@@ -1,10 +1,10 @@
-import type { TransferPreview } from '@/data/companyDataRequests';
+import type { ImportPreviewSummary } from '@/data/companyDataRequests';
 import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
 
 interface ImportPreviewProps {
   /** The server's description of the document, or null until it arrives or when it was refused. */
-  preview: TransferPreview | null;
+  preview: ImportPreviewSummary | null;
   /** The server's reason for refusing the document. */
   error: string | null;
   onContinue: () => void;

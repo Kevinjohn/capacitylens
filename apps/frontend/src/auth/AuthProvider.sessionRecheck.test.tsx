@@ -9,7 +9,7 @@ import { createDeferred } from '@/test/createDeferred';
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -19,7 +19,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();

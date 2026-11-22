@@ -1,12 +1,5 @@
 import type { AppData, AppDataKey } from '../types/entities.js';
 
-/**
- * A row field as the interchange format names it: rows carry their company as `accountId` in the
- * export, which documents already written must keep reading.
- */
-type WireField<T> =
-  Exclude<keyof T, 'companyId'> | ('companyId' extends keyof T ? 'accountId' : never);
-
 /** Declares every portable field for each beta export table. */
 export const FIELDS = {
   companies: [
@@ -28,15 +21,15 @@ export const FIELDS = {
     'capacityOverviewAccess',
     'dateStyle',
   ],
-  disciplines: ['id', 'accountId', 'createdAt', 'updatedAt', 'name', 'color', 'sortOrder'],
+  disciplines: ['id', 'companyId', 'createdAt', 'updatedAt', 'name', 'color', 'sortOrder'],
   resources: [
     'id',
-    'accountId',
+    'companyId',
     'createdAt',
     'updatedAt',
     'kind',
     'name',
-    'role',
+    'jobTitle',
     'avatarUrl',
     'disciplineId',
     'employmentType',
@@ -54,7 +47,7 @@ export const FIELDS = {
   ],
   clients: [
     'id',
-    'accountId',
+    'companyId',
     'createdAt',
     'updatedAt',
     'name',
@@ -67,7 +60,7 @@ export const FIELDS = {
   ],
   projects: [
     'id',
-    'accountId',
+    'companyId',
     'createdAt',
     'updatedAt',
     'name',
@@ -78,10 +71,10 @@ export const FIELDS = {
     'archivedAt',
     'deletedAt',
   ],
-  phases: ['id', 'accountId', 'createdAt', 'updatedAt', 'name', 'projectId'],
+  phases: ['id', 'companyId', 'createdAt', 'updatedAt', 'name', 'projectId'],
   activities: [
     'id',
-    'accountId',
+    'companyId',
     'createdAt',
     'updatedAt',
     'name',
@@ -93,7 +86,7 @@ export const FIELDS = {
   ],
   allocations: [
     'id',
-    'accountId',
+    'companyId',
     'createdAt',
     'updatedAt',
     'resourceId',
@@ -110,7 +103,7 @@ export const FIELDS = {
   ],
   timeOff: [
     'id',
-    'accountId',
+    'companyId',
     'createdAt',
     'updatedAt',
     'resourceId',
@@ -119,15 +112,15 @@ export const FIELDS = {
     'type',
     'note',
   ],
-  closures: ['id', 'accountId', 'createdAt', 'updatedAt', 'name', 'startDate', 'endDate'],
-} as const satisfies { [K in AppDataKey]: readonly WireField<AppData[K][number]>[] };
+  closures: ['id', 'companyId', 'createdAt', 'updatedAt', 'name', 'startDate', 'endDate'],
+} as const satisfies { [K in AppDataKey]: readonly (keyof AppData[K][number])[] };
 
 /** Read-projection fields the server adds for the reader; they are never exported. */
 type ReadProjectionField = 'displayName';
 
 type MissingPortableField = {
   [K in AppDataKey]: Exclude<
-    WireField<AppData[K][number]>,
+    keyof AppData[K][number],
     (typeof FIELDS)[K][number] | ReadProjectionField
   >;
 }[AppDataKey];

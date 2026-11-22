@@ -46,9 +46,9 @@ export function isActivityInProjectSelection(
   selection: string,
 ): boolean {
   if (selection === INTERNAL_PROJECT_SELECTION) return activity.kind === 'internal';
-  if (selection === ANY_PROJECT_SELECTION) return activity.kind === 'repeatable';
+  if (selection === ANY_PROJECT_SELECTION) return activity.kind === 'allProjects';
   return (
-    activity.kind === 'repeatable' ||
+    activity.kind === 'allProjects' ||
     (activity.kind === 'project' && activity.projectId === selection)
   );
 }
@@ -59,7 +59,7 @@ export function buildActivityScope(selection: string): {
   projectId?: string;
 } {
   if (selection === INTERNAL_PROJECT_SELECTION) return { kind: 'internal' };
-  if (selection === ANY_PROJECT_SELECTION) return { kind: 'repeatable' };
+  if (selection === ANY_PROJECT_SELECTION) return { kind: 'allProjects' };
   return { kind: 'project', projectId: selection };
 }
 

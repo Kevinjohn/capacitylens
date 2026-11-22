@@ -20,7 +20,7 @@ const LOWEST_ROLE: Record<PermissionKey, Role> = {
   'members:manage': 'admin',
   'members:signInTracking': 'owner',
   'invitations:manage': 'admin',
-  'viewAs:use': 'admin',
+  'masquerade:use': 'admin',
   'resources:anonymise': 'admin',
   'company:import': 'owner',
   'company:anonymise': 'owner',

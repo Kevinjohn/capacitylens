@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { seed } from './seed.js';
 import {
-  CompanyDocumentError,
+  CompanyExportError,
   buildCompanyExport,
   parseCompanyExport,
   prepareCompanyImport,
-} from './companyDocument.js';
+} from './companyExport.js';
 import { APP_DATA_KEYS } from '../types/entities.js';
 import type { AppDataKey } from '../types/entities.js';
-import type { CompanyExportDocument } from './companyDocument.js';
+import type { CompanyExport } from './companyExport.js';
 
 function requireValue<T>(value: T | undefined | null): T {
   if (value == null) throw new Error('The complete beta fixture is missing a required row.');
@@ -30,7 +30,7 @@ const freshDocument = () => {
   });
   return buildCompanyExport(source, { companyId: context.companyId, completeness: 'full' });
 };
-type CorruptDocument = (document: CompanyExportDocument) => void;
+type CorruptDocument = (document: CompanyExport) => void;
 
 const failures: [string, CorruptDocument][] = [
   [
@@ -202,8 +202,13 @@ describe('company import failure boundaries', () => {
     const row = requireValue(document.data.clients.find((item) => !item.builtin));
     row.name = 'N'.repeat(101);
     row.isPrivate = false;
-    const file = JSON.stringify(document).replaceAll('"companyId":', '"accountId":');
+    const file = JSON.stringify(document);
     expect(() => parseCompanyExport(file)).toThrow(/data\.clients\[\d+\]\.name/);
+  });
+
+  it('refuses a file whose rows name their company accountId', () => {
+    const file = JSON.stringify(freshDocument()).replaceAll('"companyId":', '"accountId":');
+    expect(() => parseCompanyExport(file)).toThrow(/data\.disciplines\[0\]\.companyId/);
   });
 
   it.each(['closure/one', '_closure', 'götham', 'x'.repeat(129)])(
@@ -227,7 +232,7 @@ describe('company import failure boundaries', () => {
     const document = freshDocument();
     corrupt(document);
     const before = structuredClone(document);
-    expect(() => prepareCompanyImport(document, context)).toThrow(CompanyDocumentError);
+    expect(() => prepareCompanyImport(document, context)).toThrow(CompanyExportError);
     expect(document).toEqual(before);
   });
 
@@ -273,7 +278,7 @@ describe('company import failure boundaries', () => {
     expect(document).toEqual(before);
   });
 
-  it('projects authority and device fields away rather than importing them', () => {
+  it('projects access and device fields away rather than importing them', () => {
     const document = freshDocument();
     const input = {
       ...document,

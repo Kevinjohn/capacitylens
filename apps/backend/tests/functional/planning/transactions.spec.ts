@@ -25,7 +25,7 @@ test.group('planning snapshot and commit boundaries', (group) => {
     await resetPlanningFixture();
   });
 
-  test('an external commit waits for the planning snapshot, so authority, revision and projection never mix', async ({
+  test('an external commit waits for the planning snapshot, so access, revision and projection never mix', async ({
     client,
     assert,
     cleanup,
@@ -78,7 +78,7 @@ db.exec('COMMIT')`,
       snapshot.assertStatus(200);
       assert.equal(attempted, 3, 'the external writer waits for the snapshot');
       assert.equal(snapshot.body().data.revision, 0);
-      assert.equal(snapshot.body().data.authority.role, 'owner');
+      assert.equal(snapshot.body().data.access.role, 'owner');
       assert.equal(snapshot.body().data.data.companies[0].name, before.companies[0]!.name);
     } finally {
       knex.off('query-response', interleave);
@@ -87,8 +87,8 @@ db.exec('COMMIT')`,
     const current = await session(client.get(planningUrl), cookie).send();
     current.assertStatus(200);
     assert.equal(current.body().data.revision, 1);
-    assert.equal(current.body().data.authority.role, 'viewer');
-    assert.isFalse(current.body().data.authority.canWrite);
+    assert.equal(current.body().data.access.role, 'viewer');
+    assert.isFalse(current.body().data.access.canWrite);
     assert.equal(current.body().data.data.companies[0].name, 'Wayne Revised');
   });
 
@@ -238,7 +238,7 @@ db.exec('COMMIT')`,
     assert.lengthOf(await db.from('allocations').where('id', allocation.id), 1);
   });
 
-  test('read-only masquerade cannot gain planning write authority', async ({
+  test('read-only masquerade cannot gain planning write access', async ({
     client,
     assert,
     cleanup,
@@ -252,8 +252,8 @@ db.exec('COMMIT')`,
     start.assertStatus(200);
     const snapshot = await session(client.get(planningUrl), owner.cookie).send();
     snapshot.assertStatus(200);
-    assert.equal(snapshot.body().data.authority.effectiveActorId, target.userId);
-    assert.isFalse(snapshot.body().data.authority.canWrite);
+    assert.equal(snapshot.body().data.access.effectiveActorId, target.userId);
+    assert.isFalse(snapshot.body().data.access.canWrite);
     const allocation = newAllocation(await readState(companyId, true));
     const refused = await session(
       client.visit('api.planning_mutations.store', { companyId }),
@@ -288,15 +288,16 @@ db.exec('COMMIT')`,
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = ((started.body() as { data: unknown }).data as { contextToken: string })
-        .contextToken;
+      const masqueradeToken = (
+        (started.body() as { data: unknown }).data as { masqueradeToken: string }
+      ).masqueradeToken;
       const capturedPlanningRead = async () => {
         const response = await fetch(
           `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`,
           {
             headers: {
               'cookie': sessionCookieHeader(owner.cookie),
-              'X-Masquerade-Context': contextToken,
+              'X-Masquerade-Context': masqueradeToken,
               'sec-fetch-site': 'same-origin',
             },
           }
@@ -305,13 +306,13 @@ db.exec('COMMIT')`,
           status: response.status,
           body: (await response.json()) as {
             code?: string;
-            data?: { authority?: { effectiveActorId?: string } };
+            data?: { access?: { effectiveActorId?: string } };
           },
         };
       };
       const before = await capturedPlanningRead();
       assert.equal(before.status, 200);
-      assert.equal(before.body.data?.authority?.effectiveActorId, target.userId);
+      assert.equal(before.body.data?.access?.effectiveActorId, target.userId);
       await db
         .from('memberships')
         .where({
@@ -346,19 +347,19 @@ db.exec('COMMIT')`,
         .json({ targetUserId: target.userId })
         .send();
       started.assertStatus(200);
-      const contextToken = (started.body() as unknown as { data: { contextToken: string } }).data
-        .contextToken;
+      const masqueradeToken = (started.body() as unknown as { data: { masqueradeToken: string } })
+        .data.masqueradeToken;
       const headers = {
         'cookie': sessionCookieHeader(owner.cookie),
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
         'sec-fetch-site': 'same-origin',
       };
       const url = `http://127.0.0.1:${process.env.CAPACITYLENS_TEST_HTTP_PORT}${planningUrl}`;
       const control = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
       assert.equal(control.status, 200);
       assert.equal(
-        ((await control.json()) as { data: { authority: { effectiveActorId: string } } }).data
-          .authority.effectiveActorId,
+        ((await control.json()) as { data: { access: { effectiveActorId: string } } }).data.access
+          .effectiveActorId,
         target.userId
       );
       const before = await readState(companyId, true);
@@ -369,12 +370,12 @@ db.exec('COMMIT')`,
       const barrier = requestBarrier();
       service.resolve = async (request: HttpContext) => {
         const resolved = await original(request);
-        if (request.request.header('x-test-admission-pause') === 'authority-loss')
+        if (request.request.header('x-test-admission-pause') === 'access-loss')
           await barrier.pause();
         return resolved;
       };
       const pending = fetch(url, {
-        headers: { ...headers, 'x-test-admission-pause': 'authority-loss' },
+        headers: { ...headers, 'x-test-admission-pause': 'access-loss' },
         signal: AbortSignal.timeout(10000),
       });
       try {
@@ -394,7 +395,7 @@ db.exec('COMMIT')`,
         const body = (await refused.json()) as Record<string, unknown>;
         assert.equal(body.code, 'ACCOUNT_MEMBERSHIP_LOST');
         assert.isUndefined(body.data);
-        assert.isUndefined(body.authority);
+        assert.isUndefined(body.access);
         assert.deepEqual(await readState(companyId, true), before);
         assert.deepEqual(await db.from('company_planning_revisions'), revisions);
         assert.deepEqual(await db.from('audit_entries'), audits);

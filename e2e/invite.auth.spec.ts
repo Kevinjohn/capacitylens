@@ -7,7 +7,7 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 // the same acceptance page against a real server.
 test.describe('invitation page', () => {
   test('an unknown link explains that the invitation is invalid', async ({ page }) => {
-    await page.goto('/invite/not-a-real-invitation');
+    await page.goto('/invitation/not-a-real-invitation');
     await expect(page.getByRole('heading', { name: 'Accept invite' })).toBeVisible();
     await expect(page.getByTestId('invite-error')).toContainText(
       'This invitation is invalid or has expired',
@@ -18,14 +18,14 @@ test.describe('invitation page', () => {
   test('a maximum-length address wraps within a narrow invitation page', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 1000 });
     const email = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(57)}.test`;
-    await page.route('**/api/invites/*/preview', (route) =>
+    await page.route('**/api/invitations/*/preview', (route) =>
       route.fulfill({
         json: {
-          data: { companyId: 'a-studio', accountName: 'Wayne Enterprises', role: 'editor', email },
+          data: { companyId: 'a-studio', companyName: 'Wayne Enterprises', role: 'editor', email },
         },
       }),
     );
-    await page.goto('/invite/long-address-layout');
+    await page.goto('/invitation/long-address-layout');
     await expect(page.getByTestId('invite-role')).toHaveText('Editor');
     await expect(page.getByText(email)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

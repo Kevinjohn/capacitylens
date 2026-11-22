@@ -38,7 +38,7 @@ export function SignInScreen({
   const ids = useSignInIds();
 
   useEffect(() => {
-    document.title = `${m.login_sign_in()} · ${APP_NAME}`;
+    document.title = `${m.sign_in_button()} · ${APP_NAME}`;
   }, []);
 
   return (
@@ -99,8 +99,8 @@ function SignInHeading() {
   return (
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-      <h1 className="text-lg font-semibold text-ink">{m.login_sign_in()}</h1>
-      <p className="text-sm text-muted-foreground">{m.login_subtitle()}</p>
+      <h1 className="text-lg font-semibold text-ink">{m.sign_in_button()}</h1>
+      <p className="text-sm text-muted-foreground">{m.sign_in_subtitle()}</p>
     </div>
   );
 }
@@ -112,22 +112,22 @@ function SignInNotices({ degraded, hadUnsavedChanges, needsSetup }: SignInNotice
     <>
       {needsSetup && (
         <div className="mb-4">
-          <Alert role="status" data-testid="login-setup-needed">
-            <AlertDescription>{m.login_setup_link_needed({ app: APP_NAME })}</AlertDescription>
+          <Alert role="status" data-testid="sign-in-setup-needed">
+            <AlertDescription>{m.sign_in_setup_link_needed({ app: APP_NAME })}</AlertDescription>
           </Alert>
         </div>
       )}
       {degraded && (
         <div className="mb-4">
           <Alert variant="warn" role="status">
-            <AlertDescription>{m.login_degraded_notice()}</AlertDescription>
+            <AlertDescription>{m.sign_in_degraded_notice()}</AlertDescription>
           </Alert>
         </div>
       )}
       {hadUnsavedChanges && (
         <div className="mb-4">
           <Alert variant="destructive" role="alert">
-            <AlertDescription>{m.login_unsaved_changes_notice()}</AlertDescription>
+            <AlertDescription>{m.sign_in_unsaved_changes_notice()}</AlertDescription>
           </Alert>
         </div>
       )}

@@ -25,7 +25,7 @@ test.group('authenticated typed planning transactions', (group) => {
     await resetPlanningFixture();
   });
 
-  test('read returns current authority, revision and confidential company rows', async ({
+  test('read returns current access, revision and confidential company rows', async ({
     client,
     assert,
     cleanup,
@@ -46,9 +46,9 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.equal(response.body().data.companyId, companyId);
     assert.equal(response.body().data.revision, 0);
     assert.match(response.body().data.today, /^\d{4}-\d{2}-\d{2}$/);
-    assert.equal(response.body().data.authority.actorId, userId);
-    assert.equal(response.body().data.authority.role, 'editor');
-    assert.isTrue(response.body().data.authority.canWrite);
+    assert.equal(response.body().data.access.actorId, userId);
+    assert.equal(response.body().data.access.role, 'editor');
+    assert.isTrue(response.body().data.access.canWrite);
     assert.notInclude(response.text(), 'Wayne secret');
     assert.isTrue(
       response
@@ -194,17 +194,17 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const unchanged = await read({ ifRevision: 1 });
     unchanged.assertStatus(200);
-    assert.equal(unchanged.body().data.slice, 'unchanged');
+    assert.equal(unchanged.body().data.content, 'unchanged');
     assert.equal(unchanged.body().data.revision, 1);
     assert.notProperty(unchanged.body().data, 'data');
     assert.property(unchanged.body().data, 'capacity');
-    assert.equal(unchanged.body().data.authority.role, 'editor');
+    assert.equal(unchanged.body().data.access.role, 'editor');
 
     const fullQueries: Array<Record<string, number>> = [{ ifRevision: 0 }, { ifRevision: 2 }, {}];
     for (const query of fullQueries) {
       const full = await read(query);
       full.assertStatus(200);
-      assert.equal(full.body().data.slice, 'full', JSON.stringify(query));
+      assert.equal(full.body().data.content, 'full', JSON.stringify(query));
       assert.isArray(full.body().data.data.clients, JSON.stringify(query));
     }
     for (const ifRevision of ['-1', '1.5', 'abc']) {
@@ -223,8 +223,8 @@ test.group('authenticated typed planning transactions', (group) => {
     });
     const afterRoleChange = await read({ ifRevision: 1 });
     afterRoleChange.assertStatus(200);
-    assert.equal(afterRoleChange.body().data.slice, 'full');
-    assert.equal(afterRoleChange.body().data.authority.role, 'viewer');
+    assert.equal(afterRoleChange.body().data.content, 'full');
+    assert.equal(afterRoleChange.body().data.access.role, 'viewer');
   });
 
   test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({
@@ -421,7 +421,7 @@ test.group('authenticated typed planning transactions', (group) => {
       ),
       ...(['clients', 'projects', 'activities'] as const).flatMap((entity) => {
         const id = { clients: ids.client, projects: ids.project, activities: ids.activity }[entity];
-        return (['catalogue.archive', 'catalogue.unarchive'] as const).map((operation) => () => ({
+        return (['catalogue.archive', 'catalogue.restore'] as const).map((operation) => () => ({
           operation,
           entity: { entity, id },
         }));
@@ -437,7 +437,7 @@ test.group('authenticated typed planning transactions', (group) => {
         fields: {
           kind: 'person',
           name: 'Barbara Gordon',
-          role: 'Analyst',
+          jobTitle: 'Analyst',
           avatarUrl: null,
           disciplineId: null,
           employmentType: 'permanent',
@@ -452,9 +452,9 @@ test.group('authenticated typed planning transactions', (group) => {
           lastAvailableDate: null,
         },
       }),
-      () => ({ operation: 'resource.update', id: ids.resource, changes: { role: 'Lead' } }),
+      () => ({ operation: 'resource.update', id: ids.resource, changes: { jobTitle: 'Lead' } }),
       () => ({ operation: 'resource.archive', id: ids.resource }),
-      () => ({ operation: 'resource.unarchive', id: ids.resource }),
+      () => ({ operation: 'resource.restore', id: ids.resource }),
       () => ({ operation: 'allocation.create', allocation }),
       () => ({
         operation: 'allocation.update',

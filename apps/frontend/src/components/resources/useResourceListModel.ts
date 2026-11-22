@@ -69,7 +69,10 @@ export function useResourceListModel() {
       ? NEUTRAL_COLOR
       : resource.color);
   const buildMetadata = (resource: Resource) =>
-    [resource.role, disciplinesEnabled ? resolveDisciplineName(resource.disciplineId) : undefined]
+    [
+      resource.jobTitle,
+      disciplinesEnabled ? resolveDisciplineName(resource.disciplineId) : undefined,
+    ]
       .filter(Boolean)
       .join(' · ');
   const visibleCount =

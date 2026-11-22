@@ -19,7 +19,7 @@ const resource = (id: string, kind: Resource['kind'] = 'person'): Resource => ({
   updatedAt: '2026-01-01T00:00:00.000Z',
   kind,
   name: kind === 'placeholder' ? '' : id,
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio',
   workingHoursPerDay: 8,
@@ -307,7 +307,7 @@ describe('CapacityOverviewTable content', () => {
     expect(fourthFree).toHaveStyle({ width: '100%' });
   });
 
-  it("names a placeholder's trigger from its role, not the generic placeholder fallback", () => {
+  it("names a placeholder's trigger from its job title, not the generic placeholder fallback", () => {
     renderTable();
 
     // The schedule trigger must receive real scoped resource data so it can resolve its role-specific accessible title.
