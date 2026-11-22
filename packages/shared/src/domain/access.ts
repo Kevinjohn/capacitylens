@@ -75,7 +75,7 @@ export function canSeeTimeOffNote(role: Role): boolean {
 
 /**
  * Field-level visibility rule for private client/project real names and their stored code-name
- * settings. This is intentionally stricter than time-off notes: the account owner is the sole role
+ * settings. This is intentionally stricter than time-off notes: the Owner is the sole role
  * that receives the real name; admins, editors and viewers receive the quoted code-name projection.
  */
 export function canSeePrivateNames(role: Role): boolean {
