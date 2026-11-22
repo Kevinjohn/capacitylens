@@ -137,7 +137,7 @@ describe('named lifecycle actions', () => {
     );
   });
 
-  it('does not publish a stale tenant response after the selected company changes', async () => {
+  it('does not publish a stale company response after the selected company changes', async () => {
     let finishRefresh!: (value: boolean) => void;
     const refresh = vi
       .fn()

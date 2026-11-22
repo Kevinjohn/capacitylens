@@ -9,7 +9,7 @@ import {
   signUpUser,
 } from './authTestKit';
 
-test('native company fixtures preserve baseline data and unrelated principals across cleanup cycles', async ({
+test('native company fixtures preserve baseline data and unrelated users across cleanup cycles', async ({
   request,
   page,
 }) => {

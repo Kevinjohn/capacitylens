@@ -26,7 +26,7 @@ afterEach(() => {
 });
 
 describe('AuthProvider — server mode', () => {
-  it('bootstraps an active masquerade from its validated real principal without calling auth/me', async () => {
+  it('bootstraps an active masquerade from its validated real user without calling auth/me', async () => {
     authBootstrapMocks.masqueradeStatus.mockResolvedValue({
       active: true,
       companyId: 'a-studio',
@@ -38,7 +38,7 @@ describe('AuthProvider — server mode', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
       contextToken: 'session-token',
-      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      principal: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -51,7 +51,7 @@ describe('AuthProvider — server mode', () => {
       </AuthProvider>,
     );
 
-    expect(await screen.findByText('user:real-principal')).toBeInTheDocument();
+    expect(await screen.findByText('user:real-user')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(useStore.getState().activeCompanyId).toBe('a-studio');
     expect(useStore.getState().masquerade.kind).toBe('active');
@@ -69,7 +69,7 @@ describe('AuthProvider — server mode', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
       contextToken: 'session-token',
-      principal: { id: 'real-principal', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      principal: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     vi.doMock('@/data/planning/storePlanningTransport', async () => {
       const { createPlanningTransport } = await import('@/data/planning/planningTransport');
@@ -87,7 +87,7 @@ describe('AuthProvider — server mode', () => {
           companyId: 'a-studio',
           revision: 1,
           authority: {
-            actorId: 'real-principal',
+            actorId: 'real-user',
             effectiveActorId: 'target-user',
             role: 'viewer',
             canWrite: false,

@@ -72,13 +72,13 @@ async function setupMembersApi(request: APIRequestContext) {
     },
   );
   expect(selfRole.status()).toBe(403);
-  const crossTenant = await request.get(
+  const crossCompany = await request.get(
     `${API}/api/companies/some-other-account-${STAMP}/members`,
     {
       headers: { cookie: admin.cookie },
     },
   );
-  expect(crossTenant.status()).toBe(403);
+  expect(crossCompany.status()).toBe(403);
   return { owner, admin, editor, companyId };
 }
 
@@ -232,7 +232,7 @@ async function manageOwnerMembers(
   );
 }
 
-test('admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak', async ({
+test('admin manages members but not owner-only ops; ownership changes only by transfer; no cross-company leak', async ({
   page,
   request,
   newObservedContext,

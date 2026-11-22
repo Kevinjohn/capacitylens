@@ -62,29 +62,29 @@ export const teamAccessApi = {
 
   async changeMemberRole(
     companyId: string,
-    principalId: string,
+    userId: string,
     role: Role,
   ): Promise<TeamAccessResult<true>> {
     return readOperationResult(
-      await memberRequests.changeMemberRole({ companyId, principalId, role }),
+      await memberRequests.changeMemberRole({ companyId, userId, role }),
       acceptNoContent,
     );
   },
 
   async changeMemberStatus(
     companyId: string,
-    principalId: string,
+    userId: string,
     status: MembershipStatus,
   ): Promise<TeamAccessResult<true>> {
     return readOperationResult(
-      await memberRequests.changeMemberStatus({ companyId, principalId, status }),
+      await memberRequests.changeMemberStatus({ companyId, userId, status }),
       acceptNoContent,
     );
   },
 
   async setMemberResourceLink(input: {
     companyId: string;
-    principalId: string;
+    userId: string;
     resourceId: string;
     expectedRevision: string | null;
   }) {
@@ -95,9 +95,9 @@ export const teamAccessApi = {
     );
   },
 
-  async clearMemberResourceLink(companyId: string, principalId: string, expectedRevision: string) {
+  async clearMemberResourceLink(companyId: string, userId: string, expectedRevision: string) {
     return readOperationResult(
-      await memberRequests.clearMemberResourceLink({ companyId, principalId, expectedRevision }),
+      await memberRequests.clearMemberResourceLink({ companyId, userId, expectedRevision }),
       acceptNoContent,
       204,
     );

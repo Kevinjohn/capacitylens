@@ -42,7 +42,7 @@ let operationCohortGeneration = 0;
 function buildOperationStorageKey(operationKey: string): string {
   // Cleanup is best-effort because sessionStorage can fail partway through an identity change.
   // Keep the identity in the lookup coordinate as the backstop: a surviving old handle can only
-  // ever be recovered by the same authenticated principal.
+  // ever be recovered by the same authenticated user.
   return `${OPERATION_STORAGE_PREFIX}${activeOperationIdentity ?? 'unbound'}.${operationKey}`;
 }
 
@@ -110,9 +110,9 @@ export function clearStoredAccountOperations(): void {
   }
 }
 
-/** Bind implicit retry ceremonies to the authenticated principal verified by `/api/auth/me`.
+/** Bind implicit retry ceremonies to the authenticated user verified by `/api/auth/me`.
  * A same-user reload keeps its unknown-outcome recovery handle. A missing owner or a
- * different principal clears every bearer before the authenticated application is rendered. */
+ * different user clears every bearer before the authenticated application is rendered. */
 export function bindStoredAccountOperationsToIdentity(identity: string): void {
   let storedIdentity: string | null = null;
   try {

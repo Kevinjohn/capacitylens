@@ -67,7 +67,7 @@ const AccountView = lazy(() =>
 const HelpView = lazy(() =>
   import('./components/HelpView').then((module) => ({ default: module.HelpView })),
 );
-// Keep invite acceptance outside the tenant gate so a new identity can inspect and
+// Keep invite acceptance outside the company gate so a new identity can inspect and
 // accept an invitation before selecting a company. Load its route only when opened.
 const InviteAccept = lazy(() =>
   import('./components/invites/InviteAccept').then((module) => ({ default: module.InviteAccept })),
@@ -75,7 +75,7 @@ const InviteAccept = lazy(() =>
 const VerifyEmail = lazy(() =>
   import('./auth/VerifyEmail').then((module) => ({ default: module.VerifyEmail })),
 );
-// Keep password reset outside tenant and sign-in gates so a visitor without a session
+// Keep password reset outside company and sign-in gates so a visitor without a session
 // can redeem a reset link.
 const ResetPassword = lazy(() =>
   import('./auth/ResetPassword').then((module) => ({ default: module.ResetPassword })),
@@ -202,7 +202,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // This public route owns its loading and error boundaries because the tenant shell
+    // This public route owns its loading and error boundaries because the company shell
     // cannot wrap invitation acceptance before a company is selected.
     path: PUBLIC_AUTH_ENTRY_PATHS.invitation,
     errorElement: <RouteError />,

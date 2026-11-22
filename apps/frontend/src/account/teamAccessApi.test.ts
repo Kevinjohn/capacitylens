@@ -135,7 +135,7 @@ describe('teamAccessApi member resource links', () => {
     await expect(
       teamAccessApi.setMemberResourceLink({
         companyId: 'a1',
-        principalId: 'u1',
+        userId: 'u1',
         resourceId: 'r1',
         expectedRevision: null,
       }),
@@ -154,7 +154,7 @@ describe('teamAccessApi member resource links', () => {
       await expect(
         teamAccessApi.setMemberResourceLink({
           companyId: 'a1',
-          principalId: 'u1',
+          userId: 'u1',
           resourceId: 'r1',
           expectedRevision,
         }),
@@ -172,7 +172,7 @@ describe('teamAccessApi member resource links', () => {
       .mockResolvedValueOnce(new Response('', { status: 200 }));
     const input = {
       companyId: 'a1',
-      principalId: 'u1',
+      userId: 'u1',
       resourceId: 'r1',
       expectedRevision: null,
     };

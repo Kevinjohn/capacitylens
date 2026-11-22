@@ -21,7 +21,7 @@ export const AUTH_PASSWORD = 'demo-password-123456';
 
 /**
  * Fixed membership-free administrator credentials used only by the disposable auth server.
- * The server creates this principal after first-company setup for recovery scenarios.
+ * The server creates this user after first-company setup for recovery scenarios.
  * Keep these literals aligned with start:auth-e2e; importing auth.ts would load the auth runtime into Playwright.
  */
 export const BOOTSTRAP_ADMIN = { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' };
@@ -173,8 +173,8 @@ export function admitFixtureIdentity(email: string): void {
 
 /**
  * Seed only disposable auth-e2e role/access fixtures. Real invitation tests use the addressed invite path.
- * The principal must already exist in the disposable auth database.
- * @throws When the principal is absent or database writes fail.
+ * The user must already exist in the disposable auth database.
+ * @throws When the user is absent or database writes fail.
  */
 export function seedFixtureMember(
   companyId: string,
@@ -183,28 +183,28 @@ export function seedFixtureMember(
 ): void {
   const db = openAuthE2EDatabase();
   try {
-    const principal = db
+    const user = db
       .prepare('SELECT id FROM users WHERE lower(email) = ?')
       .get(email.toLowerCase()) as { id: string } | undefined;
-    if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
+    if (!user) throw new Error(`Missing E2E fixture identity for ${email}`);
     db.prepare(
       `INSERT INTO memberships (scope_id, user_id, role, status, created_at, updated_at)
        VALUES (?, ?, ?, 'active', ?, ?)`,
-    ).run(companyId, principal.id, role, new Date().toISOString(), new Date().toISOString());
+    ).run(companyId, user.id, role, new Date().toISOString(), new Date().toISOString());
   } finally {
     db.close();
   }
 }
 
-/** Revokes a disposable E2E principal's real session authority without relying on browser cookie timing. */
+/** Revokes a disposable E2E user's real session authority without relying on browser cookie timing. */
 export function revokeFixtureSessions(email: string): void {
   const db = openAuthE2EDatabase();
   try {
-    const principal = db
+    const user = db
       .prepare('SELECT id FROM users WHERE lower(email) = ?')
       .get(email.toLowerCase()) as { id: string } | undefined;
-    if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
-    const removed = db.prepare('DELETE FROM account_sessions WHERE user_id = ?').run(principal.id);
+    if (!user) throw new Error(`Missing E2E fixture identity for ${email}`);
+    const removed = db.prepare('DELETE FROM account_sessions WHERE user_id = ?').run(user.id);
     if (removed.changes === 0) throw new Error(`Missing E2E fixture session for ${email}`);
   } finally {
     db.close();
@@ -332,7 +332,7 @@ function ensureTemporaryBaselineCompany(db: DatabaseSync): void {
   });
 }
 
-/** Reads the temporary company owned by the real first-run fixture principal. */
+/** Reads the temporary company owned by the real first-run fixture user. */
 export function readAuthE2EBaselineSnapshot(): {
   account: Record<string, unknown>;
   client: Record<string, unknown>;
@@ -448,7 +448,7 @@ export async function signUpUser(
   }
 }
 
-/** Replaces the placeholder when needed, then creates this principal's fixture company. */
+/** Replaces the placeholder when needed, then creates this user's fixture company. */
 export async function bootstrapOrg(
   request: APIRequestContext,
   cookie: string,
@@ -460,16 +460,15 @@ export async function bootstrapOrg(
   expect(identity.status(), 'fixture owner must have a real native session').toBe(200);
   const userId = ((await identity.json()) as { user?: { id?: unknown } }).user?.id;
   if (typeof userId !== 'string' || userId.length === 0)
-    throw new Error('Auth E2E session has no principal.');
+    throw new Error('Auth E2E session has no user.');
   const companyName = name.trim();
   if (!companyName) throw new Error('Auth E2E fixture company requires a name.');
 
   const db = openAuthE2EDatabase();
   try {
-    const principal = db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as
       { id: string } | undefined;
-    if (!principal)
-      throw new Error('Auth E2E session principal is absent from the fixture database.');
+    if (!user) throw new Error('Auth E2E session user is absent from the fixture database.');
     db.exec('PRAGMA foreign_keys = ON');
     const foreignKeysEnabled = db.prepare('PRAGMA foreign_keys').get() as { foreign_keys: number };
     if (foreignKeysEnabled.foreign_keys !== 1)

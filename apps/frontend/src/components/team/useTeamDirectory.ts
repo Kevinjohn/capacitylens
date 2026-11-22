@@ -114,10 +114,10 @@ function deriveDirectory(
 function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope) {
   const { enabled, activeCompanyId } = options;
   const companyId = activeCompanyId ?? '';
-  const { principalId, masqueradeGeneration } = scope;
+  const { userId, masqueradeGeneration } = scope;
   // Stable keys, so the reload and replace callbacks keep their identity between renders.
   const { membersKey, invitesKey } = useMemo(() => {
-    const keyScope = { principalId, companyId: activeCompanyId, masqueradeGeneration };
+    const keyScope = { userId, companyId: activeCompanyId, masqueradeGeneration };
     return {
       membersKey: teamMembersQueryKey(keyScope, activeCompanyId),
       invitesKey: buildScopeQueryKey(keyScope, [
@@ -125,7 +125,7 @@ function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope
         ...api.api.invites.index.queryKey({ params: { companyId } }),
       ]),
     };
-  }, [principalId, activeCompanyId, masqueradeGeneration, companyId]);
+  }, [userId, activeCompanyId, masqueradeGeneration, companyId]);
   const membersQuery = useQuery<TeamDirectory>({
     queryKey: membersKey,
     enabled: enabled && !!activeCompanyId,
@@ -192,7 +192,7 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
   );
   const masqueradeActive = useStore((state) => state.masquerade.kind !== 'inactive');
   const scope: ApiQueryScope = {
-    principalId: user?.id ?? null,
+    userId: user?.id ?? null,
     companyId: activeCompanyId,
     masqueradeGeneration,
   };

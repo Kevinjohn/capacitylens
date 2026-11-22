@@ -50,7 +50,7 @@ describe('browser account api', () => {
     const link = await memberRequests.setMemberResourceLink(
       {
         companyId: 'company / one',
-        principalId: 'person / one',
+        userId: 'person / one',
         resourceId: 'resource / one',
         expectedRevision: null,
       },
@@ -71,7 +71,7 @@ describe('browser account api', () => {
     await memberRequests.clearMemberResourceLink(
       {
         companyId: 'company / one',
-        principalId: 'person / one',
+        userId: 'person / one',
         expectedRevision: 'revision-1',
       },
       operation,
@@ -132,7 +132,7 @@ describe('browser account api', () => {
   it('sends one operation and bound proof to the typed ownership route', async () => {
     await memberRequests.transferOwnership({
       companyId: 'company / one',
-      targetPrincipalId: 'person / one',
+      targetUserId: 'person / one',
       confirmationId: 'proof-1',
       operation,
     });

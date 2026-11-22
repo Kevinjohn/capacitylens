@@ -16,7 +16,7 @@ describe('ownership transfer access', () => {
     await expect(
       ownershipTransferAccess.transferOwnership({
         companyId: 'wayne-enterprises',
-        targetPrincipalId: 'selina',
+        targetUserId: 'selina',
         confirmationId: 'proof-1',
       }),
     ).resolves.toEqual({
@@ -32,7 +32,7 @@ describe('ownership transfer access', () => {
     await expect(
       ownershipTransferAccess.transferOwnership({
         companyId: 'wayne-enterprises',
-        targetPrincipalId: 'selina',
+        targetUserId: 'selina',
         confirmationId: 'proof-1',
       }),
     ).resolves.toMatchObject({ kind: 'invalid', status: 200 });

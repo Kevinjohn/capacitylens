@@ -28,7 +28,7 @@ export function resolveSharedActiveData(data: AppData): AppData {
 }
 
 /**
- * The read-side seam for multi-tenancy. Components receive only the active account's entities.
+ * The read-side seam for company scoping. Components receive only the active account's entities.
  *
  * Returns the store's own `data` or one shared empty value, so the result is stable between renders,
  * avoiding the `useSyncExternalStore` fresh-object trap.

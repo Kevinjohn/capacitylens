@@ -29,7 +29,7 @@ function requestResourceLinkChange(member: TeamMember, companyId: string, resour
   if (resourceId !== '') {
     return teamAccessApi.setMemberResourceLink({
       companyId,
-      principalId: member.userId,
+      userId: member.userId,
       resourceId,
       expectedRevision: member.resourceLink?.revision ?? null,
     });
@@ -72,7 +72,7 @@ export interface MemberResourceLinkRequest {
  * Resource-link requests for every member of the section, keyed by member id so a request outlives
  * its row and dialog: closing the dialog, collapsing the inactive group or a failed directory read
  * all unmount them. A request owns effects only while it is that member's newest in the same
- * company, so late replies cannot overwrite a newer choice or cross tenants. A finished change
+ * company, so late replies cannot overwrite a newer choice or cross companies. A finished change
  * stays pending until a directory read requested after it is accepted, so the next change sends a
  * fresh revision. `statusMessage` announces success only once the reloaded member shows the link.
  */

@@ -37,13 +37,13 @@ function Probe() {
 
 function view(
   role: 'owner' | 'admin' | 'editor',
-  principalId = 'bruce',
+  userId = 'bruce',
   permissions = permissionValue(role, 'resolved'),
 ) {
   return (
     <AuthContext.Provider
       value={{
-        user: { id: principalId },
+        user: { id: userId },
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
@@ -140,7 +140,7 @@ describe('useInactiveCompanyData', () => {
     await waitFor(() => expect(screen.getByText('hidden')).toBeInTheDocument());
     expect(screen.queryByText('Old A')).not.toBeInTheDocument();
   });
-  it('hides Owner labels immediately on Admin demotion and same-company principal replacement', async () => {
+  it('hides Owner labels immediately on Admin demotion and same-company user replacement', async () => {
     const next = createDeferred<{
       ok: boolean;
       status: number;

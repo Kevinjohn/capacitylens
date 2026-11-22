@@ -118,7 +118,7 @@ describe('active-account replacement invariant', () => {
 });
 
 describe('active-account permission publication', () => {
-  it('atomically fail-closes a switched tenant before an imperative write can use the prior authority', async () => {
+  it('atomically fail-closes a switched company before an imperative write can use the prior authority', async () => {
     setPlanningAccess({ role: 'editor' });
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {

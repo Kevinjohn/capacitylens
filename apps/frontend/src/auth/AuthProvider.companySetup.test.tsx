@@ -23,7 +23,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it('gates tenant hydration behind authenticated company setup and opens scheduling after confirmation', async () => {
+it('gates company hydration behind authenticated company setup and opens scheduling after confirmation', async () => {
   let created = false;
   const fetch = vi.fn(async (_url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
@@ -39,7 +39,7 @@ it('gates tenant hydration behind authenticated company setup and opens scheduli
   const { AuthProvider } = await renderFreshProvider();
   const ready = vi.fn();
   render(
-    <AuthProvider onTenantAccessReady={ready}>
+    <AuthProvider onCompanyAccessReady={ready}>
       <div>schedule-ready</div>
     </AuthProvider>,
   );
@@ -54,7 +54,7 @@ it('gates tenant hydration behind authenticated company setup and opens scheduli
   await waitFor(() => expect(ready).toHaveBeenCalledOnce());
 });
 
-it('adopts a same-principal company created in another browser only after confirming Owner access', async () => {
+it('adopts a same-user company created in another browser only after confirming Owner access', async () => {
   let createdElsewhere = false;
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
@@ -75,7 +75,7 @@ it('adopts a same-principal company created in another browser only after confir
   const { AuthProvider } = await renderFreshProvider();
   const ready = vi.fn();
   render(
-    <AuthProvider onTenantAccessReady={ready}>
+    <AuthProvider onCompanyAccessReady={ready}>
       <div>schedule-ready</div>
     </AuthProvider>,
   );
@@ -89,7 +89,7 @@ it('adopts a same-principal company created in another browser only after confir
   expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
 });
 
-it('keeps a conflicting setup refusal visible when the principal has no company access', async () => {
+it('keeps a conflicting setup refusal visible when the user has no company access', async () => {
   const fetch = vi.fn(async (url: unknown, options?: RequestInit) => {
     if (options?.method === 'POST') {
       return makeMeResponse(409, {
@@ -106,7 +106,7 @@ it('keeps a conflicting setup refusal visible when the principal has no company 
   const { AuthProvider } = await renderFreshProvider();
   const ready = vi.fn();
   render(
-    <AuthProvider onTenantAccessReady={ready}>
+    <AuthProvider onCompanyAccessReady={ready}>
       <div>schedule-ready</div>
     </AuthProvider>,
   );

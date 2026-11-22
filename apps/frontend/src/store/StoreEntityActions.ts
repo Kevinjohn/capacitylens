@@ -88,7 +88,7 @@ export interface StoreEntityActions {
     input: Draft<Allocation>,
   ) => Promise<AllocationCreateResult<Allocation>>;
   /** Apply an allocation patch and resolve with the save reply's capacity advisory. False means an
-   * authority refusal, a missing target or no change; validation, tenancy and server refusals reject. */
+   * authority refusal, a missing target or no change; validation, company scoping and server refusals reject. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => Promise<false | AllocationSaveAdvisory>;
   /** Move an allocation onto another resource and dates. The server decides the hours it carries
    * there; false means an authority refusal or a missing allocation. */

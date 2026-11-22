@@ -24,7 +24,7 @@ export function MembersSection() {
   return <CompanyMembersSection key={scope} activeCompanyId={activeCompanyId} />;
 }
 
-// Member intent belongs to one principal, company and projection lifetime.
+// Member intent belongs to one user, company and projection lifetime.
 function CompanyMembersSection({ activeCompanyId }: { activeCompanyId: string | null }) {
   const { setActionStatusElement, ...orchestration } = useMembersOrchestration(activeCompanyId);
 

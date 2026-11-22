@@ -1,4 +1,4 @@
-// Device preferences use separate storage from tenant data. Failed reads use each documented default, and failed writes retain the current session choice.
+// Device preferences use separate storage from company data. Failed reads use each documented default, and failed writes retain the current session choice.
 
 // All keys below carry the shared brand prefix (defined once in shared/src/brand.ts) so clearing /
 // migrating by prefix catches every one of them.

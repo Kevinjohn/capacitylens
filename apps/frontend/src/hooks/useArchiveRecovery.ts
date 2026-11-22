@@ -11,7 +11,7 @@ import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 
-/** Reads recovery identities with a fresh cache fence for every principal/access transition. */
+/** Reads recovery identities with a fresh cache fence for every user/access transition. */
 export function useArchiveRecovery() {
   const { user } = useAuth();
   const role = useRole();
@@ -43,7 +43,7 @@ export function useArchiveRecovery() {
     planning.context?.companyId === companyId &&
     planning.phase.kind === 'ready';
   const scope = {
-    principalId: user?.id ?? null,
+    userId: user?.id ?? null,
     companyId,
     masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };

@@ -9,7 +9,7 @@ export function transferOwner(
 ): Promise<Response> {
   return memberRequests.transferOwnership({
     companyId: 'a-studio',
-    targetPrincipalId: input.name,
+    targetUserId: input.name,
     confirmationId: input.color ?? 'proof-1',
     ...(explicit ? { operation: explicit } : {}),
   });

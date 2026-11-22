@@ -44,7 +44,7 @@ function authenticated(children: ReactNode, role: 'owner' | 'editor') {
   return (
     <AuthContext.Provider
       value={{
-        user: { id: 'test-principal' },
+        user: { id: 'test-user' },
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
@@ -100,7 +100,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
     planning: {
       ...state.planning,
       phase: { kind: 'ready', lastWrite: null },
-      context: { identity: 'test-principal', companyId: DEFAULT_COMPANY_ID },
+      context: { identity: 'test-user', companyId: DEFAULT_COMPANY_ID },
       authority: makePlanningAccess({ role }),
     },
   }));

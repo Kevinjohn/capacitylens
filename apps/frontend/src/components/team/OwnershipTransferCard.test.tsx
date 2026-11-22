@@ -134,7 +134,7 @@ describe('OwnershipTransferCard', () => {
     await waitFor(() => {
       expect(client.transferOwnership).toHaveBeenCalledWith({
         companyId: DEFAULT_COMPANY_ID,
-        targetPrincipalId: ADMIN.userId,
+        targetUserId: ADMIN.userId,
         confirmationId: 'proof-1',
       });
     });
@@ -190,14 +190,14 @@ describe('OwnershipTransferCard', () => {
       [
         {
           companyId: DEFAULT_COMPANY_ID,
-          targetPrincipalId: ADMIN.userId,
+          targetUserId: ADMIN.userId,
           confirmationId: 'proof-1',
         },
       ],
       [
         {
           companyId: DEFAULT_COMPANY_ID,
-          targetPrincipalId: ADMIN.userId,
+          targetUserId: ADMIN.userId,
           confirmationId: 'proof-1',
         },
       ],

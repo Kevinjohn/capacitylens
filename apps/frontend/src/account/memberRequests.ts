@@ -7,21 +7,21 @@ import { clearMemberResourceLink, setMemberResourceLink } from './memberResource
 
 interface ChangeMemberRoleInput {
   companyId: string;
-  principalId: string;
+  userId: string;
   role: Role;
   operation?: BrowserAccountOperation | undefined;
 }
 
 interface TransferOwnershipInput {
   companyId: string;
-  targetPrincipalId: string;
+  targetUserId: string;
   confirmationId: string;
   operation?: BrowserAccountOperation | undefined;
 }
 
 interface ChangeMemberStatusInput {
   companyId: string;
-  principalId: string;
+  userId: string;
   status: MembershipStatus;
   operation?: BrowserAccountOperation | undefined;
 }
@@ -58,17 +58,17 @@ export const memberRequests = {
 
   changeMemberRole({
     companyId,
-    principalId,
+    userId,
     role,
     operation,
   }: ChangeMemberRoleInput): Promise<Response> {
     return runOperation({
-      operationKey: `member-role:${companyId}:${principalId}:${role}`,
+      operationKey: `member-role:${companyId}:${userId}:${role}`,
       explicit: operation,
       request: (resolved) =>
         fetchApi(
           buildApiRouteUrl('api.members.role', {
-            params: { companyId, userId: principalId },
+            params: { companyId, userId },
           }),
           buildJsonOperationRequestInit(
             'PATCH',
@@ -81,17 +81,17 @@ export const memberRequests = {
 
   changeMemberStatus({
     companyId,
-    principalId,
+    userId,
     status,
     operation,
   }: ChangeMemberStatusInput): Promise<Response> {
     return runOperation({
-      operationKey: `member-status:${companyId}:${principalId}:${status}`,
+      operationKey: `member-status:${companyId}:${userId}:${status}`,
       explicit: operation,
       request: (resolved) =>
         fetchApi(
           buildApiRouteUrl('api.members.status', {
-            params: { companyId, userId: principalId },
+            params: { companyId, userId },
           }),
           buildJsonOperationRequestInit(
             'PATCH',
@@ -104,12 +104,12 @@ export const memberRequests = {
 
   transferOwnership({
     companyId,
-    targetPrincipalId,
+    targetUserId,
     confirmationId,
     operation,
   }: TransferOwnershipInput): Promise<Response> {
     return runOperation({
-      operationKey: `ownership-transfer:${companyId}:${targetPrincipalId}`,
+      operationKey: `ownership-transfer:${companyId}:${targetUserId}`,
       explicit: operation,
       request: (resolved) =>
         fetchApi(
@@ -117,7 +117,7 @@ export const memberRequests = {
           buildJsonOperationRequestInit(
             'POST',
             buildJsonBody('api.ownership.transfer', {
-              toUserId: targetPrincipalId,
+              toUserId: targetUserId,
               confirmationId,
             }),
             resolved,

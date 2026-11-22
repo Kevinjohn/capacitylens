@@ -35,13 +35,13 @@ describe('browser account api', () => {
     await transferOwner({ name: 'Studio' }, operation);
     await memberRequests.changeMemberRole({
       companyId: 'company / one',
-      principalId: 'person / one',
+      userId: 'person / one',
       role: 'editor',
       operation,
     });
     await memberRequests.transferOwnership({
       companyId: 'company / one',
-      targetPrincipalId: 'person / one',
+      targetUserId: 'person / one',
       confirmationId: 'proof-1',
       operation,
     });
@@ -78,7 +78,7 @@ describe('browser account api', () => {
       .mockResolvedValueOnce(Response.json({ fromUserId: 'bruce', toUserId: 'selina' }));
     const input = {
       companyId: 'wayne-enterprises',
-      targetPrincipalId: 'selina',
+      targetUserId: 'selina',
       confirmationId: 'proof-1',
     };
 

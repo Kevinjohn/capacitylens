@@ -27,7 +27,7 @@ import type { BarLayout } from '@/components/scheduler/schedulerModel';
 import type { PlanningAccess } from '@/data/planning/planningCacheTypes';
 import { makePlanningAccess } from './planning/planningAccessFixtures';
 
-// Shared fixtures establish an active company so scoped store mutations have a valid tenant.
+// Shared fixtures establish an active company so scoped store mutations have a valid company.
 
 /** Mon–Fri, typed as Weekday[] so call sites don't need the `as Weekday[]` cast. */
 export const WORKDAYS: Weekday[] = [1, 2, 3, 4, 5];

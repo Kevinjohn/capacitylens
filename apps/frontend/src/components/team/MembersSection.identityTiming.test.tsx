@@ -11,10 +11,10 @@ import { MembersSection } from './MembersSection';
 import { mockApi, makeRawMember } from './MembersSectionTestKit';
 import { OwnerPermissions } from '@/test/ownerPermissions';
 import { createDeferred } from '@/test/createDeferred';
-function Principal() {
-  return <span data-testid="principal">{useAuth().user?.id}</span>;
+function CurrentUser() {
+  return <span data-testid="user">{useAuth().user?.id}</span>;
 }
-let principal: string;
+let currentUserId: string;
 let holdDirectory: Promise<Response> | null;
 let heldMutation: Promise<Response> | null;
 let directoryReads: number;
@@ -23,7 +23,7 @@ let writes: number;
 beforeEach(async () => {
   queryClient.clear();
   await resetStoreWithCompany();
-  principal = 'bruce';
+  currentUserId = 'bruce';
   holdDirectory = null;
   heldMutation = null;
   directoryReads = 0;
@@ -57,7 +57,7 @@ beforeEach(async () => {
     },
     'GET /api/auth/me': () =>
       jsonResponse({
-        user: { id: principal, email: `${principal}@wayne.test` },
+        user: { id: currentUserId, email: `${currentUserId}@wayne.test` },
         emailVerified: true,
         membershipRequired: false,
         admission: { admitted: true, requirements: {} },
@@ -84,7 +84,7 @@ afterEach(() => {
 function directory() {
   return jsonResponse({
     members: [
-      makeRawMember({ userId: principal, role: 'owner', isSelf: true }),
+      makeRawMember({ userId: currentUserId, role: 'owner', isSelf: true }),
       makeRawMember({ userId: 'clark', role: 'editor', name: 'Clark Kent' }),
     ],
     resourceCandidates: [],
@@ -95,7 +95,7 @@ function renderMembers() {
   return render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Principal />
+        <CurrentUser />
         <OwnerPermissions>
           <MembersSection />
         </OwnerPermissions>
@@ -103,13 +103,13 @@ function renderMembers() {
     </QueryClientProvider>,
   );
 }
-async function refreshed(nextPrincipal: string) {
-  principal = nextPrincipal;
+async function refreshed(nextUserId: string) {
+  currentUserId = nextUserId;
   fireEvent.focus(window);
-  await waitFor(() => expect(screen.getByTestId('principal')).toHaveTextContent(nextPrincipal));
+  await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent(nextUserId));
 }
 it.each(['create', 'resend'] as const)(
-  'drops old-principal %s feedback and reload effects after a real same-company auth refresh',
+  'drops old-user %s feedback and reload effects after a real same-company auth refresh',
   async (action) => {
     renderMembers();
     await screen.findByTestId('invite-open');
@@ -132,11 +132,11 @@ it.each(['create', 'resend'] as const)(
       });
       const reads = directoryReads;
       const invitesBefore = invitationReads;
-      useStore.getState().setNotice('Current principal notice');
+      useStore.getState().setNotice('Current user notice');
       await act(async () =>
         held.resolve(jsonResponse({ emailed: true }, action === 'create' ? 201 : 200)),
       );
-      expect(useStore.getState().notice?.message).toBe('Current principal notice');
+      expect(useStore.getState().notice?.message).toBe('Current user notice');
       expect(screen.getByRole('textbox', { name: /email/i })).toHaveValue('barbara@wayne.test');
       expect(directoryReads).toBe(reads);
       expect(invitationReads).toBe(invitesBefore);
@@ -148,7 +148,7 @@ it.each(['create', 'resend'] as const)(
   },
 );
 it.each(
-  (['different principal', 'same principal', 'observed sign-out'] as const).flatMap((kind) =>
+  (['different user', 'same user', 'observed sign-out'] as const).flatMap((kind) =>
     (['role', 'confirmation'] as const).map((intent) => ({ kind, intent })),
   ),
 )('binds retained $intent intent across $kind refresh', async ({ kind, intent }) => {
@@ -174,15 +174,15 @@ it.each(
         window,
         new StorageEvent('storage', { key: AUTH_INVALIDATION_STORAGE_KEY, newValue: 'changed' }),
       );
-      await screen.findByTestId('principal');
+      await screen.findByTestId('user');
       await act(async () => {
         await resetStoreWithCompany(companyId ?? undefined);
       });
-    } else await refreshed(kind === 'same principal' ? 'bruce' : 'diana');
+    } else await refreshed(kind === 'same user' ? 'bruce' : 'diana');
     holdDirectory = null;
     await act(async () => held.resolve(directory()));
     await screen.findAllByTestId('member-row');
-    if (kind === 'same principal') {
+    if (kind === 'same user') {
       expect(screen.getByRole(dialogRole)).toHaveTextContent('Clark Kent');
     } else expect(screen.queryByRole(dialogRole)).not.toBeInTheDocument();
     expect(writes).toBe(0);

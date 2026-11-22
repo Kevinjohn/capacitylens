@@ -9,7 +9,7 @@ import { hasDuplicateIdentity } from '@/lib/hasDuplicateIdentity';
 import { m } from '@/i18n';
 import { useAuth } from './authContext';
 
-// The company directory is loaded before a tenant is selected because the active company set
+// The company directory is loaded before a company is selected because the active company set
 // cannot enumerate other memberships.
 
 // Validate directory entries before publication. Unknown roles and malformed grants remain
@@ -191,7 +191,7 @@ export function useCompanySummaries(): void {
     state.masquerade.kind === 'inactive' ? 0 : state.masquerade.generation,
   );
   const { user } = useAuth();
-  const principalId = user?.id ?? null;
+  const userId = user?.id ?? null;
   useEffect(() => {
     if (masqueradeActive || activeCompanyId !== null) return;
     const controller = new AbortController();
@@ -200,5 +200,5 @@ export function useCompanySummaries(): void {
       isCurrent: () => !controller.signal.aborted,
     });
     return () => controller.abort();
-  }, [principalId, activeCompanyId, masqueradeActive, membershipRevision, masqueradeGeneration]);
+  }, [userId, activeCompanyId, masqueradeActive, membershipRevision, masqueradeGeneration]);
 }

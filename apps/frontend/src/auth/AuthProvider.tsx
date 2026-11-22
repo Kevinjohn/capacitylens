@@ -30,18 +30,18 @@ const SignInScreen = lazy(() =>
 
 type CheckAuth = (onNull: 'report-error' | 'keep-previous') => Promise<AuthStatusResult | null>;
 
-function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: () => void) {
-  const tenantAccessSignalled = useRef(false);
+function useCompanyAccessReady(status: AuthStatusResult, onCompanyAccessReady?: () => void) {
+  const companyAccessSignalled = useRef(false);
   const ready = status.kind === 'pass' && !status.companySetupRequired && !status.accessGate;
   useEffect(() => {
     if (!ready) {
-      tenantAccessSignalled.current = false;
+      companyAccessSignalled.current = false;
       return;
     }
-    if (tenantAccessSignalled.current) return;
-    tenantAccessSignalled.current = true;
-    onTenantAccessReady?.();
-  }, [onTenantAccessReady, ready]);
+    if (companyAccessSignalled.current) return;
+    companyAccessSignalled.current = true;
+    onCompanyAccessReady?.();
+  }, [onCompanyAccessReady, ready]);
 }
 
 function useAuthStatus() {
@@ -197,14 +197,14 @@ function AuthenticatedGate({
 /** Provides server-verified authentication state and a retryable boot gate. Unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
 export function AuthProvider({
   children,
-  onTenantAccessReady,
+  onCompanyAccessReady,
 }: {
   children: ReactNode;
-  /** Starts tenant-data hydration after /me admits access; the callback must be idempotent under StrictMode effect replay. */
-  onTenantAccessReady?: () => void;
+  /** Starts company-data hydration after /me admits access; the callback must be idempotent under StrictMode effect replay. */
+  onCompanyAccessReady?: () => void;
 }) {
   return (
-    <AuthenticatedAppProvider {...(onTenantAccessReady ? { onTenantAccessReady } : {})}>
+    <AuthenticatedAppProvider {...(onCompanyAccessReady ? { onCompanyAccessReady } : {})}>
       {children}
     </AuthenticatedAppProvider>
   );
@@ -212,14 +212,14 @@ export function AuthProvider({
 
 function AuthenticatedAppProvider({
   children,
-  onTenantAccessReady,
+  onCompanyAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: () => void;
+  onCompanyAccessReady?: () => void;
 }) {
   const planningAuthLossVersion = useStore((state) => state.planningAuthLossVersion);
   const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus();
-  useTenantAccessReady(status, onTenantAccessReady);
+  useCompanyAccessReady(status, onCompanyAccessReady);
   useAuthRevalidation({ planningAuthLossVersion, checkAuth, refreshAuth });
   useAuthInvalidation({ checkAuth, setStatus });
 

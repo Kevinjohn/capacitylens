@@ -70,7 +70,7 @@ test.describe('sign-in screen (password sign-in)', () => {
     { tag: '@journey' },
     async ({ page, request }) => {
       // A fresh per-run user guarantees the sign-up cookie; the isolated fixture then
-      // creates one company and makes that principal its owner.
+      // creates one company and makes that user its owner.
       const { email, cookie } = await signUpUser(`sign-in-${Date.now()}@capacitylens.dev`);
       await bootstrapOrg(request, cookie, ORG_NAME);
 
@@ -200,7 +200,7 @@ test.describe('sign-in screen (password sign-in)', () => {
     await expect(page.getByRole('button', { name: controlOrgName, exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0);
   });
-  test('a user with NO memberships sees no company data (tenant isolation — no cross-tenant leak)', async ({
+  test('a user with NO memberships sees no company data (company isolation — no cross-company leak)', async ({
     page,
     request,
   }, testInfo) => {

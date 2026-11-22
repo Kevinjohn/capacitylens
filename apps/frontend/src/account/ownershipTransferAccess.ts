@@ -21,7 +21,7 @@ function parseReceipt(value: unknown): OwnershipTransferReceipt | null {
 export const ownershipTransferAccess = {
   async transferOwnership(input: {
     companyId: string;
-    targetPrincipalId: string;
+    targetUserId: string;
     confirmationId: string;
   }): Promise<TeamAccessResult<OwnershipTransferReceipt>> {
     return readOperationResult(await memberRequests.transferOwnership(input), parseReceipt, 200);

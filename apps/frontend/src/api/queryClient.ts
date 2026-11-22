@@ -6,9 +6,9 @@ import { registry } from '@capacitylens/backend/registry';
 import type { Route } from '@capacitylens/backend/registry';
 import { fetchApi } from '@/data/requestTimeout';
 
-/** Identifies the principal and read projection that owns a cached API result. */
+/** Identifies the user and read projection that owns a cached API result. */
 export interface ApiQueryScope {
-  principalId: string | null;
+  userId: string | null;
   companyId: string | null;
   masqueradeGeneration: number;
 }
@@ -78,21 +78,21 @@ export function buildScopeQueryKey<const T extends readonly unknown[]>(
 ) {
   return [
     'capacitylens',
-    scope.principalId,
+    scope.userId,
     scope.companyId,
     scope.masqueradeGeneration,
     ...routeKey,
   ] as const;
 }
 
-/** Remove every cached result before a different principal or account projection can render. */
+/** Remove every cached result before a different user or account projection can render. */
 export function clearQueryCacheForScopeChange(
   cache: QueryClient,
   previous: ApiQueryScope,
   next: ApiQueryScope,
 ): boolean {
   if (
-    previous.principalId === next.principalId &&
+    previous.userId === next.userId &&
     previous.companyId === next.companyId &&
     previous.masqueradeGeneration === next.masqueradeGeneration
   ) {

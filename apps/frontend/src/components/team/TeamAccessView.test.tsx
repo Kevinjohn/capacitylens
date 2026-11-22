@@ -207,7 +207,7 @@ describe('TeamAccessView member management', () => {
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
   });
 
-  it.each(['principal', 'company'] as const)(
+  it.each(['user', 'company'] as const)(
     'replaces admission requests when the %s context changes and ignores the old decision',
     async (changedContext) => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -248,10 +248,10 @@ describe('TeamAccessView member management', () => {
       fireEvent.click(screen.getByTestId('admission-approve'));
       const listingCountBeforeContextChange = list.mock.calls.length;
 
-      if (changedContext === 'principal') {
+      if (changedContext === 'user') {
         view.rerender(
           <MemoryRouter>
-            <AuthContext.Provider value={auth('next-principal')}>
+            <AuthContext.Provider value={auth('next-user')}>
               <PermissionContext.Provider value={permissionValue('admin', 'resolved')}>
                 <TeamAccessView />
               </PermissionContext.Provider>
@@ -267,8 +267,8 @@ describe('TeamAccessView member management', () => {
       expect(await screen.findByText(successorRequest.email)).toBeInTheDocument();
 
       await act(async () => {
-        if (changedContext === 'principal') {
-          finishDecision({ kind: 'rejected', status: 403, message: 'Old principal refusal.' });
+        if (changedContext === 'user') {
+          finishDecision({ kind: 'rejected', status: 403, message: 'Old user refusal.' });
         } else {
           failDecision(new Error('Old company decision failed.'));
         }

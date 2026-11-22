@@ -4,16 +4,16 @@ import type { BrowserAccountOperation } from './accountOperations';
 import { buildOperationRequestInit, runOperation } from './operationRequest';
 
 /** Build the account-owned URL for one member/person association. */
-export function buildMemberResourceLinkUrl(companyId: string, principalId: string): string {
+export function buildMemberResourceLinkUrl(companyId: string, userId: string): string {
   return buildApiRouteUrl('api.member-resources.set', {
-    params: { companyId, userId: principalId },
+    params: { companyId, userId },
   });
 }
 
 /** Identifies the company member and resource for a resource-link request. */
 export interface MemberResourceLinkRequestInput {
   companyId: string;
-  principalId: string;
+  userId: string;
   resourceId: string;
   expectedRevision: string | null;
 }
@@ -25,7 +25,7 @@ export function setMemberResourceLink(
 ): Promise<Response> {
   return runOperation({
     operationKey:
-      `member-resource-link:${input.companyId}:${input.principalId}:` +
+      `member-resource-link:${input.companyId}:${input.userId}:` +
       `${input.resourceId}:${input.expectedRevision ?? 'none'}`,
     explicit: operation,
     request: (resolved) => {
@@ -41,7 +41,7 @@ export function buildMemberResourceLinkRequest(
   input: MemberResourceLinkRequestInput,
 ): [string, RequestInit] {
   return [
-    buildMemberResourceLinkUrl(input.companyId, input.principalId),
+    buildMemberResourceLinkUrl(input.companyId, input.userId),
     {
       method: 'PUT',
       credentials: 'include',
@@ -57,11 +57,11 @@ export function buildMemberResourceLinkRequest(
 /** Build an unlink request for the member-resource operation adapter. */
 export function clearMemberResourceLinkRequest(
   companyId: string,
-  principalId: string,
+  userId: string,
   expectedRevision: string,
 ): [string, RequestInit] {
   return [
-    buildMemberResourceLinkUrl(companyId, principalId),
+    buildMemberResourceLinkUrl(companyId, userId),
     {
       method: 'DELETE',
       credentials: 'include',
@@ -73,16 +73,16 @@ export function clearMemberResourceLinkRequest(
 
 /** Send an unlink operation through the account operation boundary. */
 export function clearMemberResourceLink(
-  input: { companyId: string; principalId: string; expectedRevision: string },
+  input: { companyId: string; userId: string; expectedRevision: string },
   operation?: BrowserAccountOperation,
 ): Promise<Response> {
   return runOperation({
-    operationKey: `member-resource-unlink:${input.companyId}:${input.principalId}:${input.expectedRevision}`,
+    operationKey: `member-resource-unlink:${input.companyId}:${input.userId}:${input.expectedRevision}`,
     explicit: operation,
     request: (resolved) => {
       const [url, init] = clearMemberResourceLinkRequest(
         input.companyId,
-        input.principalId,
+        input.userId,
         input.expectedRevision,
       );
       return fetchApi(url, buildOperationRequestInit(init, resolved));

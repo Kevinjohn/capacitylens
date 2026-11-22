@@ -26,12 +26,12 @@ function Probe() {
   const { data, error } = useArchiveRecovery();
   return <div>{error ?? data?.rows.map((row) => row.label).join(',') ?? 'hidden'}</div>;
 }
-function view(cache: QueryClient, role: Role = 'editor', principal: string | null = 'bruce') {
+function view(cache: QueryClient, role: Role = 'editor', userId: string | null = 'bruce') {
   return (
     <QueryClientProvider client={cache}>
       <AuthContext.Provider
         value={{
-          user: principal ? { id: principal } : null,
+          user: userId ? { id: userId } : null,
           refreshAuth: async () => {},
           signOut: async () => {},
         }}
@@ -48,7 +48,7 @@ function company(companyId: string) {
     activeCompanyId: companyId,
     planning: {
       ...state.planning,
-      context: { identity: 'principal', companyId },
+      context: { identity: 'user', companyId },
       phase: { kind: 'ready', lastWrite: null },
       revision: 0,
       authority: makePlanningAccess({
@@ -94,7 +94,7 @@ describe('archive recovery request boundaries', () => {
     expect(signal.aborted).toBe(true);
     expect(screen.queryByText(/Old A|Late B/)).not.toBeInTheDocument();
   });
-  it('discards Owner labels on role and same-company principal transitions', async () => {
+  it('discards Owner labels on role and same-company user transitions', async () => {
     request
       .mockResolvedValueOnce(payload('a-studio', 'Owner secret'))
       .mockReturnValue(new Promise(() => {}));

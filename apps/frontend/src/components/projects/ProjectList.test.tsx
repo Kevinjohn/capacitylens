@@ -23,7 +23,7 @@ function TestProviders({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user: { id: 'test-principal' },
+        user: { id: 'test-user' },
         refreshAuth: async () => {},
         signOut: async () => {},
       }}

@@ -43,7 +43,7 @@ export function useInactiveCompanyData(): {
       mayViewInactive,
       reloadKey,
       role,
-      principalId: user?.id,
+      userId: user?.id,
       context: planning.context,
       accessKey,
       revision: planning.revision,

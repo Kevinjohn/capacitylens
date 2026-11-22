@@ -138,10 +138,10 @@ describe('AuthProvider — server mode', () => {
     );
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { AuthProvider } = await renderFreshProvider();
-    const onTenantAccessReady = vi.fn();
+    const onCompanyAccessReady = vi.fn();
 
     render(
-      <AuthProvider onTenantAccessReady={onTenantAccessReady}>
+      <AuthProvider onCompanyAccessReady={onCompanyAccessReady}>
         <div>app-content</div>
       </AuthProvider>,
     );
@@ -159,7 +159,7 @@ describe('AuthProvider — server mode', () => {
       screen.getByText('The authentication service could not be reached.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/stored-user/)).not.toBeInTheDocument();
-    expect(onTenantAccessReady).not.toHaveBeenCalled();
+    expect(onCompanyAccessReady).not.toHaveBeenCalled();
   });
   it.each([
     ['no user', null],

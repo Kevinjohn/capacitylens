@@ -185,7 +185,7 @@ describe('MembersSection — directory error retention', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('masks a previously authorized directory immediately when its principal changes', async () => {
+  it('masks a previously authorized directory immediately when its user changes', async () => {
     const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const;
     let memberReads = 0;
     vi.stubGlobal(
@@ -206,10 +206,10 @@ describe('MembersSection — directory error retention', () => {
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const fail = vi.fn();
-    let principalId = 'first-principal';
+    let userId = 'first-user';
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
-        <AuthContext.Provider value={makeAuthValue({ user: { id: principalId } })}>
+        <AuthContext.Provider value={makeAuthValue({ user: { id: userId } })}>
           {children}
         </AuthContext.Provider>
       </QueryClientProvider>
@@ -226,7 +226,7 @@ describe('MembersSection — directory error retention', () => {
     );
     await waitFor(() => expect(result.current.directory.kind).toBe('ready'));
 
-    principalId = 'second-principal';
+    userId = 'second-user';
     rerender();
 
     expect(result.current.directory.kind).toBe('loading');

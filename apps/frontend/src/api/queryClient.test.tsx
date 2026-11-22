@@ -61,9 +61,9 @@ describe('same-origin API requests', () => {
 });
 
 describe('account query cache scope', () => {
-  it('partitions route keys by principal, company, and masquerade generation', () => {
+  it('partitions route keys by user, company, and masquerade generation', () => {
     expect(
-      buildScopeQueryKey({ principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 }, [
+      buildScopeQueryKey({ userId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 }, [
         'api.members.index',
         { params: { companyId: 'wayne' } },
       ] as const),
@@ -79,19 +79,19 @@ describe('account query cache scope', () => {
 
   it.each([
     [
-      'principal',
-      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 0 },
-      { principalId: 'alfred', companyId: 'wayne', masqueradeGeneration: 0 },
+      'user',
+      { userId: 'bruce', companyId: 'wayne', masqueradeGeneration: 0 },
+      { userId: 'alfred', companyId: 'wayne', masqueradeGeneration: 0 },
     ],
     [
       'company',
-      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 0 },
-      { principalId: 'bruce', companyId: 'stark', masqueradeGeneration: 0 },
+      { userId: 'bruce', companyId: 'wayne', masqueradeGeneration: 0 },
+      { userId: 'bruce', companyId: 'stark', masqueradeGeneration: 0 },
     ],
     [
       'masquerade generation',
-      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 1 },
-      { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 },
+      { userId: 'bruce', companyId: 'wayne', masqueradeGeneration: 1 },
+      { userId: 'bruce', companyId: 'wayne', masqueradeGeneration: 2 },
     ],
   ])('clears data when the %s changes', (_label, previous, next) => {
     const queryClient = new QueryClient();
@@ -103,7 +103,7 @@ describe('account query cache scope', () => {
 
   it('keeps cached data when the entire identity scope is unchanged', () => {
     const queryClient = new QueryClient();
-    const scope = { principalId: 'bruce', companyId: 'wayne', masqueradeGeneration: 1 } as const;
+    const scope = { userId: 'bruce', companyId: 'wayne', masqueradeGeneration: 1 } as const;
     queryClient.setQueryData(['private'], { name: 'Wayne Enterprises' });
 
     expect(clearQueryCacheForScopeChange(queryClient, scope, scope)).toBe(false);
@@ -112,7 +112,7 @@ describe('account query cache scope', () => {
 });
 
 describe('QueryCacheLifecycle', () => {
-  it('clears private results across principal, company, and masquerade transitions', async () => {
+  it('clears private results across user, company, and masquerade transitions', async () => {
     const { act, render } = await import('@testing-library/react');
     const { AuthContext } = await import('@/auth/authContext');
     const { useStore } = await import('@/store/useStore');
@@ -124,8 +124,8 @@ describe('QueryCacheLifecycle', () => {
       signOut: async () => {},
     });
     useStore.setState({ activeCompanyId: null, masquerade: { kind: 'inactive' } });
-    const tree = (principalId: string | null) => (
-      <AuthContext.Provider value={authValue(principalId)}>
+    const tree = (userId: string | null) => (
+      <AuthContext.Provider value={authValue(userId)}>
         <QueryCacheLifecycle cache={cache} />
       </AuthContext.Provider>
     );
