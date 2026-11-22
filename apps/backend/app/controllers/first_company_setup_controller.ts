@@ -36,6 +36,6 @@ export default class FirstCompanySetupController {
         code: 'COMPANY_SETUP_UNAVAILABLE',
       });
     }
-    return ctx.response.created({ companyId: result.companyId });
+    return ctx.response.created(await ctx.serialize({ companyId: result.companyId }));
   }
 }

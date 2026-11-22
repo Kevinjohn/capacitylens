@@ -44,4 +44,4 @@ language. **Date format** in Settings changes how dates appear.
 ## Do I set up email or sign-in?
 
 No. The installer sets up email delivery, which invitations need. Everyone signs in with a
-password. [Sign-in and access](/company-login/)
+password. [Sign-in and access](/sign-in/)

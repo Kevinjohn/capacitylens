@@ -22,7 +22,7 @@ const first = {
 function companyData(schedulingMode: SchedulingMode): AppData {
   return {
     ...createEmptyAppData(),
-    accounts: [
+    companies: [
       { ...FIXTURE_COMPANY, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
     ],
     resources: [{ ...FIXTURE_RESOURCE_PERSON, workingDays: [1, 2, 3] }],

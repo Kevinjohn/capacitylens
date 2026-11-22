@@ -60,7 +60,7 @@ A closure sets capacity to zero for every person and placeholder on those dates,
 added later. It does not cover external parties or remove bookings; overlapping work shows as a
 conflict. Shortening or deleting the closure restores capacity without moving bookings.
 
-For one person's absence, [record time off](/using/time-off#record-time-off).
+For one person away, [record time off](/using/time-off#record-time-off).
 
 <span id="ask-the-owner-or-operator"></span>
 
@@ -69,7 +69,7 @@ For one person's absence, [record time off](/using/time-off#record-time-off).
 <span id="owner-and-operator-handoffs"></span>
 
 Ask the Owner to transfer ownership, anonymise the company or import scheduling data. Ask the installer
-about backups, upgrades and company-login setup. When something goes wrong, copy a report
+about backups, upgrades and sign-in setup. When something goes wrong, copy a report
 from [Diagnostics](/admin/diagnostics), linked from **Help**.
 
 Next: [Admin FAQ](/admin/faq) — common access problems.

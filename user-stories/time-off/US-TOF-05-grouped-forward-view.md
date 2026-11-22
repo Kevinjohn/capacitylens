@@ -1,6 +1,6 @@
 # US-TOF-05 — Scan current and future time off by resource
 
-As a company member, I want current and future time off grouped by resource so that upcoming absences are easy to review.
+As a company member, I want current and future time off grouped by resource so that upcoming time off is easy to review.
 
 **Status:** Current
 
@@ -22,7 +22,7 @@ As a company member, I want current and future time off grouped by resource so t
 ```mermaid
 flowchart TD
   N1["Open Time off page"]
-  N2["entries are grouped by resource and show current/future absences"]
+  N2["entries are grouped by resource and show current/future time off"]
   N3["past entries are omitted from this view but retained"]
   N1 --> N2
   N2 --> N3

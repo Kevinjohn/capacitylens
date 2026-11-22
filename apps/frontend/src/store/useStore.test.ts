@@ -21,7 +21,7 @@ import { PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithCompany());
 
-const personDraft = makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#1' });
+const personDraft = makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#1' });
 
 describe('store CRUD', () => {
   it('adds entities with a generated id and timestamps', async () => {
@@ -81,11 +81,11 @@ describe('store scheduler UI', () => {
     };
 
     updatePlanningFixtureSource(
-      makeAppData({ accounts: [makeCompany({ name: 'Updated account name' })] }),
+      makeAppData({ companies: [makeCompany({ name: 'Updated account name' })] }),
     );
     await s().refreshPlanning();
 
-    expect(s().data.accounts[0]?.name).toBe('Updated account name');
+    expect(s().data.companies[0]?.name).toBe('Updated account name');
     expect({
       originDate: s().ui.originDate,
       focusDate: s().ui.focusDate,
@@ -160,7 +160,7 @@ describe('store scheduler UI', () => {
       s().setCompanySummaries({ list: [{ id: companyId, name: 'Late account', role: 'owner' }] });
       updatePlanningFixtureSource(
         makeAppData({
-          accounts: [makeCompany({ id: companyId, weekStartsOn })],
+          companies: [makeCompany({ id: companyId, weekStartsOn })],
         }),
       );
       s().setActiveCompany(companyId);
@@ -253,8 +253,8 @@ describe('store scheduler UI', () => {
     expect(s().ui.filters.activityId).toBe('activity-1');
     expect(s().ui.filters.activityKind).toBeNull();
 
-    s().setFilters({ activityKind: 'repeatable' });
-    expect(s().ui.filters.activityKind).toBe('repeatable');
+    s().setFilters({ activityKind: 'allProjects' });
+    expect(s().ui.filters.activityKind).toBe('allProjects');
     expect(s().ui.filters.activityId).toBeNull();
   });
 
@@ -347,7 +347,7 @@ describe('store scheduler UI', () => {
     const sunStart = 'acct-sun';
     await resetStoreWithData(
       makeAppData({
-        accounts: [makeCompany({ id: sunStart, weekStartsOn: 0 })],
+        companies: [makeCompany({ id: sunStart, weekStartsOn: 0 })],
       }),
       sunStart,
     );

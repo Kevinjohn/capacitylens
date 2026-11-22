@@ -48,12 +48,12 @@ async function createScenario(request: APIRequestContext) {
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Bruce Wayne',
-    role: 'Planner',
+    jobTitle: 'Planner',
   });
   await createTestPerson(request, owner.cookie, companyId, {
     id: secondResourceId,
     name: 'Clark Kent',
-    role: 'Planner',
+    jobTitle: 'Planner',
   });
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'catalogue.create',
@@ -130,7 +130,7 @@ async function persistedAllocations(request: APIRequestContext, cookie: string, 
     maxRetries: 1,
   });
   expect(response.status()).toBe(200);
-  return ((await response.json()) as { allocations: Allocation[] }).allocations;
+  return ((await response.json()) as { data: { allocations: Allocation[] } }).data.allocations;
 }
 
 async function createAllocation(page: Page, projectId: string, activityId: string) {
@@ -460,7 +460,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
-  const { revision } = (await planning.json()) as { revision: number };
+  const { revision } = ((await planning.json()) as { data: { revision: number } }).data;
   const deletion = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
     headers: {
       ...(await masqueradeTokenHeaders(request, owner.cookie)),
@@ -484,7 +484,7 @@ test('a remote allocation deletion invalidates keyboard history after refresh', 
   expect(refreshed.status()).toBe(200);
   // The page names the revision it holds; the other session's change makes it stale.
   expect(new URL(refreshed.url()).searchParams.has('ifRevision')).toBe(true);
-  expect(((await refreshed.json()) as { slice: string }).slice).toBe('full');
+  expect(((await refreshed.json()) as { data: { content: string } }).data.content).toBe('full');
   await refreshed.finished();
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
@@ -762,7 +762,7 @@ test('a stale-revision scheduler write shows server state without a toast or his
     headers: { cookie: owner.cookie },
   });
   expect(planning.status()).toBe(200);
-  const { revision } = (await planning.json()) as { revision: number };
+  const { revision } = ((await planning.json()) as { data: { revision: number } }).data;
   const external = await request.post(`${AUTH_API}/api/companies/${companyId}/planning/mutations`, {
     headers: {
       ...(await masqueradeTokenHeaders(request, owner.cookie)),

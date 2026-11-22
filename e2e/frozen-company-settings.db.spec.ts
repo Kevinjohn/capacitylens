@@ -30,7 +30,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
     request,
   }) => {
     const before = await serverState(request);
-    const account = requireStateRows(before, 'accounts')[0];
+    const account = requireStateRows(before, 'companies')[0];
     if (account === undefined) throw new Error('Seeded server state must include an account');
 
     const changes = [
@@ -39,7 +39,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
     ] as const;
     let revision = 0;
     for (const [field, initial, target] of changes) {
-      // The fixture deliberately models legacy accounts with these nullable settings unset.
+      // The fixture deliberately models legacy companies with these nullable settings unset.
       // Missing frozen fields may be initialized once; only a subsequent change is forbidden.
       const initialized = await request.post(
         `${API}/api/companies/${account.id}/planning/mutations`,
@@ -79,7 +79,7 @@ test.describe('database-backed frozen company settings (P1.14)', () => {
     expect(language.status()).toBe(400);
 
     const after = await serverState(request);
-    const updatedAccount = requireStateRows(after, 'accounts')[0];
+    const updatedAccount = requireStateRows(after, 'companies')[0];
     if (updatedAccount === undefined)
       throw new Error('Server state must retain the seeded account');
     expect(updatedAccount.language).toBeNull();
@@ -118,7 +118,7 @@ test.describe('single-company production entry', () => {
     // The company list refuses an installation with more than one company.
     const companies = await request.get(`${API}/api/companies`);
     expect(companies.status()).toBe(200);
-    expect(await companies.json()).toHaveLength(1);
+    expect((await companies.json()).data).toHaveLength(1);
   });
 });
 

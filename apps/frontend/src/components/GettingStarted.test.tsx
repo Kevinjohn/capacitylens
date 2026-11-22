@@ -19,7 +19,7 @@ const NO_STEPS = {
 
 /** The getting-started read body: dismissal plus the milestones the server reports. */
 function readReply(dismissed: boolean, steps: Partial<typeof NO_STEPS> = {}) {
-  return JSON.stringify({ dismissed, steps: { ...NO_STEPS, ...steps } });
+  return JSON.stringify({ data: { dismissed, steps: { ...NO_STEPS, ...steps } } });
 }
 
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
@@ -279,7 +279,9 @@ describe('Getting started', () => {
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
-      vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(JSON.stringify({ data: body }), { status: 200 })),
     );
 
     renderChecklist('owner');

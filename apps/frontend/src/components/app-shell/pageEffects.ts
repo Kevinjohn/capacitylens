@@ -11,7 +11,7 @@ import type { StoreState } from '@/store/types';
 
 /** Applies the active company's language once its company row has loaded. */
 export function useCompanyLocale(
-  companies: StoreState['data']['accounts'],
+  companies: StoreState['data']['companies'],
   activeCompanyId: StoreState['activeCompanyId'],
 ) {
   const hydratedActiveCompany = companies.find((company) => company.id === activeCompanyId);
@@ -27,7 +27,7 @@ export function useCompanyLocale(
 }
 
 interface DocumentTitleInput {
-  activeLanguage: StoreState['data']['accounts'][number]['language'] | undefined;
+  activeLanguage: StoreState['data']['companies'][number]['language'] | undefined;
   activeLanguagePending: boolean;
   pathname: string;
 }

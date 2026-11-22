@@ -35,12 +35,12 @@ flowchart TD
 flowchart TD
   dialog["SecuritySection renders PasswordDialog"] --> submit["usePasswordChange.submit checks fields"]
   submit --> client["authApi.changePassword sends credentials"]
-  client --> route["auth_routes maps change-password to CredentialController.changePassword"]
+  client --> route["auth_routes maps change-password to PasswordController.update"]
   route --> kit["Account Kit emailPasswordManagement.changePassword"]
   kit --> sessions["Account Kit changePassword call owns password and other-session effects"]
-  sessions --> session["CredentialController ends this session through the managed guard"]
+  sessions --> session["PasswordController ends this session through the managed guard"]
   session --> reload["usePasswordChange.submit navigates to / to sign in with the new password"]
   kit --> error["Rejected credential returns a visible field error"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts), [DECISIONS.md](../../DECISIONS.md)
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_controller.ts](../../apps/backend/app/controllers/password_controller.ts), [DECISIONS.md](../../DECISIONS.md)

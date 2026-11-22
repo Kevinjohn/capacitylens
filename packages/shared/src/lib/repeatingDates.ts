@@ -38,7 +38,7 @@ export const GENERATED_ALLOCATION_LIMIT = 30;
 // Allocation repeat suggestions use two calendar months.
 const DEFAULT_REPEAT_MONTHS = 2;
 
-/** Existing allocation behavior, kept as the default for every public helper. */
+/** Existing allocation behaviour, kept as the default for every public helper. */
 export const ALLOCATION_REPEAT_RULES: RepeatingDateRules = {
   maximumCalendarMonths: MAX_REPEAT_MONTHS,
   maximumCutoff: 'anchor-day',
@@ -48,7 +48,7 @@ export const ALLOCATION_REPEAT_RULES: RepeatingDateRules = {
   occurrenceNoun: 'allocation',
 };
 
-/** Personal time-off behavior: the initial month plus eleven following calendar months. */
+/** Personal time-off behaviour: the initial month plus eleven following calendar months. */
 export const TIME_OFF_REPEAT_RULES: RepeatingDateRules = {
   maximumCalendarMonths: 11,
   maximumCutoff: 'month-end',

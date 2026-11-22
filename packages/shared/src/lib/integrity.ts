@@ -84,7 +84,7 @@ export function validateDateRange(
 }
 
 /** Resolve the project a booking counts toward. Allocation attribution takes precedence over the
- * activity's project because repeatable activities are project-less and attribute each booking. */
+ * activity's project because all-projects activities are project-less and attribute each booking. */
 export function resolveEffectiveProjectId(
   allocation: Partial<Pick<Allocation, 'projectId'>>,
   activity: Partial<Pick<Activity, 'projectId'>>,
@@ -94,7 +94,7 @@ export function resolveEffectiveProjectId(
 
 /** Allocation-level project attribution belongs only to all-projects activities. */
 export function isAllocationAttributionAllowed(kind: unknown): boolean {
-  return kind === 'repeatable';
+  return kind === 'allProjects';
 }
 
 type WithoutAllocationAttribution<T> = {

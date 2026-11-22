@@ -35,7 +35,7 @@ flowchart TD
   A["ActivityList opens ActivityForm"] --> B["ActivityFields renders no Phase picker"]
   B --> C["useActivityFields retains phaseId state but exposes no setter control"]
   C --> D["ActivityForm.submit includes retained phaseId for project kind"]
-  E["typedPlanningActions retains phase actions"] --> F["planningTransport maps phase routes"] --> G["PlanningController.mutate / phaseUpdate / phaseDelete"]
+  E["typedPlanningActions retains phase actions"] --> F["planningTransport maps phase routes"] --> G["PlanningMutationsController.store / phaseUpdate / phaseDelete"]
 ```
 
-**Code references:** [ActivityList.tsx](../../apps/frontend/src/components/activities/ActivityList.tsx) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
+**Code references:** [ActivityList.tsx](../../apps/frontend/src/components/activities/ActivityList.tsx) · [ActivityForm.tsx](../../apps/frontend/src/components/activities/ActivityForm.tsx) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)

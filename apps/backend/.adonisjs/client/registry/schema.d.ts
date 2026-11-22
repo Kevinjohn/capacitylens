@@ -8,6 +8,19 @@ import type { routes } from './index.ts'
 export type ParamValue = string | number | bigint | boolean
 
 export interface Registry {
+  'api.health_checks.live': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/health'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+    }
+  }
   'api.planning.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/planning'
@@ -21,7 +34,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
     }
   }
-  'api.planning.archive': {
+  'api.planning_archive.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/planning/archive'
     types: {
@@ -29,12 +42,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['archive']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
     }
   }
-  'api.planning.mutate': {
+  'api.planning_mutations.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/mutations'
     types: {
@@ -42,12 +55,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningMutationValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['mutate']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['mutate']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['mutate']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_mutations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_mutations_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_mutations_controller').default['store']>>>
     }
   }
-  'api.planning.undo': {
+  'api.planning_undo.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/undo'
     types: {
@@ -55,12 +68,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['undo']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_undo_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_undo_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_undo_controller').default['store']>>>
     }
   }
-  'api.planning.redo': {
+  'api.planning_redo.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/redo'
     types: {
@@ -68,12 +81,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/planning_operations').planningHistoryStepValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['redo']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/planning_redo_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/planning_redo_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_redo_controller').default['store']>>>
     }
   }
-  'api.installation.company': {
+  'api.first_company_setup.store': {
     methods: ["POST"]
     pattern: '/api/installation/company'
     types: {
@@ -99,33 +112,33 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
     }
   }
-  'api.transfer.preview': {
+  'api.import_previews.store': {
     methods: ["POST"]
-    pattern: '/api/transfer/preview'
+    pattern: '/api/import/preview'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/import').previewImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['preview']>>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/import').previewImportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
     }
   }
-  'api.transfer.apply': {
+  'api.imports.store': {
     methods: ["POST"]
-    pattern: '/api/transfer/apply'
+    pattern: '/api/import/apply'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/import').applyImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/transfer_controller').default['apply']>>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/import').applyImportValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
     }
   }
-  'api.state': {
+  'api.company_state.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/state'
     types: {
@@ -133,12 +146,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/export_query').exportQueryValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['show']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/company_state_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/company_state_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/company_state_controller').default['show']>>>
     }
   }
-  'api.export': {
+  'api.company_exports.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/export'
     types: {
@@ -146,12 +159,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['download']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['download']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/exports_controller').default['download']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/company_exports_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/company_exports_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/company_exports_controller').default['show']>>>
     }
   }
-  'api.companies.anonymise': {
+  'api.company_anonymisations.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/anonymise'
     types: {
@@ -159,12 +172,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/anonymise').anonymiseCompanyValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['company']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/company_anonymisations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/company_anonymisations_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/company_anonymisations_controller').default['store']>>>
     }
   }
-  'api.resources.anonymise': {
+  'api.resource_anonymisations.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/resources/:id/anonymise'
     types: {
@@ -172,12 +185,12 @@ export interface Registry {
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; id: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/anonymise').anonymiseResourceValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/anonymise_controller').default['resource']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/resource_anonymisations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/resource_anonymisations_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/resource_anonymisations_controller').default['store']>>>
     }
   }
-  'api.example-data': {
+  'api.example_data.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/example-data'
     types: {
@@ -190,7 +203,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
     }
   }
-  'api.getting-started.show': {
+  'api.getting_started.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/getting-started'
     types: {
@@ -203,7 +216,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
     }
   }
-  'api.getting-started.update': {
+  'api.getting_started.update': {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/getting-started'
     types: {
@@ -216,7 +229,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
     }
   }
-  'api.auth.me': {
+  'api.session.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/auth/me'
     types: {
@@ -224,12 +237,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['me']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['me']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['me']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['show']>>>
     }
   }
-  'api.auth.sign-up': {
+  'api.new_account.store': {
     methods: ["POST"]
     pattern: '/api/auth/sign-up'
     types: {
@@ -237,12 +250,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/auth_requests').signUpValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signUp']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
     }
   }
-  'api.auth.sign-in': {
+  'api.session.store': {
     methods: ["POST"]
     pattern: '/api/auth/sign-in'
     types: {
@@ -250,12 +263,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/auth_requests').signInValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signIn']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
     }
   }
-  'api.auth.sign-out': {
+  'api.session.destroy': {
     methods: ["POST"]
     pattern: '/api/auth/sign-out'
     types: {
@@ -263,12 +276,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/auth_controller').default['signOut']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
     }
   }
-  'api.auth.password-confirmation': {
+  'api.password_confirmations.store': {
     methods: ["POST"]
     pattern: '/api/auth/password-confirmation'
     types: {
@@ -276,12 +289,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/password_confirmations').confirmPasswordValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['password']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['store']>>>
     }
   }
-  'api.auth.request-reset': {
+  'api.password_reset_requests.store': {
     methods: ["POST"]
     pattern: '/api/auth/request-reset'
     types: {
@@ -289,12 +302,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/credentials').requestResetValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['requestReset']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['requestReset']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['requestReset']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_reset_requests_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_reset_requests_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_reset_requests_controller').default['store']>>>
     }
   }
-  'api.auth.inspect-reset': {
+  'api.password_resets.show': {
     methods: ["POST"]
     pattern: '/api/auth/inspect-reset'
     types: {
@@ -302,12 +315,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/credentials').inspectResetValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['inspectReset']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['show']>>>
     }
   }
-  'api.auth.reset-password': {
+  'api.password_resets.update': {
     methods: ["POST"]
     pattern: '/api/auth/reset-password'
     types: {
@@ -315,12 +328,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/credentials').resetPasswordValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['resetPassword']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['resetPassword']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['resetPassword']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['update']>>>
     }
   }
-  'api.auth.change-password': {
+  'api.password.update': {
     methods: ["POST"]
     pattern: '/api/auth/change-password'
     types: {
@@ -328,12 +341,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/credentials').changePasswordValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['changePassword']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/password_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/password_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_controller').default['update']>>>
     }
   }
-  'api.auth.delete-account': {
+  'api.account.destroy': {
     methods: ["POST"]
     pattern: '/api/auth/delete-account'
     types: {
@@ -341,12 +354,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/credentials').deleteAccountValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['deleteAccount']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['deleteAccount']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/credential_controller').default['deleteAccount']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/account_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/account_controller').default['destroy']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/account_controller').default['destroy']>>>
     }
   }
-  'api.auth.verification.send': {
+  'api.email_verification_requests.store': {
     methods: ["POST"]
     pattern: '/api/auth/verification/send'
     types: {
@@ -354,12 +367,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['send']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/email_verification_requests_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verification_requests_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/email_verification_requests_controller').default['store']>>>
     }
   }
-  'api.auth.verification.inspect': {
+  'api.email_verifications.show': {
     methods: ["POST"]
     pattern: '/api/auth/verification/inspect'
     types: {
@@ -367,12 +380,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/verification').inspectVerificationValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['inspect']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['show']>>>
     }
   }
-  'api.auth.verification.complete': {
+  'api.email_verifications.update': {
     methods: ["POST"]
     pattern: '/api/auth/verification/complete'
     types: {
@@ -380,9 +393,9 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/verification').completeVerificationValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/verification_controller').default['complete']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['update']>>>
     }
   }
   'api.members.index': {
@@ -398,7 +411,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
     }
   }
-  'api.members.tracking': {
+  'api.member_sign_in_tracking.update': {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/member-sign-in-tracking'
     types: {
@@ -406,12 +419,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/members').updateMemberTrackingValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['tracking']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_sign_in_tracking_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_sign_in_tracking_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_sign_in_tracking_controller').default['update']>>>
     }
   }
-  'api.members.role': {
+  'api.members.update': {
     methods: ["PATCH"]
     pattern: '/api/companies/:companyId/members/:userId'
     types: {
@@ -419,12 +432,12 @@ export interface Registry {
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; userId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/members').changeRoleValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeRole']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeRole']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeRole']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
     }
   }
-  'api.members.status': {
+  'api.member_status.update': {
     methods: ["PATCH"]
     pattern: '/api/companies/:companyId/members/:userId/status'
     types: {
@@ -432,27 +445,27 @@ export interface Registry {
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; userId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/members').changeStatusValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeStatus']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeStatus']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['changeStatus']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_status_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_status_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_status_controller').default['update']>>>
     }
   }
-  'api.invites.create': {
+  'api.invitations.store': {
     methods: ["POST"]
-    pattern: '/api/invites'
+    pattern: '/api/invitations'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').createInvitationValidator)>>
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/invitations').createInvitationValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['create']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['store']>>>
     }
   }
-  'api.invites.index': {
+  'api.invitations.index': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/invites'
+    pattern: '/api/companies/:companyId/invitations'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -463,56 +476,56 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
     }
   }
-  'api.invites.resend': {
+  'api.invitation_deliveries.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/invites/:id/resend'
+    pattern: '/api/companies/:companyId/invitations/:id/resend'
     types: {
       body: {}
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; id: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['resend']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
     }
   }
-  'api.invites.revoke': {
+  'api.invitations.destroy': {
     methods: ["DELETE"]
-    pattern: '/api/companies/:companyId/invites/:id'
+    pattern: '/api/companies/:companyId/invitations/:id'
     types: {
       body: {}
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; id: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['revoke']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['revoke']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['revoke']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
     }
   }
-  'api.invites.preview': {
+  'api.invitation_links.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/invites/:token/preview'
+    pattern: '/api/invitations/:token/preview'
     types: {
       body: {}
       paramsTuple: [ParamValue]
       params: { token: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['preview']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['preview']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['preview']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitation_links_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitation_links_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_links_controller').default['show']>>>
     }
   }
-  'api.invites.sign-up': {
+  'api.invitation_acceptances.store': {
     methods: ["POST"]
-    pattern: '/api/invites/:token/signup'
+    pattern: '/api/invitations/:token/sign-up'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').acceptInvitationSignUpValidator)>>
       paramsTuple: [ParamValue]
       params: { token: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/invitations').acceptInvitationSignUpValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['signUp']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/invitation_acceptances_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/invitation_acceptances_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_acceptances_controller').default['store']>>>
     }
   }
   'api.admission.show': {
@@ -528,7 +541,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['show']>>>
     }
   }
-  'api.admission.request': {
+  'api.admission_requests.store': {
     methods: ["POST"]
     pattern: '/api/admission/request'
     types: {
@@ -536,12 +549,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['request']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['store']>>>
     }
   }
-  'api.admission.complete': {
+  'api.memberships.store': {
     methods: ["POST"]
     pattern: '/api/admission/complete'
     types: {
@@ -549,12 +562,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['complete']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
     }
   }
-  'api.admission.index': {
+  'api.admission_requests.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admission/requests'
     types: {
@@ -562,12 +575,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/admission_query').admissionQueryValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['index']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['index']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['index']>>>
     }
   }
-  'api.admission.approve': {
+  'api.admission_approvals.store': {
     methods: ["POST"]
     pattern: '/api/admission/:userId/approve'
     types: {
@@ -575,12 +588,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { userId: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['approve']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_approvals_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_approvals_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_approvals_controller').default['store']>>>
     }
   }
-  'api.admission.reject': {
+  'api.admission_rejections.store': {
     methods: ["POST"]
     pattern: '/api/admission/:userId/reject'
     types: {
@@ -588,12 +601,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { userId: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['reject']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_rejections_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_rejections_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_rejections_controller').default['store']>>>
     }
   }
-  'api.admission.revoke': {
+  'api.admission_revocations.store': {
     methods: ["POST"]
     pattern: '/api/admission/:userId/revoke'
     types: {
@@ -601,12 +614,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { userId: ParamValue }
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['revoke']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>
     }
   }
-  'api.member-resources.set': {
+  'api.member_resource_links.update': {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/members/:userId/resource-link'
     types: {
@@ -614,12 +627,12 @@ export interface Registry {
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; userId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/member_resources').setLinkValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['setLink']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['update']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['update']>>>
     }
   }
-  'api.member-resources.clear': {
+  'api.member_resource_links.destroy': {
     methods: ["DELETE"]
     pattern: '/api/companies/:companyId/members/:userId/resource-link'
     types: {
@@ -627,12 +640,12 @@ export interface Registry {
       paramsTuple: [ParamValue, ParamValue]
       params: { companyId: ParamValue; userId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/member_resources').clearLinkValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resources_controller').default['clearLink']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['destroy']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['destroy']>>>
     }
   }
-  'api.masquerade.start': {
+  'api.masquerade.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/masquerade'
     types: {
@@ -640,12 +653,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/masquerade').startMasqueradeValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['start']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['store']>>>
     }
   }
-  'api.masquerade.status': {
+  'api.masquerade.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/masquerade'
     types: {
@@ -653,12 +666,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['status']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['status']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['status']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
     }
   }
-  'api.masquerade.end': {
+  'api.masquerade.destroy': {
     methods: ["DELETE"]
     pattern: '/api/masquerade'
     types: {
@@ -666,12 +679,12 @@ export interface Registry {
       paramsTuple: []
       params: {}
       query: ExtractQuery<InferInput<(typeof import('#validators/masquerade').endMasqueradeValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['end']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['destroy']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['destroy']>>>
     }
   }
-  'api.ownership.transfer': {
+  'api.ownership_transfers.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/ownership-transfer'
     types: {
@@ -679,25 +692,12 @@ export interface Registry {
       paramsTuple: [ParamValue]
       params: { companyId: ParamValue }
       query: ExtractQuery<InferInput<(typeof import('#validators/ownership').transferOwnershipValidator)>>
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/ownership_controller').default['transfer']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ownership_transfers_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ownership_transfers_controller').default['store']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/ownership_transfers_controller').default['store']>>>
     }
   }
-  'api.health': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/health'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: unknown
-      errorResponse: unknown
-      rawResponse: ExtractRawResponse<unknown>
-    }
-  }
-  'api.diagnostics': {
+  'api.diagnostics.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/diagnostics'
     types: {
@@ -710,7 +710,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
     }
   }
-  'api.not-found': {
+  'api.not_found': {
     methods: ["GET","HEAD"]
     pattern: '/api/*'
     types: {
@@ -721,6 +721,32 @@ export interface Registry {
       response: unknown
       errorResponse: unknown
       rawResponse: ExtractRawResponse<unknown>
+    }
+  }
+  'health_checks.live': {
+    methods: ["GET","HEAD"]
+    pattern: '/health/live'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+    }
+  }
+  'health_checks.ready': {
+    methods: ["GET","HEAD"]
+    pattern: '/health/ready'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
     }
   }
 }

@@ -4,9 +4,9 @@ import {
   hasMultipleCompanies,
   hasNoCompany,
   getInstallationCompanyId,
-} from '#models/installation_company';
-import { freshDatabase } from '../helpers/fresh_database.js';
-import { resetState } from '../helpers/state_fixture.js';
+} from '#services/installation_company';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { resetState } from '#tests/helpers/state_fixture';
 
 test.group('installation company', (group) => {
   group.setup(() => freshDatabase());
@@ -20,7 +20,7 @@ test.group('installation company', (group) => {
 
   test('a single company is the installation company', async ({ assert }) => {
     await resetState('single');
-    const [company] = await db.from('accounts').select('id');
+    const [company] = await db.from('companies').select('id');
     assert.isFalse(await hasNoCompany(db));
     assert.isFalse(await hasMultipleCompanies(db));
     assert.equal(await getInstallationCompanyId(db), String(company.id));

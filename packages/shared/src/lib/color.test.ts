@@ -79,7 +79,7 @@ const resource = (id: string, kind: Resource['kind']): Resource => ({
   createdAt: TS,
   updatedAt: TS,
   kind,
-  role: 'R',
+  jobTitle: 'R',
   employmentType: 'permanent',
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -156,29 +156,29 @@ describe('resolveBarColor project attribution', () => {
       createdAt: TS,
       updatedAt: TS,
       name: 'Design',
-      kind: 'repeatable',
+      kind: 'allProjects',
     };
     const m = maps({ activities: [crossProject], resources: [resource('r', 'person')] });
     expect(resolveBarColor(alloc('r', 'cross'), m)).toBe('#123456');
   });
 
-  it('colours an attributed repeatable allocation by its effective project', () => {
-    const repeatable: Activity = {
+  it('colours an attributed all-projects allocation by its effective project', () => {
+    const allProjects: Activity = {
       ...NULLABLE_FIELDS.activities,
-      id: 'repeatable',
+      id: 'allProjects',
       companyId: 'acct',
       createdAt: TS,
       updatedAt: TS,
       name: 'Design',
-      kind: 'repeatable',
+      kind: 'allProjects',
     };
     const m = maps({
-      activities: [repeatable],
+      activities: [allProjects],
       projects: [project('p', '#abcdef')],
       resources: [resource('r', 'person')],
     });
 
-    expect(resolveBarColor(alloc('r', 'repeatable', 'p'), m)).toBe('#abcdef');
+    expect(resolveBarColor(alloc('r', 'allProjects', 'p'), m)).toBe('#abcdef');
   });
 });
 

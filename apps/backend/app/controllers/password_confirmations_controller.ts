@@ -15,7 +15,7 @@ import { managedGuard } from '#services/auth/managed_guard';
 import { confirmPasswordValidator } from '#validators/password_confirmations';
 
 export default class PasswordConfirmationsController {
-  async password(ctx: HttpContext) {
+  async store(ctx: HttpContext) {
     const body = await ctx.request.validateUsing(confirmPasswordValidator, {
       data: ctx.request.body(),
     });
@@ -47,6 +47,6 @@ export default class PasswordConfirmationsController {
         'Password confirmation pruning failed'
       );
     }
-    return ctx.response.ok({ confirmationId });
+    return ctx.serialize({ confirmationId });
   }
 }

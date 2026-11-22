@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Route } from '@capacitylens/backend/registry';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { readApiData } from '@/api/readApiData';
 import { fetchApi } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { FormDialog } from '@/components/common/ui';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { m } from '@/i18n';
 
-type ConfirmationBody = Route.Body<'api.auth.password-confirmation'>;
+type ConfirmationBody = Route.Body<'api.password_confirmations.store'>;
 
 /** One action with its own intent shape, as the generated request body pairs them. */
 export type PasswordConfirmationRequest = ConfirmationBody extends infer Body
@@ -40,19 +41,23 @@ export function PasswordConfirmationDialog({
     setBusy(true);
     setError(null);
     try {
-      const url = buildApiRouteUrl('api.auth.password-confirmation', {});
+      const url = buildApiRouteUrl('api.password_confirmations.store', {});
       const response = await fetchApi(url, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.auth.password-confirmation', { ...request, companyId, password }),
+        body: buildJsonBody('api.password_confirmations.store', {
+          ...request,
+          companyId,
+          password,
+        }),
       });
       if (!response.ok) {
         setError((await readApiError(response)) ?? m.reauth_failed());
         setBusy(false);
         return;
       }
-      const result: unknown = await response.json();
+      const result: unknown = await readApiData(response);
       if (
         !result ||
         typeof result !== 'object' ||
@@ -64,7 +69,7 @@ export function PasswordConfirmationDialog({
       onConfirmed(result.confirmationId);
     } catch (cause) {
       console.error('Password confirmation failed', cause);
-      setError(m.login_network_error());
+      setError(m.sign_in_network_error());
       setBusy(false);
     }
   };
@@ -84,7 +89,7 @@ export function PasswordConfirmationDialog({
     >
       <div className="flex flex-col gap-3">
         <Field>
-          <FieldLabel htmlFor="password-confirmation-input">{m.login_password()}</FieldLabel>
+          <FieldLabel htmlFor="password-confirmation-input">{m.sign_in_password()}</FieldLabel>
           <Input
             id="password-confirmation-input"
             type="password"

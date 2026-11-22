@@ -49,7 +49,7 @@ flowchart TD
   B -->|invalid| I["Repeat/date error; no write"]
   C --> D["Planning cache executes group command"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends api.planning.mutate"]
+  E --> F["planningTransport sends api.planning_mutations.store"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Repeat error; draft remains available"]
   F --> G["mutatePlanning → executePlanningIntent writes the first allocation, then repeat_occurrences expands and writes the rest"]
@@ -67,7 +67,7 @@ flowchart TD
 
 - [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
 - [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 - [useAllocationScheduleState.ts](../../apps/frontend/src/components/scheduler/useAllocationScheduleState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)

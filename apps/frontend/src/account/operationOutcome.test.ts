@@ -48,7 +48,7 @@ describe('browser account api', () => {
     });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000021',
@@ -86,7 +86,7 @@ describe('browser account api', () => {
       ),
     ).resolves.toBe(false);
   });
-  it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORITY_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
+  it.each(['INVITATION_USED', 'CONFLICT', 'AUTHORIZATION_CHANGED', 'IDEMPOTENCY_CONFLICT'])(
     'classifies the known terminal 409 code %s as final',
     async (code) => {
       await expect(

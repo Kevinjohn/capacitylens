@@ -140,7 +140,7 @@ async function settleTransfer({
     await reconcileCallerAccess(companyId, refreshAuth);
     return;
   }
-  setError(resolveRefusalMessage(result, m.ownership_transfer_command_failed()));
+  setError(resolveRefusalMessage(result, m.ownership_transfer_operation_failed()));
 }
 
 function useTransferOperation({

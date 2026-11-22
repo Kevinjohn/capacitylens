@@ -1,4 +1,5 @@
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { readApiData } from '@/api/readApiData';
 import { useStore } from '@/store/useStore';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
@@ -122,7 +123,7 @@ export async function readAuthResponse(res: Response): Promise<AuthStatusResult>
     const body: unknown = await res.json().catch(() => null);
     return parseSignInResult(body);
   }
-  if (res.ok) return parsePassResult(await res.json());
+  if (res.ok) return parsePassResult(await readApiData(res));
   if (res.status === 503) {
     return {
       kind: 'error',

@@ -13,9 +13,9 @@ import {
   assertAllocationStartIsAvailable,
   assertAllocationStartsOnWorkingDay,
 } from '#services/planning/entity_validation/domain';
-import { isRetainedTable } from './retained_rows.js';
-import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
-import { asRecord, writeRow, type WrittenRow } from './writer.js';
+import { isRetainedTable } from '#services/planning/retained_rows';
+import { reclaimRetainedId, type RestorationIdentity } from '#services/planning/restoration';
+import { asRecord, writeRow, type WrittenRow } from '#services/planning/writer';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 interface WriteEntityOptions<K extends ScopedEntityKey> {
@@ -64,7 +64,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
     resourceHasTimeOff: (companyId, resourceId) =>
       data.timeOff.some((row) => row.companyId === companyId && row.resourceId === resourceId),
     companyWorkingDays: (companyId): Weekday[] => {
-      const company = data.accounts.find((row) => row.id === companyId);
+      const company = data.companies.find((row) => row.id === companyId);
       return normalizeCompanyWorkingDays(company?.workingDays, company?.weekStartsOn === 0 ? 0 : 1);
     },
   };

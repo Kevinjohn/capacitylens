@@ -16,7 +16,7 @@ import {
  */
 export const invitationRequests = {
   listInvitations(companyId: string, signal?: AbortSignal): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.invites.index', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.invitations.index', { params: { companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
@@ -44,10 +44,10 @@ export const invitationRequests = {
       explicit: operation,
       request: (resolved) =>
         fetchApi(
-          buildApiRouteUrl('api.invites.create', {}),
+          buildApiRouteUrl('api.invitations.store', {}),
           buildJsonOperationRequestInit(
             'POST',
-            buildJsonBody('api.invites.create', payload),
+            buildJsonBody('api.invitations.store', payload),
             resolved,
           ),
         ),
@@ -64,7 +64,7 @@ export const invitationRequests = {
       explicit: operation,
       request: (resolved) =>
         fetchApi(
-          buildApiRouteUrl('api.invites.revoke', {
+          buildApiRouteUrl('api.invitations.destroy', {
             params: { companyId, id: invitationId },
           }),
           buildOperationRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
@@ -75,7 +75,9 @@ export const invitationRequests = {
   /** Sends a fresh link for a pending invitation; the earlier link stops working. */
   resendInvitation(companyId: string, invitationId: string): Promise<Response> {
     return fetchApi(
-      buildApiRouteUrl('api.invites.resend', { params: { companyId, id: invitationId } }),
+      buildApiRouteUrl('api.invitation_deliveries.store', {
+        params: { companyId, id: invitationId },
+      }),
       {
         method: 'POST',
         credentials: 'include',
