@@ -51,7 +51,7 @@ test.group('account gate', (group) => {
       'POST /api/auth/verification/send': 'public',
       'GET,HEAD /api/health': 'public',
       'GET,HEAD /api/invitations/:token/preview': 'public',
-      'POST /api/invitations/:token/signup': 'public',
+      'POST /api/invitations/:token/sign-up': 'public',
       'GET,HEAD /api/masquerade': 'public',
       'GET,HEAD /health/live': 'public',
       'GET,HEAD /health/ready': 'public',

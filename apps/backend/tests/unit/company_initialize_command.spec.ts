@@ -244,7 +244,7 @@ test.group('company initialize command', () => {
       const { url } = JSON.parse(bootstrap.stdout.trim()) as { url: string };
       const token = new URL(url).pathname.split('/').at(-1)!;
       await withOperatorServer(f, async (origin) => {
-        const accepted = await fetch(`${origin}/api/invitations/${token}/signup`, {
+        const accepted = await fetch(`${origin}/api/invitations/${token}/sign-up`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({ password: credentials.password, name: 'Bruce Wayne' }),

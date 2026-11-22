@@ -111,7 +111,7 @@ describe('browser account api', () => {
       '/api/masquerade',
       '/api/masquerade',
       '/api/invitations/token%20%2F%20one/preview',
-      '/api/invitations/token%20%2F%20one/signup',
+      '/api/invitations/token%20%2F%20one/sign-up',
     ]);
     expect(requestInitAt(mocks.fetchApi.mock.calls, 2)).toMatchObject({
       method: 'POST',
