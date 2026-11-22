@@ -18,12 +18,12 @@ describe('useExclusiveOperation', () => {
   it('locks synchronously, before React has committed the busy flag', () => {
     const pending = createDeferred();
     const { result } = renderHook(() => useExclusiveOperation());
-    const gate = result.current;
+    const lock = result.current;
 
     act(() => {
-      gate.run(() => pending.promise, vi.fn());
+      lock.run(() => pending.promise, vi.fn());
 
-      expect(gate.locked()).toBe(true);
+      expect(lock.locked()).toBe(true);
       expect(result.current.busy).toBe(false);
     });
 
@@ -33,11 +33,11 @@ describe('useExclusiveOperation', () => {
     const pending = createDeferred();
     const second = vi.fn(() => Promise.resolve());
     const { result } = renderHook(() => useExclusiveOperation());
-    const gate = result.current;
+    const lock = result.current;
 
     act(() => {
-      gate.run(() => pending.promise, vi.fn());
-      gate.run(second, vi.fn());
+      lock.run(() => pending.promise, vi.fn());
+      lock.run(second, vi.fn());
     });
     expect(second).not.toHaveBeenCalled();
 
@@ -49,7 +49,7 @@ describe('useExclusiveOperation', () => {
     expect(second).not.toHaveBeenCalled();
   });
 
-  it('reopens the gate once the action settles', async () => {
+  it('releases the lock once the action settles', async () => {
     const pending = createDeferred();
     const { result } = renderHook(() => useExclusiveOperation());
 
@@ -66,7 +66,7 @@ describe('useExclusiveOperation', () => {
     await act(async () => result.current.run(next, vi.fn()));
     expect(next).toHaveBeenCalledTimes(1);
   });
-  it('surfaces a rejection to onError and still reopens the gate', async () => {
+  it('surfaces a rejection to onError and still releases the lock', async () => {
     const pending = createDeferred();
     const onError = vi.fn();
     const failure = new Error('the server refused');
@@ -83,7 +83,7 @@ describe('useExclusiveOperation', () => {
     expect(result.current.busy).toBe(false);
     expect(result.current.locked()).toBe(false);
   });
-  it('surfaces a synchronous action throw and still reopens the gate', async () => {
+  it('surfaces a synchronous action throw and still releases the lock', async () => {
     const onError = vi.fn();
     const failure = new Error('the action threw before returning a promise');
     const { result } = renderHook(() => useExclusiveOperation());
@@ -102,7 +102,7 @@ describe('useExclusiveOperation', () => {
     expect(result.current.locked()).toBe(false);
   });
 
-  it('reports a throwing error handler and still reopens the gate', async () => {
+  it('reports a throwing error handler and still releases the lock', async () => {
     const actionFailure = new Error('the action failed');
     const handlerFailure = new Error('the error surface failed');
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});

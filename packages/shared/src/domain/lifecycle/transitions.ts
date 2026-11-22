@@ -6,8 +6,8 @@ import type { LifecycleFields } from './types.js';
 
 /**
  * May this entity be archived? Pure affordance predicate, true iff the entity is currently
- * `'active'`. Lets a caller gate an "Archive" control without a try/catch; it is the single-source
- * guard the {@link archive} transition itself re-uses, so the affordance and the transition can't
+ * `'active'`. Lets a caller enable an "Archive" control without a try/catch; it is the single-source
+ * check the {@link archive} transition itself re-uses, so the affordance and the transition can't
  * disagree (mirrors access.ts's `can*` predicates).
  *
  * @param entity - the entity to test.

@@ -352,7 +352,7 @@ describe('createAllocationIntents new placement', () => {
     expectNothingWritten(input);
   });
 
-  it('skips the placement gate when the resource or its week is unresolved', async () => {
+  it('skips the placement check when the resource or its week is unresolved', async () => {
     const noResource = validInput({
       selectedResource: undefined,
       selectedEffectiveWeek: { kind: 'none' },
@@ -360,7 +360,7 @@ describe('createAllocationIntents new placement', () => {
     await submit(noResource);
     expect(noResource.addAllocation).toHaveBeenCalledOnce();
 
-    // A Saturday start would be refused if the gate ran.
+    // A Saturday start would be refused if the check ran.
     const noWeek = validInput({
       selectedEffectiveWeek: undefined,
       startDate: '2027-01-09',
@@ -402,7 +402,7 @@ describe('createAllocationIntents new placement', () => {
     expectFailed(closure, 'startDate', m.form_allocation_err_start_time_off());
   });
 
-  it('gates an edit only when it moves the allocation to another resource', async () => {
+  it('checks an edit only when it moves the allocation to another resource', async () => {
     const sameResource = editInput({ selectedEffectiveWeek: { kind: 'none' } });
     await submit(sameResource);
     expect(sameResource.updateAllocation).toHaveBeenCalledOnce();

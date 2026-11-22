@@ -285,12 +285,12 @@ function resolveKeyboardGesture(options: ViewModelOptions, mode: DragMode, delta
   return { current, next, gestureOptions };
 }
 
-interface KeyboardGateInput {
+interface KeyboardGestureCheckInput {
   current: DateRange;
   next: DateRange;
 }
 
-function refuseBlockedKeyboardGesture({ current, next }: KeyboardGateInput) {
+function refuseBlockedKeyboardGesture({ current, next }: KeyboardGestureCheckInput) {
   if (next.endDate < next.startDate) return true;
   const state = useStore.getState();
   const visible = buildVisibleRange(state.ui);

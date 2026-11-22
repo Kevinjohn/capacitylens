@@ -5,9 +5,9 @@ import { runSuspendedReplacement } from './suspendedReplacement';
 import type { UncertainReplacementFailure } from './suspendedReplacement';
 import type { SetNotice } from './types';
 
-// A confirmed anonymisation without its mandatory refresh must stay gated across route/component
+// A confirmed anonymisation without its mandatory refresh must stay locked across route/component
 // remounts: the same stale store slice is shared across those surfaces. Module lifetime matches the
-// required recovery boundary, a full page reload boots, hydrates, and creates a fresh gate map.
+// required recovery boundary, a full page reload boots, hydrates, and creates a fresh lock map.
 const reloadRequiredByCompany = new Map<string, string>();
 
 function describeUncertainFailure(failure: UncertainReplacementFailure): string {
@@ -60,7 +60,7 @@ export async function runResourceAnonymisation(
     case 'uncertain': {
       const cause = describeUncertainFailure(outcome.failure);
       if (outcome.reloadRequired) {
-        // Keep the gate so another destructive attempt cannot race the unknown server state.
+        // Keep the lock so another destructive attempt cannot race the unknown server state.
         const message = `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. Authoritative reload did not complete (failed). Original request: ${cause}`;
         reloadRequiredByCompany.set(activeCompanyId, message);
         setNotice(message, 'error');

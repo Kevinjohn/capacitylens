@@ -95,7 +95,7 @@ export class StubPlanningTransport implements PlanningTransport {
   readonly readWindows: (CapacityRange | undefined)[] = [];
   private revisions = new Map<string, number>();
   private queued: Queued[] = [];
-  private readGate: Promise<void> | null = null;
+  private readLatch: Promise<void> | null = null;
   private histories = new Map<string, CompanyHistory>();
 
   /** Replace the test's loaded rows and discard earlier calls and responses. */
@@ -110,14 +110,14 @@ export class StubPlanningTransport implements PlanningTransport {
     this.calls.length = 0;
     this.historySteps.length = 0;
     this.queued.length = 0;
-    this.readGate = null;
+    this.readLatch = null;
     this.histories.clear();
   }
 
   /** Hold the next read, after it records its window, until the returned release is called. */
   holdNextRead(): () => void {
     let release = () => {};
-    this.readGate = new Promise((resolve) => {
+    this.readLatch = new Promise((resolve) => {
       release = resolve;
     });
     return release;
@@ -181,10 +181,10 @@ export class StubPlanningTransport implements PlanningTransport {
   ): Promise<PlanningSnapshot> {
     signal.throwIfAborted();
     this.readWindows.push(window);
-    const gate = this.readGate;
-    this.readGate = null;
-    if (gate) {
-      await gate;
+    const latch = this.readLatch;
+    this.readLatch = null;
+    if (latch) {
+      await latch;
       signal.throwIfAborted();
     }
     const revision = this.revision(context.companyId);

@@ -205,7 +205,7 @@ describe('creation start availability', () => {
   });
 });
 
-describe('#257 characterization: creation and move gate boundaries', () => {
+describe('#257 characterization: creation and move check boundaries', () => {
   it('keeps a creation start blocked where the existing-allocation move override is allowed', () => {
     const companyMondayToThursday = [1, 2, 3, 4] as Resource['workingDays'];
 

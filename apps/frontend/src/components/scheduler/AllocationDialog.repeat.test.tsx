@@ -231,7 +231,7 @@ describe('AllocationDialog repeat creation', { timeout: 15_000 }, () => {
   );
 
   it('previews the original monthly numeric day and sends the monthly pattern', async () => {
-    // The numeric repeat anchor must be an effective working day, so use a seven-day calendar to isolate date preservation from the creation gate.
+    // The numeric repeat anchor must be an effective working day, so use a seven-day calendar to isolate date preservation from the creation check.
     await useStore.getState().updateCompany(ACC, { workingDays: [0, 1, 2, 3, 4, 5, 6] });
     const resource = await requireCreated(
       useStore.getState().addResource({ ...person('Barbara'), workingDays: [0, 1, 2, 3, 4, 5, 6] }),

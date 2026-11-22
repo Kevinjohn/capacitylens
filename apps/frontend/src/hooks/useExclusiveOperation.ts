@@ -3,14 +3,14 @@ import { useCallback, useRef, useState } from 'react';
 // The synchronous ref rejects another operation before React can disable controls.
 // State communicates the same lock through the rendered busy state.
 
-/** The exclusion gate returned by {@link useExclusiveOperation}. */
+/** The exclusion lock returned by {@link useExclusiveOperation}. */
 export interface ExclusiveOperation {
   /** `true` while an operation is in flight, bind it to every participating control's `disabled`. */
   busy: boolean;
   /**
    * Start `operation` unless one is already running, in which case this is a no-op (not a queue: a
    * suppressed second click is a double-click to discard, never a second mutation to run later).
-   * Rejections go to `onError`; the gate always reopens afterwards.
+   * Rejections go to `onError`; the lock always releases afterwards.
    */
   run(operation: () => Promise<void>, onError: (error: unknown) => void): void;
   /**
@@ -31,9 +31,9 @@ export interface ExclusiveOperation {
  *
  * Total: `run` never throws. A rejected operation is handed to the caller's `onError` (surface it,
  * the notice handler), and the ref and the busy flag are both reset in
- * `finally`, so a failure reopens the gate rather than wedging the section disabled forever.
+ * `finally`, so a failure releases the lock rather than wedging the section disabled forever.
  *
- * @returns the {@link ExclusiveOperation} gate: a `busy` flag for `disabled`, `run` to start an operation,
+ * @returns the {@link ExclusiveOperation} lock: a `busy` flag for `disabled`, `run` to start an operation,
  * and `locked()` for same-click guards.
  */
 export function useExclusiveOperation(): ExclusiveOperation {

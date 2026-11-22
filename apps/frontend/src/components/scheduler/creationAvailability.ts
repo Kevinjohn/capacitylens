@@ -74,7 +74,7 @@ export function resolveEffectiveWorkingDays(
 /** Distinguishes a blocked working calendar from personal time off. An allocation override may bypass calendars, but it never bypasses time off. */
 export type CreationBlockReason = 'non-working' | 'time-off';
 
-/** The start-of-gesture gate, shared by every surface that asks "may a bar start on this
+/** The start-of-gesture check, shared by every surface that asks "may a bar start on this
  * resource-day?" (the model's per-day `creationBlocked`, the grid's draw commit, and the
  * drag reassignment path). Returns the reason so a caller that must tell the two apart can,
  * without re-deriving either rule. `timeOff` need not be pre-filtered by resource. */

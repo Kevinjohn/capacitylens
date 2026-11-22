@@ -62,7 +62,7 @@ beforeEach(async () => {
   useStore.setState((state) => ({ ui: { ...state.ui, collapsedGroups: [] } }));
 });
 
-describe('SchedulerGrid draw gate', () => {
+describe('SchedulerGrid draw check', () => {
   it('opens for the active account when only an inactive account has a closure on the date', async () => {
     render(<SchedulerGrid />, { wrapper: OwnerRouter });
 

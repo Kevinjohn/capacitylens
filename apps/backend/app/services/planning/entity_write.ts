@@ -74,7 +74,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
  * Validates and writes one row in the caller's transaction, then mutates its unprojected company state.
  * Later compound entries validate against those changes. The caller owns rollback and atomic
  * revision, audit and commitment recording. Only later occurrences of a repeated create may use
- * permissiveRepeatStart; creates, duplicates and the first occurrence retain the working-day gate.
+ * permissiveRepeatStart; creates, duplicates and the first occurrence retain the working-day check.
  * Reusing a retained id requires the deleting actor's original native session; otherwise the
  * existing id-conflict refusal leaves the pending deletion intact. Identity is server-verified.
  */

@@ -47,7 +47,7 @@ export function createTypedPlanningActions(
 ) {
   const blocked = isBlockedByViewer;
   // After a failed first read the company row was never published, so a create reports that, as it
-  // did before the authority gate existed, instead of the gate's role-unavailable notice.
+  // did before the permission check existed, instead of the check's role-unavailable notice.
   const requireCreateAccount = () => {
     const companyId = requireCompany();
     const { data, planning, masquerade } = get();

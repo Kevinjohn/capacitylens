@@ -97,7 +97,7 @@ describe('#257: dialog and gesture effective-week agreement', () => {
   });
 });
 
-describe('#257: stale-start edit and duplicate creation gates', () => {
+describe('#257: stale-start edit and duplicate creation checks', () => {
   it('still saves an existing allocation after its assignee loses every effective working day', async () => {
     await useStore.getState().updateCompany(ACC, { workingDays: [2] });
     const resource = await requireCreated(
@@ -130,7 +130,7 @@ describe('#257: stale-start edit and duplicate creation gates', () => {
     });
   });
 
-  // The typed-date create path must enforce the same start rule as the gesture gate: new normal
+  // The typed-date create path must enforce the same start rule as the gesture check: new normal
   // allocations begin on an effective working day, whatever field the date arrived through.
   it('rejects creating an allocation whose typed start is company-non-working', async () => {
     await useStore.getState().updateCompany(ACC, { workingDays: [1, 2, 3, 4] });

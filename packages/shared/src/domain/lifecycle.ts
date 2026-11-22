@@ -3,7 +3,7 @@
 // has its own ledger. Explicit timestamps keep these helpers independent of an ambient clock.
 //
 // Transitions are strict: an invalid source state throws LifecycleTransitionError rather than
-// becoming an idempotent no-op. Callers can use the exported `can*` predicates to gate affordances
+// becoming an idempotent no-op. Callers can use the exported `can*` predicates to enable affordances
 // without catching transition errors.
 
 export type { LifecycleState, LifecycleFields, LifecycleEntityKey } from './lifecycle/types.js';
