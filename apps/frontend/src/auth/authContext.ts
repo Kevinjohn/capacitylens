@@ -12,7 +12,7 @@ export interface AuthUser {
 /** Authentication state and actions available to app screens. */
 export interface AuthContextValue {
   user: AuthUser | null;
-  /** Rechecks server-owned authentication and company-creation capability. Unresolved refreshes preserve the previous snapshot and log a warning; the promise does not reject, so event callers may discard it. */
+  /** Rechecks server-owned authentication and company-creation permission. Unresolved refreshes preserve the previous snapshot and log a warning; the promise does not reject, so event callers may discard it. */
   refreshAuth: () => Promise<void>;
   /** Ends the product session and restarts the app. A failed request rejects so the caller can show the error. */
   signOut: () => Promise<void>;

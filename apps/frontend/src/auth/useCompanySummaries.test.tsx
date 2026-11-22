@@ -74,7 +74,7 @@ function createBasicResponseClassificationTests() {
     });
   });
 
-  it('rejects duplicate account identities instead of making the effective role response-order dependent', async () => {
+  it('rejects duplicate company ids instead of making the effective role response-order dependent', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
@@ -88,7 +88,7 @@ function createBasicResponseClassificationTests() {
     );
 
     await expect(fetchCompanySummaries()).resolves.toBeNull();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate account identities'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('duplicate company ids'));
     expect(useStore.getState().notice).toEqual({
       message: m.company_directory_incomplete(),
       tone: 'warning',
@@ -97,7 +97,7 @@ function createBasicResponseClassificationTests() {
 }
 
 function createUnknownRoleResponseTest() {
-  it('keeps a valid account selectable but marks an unrecognized role unavailable', async () => {
+  it('keeps a valid company selectable but marks an unrecognized role unavailable', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const row = { id: 'a1', name: 'Studio A', role: 'future-role' };
     vi.stubGlobal(
@@ -399,7 +399,7 @@ function createYieldingHookTest() {
     view.unmount();
   });
 
-  it('yields active-account reads when the permission provider owns that generation', async () => {
+  it('yields active-company reads when the permission provider owns that generation', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     useStore.setState({ activeCompanyId: 'a1' });
@@ -462,7 +462,7 @@ function createMembershipHookTest() {
     expect(useStore.getState().companySummaries).toEqual(existing);
   });
 
-  it('refetches account roles when membership projections are invalidated', async () => {
+  it('refetches company roles when membership projections are invalidated', async () => {
     let role: 'owner' | 'admin' = 'owner';
     const fetchMock = vi.fn(async () =>
       json(200, [{ id: 'a1', name: 'Studio A', role, ...grantFor(role) }]),

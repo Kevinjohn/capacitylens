@@ -130,7 +130,7 @@ function DataToolControls({
   );
 }
 
-/** Offers scoped data export and guarded import for the active account. */
+/** Offers scoped data export and guarded import for the active company. */
 export function ImportExport() {
   const setNotice = useStore((state) => state.setNotice);
   const activeCompanyId = useStore((state) => state.activeCompanyId);

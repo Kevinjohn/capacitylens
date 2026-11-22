@@ -261,13 +261,13 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
     expect(out.clients.map((c) => c.id)).toEqual(['c-active']);
     expect(out.projects.map((p) => p.id)).toEqual(['p-active']);
   });
-  it('hides bound placeholders whose project ancestry is inactive and retains unresolved or cross-account bindings', () => {
+  it('hides bound placeholders whose project ancestry is inactive and retains unresolved or cross-company bindings', () => {
     const input = makeActiveOnlyData();
     input.projects = [
       ...input.projects,
       {
         ...makeActiveOnlyProject({
-          id: 'p-other-account',
+          id: 'p-other-company',
           name: 'Avengers Tower',
           clientId: 'c-active',
         }),
@@ -286,9 +286,9 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
         'missing-project',
       ),
       makeActiveOnlyPlaceholder(
-        'r-bound-cross-account',
-        'Bound cross-account project',
-        'p-other-account',
+        'r-bound-cross-company',
+        'Bound cross-company project',
+        'p-other-company',
       ),
       makeActiveOnlyPlaceholder('r-unbound', 'Unbound placeholder', null),
     ];
@@ -299,7 +299,7 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
       'r-active',
       'r-bound-active',
       'r-bound-missing-project',
-      'r-bound-cross-account',
+      'r-bound-cross-company',
       'r-unbound',
     ]);
     expect(input.resources.map(({ id }) => id)).toContain('r-bound-hidden-client');

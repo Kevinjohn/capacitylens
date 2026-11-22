@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
+import { sessionRequests } from '@/account/sessionRequests';
+import { getMasqueradeToken, setMasqueradeToken } from '@/api/masqueradeToken';
+import { useStore } from '@/store/useStore';
+import { fetchAuthStatus } from './fetchAuthStatus';
 import { masqueradeApi } from './masqueradeApi';
+import { masqueradeModel } from './masqueradeModelInstance';
 import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 it.each([true, false, undefined, 'true'])(
   'parses the signed-out reset-email flag %s',
   async (passwordResetEmail) => {
-    const { sessionRequests } = await import('@/account/sessionRequests');
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi
       .spyOn(masqueradeApi, 'status')
       .mockResolvedValue({ active: false, masqueradeToken: 'idle-context' });
@@ -29,8 +32,6 @@ it.each([true, false, undefined, 'true'])(
 
 describe('fetchAuthStatus when masquerade status is unreachable', () => {
   it('does not treat a successful /me response as proof that the projection is inactive', async () => {
-    const { sessionRequests } = await import('@/account/sessionRequests');
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi.spyOn(masqueradeApi, 'status').mockRejectedValue(new TypeError('offline'));
     const request = vi.spyOn(sessionRequests, 'me').mockResolvedValue(
       new Response(
@@ -49,8 +50,6 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
   });
 
   it('uses a live 401 to offer sign-in while masquerade status is unreachable', async () => {
-    const { sessionRequests } = await import('@/account/sessionRequests');
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi.spyOn(masqueradeApi, 'status').mockRejectedValue(new TypeError('offline'));
     const request = vi
       .spyOn(sessionRequests, 'me')
@@ -64,8 +63,6 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
   });
 
   it('does not query /me after a non-transport status failure', async () => {
-    const { sessionRequests } = await import('@/account/sessionRequests');
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const status = vi
       .spyOn(masqueradeApi, 'status')
       .mockRejectedValue(new Error('status rejected'));
@@ -82,9 +79,6 @@ describe('fetchAuthStatus when masquerade status is unreachable', () => {
 
 describe('fetchAuthStatus masquerade reconciliation', () => {
   it('adopts the idle request proof before querying the authenticated setup boundary', async () => {
-    const { sessionRequests } = await import('@/account/sessionRequests');
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { getMasqueradeToken, setMasqueradeToken } = await import('@/api/masqueradeToken');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
       masqueradeToken: 'idle-context',
@@ -105,11 +99,6 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
   });
 
   it('routes an inactive auth status through recovery for a locally active projection', async () => {
-    const { sessionRequests } = await import('@/account/sessionRequests');
-    const { useStore } = await import('@/store/useStore');
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeModel } = await import('./masqueradeModelInstance');
-    const { getMasqueradeToken, setMasqueradeToken } = await import('@/api/masqueradeToken');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: false,
       masqueradeToken: 'new-idle-context',
@@ -151,8 +140,6 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
   });
 
   it('fails closed without adopting an active status whose actor is not a valid user', async () => {
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeModel } = await import('./masqueradeModelInstance');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
       active: true,
       companyId: 'a-studio',
@@ -177,10 +164,6 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
   });
 
   it('ignores an active status read that resolves after local identity invalidation', async () => {
-    const { fetchAuthStatus } = await import('./fetchAuthStatus');
-    const { masqueradeModel } = await import('./masqueradeModelInstance');
-    const { useStore } = await import('@/store/useStore');
-    const { getMasqueradeToken } = await import('@/api/masqueradeToken');
     let resolveStatus!: (status: Awaited<ReturnType<typeof masqueradeApi.status>>) => void;
     const status = vi.spyOn(masqueradeApi, 'status').mockReturnValue(
       new Promise((resolve) => {

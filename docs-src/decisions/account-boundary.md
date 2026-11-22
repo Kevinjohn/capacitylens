@@ -19,7 +19,7 @@ account service or database.
 
 ## What CapacityLens decides
 
-- **Invitation authority.** An active, admitted Owner or Admin may invite, list and manage
+- **Invitation permission.** An active, admitted Owner or Admin may invite, list and manage
   invitations. The role is re-read inside the Kit's insert transaction, so a demotion committed
   while an invitation waits for the write lock refuses the send. Invitations never carry Owner.
 - **Acceptance.** `onInvitationAccepted` creates the invited membership, writes the audit entry and

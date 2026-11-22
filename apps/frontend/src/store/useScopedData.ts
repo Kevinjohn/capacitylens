@@ -28,12 +28,12 @@ export function resolveSharedActiveData(data: AppData): AppData {
 }
 
 /**
- * The read-side seam for company scoping. Components receive only the active account's entities.
+ * The read-side seam for company scoping. Components receive only the active company's entities.
  *
  * Returns the store's own `data` or one shared empty value, so the result is stable between renders,
  * avoiding the `useSyncExternalStore` fresh-object trap.
  *
- * @returns The active account's {@link AppData} set, or an empty `AppData` when no account is active.
+ * @returns The active company's {@link AppData} set, or an empty `AppData` when no company is active.
  */
 export function useScopedData(): AppData {
   return useStore((state) => resolveSharedScopedData(state.data, state.activeCompanyId));
@@ -42,7 +42,7 @@ export function useScopedData(): AppData {
 /**
  * The active-only view projection: the same scoped AppData as {@link useScopedData}, but with
  * every non-active (archived or soft-deleted) resource/client/project/activity removed via the shared
- * `buildActiveData` helper, so the rule is single-sourced with the server's per-account read.
+ * `buildActiveData` helper, so the rule is single-sourced with the server's per-company read.
  *
  * Use this in the normal app views (scheduler, lists, forms' option-pickers, command palette, toolbar
  * filters); use the raw {@link useScopedData} only for consumers such as export that must retain
@@ -50,7 +50,7 @@ export function useScopedData(): AppData {
  * on the scoped base so the projected object is stable between renders (same `useSyncExternalStore`
  * stability contract as {@link useScopedData}).
  *
- * @returns The active account's {@link AppData} set with archived/soft-deleted rows excluded.
+ * @returns The active company's {@link AppData} set with archived/soft-deleted rows excluded.
  */
 export function useActiveScopedData(): AppData {
   const base = useScopedData();

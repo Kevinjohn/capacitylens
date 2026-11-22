@@ -180,7 +180,7 @@ export const DateHeader = memo(function DateHeaderComponent({
 
   const resolveSpanWidth = (span: Span) =>
     geometry.spanWidth(span.start, span.start + span.days - 1);
-  // Month grouping depends on visible dates, while formatted week labels also depend on date style. The style subscription wakes this memoized header for account-format changes.
+  // Month grouping depends on visible dates, while formatted week labels also depend on date style. The style subscription wakes this memoized header for company date-style changes.
   const dateStyle = useDateStyle();
   const months = useMemo(() => buildMonthSpans(days), [days]);
   // `buildWeekBlocks` formats its labels through `formatDayMonth`, which reads the active style

@@ -7,7 +7,7 @@ import {
   listOrderedWeekdays,
 } from './companyWorkingDays.js';
 
-describe('account working days', () => {
+describe('company working days', () => {
   it('defaults to the first five days of the configured week', () => {
     expect(buildDefaultCompanyWorkingDays(1)).toEqual([1, 2, 3, 4, 5]);
     expect(buildDefaultCompanyWorkingDays(0)).toEqual([0, 1, 2, 3, 4]);

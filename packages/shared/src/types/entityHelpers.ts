@@ -85,9 +85,9 @@ export function buildExternalCapacityDefaults(): Pick<
   };
 }
 
-/** The account-independent silent defaults for placeholder capacity fields. Placeholders derive
+/** The company-independent silent defaults for placeholder capacity fields. Placeholders derive
  * their live working week from the company calendar, so these persisted fields are deliberately
- * inert and must never copy an account's current selection. A factory gives every caller fresh
+ * inert and must never copy a company's current selection. A factory gives every caller fresh
  * arrays, avoiding aliases if a consumer mutates one. */
 export function buildPlaceholderCapacityDefaults(): Pick<Resource, 'workingDays' | 'halfDays'> {
   return buildDefaultCapacityWorkingPattern();

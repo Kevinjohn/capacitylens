@@ -85,7 +85,7 @@ export function canSeePrivateNames(role: Role): boolean {
 }
 
 /**
- * Decide whether a member may open Capacity Overview under an account's access setting.
+ * Decide whether a member may open Capacity Overview under a company's access setting.
  *
  * Pure: no I/O or session state. An absent or malformed setting fails closed to the documented
  * owner/admin default so direct-route callers cannot accidentally expose the page.

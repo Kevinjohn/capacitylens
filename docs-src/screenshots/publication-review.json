@@ -65,7 +65,7 @@
   },
   {
     "path": "docs-src/screenshots/flows/viewer_access_current.jpg",
-    "sha256": "922b02862ec6235d64fb89987ba7075788eac014fb9279f9cfc45cd16faea4d4"
+    "sha256": "d56984ee8ce9d3caa721871d09debde976d7535c81675ff340448404c84173a8"
   },
   {
     "path": "docs-src/screenshots/flows/editor_access_current.jpg",
@@ -165,7 +165,7 @@
   },
   {
     "path": "docs-src/screenshots/flows/diagnostics.jpg",
-    "sha256": "7432f19190dba87e06f46c2192d78073f7a374aab854793375942f07d6f42531"
+    "sha256": "73fd17aae095252cae3ac0efe90509f6bc107feed99a4ed57c4d1294e4d072d8"
   },
   {
     "path": "docs-src/screenshots/flows/editor_archive_restore.jpg",

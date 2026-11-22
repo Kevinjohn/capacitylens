@@ -47,9 +47,9 @@ test('an Owner previews, cancels, then confirms one password-bound company impor
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
   const before = await companyState(request, owner.cookie, companyId);
   const document = buildCompanyExport(before, { companyId, completeness: 'full' });
-  const account = document.data.companies[0];
-  if (!account) throw new Error('The company export is empty.');
-  account.name = `Wayne Transfer Restored ${STAMP}`;
+  const company = document.data.companies[0];
+  if (!company) throw new Error('The company export is empty.');
+  company.name = `Wayne Transfer Restored ${STAMP}`;
 
   await page.goto('/');
   await page.getByRole('heading', { name: 'Sign in' }).waitFor();
@@ -78,7 +78,7 @@ test('an Owner previews, cancels, then confirms one password-bound company impor
   await page.getByTestId('password-confirmation-submit').click();
   await expect
     .poll(async () => (await companyState(request, owner.cookie, companyId)).companies[0]?.name)
-    .toBe(account.name);
+    .toBe(company.name);
   await page.reload();
-  await expect(page.getByText(account.name).first()).toBeVisible();
+  await expect(page.getByText(company.name).first()).toBeVisible();
 });

@@ -56,7 +56,7 @@ describe('masqueradeApi', () => {
     expect(mocks.status).toHaveBeenCalledWith('a-studio');
   });
 
-  it('accepts the backend-selected company when a cold status request has no local account', async () => {
+  it('accepts the backend-selected company when a cold status request has no local company', async () => {
     mocks.status.mockResolvedValue(json(activeStatus));
     await expect(masqueradeApi.status()).resolves.toEqual(activeStatus);
     expect(mocks.status).toHaveBeenCalledWith(undefined);
@@ -91,7 +91,7 @@ describe('masqueradeApi', () => {
   });
 
   it.each([
-    ['an empty account id', { companyId: '' }],
+    ['an empty company id', { companyId: '' }],
     ['an empty target user id', { targetUserId: '' }],
     ['an empty token', { token: '' }],
     ['an invalid timestamp', { startedAt: '2026-02-30T10:00:00.000Z' }],
@@ -108,7 +108,7 @@ describe('masqueradeApi', () => {
 
   it.each([
     ['missing state fields', {}],
-    ['a non-string account id', { ...state, companyId: 1 }],
+    ['a non-string company id', { ...state, companyId: 1 }],
     ['an unsupported role', { ...state, effectiveRole: 'auditor' }],
   ])('rejects active state with %s', async (_description, malformedState) => {
     mocks.status.mockResolvedValue(

@@ -25,7 +25,7 @@ type AllocationSlice = Pick<
   | 'deleteAllocationSeriesFrom'
 >;
 
-/** Store capabilities used by allocation actions. */
+/** Store dependencies used by allocation actions. */
 export type AllocationSliceInternals = Pick<
   StoreInternals,
   'requireCompany' | 'isBlockedByViewer' | 'resolveOwnedRow' | 'applyPatch'

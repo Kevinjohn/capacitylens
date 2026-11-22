@@ -20,7 +20,7 @@ import {
 const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';
 
-export const accountIndexes = [
+export const companyIndexes = [
   ['clients', 'company_id'],
   ['disciplines', 'company_id'],
   ['projects', 'company_id'],
@@ -177,7 +177,7 @@ export async function insertInvalidReference(table: string, column: string, targ
   await db.table(table).insert(rows[table]!);
 }
 
-export const crossAccountReferences = [
+export const crossCompanyReferences = [
   ['projects.client_id', 'projects', 'client_id', 'm1-marvel-client'],
   ['phases.project_id', 'phases', 'project_id', 'm1-marvel-project'],
   ['resources.discipline_id', 'resources', 'discipline_id', 'm1-marvel-discipline'],

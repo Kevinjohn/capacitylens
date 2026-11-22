@@ -6,7 +6,7 @@ import {
   resolveProductOrientationSubject,
 } from '@/lib/productOrientation';
 
-/** Tracks which product orientation prompts remain relevant to the current user and account. */
+/** Tracks which product orientation prompts remain relevant to the current user and company. */
 export function useProductOrientation(input: { userId: string | null; companyId: string | null }) {
   const subjectId = resolveProductOrientationSubject(input);
   const companyId = input.companyId ?? NO_ACTIVE_COMPANY_SEGMENT;

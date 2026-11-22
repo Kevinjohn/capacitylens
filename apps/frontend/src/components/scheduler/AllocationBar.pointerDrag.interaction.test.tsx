@@ -63,7 +63,7 @@ function renderReassignmentLanes(sourceId: string, destinationId: string, alloca
   screen.getByTestId('lane-dst').getBoundingClientRect = () => laneRect(100, 150);
 }
 
-async function verifyWorkingDayRejection({
+async function verifyWorkingDayRefusal({
   companyWorkingDays,
   targetWorkingDays,
 }: (typeof workingDayRejectionCases)[number]) {
@@ -281,7 +281,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   });
   it.each(workingDayRejectionCases)(
     'rejects a purely vertical drop onto a $boundary non-working start date',
-    verifyWorkingDayRejection,
+    verifyWorkingDayRefusal,
   );
   it('allows that literal vertical drop when the allocation ignores working days', async () => {
     const st = useStore.getState();

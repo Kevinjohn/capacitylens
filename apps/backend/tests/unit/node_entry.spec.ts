@@ -1,9 +1,15 @@
 import { isSupportedNodeVersion } from '#bin/node_version';
 import { test } from '@japa/runner';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import {
+  PORT_LANE_CEILING,
+  portsForPortLane,
+  resolvePortLane,
+} from '../../../../tooling/ports.mjs';
 import { operatorFixture, withOperatorServer } from '#tests/helpers/operator_command_helpers';
 
 test.group('node entry', () => {
@@ -102,6 +108,41 @@ registerHooks({
       }
     } finally {
       f.cleanup();
+    }
+  });
+
+  test('test entry exits at once against a stale test database and names the file', ({
+    assert,
+    test: t,
+  }) => {
+    t.timeout(40000);
+    // The test entry derives its database from the port lane, so the child runs on the next port
+    // lane and this run's own database is untouched.
+    const portLane = (resolvePortLane() + 1) % PORT_LANE_CEILING;
+    const database = join(process.cwd(), 'tmp', `japa-${portsForPortLane(portLane).testHttp}.db`);
+    const kept = `${database}.kept`;
+    const hadDatabase = existsSync(database);
+    if (hadDatabase) renameSync(database, kept);
+    try {
+      // A database from before a baseline edit: it has product tables but fails the integrity check.
+      const stale = new DatabaseSync(database);
+      stale.exec('CREATE TABLE companies (id TEXT PRIMARY KEY)');
+      stale.close();
+      const result = spawnSync(process.execPath, ['--import=@poppinss/ts-exec', 'bin/test.ts'], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        timeout: 15000,
+        // The entry ends itself gracefully on SIGTERM, which would hide a hang behind exit code 1.
+        killSignal: 'SIGKILL',
+        env: { ...process.env, CAPACITYLENS_PORT_LANE: String(portLane) },
+      });
+      const output = `${result.stdout}\n${result.stderr}`;
+      assert.isNull(result.signal, `the test entry hung: ${output}`);
+      assert.equal(result.status, 1, output);
+      assert.include(output, `Delete ${database} and run the tests again`);
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) rmSync(`${database}${suffix}`, { force: true });
+      if (hadDatabase) renameSync(kept, database);
     }
   });
 });

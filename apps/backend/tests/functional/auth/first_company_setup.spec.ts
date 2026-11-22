@@ -153,9 +153,9 @@ test.group('authenticated first company setup', (group) => {
         .json({ name: 'Wayne Enterprises', ...choice.fields } as never)
         .send();
       result.assertStatus(201);
-      const account = await db.from('companies').first();
-      assert.equal(account.week_starts_on, choice.weekStart);
-      assert.equal(account.timezone, choice.timezone);
+      const company = await db.from('companies').first();
+      assert.equal(company.week_starts_on, choice.weekStart);
+      assert.equal(company.timezone, choice.timezone);
       for (const table of companyTables) assert.lengthOf(await db.from(table), 1);
     });
   }
@@ -185,12 +185,12 @@ test.group('authenticated first company setup', (group) => {
       .json({ name: 'Wayne Enterprises', weekStartsOn: 0, timeZone: 'America/New_York' })
       .send();
     response.assertStatus(201);
-    const account = await db.from('companies').first();
-    assert.equal(account.week_starts_on, '0');
-    assert.equal(account.timezone, 'America/New_York');
+    const company = await db.from('companies').first();
+    assert.equal(company.week_starts_on, '0');
+    assert.equal(company.timezone, 'America/New_York');
   });
 
-  test('ordinary registration cannot take the first identity, before or racing the bootstrap', async ({
+  test('ordinary sign-up cannot take the first identity, before or racing the bootstrap', async ({
     client,
     assert,
     cleanup,
@@ -205,23 +205,23 @@ test.group('authenticated first company setup', (group) => {
       .send();
     route.assertStatus(403);
     assert.equal((route.body() as { code?: string }).code, 'SIGN_UP_CLOSED');
-    // Every creation path saves through the model inside the Kit transaction; a registration
+    // Every creation path saves through the model inside the Kit transaction; a sign-up
     // leaves the address unconfirmed, which the model refuses before the company exists.
-    const register = (address: string) =>
+    const signUp = (address: string) =>
       db.transaction((trx) =>
         User.create({ email: address, password, unverifiedEmail: address }, { client: trx })
       );
-    await assert.rejects(() => register('joker@wayne.example'), FirstCompanyPendingException);
+    await assert.rejects(() => signUp('joker@wayne.example'), FirstCompanyPendingException);
     const token = await bootstrapInvitation(email);
-    const [registered, accepted] = await Promise.allSettled([
-      register('harley@wayne.example'),
+    const [signedUp, accepted] = await Promise.allSettled([
+      signUp('harley@wayne.example'),
       client
         .visit('api.invitation_acceptances.store', { token })
         .header('sec-fetch-site', 'same-origin')
         .json({ name: 'Bruce Wayne', password })
         .send(),
     ]);
-    assert.equal(registered.status, 'rejected');
+    assert.equal(signedUp.status, 'rejected');
     assert.equal(accepted.status === 'fulfilled' && accepted.value.status(), 201);
     const identities = await db.from('users').select('email');
     assert.deepEqual(

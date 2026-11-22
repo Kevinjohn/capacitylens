@@ -198,7 +198,7 @@ export async function showScheduleFilters(page: Page): Promise<void> {
   await expect(hide).toHaveAttribute('aria-expanded', 'true');
 }
 
-/** Turn on the "Show placeholders" per-account pref (default off) from Settings, for specs that
+/** Turn on the "Show placeholders" per-company pref (default off) from Settings, for specs that
  * just need placeholders visible rather than testing the toggle itself. */
 export async function showPlaceholders(page: Page): Promise<void> {
   const toggle = page.getByRole('switch', { name: 'Show placeholders' });
@@ -259,7 +259,7 @@ export async function changeCompanySetting(
   await commitPlanningChange(page, 'settings.update', action);
 }
 
-/** Turn on workspace inline activity creation from Settings for flows that exercise the opt-in UI. */
+/** Turn on company inline activity creation from Settings for flows that exercise the opt-in UI. */
 export async function enableInlineActivityCreation(page: Page): Promise<void> {
   const toggle = page.getByRole('switch', { name: 'Inline activity creation' });
   if ((await toggle.getAttribute('aria-checked')) !== 'true')

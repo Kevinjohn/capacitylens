@@ -1,6 +1,6 @@
 # US-SET-19 — Approve company admission
 
-As an Owner or Admin, I want to approve or decline admission so that company access follows our admission policy.
+As an Owner or Admin, I want to approve or decline admission so that company access follows our admission rules.
 
 **Status:** Current
 **Access:** Owner, Admin; invited person
@@ -30,7 +30,7 @@ accept["InviteAccept submits invitation acceptance"] --> kit["InvitationAcceptan
   kit --> hook["Configured onInvitationAccepted hook grants the invited membership"]
   ask["AccessScreens: Ask for access when required"] --> request["AdmissionRequestsController.store records the admission request"]
   request --> panel["AdmissionRequestsPanel loads requests"]
-  panel --> decision["AdmissionApprovalsController.store or AdmissionRejectionsController.store under live product authority"]
+  panel --> decision["AdmissionApprovalsController.store or AdmissionRejectionsController.store under live product authorization"]
   decision --> check["AccessScreens checks admission again"]
   check -->|admitted but no membership| join["Join company → MembershipsController.store → completeMembership"]
   check -->|active membership already exists| open["Continue into company data"]

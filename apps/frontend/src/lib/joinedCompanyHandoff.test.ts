@@ -10,7 +10,7 @@ afterEach(() => {
   });
 });
 
-describe('joined account handoff', () => {
+describe('joined company handoff', () => {
   it('ignores missing and empty destinations', () => {
     expect(readJoinedCompanyHandoff('')).toBeNull();
     expect(readJoinedCompanyHandoff('?joinedCompany=')).toBeNull();
@@ -18,14 +18,14 @@ describe('joined account handoff', () => {
   });
 
   it('returns the destination unchanged when present and non-empty', () => {
-    expect(readJoinedCompanyHandoff('?joinedCompany=account-1')).toBe('account-1');
-    expect(readJoinedCompanyHandoff('?joinedCompany=account-1&other=1')).toBe('account-1');
+    expect(readJoinedCompanyHandoff('?joinedCompany=company-1')).toBe('company-1');
+    expect(readJoinedCompanyHandoff('?joinedCompany=company-1&other=1')).toBe('company-1');
   });
 
   it('removes only the one-use destination from a combined query', () => {
-    expect(clearJoinedCompanyHandoff('?tab=security&joinedCompany=account-1&view=archived')).toBe(
+    expect(clearJoinedCompanyHandoff('?tab=security&joinedCompany=company-1&view=archived')).toBe(
       '?tab=security&view=archived',
     );
-    expect(clearJoinedCompanyHandoff('?joinedCompany=account-1')).toBe('');
+    expect(clearJoinedCompanyHandoff('?joinedCompany=company-1')).toBe('');
   });
 });

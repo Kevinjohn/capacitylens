@@ -11,7 +11,7 @@ export interface TeamMember {
   createdAt: string;
   name: string | null;
   email: string | null;
-  /** Coarse, account-opted-in observation. Null means tracking is off; no timestamp is collected. */
+  /** Coarse, company-opted-in observation. Null means tracking is off; no timestamp is collected. */
   signInConfirmed: boolean | null;
   isSelf: boolean;
   resourceLink?: {

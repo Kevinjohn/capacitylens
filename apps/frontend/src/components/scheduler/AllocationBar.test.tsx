@@ -345,7 +345,7 @@ describe('AllocationBar accessible name (status / dates / note)', () => {
     );
   });
 
-  it('announces task text to a viewer only when the account setting enables it', async () => {
+  it('announces task text to a viewer only when the company setting enables it', async () => {
     const allocation = makeAllocation({ task: 'Review a deliberately long task description' });
     await setTaskFieldVisibility({ enabled: true });
     const { rerender } = render(

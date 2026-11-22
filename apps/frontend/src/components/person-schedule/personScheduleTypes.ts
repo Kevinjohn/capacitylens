@@ -45,7 +45,7 @@ export interface PersonScheduleTimeOffEntry extends PersonScheduleEntryBase {
 /** A dated allocation or time-off entry in a person schedule. */
 export type PersonScheduleEntry = PersonScheduleAllocationEntry | PersonScheduleTimeOffEntry;
 
-/** Account, resource, window, and entries in an available person schedule. */
+/** Company, resource, window, and entries in an available person schedule. */
 export interface PersonScheduleModel {
   companyId: ID;
   resourceId: ID;

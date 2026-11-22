@@ -20,7 +20,7 @@ const ok = (body: unknown): Response =>
   ({ ok: true, status: 200, json: async () => ({ data: body }) }) as unknown as Response;
 
 describe('fetchInactiveRecords', () => {
-  it('requests a complete inactive set for the account with credentials', async () => {
+  it('requests a complete inactive set for the company with credentials', async () => {
     const body = companySeed('a-studio');
     const fetchMock = vi.fn(async () => ok(body));
     vi.stubGlobal('fetch', fetchMock);

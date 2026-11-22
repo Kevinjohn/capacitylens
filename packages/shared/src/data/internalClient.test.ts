@@ -5,7 +5,7 @@ import { buildInternalClient, INTERNAL_CLIENT_NAME } from './internalClient.js';
 const TS = '2026-01-01T00:00:00.000Z';
 
 describe('built-in Internal client', () => {
-  it('seed gives every account exactly one builtin Internal client', () => {
+  it('seed gives every company exactly one builtin Internal client', () => {
     const data = seed();
     for (const company of data.companies) {
       const internal = data.clients.filter((c) => c.builtin === true && c.companyId === company.id);

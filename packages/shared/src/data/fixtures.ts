@@ -21,7 +21,7 @@ import type {
 const TS1 = '2026-01-01T00:00:00.000Z';
 const TS2 = '2026-06-01T12:00:00.000Z';
 
-/** Complete account fixture with every optional field set. */
+/** Complete company fixture with every optional field set. */
 export const FIXTURE_COMPANY: Company = {
   ...NULLABLE_FIELDS.companies,
   id: 'fix-a1',
@@ -56,7 +56,7 @@ export const FIXTURE_CLIENT: Client = {
   isPrivate: true,
   codeName: 'Fixture Nightwing',
   // A generic fixture must remain a regular client: the built-in Internal client can only be
-  // created and repaired by the account lifecycle path.
+  // created and repaired by the company lifecycle path.
   // Present lifecycle fields exercise consumers that read archived and retained-deletion fixtures.
   archivedAt: TS1,
   deletedAt: TS2,

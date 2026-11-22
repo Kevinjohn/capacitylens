@@ -73,7 +73,7 @@ async function setupMembersApi(request: APIRequestContext) {
   );
   expect(selfRole.status()).toBe(403);
   const crossCompany = await request.get(
-    `${API}/api/companies/some-other-account-${STAMP}/members`,
+    `${API}/api/companies/some-other-company-${STAMP}/members`,
     {
       headers: { cookie: admin.cookie },
     },

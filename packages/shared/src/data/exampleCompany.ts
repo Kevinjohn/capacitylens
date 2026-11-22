@@ -9,7 +9,7 @@ import { addDaysISO, startOfWeekISO } from '../lib/dateMath.js';
 // leaves no trace. Names follow the comic-book rule for invented people (DC universe).
 
 /**
- * Contains the account rows created for a new company’s example schedule.
+ * Contains the company rows created for a new company’s example schedule.
  */
 export type ExampleCompanyData = Pick<
   AppData,
@@ -24,7 +24,7 @@ export type ExampleCompanyData = Pick<
 >;
 
 /**
- * Supplies the account and calendar details used to create the example schedule.
+ * Supplies the company and calendar details used to create the example schedule.
  */
 export interface ExampleCompanyInput {
   companyId: ID;

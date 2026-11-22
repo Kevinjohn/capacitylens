@@ -31,7 +31,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   ui["ClientForm or ProjectForm builds ordinary update"] --> client["typed planning client sends mutation"]
-  client --> server["mutatePlanning resolves authority and executes intent"]
+  client --> server["mutatePlanning resolves authorization and executes intent"]
   server --> rules["entity_rules keeps stored private-name fields for non-Owners"]
   rules --> writer["planning writer persists allowed changes"]
   server --> response["transformState redacts private response"]

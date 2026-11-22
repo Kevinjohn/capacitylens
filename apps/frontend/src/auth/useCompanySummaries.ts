@@ -50,7 +50,7 @@ function parseCompanySummaryList(body: unknown): CompanySummaryParseOutcome {
   if (body.length > 0 && valid.length === 0) return { kind: 'rejected', droppedCount };
   if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
     console.warn(
-      'fetchCompanySummaries: /api/companies returned duplicate account identities; reporting null',
+      'fetchCompanySummaries: /api/companies returned duplicate company ids; reporting null',
     );
     return { kind: 'rejected', droppedCount };
   }

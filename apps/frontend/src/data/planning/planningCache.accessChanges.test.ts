@@ -139,7 +139,7 @@ describe('planning cache', () => {
   });
 });
 
-describe('canonical planning write capability', () => {
+describe('canonical planning write permission', () => {
   it('clears acknowledged history and invalidates drafts when the read becomes read-only', async () => {
     const execute = vi
       .fn<PlanningTransport['execute']>()

@@ -14,7 +14,7 @@ import { useStore } from '@/store/useStore';
 const resource = (id: string, kind: Resource['kind'] = 'person'): Resource => ({
   ...NULLABLE_FIELDS.resources,
   id,
-  companyId: 'account',
+  companyId: 'company',
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   kind,
@@ -146,17 +146,17 @@ describe('CapacityOverviewTable date style', () => {
   });
 
   it('re-reads column headers when the date style changes with a stable model', async () => {
-    await resetStoreWithCompany('account');
+    await resetStoreWithCompany('company');
     loadPlanningData({
       ...data,
-      companies: [makeCompany({ id: 'account', dateStyle: 'day-month' })],
+      companies: [makeCompany({ id: 'company', dateStyle: 'day-month' })],
     });
     await useStore.getState().refreshPlanning();
     renderTable();
     expect(screen.getByRole('columnheader', { name: /10 – 13 Sep/ })).toBeInTheDocument();
 
     await act(async () => {
-      await useStore.getState().updateCompany('account', { dateStyle: 'month-day' });
+      await useStore.getState().updateCompany('company', { dateStyle: 'month-day' });
     });
 
     expect(screen.getByRole('columnheader', { name: /Sep 10 – 13/ })).toBeInTheDocument();

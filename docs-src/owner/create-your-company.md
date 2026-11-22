@@ -42,7 +42,7 @@ The company starts with Monday–Friday as working days and day-based scheduling
 calendar choices are submitted together with the Owner, defaults and built-in Internal client in one
 setup operation. No example scheduling records are added.
 Setup is available only when your identity is the only sign-in and no company or membership exists.
-The server blocks open signup until your company exists, so another signup cannot interrupt this
+The server blocks open sign-up until your company exists, so another sign-up cannot interrupt this
 first-run setup. If several identities already exist, ask whoever manages hosting to resolve
 access. Setup cannot create a second company or replace an Owner.
 The temporary [demo](/getting-started/try-the-demo) opens a fictional demo company on a disposable local server. Restarting the demo resets its data.

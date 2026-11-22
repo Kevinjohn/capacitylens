@@ -45,7 +45,7 @@ export async function transferOwnership({
         throw new Error('Invalid ownership transfer receipt.');
       }
     },
-    // The controller supplies a string; eligibility checks must precede empty-confirmation rejection.
+    // The controller supplies a string; eligibility checks must precede the empty-confirmation refusal.
     parseAuthorization: (raw) => raw as string,
     authorizeExecute: async (_context, authorization) => {
       if (!currentRole || !access.can(currentRole, 'ownership:transfer')) {

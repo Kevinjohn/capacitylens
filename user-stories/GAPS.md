@@ -27,15 +27,15 @@ The matrix keeps every historical story discoverable by status.
   toggle nor its column; the [existing visibility test](../apps/frontend/src/components/team/MembersSection.lifecycle.test.tsx#L536)
   explicitly expects them to be hidden. The retained team story is Hidden, not a claim of a
   current menu action.
-- **Open self-registration:** [auth routes](../apps/backend/start/auth_routes.ts#L11) expose
-  password signup under the configured admission policy, but the current
-  [sign-in screen](../apps/frontend/src/auth/SignInScreen.tsx) has no registration form or link.
-  The available account-creation journey is the emailed invitation. The agreed signup policy
-  is enforced on the server; a self-service registration entry is a UI availability gap
-  not evidence that signup bypasses the policy. No new entry point is introduced here.
+- **Open self-service sign-up:** [auth routes](../apps/backend/start/auth_routes.ts#L11) expose
+  password sign-up under the configured admission rules, but the current
+  [sign-in screen](../apps/frontend/src/auth/SignInScreen.tsx) has no sign-up form or link.
+  The available account-creation journey is the emailed invitation. The agreed sign-up rules
+  is enforced on the server; a self-service sign-up entry is a UI availability gap
+  not evidence that sign-up bypasses the rules. No new entry point is introduced here.
 - **Admission reversal:** the [approval panel](../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx)
   offers Approve and Decline for the applicable states, with no revocation control. Stories
-  describe those rendered actions rather than inventing a button from the policy's revoked state.
+  describe those rendered actions rather than inventing a button from the admission record’s revoked state.
 
 ## Coverage omissions addressed
 

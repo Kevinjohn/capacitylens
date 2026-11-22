@@ -15,8 +15,8 @@ export async function readState(
   if (companyId !== undefined) return readStateWithClient(client, companyId, includeInactive);
   const companies = await client.from('companies').select('id');
   const slices: AppData[] = [];
-  for (const account of companies) {
-    slices.push(await readStateWithClient(client, String(account.id), includeInactive));
+  for (const company of companies) {
+    slices.push(await readStateWithClient(client, String(company.id), includeInactive));
   }
   return {
     companies: slices.flatMap((slice) => slice.companies),
@@ -38,27 +38,27 @@ export async function resetState(seedRequested: boolean | 'single') {
   await transaction(db, async (trx) => {
     await trx.from('audit_entries').delete();
     // Memberships restrict company deletion, so the package removes them first.
-    for (const account of await trx.from('companies').select('id')) {
-      await access.memberships.removeAllForScope({ scopeId: String(account.id), trx });
+    for (const company of await trx.from('companies').select('id')) {
+      await access.memberships.removeAllForScope({ scopeId: String(company.id), trx });
     }
     for (const table of Object.values(tables).reverse()) await trx.from(table).delete();
     if (!seedRequested) return;
     const seeded = seed();
-    const firstAccountId = seeded.companies[0]?.id;
+    const firstCompanyId = seeded.companies[0]?.id;
     const data =
-      seedRequested === 'single' && firstAccountId
+      seedRequested === 'single' && firstCompanyId
         ? {
             ...seeded,
-            companies: seeded.companies.filter((row) => row.id === firstAccountId),
-            clients: filterCompanyRows(seeded.clients, firstAccountId),
-            disciplines: filterCompanyRows(seeded.disciplines, firstAccountId),
-            projects: filterCompanyRows(seeded.projects, firstAccountId),
-            phases: filterCompanyRows(seeded.phases, firstAccountId),
-            resources: filterCompanyRows(seeded.resources, firstAccountId),
-            activities: filterCompanyRows(seeded.activities, firstAccountId),
-            allocations: filterCompanyRows(seeded.allocations, firstAccountId),
-            timeOff: filterCompanyRows(seeded.timeOff, firstAccountId),
-            closures: filterCompanyRows(seeded.closures, firstAccountId),
+            companies: seeded.companies.filter((row) => row.id === firstCompanyId),
+            clients: filterCompanyRows(seeded.clients, firstCompanyId),
+            disciplines: filterCompanyRows(seeded.disciplines, firstCompanyId),
+            projects: filterCompanyRows(seeded.projects, firstCompanyId),
+            phases: filterCompanyRows(seeded.phases, firstCompanyId),
+            resources: filterCompanyRows(seeded.resources, firstCompanyId),
+            activities: filterCompanyRows(seeded.activities, firstCompanyId),
+            allocations: filterCompanyRows(seeded.allocations, firstCompanyId),
+            timeOff: filterCompanyRows(seeded.timeOff, firstCompanyId),
+            closures: filterCompanyRows(seeded.closures, firstCompanyId),
           }
         : seeded;
     for (const [key, table] of Object.entries(tables)) {

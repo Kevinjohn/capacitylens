@@ -149,7 +149,7 @@ test.group('authentication outcome events', (group) => {
     assert.notInclude(lines.join('\n'), 'never-store-this-password');
   });
 
-  test('records Account Kit login for automatic sign-in after registration', async ({
+  test('records the sign-in event for automatic sign-in after sign-up', async ({
     client,
     assert,
     cleanup,
@@ -159,8 +159,8 @@ test.group('authentication outcome events', (group) => {
       password,
     });
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
-    const signupEmail = 'clark.kent@wayne.example';
-    await createIdentity(signupEmail, { name: 'Clark Kent', password });
+    const signUpEmail = 'clark.kent@wayne.example';
+    await createIdentity(signUpEmail, { name: 'Clark Kent', password });
 
     const previousSignUp = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
     const originalRegister = accountKit.registration.register;
@@ -168,7 +168,7 @@ test.group('authentication outcome events', (group) => {
     accountKit.registration.register = async () =>
       ({
         id: 'test-registration',
-        email: signupEmail,
+        email: signUpEmail,
         unverifiedEmail: null,
         hasPassword: true,
         emailVerifiedAt: DateTime.now(),
@@ -182,7 +182,7 @@ test.group('authentication outcome events', (group) => {
       client
         .visit('api.new_account.store')
         .header('sec-fetch-site', 'same-origin')
-        .json({ email: signupEmail, password, name: 'Clark Kent' })
+        .json({ email: signUpEmail, password, name: 'Clark Kent' })
         .send()
     );
 
@@ -200,11 +200,11 @@ test.group('authentication outcome events', (group) => {
           entry.status === 201
       )
     );
-    assert.notInclude(lines.join('\n'), signupEmail);
+    assert.notInclude(lines.join('\n'), signUpEmail);
     assert.notInclude(lines.join('\n'), password);
   });
 
-  test('keeps the successful login event when post-login tracking fails', async ({
+  test('keeps the successful sign-in event when post-sign-in tracking fails', async ({
     client,
     assert,
     cleanup,

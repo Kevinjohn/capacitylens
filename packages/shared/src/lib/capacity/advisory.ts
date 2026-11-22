@@ -200,7 +200,7 @@ interface BuildCapacityAdvisoryInput {
  * its `resourceId` is unread, because the advisory always scopes to `resource`.
  * `otherAllocations` is the existing load to count against (caller excludes the allocation being
  * edited); it need not be pre-filtered by resource (see `addCapacityLoad`).
- * Shared by the modal and the drag-commit path so the rule
+ * Shared by the allocation dialog and the drag-commit path so the rule
  * lives in one place. Mirrors the per-day over-marker (`resolveAllocatedHoursOnDay`): it counts a day only
  * when the proposed allocation actually works it (so a weekend-aware bar merely spanning Sat/Sun
  * isn't "over"), and an `ignoreWorkingDays` weekend, 0 capacity, reads as over exactly like the red

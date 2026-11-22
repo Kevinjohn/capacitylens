@@ -1,8 +1,8 @@
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import { readApiData } from '@/api/readApiData';
 import { readApiError, readApiErrorCode } from '@/lib/readApiError';
-import type { InvitationSignupBody } from './accountRequestTypes';
-import { invitationSignupRequests } from './invitationSignupRequests';
+import type { InvitationSignUpBody } from './accountRequestTypes';
+import { invitationSignUpRequests } from './invitationSignUpRequests';
 
 /** What an invitation link shows before sign-up. */
 export interface InvitationPreview {
@@ -22,7 +22,7 @@ export type InvitationPreviewResult =
  * The answer to one invitation sign-up. `uncertain` is a server failure after which the account
  * may exist; `refused` carries the server's message when it sent one.
  */
-export type InvitationSignupResult =
+export type InvitationSignUpResult =
   | { kind: 'signed-up' }
   | { kind: 'uncertain' }
   | { kind: 'invalid-token' }
@@ -44,7 +44,7 @@ function parsePreview(body: unknown): InvitationPreview | null {
  * @throws The fetch failure when the server cannot be reached.
  */
 export async function readInvitationPreview(token: string): Promise<InvitationPreviewResult> {
-  const response = await invitationSignupRequests.previewInvitation(token);
+  const response = await invitationSignUpRequests.previewInvitation(token);
   if (response.status === 400 || response.status === 404) return { kind: 'invalid' };
   if (!response.ok) return { kind: 'unavailable' };
   // An unreadable body is an off-spec answer and is reported as unavailable.
@@ -59,9 +59,9 @@ export async function readInvitationPreview(token: string): Promise<InvitationPr
  */
 export async function signUpWithInvitation(
   token: string,
-  body: InvitationSignupBody,
-): Promise<InvitationSignupResult> {
-  const response = await invitationSignupRequests.signupWithInvitation(token, body);
+  body: InvitationSignUpBody,
+): Promise<InvitationSignUpResult> {
+  const response = await invitationSignUpRequests.signUpWithInvitation(token, body);
   if (response.ok) return { kind: 'signed-up' };
   if (response.status >= 500) return { kind: 'uncertain' };
   const code = await readApiErrorCode(response);

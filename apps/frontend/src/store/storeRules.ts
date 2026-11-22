@@ -19,7 +19,7 @@ export function createStoreRules(get: StoreApi<StoreState>['getState']) {
       !state.data.companies.some((company) => company.id === id) &&
       !state.companySummaries.some((company) => company.id === id)
     ) {
-      throw new Error('The active account is not loaded — cannot mutate scoped data.');
+      throw new Error('The active company is not loaded — cannot mutate scoped data.');
     }
     return id;
   };

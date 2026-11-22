@@ -21,7 +21,7 @@ describe('MasqueradeModel', () => {
     expect(useStore.getState().activeCompanyId).toBeNull();
   });
 
-  it('loads a cold validated member view from canonical account data before selecting it', async () => {
+  it('loads a cold validated masquerade from canonical company data before selecting it', async () => {
     useStore.getState().clearPlanning();
     const read = createDeferred<string | null>();
     const { model, dependencies } = createHarness({

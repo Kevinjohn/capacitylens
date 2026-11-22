@@ -122,7 +122,7 @@ export async function previewCompanyImport(
   const changed = buildPortableFingerprint(current, companyId) !== buildFingerprint(prepared.data);
   const baseRevision = await getPlanningRevision(trx, companyId);
   const company = prepared.data.companies.at(0);
-  if (!company) throw new Error('A prepared beta import always carries exactly one account.');
+  if (!company) throw new Error('A prepared beta import always carries exactly one company.');
   return {
     baseRevision,
     imported: prepared.imported,
@@ -163,7 +163,7 @@ export async function applyCompanyImport(
     await trx.from(tables[key]).where('company_id', companyId).delete();
   }
   const company = prepared.data.companies.at(0);
-  if (!company) throw new Error('A prepared beta import always carries exactly one account.');
+  if (!company) throw new Error('A prepared beta import always carries exactly one company.');
   await trx
     .from('companies')
     .where('id', companyId)

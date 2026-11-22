@@ -71,9 +71,9 @@ export function seedSmokeViewer(path, { companyId, actorUserId, targetUserId, ta
   assert.notEqual(actorUserId, targetUserId);
   const database = new DatabaseSync(path);
   try {
-    const account = database.prepare('SELECT id FROM companies WHERE id = ?').get(companyId);
+    const company = database.prepare('SELECT id FROM companies WHERE id = ?').get(companyId);
     const target = database.prepare('SELECT id, email FROM users WHERE id = ?').get(targetUserId);
-    assert.ok(account, 'Smoke Viewer fixture account is missing');
+    assert.ok(company, 'Smoke Viewer fixture company is missing');
     assert.ok(target, 'Smoke Viewer fixture identity is missing');
     assert.equal(String(target.email).toLowerCase(), targetEmail.toLowerCase());
 
@@ -253,13 +253,13 @@ export async function runPackagedSmoke({
     const { url: setupLink } = JSON.parse(bootstrap.stdout);
     assert.ok(setupLink, 'The packaged bootstrap command printed no setup link.');
     const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
-    const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
+    const signUp = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
     });
-    assert.equal(signup.status, 201, 'Packaged first-identity setup failed');
-    let cookie = signup.headers
+    assert.equal(signUp.status, 201, 'Packaged first-identity setup failed');
+    let cookie = signUp.headers
       .getSetCookie()
       .map((value) => value.split(';', 1)[0])
       .join('; ');
@@ -334,17 +334,17 @@ export async function runPackagedSmoke({
       email: 'clark@wayne.example',
       password: 'packaged-viewer-password-2026',
     };
-    const viewerSignup = await fetch(`${baseUrl}/api/auth/sign-up`, {
+    const viewerSignUp = await fetch(`${baseUrl}/api/auth/sign-up`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       body: JSON.stringify({ ...viewerCredentials, name: 'Clark Kent' }),
     });
-    assert.equal(viewerSignup.status, 201, 'Packaged Viewer registration failed');
-    const viewerCookie = viewerSignup.headers
+    assert.equal(viewerSignUp.status, 201, 'Packaged Viewer sign-up failed');
+    const viewerCookie = viewerSignUp.headers
       .getSetCookie()
       .map((value) => value.split(';', 1)[0])
       .join('; ');
-    assert.ok(viewerCookie, 'Packaged Viewer registration did not return a session cookie');
+    assert.ok(viewerCookie, 'Packaged Viewer sign-up did not return a session cookie');
     const viewerIdentity = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie: viewerCookie } })).body,
     ).data;
@@ -428,11 +428,7 @@ export async function runPackagedSmoke({
     const otherSessionMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
     ).data;
-    assert.equal(
-      otherSessionMode.active,
-      true,
-      'Member view must apply to every signed-in session',
-    );
+    assert.equal(otherSessionMode.active, true, 'Masquerade must apply to every signed-in session');
     assert.equal(otherSessionMode.targetUserId, viewerIdentity.user.id);
     assert.equal(otherSessionMode.masqueradeToken, activeMode.masqueradeToken);
     const memberRead = await fetchOk(
@@ -480,7 +476,7 @@ export async function runPackagedSmoke({
     assert.equal(
       endedInFirstSession.active,
       false,
-      'Ending in one session must end the shared member view',
+      'Ending in one session must end the shared masquerade',
     );
 
     const restartContext = endedInFirstSession.masqueradeToken;
@@ -520,7 +516,7 @@ export async function runPackagedSmoke({
     const expiredResult = await expectJsonStatus(
       expiredStart,
       409,
-      'Expired member view must invalidate control',
+      'Expired masquerade must invalidate control',
     );
     assert.equal(expiredResult.code, 'MASQUERADE_CONTEXT_CHANGED');
     const expiredMode = JSON.parse(

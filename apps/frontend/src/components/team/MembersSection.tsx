@@ -91,7 +91,7 @@ type MembersOrchestration = Omit<
   ReturnType<typeof useMembersOrchestration>,
   'setActionStatusElement'
 >;
-type MemberTableCapabilities = Pick<
+type MemberTableDependencies = Pick<
   MembersOrchestration,
   | 'myRole'
   | 'busyAction'
@@ -106,12 +106,12 @@ type MemberTableCapabilities = Pick<
   | 'errorField'
   | 'errorId'
 >;
-type DirectoryCapabilities = MemberTableCapabilities &
+type DirectoryDependencies = MemberTableDependencies &
   Pick<
     MembersOrchestration,
     'activeMembers' | 'inactiveMembers' | 'inactiveOpen' | 'setInactiveOpen'
   >;
-type MembersDirectoryCapabilities = DirectoryCapabilities &
+type MembersDirectoryDependencies = DirectoryDependencies &
   Pick<MembersOrchestration, 'directory' | 'mayManageSignInTracking' | 'changeSignInTracking'>;
 
 function MembersErrorCard({
@@ -148,7 +148,7 @@ function MembersTable({
 }: {
   rows: TeamMember[];
   testId: string;
-  memberActions: MemberTableCapabilities;
+  memberActions: MemberTableDependencies;
   allMembers: TeamMember[];
 }) {
   const linkedResourceIds = new Set(
@@ -205,7 +205,7 @@ function MemberDirectory({
   directory,
   members,
 }: {
-  directory: DirectoryCapabilities;
+  directory: DirectoryDependencies;
   members: TeamMember[];
 }) {
   let activeContent = null;
@@ -261,7 +261,7 @@ function MembersDirectorySection({
   members,
   setActionStatusElement,
 }: {
-  members: MembersDirectoryCapabilities;
+  members: MembersDirectoryDependencies;
   setActionStatusElement(element: HTMLParagraphElement | null): void;
 }) {
   if (members.directory.kind !== 'ready') return null;

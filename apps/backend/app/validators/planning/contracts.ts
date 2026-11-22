@@ -61,7 +61,7 @@ export type ProjectedPlanningRow = {
 export interface PlanningMutationSuccess {
   status: 'committed';
   mutationId: string;
-  /** The account revision advances exactly once for a committed mutation. */
+  /** The company revision advances exactly once for a committed mutation. */
   revision: number;
   /** Destructive writes retain a server-side inverse; restore consumes its handle. */
   restoration:

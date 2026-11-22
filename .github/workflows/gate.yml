@@ -10,6 +10,10 @@ on:
         description: Run every tooling check, frontend coverage and the native packages.
         type: boolean
         required: true
+      tree_validated:
+        description: A manual Validation run already passed this exact tree; only the sign-off check runs.
+        type: boolean
+        default: false
     secrets:
       CODECOV_TOKEN:
         description: Token for optional frontend coverage reporting.
@@ -46,7 +50,7 @@ permissions:
 jobs:
   workflow-lint:
     name: GitHub Actions static analysis
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.tree_validated
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -91,7 +95,7 @@ jobs:
   # Full validation, or no usable earlier success, runs every check.
   tooling-scope:
     name: Select tooling checks
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.tree_validated
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -150,7 +154,7 @@ jobs:
 
   static:
     name: Format, lint and type-check
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.tree_validated
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -170,7 +174,7 @@ jobs:
   # The only application build in this workflow. Backend tests use its synced SPA assets.
   build:
     name: Production build
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.tree_validated
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -197,7 +201,7 @@ jobs:
 
   frontend:
     name: Frontend tests
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.tree_validated
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -231,7 +235,7 @@ jobs:
   backend:
     name: Backend
     needs: build
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !inputs.tree_validated
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -249,7 +253,7 @@ jobs:
   packaged:
     name: Standalone native package (${{ matrix.target }})
     # Main pushes leave the native packages to scheduled, tagged and manual validation.
-    if: github.event_name == 'pull_request' || inputs.full
+    if: (github.event_name == 'pull_request' || inputs.full) && !inputs.tree_validated
     strategy:
       fail-fast: false
       matrix:

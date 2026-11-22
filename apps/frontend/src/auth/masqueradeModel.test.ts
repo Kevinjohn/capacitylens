@@ -38,7 +38,7 @@ describe('MasqueradeModel', () => {
     expect(navigate).toHaveBeenCalledWith('/');
   });
 
-  it('publishes the company name from the loaded account projection, not the member name', async () => {
+  it('publishes the company name from the loaded company projection, not the member name', async () => {
     loadPlanningData(
       makeAppData({ companies: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
     );
@@ -136,7 +136,7 @@ describe('MasqueradeModel transitions', () => {
     });
   });
 
-  it('reports an account switch requested while the start request is still in flight', async () => {
+  it('reports a company switch requested while the start request is still in flight', async () => {
     let resolveStart!: (value: MasqueradeState) => void;
     const startResponse = new Promise<MasqueradeState>((resolve) => {
       resolveStart = resolve;

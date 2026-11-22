@@ -216,7 +216,7 @@ function ensureAuthE2EFixtureCompanyTable(db: DatabaseSync): void {
   db.exec('CREATE TABLE IF NOT EXISTS auth_e2e_fixture_companies (company_id TEXT PRIMARY KEY)');
 }
 
-function removeAuthE2EAccount(db: DatabaseSync, companyId: string): void {
+function removeAuthE2ECompany(db: DatabaseSync, companyId: string): void {
   db.prepare('DELETE FROM audit_entries WHERE company_id = ?').run(companyId);
   db.prepare('DELETE FROM account_member_resources WHERE company_id = ?').run(companyId);
   db.prepare('DELETE FROM memberships WHERE scope_id = ?').run(companyId);
@@ -291,7 +291,7 @@ function insertAuthE2ECompany(
 }
 
 /** Resolves only the untracked placeholder owned by the real first-run fixture identity. */
-function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
+function temporaryBaselineCompanyIds(db: DatabaseSync): string[] {
   const rows = db
     .prepare(
       `SELECT companies.id
@@ -313,7 +313,7 @@ function temporaryBaselineAccountIds(db: DatabaseSync): string[] {
 }
 
 function removeTemporaryBaselineCompany(db: DatabaseSync): void {
-  for (const companyId of temporaryBaselineAccountIds(db)) removeAuthE2EAccount(db, companyId);
+  for (const companyId of temporaryBaselineCompanyIds(db)) removeAuthE2ECompany(db, companyId);
 }
 
 /** Restores the disposable one-company server state after scenario companies are removed. */
@@ -335,7 +335,7 @@ function ensureTemporaryBaselineCompany(db: DatabaseSync): void {
 
 /** Reads the temporary company owned by the real first-run fixture user. */
 export function readAuthE2EBaselineSnapshot(): {
-  account: Record<string, unknown>;
+  company: Record<string, unknown>;
   client: Record<string, unknown>;
   revision: number;
   owner: { id: string; email: string; role: string; status: string };
@@ -355,23 +355,23 @@ export function readAuthE2EBaselineSnapshot(): {
       .all(AUTH_E2E_BASELINE_COMPANY, AUTH_E2E_BASELINE_OWNER) as Array<Record<string, unknown>>;
     if (baselineRows.length > 1)
       throw new Error('Multiple retained Auth E2E baseline companies were found.');
-    const account = baselineRows[0];
-    if (!account) throw new Error('The retained Auth E2E baseline company is unavailable.');
-    if (typeof account.id !== 'string')
+    const company = baselineRows[0];
+    if (!company) throw new Error('The retained Auth E2E baseline company is unavailable.');
+    if (typeof company.id !== 'string')
       throw new Error('The retained Auth E2E baseline company has no ID.');
     const client = db
       .prepare('SELECT * FROM clients WHERE company_id = ? AND builtin = 1')
-      .get(account.id) as Record<string, unknown> | undefined;
+      .get(company.id) as Record<string, unknown> | undefined;
     const revision = db
       .prepare('SELECT revision FROM company_planning_revisions WHERE company_id = ?')
-      .get(account.id) as { revision: number } | undefined;
+      .get(company.id) as { revision: number } | undefined;
     const owner = db
       .prepare(
         `SELECT users.id, users.email, memberships.role, memberships.status
          FROM memberships JOIN users ON users.id = memberships.user_id
          WHERE memberships.scope_id = ? AND users.email = 'baseline-owner@capacitylens.dev'`,
       )
-      .get(account.id) as { id: string; email: string; role: string; status: string } | undefined;
+      .get(company.id) as { id: string; email: string; role: string; status: string } | undefined;
     const administrator = db
       .prepare(
         `SELECT users.id, users.email, COUNT(memberships.id) AS memberships
@@ -384,7 +384,7 @@ export function readAuthE2EBaselineSnapshot(): {
       .prepare(
         "SELECT COUNT(*) AS count FROM audit_entries WHERE company_id = ? AND action = 'company.initialized'",
       )
-      .get(account.id) as { count: number } | undefined;
+      .get(company.id) as { count: number } | undefined;
     if (
       !client ||
       !revision ||
@@ -396,7 +396,7 @@ export function readAuthE2EBaselineSnapshot(): {
     )
       throw new Error('The retained Auth E2E baseline company is incomplete.');
     return {
-      account,
+      company,
       client,
       revision: revision.revision,
       owner,
@@ -511,7 +511,7 @@ export function clearAuthE2ECompanies(): void {
     db.exec('BEGIN IMMEDIATE');
     try {
       for (const { company_id: companyId } of rows) {
-        removeAuthE2EAccount(db, companyId);
+        removeAuthE2ECompany(db, companyId);
         db.prepare('DELETE FROM auth_e2e_fixture_companies WHERE company_id = ?').run(companyId);
       }
       ensureTemporaryBaselineCompany(db);

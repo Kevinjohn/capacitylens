@@ -15,7 +15,7 @@ import {
 
 const runPreset = fileURLToPath(new URL('../e2e/run-preset.mjs', import.meta.url));
 
-// Writes a fake pnpm launcher into a fresh directory; `body` is the Node module it runs on POSIX.
+// Writes a stub pnpm launcher into a fresh directory; `body` is the Node module it runs on POSIX.
 function stubPnpm(prefix, body) {
   const fixture = mkdtempSync(join(tmpdir(), prefix));
   const launcher = join(fixture, process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm');

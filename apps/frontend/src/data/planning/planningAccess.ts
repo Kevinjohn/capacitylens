@@ -1,6 +1,6 @@
 import type { PlanningAccess } from './planningCacheTypes';
 
-/** A stable string for comparing two authorities; never parsed. */
+/** A stable string for comparing two planning access values; never parsed. */
 export function buildAccessKey(access: PlanningAccess | null): string | null {
   if (access === null) return null;
   return JSON.stringify([

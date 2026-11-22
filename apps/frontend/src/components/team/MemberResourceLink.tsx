@@ -57,7 +57,7 @@ function buildMemberResourceView(
   };
 }
 
-/** Account-admin control linking a member to one eligible person Resource. */
+/** Owner or Admin control linking a member to one eligible person Resource. */
 export function MemberResourceLink(props: MemberResourceLinkProps) {
   const { member, myRole, linkedResourceIds, resourceCandidates } = props;
   if (!isOwnerOrAdmin(myRole)) return <td className="py-2 px-4" />;

@@ -82,7 +82,7 @@ beforeEach(() => {
 });
 
 describe('usePersonSchedule availability', () => {
-  it('builds the current account-local four-week window independently of grid dates', () => {
+  it('builds the current company-local four-week window independently of grid dates', () => {
     const monday = renderHook(() => usePersonSchedule({ companyId: 'a1', resourceId: 'r1' }), {
       wrapper: wrapper({ role: 'owner' }),
     });
@@ -100,7 +100,7 @@ describe('usePersonSchedule availability', () => {
     });
   });
 
-  it('fails closed for null selections, account mismatches, missing resources, and hidden resource kinds', () => {
+  it('fails closed for null selections, company mismatches, missing resources, and hidden resource kinds', () => {
     const { result, rerender } = renderHook(
       ({ companyId, resourceId }: { companyId: string | null; resourceId: string | null }) =>
         usePersonSchedule({ companyId, resourceId }),
@@ -113,7 +113,7 @@ describe('usePersonSchedule availability', () => {
     );
     expect(result.current).toEqual({ kind: 'unavailable' });
 
-    rerender({ companyId: 'another-account', resourceId: 'r1' });
+    rerender({ companyId: 'another-company', resourceId: 'r1' });
     expect(result.current).toEqual({ kind: 'unavailable' });
     rerender({ companyId: 'a1', resourceId: 'missing' });
     expect(result.current).toEqual({ kind: 'unavailable' });

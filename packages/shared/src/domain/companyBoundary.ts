@@ -1,6 +1,6 @@
 import type { ID, ScopedEntity } from '../types/entities.js';
 
-// The tenant boundary, in one place. Multi-tenancy is the app's core invariant: every scoped row
+// The company boundary, in one place. Company isolation is the app's core invariant: every scoped row
 // belongs to exactly one company, every read is narrowed to the active company, and every write
 // is guarded against a cross-company id. That boundary is a single membership test, written once
 // here so a read filter, a write guard, and a cascade can never drift in how they decide "does this
