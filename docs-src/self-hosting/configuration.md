@@ -55,7 +55,7 @@ invitation is refused.
 
 ## Backups
 
-`CAPACITYLENS_BACKUP_DIR` enables an online SQLite snapshot at web-service startup and every 24
+`CAPACITYLENS_BACKUP_DIR` enables an online SQLite backup at web-service startup and every 24
 hours while it runs. Use a private local directory that does not contain the live database, writable only by the service user. Network filesystems and `file:` database URIs are unsupported. Leave it
 unset only when you have an explicitly managed backup process. The old
 `CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used.

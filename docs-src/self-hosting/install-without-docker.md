@@ -115,7 +115,7 @@ Fill in the mail settings before inviting anyone else. See
 ### 4. Upgrade the database and start the service
 
 Run the upgrade as the service user with the same environment file. It initializes a fresh database;
-for an existing database, it writes and verifies a pre-upgrade snapshot before running pending
+for an existing database, it writes and verifies a pre-upgrade backup before running pending
 migrations.
 
 ```bash

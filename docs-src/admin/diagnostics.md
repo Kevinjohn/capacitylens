@@ -33,7 +33,7 @@ A value the page cannot read shows **Unknown** or **unavailable**. The newest sn
 a backup completed successfully, is intact or can be restored. If the build provides a revision or feedback address,
 **Build details** shows it and may include a **Send feedback** link.
 
-Diagnostics does not verify backup health. Operators check service logs and completed snapshots as
+Diagnostics does not verify backup health. Operators check service logs and completed backups as
 described in [Backups and restore](/self-hosting/backups-and-restore).
 
 The report is a snapshot: reopen the page to check the server again.
