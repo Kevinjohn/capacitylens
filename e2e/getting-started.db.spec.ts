@@ -120,7 +120,7 @@ test.describe('getting started', () => {
       const popover = page.locator('.driver-popover');
       await expect(popover).toBeVisible();
       await expect(page).toHaveURL(/\/$/);
-      await expect(popover.getByText('Owner: Import and restore schedules')).toBeVisible();
+      await expect(popover.getByText('Owner: Import and export schedules')).toBeVisible();
       await expect(popover.getByText('1 of 8')).toBeVisible();
       for (const selector of TOUR_ANCHORS) await expect(page.locator(selector)).toBeVisible();
       await finishTour(popover, 8, 'Viewer: Search, filters and weeks');
@@ -144,7 +144,7 @@ test.describe('server-backed role tour', { tag: '@engine' }, () => {
     const popover = page.locator('.driver-popover');
     await expect(popover).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
-    await expect(popover.getByText('Owner: Import and restore schedules')).toBeVisible();
+    await expect(popover.getByText('Owner: Import and export schedules')).toBeVisible();
     await expect(popover.getByText('1 of 8')).toBeVisible();
     await expect(page.locator('[data-nav="/team"]')).toBeVisible();
 
