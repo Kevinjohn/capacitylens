@@ -101,7 +101,7 @@ test.group('password sign-in and sessions', (group) => {
       assert.equal(
         late.status(),
         200,
-        'the request was authorized before logout and reaches its response'
+        'the request was authorized before sign-out and reaches its response'
       );
       assert.isNull(
         await db.from('adonis_sessions').where('id', session!.id).first(),

@@ -19,9 +19,9 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
   const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail);
   const companies = await db.from('companies').select('id');
   const now = new Date().toISOString();
-  for (const account of companies)
+  for (const company of companies)
     await db.table('memberships').insert({
-      scope_id: account.id,
+      scope_id: company.id,
       user_id: userId,
       role: 'owner',
       status: 'active',

@@ -85,7 +85,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     });
   } catch (error) {
     // Keep the fail-closed Viewer projection until a later successful lookup.
-    console.warn('PermissionProvider: the active account role could not be resolved', error);
+    console.warn('PermissionProvider: the active company role could not be resolved', error);
     publishUnavailable(refresh);
   }
 }

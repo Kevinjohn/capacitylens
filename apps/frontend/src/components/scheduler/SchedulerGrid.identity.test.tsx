@@ -136,7 +136,7 @@ describe('SchedulerGrid individual schedule drawer', () => {
     expect(grid.scrollTop).toBe(19);
   });
 
-  it('removes selected account content synchronously on an account switch', async () => {
+  it('removes selected company content synchronously on a company switch', async () => {
     const user = userEvent.setup();
     render(<SchedulerGrid />, { wrapper: OwnerRouter });
     await user.click(screen.getByRole('button', { name: "View Bruce's schedule B" }));

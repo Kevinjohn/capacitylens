@@ -97,7 +97,7 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
       };
     }
   ).data;
-  expect(state.companies.some((account) => account.id === companyId)).toBe(true);
+  expect(state.companies.some((company) => company.id === companyId)).toBe(true);
   for (const resource of resources) {
     const scrubbed = state.resources.find((row) => row.id === resource.id);
     expect(scrubbed?.name).toMatch(/^Removed person/);

@@ -31,7 +31,7 @@ priority over keeping a misconfigured production process running.
 | Asset | Primary protection | Boundary |
 | --- | --- | --- |
 | Company schedule and private client/project names | Server membership, action/field authorisation, SQLite constraints | Browser/API and company boundary |
-| Identity, password verifier and admission state | Account Kit password flows, application admission policy and account database | Authentication/API and database boundary |
+| Identity, password verifier and admission state | Account Kit password flows, application admission rules and account database | Authentication/API and database boundary |
 | Session and emailed action-link secrets | HttpOnly session cookie; high-entropy one-time links stored by digest and expired | Browser/API, SMTP and operator boundary |
 | Owner/Admin view as member state | Package-owned identity-wide SQLite mode with fixed expiry; read projection only; server middleware refuses writes | Session, company and authorisation boundary |
 | Database, WAL, audit rows and backups | File permissions, single-process SQLite ownership and operator-protected storage | Process/host boundary |
@@ -45,7 +45,7 @@ place bearer values in URL paths, so access logs at the proxy or mail service mu
 
 ## Actors
 
-- A Viewer, Editor, Admin or Owner acting maliciously within their legitimate account.
+- A Viewer, Editor, Admin or Owner acting maliciously within their legitimate company.
 - An authenticated user attempting cross-company or higher-role access.
 - An unauthenticated internet attacker, credential-guessing bot or cross-site origin.
 - A person with access to a mailbox, forwarded invitation or compromised browser/device.
@@ -58,7 +58,7 @@ place bearer values in URL paths, so access logs at the proxy or mail service mu
 
 Test paths below are relative to `apps/backend/tests/functional/` unless the full path is shown.
 
-| Threat | Principal controls | Verification evidence |
+| Threat | Main controls | Verification evidence |
 | --- | --- | --- |
 | Cross-company read/write or role escalation | Server membership and role checks on each operation; scoped rows carry `company_id`; protected fields are projected or preserved server-side | `membership/control_data_isolation.spec.ts`, `auth/native_authorization.spec.ts`, `privacy/restricted_replies.spec.ts` |
 | Cross-site request or cached confidential response | Unsafe-origin and Fetch Metadata checks; same-origin policy; `/api/*` responses use `no-store` | `cors_origins.spec.ts`, `http_contract.spec.ts`, `http_parser_regressions.spec.ts` |
@@ -68,9 +68,9 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 | View as member used to perform a write | Package admission captures the real actor and target; the product transaction rechecks the live Kit session and company permissions; middleware rejects writes and sensitive reads while active | `auth/masquerade.spec.ts` |
 | Stolen Owner session used for a sensitive operation | Password confirmation is required for ownership transfer, import and anonymisation; confirmations are single-use, time-limited and bound to the user, Kit session, company, action and intent | `membership/ownership_transfer.spec.ts`, `import_apply.spec.ts`, `anonymise.spec.ts` |
 | Forwarded or intercepted invitation link | Invitation expires after seven days; revoking/resending replaces it; preview does not spend it; acceptance confirms the address and still requires admission approval | `auth/invitations.spec.ts`, `auth/admission.spec.ts` |
-| Unauthorised admission, invitation abuse or flooding | Product routes require a confirmed address and admission; invitation creation rechecks inviter authority in the insert transaction; Kit throttles invitation creation and resend by actor and recipient; approvers can decide only for identities they may administer | `auth/admission.spec.ts`, `auth/invitations.spec.ts`, `auth/native_authorization.spec.ts` |
+| Unauthorised admission, invitation abuse or flooding | Product routes require a confirmed address and admission; invitation creation rechecks the inviter's authorization in the insert transaction; Kit throttles invitation creation and resend by actor and recipient; approvers can decide only for identities they may administer | `auth/admission.spec.ts`, `auth/invitations.spec.ts`, `auth/native_authorization.spec.ts` |
 | Sign-in or password-confirmation flooding | Account Kit defaults to 10 requests/minute per client and 5/minute per identity with a 20-minute identity block; production API defaults to 300 requests/minute per IP; the confirm-action-with-password package reserves password confirmations per account before hashing: five failures per minute, then a 20-minute block, shared across client addresses; sign-in uses Account Kit client/identity throttles | `apps/backend/config/account_kit.ts`, `apps/backend/config/password_confirmations.ts`, `auth/native_auth_limits.spec.ts`, `privacy/password_confirmation_adoption.spec.ts`, `request_limits.spec.ts` |
-| First-identity race or open-signup bypass | Before a company exists, setup is restricted to one operator-invited identity; the company creation path rechecks the sole-user condition under the transaction lock | `auth/first_company_setup.spec.ts` |
+| First-identity race or open sign-up bypass | Before a company exists, setup is restricted to one operator-invited identity; the company creation path rechecks the sole-user condition under the transaction lock | `auth/first_company_setup.spec.ts` |
 | Password reset operator misuse | `owner:reset-password` requires the server to be stopped, an eligible sole active Owner, and an audit record before displaying the link | `auth/recovery.spec.ts` |
 | Operator-issued reset outside product recovery | The unaudited `account-kit:reset-link` command is excluded from the registered Account Kit commands. Operators use `owner:reset-password`, which requires a stopped server and eligible sole Owner and writes an audit row before showing the single-use link | `apps/backend/tests/unit/owner_reset_command.spec.ts`; `apps/backend/tests/functional/auth/recovery.spec.ts` |
 | Injection, malformed writes or unsafe imports | Vine validation strips unknown fields; ordinary writes reject invalid input; import is Owner-only, validates references and replaces data atomically | `http_parser_regressions.spec.ts`, `import_apply.spec.ts`, `planning/transactions.spec.ts` |

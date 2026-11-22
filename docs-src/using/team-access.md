@@ -1,6 +1,6 @@
 ---
 title: Team & access
-description: Check your company role, understand its capabilities, and ask for the access you need.
+description: Check your company role, understand its permissions, and ask for the access you need.
 prev: false
 next: false
 ---

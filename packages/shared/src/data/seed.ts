@@ -30,7 +30,7 @@ export function seed(): AppData {
 }
 
 /** The canonical demo scenarios shifted onto the week containing `referenceDate`.
- * Keep `seed()` fixed for repeatable tests, screenshots and written walkthroughs; disposable server demo
+ * Keep `seed()` fixed for reproducible tests, screenshots and written walkthroughs; disposable server demo
  * entry points use this variant so a new visitor never lands on an empty, expired schedule. */
 export function seedForCurrentWeek(referenceDate = formatISODate(new Date())): AppData {
   const week = startOfWeekISO(referenceDate);

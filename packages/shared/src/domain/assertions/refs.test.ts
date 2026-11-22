@@ -301,7 +301,7 @@ describe('assertScopedRefs resources', () => {
   });
 });
 
-describe('assertScopedRefs tables without catalog references', () => {
+describe('assertScopedRefs tables without catalogue references', () => {
   it.each(['clients', 'disciplines', 'allocations', 'timeOff', 'closures'] as const)(
     'ignores reference-looking fields on %s',
     (key) => {

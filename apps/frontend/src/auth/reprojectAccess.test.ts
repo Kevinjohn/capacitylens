@@ -23,7 +23,7 @@ describe('reprojectAccess', () => {
     refreshPlanning.mockResolvedValue(true);
   });
 
-  it('invalidates actor-dependent membership data before reloading the active account', async () => {
+  it('invalidates actor-dependent membership data before reloading the active company', async () => {
     await expect(reprojectAccess('a-studio')).resolves.toBe(true);
     expect(invalidateMemberships).toHaveBeenCalledOnce();
     expect(refreshCompanySummaries).toHaveBeenCalledWith({
@@ -32,14 +32,14 @@ describe('reprojectAccess', () => {
     expect(refreshPlanning).toHaveBeenCalledExactlyOnceWith({ fresh: true });
   });
 
-  it('stops when authoritative account summaries cannot be loaded', async () => {
+  it('stops when authoritative company summaries cannot be loaded', async () => {
     refreshCompanySummaries.mockResolvedValue(null);
 
     await expect(reprojectAccess('a-studio')).resolves.toBe(false);
     expect(refreshPlanning).not.toHaveBeenCalled();
   });
 
-  it('reports an account-set reload failure', async () => {
+  it('reports a company-set reload failure', async () => {
     refreshPlanning.mockResolvedValue(false);
 
     await expect(reprojectAccess('a-studio')).resolves.toBe(false);

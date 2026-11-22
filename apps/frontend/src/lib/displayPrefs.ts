@@ -95,7 +95,7 @@ function createBooleanPreference({
 
 /** Visibility preferences for utilisation summaries. */
 export interface UtilisationPreferences {
-  /** Show the account-wide utilisation summary. */
+  /** Show the company-wide utilisation summary. */
   showTotal: boolean;
   /** Show per-discipline utilisation. */
   showDiscipline: boolean;

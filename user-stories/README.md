@@ -21,11 +21,11 @@ status definitions. Guide and implementation links live with each story; tests r
 | Story                                                           | Action                                                 | Status  |
 | --------------------------------------------------------------- | ------------------------------------------------------ | ------- |
 | [US-KBD-01](accessibility/US-KBD-01-bar-keyboard.md)            | Operate schedule allocations by keyboard               | Current |
-| [US-KBD-02](accessibility/US-KBD-02-modal-keyboard.md)          | Use dialogs with a keyboard                            | Current |
+| [US-KBD-02](accessibility/US-KBD-02-dialog-keyboard.md)         | Use dialogs with a keyboard                            | Current |
 | [US-KBD-03](accessibility/US-KBD-03-grid-semantics.md)          | Understand the schedule grid with assistive technology | Current |
 | [US-KBD-04](accessibility/US-KBD-04-axe-clean.md)               | Keep key screens accessible                            | Current |
 | [US-KBD-05](accessibility/US-KBD-05-field-error-association.md) | Associate validation errors with fields                | Current |
-| [US-KBD-06](accessibility/US-KBD-06-compact-input-modals.md)    | Scan management forms at different widths              | Current |
+| [US-KBD-06](accessibility/US-KBD-06-compact-input-dialogs.md)   | Scan management forms at different widths              | Current |
 
 ## Account
 
@@ -36,7 +36,7 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-ACCOUNT-03](account/US-ACCOUNT-03-password-reset.md)       | Recover a forgotten password         | Current |
 | [US-ACCOUNT-04](account/US-ACCOUNT-04-sign-out.md)             | Sign out of this browser             | Current |
 | [US-ACCOUNT-05](account/US-ACCOUNT-05-delete-account.md)       | Delete my account                    | Current |
-| [US-ACCOUNT-06](account/US-ACCOUNT-06-register.md)             | Create my account from an invitation | Current |
+| [US-ACCOUNT-06](account/US-ACCOUNT-06-sign-up.md)              | Create my account from an invitation | Current |
 | [US-ACCOUNT-07](account/US-ACCOUNT-07-confirm-email.md)        | Confirm my email address             | Current |
 | [US-ACCOUNT-08](account/US-ACCOUNT-08-session-verification.md) | Retry session verification           | Current |
 | [US-ACCOUNT-09](account/US-ACCOUNT-09-limited-access.md)       | Resolve my limited account access    | Current |
@@ -129,26 +129,26 @@ status definitions. Guide and implementation links live with each story; tests r
 
 ## Navigation
 
-| Story                                                          | Action                                        | Status  |
-| -------------------------------------------------------------- | --------------------------------------------- | ------- |
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate permitted sections                   | Current |
-| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | See the active section                        | Current |
-| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Wait for company data                         | Current |
-| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | See planning read and save failures           | Current |
-| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Read and dismiss action notices               | Current |
-| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Choose appearance                             | Current |
-| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                | Current |
-| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                 | Current |
-| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen             | Current |
-| [US-NAV-10](navigation/US-NAV-10-sign-in-screen.md)            | Enter the persisted application               | Current |
-| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Current |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Current |
-| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Current |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognise action meaning and product identity | Current |
-| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Current |
-| [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Current |
-| [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Removed |
-| [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)    | Collapse or expand desktop navigation         | Current |
+| Story                                                         | Action                                        | Status  |
+| ------------------------------------------------------------- | --------------------------------------------- | ------- |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)        | Navigate permitted sections                   | Current |
+| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md) | See the active section                        | Current |
+| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)             | Wait for company data                         | Current |
+| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)     | See planning read and save failures           | Current |
+| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)        | Read and dismiss action notices               | Current |
+| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                | Choose appearance                             | Current |
+| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)           | Recover from a rendering error                | Current |
+| [US-NAV-08](navigation/US-NAV-08-command-palette.md)          | Jump with the command palette                 | Current |
+| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)       | Use navigation on a narrow screen             | Current |
+| [US-NAV-10](navigation/US-NAV-10-sign-in-screen.md)           | Enter the persisted application               | Current |
+| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)      | Understand the product at entry               | Current |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md)          | Track first schedule progress                 | Current |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-setup.md)     | Set up and open the installation company      | Current |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md) | Recognise action meaning and product identity | Current |
+| [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)       | Find help and a role-based tour               | Current |
+| [US-NAV-18](navigation/US-NAV-18-not-found-route.md)          | Recover from an unmatched address             | Current |
+| [US-NAV-20](navigation/US-NAV-20-company-load-recovery.md)    | Recover when the active company fails to load | Removed |
+| [US-NAV-22](navigation/US-NAV-22-desktop-sidebar-toggle.md)   | Collapse or expand desktop navigation         | Current |
 
 ## Privacy
 
@@ -228,7 +228,7 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-SET-08](settings/US-SET-08-clear-local-storage.md)      | Keep device preferences separate         | Current |
 | [US-SET-09](settings/US-SET-09-snap-to-week-start.md)       | Snap the schedule to week boundaries     | Current |
 | [US-SET-10](settings/US-SET-10-member-management.md)        | Manage members and invitations           | Current |
-| [US-SET-11](settings/US-SET-11-viewer-readonly.md)          | View role capabilities                   | Current |
+| [US-SET-11](settings/US-SET-11-viewer-readonly.md)          | View role permissions                    | Current |
 | [US-SET-12](settings/US-SET-12-archived-deleted.md)         | Archive and anonymise records            | Current |
 | [US-SET-13](settings/US-SET-13-password-reset-links.md)     | Recover a password                       | Current |
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md)    | Use neutral internal-work colours        | Current |
@@ -236,7 +236,7 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-SET-16](settings/US-SET-16-diagnostics.md)              | Copy diagnostics                         | Current |
 | [US-SET-17](settings/US-SET-17-date-style.md)               | Choose the date format                   | Current |
 | [US-SET-18](settings/US-SET-18-ownership-transfer.md)       | Transfer company ownership               | Current |
-| [US-SET-19](settings/US-SET-19-company-joining-policy.md)   | Approve company admission                | Current |
+| [US-SET-19](settings/US-SET-19-company-admission.md)        | Approve company admission                | Current |
 | [US-SET-20](settings/US-SET-20-allocation-units.md)         | Choose scheduling units                  | Current |
 | [US-SET-21](settings/US-SET-21-overview-access.md)          | Control Overview access                  | Current |
 | [US-SET-22](settings/US-SET-22-use-disciplines.md)          | Enable disciplines                       | Current |

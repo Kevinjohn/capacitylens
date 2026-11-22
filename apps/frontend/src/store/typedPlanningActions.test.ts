@@ -15,10 +15,10 @@ function refuseNextPlanningMutation(): void {
   );
 }
 
-describe('typed planning domain rejections', () => {
+describe('typed planning domain refusals', () => {
   it('passes the shared company guard when the company is known only from the summaries', async () => {
     const { activeCompanyId, data } = useStore.getState();
-    if (!activeCompanyId) throw new Error('Expected an active account.');
+    if (!activeCompanyId) throw new Error('Expected an active company.');
     useStore.setState({
       data: { ...data, companies: [] },
       companySummaries: [{ id: activeCompanyId, name: 'Daily Planet', role: 'owner' }],
@@ -68,7 +68,7 @@ describe('typed planning domain rejections', () => {
 
   it('rejects an empty company working week before normalization', async () => {
     const company = useStore.getState().data.companies[0];
-    if (!company) throw new Error('Expected account fixture.');
+    if (!company) throw new Error('Expected company fixture.');
     await expect(
       useStore.getState().updateCompany(company.id, { workingDays: [] }),
     ).rejects.toThrow(/at least one working day/i);
@@ -77,7 +77,7 @@ describe('typed planning domain rejections', () => {
 
   it('restores the previous working week when the latest settings change is undone', async () => {
     const company = useStore.getState().data.companies[0];
-    if (!company) throw new Error('Expected account fixture.');
+    if (!company) throw new Error('Expected company fixture.');
     await useStore.getState().updateCompany(company.id, { workingDays: [1, 3, 5] });
     expect(
       useStore.getState().data.companies.find((row) => row.id === company.id)?.workingDays,

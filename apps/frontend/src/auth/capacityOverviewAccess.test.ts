@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveCapacityOverviewAccessDecision } from './capacityOverviewAccess';
 
 describe('resolveCapacityOverviewAccessDecision', () => {
-  it('denies access when no account role applies', () => {
+  it('denies access when no company role applies', () => {
     expect(
       resolveCapacityOverviewAccessDecision({
         role: null,

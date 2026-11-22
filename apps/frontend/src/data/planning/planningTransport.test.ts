@@ -403,7 +403,7 @@ describe('generated planning transport', () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it('refuses a canonical read without a verified write capability', async () => {
+  it('refuses a canonical read without a verified write permission', async () => {
     const { transport } = harness({
       companyId: 'wayne',
       revision: 5,

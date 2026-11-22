@@ -29,7 +29,7 @@ const projectedKeysAreComplete: MissingProjectedKey extends never ? true : never
 void PROJECTED_LIFECYCLE_KEYS;
 void projectedKeysAreComplete;
 
-/** Project an already account-scoped AppData set to active lifecycle rows and visible descendants.
+/** Project an already company-scoped AppData set to active lifecycle rows and visible descendants.
  * Pure; returns a new object without changing the input. Filtered tables receive new arrays; retained rows and unchanged tables share references.
  * Unresolved references remain visible so integrity damage can be diagnosed.
  * Use only for read/view projection. Persistence, mutations, integrity checks, imports, migration and exports require the complete dataset. */

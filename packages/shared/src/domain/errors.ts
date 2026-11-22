@@ -40,7 +40,7 @@ export const DOMAIN_ERROR_CODES = [
 /** A domain rule violation code; see {@link DOMAIN_ERROR_CODES}. */
 export type DomainErrorCode = (typeof DOMAIN_ERROR_CODES)[number];
 
-/** A display-safe domain rejection with a stable identity independent from its fallback wording. */
+/** A display-safe domain refusal with a stable identity independent from its fallback wording. */
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
 

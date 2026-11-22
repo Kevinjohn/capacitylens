@@ -1,6 +1,6 @@
 import { m } from '@/i18n';
 
-/** The account default, and the only zone with bespoke display copy (see resolveTimeZoneOptionLabel). */
+/** The company default, and the only zone with bespoke display copy (see resolveTimeZoneOptionLabel). */
 export const DEFAULT_TIME_ZONE = 'Etc/GMT';
 
 // The engine's zone list is fixed for the lifetime of the page, so it is built once on first use

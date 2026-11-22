@@ -181,7 +181,7 @@ test.group('admission and membership completion', (group) => {
     await expectStatus(planning(api, cookie), 403);
   });
 
-  test('completion never reactivates a suspended membership', async ({ client: api, assert }) => {
+  test('completion never restores a suspended membership', async ({ client: api, assert }) => {
     await company(api);
     const userId = await createIdentity(person, { password });
     const now = new Date().toISOString();

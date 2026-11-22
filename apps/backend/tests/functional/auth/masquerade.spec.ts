@@ -566,9 +566,9 @@ test.group('native read-only masquerade', (group) => {
       cookie
     ).send();
     foreign.assertStatus(403);
-    const account = await asSession(client.visit('api.companies.index'), cookie).send();
-    account.assertStatus(403);
-    assert.equal((account.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY');
+    const directory = await asSession(client.visit('api.companies.index'), cookie).send();
+    directory.assertStatus(403);
+    assert.equal((directory.body() as unknown as { code: string }).code, 'MASQUERADE_READ_ONLY');
     const audit = await db
       .from('masquerade_events')
       .where({ kind: 'started', actor_id: ownerId })

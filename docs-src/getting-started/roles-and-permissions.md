@@ -14,7 +14,7 @@ the page directly.
 
 ## Compare the roles
 
-| Capability                                            |   Viewer   |   Editor   |   Admin    |   Owner    |
+| Permission                                            |   Viewer   |   Editor   |   Admin    |   Owner    |
 | ----------------------------------------------------- | :--------: | :--------: | :--------: | :--------: |
 | See the schedule                                      |    Yes     |    Yes     |    Yes     |    Yes     |
 | Create and edit scheduling data                       |     —      |    Yes     |    Yes     |    Yes     |

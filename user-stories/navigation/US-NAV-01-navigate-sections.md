@@ -4,7 +4,7 @@ As an Owner, Admin, Editor, or Viewer, I want to open the sections available to 
 
 **Status:** Current
 
-**Access:** Owner, Admin, Editor, Viewer; section visibility and write controls follow role policy.
+**Access:** Owner, Admin, Editor, Viewer; section visibility and write controls follow role permissions.
 
 **Entry:** Sidebar links; direct route; command palette
 

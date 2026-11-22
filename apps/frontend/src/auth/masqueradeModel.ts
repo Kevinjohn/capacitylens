@@ -190,7 +190,7 @@ export class MasqueradeModel {
   async start(companyId: string, targetUserId: string): Promise<boolean> {
     // Not fail(): the in-flight start usually succeeds, and an error notice is created with
     // duration Infinity, so a double-click would leave a permanent error banner over a working
-    // member view. This is ordinary feedback about a duplicate click, not a failure.
+    // masquerade. This is ordinary feedback about a duplicate click, not a failure.
     if (this.startPendingGeneration !== null) {
       this.store.setNotice('View as member is already starting.', 'info');
       return false;

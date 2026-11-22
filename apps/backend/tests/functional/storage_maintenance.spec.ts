@@ -18,8 +18,8 @@ test.group('storage maintenance', (group) => {
     const now = new Date('2026-11-13T12:00:00.000Z');
     const past = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS - 1).toISOString();
     const atWindow = new Date(now.getTime() - REQUEST_RECEIPT_RETENTION_MS).toISOString();
-    const account = await db.from('companies').select('id').firstOrFail();
-    const companyId = account.id as string;
+    const company = await db.from('companies').select('id').firstOrFail();
+    const companyId = company.id as string;
     const receipt = (id: string, state: 'pending' | 'completed', updatedAt: string) => ({
       id,
       scope_id: companyId,

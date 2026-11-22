@@ -122,6 +122,6 @@ export const authApi = {
     post('api.email_verifications.update', input),
   admissionStatus: () => request('GET', 'api.admission.show', null),
   requestAdmission: () => post('api.admission_requests.store', {}),
-  /** Creates the admitted identity's company membership; never reactivates disabled access. */
+  /** Creates the admitted identity's company membership; never restores suspended access. */
   completeMembership: () => post('api.memberships.store', {}),
 };

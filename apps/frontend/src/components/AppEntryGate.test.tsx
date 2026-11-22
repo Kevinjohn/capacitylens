@@ -48,7 +48,7 @@ describe('AppEntryGate', () => {
     expect(screen.queryByRole('heading', { name: 'Choose a company' })).not.toBeInTheDocument();
   });
 
-  it('shows account-directory ambiguity even on the personal Account route', async () => {
+  it('shows company-directory ambiguity even on the personal Account route', async () => {
     useStore.getState().setCompanySummaries({
       list: [
         { id: 'a-studio', name: 'Wayne Enterprises', role: 'owner' },

@@ -555,7 +555,7 @@ test.describe('Scheduler', () => {
         await expect
           .poll(async () => {
             const next = { overall: await pct(), bruce: await brucePct() };
-            // On a slower runner the account shell can render an initial 0%/0% frame before the
+            // On a slower runner the app shell can render an initial 0%/0% frame before the
             // seeded scheduler model settles. Two fast reads of that placeholder are not evidence
             // that the zoom calculation has finished, so require the known seeded rows to carry
             // real utilisation before accepting a stable pair.
@@ -631,7 +631,7 @@ test.describe('Scheduler', () => {
     await expect(done).toContainText('•');
   });
   // With free-scroll snapping disabled, a midweek nudge stays put until navigation runs. This lets
-  // the test verify that zoom and Prev/Next re-anchor the grid's left edge to the account's week start
+  // the test verify that zoom and Prev/Next re-anchor the grid's left edge to the company's week start
   // (Monday by default) instead of passing because the idle snap moved it.
   // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
   test(

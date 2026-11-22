@@ -36,7 +36,7 @@ test.describe('Clients', () => {
     await page.getByRole('button', { name: 'Save' }).click();
 
     const row = page.getByTestId('client-row').filter({ hasText: 'Embargoed Client Ltd' });
-    // The authenticated fixture administrator is Owner and sees the real name.
+    // The authenticated fixture user is the Owner and sees the real name.
     await expect(row).toBeVisible();
     await row.getByRole('button', { name: /^Edit / }).click();
     await expect(page.getByRole('switch', { name: 'Use code name' })).toHaveAttribute(

@@ -31,7 +31,7 @@ import {
   ROUTE_TIME_OFF,
 } from './tourAnchors';
 
-/** A route, deferred label getter, and icon used by sidebar navigation. Labels resolve at render time so switching account locale does not retain import-time text. */
+/** A route, deferred label getter, and icon used by sidebar navigation. Labels resolve at render time so switching company locale does not retain import-time text. */
 export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
 
 /**

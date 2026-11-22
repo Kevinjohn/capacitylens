@@ -48,7 +48,7 @@ const repeatContext = ({
   effectiveWeek: resolveEffectiveWorkingWeek(resource, companyWorkingDays),
 });
 
-describe('#257 characterization: repeat start-day policy', () => {
+describe('#257 characterization: repeat start-day rule', () => {
   // Permanent invariants: monthly off-day starts are created, while weekly cadences retain their anchor weekday.
   it('projects monthly occurrences even when generated starts are personally non-working', () => {
     const startDates = generateRepeatingStartDates('2026-06-01', '2026-08-01', {

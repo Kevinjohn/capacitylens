@@ -37,7 +37,7 @@ flowchart TD
   C -->|blocked| D["Preview stays on source lane; commit is refused"]
   C -->|allowed| E["Release calls updateAllocation with the target resourceId"]
   E --> F["Shared domain assertion rejects a placeholder bound to another project when the allocation is saved"]
-  F --> G["Gesture controller shows the refusal as an error notice; the allocation is unchanged"]
+  F --> G["The drag gesture shows the refusal as an error notice; the allocation is unchanged"]
 ```
 
 **Code references:** [AllocationBar.tsx](../../apps/frontend/src/components/scheduler/AllocationBar.tsx), [useAllocationGesture.ts](../../apps/frontend/src/components/scheduler/useAllocationGesture.ts), [useAllocationGestureViewModel.ts](../../apps/frontend/src/components/scheduler/useAllocationGestureViewModel.ts), [gestureWorkingWeeks.ts](../../apps/frontend/src/components/scheduler/gestureWorkingWeeks.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts)

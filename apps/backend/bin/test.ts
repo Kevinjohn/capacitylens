@@ -53,7 +53,8 @@ const IMPORTER = (filePath: string) => {
   return import(filePath);
 };
 
-new Ignitor(APP_ROOT, { importer: IMPORTER })
+const ignitor = new Ignitor(APP_ROOT, { importer: IMPORTER });
+ignitor
   .tap((app) => {
     app.booting(async () => {
       await import('#start/env');
@@ -78,7 +79,15 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
     // can leave the pooled connection held, and termination then never finishes.
     await app.terminate();
   })
-  .catch((error) => {
+  .catch(async (error) => {
     process.exitCode = 1;
-    prettyPrintError(error);
+    await prettyPrintError(error);
+    if (error instanceof Error && error.message.startsWith('Database schema drift')) {
+      console.error(
+        `The test database is stale. Delete ${process.env.CAPACITYLENS_DB} and run the tests again.`
+      );
+    }
+    // A failed start never reaches the runner teardown, and the open database pool would keep the
+    // process alive.
+    await ignitor.terminate();
   });

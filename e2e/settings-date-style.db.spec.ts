@@ -3,7 +3,7 @@ import { openApp } from './browserTestKit';
 import { serverState, requireStateRows } from './serverTestState';
 
 // Reload reads the committed company date convention from SQLite.
-test.describe('Settings — date format is account data', () => {
+test.describe('Settings — date format is company data', () => {
   test("the company's choice survives a reload", async ({ page, request }) => {
     await openApp(page, '/settings');
     await page.getByRole('radio', { name: 'Sep 9', exact: true }).click();
@@ -17,7 +17,7 @@ test.describe('Settings — date format is account data', () => {
       .poll(
         async () =>
           requireStateRows(await serverState(request), 'companies').some(
-            (account) => (account as { dateStyle?: string }).dateStyle === 'month-day',
+            (company) => (company as { dateStyle?: string }).dateStyle === 'month-day',
           ),
         { timeout: 10_000 },
       )
@@ -34,7 +34,7 @@ test.describe('Settings — date format is account data', () => {
   });
 });
 
-// Covers US-SET-17. The date-style preference (account-wide, default "day-month") governs how
+// Covers US-SET-17. The date-style preference (company-wide, default "day-month") governs how
 // dates and ranges read across the app. This spec asserts the Settings control and one
 // representative surface, the Time off list, whose weekday form reorders
 // without losing its ordinal. Range collapsing itself is covered exhaustively in

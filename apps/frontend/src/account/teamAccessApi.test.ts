@@ -21,7 +21,7 @@ describe('teamAccessApi operation outcomes', () => {
 
     await expect(
       teamAccessApi.createInvitation({
-        companyId: 'account-1',
+        companyId: 'company-1',
         role: 'viewer',
         email: 'selina@wayne.test',
       }),
@@ -36,7 +36,7 @@ describe('teamAccessApi operation outcomes', () => {
 
     await expect(
       teamAccessApi.createInvitation({
-        companyId: 'account-1',
+        companyId: 'company-1',
         role: 'viewer',
         email: 'selina@wayne.test',
       }),
@@ -84,7 +84,7 @@ describe('teamAccessApi directory validation', () => {
       }),
     );
 
-    await expect(teamAccessApi.listMembers('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listMembers('company-1')).resolves.toMatchObject({
       kind: 'ok',
       value: {
         signInTrackingEnabled: false,
@@ -115,7 +115,7 @@ describe('teamAccessApi directory validation', () => {
       };
       vi.spyOn(memberRequests, 'listMembers').mockResolvedValue(json({ members: [member] }));
 
-      await expect(teamAccessApi.listMembers('account-1')).resolves.toMatchObject({
+      await expect(teamAccessApi.listMembers('company-1')).resolves.toMatchObject({
         kind: 'invalid',
       });
     },
@@ -202,7 +202,7 @@ describe('teamAccessApi invitation rows', () => {
       }),
     );
 
-    await expect(teamAccessApi.listInvitations('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listInvitations('company-1')).resolves.toMatchObject({
       kind: 'ok',
       value: [{ id: '1', preauthEmail: 'selina@wayne.test' }],
     });
@@ -247,7 +247,7 @@ describe('teamAccessApi invitation creation', () => {
         }),
       );
 
-      await expect(teamAccessApi.listInvitations('account-1')).resolves.toMatchObject({
+      await expect(teamAccessApi.listInvitations('company-1')).resolves.toMatchObject({
         kind: 'invalid',
       });
     },
@@ -271,7 +271,7 @@ describe('teamAccessApi duplicate validation', () => {
       }),
     );
 
-    await expect(teamAccessApi.listMembers('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listMembers('company-1')).resolves.toMatchObject({
       kind: 'invalid',
     });
   });
@@ -290,7 +290,7 @@ describe('teamAccessApi duplicate validation', () => {
       }),
     );
 
-    await expect(teamAccessApi.listInvitations('account-1')).resolves.toMatchObject({
+    await expect(teamAccessApi.listInvitations('company-1')).resolves.toMatchObject({
       kind: 'invalid',
     });
   });
@@ -303,19 +303,19 @@ describe('rejectionMessage', () => {
   it("prefers the server's sentence on a rejection", () => {
     expect(
       resolveRefusalMessage(
-        { kind: 'rejected', status: 409, message: 'That member owns the account.' },
+        { kind: 'rejected', status: 409, message: 'That member owns the company.' },
         'fallback',
       ),
-    ).toBe('That member owns the account.');
+    ).toBe('That member owns the company.');
   });
 
-  it('falls back when a rejection carried no sentence', () => {
+  it('falls back when a refusal carried no sentence', () => {
     expect(
       resolveRefusalMessage({ kind: 'rejected', status: 403, message: null }, 'fallback'),
     ).toBe('fallback');
   });
 
-  it('falls back rather than showing a blank toast for an empty rejection message', () => {
+  it('falls back rather than showing a blank toast for an empty refusal message', () => {
     expect(resolveRefusalMessage({ kind: 'rejected', status: 403, message: '' }, 'fallback')).toBe(
       'fallback',
     );

@@ -104,10 +104,10 @@ beforeEach(async () => {
   expect(s().activeCompanyId).toBe(A);
 });
 
-describe('active-account replacement invariant', () => {
-  it('rejects scoped writes when a non-null active id has no loaded account row', async () => {
+describe('active-company replacement invariant', () => {
+  it('rejects scoped writes when a non-null active id has no loaded company row', async () => {
     s().setCompanySummaries({ list: [] });
-    useStore.setState({ activeCompanyId: 'missing-account' });
+    useStore.setState({ activeCompanyId: 'missing-company' });
     const dataBefore = s().data;
 
     await expect(
@@ -117,7 +117,7 @@ describe('active-account replacement invariant', () => {
   });
 });
 
-describe('active-account permission publication', () => {
+describe('active-company permission publication', () => {
   it('atomically fail-closes a switched company before an imperative write can use the prior access', async () => {
     setPlanningAccess({ role: 'editor' });
     const rolesPublishedForB: Array<string | null> = [];
@@ -194,13 +194,13 @@ describe('active-account permission publication', () => {
 });
 
 describe('ownership guard on update/delete', () => {
-  it('rejects a stale account update id and leaves data, undo and redo unchanged', async () => {
+  it('rejects a stale company update id and leaves data, undo and redo unchanged', async () => {
     await s().updateCompany(A, { name: 'Changed once' });
     await s().undoPlanning();
     const dataBefore = s().data;
     const historyBefore = s().planning.history;
 
-    await expect(s().updateCompany('missing-account', { name: 'Gone' })).rejects.toThrow(
+    await expect(s().updateCompany('missing-company', { name: 'Gone' })).rejects.toThrow(
       /active company/i,
     );
     expect(s().data).toBe(dataBefore);
@@ -217,8 +217,8 @@ describe('ownership guard on update/delete', () => {
   });
 });
 
-describe('foreign-key refs must stay in the active account', () => {
-  it('still allows valid in-account references', async () => {
+describe('foreign-key refs must stay in the active company', () => {
+  it('still allows valid in-company references', async () => {
     const c = await requireCreated(s().addClient({ name: 'A Client', color: '#555555' }));
     const p = await requireCreated(
       s().addProject({ name: 'A Project', clientId: c.id, color: '#666666' }),

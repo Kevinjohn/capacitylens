@@ -129,7 +129,7 @@ describe('useInactiveCompanyData', () => {
     expect(screen.queryByText('Stale')).not.toBeInTheDocument();
   });
 
-  it('does not reuse account A data while A is being refetched after A → B → A', async () => {
+  it('does not reuse company A data while A is being refetched after A → B → A', async () => {
     vi.stubGlobal(
       'fetch',
       vi

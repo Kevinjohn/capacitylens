@@ -5,7 +5,7 @@ import type { LabelMessages } from '@/lib/metadata';
 import type { ThemePreference } from '@/lib/theme';
 import type { DateStyle } from '@capacitylens/shared/types/entities';
 
-// Store exhaustive message-function tables and resolve them at render so account locale changes update labels without rebuilding module state.
+// Store exhaustive message-function tables and resolve them at render so company locale changes update labels without rebuilding module state.
 /** Localized labels for device theme choices. */
 export const THEME_MESSAGES: LabelMessages<ThemePreference> = {
   light: m.settings_theme_light,
@@ -13,7 +13,7 @@ export const THEME_MESSAGES: LabelMessages<ThemePreference> = {
   system: m.settings_theme_system,
 };
 
-/** Localized labels for account date conventions. */
+/** Localized labels for company date conventions. */
 export const DATE_STYLE_MESSAGES: LabelMessages<DateStyle> = {
   'day-month': m.settings_date_style_day_month,
   'day-ordinal-month': m.settings_date_style_day_ordinal_month,
@@ -21,7 +21,7 @@ export const DATE_STYLE_MESSAGES: LabelMessages<DateStyle> = {
   'month-day-ordinal': m.settings_date_style_month_day_ordinal,
 };
 
-/** Localized labels for account scheduling modes. */
+/** Localized labels for company scheduling modes. */
 export const SCHEDULING_MESSAGES: LabelMessages<SchedulingMode> = {
   hourly: m.settings_scheduling_option_hours,
   days: m.settings_scheduling_option_days,

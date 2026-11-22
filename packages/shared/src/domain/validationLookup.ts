@@ -45,7 +45,7 @@ interface IsEffectivelyActiveOptions {
 /**
  * Optional indexed view used by server batch validation. The browser/store callers keep using the
  * AppData arrays directly; a large transaction can supply these point/reverse lookups so applying
- * many operations does not repeatedly scan the same account set.
+ * many operations does not repeatedly scan the same company set.
  */
 export interface ValidationDataLookup {
   row(table: AppDataKey, id: ID): (Record<string, unknown> & { id: ID }) | undefined;
@@ -53,7 +53,7 @@ export interface ValidationDataLookup {
   allocationsForActivity(companyId: ID, activityId: ID): readonly Allocation[];
   resourceHasLoadedAllocation(companyId: ID, resourceId: ID): boolean;
   resourceHasTimeOff(companyId: ID, resourceId: ID): boolean;
-  /** Resolve the account's canonical working-day set for shared scheduling validation. */
+  /** Resolve the company's canonical working-day set for shared scheduling validation. */
   companyWorkingDays(companyId: ID): Weekday[];
 }
 
@@ -70,8 +70,8 @@ export const resolveValidationRow = ({
   );
 };
 
-/** Fetch a row and narrow it to this account in one step. An absent row and a cross-account row both
- * read as `undefined`, so every caller keeps its own domain-specific rejection message. */
+/** Fetch a row and narrow it to this company in one step. An absent row and a cross-company row both
+ * read as `undefined`, so every caller keeps its own domain-specific refusal message. */
 export const resolveOwnedRow = <T extends ScopedEntity>({
   data,
   table,
@@ -88,7 +88,7 @@ export const resolveOwnedRow = <T extends ScopedEntity>({
   return row && isInCompany(row, companyId) ? row : undefined;
 };
 
-/** The account's allocations on one end of the pair, beside {@link resolveValidationRow}: the indexed
+/** The company's allocations on one end of the pair, beside {@link resolveValidationRow}: the indexed
  * server-batch lookup when a large transaction supplies one, otherwise a scan of the local array. */
 export const listValidationAllocations = ({
   data,
@@ -124,7 +124,7 @@ export const assertValid = (validation: ValidationResult): void => {
 
 /** Match normal-read lifecycle closure at the shared active-write boundary. Indexed server batch
  * callers retain O(depth) point lookups; browser/store callers traverse the same bounded graph over
- * their local arrays. Inactive rows or ancestors return false; missing, malformed or cross-account
+ * their local arrays. Inactive rows or ancestors return false; missing, malformed or cross-company
  * ancestors do not imply lifecycle state and are handled separately by integrity validation. */
 export const isEffectivelyActive = ({
   data,

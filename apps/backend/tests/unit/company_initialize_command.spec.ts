@@ -44,12 +44,12 @@ test.group('company initialize command', () => {
       assert.equal(result.status, 0, result.output);
       const { companyId } = JSON.parse(result.stdout.trim());
       const inspect = f.inspect();
-      const account = inspect.prepare('SELECT * FROM companies').get()!;
-      assert.equal(account.id, companyId);
-      assert.equal(account.name, 'Wayne Enterprises');
-      assert.equal(account.week_starts_on, '1');
-      assert.equal(account.working_days, '[1,2,3,4,5]');
-      assert.equal(account.timezone, 'Etc/GMT');
+      const company = inspect.prepare('SELECT * FROM companies').get()!;
+      assert.equal(company.id, companyId);
+      assert.equal(company.name, 'Wayne Enterprises');
+      assert.equal(company.week_starts_on, '1');
+      assert.equal(company.working_days, '[1,2,3,4,5]');
+      assert.equal(company.timezone, 'Etc/GMT');
       assert.equal(inspect.prepare('SELECT builtin FROM clients').get()!.builtin, 1);
       assert.deepInclude(inspect.prepare('SELECT * FROM memberships').get()!, {
         user_id: 'bruce',

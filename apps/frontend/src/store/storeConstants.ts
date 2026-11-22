@@ -2,7 +2,7 @@ import type { ISODate } from '@capacitylens/shared/types/entities';
 import { buildEmptyFilters } from './types';
 import type { SchedulerUI } from './types';
 
-// Company transitions must clear session-owned state so the leaving account cannot
+// Company transitions must clear session-owned state so the leaving company cannot
 // leak into the next view. Shared reset fields keep each boundary complete.
 
 /** Every transient, company-owned session field, cleared. `notice` is deliberately not included:
@@ -15,7 +15,7 @@ export const buildClearedSession = () => ({
 });
 
 /** The scheduler view blanked for the incoming company. Pass an `anchor` ({@link readCurrentWeekAnchor}) to also
- * open on that account's current week; omit it where the week in view must be preserved. */
+ * open on that company's current week; omit it where the week in view must be preserved. */
 export const resetSchedulerView = (
   schedulerUi: SchedulerUI,
   anchor?: { originDate: ISODate; focusDate: ISODate },

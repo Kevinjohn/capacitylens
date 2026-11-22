@@ -10,9 +10,9 @@ import access from '#config/access_control';
 
 /**
  * Gives an admitted identity its company membership once. Invited people already received theirs
- * on acceptance; this covers operator-granted evidence and approved registrations. The role comes
+ * on acceptance; this covers operator-granted evidence and approved sign-ups. The role comes
  * from recorded invitation evidence when it is assignable, otherwise Viewer. An existing
- * membership is returned unchanged; a suspended one is never reactivated here.
+ * membership is returned unchanged; a suspended one is never restored here.
  */
 export async function completeMembership(userId: string, trx: TransactionClientContract) {
   const companyId = await getInstallationCompanyId(trx);

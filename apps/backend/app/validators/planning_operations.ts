@@ -27,7 +27,7 @@ const planningIntent = vine.union([
 ]);
 
 /**
- * Validate a planning intent. Account scope and authorization come from the authenticated server
+ * Validate a planning intent. Company scope and authorization come from the authenticated server
  * context; IDs and supplied fields never confer permission. Allocation updates represent move,
  * resize and reassignment in one patch. Vine strips unknown/server-owned fields. This is input
  * validation only; the write transaction owns authorization and integrity.

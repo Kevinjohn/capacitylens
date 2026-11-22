@@ -108,7 +108,7 @@ describe('placeholder binding', () => {
     expect(validateAllocationAssignment(ph, 'p2').ok).toBe(false);
   });
 
-  it('validateAllocationAssignment explains the rejection', () => {
+  it('validateAllocationAssignment explains the refusal', () => {
     expect(validateAllocationAssignment(makePlaceholder({ projectId: 'p1' }), 'p2').ok).toBe(false);
     expect(validateAllocationAssignment(makeUnboundPlaceholder(), 'p1').ok).toBe(false);
     expect(validateAllocationAssignment(makePlaceholder({ projectId: 'p1' }), 'p1').ok).toBe(true);

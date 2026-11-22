@@ -7,7 +7,7 @@ import {
   showScheduleFilters,
 } from './browserTestKit';
 
-// External visibility is an account preference that defaults off; toggling it must preserve the underlying bookings.
+// External visibility is a company preference that defaults off; toggling it must preserve the underlying bookings.
 
 // Turn the External feature on via Settings, then return to the Schedule. Used by the tests that
 // exercise the band / assignee behaviour, which all need externals visible first.
@@ -19,7 +19,7 @@ async function enableExternal(page: import('@playwright/test').Page): Promise<vo
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
 }
 
-test.describe('External parties (per-account pref, default off)', () => {
+test.describe('External parties (per-company pref, default off)', () => {
   test('hidden by default: the seeded external is absent from the schedule and the Resources tab', async ({
     page,
   }) => {

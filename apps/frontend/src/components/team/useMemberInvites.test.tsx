@@ -12,9 +12,9 @@ function renderInvites(email: string) {
     result.current
       .createActions({
         clear: vi.fn(),
-        requestCompanyId: () => 'account-1',
+        requestCompanyId: () => 'company-1',
         isActiveCompany: () => true,
-        withMemberAction: async (_key, body) => body('account-1'),
+        withMemberAction: async (_key, body) => body('company-1'),
         fail,
         setNotice,
         reloadInvites: async () => {},
@@ -53,7 +53,7 @@ describe('useMemberInvites', () => {
     await act(async () => submit());
 
     expect(createInvitation).toHaveBeenCalledWith({
-      companyId: 'account-1',
+      companyId: 'company-1',
       role: 'editor',
       email: 'diana@example.com',
     });

@@ -57,7 +57,7 @@ const env = {
   ...(flavour === 'db' ? { CAPACITYLENS_RATE_LIMIT: '1000000' } : {}),
   PORT: String(port),
   // The auth-backed server completes real first-company setup before it creates the
-  // membership-free administrator used by recovery/login scenarios.
+  // membership-free administrator used by recovery/sign-in scenarios.
   CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
   CAPACITYLENS_ALLOW_OPEN_SIGN_UP: '1',

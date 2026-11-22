@@ -9,8 +9,8 @@ import {
   getPasswordLengthFailure,
 } from '@capacitylens/shared/domain/password';
 import { m } from '@/i18n';
-import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignupApi';
-import type { InvitationPreview } from '@/account/invitationSignupApi';
+import { readInvitationPreview, signUpWithInvitation } from '@/account/invitationSignUpApi';
+import type { InvitationPreview } from '@/account/invitationSignUpApi';
 import { resolveRoleLabel } from '@/lib/accessCopy';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,7 @@ function getRoleText(role: string | null) {
   return role && isRole(role) ? resolveRoleLabel(role) : m.invite_setup_role();
 }
 
-function describeSignupError(name: string, password: string): string | null {
+function describeSignUpError(name: string, password: string): string | null {
   if (!name.trim()) return m.invite_err_name_required();
   const lengthFailure = getPasswordLengthFailure(password);
   if (lengthFailure === 'too-short') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
@@ -97,7 +97,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const submit = async (event: FormEvent, preview: InvitationPreview) => {
     event.preventDefault();
     if (!token) return;
-    const invalid = describeSignupError(name, password);
+    const invalid = describeSignUpError(name, password);
     setError(invalid);
     if (invalid) return;
     setState({ kind: 'working', preview });

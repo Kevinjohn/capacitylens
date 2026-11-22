@@ -17,11 +17,11 @@ import {
   makeBaseData,
 } from './assertionMessagesTestKit.js';
 
-// These specs check each rule's rejection message without the store or React. The server uses
+// These specs check each rule's refusal message without the store or React. The server uses
 // the same module, so these assertions pin the validation rules for both callers.
 
 describe('getOwned', () => {
-  it('returns the row when it belongs to the active account', () => {
+  it('returns the row when it belongs to the active company', () => {
     const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
     expect(getOwned(data, A1, 'clients', 'c1')?.id).toBe('c1');
   });
@@ -30,7 +30,7 @@ describe('getOwned', () => {
     expect(getOwned(makeBaseData(), A1, 'clients', 'missing')).toBeNull();
   });
 
-  it('throws when the row belongs to another account', () => {
+  it('throws when the row belongs to another company', () => {
     const data = { ...makeBaseData(), clients: [makeClient('c1', A2)] };
     expect(() => getOwned(data, A1, 'clients', 'c1')).toThrow(
       'That record does not belong to the active company.',
@@ -59,12 +59,12 @@ describe('assertScopedRefs', () => {
     },
   );
 
-  it('passes when a project references a client in the same account', () => {
+  it('passes when a project references a client in the same company', () => {
     const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).not.toThrow();
   });
 
-  it('throws when a project references a client in another account', () => {
+  it('throws when a project references a client in another company', () => {
     const data = { ...makeBaseData(), clients: [makeClient('c1', A2)] };
     expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).toThrow(
       'Project must reference a client in this company.',
@@ -132,7 +132,7 @@ describe('assertScopedRefs', () => {
     ).not.toThrow();
   });
 
-  it('throws when an activity phase belongs to another account', () => {
+  it('throws when an activity phase belongs to another company', () => {
     const data = {
       ...makeBaseData(),
       clients: [makeClient('c1', A1)],
@@ -229,7 +229,7 @@ describe('assertScopedRefs', () => {
     ).not.toThrow();
   });
 
-  it('throws when a placeholder is bound to a project in another account', () => {
+  it('throws when a placeholder is bound to a project in another company', () => {
     const data = {
       ...makeBaseData(),
       clients: [makeClient('c1', A2)],
@@ -306,7 +306,7 @@ describe('assertScopedRefs', () => {
     ).toThrow('Phase must reference a project in this company.');
   });
 
-  it('rejects a project whose client id is ABSENT even though ANOTHER client belongs to the account', () => {
+  it('rejects a project whose client id is ABSENT even though ANOTHER client belongs to the company', () => {
     // The in-company check must match the referenced id, not merely "does any row belong here": with a
     // valid A1 client present but a dangling reference, the FK is still unsatisfied and must throw.
     const data = { ...makeBaseData(), clients: [makeClient('c1', A1)] };
@@ -314,7 +314,7 @@ describe('assertScopedRefs', () => {
       'Project must reference a client in this company.',
     );
   });
-  it('validates a phase’s projectId FK (throws cross-account, passes in-account)', () => {
+  it('validates a phase’s projectId FK (throws cross-company, passes in-company)', () => {
     const cross = {
       ...makeBaseData(),
       clients: [makeClient('c1', A2)],
@@ -338,7 +338,7 @@ describe('assertScopedRefs', () => {
     );
   });
 
-  it('rejects an activity whose phase id is ABSENT even though ANOTHER phase belongs to the account', () => {
+  it('rejects an activity whose phase id is ABSENT even though ANOTHER phase belongs to the company', () => {
     // The phase lookup must match the referenced id, not "any company phase": a dangling phaseId must
     // fail with the belong-to-company message even when a real phase exists in the company.
     const data = {
@@ -354,7 +354,7 @@ describe('assertScopedRefs', () => {
       }),
     ).toThrow('Activity phase must belong to this company.');
   });
-  it('an UNRECOGNISED activity kind is not treated as internal/all-projects (no false project rejection)', () => {
+  it('an UNRECOGNISED activity kind is not treated as internal/all-projects (no false project refusal)', () => {
     // assertScopedRefs checks refs + coherence for the known kinds only; it does not police the kind
     // enum itself (the write validator does). An unknown kind carrying a valid project must pass the ref checks.
     const data = {
@@ -394,11 +394,11 @@ describe('assertScopedRefs', () => {
         ),
       ).not.toThrow();
     });
-    it('rejects an unchanged legacy reference when the resolved parent belongs to another account', () => {
-      const existing = project('p1', A1, 'cross-account-client');
+    it('rejects an unchanged legacy reference when the resolved parent belongs to another company', () => {
+      const existing = project('p1', A1, 'cross-company-client');
       const data: AppData = {
         ...makeBaseData(),
-        clients: [makeClient('cross-account-client', A2)],
+        clients: [makeClient('cross-company-client', A2)],
         projects: [existing],
       };
 
@@ -430,17 +430,17 @@ describe('assertScopedRefs', () => {
         assertScopedRefs(makeBaseData(), A1, 'activities', merged, existing),
       ).not.toThrow();
     });
-    it('rejects an unchanged phaseId when the resolved legacy phase belongs to another account', () => {
+    it('rejects an unchanged phaseId when the resolved legacy phase belongs to another company', () => {
       const existing = makeActivity({
         id: 't1',
         companyId: A1,
         projectId: 'p1',
-        phaseId: 'cross-account-phase',
+        phaseId: 'cross-company-phase',
       });
       const data: AppData = {
         ...makeBaseData(),
         projects: [project('p1', A1, 'c1')],
-        phases: [makePhase('cross-account-phase', A2, 'p2')],
+        phases: [makePhase('cross-company-phase', A2, 'p2')],
         activities: [existing],
       };
 
@@ -499,11 +499,11 @@ describe('assertAllocationRefs', () => {
     activities: [makeActivity({ id: 't1', companyId: A1, projectId: 'p1' })],
     resources: [makePerson('r1', A1)],
   });
-  it('passes for a real resource + activity in the account', () => {
+  it('passes for a real resource + activity in the company', () => {
     expect(() => assertAllocationRefs(world(), A1, 'r1', 't1', 8)).not.toThrow();
   });
 
-  it('throws when the resource or activity is missing / cross-account', () => {
+  it('throws when the resource or activity is missing / cross-company', () => {
     expect(() => assertAllocationRefs(world(), A1, 'missing', 't1', 8)).toThrow(
       'Allocation must reference an existing resource and activity in this company.',
     );
@@ -548,7 +548,7 @@ describe('assertAllocationRefs', () => {
       ).not.toThrow();
     },
   );
-  it('rejects a project-bound activity whose project is missing or belongs to another account', () => {
+  it('rejects a project-bound activity whose project is missing or belongs to another company', () => {
     const missingProject = { ...world(), projects: [] };
     expect(() => assertAllocationRefs(missingProject, A1, 'r1', 't1', 8)).toThrow(
       'Allocation must reference an activity under an active project in this company.',

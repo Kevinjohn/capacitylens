@@ -534,7 +534,7 @@ describe('SchedulerToolbar Clear filter concurrency', () => {
     expect((screen.getByLabelText('Search people') as HTMLInputElement).value).toBe('');
   });
 
-  it('an EXTERNAL filters.search reset (e.g. account switch) cancels a pending search debounce', async () => {
+  it('an EXTERNAL filters.search reset (e.g. company switch) cancels a pending search debounce', async () => {
     useStore.getState().setFilters({ search: 'alice' });
     render(<SchedulerToolbar />);
     showFilters();
@@ -597,7 +597,7 @@ const createLensActivities = async () => ({
 });
 
 describe('SchedulerToolbar Activities filter (standalone lens)', () => {
-  it('is absent when the account has no project-less activities', () => {
+  it('is absent when the company has no project-less activities', () => {
     render(<SchedulerToolbar />);
     showFilters();
     expect(screen.queryByLabelText('Filter by activity')).not.toBeInTheDocument();

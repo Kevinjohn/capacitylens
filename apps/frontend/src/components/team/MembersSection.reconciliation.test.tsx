@@ -68,7 +68,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
     expect(alert).not.toHaveTextContent(/company access was refreshed/i);
   });
 
-  it('does not publish a role result after the active account switches mid-request', async () => {
+  it('does not publish a role result after the active company switches mid-request', async () => {
     const nextCompanyId = 'acc_second';
     vi.stubGlobal(
       'fetch',
