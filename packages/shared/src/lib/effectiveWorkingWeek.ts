@@ -2,7 +2,7 @@ import { normalizeWeekdays } from './companyWorkingDays.js';
 import { hasPersonalWorkingPattern } from '../types/entities.js';
 import type { Resource, Weekday } from '../types/entities.js';
 
-/** The recurring weekdays effective for a resource. The `days` variant is guaranteed to contain
+/** The weekdays effective for a resource. The `days` variant is guaranteed to contain
  * at least one weekday, with duplicates removed and values stored in ascending order. */
 export type EffectiveWorkingWeek = { kind: 'none' } | { kind: 'days'; days: Weekday[] };
 

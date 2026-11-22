@@ -46,8 +46,8 @@ function renderView({
   );
 }
 
-function showCapabilities(): void {
-  fireEvent.click(screen.getByTestId('capabilities-toggle'));
+function showPermissions(): void {
+  fireEvent.click(screen.getByTestId('permissions-toggle'));
 }
 
 beforeEach(() => {
@@ -57,17 +57,17 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('TeamAccessView access presentation', () => {
-  it('keeps the capability list collapsed until it is asked for', async () => {
+  it('keeps the permission list collapsed until it is asked for', async () => {
     renderView({ role: 'viewer' });
-    const toggle = screen.getByTestId('capabilities-toggle');
+    const toggle = screen.getByTestId('permissions-toggle');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('View the schedule')).not.toBeInTheDocument();
 
-    showCapabilities();
-    expect(screen.getByTestId('capabilities-toggle')).toHaveAttribute('aria-expanded', 'true');
+    showPermissions();
+    expect(screen.getByTestId('permissions-toggle')).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('View the schedule')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('capabilities-toggle'));
+    fireEvent.click(screen.getByTestId('permissions-toggle'));
     expect(screen.queryByText('View the schedule')).not.toBeInTheDocument();
   });
 
@@ -81,10 +81,10 @@ describe('TeamAccessView access presentation', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows every Viewer capability and keeps management understandable but unavailable', () => {
+  it('shows every Viewer permission and keeps management understandable but unavailable', () => {
     renderView({ role: 'viewer' });
     expect(screen.getByTestId('current-access')).toHaveTextContent('Viewer');
-    showCapabilities();
+    showPermissions();
     expect(screen.getByText('View the schedule')).toBeInTheDocument();
     expect(screen.getByText('Edit scheduling data')).toHaveClass('text-muted-foreground');
     expect(screen.getByText('View the schedule').closest('li')).toHaveTextContent('Allowed:');
@@ -95,7 +95,7 @@ describe('TeamAccessView access presentation', () => {
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();
   });
 
-  it('lists capabilities from the grant, so viewing as an Editor shows editing as not allowed', () => {
+  it('lists permissions from the grant, so viewing as an Editor shows editing as not allowed', () => {
     render(
       <MemoryRouter>
         <AuthContext.Provider value={auth()}>
@@ -108,7 +108,7 @@ describe('TeamAccessView access presentation', () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId('current-access')).toHaveTextContent('Editor');
-    showCapabilities();
+    showPermissions();
     expect(screen.getByText('View the schedule').closest('li')).toHaveTextContent('Allowed:');
     expect(screen.getByText('Edit scheduling data').closest('li')).toHaveTextContent(
       'Not allowed:',
@@ -146,10 +146,12 @@ describe('TeamAccessView access presentation', () => {
 
     const card = screen.getByTestId('current-access');
     expect(card).toHaveTextContent('Admin');
-    expect(card).toHaveTextContent('Masquerade is read-only.');
+    expect(card).toHaveTextContent('View as member is read-only.');
     expect(card).not.toHaveTextContent(/Can edit the schedule/);
     expect(
-      screen.getByText('Invitations and membership changes are not available during a masquerade.'),
+      screen.getByText(
+        'Invitations and membership changes are not available during View as member.',
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/An Owner or Admin manages invitations/)).not.toBeInTheDocument();
     expect(screen.queryByTestId('member-management')).not.toBeInTheDocument();

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   assertSupportedNodeVersion,
   isSupportedNodeVersion,
-} from '../../apps/backend/start/node_version.ts';
+} from '../../apps/backend/bin/node_version.ts';
 
 test('runtime boundaries reject unsupported versions before application startup', () => {
   for (const version of ['23.9.0', '24.18.9', '25.0.0', '26.8.9', '27.0.0', 'invalid']) {

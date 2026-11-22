@@ -7,39 +7,39 @@ description: The security objectives, assets, actors, abuse cases and accepted r
 
 Baseline version: 2026-09-23. Authentication posture reviewed: 2026-10-26, after the Account Kit
 cutover in #1582. This update reconciles current controls; it is not a fresh review of the full
-model. Review the model after changes to authentication, tenancy, imports, browser storage,
+model. Review the model after changes to authentication, company separation, imports, browser storage,
 deployment topology or external services.
 
 ## Security objectives
 
-1. A user can read or change only accounts, operations, records and protected fields allowed by
+1. A user can read or change only companies, operations, records and protected fields allowed by
    their current server-side membership and role.
 2. Passwords, session tokens and emailed bearer links are not disclosed or stored in recoverable
    form where a safer representation is available.
-3. Tenant writes remain valid, atomic and attributable; schema drift prevents startup.
+3. Company writes remain valid, atomic and attributable; schema drift prevents startup.
 4. Browser-delivered code cannot silently turn an authenticated browser into a cross-site write
    primitive, and sensitive API responses are not cached.
 5. Operators can contain a compromised identity, restore authoritative data and investigate the
    application audit record without relying on the compromised host alone.
 
 CapacityLens is not a safety-critical, payments, classified-data, real-time media or anonymous
-public-upload system. Availability is important, but confidentiality and tenant integrity take
+public-upload system. Availability is important, but confidentiality and company integrity take
 priority over keeping a misconfigured production process running.
 
 ## Assets and trust boundaries
 
 | Asset | Primary protection | Boundary |
 | --- | --- | --- |
-| Company schedule and private client/project names | Server membership, action/field authorization, SQLite constraints | Browser/API and company boundary |
+| Company schedule and private client/project names | Server membership, action/field authorisation, SQLite constraints | Browser/API and company boundary |
 | Identity, password verifier and admission state | Account Kit password flows, application admission policy and account database | Authentication/API and database boundary |
 | Session and emailed action-link secrets | HttpOnly session cookie; high-entropy one-time links stored by digest and expired | Browser/API, SMTP and operator boundary |
-| Owner/Admin view-as-member state | Package-owned identity-wide SQLite mode with fixed expiry; read projection only; server middleware refuses writes | Session, company and authorization boundary |
-| Database, WAL, audit rows and snapshots | File permissions, single-process SQLite ownership and operator-protected storage | Process/host boundary |
+| Owner/Admin view as member state | Package-owned identity-wide SQLite mode with fixed expiry; read projection only; server middleware refuses writes | Session, company and authorisation boundary |
+| Database, WAL, audit rows and backups | File permissions, single-process SQLite ownership and operator-protected storage | Process/host boundary |
 | Application keys and SMTP credentials | `APP_KEY` and mail settings supplied by the operator | Deployment secret store and process boundary |
 | Build and release inputs | Lockfile, pinned workflow actions, dependency review, SBOM, scans and provenance | Contributor/CI/registry boundary |
 
 The browser talks to the application over the configured public origin. Operators terminate public
-TLS and protect the host, database and snapshots. SMTP is the only default outbound application
+TLS and protect the host, database and backups. SMTP is the only default outbound application
 service; its configured connection requires TLS and certificate verification. Emailed action links
 place bearer values in URL paths, so access logs at the proxy or mail service must not record them.
 
@@ -63,26 +63,26 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 | Cross-company read/write or role escalation | Server membership and role checks on each operation; scoped rows carry `company_id`; protected fields are projected or preserved server-side | `membership/control_data_isolation.spec.ts`, `auth/native_authorization.spec.ts`, `privacy/restricted_replies.spec.ts` |
 | Cross-site request or cached confidential response | Unsafe-origin and Fetch Metadata checks; same-origin policy; `/api/*` responses use `no-store` | `cors_origins.spec.ts`, `http_contract.spec.ts`, `http_parser_regressions.spec.ts` |
 | Credential guessing or password reuse | Product password creation/change/reset enforce 15–128 Unicode code points; Account Kit throttles authentication; product API limits requests; there is no breached-password screening or local MFA | `auth/native_auth_limits.spec.ts`, `auth/password_sessions.spec.ts`; no automated breached-password check |
-| Password verifier cracking | New and password-replacement hashes use Node scrypt `N=2^14`, `r=8`, `p=5`, meeting the OWASP minimum for the 16 MiB memory target. Legacy hashes remain verifiable; Adonis detects their old profile with `needsReHash`, but Account Kit sign-in only verifies and does not automatically rehash them, so they remain unchanged until password replacement | `apps/backend/config/hash.ts`; `apps/backend/tests/unit/hash_configuration.spec.ts` |
+| Password verifier cracking | New and password-replacement hashes use Node scrypt `N=2^14`, `r=8`, `p=5`, meeting the OWASP minimum for the 16 MiB memory target. Legacy hashes remain verifiable; AdonisJS detects their old profile with `needsReHash`, but Account Kit sign-in only verifies and does not automatically rehash them, so they remain unchanged until password replacement | `apps/backend/config/hash.ts`; `apps/backend/tests/unit/hash_configuration.spec.ts` |
 | Stolen session or fixation | Secure, HttpOnly, SameSite session cookies; authentication regenerates the session; server-side session registry expires after 14 days without use; there is no absolute lifetime or concurrent-session cap; password change/reset revokes sessions | `auth/password_sessions.spec.ts` |
-| View-as-member used to perform a write | Package admission captures the real actor and target; the product transaction rechecks the live Kit session and company permissions; middleware rejects writes and sensitive reads while active | `auth/masquerade.spec.ts` |
-| Stolen Owner session used for a sensitive operation | Password confirmation is required for ownership transfer, import and anonymisation; confirmations are single-use, time-limited and bound to the user, Kit session, company, action and intent | `membership/ownership_transfer.spec.ts`, `transfer_apply.spec.ts`, `anonymise.spec.ts` |
+| View as member used to perform a write | Package admission captures the real actor and target; the product transaction rechecks the live Kit session and company permissions; middleware rejects writes and sensitive reads while active | `auth/masquerade.spec.ts` |
+| Stolen Owner session used for a sensitive operation | Password confirmation is required for ownership transfer, import and anonymisation; confirmations are single-use, time-limited and bound to the user, Kit session, company, action and intent | `membership/ownership_transfer.spec.ts`, `import_apply.spec.ts`, `anonymise.spec.ts` |
 | Forwarded or intercepted invitation link | Invitation expires after seven days; revoking/resending replaces it; preview does not spend it; acceptance confirms the address and still requires admission approval | `auth/invitations.spec.ts`, `auth/admission.spec.ts` |
-| Unauthorized admission, invitation abuse or flooding | Product routes require a confirmed address and admission; invitation creation rechecks inviter authority in the insert transaction; Kit throttles invitation creation and resend by actor and recipient; approvers can decide only for identities they may administer | `auth/admission.spec.ts`, `auth/invitations.spec.ts`, `auth/native_authorization.spec.ts` |
+| Unauthorised admission, invitation abuse or flooding | Product routes require a confirmed address and admission; invitation creation rechecks inviter authority in the insert transaction; Kit throttles invitation creation and resend by actor and recipient; approvers can decide only for identities they may administer | `auth/admission.spec.ts`, `auth/invitations.spec.ts`, `auth/native_authorization.spec.ts` |
 | Sign-in or password-confirmation flooding | Account Kit defaults to 10 requests/minute per client and 5/minute per identity with a 20-minute identity block; production API defaults to 300 requests/minute per IP; the confirm-action-with-password package reserves password confirmations per account before hashing: five failures per minute, then a 20-minute block, shared across client addresses; sign-in uses Account Kit client/identity throttles | `apps/backend/config/account_kit.ts`, `apps/backend/config/password_confirmations.ts`, `auth/native_auth_limits.spec.ts`, `privacy/password_confirmation_adoption.spec.ts`, `request_limits.spec.ts` |
-| First-identity race or open-signup bypass | Before a company exists, setup is restricted to one operator-invited identity; the company creation path rechecks the sole-principal condition under the transaction lock | `auth/first_company_setup.spec.ts` |
+| First-identity race or open-signup bypass | Before a company exists, setup is restricted to one operator-invited identity; the company creation path rechecks the sole-user condition under the transaction lock | `auth/first_company_setup.spec.ts` |
 | Password reset operator misuse | `owner:reset-password` requires the server to be stopped, an eligible sole active Owner, and an audit record before displaying the link | `auth/recovery.spec.ts` |
 | Operator-issued reset outside product recovery | The unaudited `account-kit:reset-link` command is excluded from the registered Account Kit commands. Operators use `owner:reset-password`, which requires a stopped server and eligible sole Owner and writes an audit row before showing the single-use link | `apps/backend/tests/unit/owner_reset_command.spec.ts`; `apps/backend/tests/functional/auth/recovery.spec.ts` |
-| Injection, malformed writes or unsafe imports | Vine validation strips unknown fields; ordinary writes reject invalid input; import is Owner-only, validates references and replaces data atomically | `http_parser_regressions.spec.ts`, `transfer_apply.spec.ts`, `planning/transactions.spec.ts` |
-| Database corruption or partial write | Startup refuses schema drift in tables, columns, indexes, triggers and proof-table foreign-key declarations; backup snapshots must pass SQLite `quick_check` and `foreign_key_check`; write transactions, WAL and operator backups support recovery | `state/database_contract.spec.ts`, `transaction_faults.spec.ts`, `backup_diagnostics.spec.ts`; restore procedures are operator-run |
-| Log leakage or uninvestigated authentication | With `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling produce bounded structured events correlated with request completion; bearer values are excluded | `authentication_events.spec.ts`, `logging.spec.ts`; other authorization, password confirmation and validation refusals are not individually logged |
-| Resource exhaustion | 512 accepted-socket ceiling, 30-second request-reception and socket-inactivity timeouts (not handler/database deadlines), separate password and request throttles, five-second pool acquisition and one-second SQLite busy timeout, and framework request-body limits | `request_limits.spec.ts`, `auth/native_auth_limits.spec.ts`, `backup_diagnostics.spec.ts`, `transfer_apply.spec.ts` |
+| Injection, malformed writes or unsafe imports | Vine validation strips unknown fields; ordinary writes reject invalid input; import is Owner-only, validates references and replaces data atomically | `http_parser_regressions.spec.ts`, `import_apply.spec.ts`, `planning/transactions.spec.ts` |
+| Database corruption or partial write | Startup refuses schema drift in tables, columns, indexes, triggers and proof-table foreign-key declarations; backups must pass SQLite `quick_check` and `foreign_key_check`; write transactions, WAL and operator backups support recovery | `state/database_contract.spec.ts`, `transaction_faults.spec.ts`, `backup_diagnostics.spec.ts`; restore procedures are operator-run |
+| Log leakage or uninvestigated authentication | With `CAPACITYLENS_LOG=1`, password sign-in success, credential failure and throttling produce bounded structured events correlated with request completion; bearer values are excluded | `authentication_events.spec.ts`, `logging.spec.ts`; other authorisation, password confirmation and validation refusals are not individually logged |
+| Resource exhaustion | 512 accepted-socket ceiling, 30-second request-reception and socket-inactivity timeouts (not handler/database deadlines), separate password and request throttles, five-second pool acquisition and one-second SQLite busy timeout, and framework request-body limits | `request_limits.spec.ts`, `auth/native_auth_limits.spec.ts`, `backup_diagnostics.spec.ts`, `import_apply.spec.ts` |
 | Supply-chain compromise | Lockfile-pinned dependencies, Dependabot, CodeQL, Gitleaks, SBOM, vulnerability scans, DAST and tagged provenance | Local gates and documented public/manual workflows |
 
 ## Residual and accepted risks
 
 - Authentication is password-only. There is no local MFA, identity-provider sign-in, breached-password
-  screening, member session inventory or administrator session-revocation screen.
+  screening, member session inventory or Owner or Admin session-revocation screen.
 - Sessions use a 14-day sliding idle expiry, have no absolute lifetime, and have no configured
   maximum number of simultaneous sessions. Password changes and
   resets revoke sessions, but operators cannot revoke another member's active sessions through the
@@ -95,9 +95,9 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 - Password reset and invitation bearers occur in URL paths. Application route logging suppresses
   sensitive path values, but proxy, SMTP and mailbox access remain operator-controlled boundaries.
 - SMTP delivery, mailbox security and retention, public TLS, encrypted host volumes, secret-manager
-  use, clock synchronization, log retention and off-host collection require deployment evidence.
+  use, clock synchronisation, log retention and off-host collection require deployment evidence.
 - The single-process SQLite service can still be denied service by sufficient network or
-  tenant-valid load. Edge rate limiting, connection limits and resource monitoring remain operator
+  company-valid load. Edge rate limiting, connection limits and resource monitoring remain operator
   controls.
 - Host compromise is outside the containment boundary of application code. Protect the database,
   `APP_KEY`, mail credentials, backups and operator shell access accordingly.

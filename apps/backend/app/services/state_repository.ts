@@ -21,7 +21,7 @@ const buildSnakeKey = (key: string) =>
   key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 const models = {
-  accounts: Company,
+  companies: Company,
   clients: Client,
   disciplines: Discipline,
   projects: Project,
@@ -100,7 +100,7 @@ export async function readStateWithClient(
     Closure.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
   ]);
   const data = {
-    accounts: serializeRows(companies),
+    companies: serializeRows(companies),
     clients: serializeRows(clients),
     disciplines: serializeRows(disciplines),
     projects: serializeRows(projects),

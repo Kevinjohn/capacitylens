@@ -33,7 +33,7 @@ identity as Owner. No company command or service restart is needed. See
 The server blocks additional open signup until the first company exists, even when enabled in
 configuration. If multiple identities already exist before the company,
 browser setup refuses; resolving that exceptional state currently needs the hosting operator's
-stopped-server `company:initialize` initializer. It is not part of the normal installation.
+stopped-server `company:initialize` initialiser. It is not part of the normal installation.
 
 ### Which sign-in methods are available?
 
@@ -45,19 +45,19 @@ password resets are emailed, so configure mail delivery.
 ### What should I monitor?
 
 Check `/health/live` for process liveness and `/health/ready` for database readiness. Check backup
-logs and recent completed snapshots separately.
-Also watch disk space, service restarts and the freshness of off-host snapshots. See
+logs and recent completed backups separately.
+Also watch disk space, service restarts and the freshness of off-host backups. See
 [Monitoring](/self-hosting/monitoring).
 
 ### Is a scheduled backup enough?
 
-Only when snapshots are copied off-host, protected and proven restorable. Keep the original database
+Only when backups are copied off-host, protected and proven restorable. Keep the original database
 until a restore has passed startup checks. See [Backups and restore](/self-hosting/backups-and-restore).
 
 ### Can I upgrade by replacing the files and restarting?
 
 No. Run `node ace.js app:upgrade` from the new release's `backend/` directory before restarting.
-It takes a verified pre-upgrade snapshot of an existing database, then runs pending migrations.
+It takes a verified pre-upgrade backup of an existing database, then runs pending migrations.
 See [Upgrades](/self-hosting/upgrades).
 
 ### How do I recover the sole Owner's access?
@@ -70,7 +70,7 @@ set a password directly. The generic Account Kit reset-link command is not regis
 
 ### How do I move to a new host?
 
-Copy a verified snapshot to the new host, point `CAPACITYLENS_DB` at the restored copy, run
+Copy a verified backup to the new host, point `CAPACITYLENS_DB` at the restored copy, run
 `node ace.js app:upgrade`, and verify readiness and sign-in before changing DNS. Keep the original
 database and secrets until the move is accepted.
 
@@ -78,5 +78,5 @@ database and secrets until the move is accepted.
 
 Stop and disable the service, preserve any recovery files you need, then remove the service unit,
 release directories, environment file, data directory and proxy configuration. Deleting the data
-directory permanently removes the database, audit data and local snapshots; verify an off-host
+directory permanently removes the database, audit data and local backups; verify an off-host
 backup first.

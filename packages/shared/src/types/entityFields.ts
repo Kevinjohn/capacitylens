@@ -69,7 +69,7 @@ const dates = {
  * read-projection field and is never stored.
  */
 export const ENTITY_FIELDS = {
-  accounts: {
+  companies: {
     ...base,
     name: { kind: 'text', required: true },
     color: { kind: 'color', required: true },
@@ -101,7 +101,7 @@ export const ENTITY_FIELDS = {
     ...lifecycle,
     kind: { kind: 'choice', required: true, choices: RESOURCE_KINDS },
     name: { kind: 'text', nullable: true },
-    role: { kind: 'text', required: true },
+    jobTitle: { kind: 'text', required: true },
     avatarUrl: { kind: 'avatar', nullable: true },
     disciplineId: { kind: 'identifier', nullable: true },
     employmentType: { kind: 'choice', required: true, choices: EMPLOYMENT_TYPES },

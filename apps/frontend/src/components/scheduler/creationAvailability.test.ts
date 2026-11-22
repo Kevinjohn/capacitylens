@@ -28,7 +28,7 @@ describe('creation start availability', () => {
     ).toEqual([1, 2, 4]);
   });
 
-  it('rejects either recurring closure on move unless the allocation ignores working days', () => {
+  it('rejects either working-day closure on move unless the allocation ignores working days', () => {
     const personalTuesdayThursday = { ...person, workingDays: [2, 4] as Resource['workingDays'] };
 
     expect(
@@ -230,7 +230,7 @@ describe('#257 characterization: creation and move check boundaries', () => {
     ).toBe(true);
   });
 
-  it('returns time-off when the override bypasses both recurring calendars', () => {
+  it('returns time-off when the override bypasses both working-day calendars', () => {
     const fridayHoliday = makeTimeOff({ startDate: '2026-06-05', endDate: '2026-06-05' });
 
     expect(

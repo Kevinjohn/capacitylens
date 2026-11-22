@@ -169,21 +169,21 @@ export async function assertSchemaIntegrity() {
   const auditReferences = (await db.rawQuery('PRAGMA foreign_key_list(audit_entries)')) as Array<{
     table: string;
   }>;
-  if (auditReferences.some((reference) => reference.table === 'accounts')) {
+  if (auditReferences.some((reference) => reference.table === 'companies')) {
     throw new Error('Database schema drift: deleted-company audit history must be retained');
   }
   for (const [table, column] of relationships) await assertIndex(table, column);
   for (const table of scopedTables) {
     await assertTrigger(
-      `${table}_account_immutable`,
-      `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`
+      `${table}_company_immutable`,
+      `CREATE TRIGGER ${table}_company_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`
     );
   }
   for (const [table, column, target] of relationships) {
     for (const operation of ['INSERT', 'UPDATE']) {
       await assertTrigger(
         `${table}_${column}_${operation.toLowerCase()}`,
-        `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND company_id = NEW.company_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
+        `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND company_id = NEW.company_id) BEGIN SELECT RAISE(ABORT, 'cross-company reference'); END`
       );
     }
   }
@@ -191,7 +191,7 @@ export async function assertSchemaIntegrity() {
     'capacitylens_member_resource_kind_cleanup',
     "CREATE TRIGGER capacitylens_member_resource_kind_cleanup AFTER UPDATE OF kind ON resources WHEN OLD.kind = 'person' AND NEW.kind <> 'person' BEGIN DELETE FROM account_member_resources WHERE company_id = OLD.company_id AND resource_id = OLD.id; END"
   );
-  await assertIndex('account_getting_started_dismissals', 'company_id');
+  await assertIndex('company_getting_started_dismissals', 'company_id');
   for (const table of ['allocations', 'time_off', 'closures', 'phases', 'disciplines']) {
     const columns = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
     if (
@@ -226,12 +226,12 @@ export async function assertSchemaIntegrity() {
     }
   }
   await assertTrigger(
-    'deleted_groups_active_row_guard',
-    `CREATE TRIGGER deleted_groups_active_row_guard BEFORE DELETE ON deleted_groups WHEN ${['allocations', 'time_off', 'closures', 'phases', 'disciplines'].map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+    'deleted_groups_active_row_abort',
+    `CREATE TRIGGER deleted_groups_active_row_abort BEFORE DELETE ON deleted_groups WHEN ${['allocations', 'time_off', 'closures', 'phases', 'disciplines'].map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
   );
   await assertTrigger(
-    'deleted_groups_account_immutable',
-    "CREATE TRIGGER deleted_groups_account_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"
+    'deleted_groups_company_immutable',
+    "CREATE TRIGGER deleted_groups_company_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"
   );
   for (const [table, columns] of [
     [
@@ -262,7 +262,7 @@ export async function assertSchemaIntegrity() {
       'planning_histories',
       ['company_id', 'session_id', 'actor_id', 'history_id', 'revision', 'entries_json'],
     ],
-    ['account_getting_started_dismissals', ['id', 'company_id', 'created_at', 'updated_at']],
+    ['company_getting_started_dismissals', ['id', 'company_id', 'created_at', 'updated_at']],
   ] as const) {
     const actual = (await db.rawQuery(`PRAGMA table_info(${table})`)) as Array<{ name: string }>;
     if (JSON.stringify(actual.map((column) => column.name)) !== JSON.stringify(columns)) {

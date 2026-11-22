@@ -10,7 +10,7 @@ describe('ownership transfer access', () => {
 
   it('accepts only the two-ID receipt returned after the immediate role swap', async () => {
     memberRequests.transferOwnership.mockResolvedValue(
-      Response.json({ fromUserId: 'bruce', toUserId: 'selina' }),
+      Response.json({ data: { fromUserId: 'bruce', toUserId: 'selina' } }),
     );
 
     await expect(
@@ -27,7 +27,9 @@ describe('ownership transfer access', () => {
   });
 
   it('treats a malformed receipt as uncertain instead of claiming the transfer failed', async () => {
-    memberRequests.transferOwnership.mockResolvedValue(Response.json({ state: 'awaiting_target' }));
+    memberRequests.transferOwnership.mockResolvedValue(
+      Response.json({ data: { state: 'awaiting_target' } }),
+    );
 
     await expect(
       ownershipTransferAccess.transferOwnership({

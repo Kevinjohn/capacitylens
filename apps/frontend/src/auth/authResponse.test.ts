@@ -4,10 +4,12 @@ import { readAuthResponse } from './authResponse';
 const signedIn = (body: Record<string, unknown>) =>
   new Response(
     JSON.stringify({
-      user: { id: 'u1', email: 'clark.kent@wayne.test' },
-      emailVerified: true,
-      membershipRequired: false,
-      ...body,
+      data: {
+        user: { id: 'u1', email: 'clark.kent@wayne.test' },
+        emailVerified: true,
+        membershipRequired: false,
+        ...body,
+      },
     }),
     { status: 200 },
   );

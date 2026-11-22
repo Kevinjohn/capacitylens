@@ -55,12 +55,12 @@ test.describe('member masquerade', () => {
     await viewerRow.getByTestId('member-masquerade').click();
     const confirmation = page.getByRole('alertdialog');
     await expect(confirmation).toContainText(VIEWER_EMAIL);
-    await confirmation.getByRole('button', { name: 'Start masquerade' }).click();
+    await confirmation.getByRole('button', { name: 'View as member' }).click();
 
     const banner = page.getByTestId('masquerade-banner');
     await expect(banner).toBeVisible();
     await expect(banner).toHaveAttribute('role', 'status');
-    await expect(banner).toContainText('Masquerading as');
+    await expect(banner).toContainText('Viewing as');
     await expect(banner).toContainText('Ends');
     await expect(banner.getByRole('button', { name: 'End now' })).toBeVisible();
     await expect(page.getByTestId('current-access')).toContainText('Viewer');
@@ -113,10 +113,10 @@ test.describe('member masquerade', () => {
     await editorRow.getByTestId('member-masquerade').click();
     const confirmation = page.getByRole('alertdialog');
     await expect(confirmation).toContainText(editor.email);
-    await confirmation.getByRole('button', { name: 'Start masquerade' }).click();
+    await confirmation.getByRole('button', { name: 'View as member' }).click();
 
     const banner = page.getByTestId('masquerade-banner');
-    await expect(banner).toContainText('Masquerading as');
+    await expect(banner).toContainText('Viewing as');
     await expect(page.getByTestId('current-access')).toContainText('Editor');
     await expectNoGettingStartedNoise(page, gettingStartedRequests);
 
@@ -130,18 +130,19 @@ test.describe('member masquerade', () => {
       },
     );
     expect(status.status()).toBe(200);
-    const contextToken = ((await status.json()) as { contextToken: string }).contextToken;
-    expect(contextToken).not.toBe('');
+    const masqueradeToken = ((await status.json()) as { data: { masqueradeToken: string } }).data
+      .masqueradeToken;
+    expect(masqueradeToken).not.toBe('');
     const headers = {
       cookie,
       'sec-fetch-site': 'same-origin',
-      'X-Masquerade-Context': contextToken,
+      'X-Masquerade-Context': masqueradeToken,
     };
     const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
       headers,
     });
     expect(planning.status()).toBe(200);
-    const revision = ((await planning.json()) as { revision: number }).revision;
+    const revision = ((await planning.json()) as { data: { revision: number } }).data.revision;
     const refusedWrite = await request.post(
       `${AUTH_API}/api/companies/${companyId}/planning/mutations`,
       {

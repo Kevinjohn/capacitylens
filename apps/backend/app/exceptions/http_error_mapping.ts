@@ -7,10 +7,10 @@ import type {
   ProductHttpErrorBody,
   ProductValidationFailure,
 } from '@capacitylens/shared/api/httpErrors';
-import type { HttpContext } from '@adonisjs/core/http';
+import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { errors as limiterErrors } from '@adonisjs/limiter';
-import { CompanyDocumentError } from '@capacitylens/shared/data/companyDocument';
+import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
@@ -45,17 +45,31 @@ interface SharedRefusal {
 }
 
 /**
- * The routes that word a shared refusal differently. `planning` is every `api.planning.*` route and
- * the export download, which reads through planning access; `admission` is the member-resource
+ * The routes that word a shared refusal differently. `planning` is every planning route and the
+ * export download, which reads through planning access; `admission` is the member-resource link
  * routes; `product` is every other route.
  */
 export type RefusalSurface = 'product' | 'planning' | 'admission';
 
-/** Reads the refusal surface from the matched route's name. Pure. */
+const PLANNING_ROUTE_NAMES = new Set([
+  'api.planning.show',
+  'api.planning_archive.show',
+  'api.planning_mutations.store',
+  'api.planning_undo.store',
+  'api.planning_redo.store',
+  'api.company_exports.show',
+]);
+
+const ADMISSION_ROUTE_NAMES = new Set([
+  'api.member_resource_links.update',
+  'api.member_resource_links.destroy',
+]);
+
+/** Reads the refusal surface from the matched route's generated name. Pure. */
 export function readRefusalSurface(ctx: HttpContext): RefusalSurface {
   const name = ctx.route?.name ?? '';
-  if (name.startsWith('api.planning.') || name === 'api.export') return 'planning';
-  if (name.startsWith('api.member-resources.')) return 'admission';
+  if (PLANNING_ROUTE_NAMES.has(name)) return 'planning';
+  if (ADMISSION_ROUTE_NAMES.has(name)) return 'admission';
   return 'product';
 }
 
@@ -243,7 +257,7 @@ const CONSTRAINT_CODES = new Set([
 function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
   if (typeof error !== 'object' || error === null) return;
   const code = 'code' in error ? error.code : undefined;
-  if (code === 'E_ROUTE_NOT_FOUND') {
+  if (error instanceof httpServerErrors.E_ROUTE_NOT_FOUND) {
     return {
       status: 404,
       body: { error: 'Not found.', code: 'NOT_FOUND' } satisfies ProductHttpErrorBody,
@@ -379,11 +393,14 @@ export function mapHttpError(
       } satisfies ProductValidationFailure['body'],
     };
   }
-  if (error instanceof CompanyDocumentError) {
+  if (error instanceof CompanyExportError) {
     return { status: 400, body: { error: error.message } };
   }
   if (error instanceof limiterErrors.E_TOO_MANY_REQUESTS) {
-    return { status: 429, body: { error: 'Rate limit exceeded.' } };
+    const headers = Object.fromEntries(
+      Object.entries(error.getDefaultHeaders()).map(([name, value]) => [name, String(value)])
+    );
+    return { status: 429, headers, body: { error: 'Rate limit exceeded.' } };
   }
   return buildParserFailureResponse(error) ?? buildFrameworkCodeResponse(error);
 }

@@ -44,7 +44,7 @@ join.
 The link shows your company name and the invited role. The invitee enters their name, chooses a
 password and selects **Accept invitation**. An invitation creates a new sign-in, so an address that
 already has one is refused; the installer can record the invitation for that account instead.
-[Sign-in and access](/company-login/#join-through-an-invitation) has their steps.
+[Sign-in and access](/sign-in/#join-through-an-invitation) has their steps.
 
 <span id="approve-new-people"></span>
 

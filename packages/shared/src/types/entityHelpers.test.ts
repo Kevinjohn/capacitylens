@@ -18,7 +18,7 @@ describe('entity helpers through the public facade', () => {
     expect(isCapacityTracked({ kind: 'external' })).toBe(false);
     expect(isScopedEntityKey('resources')).toBe(true);
     expect(isScopedEntityKey('closures')).toBe(true);
-    expect(isScopedEntityKey('accounts')).toBe(false);
+    expect(isScopedEntityKey('companies')).toBe(false);
     expect(isScopedEntityKey('unknown')).toBe(false);
   });
 

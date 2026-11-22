@@ -67,7 +67,7 @@ async function planningSnapshot(request: APIRequestContext, cookie: string, comp
     headers: { cookie },
   });
   expect(response.status(), 'the authenticated planning read should succeed').toBe(200);
-  return (await response.json()) as { revision: number; data: AppData };
+  return ((await response.json()) as { data: { revision: number; data: AppData } }).data;
 }
 
 function uuid(): string {
@@ -138,7 +138,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
     fields: {
       kind: 'person',
       name,
-      role: 'Planner',
+      jobTitle: 'Planner',
       avatarUrl: null,
       disciplineId: null,
       employmentType: 'permanent',
@@ -205,7 +205,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
   await page.route(updatePath, async (route) => {
     if (!isPlanningMutation(route.request(), 'allocation.update')) return route.fallback();
     const response = await route.fetch();
-    committedAtServer.resolve({ status: response.status(), body: await response.json() });
+    committedAtServer.resolve({ status: response.status(), body: (await response.json()).data });
     await releaseResponse.promise;
     await route.abort('failed');
   });
@@ -396,7 +396,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
     { entity: 'activities', id: activityId },
     { entity: 'resources', id: firstResourceId },
   ] as const) {
-    for (const action of ['archive', 'unarchive'] as const) {
+    for (const action of ['archive', 'restore'] as const) {
       const beforeLifecycle = await planningSnapshot(request, owner.cookie, companyId);
       const beforeTarget = beforeLifecycle.data[target.entity].find((row) => row.id === target.id);
       if (action === 'archive') expect(beforeTarget?.id).toBe(target.id);
@@ -434,7 +434,7 @@ test('unactivated planning cache uses authenticated typed routes and reconciles 
           .map(({ id }) => id),
       );
       const expectedAllocationIds = groupedSnapshot.data.allocations
-        .filter(({ id }) => action === 'unarchive' || !hiddenAllocationIds.has(id))
+        .filter(({ id }) => action === 'restore' || !hiddenAllocationIds.has(id))
         .map(({ id }) => id)
         .sort();
       expect(afterLifecycle.data.allocations.map(({ id }) => id).sort()).toEqual(

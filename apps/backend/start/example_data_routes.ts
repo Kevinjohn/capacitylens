@@ -8,8 +8,7 @@ export function registerExampleDataRoutes() {
   router
     .group(() => {
       router
-        .post('/api/companies/:companyId/example-data', [controllers.ExampleData, 'store'])
-        .as('api.example-data')
+        .post('/companies/:companyId/example-data', [controllers.ExampleData, 'store'])
         .use(asCompanyMember());
     })
     .use(middleware.accountGate({ access: 'admitted' }));

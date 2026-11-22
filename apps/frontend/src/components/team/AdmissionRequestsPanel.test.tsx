@@ -130,18 +130,20 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
       }
       if (status === 'pending') {
         return Response.json({
-          items: [
-            {
-              userId: 'u1',
-              email: pendingRequest.email,
-              requestedAt: null,
-              invitation: { role: 'viewer' },
-            },
-          ],
-          nextCursor: null,
+          data: {
+            items: [
+              {
+                userId: 'u1',
+                email: pendingRequest.email,
+                requestedAt: null,
+                invitation: { role: 'viewer' },
+              },
+            ],
+            nextCursor: null,
+          },
         });
       }
-      return Response.json({ items: [], nextCursor: null });
+      return Response.json({ data: { items: [], nextCursor: null } });
     });
 
     const view = render(<AdmissionRequestsPanel />);
@@ -155,7 +157,7 @@ describe('AdmissionRequestsPanel read and refusal states', () => {
     expect(refreshSignal?.aborted).toBe(true);
 
     await act(async () => {
-      resolveRefreshPage(Response.json({ items: [], nextCursor: 'next-page' }));
+      resolveRefreshPage(Response.json({ data: { items: [], nextCursor: 'next-page' } }));
       await refreshPage;
     });
 

@@ -62,7 +62,7 @@ beforeEach(async () => {
     id: 'resource-archive',
     companyId: DEFAULT_COMPANY_ID,
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
     avatarUrl: 'https://images.example/diana.png',
     archivedAt: '2026-01-01T00:00:00.000Z',
     createdAt: '2025-01-01T00:00:00.000Z',
@@ -89,7 +89,7 @@ beforeEach(async () => {
         updatePlanningFixtureSource(serverData);
         return new Response(null, { status: 204 });
       }
-      return Response.json(serverData);
+      return Response.json({ data: serverData });
     }),
   );
 });
@@ -101,7 +101,7 @@ function setPlanningRole(role: 'owner' | 'editor') {
       ...state.planning,
       phase: { kind: 'ready', lastWrite: null },
       context: { identity: 'test-user', companyId: DEFAULT_COMPANY_ID },
-      authority: makePlanningAccess({ role }),
+      access: makePlanningAccess({ role }),
     },
   }));
 }
@@ -130,7 +130,7 @@ describe('archived resource actions', () => {
 
   it('lets an Editor recover an identity without inactive details or anonymisation', async () => {
     setPlanningRole('editor');
-    request.mockResolvedValue(archivedRecovery(DEFAULT_COMPANY_ID));
+    request.mockResolvedValue({ data: archivedRecovery(DEFAULT_COMPANY_ID) });
     render(
       <QueryClientProvider client={new QueryClient()}>
         {authenticated(<ArchivedEntitySection entity="resources" />, 'editor')}
@@ -138,7 +138,7 @@ describe('archived resource actions', () => {
     );
     expect(await screen.findByRole('button', { name: 'Restore Diana Prince' })).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith(
-      'api.planning.archive',
+      'api.planning_archive.show',
       expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
     expect(screen.queryByText('Designer')).not.toBeInTheDocument();
@@ -148,8 +148,8 @@ describe('archived resource actions', () => {
     await useStore.getState().refreshPlanning();
     setPlanningRole('editor');
     request
-      .mockResolvedValueOnce(archivedRecovery(DEFAULT_COMPANY_ID))
-      .mockResolvedValueOnce({ companyId: DEFAULT_COMPANY_ID, rows: [] });
+      .mockResolvedValueOnce({ data: archivedRecovery(DEFAULT_COMPANY_ID) })
+      .mockResolvedValueOnce({ data: { companyId: DEFAULT_COMPANY_ID, rows: [] } });
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={new QueryClient()}>
@@ -162,7 +162,7 @@ describe('archived resource actions', () => {
     );
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeNull();
     expect(request).toHaveBeenCalledWith(
-      'api.planning.archive',
+      'api.planning_archive.show',
       expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
   });

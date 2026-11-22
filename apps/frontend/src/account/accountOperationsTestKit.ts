@@ -19,5 +19,5 @@ export function expectOperation(init: RequestInit, method: string): void {
   expect(init.method).toBe(method);
   const headers = new Headers(init.headers);
   expect(headers.get('idempotency-key')).toBe(operation.idempotencyKey);
-  expect(headers.get('x-account-command-id')).toBe(operation.commandId);
+  expect(headers.get('x-account-operation-id')).toBe(operation.commandId);
 }

@@ -52,18 +52,14 @@ export async function transferOwnership({
         throw new IdentityAuthorizationException('Forbidden.');
       }
       if (actor.userId === toUserId) {
-        throw new OwnershipTransferException(
-          'Choose another administrator.',
-          409,
-          'TARGET_INELIGIBLE'
-        );
+        throw new OwnershipTransferException('Choose another Admin.', 409, 'TARGET_INELIGIBLE');
       }
       const target = await access.memberships.find(companyId, toUserId, trx);
       if (!target) throw new OwnershipTransferException('Member not found.', 404, 'NOT_FOUND');
       // The package accepts any active member; CapacityLens hands ownership to an Admin only.
       if (target.status !== 'active' || target.role !== 'admin') {
         throw new OwnershipTransferException(
-          'Target is no longer an active administrator.',
+          'Target is no longer an active Admin.',
           409,
           'TARGET_INELIGIBLE'
         );

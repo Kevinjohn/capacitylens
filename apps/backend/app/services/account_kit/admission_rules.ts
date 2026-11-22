@@ -11,7 +11,7 @@ import type { Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
 import { getActiveCompanyRole } from '#services/auth/authorization';
 import { writeAudit } from '#services/audit';
-import { getInstallationCompanyId } from '#models/installation_company';
+import { getInstallationCompanyId } from '#services/installation_company';
 
 /** Roles an invitation may carry; ownership moves only through company setup or transfer. */
 export const INVITABLE_ROLES = ['viewer', 'editor', 'admin'] as const;

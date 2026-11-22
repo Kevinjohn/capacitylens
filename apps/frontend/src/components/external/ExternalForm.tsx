@@ -15,7 +15,7 @@ import type { Resource } from '@capacitylens/shared/types/entities';
 type ExternalFormFieldsProps = {
   name: string;
   onNameChange: (value: string) => void;
-  role: string;
+  jobTitle: string;
   onRoleChange: (value: string) => void;
   error: string | null;
   errorField: string | null;
@@ -36,10 +36,10 @@ function ExternalFormFields(props: ExternalFormFieldsProps) {
       />
       <TextField
         label={m.form_external_descriptor_label()}
-        value={props.role}
+        value={props.jobTitle}
         onChange={props.onRoleChange}
         placeholder={m.form_external_descriptor_placeholder()}
-        invalid={props.errorField === 'role'}
+        invalid={props.errorField === 'jobTitle'}
         describedById={props.errorId}
         layout="label-control"
       />
@@ -61,7 +61,7 @@ export function ExternalForm({
   const add = useStore((state) => state.addResource);
   const update = useStore((state) => state.updateResource);
   const [name, setName] = useState(resource?.name ?? '');
-  const [role, setRole] = useState(resource?.role ?? '');
+  const [jobTitle, setJobTitle] = useState(resource?.jobTitle ?? '');
   const { error, errorField, errorId, fail } = useFieldError();
   const resources = useStore((state) => state.data.resources);
   const { pending, submit } = useEditSubmit({
@@ -80,12 +80,12 @@ export function ExternalForm({
       requiredMessage: m.form_external_err_company_required(),
     });
     if (cleanName === null) return null;
-    const cleanRole = parseText(role, fail, { field: 'role', required: false });
-    if (cleanRole === null) return null;
+    const cleanJobTitle = parseText(jobTitle, fail, { field: 'jobTitle', required: false });
+    if (cleanJobTitle === null) return null;
     const patch = {
       kind: 'external' as const,
       name: cleanName,
-      role: cleanRole,
+      jobTitle: cleanJobTitle,
       // External capacity defaults satisfy the shared Resource validation contract even though capacity views exclude external load.
       ...buildExternalCapacityDefaults(),
       color: NEUTRAL_COLOR,
@@ -106,8 +106,8 @@ export function ExternalForm({
         <ExternalFormFields
           name={name}
           onNameChange={setName}
-          role={role}
-          onRoleChange={setRole}
+          jobTitle={jobTitle}
+          onRoleChange={setJobTitle}
           error={error}
           errorField={errorField}
           errorId={errorId}

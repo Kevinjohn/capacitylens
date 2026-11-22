@@ -29,7 +29,7 @@ describe('CapacityOverviewView', () => {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
-        accounts: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
+        companies: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
           makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
@@ -42,7 +42,7 @@ describe('CapacityOverviewView', () => {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
-        accounts: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
+        companies: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
           makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
@@ -154,7 +154,7 @@ describe('CapacityOverviewView', () => {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
       data: makeAppData({
-        accounts: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
+        companies: [makeCompany({ schedulingMode: 'days', disciplinesEnabled: false })],
         resources: [
           makeResource({ id: 'clark', companyId: DEFAULT_COMPANY_ID, name: 'Clark Kent' }),
         ],
@@ -174,7 +174,7 @@ describe('CapacityOverviewView', () => {
   it('uses the Blocks-mode explanation for an unmeasured company', () => {
     useStore.setState({
       activeCompanyId: DEFAULT_COMPANY_ID,
-      data: makeAppData({ accounts: [makeCompany({ schedulingMode: 'blocks' })] }),
+      data: makeAppData({ companies: [makeCompany({ schedulingMode: 'blocks' })] }),
     });
 
     render(<CapacityOverviewView />);

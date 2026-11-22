@@ -10,14 +10,14 @@ As a company member, I want to review my role capabilities so that I know what I
 
 ## Acceptance criteria
 
-- Every member can review their role and capability summary. Server authorization independently controls access.
+- Every member can review their role and capability summary. Server authorisation independently controls access.
 
 ## User flow
 
 ```mermaid
 flowchart TD
 A["Open Team & access"] --> B["Read Your access and current role"]
-B --> C["Expand or collapse See full capabilities"]
+B --> C["Expand or collapse See all permissions"]
 ```
 
 ## Code flow
@@ -25,7 +25,7 @@ B --> C["Expand or collapse See full capabilities"]
 ```mermaid
 flowchart TD
   team["TeamAccessView reads role and permission context"] --> copy["resolveAccessLabel and resolveAccessSummary build role explanation"]
-  team --> caps["listCapabilities maps role through shared can() rules"]
+  team --> caps["listPermissions maps role through shared can() rules"]
   caps --> render["CurrentAccessCard renders expandable capability list"]
 ```
 

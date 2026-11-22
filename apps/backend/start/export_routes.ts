@@ -7,10 +7,9 @@ import { controllers } from '#generated/controllers';
 export function registerExportRoutes() {
   router
     .group(() => {
-      router.get('/api/state', [controllers.Exports, 'show']).as('api.state').use(asMember());
+      router.get('/state', [controllers.CompanyState, 'show']).use(asMember());
       router
-        .get('/api/companies/:companyId/export', [controllers.Exports, 'download'])
-        .as('api.export')
+        .get('/companies/:companyId/export', [controllers.CompanyExports, 'show'])
         .use(asPlanningMember());
     })
     .use(middleware.accountGate({ access: 'admitted' }));

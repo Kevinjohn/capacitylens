@@ -1,3 +1,4 @@
+import { readApiData } from '@/api/readApiData';
 import type {
   ClientMasqueradeEndReason,
   EndMasqueradePayload,
@@ -34,7 +35,7 @@ function parseMasqueradeState(value: unknown, companyIdFallback?: string): Masqu
   return { ...(state as unknown as MasqueradeState), companyId };
 }
 
-function parseBootstrapPrincipal(
+function parseBootstrapActor(
   value: unknown,
 ): { id: string; name?: string | null; email: string } | null {
   if (
@@ -57,21 +58,21 @@ function parseBootstrapPrincipal(
 }
 
 export type MasqueradeBootstrapStatus = MasqueradeStatus & {
-  principal?: { id: string; name?: string | null; email: string };
+  actor?: { id: string; name?: string | null; email: string };
 };
 
 async function readMasqueradeBody(response: Response, fallback: string): Promise<unknown> {
-  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
     throw new Error(extractApiErrorMessage(body) ?? fallback);
   }
-  return body;
+  return readApiData(response);
 }
 
 async function assertMasqueradeState(response: Response): Promise<MasqueradeState> {
   const body = await readMasqueradeBody(
     response,
-    `Masquerade request failed (${response.status}).`,
+    `View as member request failed (${response.status}).`,
   );
   const state = parseMasqueradeState(body);
   if (!state) {
@@ -88,21 +89,22 @@ export const masqueradeApi = {
     const response = await masqueradeRequests.masqueradeStatus(companyId);
     const body = await readMasqueradeBody(
       response,
-      `Masquerade status could not be read (${response.status}).`,
+      `View as member status could not be read (${response.status}).`,
     );
     if (
       typeof body === 'object' &&
       body !== null &&
       (body as { active?: unknown }).active === false
     ) {
-      const contextToken = (body as { contextToken?: unknown }).contextToken;
+      const masqueradeToken = (body as { masqueradeToken?: unknown }).masqueradeToken;
       if (
-        !Object.hasOwn(body, 'contextToken') ||
-        (contextToken !== null && (typeof contextToken !== 'string' || contextToken.length === 0))
+        !Object.hasOwn(body, 'masqueradeToken') ||
+        (masqueradeToken !== null &&
+          (typeof masqueradeToken !== 'string' || masqueradeToken.length === 0))
       ) {
         throw new Error('The server returned an invalid masquerade status.');
       }
-      return { active: false, contextToken };
+      return { active: false, masqueradeToken };
     }
     const state = parseMasqueradeState(body, companyId);
     if (!state || (body as { active?: unknown }).active !== true) {
@@ -110,19 +112,19 @@ export const masqueradeApi = {
         extractApiErrorMessage(body) ?? 'The server returned an invalid masquerade status.',
       );
     }
-    const contextToken = (body as { contextToken?: unknown }).contextToken;
+    const masqueradeToken = (body as { masqueradeToken?: unknown }).masqueradeToken;
     if (
-      typeof contextToken !== 'string' ||
-      contextToken.length === 0 ||
-      contextToken !== state.token
+      typeof masqueradeToken !== 'string' ||
+      masqueradeToken.length === 0 ||
+      masqueradeToken !== state.token
     ) {
       throw new Error('The server returned an invalid masquerade status.');
     }
-    const principal = parseBootstrapPrincipal((body as { principal?: unknown }).principal);
-    if (!principal) {
-      throw new Error('The server returned an invalid masquerade principal.');
+    const actor = parseBootstrapActor((body as { actor?: unknown }).actor);
+    if (!actor) {
+      throw new Error('The server returned an invalid masquerade actor.');
     }
-    return { active: true, ...state, contextToken, principal };
+    return { active: true, ...state, masqueradeToken, actor };
   },
 
   async start(companyId: string, targetUserId: string): Promise<MasqueradeState> {
@@ -133,6 +135,6 @@ export const masqueradeApi = {
   async end(token: string, reason: ClientMasqueradeEndReason): Promise<void> {
     const body: EndMasqueradePayload = { token, reason };
     const response = await masqueradeRequests.endMasquerade(body);
-    await readMasqueradeBody(response, `Masquerade could not be ended (${response.status}).`);
+    await readMasqueradeBody(response, `View as member could not be ended (${response.status}).`);
   },
 };

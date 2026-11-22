@@ -27,7 +27,9 @@ beforeEach(() => resetStoreWithCompany());
 
 async function allocationSetup() {
   const resource = await requireCreated(state().addResource(makeResourceDraft()));
-  const activity = await requireCreated(state().addActivity({ name: 'Admin', kind: 'repeatable' }));
+  const activity = await requireCreated(
+    state().addActivity({ name: 'Admin', kind: 'allProjects' }),
+  );
   const draft = (overrides: Partial<Draft<Allocation>> = {}): Draft<Allocation> => ({
     resourceId: resource.id,
     activityId: activity.id,

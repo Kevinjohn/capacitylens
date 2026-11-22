@@ -147,7 +147,7 @@ describe('AllocationDialog inline activity creation pref', () => {
   });
 
   it('places an inline-created project activity in the project-specific group', async () => {
-    await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
+    await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' });
     const resourceId = await addInlineActivityTestPerson();
     await useStore.getState().updateCompany(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();

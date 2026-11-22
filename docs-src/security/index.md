@@ -11,7 +11,7 @@ vulnerability. The operator's configuration, network and backup policy also matt
 
 ## What's on by default
 
-- **Passwords.** Everyone [signs in](/company-login/) with an email address and a password, stored
+- **Passwords.** Everyone [signs in](/sign-in/) with an email address and a password, stored
   with a modern, slow hashing algorithm. Passwords are not checked against a breached-password list.
 - **Multi-factor sign-in.** There is none. CapacityLens has no Google, Microsoft or other company
   sign-in through which to require it.

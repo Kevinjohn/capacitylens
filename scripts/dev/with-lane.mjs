@@ -5,7 +5,7 @@
 // Claim before starting the child because configuration files resolve ports before global setup can run.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assertSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
+import { assertSupportedNodeVersion } from '../../apps/backend/bin/node_version.ts';
 import { mirrorChildExit } from '../../tooling/devProcesses.mjs';
 import { assertPortLaneFree, resolveLaunchClaim } from './laneClaims.mjs';
 import {

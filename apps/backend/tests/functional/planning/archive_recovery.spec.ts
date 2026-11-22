@@ -4,7 +4,7 @@ import type { ApiClient, ApiRequest } from '@japa/api-client';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import type { ArchiveRecovery, ArchiveRecoveryRow } from '@capacitylens/shared/domain/lifecycle';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
 import {
@@ -14,7 +14,7 @@ import {
   session,
   signIn,
   trusted,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const route = (path: string, targetCompanyId = companyId) =>
   `/api/companies/${targetCompanyId}/${path}`;
@@ -31,11 +31,11 @@ type PlanningBody = {
 };
 
 function recovery(response: { body(): unknown }) {
-  return response.body() as ArchiveRecovery;
+  return (response.body() as { data: ArchiveRecovery }).data;
 }
 
 function planning(response: { body(): unknown }) {
-  return response.body() as PlanningBody;
+  return (response.body() as { data: PlanningBody }).data;
 }
 
 function requestWithContext<T extends ApiRequest>(request: T, cookie: string, context?: string) {
@@ -47,24 +47,24 @@ function mutationInput(baseRevision: number, intent: Record<string, unknown>) {
   return { mutationId: randomUUID(), baseRevision, intent };
 }
 
-function unarchiveOperation(entity: ArchiveRecoveryRow['entity'], id: string) {
+function restoreOperation(entity: ArchiveRecoveryRow['entity'], id: string) {
   if (entity === 'resources')
     return {
-      intent: { operation: 'resource.unarchive', id },
+      intent: { operation: 'resource.restore', id },
     };
   return {
-    intent: { operation: 'catalogue.unarchive', entity: { entity, id } },
+    intent: { operation: 'catalogue.restore', entity: { entity, id } },
   };
 }
 
-async function unarchive(
+async function restore(
   client: ApiClient,
   cookie: string,
   entity: ArchiveRecoveryRow['entity'],
   id: string,
   baseRevision: number
 ) {
-  const operation = unarchiveOperation(entity, id);
+  const operation = restoreOperation(entity, id);
   return session(client.post(route('planning/mutations')), cookie)
     .json(mutationInput(baseRevision, operation.intent))
     .send();
@@ -108,7 +108,7 @@ async function prepareArchiveFixture(archiveProject = false) {
     });
   await db.from('resources').where({ id: 'r-tyler', company_id: companyId }).update({
     archived_at: stamp,
-    role: 'Secret Designer Role',
+    job_title: 'Secret Designer Role',
     avatar_url: 'private-avatar-sentinel',
   });
   await db.from('resources').where({ id: 'r-alex', company_id: companyId }).update({
@@ -188,7 +188,10 @@ test.group('identity-only archive recovery', (suite) => {
       assert.equal(response.status(), 200, response.text());
       const body = recovery(response);
       assert.equal(body.companyId, companyId);
-      assert.deepEqual(Object.keys(response.body() as object).sort(), ['companyId', 'rows']);
+      assert.deepEqual(Object.keys((response.body() as { data: unknown }).data as object).sort(), [
+        'companyId',
+        'rows',
+      ]);
 
       const expectedKeys = ['archived', 'entity', 'id', 'label', 'parent'];
       for (const row of body.rows) {
@@ -323,19 +326,21 @@ test.group('identity-only archive recovery', (suite) => {
 
     const owner = await signIn(client, 'owner');
     const target = await signIn(client, 'editor');
-    const contextResponse = await session(client.get('/api/masquerade'), owner.cookie).send();
+    const contextResponse = await session(client.visit('api.masquerade.show'), owner.cookie).send();
     contextResponse.assertStatus(200);
-    const contextToken = (contextResponse.body() as { contextToken?: string }).contextToken;
-    assert.isString(contextToken);
+    const masqueradeToken = (contextResponse.body()!.data as { masqueradeToken?: string })
+      .masqueradeToken;
+    assert.isString(masqueradeToken);
     const started = await requestWithContext(
       trusted(client.post(route('masquerade'))),
       owner.cookie,
-      contextToken
+      masqueradeToken
     )
       .json({ targetUserId: target.userId })
       .send();
     started.assertStatus(200);
-    const activeToken = (started.body() as { contextToken: string }).contextToken;
+    const activeToken = ((started.body() as { data: unknown }).data as { masqueradeToken: string })
+      .masqueradeToken;
     const masqueradedRead = await requestWithContext(
       client.get(archiveUrl),
       owner.cookie,
@@ -410,13 +415,16 @@ test.group('identity-only archive recovery', (suite) => {
       response.assertStatus(200);
       // t-brand sits under the project archived above, so archiving it hides nothing more.
       if (id === 't-brand')
-        assert.deepEqual((response.body() as { archived?: unknown }).archived, {
-          projects: 0,
-          phases: 0,
-          activities: 0,
-          allocations: 0,
-          timeOff: 0,
-        });
+        assert.deepEqual(
+          ((response.body() as { data: unknown }).data as { archived?: unknown }).archived,
+          {
+            projects: 0,
+            phases: 0,
+            activities: 0,
+            allocations: 0,
+            timeOff: 0,
+          }
+        );
     }
 
     const archiveRead = await session(client.get(archiveUrl), editor.cookie).send();
@@ -433,7 +441,7 @@ test.group('identity-only archive recovery', (suite) => {
         `${entity} ${id} should be recoverable`
       );
 
-    const childRestore = await unarchive(client, editor.cookie, 'activities', 't-brand', 3);
+    const childRestore = await restore(client, editor.cookie, 'activities', 't-brand', 3);
     childRestore.assertStatus(200);
     const stillHidden = await session(client.get(route('planning')), editor.cookie).send();
     assert.notInclude(
@@ -457,7 +465,7 @@ test.group('identity-only archive recovery', (suite) => {
       label: '"Confidential #pbrand"',
     });
 
-    const parentRestore = await unarchive(client, editor.cookie, 'projects', projectId, 4);
+    const parentRestore = await restore(client, editor.cookie, 'projects', projectId, 4);
     parentRestore.assertStatus(200);
     assert.notInclude(parentRestore.text(), 'Secret Designer Role');
 
@@ -483,7 +491,7 @@ test.group('identity-only archive recovery', (suite) => {
     const independentlyArchived = await db.from('activities').where({ id: 't-cms' }).first();
     assert.isNotNull(independentlyArchived.archived_at);
 
-    const clientRestore = await unarchive(client, editor.cookie, 'clients', clientId, 5);
+    const clientRestore = await restore(client, editor.cookie, 'clients', clientId, 5);
     clientRestore.assertStatus(200);
     assert.notInclude(clientRestore.text(), privateClientName);
     const afterClient = await session(client.get(route('planning')), editor.cookie).send();
@@ -500,7 +508,7 @@ test.group('identity-only archive recovery', (suite) => {
     ] as const;
     let revision = 6;
     for (const [entity, id] of remainingRestores) {
-      const response = await unarchive(client, editor.cookie, entity, id, revision);
+      const response = await restore(client, editor.cookie, entity, id, revision);
       response.assertStatus(200);
       revision += 1;
     }
@@ -541,7 +549,7 @@ test.group('identity-only archive recovery', (suite) => {
       .send();
     advance.assertStatus(200);
 
-    const stale = await unarchive(client, editor.cookie, 'clients', clientId, 0);
+    const stale = await restore(client, editor.cookie, 'clients', clientId, 0);
     stale.assertStatus(409);
     assert.equal((stale.body() as { code: string }).code, 'STALE_REVISION');
 
@@ -552,14 +560,14 @@ test.group('identity-only archive recovery', (suite) => {
         deleted_at: stamp,
       });
     assert.equal(deleted, 1);
-    const deletedTarget = await unarchive(client, editor.cookie, 'resources', 'r-tyler', 1);
+    const deletedTarget = await restore(client, editor.cookie, 'resources', 'r-tyler', 1);
     deletedTarget.assertStatus(400);
     assert.equal((deletedTarget.body() as { code: string }).code, 'VALIDATION_ERROR');
 
     const foreignTarget = await session(client.post(route('planning/mutations')), editor.cookie)
       .json(
         mutationInput(1, {
-          operation: 'catalogue.unarchive',
+          operation: 'catalogue.restore',
           entity: { entity: 'projects', id: 'p-loft-app' },
         })
       )
@@ -571,7 +579,7 @@ test.group('identity-only archive recovery', (suite) => {
       role: 'viewer',
     });
     // Membership changes after the read are checked when the write is actually submitted.
-    const demotedWrite = await unarchive(client, editor.cookie, 'clients', clientId, 1);
+    const demotedWrite = await restore(client, editor.cookie, 'clients', clientId, 1);
     demotedWrite.assertStatus(403);
     assert.equal((demotedWrite.body() as { code: string }).code, 'AUTHORIZATION_DENIED');
   });

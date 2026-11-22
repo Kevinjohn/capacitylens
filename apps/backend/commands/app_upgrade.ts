@@ -8,6 +8,8 @@ export default class AppUpgrade extends BaseCommand {
   static description = 'Back up the SQLite database, then run pending migrations';
   static options: CommandOptions = { startApp: true };
 
+  #reported = false;
+
   async run() {
     const upgrade = await this.kernel.exec('db:upgrade', ['--no-schema-generate']);
     if (upgrade.exitCode !== 0) {
@@ -19,7 +21,14 @@ export default class AppUpgrade extends BaseCommand {
       await assertSchemaIntegrity();
     } catch (error) {
       this.logger.error(`Upgrade failed: ${String(error)}`);
+      this.error = error;
+      this.#reported = true;
       this.exitCode = 1;
     }
+  }
+
+  /** Marks a caught error as already reported, so Ace does not print it raw. */
+  async completed() {
+    return this.#reported;
   }
 }

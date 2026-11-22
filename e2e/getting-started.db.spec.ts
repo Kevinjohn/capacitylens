@@ -54,7 +54,7 @@ test.describe('getting started', () => {
     await expect(card).toHaveCount(0);
     await page.getByRole('button', { name: 'Add resource' }).click();
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Bruce Wayne');
-    await page.getByLabel('Role').fill('Designer');
+    await page.getByLabel('Job title').fill('Designer');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByRole('progressbar', { name: 'Getting started' })).toHaveAttribute(
       'aria-valuenow',
@@ -120,7 +120,7 @@ test.describe('getting started', () => {
       const popover = page.locator('.driver-popover');
       await expect(popover).toBeVisible();
       await expect(page).toHaveURL(/\/$/);
-      await expect(popover.getByText('Owner: Import and restore schedules')).toBeVisible();
+      await expect(popover.getByText('Owner: Import and export schedules')).toBeVisible();
       await expect(popover.getByText('1 of 8')).toBeVisible();
       for (const selector of TOUR_ANCHORS) await expect(page.locator(selector)).toBeVisible();
       await finishTour(popover, 8, 'Viewer: Search, filters and weeks');
@@ -134,7 +134,7 @@ test.describe('server-backed role tour', { tag: '@engine' }, () => {
     await waitForAppLanding(page, page.locator('#main'));
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Switch company/i })).toHaveCount(0);
-    // The sample company has finished all five steps, so the strip is gone and the tour starts
+    // The example company has finished all five steps, so the strip is gone and the tour starts
     // from Help.
     await expect(page.getByTestId('getting-started')).toHaveCount(0);
     await page.getByRole('link', { name: 'Help', exact: true }).click();
@@ -144,7 +144,7 @@ test.describe('server-backed role tour', { tag: '@engine' }, () => {
     const popover = page.locator('.driver-popover');
     await expect(popover).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
-    await expect(popover.getByText('Owner: Import and restore schedules')).toBeVisible();
+    await expect(popover.getByText('Owner: Import and export schedules')).toBeVisible();
     await expect(popover.getByText('1 of 8')).toBeVisible();
     await expect(page.locator('[data-nav="/team"]')).toBeVisible();
 

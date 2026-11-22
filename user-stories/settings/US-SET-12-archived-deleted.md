@@ -33,11 +33,11 @@ Archive, restore and individual anonymisation paths are shown. The separate [who
 
 ```mermaid
 flowchart TD
-archive["useLifecycleOperations.run: archive or unarchive"] --> intent["Build resource or catalogue lifecycle PlanningIntentRequest"]
+archive["useLifecycleOperations.run: archive or restore"] --> intent["Build resource or catalogue lifecycle PlanningIntentRequest"]
   intent --> send["sendPlanningIntent: createStorePlanningTransport selects transport"]
-  send --> server["PlanningController → mutatePlanning → transitionLifecycle"]
+  send --> server["PlanningMutationsController → mutatePlanning → transitionLifecycle"]
   server --> view["Planning cache reconciles; active and archived views refresh"]
   individual["useLifecycleOperations.run: anonymise"] --> named["runResourceAnonymisation: resource anonymise endpoint and fresh read"]
 ```
 
-**Code references:** [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts), [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+**Code references:** [useLifecycleOperations.ts](../../apps/frontend/src/hooks/useLifecycleOperations.ts), [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts), [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts), [planning.ts](../../apps/backend/app/services/planning.ts), [execute.ts](../../apps/backend/app/services/planning/execute.ts), [anonymise_routes.ts](../../apps/backend/start/anonymise_routes.ts), [resource_anonymisations_controller.ts](../../apps/backend/app/controllers/resource_anonymisations_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)

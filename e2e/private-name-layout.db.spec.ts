@@ -2,8 +2,7 @@ import { expect, test } from './dbFixtures';
 import type { Locator, Page } from './dbFixtures';
 import { dismissLandscapeHint, openApp, selectShadOption } from './browserTestKit';
 
-const OWNER_DESCRIPTION =
-  'Only account owners can see real names. Everyone else sees the code name.';
+const OWNER_DESCRIPTION = 'Only Owners can see real names. Everyone else sees the code name.';
 
 async function expectPrivacyLayout(dialog: Locator, stacked: boolean) {
   const privacy = dialog.getByRole('switch', { name: 'Use code name' });

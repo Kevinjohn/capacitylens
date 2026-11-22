@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
 import { readStateWithClient } from '#services/state_repository';
@@ -148,7 +148,7 @@ test.group('typed planning writers', (group) => {
       )
     );
     const state = await readState('a-studio', true);
-    const account = state.accounts[0];
+    const account = state.companies[0];
     assert.equal(account?.weekStartsOn, 0);
     assert.equal(account?.timezone, 'Europe/London');
     await assert.rejects(

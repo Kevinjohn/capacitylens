@@ -42,7 +42,7 @@ export interface PlanningHistoryState {
 }
 
 type PlanningRowByEntity = {
-  accounts: Company;
+  companies: Company;
   disciplines: Discipline;
   resources: Resource;
   clients: Client;

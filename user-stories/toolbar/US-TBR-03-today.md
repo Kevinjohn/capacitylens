@@ -1,6 +1,6 @@
 # US-TBR-03 — Re-centre on Today
 
-As an Editor, I want Today to recenter the timeline so that I can return to the current planning period.
+As an Editor, I want Today to recentre the timeline so that I can return to the current planning period.
 
 **Status:** Current
 

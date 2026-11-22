@@ -40,5 +40,5 @@ Compared with a paid, hosted tool:
 
 <span id="what-s-next"></span>
 
-Next: [Try the demo](/getting-started/try-the-demo) — see it running with sample data in about two
+Next: [Try the demo](/getting-started/try-the-demo) — see it running with demo data in about two
 minutes.

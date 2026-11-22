@@ -7,10 +7,7 @@ import { controllers } from '#generated/controllers';
 export function registerDiagnosticsRoutes() {
   router
     .group(() => {
-      router
-        .get('/api/diagnostics', [controllers.Diagnostics, 'show'])
-        .as('api.diagnostics')
-        .use(asMemberOnly());
+      router.get('/diagnostics', [controllers.Diagnostics, 'show']).use(asMemberOnly());
     })
     .use(middleware.accountGate({ access: 'admitted' }));
 }

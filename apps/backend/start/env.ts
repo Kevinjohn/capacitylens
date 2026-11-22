@@ -63,7 +63,9 @@ type OptionalStringKey =
   | 'CAPACITYLENS_TEST_HTTP_PORT';
 
 type OptionalBooleanKey =
-  'CAPACITYLENS_ALLOW_OPEN_SIGNUP' | 'CAPACITYLENS_ALLOW_RESET' | 'CAPACITYLENS_CREATE_ADMIN_ADMIN';
+  | 'CAPACITYLENS_ALLOW_OPEN_SIGN_UP'
+  | 'CAPACITYLENS_ALLOW_RESET'
+  | 'CAPACITYLENS_CREATE_ADMIN_ADMIN';
 
 type CapacityLensEnvironmentSchema = {
   NODE_ENV: EnumValidator<'development' | 'production' | 'test'>;
@@ -94,7 +96,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   ] as const),
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: optionalBoolean,
+  CAPACITYLENS_ALLOW_OPEN_SIGN_UP: optionalBoolean,
   CAPACITYLENS_ALLOW_RESET: optionalBoolean,
   // Admission owns the domain-list rules; CORS owns its explicit origin-list validation.
   CAPACITYLENS_ALLOWED_EMAIL_DOMAINS: optional,

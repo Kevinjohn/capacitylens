@@ -19,7 +19,7 @@ export function useInactiveCompanyData(): {
   mayViewInactive: boolean;
   reload: () => void;
 } {
-  // The server serves inactive rows only to `members:manage` (exports_controller.ts).
+  // The server serves inactive rows only to `members:manage` (company_state_controller.ts).
   const mayViewInactive = useCan('members:manage');
   const role = useRole();
   const { user } = useAuth();
@@ -27,7 +27,7 @@ export function useInactiveCompanyData(): {
   const masquerade = useStore((state) => state.masquerade);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
-  const accessKey = buildAccessKey(planning.authority);
+  const accessKey = buildAccessKey(planning.access);
   const [serverData, setServerData] = useState<{
     companyId: string;
     reloadKey: number;

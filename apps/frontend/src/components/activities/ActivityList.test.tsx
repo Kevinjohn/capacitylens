@@ -51,8 +51,10 @@ function mockInactiveRead() {
       const data = structuredClone(useStore.getState().data);
       const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
-        ...data,
-        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        data: {
+          ...data,
+          clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        },
       });
     }),
   );
@@ -164,14 +166,14 @@ describe('ActivityList', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(useStore.getState().data.activities[0]?.kind).toBe('repeatable');
+    expect(useStore.getState().data.activities[0]?.kind).toBe('allProjects');
     expect(screen.getByRole('heading', { name: 'All-projects activities' })).toBeInTheDocument();
     const row = within(screen.getByTestId('cross-project-activities')).getByTestId('activity-row');
     expect(row).toHaveTextContent('Design');
   });
 
   it('does not show global first-activity getting-started guidance when only a later section has rows', async () => {
-    await useStore.getState().addActivity({ name: 'Design system', kind: 'repeatable' });
+    await useStore.getState().addActivity({ name: 'Design system', kind: 'allProjects' });
 
     render(<ActivityList />);
 
@@ -475,7 +477,7 @@ describe('ActivityList', () => {
       useStore.getState().addResource({
         kind: 'person',
         name: 'Barbara Gordon',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio',
         workingHoursPerDay: 8,
