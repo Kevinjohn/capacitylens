@@ -278,7 +278,7 @@ describe('company import failure boundaries', () => {
     expect(document).toEqual(before);
   });
 
-  it('projects authority and device fields away rather than importing them', () => {
+  it('projects access and device fields away rather than importing them', () => {
     const document = freshDocument();
     const input = {
       ...document,

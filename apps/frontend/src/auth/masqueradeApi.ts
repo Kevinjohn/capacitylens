@@ -96,14 +96,15 @@ export const masqueradeApi = {
       body !== null &&
       (body as { active?: unknown }).active === false
     ) {
-      const contextToken = (body as { contextToken?: unknown }).contextToken;
+      const masqueradeToken = (body as { masqueradeToken?: unknown }).masqueradeToken;
       if (
-        !Object.hasOwn(body, 'contextToken') ||
-        (contextToken !== null && (typeof contextToken !== 'string' || contextToken.length === 0))
+        !Object.hasOwn(body, 'masqueradeToken') ||
+        (masqueradeToken !== null &&
+          (typeof masqueradeToken !== 'string' || masqueradeToken.length === 0))
       ) {
         throw new Error('The server returned an invalid masquerade status.');
       }
-      return { active: false, contextToken };
+      return { active: false, masqueradeToken };
     }
     const state = parseMasqueradeState(body, companyId);
     if (!state || (body as { active?: unknown }).active !== true) {
@@ -111,11 +112,11 @@ export const masqueradeApi = {
         extractApiErrorMessage(body) ?? 'The server returned an invalid masquerade status.',
       );
     }
-    const contextToken = (body as { contextToken?: unknown }).contextToken;
+    const masqueradeToken = (body as { masqueradeToken?: unknown }).masqueradeToken;
     if (
-      typeof contextToken !== 'string' ||
-      contextToken.length === 0 ||
-      contextToken !== state.token
+      typeof masqueradeToken !== 'string' ||
+      masqueradeToken.length === 0 ||
+      masqueradeToken !== state.token
     ) {
       throw new Error('The server returned an invalid masquerade status.');
     }
@@ -123,7 +124,7 @@ export const masqueradeApi = {
     if (!actor) {
       throw new Error('The server returned an invalid masquerade actor.');
     }
-    return { active: true, ...state, contextToken, actor };
+    return { active: true, ...state, masqueradeToken, actor };
   },
 
   async start(companyId: string, targetUserId: string): Promise<MasqueradeState> {

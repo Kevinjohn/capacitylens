@@ -46,7 +46,4 @@ export type PlanningMutationSuccess = Extract<
 >;
 
 /** Who the last accepted planning read was for, and what that member may do and see. */
-export type PlanningAccess = Exclude<
-  Route.Response<'api.planning.show'>,
-  void
->['data']['authority'];
+export type PlanningAccess = Exclude<Route.Response<'api.planning.show'>, void>['data']['access'];

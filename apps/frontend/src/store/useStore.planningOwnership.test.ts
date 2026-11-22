@@ -77,7 +77,7 @@ afterEach(() => {
   failure.onHeldRead = null;
 });
 
-describe('planning authority publication', () => {
+describe('planning access publication', () => {
   it('clears the cache and typed planning history together when authentication is lost', async () => {
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),

@@ -35,7 +35,7 @@ export async function restoreMasqueradeProjection({
 }: RestoreMasqueradeProjectionInput): Promise<RealProjectionResult> {
   const status = await readStatus();
   if (!isCurrent()) return { kind: 'superseded' };
-  adoptMasqueradeToken(status.contextToken);
+  adoptMasqueradeToken(status.masqueradeToken);
   if (status.active) {
     publishActive(status);
     return { kind: 'active' };

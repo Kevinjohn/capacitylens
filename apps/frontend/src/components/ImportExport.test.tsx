@@ -150,7 +150,7 @@ describe('beta import and export', () => {
     expect(useStore.getState().notice?.tone).toBe('error');
     const releaseRecovery = useStore.getState().suspendPlanningIntents();
     if (!releaseRecovery) {
-      throw new Error('The selected context was not available for authority recovery.');
+      throw new Error('The selected context was not available for access recovery.');
     }
     releaseRecovery();
   });
