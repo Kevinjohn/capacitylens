@@ -31,7 +31,7 @@ const activeStatus = {
   active: true,
   ...state,
   contextToken: state.token,
-  principal: { id: 'u-actor', email: 'actor@example.test' },
+  actor: { id: 'u-actor', email: 'actor@example.test' },
 };
 
 // A 2xx answer arrives inside the `{ data }` envelope; a refusal is flat.
@@ -115,7 +115,7 @@ describe('masqueradeApi', () => {
       json({
         active: true,
         ...malformedState,
-        principal: activeStatus.principal,
+        actor: activeStatus.actor,
       }),
     );
 
@@ -159,11 +159,11 @@ describe('masqueradeApi', () => {
   });
 
   it.each([undefined, null, { id: 'u-actor' }, { id: '', email: 'actor@example.test' }])(
-    'rejects an active status whose principal is %j',
-    async (principal) => {
-      mocks.status.mockResolvedValue(json({ ...activeStatus, principal }));
+    'rejects an active status whose actor is %j',
+    async (actor) => {
+      mocks.status.mockResolvedValue(json({ ...activeStatus, actor }));
       await expect(masqueradeApi.status()).rejects.toThrow(
-        'The server returned an invalid masquerade principal.',
+        'The server returned an invalid masquerade actor.',
       );
     },
   );

@@ -35,7 +35,7 @@ function parseMasqueradeState(value: unknown, companyIdFallback?: string): Masqu
   return { ...(state as unknown as MasqueradeState), companyId };
 }
 
-function parseBootstrapPrincipal(
+function parseBootstrapActor(
   value: unknown,
 ): { id: string; name?: string | null; email: string } | null {
   if (
@@ -58,7 +58,7 @@ function parseBootstrapPrincipal(
 }
 
 export type MasqueradeBootstrapStatus = MasqueradeStatus & {
-  principal?: { id: string; name?: string | null; email: string };
+  actor?: { id: string; name?: string | null; email: string };
 };
 
 async function readMasqueradeBody(response: Response, fallback: string): Promise<unknown> {
@@ -119,11 +119,11 @@ export const masqueradeApi = {
     ) {
       throw new Error('The server returned an invalid masquerade status.');
     }
-    const principal = parseBootstrapPrincipal((body as { principal?: unknown }).principal);
-    if (!principal) {
-      throw new Error('The server returned an invalid masquerade principal.');
+    const actor = parseBootstrapActor((body as { actor?: unknown }).actor);
+    if (!actor) {
+      throw new Error('The server returned an invalid masquerade actor.');
     }
-    return { active: true, ...state, contextToken, principal };
+    return { active: true, ...state, contextToken, actor };
   },
 
   async start(companyId: string, targetUserId: string): Promise<MasqueradeState> {

@@ -5,10 +5,10 @@
  * pulling in a framework, the database or React.
  */
 
-/** Opaque company (workspace) identifier. */
-export type WorkspaceId = string;
-/** Opaque identity-global principal (user) identifier. */
-export type PrincipalId = string;
+/** Opaque company identifier. */
+export type CompanyId = string;
+/** Opaque identity-global user identifier. */
+export type UserId = string;
 /** Canonical UTC instant produced by `Date#toISOString()`, including exactly three millisecond
  * digits and a trailing `Z` (for example `2026-07-18T10:00:00.000Z`). */
 export type IsoInstant = string;

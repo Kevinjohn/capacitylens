@@ -38,7 +38,7 @@ describe('AuthProvider — server mode', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
       contextToken: 'session-token',
-      principal: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -69,7 +69,7 @@ describe('AuthProvider — server mode', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
       contextToken: 'session-token',
-      principal: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     vi.doMock('@/data/planning/storePlanningTransport', async () => {
       const { createPlanningTransport } = await import('@/data/planning/planningTransport');

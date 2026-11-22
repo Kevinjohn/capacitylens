@@ -100,7 +100,7 @@ export async function readCurrentMasquerade(
     expiresAt: view.expiresAt,
     contextToken: view.contextToken,
     token: view.contextToken,
-    principal: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
+    actor: { id: actor.id, name: actor.user.displayName, email: actor.user.email },
     ...buildAccessGrant(effectiveRole, true),
   };
 }

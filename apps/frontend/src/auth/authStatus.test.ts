@@ -150,7 +150,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
     }
   });
 
-  it('fails closed without adopting an active status whose principal is not a valid user', async () => {
+  it('fails closed without adopting an active status whose actor is not a valid user', async () => {
     const { fetchAuthStatus } = await import('./fetchAuthStatus');
     const { masqueradeModel } = await import('./masqueradeModelInstance');
     const status = vi.spyOn(masqueradeApi, 'status').mockResolvedValue({
@@ -164,7 +164,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'mode-token',
       contextToken: 'mode-token',
-      principal: { id: '', email: 'real@example.test' },
+      actor: { id: '', email: 'real@example.test' },
     });
     const adopt = vi.spyOn(masqueradeModel, 'adoptStatus');
     try {
@@ -199,7 +199,7 @@ describe('fetchAuthStatus masquerade reconciliation', () => {
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'stale-mode-token',
       contextToken: 'stale-mode-token',
-      principal: { id: 'real-user', email: 'real@example.test' },
+      actor: { id: 'real-user', email: 'real@example.test' },
     };
     try {
       const pending = fetchAuthStatus(() => true);

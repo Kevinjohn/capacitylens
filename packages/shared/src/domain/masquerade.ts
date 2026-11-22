@@ -1,5 +1,5 @@
 import type { AccessGrant } from './access.js';
-import type { IsoInstant, PrincipalId, Role, WorkspaceId } from '../account/types.js';
+import type { IsoInstant, UserId, Role, CompanyId } from '../account/types.js';
 
 /** Reasons a masquerade can end. Only the first two may be supplied by the browser. */
 export const MASQUERADE_END_REASONS = [
@@ -20,8 +20,8 @@ export type ClientMasqueradeEndReason = Extract<MasqueradeEndReason, 'explicit' 
 
 /** Server-computed wire representation of an active identity read projection. */
 export interface MasqueradeState extends AccessGrant {
-  companyId: WorkspaceId;
-  targetUserId: PrincipalId;
+  companyId: CompanyId;
+  targetUserId: UserId;
   targetName: string;
   effectiveRole: Role;
   startedAt: IsoInstant;
@@ -32,7 +32,7 @@ export interface MasqueradeState extends AccessGrant {
 
 /** Validated request body for starting a masquerade. */
 export interface StartMasqueradePayload {
-  targetUserId: PrincipalId;
+  targetUserId: UserId;
 }
 
 /** Validated request body for ending a masquerade. */

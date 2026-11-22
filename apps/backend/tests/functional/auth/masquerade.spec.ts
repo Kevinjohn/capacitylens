@@ -511,13 +511,13 @@ test.group('native read-only masquerade', (group) => {
     status.assertStatus(200);
     const active = status.body()!.data as {
       active: boolean;
-      principal: { id: string; email: string };
+      actor: { id: string; email: string };
       contextToken: string;
       expiresAt: string;
     };
     assert.isTrue(active.active);
-    assert.equal(active.principal.id, ownerId);
-    assert.equal(active.principal.email, 'bruce.wayne@wayne.example');
+    assert.equal(active.actor.id, ownerId);
+    assert.equal(active.actor.email, 'bruce.wayne@wayne.example');
     assert.equal(active.contextToken, state.contextToken);
     assert.equal(active.expiresAt, state.expiresAt);
     const secondSession = await signIn(client, 'bruce.wayne@wayne.example', password);
@@ -691,7 +691,7 @@ test.group('native read-only masquerade', (group) => {
       await db
         .from('masquerade_modes')
         .where({
-          actor_id: (started.body().data as { principal: { id: string } }).principal?.id,
+          actor_id: (started.body().data as { actor: { id: string } }).actor?.id,
           state: 'active',
         })
         .count('* as total')
