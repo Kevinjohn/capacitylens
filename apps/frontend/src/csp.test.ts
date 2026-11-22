@@ -30,7 +30,7 @@ describe('SPA content security policy', () => {
     // finding the required CSP text somewhere else in the configuration.
     for (const declaration of [
       'location ^~ /assets/ {',
-      'location ~* ^/(invite|reset-password|verify-email)/ {',
+      'location ~* ^/(invitation|reset-password|verify-email)/ {',
       'location / {',
     ]) {
       expect(locationBlock(nginx, declaration)).toContain(

@@ -7,7 +7,7 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 // the same acceptance page against a real server.
 test.describe('invitation page', () => {
   test('an unknown link explains that the invitation is invalid', async ({ page }) => {
-    await page.goto('/invite/not-a-real-invitation');
+    await page.goto('/invitation/not-a-real-invitation');
     await expect(page.getByRole('heading', { name: 'Accept invite' })).toBeVisible();
     await expect(page.getByTestId('invite-error')).toContainText(
       'This invitation is invalid or has expired',
@@ -25,7 +25,7 @@ test.describe('invitation page', () => {
         },
       }),
     );
-    await page.goto('/invite/long-address-layout');
+    await page.goto('/invitation/long-address-layout');
     await expect(page.getByTestId('invite-role')).toHaveText('Editor');
     await expect(page.getByText(email)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

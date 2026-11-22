@@ -13,9 +13,9 @@ const preview = {
 
 function renderPage() {
   render(
-    <MemoryRouter initialEntries={['/invite/single-use-token']}>
+    <MemoryRouter initialEntries={['/invitation/single-use-token']}>
       <Routes>
-        <Route path="/invite/:token" element={<InviteAccept />} />
+        <Route path="/invitation/:token" element={<InviteAccept />} />
       </Routes>
     </MemoryRouter>,
   );

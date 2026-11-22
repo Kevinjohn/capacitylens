@@ -88,7 +88,7 @@ describe('AuthProvider — server mode', () => {
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
   it('password invite routes render before sign-in so the token can onboard a new identity', async () => {
-    window.history.pushState({}, '', '/invite/invite-token');
+    window.history.pushState({}, '', '/invitation/invite-token');
     try {
       vi.stubGlobal(
         'fetch',
@@ -107,7 +107,7 @@ describe('AuthProvider — server mode', () => {
     }
   });
   it('invite routes render before sign-in so the acceptance form keeps the token', async () => {
-    window.history.pushState({}, '', '/invite/invite-token');
+    window.history.pushState({}, '', '/invitation/invite-token');
     try {
       vi.stubGlobal(
         'fetch',

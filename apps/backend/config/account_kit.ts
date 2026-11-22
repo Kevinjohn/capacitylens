@@ -64,7 +64,7 @@ export default defineConfig({
     destinations: {
       passwordReset: 'reset-password',
       emailVerification: 'verify-email',
-      invitation: 'invite',
+      invitation: 'invitation',
       emailChange: 'confirm-email-change',
     },
     environment: app.inProduction ? 'production' : app.inTest ? 'test' : 'development',

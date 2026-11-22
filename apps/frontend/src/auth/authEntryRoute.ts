@@ -6,7 +6,7 @@ export type PublicAuthEntry = 'password-reset' | 'invitation' | 'email-verificat
 /** Route patterns for token-based public authentication entries. */
 export const PUBLIC_AUTH_ENTRY_PATHS = {
   passwordReset: '/reset-password/:token',
-  invitation: '/invite/:token',
+  invitation: '/invitation/:token',
   emailVerification: '/verify-email/:token',
 } as const;
 
