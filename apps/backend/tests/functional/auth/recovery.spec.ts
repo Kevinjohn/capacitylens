@@ -3,18 +3,18 @@ import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import {
   captureMail,
   clearIdentities,
   createIdentity,
   signIn,
   expectStatus,
-} from '../../helpers/identities.js';
+} from '#tests/helpers/identities';
 
 const companyId = 'a-studio';
 const owner = 'bruce.wayne@wayne.example';
@@ -119,7 +119,7 @@ test.group('password recovery', (group) => {
       cookie
     )
       .headers({
-        'x-account-command-id': 'recovery-role-command-0001',
+        'x-account-operation-id': 'recovery-role-command-0001',
         'idempotency-key': 'recovery-role-idempotency-0001',
       })
       .json({ role: 'viewer' })

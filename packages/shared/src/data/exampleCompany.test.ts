@@ -22,7 +22,7 @@ function build(overrides: Partial<Parameters<typeof buildExampleCompany>[0]> = {
 describe('buildExampleCompany', () => {
   it('builds exactly the documented small company, every row in the company', () => {
     const data = build();
-    expect(data.resources.map((row) => [row.name, row.role])).toEqual([
+    expect(data.resources.map((row) => [row.name, row.jobTitle])).toEqual([
       ['Dick Grayson', 'Designer'],
       ['Barbara Gordon', 'Developer'],
     ]);

@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   authenticatedDataClient,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 
 test.group('retired persistence routes', (group) => {
   group.setup(() => freshDatabase());
@@ -32,7 +32,7 @@ test.group('retired persistence routes', (group) => {
     const read = await owner.visit('api.company_state.show').qs({ companyId }).send();
     read.assertStatus(200);
     assert.deepEqual(
-      read.body().data.accounts.map((account: { id: string }) => account.id),
+      read.body().data.companies.map((account: { id: string }) => account.id),
       [companyId]
     );
   });

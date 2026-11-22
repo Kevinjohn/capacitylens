@@ -1,12 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Activity from '#models/activity';
 import Resource from '#models/resource';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
-import { companyId, configureAuth, resetPlanningFixture, signIn } from './helpers.js';
+import {
+  companyId,
+  configureAuth,
+  resetPlanningFixture,
+  signIn,
+} from '#tests/functional/planning/helpers';
 import {
   send,
   restore,
@@ -14,7 +19,7 @@ import {
   markers,
   planningAudit,
   consumedAt,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 test.group('typed catalogue and time-off restoration', (suite) => {
   suite.setup(() => freshDatabase());
@@ -54,7 +59,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const detachedResource = await db.from('resources').where('id', resource.id).first();
     assert.equal(detachedResource.updated_at, hiddenResource.updated_at);
     assert.equal(detachedResource.deleted_at, childDeletedAt);
-    await db.from('resources').where('id', resource.id).update({ role: 'Updated Gotham role' });
+    await db
+      .from('resources')
+      .where('id', resource.id)
+      .update({ job_title: 'Updated Gotham role' });
     const restored = await restore(
       client,
       cookie,
@@ -65,7 +73,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const after = await readState(companyId, true);
     assert.equal(after.resources.find((row) => row.id === resource.id)?.disciplineId, disciplineId);
     assert.equal(
-      after.resources.find((row) => row.id === resource.id)?.role,
+      after.resources.find((row) => row.id === resource.id)?.jobTitle,
       'Updated Gotham role'
     );
     const relinkedResource = await db.from('resources').where('id', resource.id).first();

@@ -4,14 +4,14 @@ import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client';
 import router from '@adonisjs/core/services/router';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
   resetPlanningFixture,
   session,
   signIn,
-} from '../planning/helpers.js';
+} from '#tests/functional/planning/helpers';
 
 // Every named route is classified by whether its reply can carry a restricted value. Routes that can
 // are called for every test user, and the raw reply must not contain a value that user's
@@ -212,7 +212,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning_mutations.store#catalogue.unarchive clients': {
+  'api.planning_mutations.store#catalogue.restore clients': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -222,7 +222,7 @@ const replies: Record<string, Exposure> = {
         entity,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity,
       });
     },
@@ -240,7 +240,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning_mutations.store#catalogue.unarchive projects': {
+  'api.planning_mutations.store#catalogue.restore projects': {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) => {
@@ -250,7 +250,7 @@ const replies: Record<string, Exposure> = {
         entity,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity,
       });
     },
@@ -268,7 +268,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning_mutations.store#resource.unarchive': {
+  'api.planning_mutations.store#resource.restore': {
     write: true,
     carries: [],
     call: async (fixture) => {
@@ -277,7 +277,7 @@ const replies: Record<string, Exposure> = {
         id: fixture.resourceId,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'resource.unarchive',
+        operation: 'resource.restore',
         id: fixture.resourceId,
       });
     },
@@ -351,7 +351,7 @@ const replies: Record<string, Exposure> = {
   'api.example_data.store': { none: COUNTS },
   'api.getting_started.show': { none: IDENTITY },
   'api.getting_started.update': { none: IDENTITY },
-  'api.health': { none: IDENTITY },
+  'api.health_checks.live': { none: IDENTITY },
   'health_checks.live': { none: IDENTITY },
   'health_checks.ready': { none: IDENTITY },
   'api.first_company_setup.store': { none: IDENTITY },
@@ -427,7 +427,7 @@ async function readContextToken(client: ApiClient, cookie: string) {
   const status = await session(client.visit('api.masquerade.show'), cookie).send();
   status.assertStatus(200);
   // The status reply is checked by String(); a missing token fails the masquerade start.
-  return String((status.body()!.data as { contextToken: unknown }).contextToken);
+  return String((status.body()!.data as { masqueradeToken: unknown }).masqueradeToken);
 }
 
 async function startMasqueradeAs(client: ApiClient, viewerCookie: string, targetUserId: string) {

@@ -64,7 +64,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
     resourceHasTimeOff: (companyId, resourceId) =>
       data.timeOff.some((row) => row.companyId === companyId && row.resourceId === resourceId),
     companyWorkingDays: (companyId): Weekday[] => {
-      const company = data.accounts.find((row) => row.id === companyId);
+      const company = data.companies.find((row) => row.id === companyId);
       return normalizeCompanyWorkingDays(company?.workingDays, company?.weekStartsOn === 0 ? 0 : 1);
     },
   };

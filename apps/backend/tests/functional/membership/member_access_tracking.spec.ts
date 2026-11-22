@@ -1,5 +1,5 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
@@ -8,8 +8,8 @@ import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { signUpAndIn } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 
@@ -56,7 +56,7 @@ test.group('company member access and tracking', (group) => {
       .send();
     response.assertStatus(409);
     response.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
-    assert.deepEqual(await db.from('accounts').select('id'), [{ id: 'a-studio' }]);
+    assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }]);
   });
 
   test('suspension blocks the company until restored and clears the sign-in confirmation', async ({
@@ -158,8 +158,8 @@ test.group('company member access and tracking', (group) => {
       'a-studio'
     );
     const now = new Date().toISOString();
-    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' };
-    await db.table('accounts').insert(encodeRow('accounts', otherCompany));
+    const otherCompany = { ...seed().companies[0]!, id: 'a-loft', name: 'Stark Industries' };
+    await db.table('companies').insert(encodeRow('companies', otherCompany));
     await db
       .table('clients')
       .insert(encodeRow('clients', { ...buildInternalClient('a-loft', now) }));
@@ -265,7 +265,7 @@ test.group('company member access and tracking', (group) => {
       .send();
     refusedWhileActive.assertStatus(409);
     refusedWhileActive.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
-    assert.deepEqual(await db.from('accounts').select('id'), [{ id: 'a-studio' }]);
+    assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }]);
     const suspended = await signed(
       client.visit('api.member_status.update', { companyId: 'a-studio', userId: adminId }),
       ownerCookie
@@ -280,6 +280,6 @@ test.group('company member access and tracking', (group) => {
       .send();
     refused.assertStatus(409);
     refused.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
-    assert.deepEqual(await db.from('accounts').select('id'), [{ id: 'a-studio' }]);
+    assert.deepEqual(await db.from('companies').select('id'), [{ id: 'a-studio' }]);
   });
 });

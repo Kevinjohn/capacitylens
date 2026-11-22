@@ -1,6 +1,6 @@
 # US-DAT-08 — Confirm the exact import operation
 
-As an Owner, I want to confirm the exact import operation so that my password cannot authorize a different replacement.
+As an Owner, I want to confirm the exact import operation so that my password cannot authorise a different replacement.
 
 **Status:** Current
 **Access:** Owner
@@ -33,4 +33,4 @@ flowchart TD
   transfer --> service["applyCompanyImport applies the reviewed revision"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_confirmations_controller.ts](../../apps/backend/app/controllers/password_confirmations_controller.ts), [transfer_routes.ts](../../apps/backend/start/transfer_routes.ts), [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts), [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [useServerImport.ts](../../apps/frontend/src/components/import-export/useServerImport.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_confirmations_controller.ts](../../apps/backend/app/controllers/password_confirmations_controller.ts), [import_routes.ts](../../apps/backend/start/import_routes.ts), [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts), [imports_controller.ts](../../apps/backend/app/controllers/imports_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)

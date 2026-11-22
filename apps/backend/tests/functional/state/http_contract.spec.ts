@@ -1,8 +1,8 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed, resetState } from '#tests/helpers/state_fixture';
-import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import db from '@adonisjs/lucid/services/db';
 
 const securityHeaders = [
@@ -50,7 +50,7 @@ test.group('HTTP contract', (group) => {
     const scoped = await client.visit('api.company_state.show').qs({ companyId: 'a-studio' });
     assert.equal(scoped.status(), 200);
     assert.deepEqual(
-      scoped.body().data.accounts.map(({ id }: { id: string }) => id),
+      scoped.body().data.companies.map(({ id }: { id: string }) => id),
       ['a-studio']
     );
     for (const key of [
@@ -95,7 +95,7 @@ test.group('HTTP contract', (group) => {
     assert,
   }) => {
     for (const response of [
-      await client.visit('api.health'),
+      await client.visit('api.health_checks.live'),
       await client
         .visit('api.session.store')
         .header('content-type', 'application/json')
@@ -117,12 +117,12 @@ test.group('HTTP contract', (group) => {
   }) => {
     client = await resetAuthenticatedClient(client, true);
     const allowed = 'http://localhost:5173';
-    const accepted = await client.visit('api.health').header('origin', allowed);
+    const accepted = await client.visit('api.health_checks.live').header('origin', allowed);
     assert.equal(accepted.header('access-control-allow-origin'), allowed);
     assert.equal(accepted.header('access-control-allow-credentials'), 'true');
 
     const disallowed = await client
-      .visit('api.health')
+      .visit('api.health_checks.live')
       .header('origin', 'https://attacker.example');
     assert.isUndefined(disallowed.header('access-control-allow-origin'));
     assert.isUndefined(disallowed.header('access-control-allow-credentials'));
@@ -195,7 +195,7 @@ test.group('HTTP contract', (group) => {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: null },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
     } finally {

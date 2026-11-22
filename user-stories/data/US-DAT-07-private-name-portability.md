@@ -1,4 +1,4 @@
-# US-DAT-07 — Preserve private names safely in transfer
+# US-DAT-07 — Preserve private names safely in export and import
 
 As an Owner, I want private names preserved safely in export and import so that confidential identities remain protected and restorable.
 
@@ -33,7 +33,7 @@ flowchart TD
   project --> beta["buildCompanyExport validates and serializes portable data"]
   beta --> file["downloadTextFile saves the server's file"]
   file --> import["prepareCompanyImport accepts only full exports and validates private fields"]
-  import --> replace["Transfer service replaces company rows only after preparation"]
+  import --> replace["Import service replaces company rows only after preparation"]
 ```
 
-**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyExport.ts](../../packages/shared/src/data/companyExport.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)

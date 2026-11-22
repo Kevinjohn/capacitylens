@@ -3,24 +3,21 @@ import type { ApiClient } from '@japa/api-client';
 import {
   authenticatedDataClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { transformState } from '#transformers/state_transformer';
 import { readState } from '#tests/helpers/state_fixture';
 
 const roles: Role[] = ['owner', 'admin', 'editor', 'viewer'];
-let userId: string;
-
 async function reset(client: ApiClient) {
   const session = await resetAuthenticatedData(client, true);
-  userId = session.userId;
-  return authenticatedDataClient(client, session.cookie);
+  return { client: authenticatedDataClient(client, session.cookie), userId: session.userId };
 }
 
 /** Archives one a-studio resource so that only an Owner or Admin export carries it. */
@@ -33,7 +30,7 @@ async function archiveResource() {
   return String(candidate.id);
 }
 
-async function setRole(role: Role, companyId = 'a-studio') {
+async function setRole(userId: string, role: Role, companyId = 'a-studio') {
   await db.from('memberships').where({ user_id: userId, scope_id: companyId }).update({ role });
 }
 
@@ -41,11 +38,12 @@ test.group('company export download', (group) => {
   group.setup(() => freshDatabase());
 
   test("serves the role's projected export document", async ({ client, assert }) => {
-    client = await reset(client);
+    const signedIn = await reset(client);
+    client = signedIn.client;
     await archiveResource();
-    await db.from('accounts').where('id', 'a-studio').update({ date_style: 'month-day' });
+    await db.from('companies').where('id', 'a-studio').update({ date_style: 'month-day' });
     for (const role of roles) {
-      await setRole(role);
+      await setRole(signedIn.userId, role);
       const response = await client
         .visit('api.company_exports.show', { companyId: 'a-studio' })
         .send();
@@ -71,9 +69,10 @@ test.group('company export download', (group) => {
   });
 
   test("labels only the Owner's export full", async ({ client, assert }) => {
-    client = await reset(client);
+    const signedIn = await reset(client);
+    client = signedIn.client;
     for (const role of roles) {
-      await setRole(role);
+      await setRole(signedIn.userId, role);
       const response = await client
         .visit('api.company_exports.show', { companyId: 'a-studio' })
         .send();
@@ -84,10 +83,11 @@ test.group('company export download', (group) => {
   });
 
   test('includes archived rows only for Owner and Admin', async ({ client, assert }) => {
-    client = await reset(client);
+    const signedIn = await reset(client);
+    client = signedIn.client;
     const archivedId = await archiveResource();
     for (const role of roles) {
-      await setRole(role);
+      await setRole(signedIn.userId, role);
       const response = await client
         .visit('api.company_exports.show', { companyId: 'a-studio' })
         .send();
@@ -99,15 +99,17 @@ test.group('company export download', (group) => {
   });
 
   test('refuses a company the caller does not belong to', async ({ client, assert }) => {
-    client = await reset(client);
-    await db.from('memberships').where({ user_id: userId, scope_id: 'a-loft' }).delete();
+    const signedIn = await reset(client);
+    client = signedIn.client;
+    await db.from('memberships').where({ user_id: signedIn.userId, scope_id: 'a-loft' }).delete();
     const response = await client.visit('api.company_exports.show', { companyId: 'a-loft' }).send();
     response.assertStatus(403);
     assert.equal((response.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
   });
 
   test('refuses an export that fails validation with its message', async ({ client, assert }) => {
-    client = await reset(client);
+    const signedIn = await reset(client);
+    client = signedIn.client;
     const placeholder = await db
       .from('resources')
       .where('company_id', 'a-studio')

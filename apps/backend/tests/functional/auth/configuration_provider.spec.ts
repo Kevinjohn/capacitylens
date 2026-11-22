@@ -4,9 +4,9 @@ import db from '@adonisjs/lucid/services/db';
 import env from '#start/env';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import ConfigurationProvider from '#providers/configuration_provider';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, createIdentity, signIn } from '../../helpers/identities.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, createIdentity, signIn } from '#tests/helpers/identities';
 
 const bootstrapEmail = 'admin@admin.admin';
 const bootstrapPassword = 'batman-local-bootstrap-2026';

@@ -84,7 +84,7 @@ export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
             },
           });
         }
-        return Response.json({ data: { active: false, contextToken: 'idle' } });
+        return Response.json({ data: { active: false, masqueradeToken: 'idle' } });
       }),
     );
     // Seed an active company so these tests exercise the shell.
@@ -92,7 +92,7 @@ export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
       buildProductOrientationKey(authenticatedUser.user.id, DEFAULT_COMPANY_ID),
       'dismissed',
     );
-    loadPlanningData(makeAppData({ accounts: [makeCompany()] }));
+    loadPlanningData(makeAppData({ companies: [makeCompany()] }));
     useStore.getState().setCompanySummaries({
       list: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' }],
     });

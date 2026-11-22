@@ -17,7 +17,7 @@ test.use({ contextOptions: { reducedMotion: 'reduce' } });
 // This spec exercises owner and admin member management against the password-mode auth server. Owner A
 // creates the first company and seeds admin B plus editor C in the disposable database. As B, it changes C's
 // role, creates and revokes an invite, and verifies that owners cannot be assigned or changed, that
-// nobody changes their own membership, and that members cannot be read across accounts. Owner A then
+// nobody changes their own membership, and that members cannot be read across companies. Owner A then
 // suspends and restores C from the gear menu. Ownership transfer remains covered by e2e/ownership-transfer.auth.spec.ts.
 const STAMP = Date.now();
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`;
@@ -114,9 +114,9 @@ async function manageAdminMembers(
   await expect(page.getByTestId('current-access')).toContainText('Admin');
   await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
   await expect(page.getByText('View the schedule')).toHaveCount(0);
-  await page.getByTestId('capabilities-toggle').click();
+  await page.getByTestId('permissions-toggle').click();
   await expect(page.getByText('View the schedule')).toBeVisible();
-  await page.getByTestId('capabilities-toggle').click();
+  await page.getByTestId('permissions-toggle').click();
   const rows = page.getByTestId('member-row');
   await expect(rows).toHaveCount(3);
   await expect(page.getByText(OWNER)).toBeVisible();

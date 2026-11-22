@@ -7,7 +7,7 @@ import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import {
   requireAdmissionDecision,
@@ -17,14 +17,14 @@ import {
 } from '#services/auth/current_actor';
 import { readState } from '#tests/helpers/state_fixture';
 import { getPlanningRevision } from '#services/planning_revision';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 import {
   clearIdentities,
   createIdentity,
   fixturePassword,
   signIn,
-} from '../../helpers/identities.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+} from '#tests/helpers/identities';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';

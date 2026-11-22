@@ -1,6 +1,6 @@
 # US-ACT-01 — Add an activity (internal, all-projects, or project-specific)
 
-As an Editor, I want to add an activity as Project-specific, Internal or All projects so that work is categorized correctly.
+As an Editor, I want to add an activity as Project-specific, Internal or All projects so that work is categorised correctly.
 
 **Status:** Current
 **Access:** Editor and above (Editor, Admin, Owner)

@@ -14,7 +14,7 @@ export default {
     half_days: weekdays,
   },
   tables: {
-    accounts: {
+    companies: {
       columns: {
         scheduling_mode: {
           tsType: "import('@capacitylens/shared/types/entities').SchedulingMode",

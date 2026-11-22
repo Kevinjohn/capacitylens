@@ -14,7 +14,7 @@ import { createDeferred } from '@/test/createDeferred';
 function payload(companyId: string, name: string) {
   return {
     ...createEmptyAppData(),
-    accounts: [makeCompany({ id: companyId })],
+    companies: [makeCompany({ id: companyId })],
     clients: [
       buildInternalClient(companyId, '2026-01-01T00:00:00.000Z'),
       makeClient({

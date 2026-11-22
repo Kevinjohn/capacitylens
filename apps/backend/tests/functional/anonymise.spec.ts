@@ -1,12 +1,12 @@
-import { fixtureSession, signIn, signUpAndIn } from '../helpers/identities.js';
+import { fixtureSession, signIn, signUpAndIn } from '#tests/helpers/identities';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import type { ApiClient } from '@japa/api-client';
 import { randomUUID } from 'node:crypto';
 import { getPlanningRevision } from '#services/planning_revision';
@@ -177,7 +177,7 @@ test.group('company anonymisation', (group) => {
       scrubbed.name,
       `Removed person #${target.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`
     );
-    assert.equal(scrubbed.role, 'Removed resource');
+    assert.equal(scrubbed.job_title, 'Removed resource');
     assert.isNull(scrubbed.avatar_url);
     const untouched = await db.from('resources').where('id', other.id).first();
     assert.equal(untouched.name, other.name);
@@ -309,7 +309,7 @@ test.group('company anonymisation', (group) => {
       .from('audit_entries')
       .where('company_id', 'a-loft')
       .select('*');
-    const accountBefore = await db.from('accounts').where('id', companyId).first();
+    const accountBefore = await db.from('companies').where('id', companyId).first();
     const before = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const missing = await asDataOwner(
       client.visit('api.company_anonymisations.store', { companyId }),
@@ -334,7 +334,7 @@ test.group('company anonymisation', (group) => {
         savedResource.name,
         `Removed person #${savedResource.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`
       );
-      assert.equal(savedResource.role, 'Removed resource');
+      assert.equal(savedResource.job_title, 'Removed resource');
       assert.isNull(savedResource.avatar_url);
     }
     assert.lengthOf(await db.from('deleted_groups').where('company_id', companyId), 0);
@@ -385,7 +385,7 @@ test.group('company anonymisation', (group) => {
         .whereNotNull('note'),
       0
     );
-    assert.deepEqual(await db.from('accounts').where('id', companyId).first(), accountBefore);
+    assert.deepEqual(await db.from('companies').where('id', companyId).first(), accountBefore);
     const memberships = await db.from('memberships').where('scope_id', companyId);
     assert.isAbove(memberships.length, 0);
     assert.deepEqual(memberships, membershipBefore);

@@ -115,7 +115,7 @@ export function buildActivityListModel({
   return {
     kindOrder: ACTIVITY_KIND_ORDER,
     internal: listSortedActivities('internal'),
-    crossProject: listSortedActivities('repeatable'),
+    crossProject: listSortedActivities('allProjects'),
     clients: [...groupedClients.values()]
       .map((client) => ({
         ...client,

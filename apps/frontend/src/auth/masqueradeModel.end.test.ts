@@ -36,7 +36,7 @@ describe('MasqueradeModel', () => {
     const replacement = {
       ...state,
       token: 'replacement-mode-token',
-      contextToken: 'replacement-mode-token',
+      masqueradeToken: 'replacement-mode-token',
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
     };
@@ -62,7 +62,7 @@ describe('MasqueradeModel', () => {
   it("preserves a failed cold End attempt's retry ownership after server confirms it remains active", async () => {
     useStore.getState().clearPlanning();
     loadPlanningData(
-      makeAppData({ accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })] }),
+      makeAppData({ companies: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })] }),
     );
     const { model, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningIntents()),
@@ -143,7 +143,7 @@ describe('MasqueradeModel cross-tab reconciliation', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
       token: 'token-2',
-      contextToken: 'token-2',
+      masqueradeToken: 'token-2',
     };
     const { model, resume } = createHarness({
       api: {
@@ -166,7 +166,7 @@ describe('MasqueradeModel cross-tab reconciliation', () => {
       targetUserId: 'u-editor',
       targetName: 'Dick Grayson',
       token: 'token-2',
-      contextToken: 'token-2',
+      masqueradeToken: 'token-2',
     };
     const { model, dependencies, resume } = createHarness({
       api: {

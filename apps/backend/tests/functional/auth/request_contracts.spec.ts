@@ -7,12 +7,12 @@ import { RegistrationEmailAlreadyRegisteredError } from '@kevinjohn/adonisjs-acc
 import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
-import { createIdentity, clearIdentities, signIn } from '../../helpers/identities.js';
+import { createIdentity, clearIdentities, signIn } from '#tests/helpers/identities';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 
 test.group('ordinary authentication request contracts', (group) => {
   group.setup(() => freshDatabase());
@@ -183,14 +183,14 @@ test.group('ordinary authentication request contracts', (group) => {
   }) => {
     const userId = await createIdentity('bruce.wayne@wayne.example', { name: 'Bruce Wayne' });
     await createFixtureCompanyForOwner(userId, 'Wayne Enterprises', 'a-studio');
-    const previousSignup = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
+    const previousSignUp = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
     const originalRegister = accountKit.registration.register;
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
     accountKit.registration.register = async () => {
       throw new RegistrationEmailAlreadyRegisteredError();
     };
     cleanup(() => {
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previousSignup);
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', previousSignUp);
       accountKit.registration.register = originalRegister;
     });
 

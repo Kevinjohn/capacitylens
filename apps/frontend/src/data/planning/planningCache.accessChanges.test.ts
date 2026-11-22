@@ -28,7 +28,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -63,7 +63,7 @@ describe('planning cache', () => {
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
     });
     await h.cache.execute(h.cache.begin(), intent);
     const draft = h.cache.begin();
@@ -74,7 +74,7 @@ describe('planning cache', () => {
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
-        authority: makePlanningAccess({ role: 'editor' }),
+        access: makePlanningAccess({ role: 'editor' }),
       }),
     ).resolves.toBe(true);
     expect(h.state().planning.history.canUndo).toBe(false);
@@ -95,17 +95,17 @@ describe('planning cache', () => {
         data: cached,
         today: companyToday,
         capacity: emptyCapacity(),
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
       }),
     ).resolves.toBe(true);
-    expect(h.state().data.accounts).toHaveLength(1);
+    expect(h.state().data.companies).toHaveLength(1);
     await expect(
       h.readSnapshot({
         revision: 3,
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
-        authority: makePlanningAccess({ role: 'viewer' }),
+        access: makePlanningAccess({ role: 'viewer' }),
       }),
     ).resolves.toBe(false);
     expect(h.state().data).toEqual(createEmptyAppData());
@@ -118,7 +118,7 @@ describe('planning cache', () => {
       .fn()
       .mockResolvedValueOnce({
         revision: 1,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         data: makeCanonicalData(),
         today: companyToday,
         capacity: emptyCapacity(),
@@ -153,7 +153,7 @@ describe('canonical planning write capability', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 0,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -163,7 +163,7 @@ describe('canonical planning write capability', () => {
     const draft = h.cache.begin();
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAccess({ canWrite: false }),
+      access: makePlanningAccess({ canWrite: false }),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),

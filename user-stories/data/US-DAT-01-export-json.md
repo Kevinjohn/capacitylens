@@ -1,6 +1,6 @@
 # US-DAT-01 — Export company data
 
-As a company member, I want to export company data so that I can inspect or transfer a portable copy.
+As a company member, I want to export company data so that I can inspect or move a portable copy.
 
 **Status:** Current
 **Access:** Owner, Admin, Editor, Viewer
@@ -32,4 +32,4 @@ flowchart TD
   route --> file["downloadTextFile saves the server's file"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [export_routes.ts](../../apps/backend/start/export_routes.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [download.ts](../../apps/frontend/src/lib/download.ts)
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [export_routes.ts](../../apps/backend/start/export_routes.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [companyExport.ts](../../packages/shared/src/data/companyExport.ts), [download.ts](../../apps/frontend/src/lib/download.ts)

@@ -4,9 +4,9 @@ import {
   createFixtureCompanyForOwner,
   resetAuthenticatedClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import { LoggerFactory } from '@adonisjs/logger/factories';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Company from '#models/company';
 import logger from '@adonisjs/core/services/logger';
@@ -20,7 +20,7 @@ import {
   resetPlanningFixture,
   session as withPlanningSession,
   signIn,
-} from './planning/helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -133,7 +133,9 @@ test.group('general HTTP logging privacy', (group) => {
     for (const setting of ['', '0']) {
       env.set('CAPACITYLENS_LOG', setting);
       try {
-        const { output, result } = await captureLogs(() => client.visit('api.health').send());
+        const { output, result } = await captureLogs(() =>
+          client.visit('api.health_checks.live').send()
+        );
         assert.equal(result.status(), 200);
         assert.equal(output, '');
       } finally {
@@ -290,7 +292,7 @@ test.group('general HTTP logging privacy', (group) => {
     const { output } = await captureLogs(() =>
       Promise.all(
         Array.from({ length: 3 }, () =>
-          client.visit('api.health').header('x-request-id', suppliedId).send()
+          client.visit('api.health_checks.live').header('x-request-id', suppliedId).send()
         )
       )
     );
@@ -320,7 +322,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 400);
     assert.include(output, 'POST');
-    assert.include(output, '"path":"/api/transfer/apply"');
+    assert.include(output, '"path":"/api/import/apply"');
     assert.include(output, '400');
     assert.notInclude(output, secret);
   });
@@ -340,7 +342,7 @@ test.group('general HTTP logging privacy', (group) => {
     );
 
     assert.equal(result.status(), 400);
-    assert.include(output, '/api/transfer/apply');
+    assert.include(output, '/api/import/apply');
     assert.notInclude(output, secret);
     assert.notInclude(output, 'stack');
   });

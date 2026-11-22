@@ -58,6 +58,6 @@ Schedule. No company command or restart is needed. The server blocks additional 
 the first company exists, even when enabled in configuration. Configure mail delivery before
 handover: invitations and password resets are emailed.
 
-Before handover, prove the service restarts cleanly, confirm a scheduled snapshot exists, and give
+Before handover, prove the service restarts cleanly, confirm a scheduled backup exists, and give
 whoever will maintain hosting the [backup](/self-hosting/backups-and-restore), [upgrade](/self-hosting/upgrades),
 [monitoring](/self-hosting/monitoring) and [incident](/self-hosting/incidents) procedures.

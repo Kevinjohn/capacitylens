@@ -12,10 +12,10 @@ export default class InvitationLinksController {
     setProofHeaders(response);
     const invitation = await accountKit.invitations.inspect({ token: params.token });
     if (!invitation) return response.notFound(invalidInvitationLink);
-    const { companyId, accountName } = await getInstallationCompany(db);
+    const { companyId, companyName } = await getInstallationCompany(db);
     return serialize({
       companyId,
-      accountName,
+      companyName,
       // Before the company exists the role is only bootstrap metadata; setup grants Owner.
       role: companyId ? invitation.role : null,
       email: invitation.email,

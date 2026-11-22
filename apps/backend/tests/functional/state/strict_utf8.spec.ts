@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
 import { request as httpRequest } from 'node:http';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
 
 function postRawJson(
   body: Buffer,
   cookieHeader: string,
-  contextToken: string
+  masqueradeToken: string
 ): Promise<{ statusCode: number | undefined; body: string }> {
   return new Promise((resolve, reject) => {
     const port = Number(process.env.CAPACITYLENS_TEST_HTTP_PORT);
@@ -21,7 +21,7 @@ function postRawJson(
           'content-length': body.length,
           'cookie': cookieHeader,
           'sec-fetch-site': 'same-origin',
-          'X-Masquerade-Context': contextToken,
+          'X-Masquerade-Context': masqueradeToken,
         },
       },
       (response) => {
@@ -46,7 +46,7 @@ async function readContextToken(
 ) {
   const response = await asDataOwner(client.visit('api.masquerade.show'), cookie).send();
   response.assertStatus(200);
-  const token = (response.body()!.data as { contextToken?: unknown }).contextToken;
+  const token = (response.body()!.data as { masqueradeToken?: unknown }).masqueradeToken;
   if (typeof token !== 'string' || !token)
     throw new Error('The authenticated fixture did not provide a masquerade context.');
   return token;

@@ -7,9 +7,9 @@ import { join } from 'node:path';
 import { test } from '@japa/runner';
 import { terminateProcessTree } from '../../../../tooling/devProcesses.mjs';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../helpers/fresh_database.js';
-import { clearIdentities } from '../helpers/identities.js';
-import { configureAuth, session, signIn } from './planning/helpers.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { clearIdentities } from '#tests/helpers/identities';
+import { configureAuth, session, signIn } from '#tests/functional/planning/helpers';
 
 // Proxy trust, HSTS and cookie security are read once at boot, so each case starts its own server.
 const backendRoot = new URL('../../', import.meta.url);

@@ -1,11 +1,11 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { getPlanningRevision } from '#services/planning_revision';
 import { readState } from '#tests/helpers/state_fixture';
-import { asDataOwner, resetAuthenticatedData } from '../../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { createIdentity, fixturePassword, signIn } from '../../helpers/identities.js';
+import { asDataOwner, resetAuthenticatedData } from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { createIdentity, fixturePassword, signIn } from '#tests/helpers/identities';
 import { asExportFile } from '#tests/helpers/export_file';
 
 const companyId = 'a-studio';
@@ -25,7 +25,7 @@ test.group('password confirmation bindings', (group) => {
     const before = await readState(companyId, true);
     const baseRevision = await revision();
     const document = asExportFile(buildCompanyExport(before, { companyId, completeness: 'full' }));
-    document.data.accounts[0]!.name += ' by Lex';
+    document.data.companies[0]!.name += ' by Lex';
     const issue = async (action: string, intent: unknown) => {
       const response = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
         // The helper takes any action and intent, including ones the server refuses.

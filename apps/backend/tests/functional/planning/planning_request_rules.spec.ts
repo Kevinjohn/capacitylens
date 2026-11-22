@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import {
@@ -11,7 +11,7 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 /** Reads a success answer inside its `data` envelope and a refusal as it stands. */
 const body = (response: { body(): unknown; status(): number }) =>
@@ -257,7 +257,9 @@ test.group('planning request rule boundaries', (group) => {
       .where({ id: person.id, company_id: companyId })
       .update({ updated_at: priorUpdatedAt });
     const valid = await session(client.post(route('planning/mutations')), cookie)
-      .json(input(0, { operation: 'resource.update', id: person.id, changes: { role: 'Lead' } }))
+      .json(
+        input(0, { operation: 'resource.update', id: person.id, changes: { jobTitle: 'Lead' } })
+      )
       .send();
     valid.assertStatus(200);
     assert.equal(body(valid).revision, 1);
@@ -351,7 +353,7 @@ test.group('planning request rule boundaries', (group) => {
             kind: 'person',
             name: 'Test resource',
             avatarUrl: allocatedPerson!.avatarUrl,
-            role: 'Designer',
+            jobTitle: 'Designer',
             disciplineId: allocatedPerson!.disciplineId,
             employmentType: 'permanent',
             engagement: 'studio',

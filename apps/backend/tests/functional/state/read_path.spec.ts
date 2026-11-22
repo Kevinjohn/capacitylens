@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
 import { readFile } from 'node:fs/promises';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed } from '#tests/helpers/state_fixture';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
-import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import db from '@adonisjs/lucid/services/db';
 
 const fixture = JSON.parse(
@@ -51,7 +51,7 @@ test.group('read path', (group) => {
                 connectivity: 'ok',
                 database: { status: 'ok' },
                 schema: { migration: lastMigration?.name ?? null },
-                backup: { newestSnapshotAt: null },
+                backup: { newestBackupAt: null },
               },
             }
           : expected.path.startsWith('/api/state')

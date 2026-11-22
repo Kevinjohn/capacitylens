@@ -38,7 +38,7 @@ const lostReplies: Array<{ name: string; lose: (execute: Execute) => void }> = [
 const serverData = makeCanonicalData({ name: 'Wayne Enterprises' });
 const serverSnapshot: PlanningSnapshot = {
   revision: 3,
-  authority: makePlanningAccess(),
+  access: makePlanningAccess(),
   data: serverData,
   today: companyToday,
   capacity: emptyCapacity(),
@@ -57,7 +57,7 @@ async function afterLostReply(lose: (execute: Execute) => void, nextReads: (read
   h.cache.setContext(context);
   await h.readSnapshot({
     revision: 1,
-    authority: makePlanningAccess(),
+    access: makePlanningAccess(),
     data: makeCanonicalData(),
     today: companyToday,
     capacity: emptyCapacity(),
@@ -109,7 +109,7 @@ describe('planning write whose reply was lost', () => {
       (read) =>
         read.mockResolvedValueOnce({
           revision: 2,
-          authority: makePlanningAccess(),
+          access: makePlanningAccess(),
           data: makeCanonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),

@@ -98,20 +98,20 @@ describe('browser account api', () => {
 
     const directoryUrls = mocks.fetchApi.mock.calls
       .map((call) => String(call[0]))
-      .filter((url) => url.endsWith('/members') || url.endsWith('/invites'));
+      .filter((url) => url.endsWith('/members') || url.endsWith('/invitations'));
     expect(directoryUrls).toEqual([
       '/api/companies/company%20%2F%20one/members',
-      '/api/companies/company%20%2F%20one/invites',
+      '/api/companies/company%20%2F%20one/invitations',
     ]);
     const urls = mocks.fetchApi.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
       '/api/companies/company%20%2F%20one/members',
-      '/api/companies/company%20%2F%20one/invites',
+      '/api/companies/company%20%2F%20one/invitations',
       '/api/companies/company%20%2F%20one/masquerade',
       '/api/masquerade',
       '/api/masquerade',
-      '/api/invites/token%20%2F%20one/preview',
-      '/api/invites/token%20%2F%20one/signup',
+      '/api/invitations/token%20%2F%20one/preview',
+      '/api/invitations/token%20%2F%20one/sign-up',
     ]);
     expect(requestInitAt(mocks.fetchApi.mock.calls, 2)).toMatchObject({
       method: 'POST',

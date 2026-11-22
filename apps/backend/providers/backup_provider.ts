@@ -24,10 +24,10 @@ function assertOutsideLiveDatabase(directory: string, livePath: string): void {
  * preparation.
  */
 export default class BackupProvider {
-  private backup?: SqliteBackup;
-  private pending?: Promise<CreateResult>;
-  private cancelSchedule?: () => void;
-  private stopping = false;
+  #backup?: SqliteBackup;
+  #pending?: Promise<CreateResult>;
+  #cancelSchedule?: () => void;
+  #stopping = false;
 
   constructor(protected application: ApplicationService) {}
 
@@ -43,7 +43,7 @@ export default class BackupProvider {
   }
 
   async ready() {
-    if (this.application.getEnvironment() !== 'web' || this.backup || this.stopping) return;
+    if (this.application.getEnvironment() !== 'web' || this.#backup || this.#stopping) return;
     const config = this.application.config.get<BackupConfig>('backup');
     if (!config.directory) return;
     try {
@@ -51,12 +51,12 @@ export default class BackupProvider {
       backup.checkSource();
       assertOutsideLiveDatabase(config.directory, backup.livePath());
       backup.prepareDirectory();
-      this.backup = backup;
+      this.#backup = backup;
     } catch (error) {
       throw new Error(formatBackupStartupFailure(config.directory, error), { cause: error });
     }
     const run = () => {
-      if (this.pending) {
+      if (this.#pending) {
         this.log('backup skipped — previous backup still in flight');
         return;
       }
@@ -68,14 +68,14 @@ export default class BackupProvider {
         }
       });
     };
-    this.cancelSchedule = this.schedule(run, DAY_MS);
+    this.#cancelSchedule = this.schedule(run, DAY_MS);
     run();
   }
 
   runBackup(): Promise<CreateResult> {
-    if (this.stopping) return Promise.reject(new Error('backups stopped during shutdown'));
-    if (this.pending) return this.pending;
-    const backup = this.backup;
+    if (this.#stopping) return Promise.reject(new Error('backups stopped during shutdown'));
+    if (this.#pending) return this.#pending;
+    const backup = this.#backup;
     if (!backup) return Promise.reject(new Error('backups have not started'));
     const run = (async () => {
       const created = await backup.create();
@@ -91,17 +91,17 @@ export default class BackupProvider {
       }
       return created;
     })();
-    this.pending = run;
+    this.#pending = run;
     const clear = () => {
-      if (this.pending === run) this.pending = undefined;
+      if (this.#pending === run) this.#pending = undefined;
     };
     void run.then(clear, clear);
     return run;
   }
 
   async shutdown() {
-    this.stopping = true;
-    this.cancelSchedule?.();
-    if (this.pending) await Promise.allSettled([this.pending]);
+    this.#stopping = true;
+    this.#cancelSchedule?.();
+    if (this.#pending) await Promise.allSettled([this.#pending]);
   }
 }

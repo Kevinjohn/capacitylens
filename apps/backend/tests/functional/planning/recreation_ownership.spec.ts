@@ -4,7 +4,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
 import { readState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   planningUrl,
@@ -14,7 +14,7 @@ import {
   session,
   signIn,
   signInAgain,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const mutationsUrl = `/api/companies/${companyId}/planning/mutations`;
 
@@ -86,8 +86,8 @@ test.group('retained id recreation ownership', (suite) => {
       }
       const snapshot = await session(client.get(planningUrl), cookie).send();
       snapshot.assertStatus(200);
-      assert.equal(snapshot.body().data.authority.role, 'editor');
-      assert.isTrue(snapshot.body().data.authority.canWrite);
+      assert.equal(snapshot.body().data.access.role, 'editor');
+      assert.isTrue(snapshot.body().data.access.canWrite);
       assert.equal(snapshot.body().data.revision, 2);
       const before = await readPlanningStorage();
       const refused = await sendPlanning({

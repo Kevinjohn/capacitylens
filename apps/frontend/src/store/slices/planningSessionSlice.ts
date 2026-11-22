@@ -26,7 +26,7 @@ type PlanningSessionSlice = Pick<
   | 'redoPlanning'
 >;
 
-// Planning identity is page-local: sign-in and sign-out reload the page, and authority changes
+// Planning identity is page-local: sign-in and sign-out reload the page, and access changes
 // within it arrive through the transport's access key.
 const PAGE_IDENTITY = Symbol('page planning identity');
 
@@ -54,11 +54,11 @@ function publishPlanning(
   // The cache publishes only a read accepted for this company, so the rows need no filter.
   const companyId = planning.context.companyId;
   const data = next.data;
-  const company = data.accounts.find((row) => row.id === companyId);
+  const company = data.companies.find((row) => row.id === companyId);
   return {
     planning,
     data,
-    ...(company && !state.data.accounts.some((row) => row.id === companyId)
+    ...(company && !state.data.companies.some((row) => row.id === companyId)
       ? { ui: resetSchedulerView(state.ui, readCurrentWeekAnchor(data, companyId, planning.today)) }
       : {}),
     ...(company

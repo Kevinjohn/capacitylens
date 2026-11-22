@@ -8,6 +8,12 @@ export type { Route, Path } from './schema.d.ts'
 const placeholder: any = {}
 
 const routes = {
+  'api.health_checks.live': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/health',
+    tokens: [[0,"api"],[0,"health"]],
+    types: placeholder as Registry['api.health_checks.live']['types'],
+  },
   'api.planning.show': {
     methods: ["GET","HEAD"],
     pattern: '/api/companies/:companyId/planning',
@@ -52,14 +58,14 @@ const routes = {
   },
   'api.import_previews.store': {
     methods: ["POST"],
-    pattern: '/api/transfer/preview',
-    tokens: [[0,"api"],[0,"transfer"],[0,"preview"]],
+    pattern: '/api/import/preview',
+    tokens: [[0,"api"],[0,"import"],[0,"preview"]],
     types: placeholder as Registry['api.import_previews.store']['types'],
   },
   'api.imports.store': {
     methods: ["POST"],
-    pattern: '/api/transfer/apply',
-    tokens: [[0,"api"],[0,"transfer"],[0,"apply"]],
+    pattern: '/api/import/apply',
+    tokens: [[0,"api"],[0,"import"],[0,"apply"]],
     types: placeholder as Registry['api.imports.store']['types'],
   },
   'api.company_state.show': {
@@ -208,38 +214,38 @@ const routes = {
   },
   'api.invitations.store': {
     methods: ["POST"],
-    pattern: '/api/invites',
-    tokens: [[0,"api"],[0,"invites"]],
+    pattern: '/api/invitations',
+    tokens: [[0,"api"],[0,"invitations"]],
     types: placeholder as Registry['api.invitations.store']['types'],
   },
   'api.invitations.index': {
     methods: ["GET","HEAD"],
-    pattern: '/api/companies/:companyId/invites',
-    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"invites"]],
+    pattern: '/api/companies/:companyId/invitations',
+    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"invitations"]],
     types: placeholder as Registry['api.invitations.index']['types'],
   },
   'api.invitation_deliveries.store': {
     methods: ["POST"],
-    pattern: '/api/companies/:companyId/invites/:id/resend',
-    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"invites"],[1,"id"],[0,"resend"]],
+    pattern: '/api/companies/:companyId/invitations/:id/resend',
+    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"invitations"],[1,"id"],[0,"resend"]],
     types: placeholder as Registry['api.invitation_deliveries.store']['types'],
   },
   'api.invitations.destroy': {
     methods: ["DELETE"],
-    pattern: '/api/companies/:companyId/invites/:id',
-    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"invites"],[1,"id"]],
+    pattern: '/api/companies/:companyId/invitations/:id',
+    tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"invitations"],[1,"id"]],
     types: placeholder as Registry['api.invitations.destroy']['types'],
   },
   'api.invitation_links.show': {
     methods: ["GET","HEAD"],
-    pattern: '/api/invites/:token/preview',
-    tokens: [[0,"api"],[0,"invites"],[1,"token"],[0,"preview"]],
+    pattern: '/api/invitations/:token/preview',
+    tokens: [[0,"api"],[0,"invitations"],[1,"token"],[0,"preview"]],
     types: placeholder as Registry['api.invitation_links.show']['types'],
   },
   'api.invitation_acceptances.store': {
     methods: ["POST"],
-    pattern: '/api/invites/:token/signup',
-    tokens: [[0,"api"],[0,"invites"],[1,"token"],[0,"signup"]],
+    pattern: '/api/invitations/:token/sign-up',
+    tokens: [[0,"api"],[0,"invitations"],[1,"token"],[0,"sign-up"]],
     types: placeholder as Registry['api.invitation_acceptances.store']['types'],
   },
   'api.admission.show': {
@@ -319,12 +325,6 @@ const routes = {
     pattern: '/api/companies/:companyId/ownership-transfer',
     tokens: [[0,"api"],[0,"companies"],[1,"companyId"],[0,"ownership-transfer"]],
     types: placeholder as Registry['api.ownership_transfers.store']['types'],
-  },
-  'api.health': {
-    methods: ["GET","HEAD"],
-    pattern: '/api/health',
-    tokens: [[0,"api"],[0,"health"]],
-    types: placeholder as Registry['api.health']['types'],
   },
   'api.diagnostics.show': {
     methods: ["GET","HEAD"],
