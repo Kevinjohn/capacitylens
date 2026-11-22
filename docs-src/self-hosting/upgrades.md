@@ -31,6 +31,11 @@ Download the archive for the host's operating system and architecture. Verify it
 it next to the current release, and move the `current` link to the new version. Do not overwrite an
 existing release folder.
 
+If nginx serves the site from a copy of the release's `capacitylens.nginx.conf`, compare that copy
+with the new release's file and apply its changes before starting the service. Upgrades do not
+replace it, and its list of secret-bearing sign-in and invitation paths kept out of access logs can
+change between releases.
+
 ## Upgrade the database
 
 From the new release's `backend/` directory, with the same environment used by the service, run:

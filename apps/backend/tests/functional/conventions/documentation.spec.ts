@@ -116,6 +116,10 @@ test.group('documentation and repository rule contracts', () => {
       'node ace.js app:reset',
     ])
       assert.include(operatorDocs, command);
+    assert.match(
+      operations,
+      /`capacitylens\.nginx\.conf`, compare that copy\s+with the new release's file/
+    );
     assert.include(monitoring, '/health/live');
     assert.include(monitoring, '/health/ready');
     assert.notMatch(
