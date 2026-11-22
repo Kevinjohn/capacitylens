@@ -7,7 +7,7 @@ import {
   bootstrapOrg,
   signUpUser as signUp,
   signUpUserWithId,
-  seedFixtureMember,
+  createTestMember,
   masqueradeTokenHeaders,
 } from './authTestKit';
 import { waitForAppLanding, selectShadOption } from './browserTestKit';
@@ -35,7 +35,7 @@ async function setupMembersApi(request: APIRequestContext) {
     [admin, 'admin'],
     [editor, 'editor'],
   ] as const) {
-    seedFixtureMember(companyId, who.email, role);
+    createTestMember(companyId, who.email, role);
   }
   const grant = await request.patch(`${API}/api/companies/${companyId}/members/${editor.userId}`, {
     headers: await masqueradeTokenHeaders(request, admin.cookie),

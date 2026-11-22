@@ -20,7 +20,7 @@ const ORG_NAME = `Sign-in Studio ${Date.now()}`;
 
 // This unconfirmed identity uses its own anonymous request context, separate from any session used
 // to create the control company. The test tolerates EMAIL_REGISTERED (409) on a reused server.
-async function seedUser(email = EMAIL) {
+async function createUser(email = EMAIL) {
   const anonymousRequest = await playwrightRequest.newContext();
   try {
     const res = await anonymousRequest.post(`${API}/api/auth/sign-up`, {
@@ -44,7 +44,7 @@ test.describe('sign-in screen (password sign-in)', () => {
     await expect(page.getByRole('link', { name: 'Schedule' })).toHaveCount(0);
     expect((await request.get(`${API}/api/state`)).status()).toBe(401);
 
-    await seedUser();
+    await createUser();
     await page.getByLabel('Email').fill(EMAIL);
     await page.getByLabel('Password').fill('not-the-password');
     await page.getByRole('button', { name: 'Sign in' }).click();
@@ -211,7 +211,7 @@ test.describe('sign-in screen (password sign-in)', () => {
     await bootstrapOrg(request, controlOwner.cookie, controlOrgName);
 
     const lonely = `lonely-${isolationSuffix}@capacitylens.dev`;
-    await seedUser(lonely);
+    await createUser(lonely);
     await page.goto('/');
     await page.getByLabel('Email').fill(lonely);
     await page.getByLabel('Password').fill(PASSWORD);

@@ -119,7 +119,7 @@ async function postSignUp(
     headers: { 'sec-fetch-site': 'same-origin' },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
-  admitFixtureIdentity(email);
+  admitTestUser(email);
   return cookiesOf(res.headers()['set-cookie'] ?? '');
 }
 
@@ -147,7 +147,7 @@ function confirmFixtureAddress(email: string): void {
  * operator approval a real installation needs. The admission spec drives approval through the UI.
  * @throws When the identity is absent.
  */
-export function admitFixtureIdentity(email: string): void {
+export function admitTestUser(email: string): void {
   confirmFixtureAddress(email);
   const db = openAuthE2EDatabase();
   try {
@@ -176,7 +176,7 @@ export function admitFixtureIdentity(email: string): void {
  * The user must already exist in the disposable auth database.
  * @throws When the user is absent or database writes fail.
  */
-export function seedFixtureMember(
+export function createTestMember(
   companyId: string,
   email: string,
   role: 'admin' | 'editor' | 'viewer',
@@ -197,7 +197,7 @@ export function seedFixtureMember(
 }
 
 /** Revokes a disposable E2E user's real session authority without relying on browser cookie timing. */
-export function revokeFixtureSessions(email: string): void {
+export function revokeTestSessions(email: string): void {
   const db = openAuthE2EDatabase();
   try {
     const user = db
@@ -553,7 +553,7 @@ export async function sendPlanningIntent(
 }
 
 /** Creates a fully specified person through the planning mutation route for browser scenarios. */
-export async function createFixturePerson(
+export async function createTestPerson(
   request: APIRequestContext,
   cookie: string,
   companyId: string,
@@ -609,7 +609,7 @@ export async function signUpUserWithId(
  * names that company.
  * @throws When the command fails or prints no link.
  */
-export function printFixtureInvitation(
+export function printTestInvitation(
   email: string,
   role: 'admin' | 'editor' | 'viewer',
   companyId?: string,
@@ -627,7 +627,7 @@ export function printFixtureInvitation(
 }
 
 /** Provisions a reset link through Account Kit's operator API; returns its path. */
-export function printFixtureResetLink(email: string): string {
+export function printTestResetLink(email: string): string {
   assertAuthE2EFixturePath(AUTH_E2E_DATABASE);
   const result = spawnSync(
     process.execPath,

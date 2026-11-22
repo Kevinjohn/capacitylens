@@ -5,7 +5,7 @@ import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
-  seedFixtureMember,
+  createTestMember,
   masqueradeTokenHeaders,
   signUpUserWithId,
 } from './authTestKit';
@@ -26,8 +26,8 @@ async function setupMembers(request: APIRequestContext) {
     signUpUserWithId(EDITOR, 'Diana Prince'),
   ]);
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-  seedFixtureMember(companyId, admin.email, 'admin');
-  seedFixtureMember(companyId, editor.email, 'editor');
+  createTestMember(companyId, admin.email, 'admin');
+  createTestMember(companyId, editor.email, 'editor');
   return { owner, admin, editor, companyId };
 }
 

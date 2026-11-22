@@ -381,7 +381,7 @@ describe('ActivityList', () => {
   });
 
   // An unresolved project ID remains visible as unavailable planning data.
-  const seedOrphanActivity = () => {
+  const createOrphanActivity = () => {
     loadPlanningData(
       makeAppData({
         activities: [
@@ -402,7 +402,7 @@ describe('ActivityList', () => {
   };
 
   it('retains an activity whose project resolves nowhere', () => {
-    seedOrphanActivity();
+    createOrphanActivity();
 
     render(<ActivityList />);
 

@@ -3,7 +3,7 @@ import type { Page } from './fixtures';
 import {
   AUTH_PASSWORD,
   bootstrapOrg,
-  seedFixtureMember,
+  createTestMember,
   sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
@@ -30,7 +30,7 @@ test('the account access setting gates viewer navigation and direct routes', asy
   const viewer = await signUpUser(VIEWER);
   const accountName = `Overview Studio ${STAMP}`;
   const companyId = await bootstrapOrg(request, owner.cookie, accountName);
-  seedFixtureMember(companyId, viewer.email, 'viewer');
+  createTestMember(companyId, viewer.email, 'viewer');
 
   await signIn(page, VIEWER);
   await expect(page.getByRole('link', { name: 'Overview' })).toHaveCount(0);

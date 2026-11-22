@@ -45,7 +45,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
   };
 });
 
-async function seedTypedAllocation() {
+async function createTypedAllocation() {
   const resource = await requireCreated(useStore.getState().addResource(makeResourceDraft()));
   const activity = await requireCreated(
     useStore.getState().addActivity({ name: 'Operations', kind: 'internal' }),
@@ -86,7 +86,7 @@ describe('planning authority publication', () => {
       expect.objectContaining({ id: client.id }),
     );
     await useStore.getState().refreshPlanning();
-    await seedTypedAllocation();
+    await createTypedAllocation();
     expect(useStore.getState().planning.history.canUndo).toBe(true);
     await useStore.getState().undoPlanning();
     expect(useStore.getState().planning.history.canUndo).toBe(true);
@@ -108,7 +108,7 @@ describe('planning authority publication', () => {
   });
 
   it('keeps rows and history and shows a refusal when a change loses company membership', async () => {
-    const allocation = await seedTypedAllocation();
+    const allocation = await createTypedAllocation();
     const data = useStore.getState().data;
     const history = useStore.getState().planning.history;
     const authLossVersion = useStore.getState().planningAuthLossVersion;
@@ -132,7 +132,7 @@ describe('planning authority publication', () => {
   });
 
   it('shows the server state after a lost write and asks the person to check it', async () => {
-    const allocation = await seedTypedAllocation();
+    const allocation = await createTypedAllocation();
     failure.execute = new TypeError('response lost');
     await expect(
       useStore.getState().updateAllocation(allocation.id, { endDate: '2026-06-03' }),
@@ -194,7 +194,7 @@ describe('planning ownership of allocations', () => {
   });
 
   it('undoes the latest typed allocation edit without removing a preceding catalogue change', async () => {
-    const allocation = await seedTypedAllocation();
+    const allocation = await createTypedAllocation();
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Wayne Enterprises', color: '#111111' }),
     );

@@ -287,7 +287,7 @@ describe('store UI + history extras', () => {
   });
 });
 
-const seedAlloc = async () => {
+const createTestAllocation = async () => {
   const c = await requireCreated(s().addClient({ name: 'Ferris', color: '#111111' }));
   const p = await requireCreated(s().addProject({ name: 'P', clientId: c.id, color: '#222222' }));
   const t = await requireCreated(s().addActivity({ name: 'T', kind: 'project', projectId: p.id }));
@@ -297,7 +297,7 @@ const seedAlloc = async () => {
 
 describe('store allocation and resource defaults', () => {
   it('preserves a valid 24-hour allocation', async () => {
-    const { r, t } = await seedAlloc();
+    const { r, t } = await createTestAllocation();
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,
@@ -312,7 +312,7 @@ describe('store allocation and resource defaults', () => {
     expect(s().data.allocations[0]?.hoursPerDay).toBe(24);
   });
   it('updateAllocation applies a status-only patch while retaining dates', async () => {
-    const { r, t } = await seedAlloc();
+    const { r, t } = await createTestAllocation();
     const a = requireCreated(
       await s().addAllocation({
         resourceId: r.id,

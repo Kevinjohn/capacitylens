@@ -21,7 +21,7 @@ import {
   getStoredAllocation,
   laneRect,
   rect,
-  seedAllocation,
+  createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 import { permissionValue } from '@/test/permissionGrants';
@@ -140,7 +140,7 @@ async function verifyWorkingDayRejection({
 
 describe('AllocationBar pointer drag and reassignment interactions', () => {
   it('appends the save reply capacity advisory to the move toast', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(a)}
@@ -171,7 +171,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   });
 
   it('does not report a successful move when permission drops to Viewer mid-drag', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     const barUi = (role: 'editor' | 'viewer') => (
       <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
         <AllocationBar
@@ -368,7 +368,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
     });
   });
   it('updates a vertical drag without a trailing transform transition', async () => {
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(allocation)}

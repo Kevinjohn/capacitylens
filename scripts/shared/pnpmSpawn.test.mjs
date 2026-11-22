@@ -16,7 +16,7 @@ import {
 const runPreset = fileURLToPath(new URL('../e2e/run-preset.mjs', import.meta.url));
 
 // Writes a fake pnpm launcher into a fresh directory; `body` is the Node module it runs on POSIX.
-function fakePnpm(prefix, body) {
+function stubPnpm(prefix, body) {
   const fixture = mkdtempSync(join(tmpdir(), prefix));
   const launcher = join(fixture, process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm');
   const capture = join(fixture, 'capture.mjs');
@@ -77,7 +77,7 @@ const optional: Buffer | string | null = run().stdout;
 });
 
 test('spawnPnpm preserves spaces and shell metacharacters as literal argument boundaries', async (context) => {
-  const pnpm = fakePnpm('capacitylens-pnpm-argv-', ECHO_ARGV);
+  const pnpm = stubPnpm('capacitylens-pnpm-argv-', ECHO_ARGV);
   context.after(pnpm.remove);
   const args = ['two words', 'quote"value', 'pipe|value', 'dollar$value', 'glob*value'];
   const child = spawnPnpm(args, { env: pnpm.env, stdio: ['ignore', 'pipe', 'pipe'], shell: true });
@@ -101,7 +101,7 @@ test('spawnPnpm preserves spaces and shell metacharacters as literal argument bo
 });
 
 test('spawnPnpmSync preserves literal argument boundaries synchronously', (context) => {
-  const pnpm = fakePnpm('capacitylens-pnpm-sync-', ECHO_ARGV);
+  const pnpm = stubPnpm('capacitylens-pnpm-sync-', ECHO_ARGV);
   context.after(pnpm.remove);
   const args = ['exec', 'playwright', 'test', '--grep', 'foo(bar)', 'two words', 'glob*value'];
   const result = spawnPnpmSync(args, { env: pnpm.env, encoding: 'utf8' });
@@ -114,7 +114,7 @@ for (const [preset, expectedPrefix, expectedFlag] of [
   ['firefox', ['exec', 'playwright', 'test', '--project=firefox'], 'CAPACITYLENS_FIREFOX_ONLY'],
 ]) {
   test(`the ${preset} package preset launches without a shell assignment`, (context) => {
-    const pnpm = fakePnpm(
+    const pnpm = stubPnpm(
       'capacitylens-preset-',
       `process.stdout.write(JSON.stringify({argv:process.argv.slice(2),flag:process.env[${JSON.stringify(expectedFlag)}]}));\n`,
     );

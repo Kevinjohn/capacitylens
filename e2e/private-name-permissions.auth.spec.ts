@@ -2,7 +2,7 @@ import { expect, test } from './fixtures';
 import {
   AUTH_PASSWORD,
   bootstrapOrg,
-  seedFixtureMember,
+  createTestMember,
   sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
@@ -75,7 +75,7 @@ async function assertPrivateNamesForMember(
   }
 }
 
-function seedMembers(
+function createMembers(
   companyId: string,
   members: ReadonlyArray<{
     role: 'editor' | 'viewer';
@@ -83,11 +83,11 @@ function seedMembers(
   }>,
 ) {
   for (const { role, user } of members) {
-    seedFixtureMember(companyId, user.email, role);
+    createTestMember(companyId, user.email, role);
   }
 }
 
-async function seedPrivateNames(
+async function createPrivateNames(
   request: import('@playwright/test').APIRequestContext,
   companyId: string,
   ownerCookie: string,
@@ -134,8 +134,8 @@ test('non-owners see protected code names without owner controls', async ({
   ] as const;
 
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-  seedMembers(companyId, members);
-  await seedPrivateNames(request, companyId, owner.cookie);
+  createMembers(companyId, members);
+  await createPrivateNames(request, companyId, owner.cookie);
 
   for (const { role, user } of members) {
     await assertPrivateNamesForMember(page, context, role, user.email);

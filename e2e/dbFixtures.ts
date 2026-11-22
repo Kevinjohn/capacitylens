@@ -1,5 +1,5 @@
 import { test as base, expect } from './fixtures';
-import { ensureDbFixtureAdministrator, resetServer } from './serverTestState';
+import { ensureDbTestAdmin, resetServer } from './serverTestState';
 import { startWorkerServer } from './workerServer';
 import type { E2eWorkerServer } from './workerServer';
 
@@ -34,7 +34,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   dbAuthentication: [
     async ({ dbReset, dbServer, request, context }, use) => {
       void dbReset;
-      ensureDbFixtureAdministrator(dbServer.target);
+      ensureDbTestAdmin(dbServer.target);
       const apiSignIn = await request.post(`${dbServer.target.api}/api/auth/sign-in`, {
         data: admin,
         headers: { 'sec-fetch-site': 'same-origin' },

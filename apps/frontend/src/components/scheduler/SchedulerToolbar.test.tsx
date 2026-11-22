@@ -587,7 +587,7 @@ describe('SchedulerToolbar Clear filter concurrency', () => {
   });
 });
 
-const seedLensActivities = async () => ({
+const createLensActivities = async () => ({
   internal: await requireCreated(
     useStore.getState().addActivity({ name: 'Admin', kind: 'internal' }),
   ),
@@ -619,7 +619,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 
   it('selecting a specific activity sets activityId and clears the client/project lens', async () => {
     const user = userEvent.setup();
-    const { repeatable } = await seedLensActivities();
+    const { repeatable } = await createLensActivities();
 
     useStore.getState().setFilters({ projectId: 'p1' });
     render(<SchedulerToolbar />);
@@ -635,7 +635,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 
   it('selecting "Internal — All" sets activityKind and clears the client/project lens', async () => {
     const user = userEvent.setup();
-    await seedLensActivities();
+    await createLensActivities();
     useStore.getState().setFilters({ clientId: 'c1' });
     render(<SchedulerToolbar />);
     showFilters();
@@ -651,7 +651,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 describe('SchedulerToolbar activity and project lens interaction', () => {
   it('selecting a project clears an active activity lens (mutual exclusion both ways)', async () => {
     const user = userEvent.setup();
-    const { repeatable } = await seedLensActivities();
+    const { repeatable } = await createLensActivities();
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );

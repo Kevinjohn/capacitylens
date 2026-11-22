@@ -2,7 +2,7 @@ import { test, expect } from './fixtures';
 import {
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
-  printFixtureInvitation,
+  printTestInvitation,
   signUpUser,
 } from './authTestKit';
 import { waitForAppLanding } from './browserTestKit';
@@ -28,7 +28,7 @@ test('an invited person accepts, waits for approval, and enters with the invited
   const owner = await signUpUser(OWNER);
   const companyId = await bootstrapOrg(request, owner.cookie, `Admission Studio ${STAMP}`);
 
-  await page.goto(printFixtureInvitation(PERSON, 'editor', companyId));
+  await page.goto(printTestInvitation(PERSON, 'editor', companyId));
   await expect(page.getByTestId('invite-role')).toHaveText('Editor');
   await page.getByTestId('invite-name').fill('Barry Allen');
   await page.getByTestId('invite-password').fill(PASSWORD);
@@ -71,7 +71,7 @@ test('a person with an operator invitation for no company is approved and joins 
   const owner = await signUpUser(JOIN_OWNER);
   await bootstrapOrg(request, owner.cookie, `Admission Join Studio ${STAMP}`);
 
-  await page.goto(printFixtureInvitation(JOIN_PERSON, 'editor'));
+  await page.goto(printTestInvitation(JOIN_PERSON, 'editor'));
   await expect(page.getByTestId('invite-role')).toHaveText('Editor');
   await page.getByTestId('invite-name').fill('Barry Allen');
   await page.getByTestId('invite-password').fill(PASSWORD);

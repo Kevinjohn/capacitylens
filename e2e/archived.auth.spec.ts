@@ -3,8 +3,8 @@ import {
   AUTH_API,
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  seedFixtureMember,
+  createTestPerson,
+  createTestMember,
   signUpUser,
 } from './authTestKit';
 import { waitForAppLanding } from './browserTestKit';
@@ -23,7 +23,7 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
     { id: crypto.randomUUID(), name: 'Clark Kent' },
   ];
   for (const resource of resources) {
-    await createFixturePerson(request, owner.cookie, companyId, { ...resource, role: 'Planner' });
+    await createTestPerson(request, owner.cookie, companyId, { ...resource, role: 'Planner' });
   }
 
   await page.goto('/');
@@ -111,12 +111,12 @@ test('an Editor rediscovers an archived resource after reload and restores it in
   const owner = await signUpUser(`archive-owner-${stamp}@capacitylens.dev`);
   const editor = await signUpUser(`archive-editor-${stamp}@capacitylens.dev`);
   const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Archive ${stamp}`);
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: crypto.randomUUID(),
     name: 'Barry Allen',
     role: 'Designer',
   });
-  seedFixtureMember(companyId, editor.email, 'editor');
+  createTestMember(companyId, editor.email, 'editor');
   await page.goto('/');
   await page.getByLabel('Email').fill(editor.email);
   await page.getByLabel('Password').fill(AUTH_PASSWORD);

@@ -5,8 +5,8 @@ import {
   AUTH_API,
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  revokeFixtureSessions,
+  createTestPerson,
+  revokeTestSessions,
   sendPlanningIntent,
   signUpUser,
   masqueradeTokenHeaders,
@@ -45,12 +45,12 @@ async function createScenario(request: APIRequestContext) {
   const activityId = crypto.randomUUID();
   const owner = await signUpUser(ownerEmail);
   const companyId = await bootstrapOrg(request, owner.cookie, company);
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Bruce Wayne',
     role: 'Planner',
   });
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: secondResourceId,
     name: 'Clark Kent',
     role: 'Planner',
@@ -810,7 +810,7 @@ test('an ended session (401) clears the scheduler cache and history', async ({ p
     .toBe('2026-06-01');
   await expect(page.getByTestId('undo-button')).toBeEnabled();
 
-  revokeFixtureSessions(ownerEmail);
+  revokeTestSessions(ownerEmail);
   await page.context().clearCookies();
   expect((await page.request.get(`${AUTH_API}/api/companies/${companyId}/planning`)).status()).toBe(
     401,

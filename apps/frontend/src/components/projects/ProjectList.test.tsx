@@ -352,7 +352,7 @@ describe('ProjectList', () => {
   });
 
   // A dangling client link remains unavailable planning data; it does not prove the parent is archived.
-  const seedOrphanProject = () => {
+  const createOrphanProject = () => {
     loadPlanningData(
       makeAppData({
         projects: [
@@ -373,7 +373,7 @@ describe('ProjectList', () => {
   };
 
   it('retains a project whose client resolves nowhere', () => {
-    seedOrphanProject();
+    createOrphanProject();
 
     render(<ProjectList />);
 

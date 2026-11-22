@@ -1,12 +1,6 @@
 import { expect, test } from './fixtures';
 import type { Page, Request } from '@playwright/test';
-import {
-  AUTH_API,
-  AUTH_PASSWORD,
-  bootstrapOrg,
-  seedFixtureMember,
-  signUpUser,
-} from './authTestKit';
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, createTestMember, signUpUser } from './authTestKit';
 import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
@@ -46,7 +40,7 @@ test.describe('member masquerade', () => {
     const owner = await signUpUser(OWNER_EMAIL);
     const viewer = await signUpUser(VIEWER_EMAIL);
     const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-    seedFixtureMember(companyId, viewer.email, 'viewer');
+    createTestMember(companyId, viewer.email, 'viewer');
 
     await page.goto('/');
     await page.getByRole('heading', { name: 'Sign in' }).waitFor();
@@ -91,7 +85,7 @@ test.describe('member masquerade', () => {
     const owner = await signUpUser(`masq-editor-owner-${STAMP}@capacitylens.dev`, 'Bruce Wayne');
     const editor = await signUpUser(EDITOR_EMAIL, 'Clark Kent');
     const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Enterprises ${STAMP}`);
-    seedFixtureMember(companyId, editor.email, 'editor');
+    createTestMember(companyId, editor.email, 'editor');
 
     await signIn(page, owner.email);
     await expect(page.getByTestId('getting-started')).toBeVisible();

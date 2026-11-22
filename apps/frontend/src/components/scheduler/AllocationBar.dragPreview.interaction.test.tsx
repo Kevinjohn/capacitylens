@@ -11,7 +11,7 @@ import {
   barFor,
   getStoredAllocation,
   rect,
-  seedAllocation,
+  createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 
@@ -178,7 +178,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   const renderedLeft = (from: string, to: string) =>
     buildAllocationBarInset(GEOM.getDateX(from), GEOM.getDatesWidth(from, to)).insetLeft;
 
-  async function seedCrossWeekPair() {
+  async function createCrossWeekPair() {
     const st = useStore.getState();
     const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
     const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
@@ -210,7 +210,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   }
 
   it('a cross-row reassign keeps the duration the SOURCE measured, so the bar shrinks', async () => {
-    const { src, dst, a } = await seedCrossWeekPair();
+    const { src, dst, a } = await createCrossWeekPair();
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -646,7 +646,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   });
 
   it('saves a same-person drag onto a non-working start after their working week changes', async () => {
-    const allocation = await seedAllocation({ endDate: '2026-06-01' });
+    const allocation = await createAllocation({ endDate: '2026-06-01' });
     await useStore.getState().updateResource(allocation.resourceId, { workingDays: [6] });
     render(
       <div data-testid="lane" data-resource-id={allocation.resourceId}>
@@ -671,7 +671,7 @@ describe('AllocationBar target-calendar and weekend preview interactions', () =>
   });
 
   it('aborts a drag on pointercancel without committing or leaking listeners', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(a)}

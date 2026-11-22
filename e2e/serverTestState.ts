@@ -124,7 +124,7 @@ function assertDisposableDatabase(target: ServerTarget) {
 }
 
 /** Verify the server bootstrapped its fixture identity; company resets never recreate credentials. */
-export function ensureDbFixtureAdministrator(target: ServerTarget = configuredTarget) {
+export function ensureDbTestAdmin(target: ServerTarget = configuredTarget) {
   assertDisposableDatabase(target);
   const db = new DatabaseSync(target.databasePath, { readOnly: true });
   let found: boolean;
@@ -197,7 +197,7 @@ function bindFixtureOwner(db: DatabaseSync) {
 /** Snapshot the worker's initial company once; identities are never restored from this template. */
 export async function prepareServerTemplate(target: ServerTarget): Promise<void> {
   await withDataListenersPaused(target, () => {
-    ensureDbFixtureAdministrator(target);
+    ensureDbTestAdmin(target);
     const db = new DatabaseSync(target.databasePath);
     try {
       orderedCompanyTables(db);
@@ -234,7 +234,7 @@ export async function resetServer({
   target = configuredTarget,
 }: ResetServerOptions): Promise<void> {
   await withDataListenersPaused(target, () => {
-    ensureDbFixtureAdministrator(target);
+    ensureDbTestAdmin(target);
     if (
       !existsSync(target.templatePath) ||
       realpathSync(target.templatePath) !== resolve(target.templatePath)

@@ -4,10 +4,10 @@ import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
+  createTestPerson,
   sendPlanningIntent,
   masqueradeTokenHeaders,
-  seedFixtureMember,
+  createTestMember,
   signUpUser as signUp,
 } from './authTestKit';
 import { waitForAppLanding } from './browserTestKit';
@@ -60,7 +60,7 @@ async function assertViewerWriteRejected(
   expect(directWrite.status()).toBe(403);
 }
 
-async function seedViewerScenario(request: APIRequestContext) {
+async function createViewerScenario(request: APIRequestContext) {
   const owner = await signUp(OWNER);
   const viewer = await signUp(VIEWER);
   const editor = await signUp(EDITOR);
@@ -75,7 +75,7 @@ async function seedViewerScenario(request: APIRequestContext) {
     },
   });
   const resourceId = crypto.randomUUID();
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Viewer-visible person',
     role: 'Designer',
@@ -85,7 +85,7 @@ async function seedViewerScenario(request: APIRequestContext) {
     [viewer, 'viewer'],
     [editor, 'editor'],
   ] as const) {
-    seedFixtureMember(companyId, who.email, role);
+    createTestMember(companyId, who.email, role);
   }
   await assertViewerWriteRejected(request, companyId, viewer.cookie);
   return { resourceId };
@@ -98,7 +98,7 @@ test('a viewer sees no edit affordances; an editor does; a direct viewer write i
   request,
   context,
 }) => {
-  const { resourceId } = await seedViewerScenario(request);
+  const { resourceId } = await createViewerScenario(request);
   await page.route(VIEWER_AVATAR_URL, (route) =>
     route.fulfill({
       contentType: 'image/png',

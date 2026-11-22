@@ -4,8 +4,8 @@ import {
   AUTH_API,
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  seedFixtureMember,
+  createTestPerson,
+  createTestMember,
   sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
@@ -132,7 +132,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
     changes: { disciplinesEnabled: true },
   });
   const resourceId = crypto.randomUUID();
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Diana Prince',
     role: 'Designer',
@@ -253,12 +253,12 @@ for (const repeat of [false, true]) {
     const editor = await signUpUser(`time-off-editor-${suffix}@capacitylens.dev`);
     const companyId = await bootstrapOrg(request, owner.cookie, `Wayne Time Off ${suffix}`);
     const resourceId = crypto.randomUUID();
-    await createFixturePerson(request, owner.cookie, companyId, {
+    await createTestPerson(request, owner.cookie, companyId, {
       id: resourceId,
       name: 'Barbara Gordon',
       role: 'Designer',
     });
-    seedFixtureMember(companyId, editor.email, 'editor');
+    createTestMember(companyId, editor.email, 'editor');
 
     // The Time off page lists entries from the current week onward; the fixed dates below stay
     // visible only with the frozen browser date.

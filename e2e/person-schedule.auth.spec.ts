@@ -3,8 +3,8 @@ import type { APIRequestContext, Page } from './fixtures';
 import {
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  seedFixtureMember,
+  createTestPerson,
+  createTestMember,
   sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
@@ -26,11 +26,11 @@ const PRIVATE_NOTE = 'Owner-only medical appointment';
 const REAL_CLIENT = 'Kane Industries Acquisition';
 const REAL_PROJECT = 'Gotham Renewal';
 
-async function seedPrivacyScenario(request: APIRequestContext) {
+async function createPrivacyScenario(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: RESOURCE_ID,
     name: 'Victor Stone',
     role: 'Developer',
@@ -95,7 +95,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
     },
   });
 
-  seedFixtureMember(companyId, viewer.email, 'viewer');
+  createTestMember(companyId, viewer.email, 'viewer');
   return { owner, viewer };
 }
 
@@ -126,7 +126,7 @@ test('viewer cannot read personal time-off notes, while the owner can', async ({
   request,
   context,
 }) => {
-  const { owner, viewer } = await seedPrivacyScenario(request);
+  const { owner, viewer } = await createPrivacyScenario(request);
 
   await signIn(page, viewer.email);
   const viewerSheet = await openPrivacyDrawer(page);

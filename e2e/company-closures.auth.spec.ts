@@ -4,8 +4,8 @@ import {
   AUTH_API,
   AUTH_PASSWORD,
   bootstrapOrg,
-  createFixturePerson,
-  seedFixtureMember,
+  createTestPerson,
+  createTestMember,
   sendPlanningIntent,
   signUpUser,
 } from './authTestKit';
@@ -42,7 +42,7 @@ async function signInAsEditor(page: Page) {
   await waitForAppLanding(page, page.getByRole('heading', { name: 'Schedule' }));
 }
 
-async function seedClosureAccount(request: APIRequestContext) {
+async function createClosureCompany(request: APIRequestContext) {
   const owner = await signUpUser(OWNER);
   const editor = await signUpUser(EDITOR);
   const companyId = await bootstrapOrg(request, owner.cookie, ORG);
@@ -51,7 +51,7 @@ async function seedClosureAccount(request: APIRequestContext) {
     changes: { externalEnabled: true },
   });
 
-  await createFixturePerson(request, owner.cookie, companyId, {
+  await createTestPerson(request, owner.cookie, companyId, {
     id: IDS.person,
     name: 'Barbara Gordon',
     role: 'Designer',
@@ -74,7 +74,7 @@ async function seedClosureAccount(request: APIRequestContext) {
     },
   });
 
-  seedFixtureMember(companyId, editor.email, 'editor');
+  createTestMember(companyId, editor.email, 'editor');
   return { companyId, editorCookie: editor.cookie };
 }
 
@@ -225,7 +225,7 @@ test('an editor creates, edits, deletes and restores a literal company closure b
   page,
   request,
 }) => {
-  const { companyId, editorCookie } = await seedClosureAccount(request);
+  const { companyId, editorCookie } = await createClosureCompany(request);
 
   await signInAsEditor(page);
   const closureId = await createClosure(page, request, companyId, editorCookie);
