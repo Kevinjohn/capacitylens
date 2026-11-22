@@ -11,6 +11,8 @@ export default class OwnerResetPassword extends BaseCommand {
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
   declare confirmServerStopped: boolean;
 
+  #reported = false;
+
   async run() {
     try {
       const result = await recoverOwner(this);
@@ -27,7 +29,14 @@ export default class OwnerResetPassword extends BaseCommand {
             ? 'Database schema is not current'
             : 'Owner recovery failed; no recovery link was delivered';
       this.logger.error(safe);
+      this.error = error;
+      this.#reported = true;
       this.exitCode = 1;
     }
+  }
+
+  /** Marks a caught error as already reported, so Ace does not print it raw. */
+  async completed() {
+    return this.#reported;
   }
 }

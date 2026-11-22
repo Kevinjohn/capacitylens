@@ -3,11 +3,11 @@ import type { Page } from './fixtures';
 import {
   AUTH_PASSWORD,
   bootstrapOrg,
-  seedFixtureMember,
-  sendPlanningFixtureCommand,
+  createTestMember,
+  sendPlanningIntent,
   signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 const STAMP = Date.now();
 const OWNER = `overview-owner-${STAMP}@capacitylens.dev`;
@@ -28,9 +28,9 @@ test('the account access setting gates viewer navigation and direct routes', asy
 }) => {
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
-  const accountName = `Overview Studio ${STAMP}`;
-  const companyId = await bootstrapOrg(request, owner.cookie, accountName);
-  seedFixtureMember(companyId, viewer.email, 'viewer');
+  const companyName = `Overview Studio ${STAMP}`;
+  const companyId = await bootstrapOrg(request, owner.cookie, companyName);
+  createTestMember(companyId, viewer.email, 'viewer');
 
   await signIn(page, VIEWER);
   await expect(page.getByRole('link', { name: 'Overview' })).toHaveCount(0);
@@ -46,7 +46,7 @@ test('the account access setting gates viewer navigation and direct routes', asy
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
 
-  await sendPlanningFixtureCommand(request, owner.cookie, companyId, {
+  await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'settings.update',
     changes: { capacityOverviewAccess: 'everyone' },
   });

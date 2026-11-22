@@ -1,28 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http';
 
-const ERROR_CATEGORIES = new Map<string, string>([
-  ['E_VALIDATION_ERROR', 'validation'],
-  ['E_ROUTE_NOT_FOUND', 'not_found'],
-  ['E_REQUEST_ENTITY_TOO_LARGE', 'request_too_large'],
-  ['E_ENCODING_UNSUPPORTED', 'unsupported_media_type'],
-  ['SQLITE_CONSTRAINT_NOTNULL', 'database_constraint'],
-  ['SQLITE_CONSTRAINT_PRIMARYKEY', 'database_constraint'],
-  ['SQLITE_CONSTRAINT_UNIQUE', 'database_constraint'],
-  ['SQLITE_CONSTRAINT_FOREIGNKEY', 'database_constraint'],
-  ['SQLITE_CONSTRAINT_CHECK', 'database_constraint'],
-]);
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
-
-/** Return a fixed error category without retaining caller controlled exception values. */
-export function classifyLogError(error: unknown): string {
-  if (typeof error !== 'object' || error === null) return 'unexpected';
-  try {
-    const code = 'code' in error ? error.code : undefined;
-    return typeof code === 'string' ? (ERROR_CATEGORIES.get(code) ?? 'unexpected') : 'unexpected';
-  } catch {
-    return 'unexpected';
-  }
-}
 
 /** Keep request methods bounded before they enter structured diagnostics. */
 export function normalizeRequestMethod(method: string): string {

@@ -6,7 +6,7 @@ import {
   isPlanningMutation,
   openApp,
   waitForAppLanding,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.describe('database-backed resilience', () => {
   test('an initial planning read failure prevents a write until reload recovers the real server data', async ({

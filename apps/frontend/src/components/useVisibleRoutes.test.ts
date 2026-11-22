@@ -3,7 +3,7 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import { ROLES } from '@capacitylens/shared/account/types';
 import type { CapacityOverviewAccess } from '@capacitylens/shared/types/entities';
 import { listVisibleRoutes } from '@/lib/navLinks';
-import { buildRouteVisibilityContext } from './useVisibleRoutes';
+import { buildRouteVisibilityFacts } from './useVisibleRoutes';
 
 // Every route shown to everyone, in table order, with the role-gated and optional routes left out.
 const COMMON = [
@@ -19,8 +19,8 @@ const COMMON = [
   '/account',
 ];
 
-function listPaths(input: Parameters<typeof buildRouteVisibilityContext>[0]) {
-  return listVisibleRoutes(buildRouteVisibilityContext(input)).map(({ to }) => to);
+function listPaths(input: Parameters<typeof buildRouteVisibilityFacts>[0]) {
+  return listVisibleRoutes(buildRouteVisibilityFacts(input)).map(({ to }) => to);
 }
 
 function listExpected(extra: { overview: boolean; disciplines: boolean; diagnostics: boolean }) {

@@ -267,7 +267,7 @@ test.group('planning operation contracts', () => {
         planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
-          intent: { operation: 'resource.update', id: uuid, changes: { role: 'Designer' } },
+          intent: { operation: 'resource.update', id: uuid, changes: { jobTitle: 'Designer' } },
         })
       ),
       'resource.update'
@@ -510,7 +510,7 @@ test.group('planning operation contracts', () => {
     const external = {
       kind: 'external',
       name: 'Wayne Partners',
-      role: 'Consultant',
+      jobTitle: 'Consultant',
       avatarUrl: null,
       disciplineId: null,
       ...buildExternalCapacityDefaults(),
@@ -550,7 +550,7 @@ test.group('planning operation contracts', () => {
     const placeholder = {
       kind: 'placeholder',
       name: 'Wayne Enterprises capacity',
-      role: 'Design support',
+      jobTitle: 'Design support',
       avatarUrl: null,
       disciplineId: otherUuid,
       employmentType: 'contractor',
@@ -621,7 +621,7 @@ test.group('planning operation contracts', () => {
       conflict = error;
     }
     assert.instanceOf(conflict, StalePlanningRevisionException);
-    assert.equal((conflict as StalePlanningRevisionException).statusCode, 409);
+    assert.equal((conflict as StalePlanningRevisionException).status, 409);
     assert.equal((conflict as StalePlanningRevisionException).code, 'STALE_REVISION');
     assert.doesNotThrow(() => assertPlanningBaseRevision(5, 5, uuid));
   });

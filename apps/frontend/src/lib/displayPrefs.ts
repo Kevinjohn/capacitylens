@@ -1,4 +1,4 @@
-// Device preferences use separate storage from tenant data. Failed reads use each documented default, and failed writes retain the current session choice.
+// Device preferences use separate storage from company data. Failed reads use each documented default, and failed writes retain the current session choice.
 
 // All keys below carry the shared brand prefix (defined once in shared/src/brand.ts) so clearing /
 // migrating by prefix catches every one of them.
@@ -110,7 +110,7 @@ export const DEFAULT_UTILISATION_PREFS: UtilisationPreferences = {
   showPersonal: true,
 };
 
-const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`;
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilisationPrefs`;
 
 /** Read the saved preferences, falling back to the defaults for anything missing
  * or when storage is unavailable. Tolerant of partial stored shapes. */
@@ -207,7 +207,7 @@ export const [readStoredMinimiseWeekends, writeStoredMinimiseWeekends] = createB
 // Week snap: after a free horizontal scroll settles, the schedule floors its left edge back to the
 // current week's first day, so a stray scroll can't leave the view on a mid-week day. Always on for
 // users, with no Settings control. The storage key remains only as a test override: browser tests
-// store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestSupport.ts).
+// store "off" to hold a mid-week position across the idle re-floor (see e2e/browserTestKit.ts).
 // Governs free scroll only; the navigation snap (zoom / Prev-Next / date-picker) is always on.
 /** Storage key for the browser-test week-snap override. */
 export const WEEK_SNAP_OVERRIDE_KEY = 'snapToWeekStart';

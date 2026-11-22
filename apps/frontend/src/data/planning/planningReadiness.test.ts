@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { PlanningControllerMetadata } from './planningCacheTypes';
+import type { PlanningCacheMetadata } from './planningCacheTypes';
 import { isPlanningHistoryReady, isPlanningReadyForChange } from './planningReadiness';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
-const ready: PlanningControllerMetadata = {
-  context: { identity: 'bruce-login', companyId: 'wayne' },
-  authority: makePlanningAuthority(),
+const ready: PlanningCacheMetadata = {
+  context: { identity: 'bruce-user', companyId: 'wayne' },
+  access: makePlanningAccess(),
   revision: 4,
   today: '2026-06-03',
   capacity: null,
@@ -27,7 +27,7 @@ describe('planning readiness', () => {
     ).toBe(true);
     expect(isPlanningReadyForChange({ ...ready, context: null })).toBe(false);
     expect(
-      isPlanningReadyForChange({ ...ready, authority: makePlanningAuthority({ canWrite: false }) }),
+      isPlanningReadyForChange({ ...ready, access: makePlanningAccess({ canWrite: false }) }),
     ).toBe(false);
     expect(isPlanningReadyForChange({ ...ready, revision: null })).toBe(false);
     expect(
@@ -59,10 +59,7 @@ describe('planning readiness', () => {
       isPlanningHistoryReady({ ...ready, history: { canUndo: false, canRedo: true } }, 'redo'),
     ).toBe(true);
     expect(
-      isPlanningHistoryReady(
-        { ...ready, authority: makePlanningAuthority({ canWrite: false }) },
-        'undo',
-      ),
+      isPlanningHistoryReady({ ...ready, access: makePlanningAccess({ canWrite: false }) }, 'undo'),
     ).toBe(false);
     expect(
       isPlanningHistoryReady({ ...ready, phase: { kind: 'loading', lastWrite: null } }, 'undo'),

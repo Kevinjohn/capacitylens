@@ -6,7 +6,7 @@ import {
   expectConnectedSelectionEdges,
   focusByKeyboard,
   openApp,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 async function selectedTreatment(segment: Locator) {
   const style = await computedStyles(segment, [

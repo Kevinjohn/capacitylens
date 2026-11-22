@@ -4,7 +4,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { InvitationRole } from '@capacitylens/shared/account/types';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamInvitation } from '@/account/teamAccessClient';
+import type { TeamInvitation } from '@/account/teamAccessApi';
 import { InviteMemberPanel } from './InviteMemberPanel';
 
 type InvitePanelProps = React.ComponentProps<typeof InviteMemberPanel>;

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
@@ -11,11 +11,15 @@ import {
   resetPlanningFixture,
   session,
   signIn,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
-const body = (response: { body(): unknown }) =>
-  response.body() as { code: string; revision: number };
+/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+const body = (response: { body(): unknown; status(): number }) =>
+  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
+    code: string;
+    revision: number;
+  };
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   mutationId: randomUUID(),
   baseRevision,
@@ -39,7 +43,7 @@ test.group('reassignment working-day override', (group) => {
     await db
       .from('allocations')
       .where('id', allocation.id)
-      .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: 'false' });
+      .update({ start_date: '2026-06-05', end_date: '2026-06-05', ignore_working_days: false });
     const { cookie } = await signIn(client);
     const patch = (revision: number, changes: Record<string, unknown>) =>
       session(client.post(route('planning/mutations')), cookie)

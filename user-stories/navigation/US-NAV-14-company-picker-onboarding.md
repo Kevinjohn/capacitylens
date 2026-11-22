@@ -1,6 +1,6 @@
 # US-NAV-14 — Set up and open the installation company
 
-As an initial admitted person, I want to initialize the empty installation’s company so that the company can begin planning.
+As an initial admitted person, I want to initialise the empty installation’s company so that the company can begin planning.
 
 **Status:** Current
 
@@ -39,9 +39,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   command["Account Kit bootstrap CLI issues invitation"] --> invite["InviteAccept accepts invitation"]
-  invite --> auth["AuthProvider identifies admitted principal"]
+  invite --> auth["AuthProvider identifies admitted user"]
   auth --> setup["companySetupRequired renders CompanySetup"]
-  setup --> submit["CompanySetup.submit posts api.installation.company"]
+  setup --> submit["CompanySetup.submit posts api.first_company_setup.store"]
   submit --> route["FirstCompanySetupController.store validates request"]
   route --> guard["isFirstCompanySetupRequired checks empty installation under lock"]
   guard --> create["createInitialCompany creates company and Owner membership"]
@@ -50,4 +50,4 @@ flowchart TD
   guard -->|setup no longer available| conflict["409 conflict is reconciled by AuthProvider"]
 ```
 
-**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx); [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx); [authClient.ts](../../apps/frontend/src/auth/authClient.ts); [company_routes.ts](../../apps/backend/start/company_routes.ts); [first_company_setup_controller.ts](../../apps/backend/app/controllers/first_company_setup_controller.ts); [first_company_setup.ts](../../apps/backend/app/services/first_company_setup.ts); [initial_company_defaults.ts](../../apps/backend/app/services/initial_company_defaults.ts); [install.md](../../docs-src/self-hosting/install.md)
+**Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx); [CompanySetup.tsx](../../apps/frontend/src/auth/CompanySetup.tsx); [authApi.ts](../../apps/frontend/src/auth/authApi.ts); [company_routes.ts](../../apps/backend/start/company_routes.ts); [first_company_setup_controller.ts](../../apps/backend/app/controllers/first_company_setup_controller.ts); [first_company_setup.ts](../../apps/backend/app/services/first_company_setup.ts); [initial_company_defaults.ts](../../apps/backend/app/services/initial_company_defaults.ts); [install.md](../../docs-src/self-hosting/install.md)

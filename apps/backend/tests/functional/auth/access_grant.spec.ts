@@ -1,8 +1,8 @@
 import { test } from '@japa/runner';
 import { resetState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { clearIdentities } from '../../helpers/identities.js';
-import { configureAuth, session, signIn } from '../planning/helpers.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { clearIdentities } from '#tests/helpers/identities';
+import { configureAuth, session, signIn } from '#tests/functional/planning/helpers';
 
 const expected = {
   owner: {
@@ -13,7 +13,7 @@ const expected = {
       'members:manage',
       'members:signInTracking',
       'invitations:manage',
-      'viewAs:use',
+      'masquerade:use',
       'resources:anonymise',
       'ownership:transfer',
       'company:import',
@@ -29,7 +29,7 @@ const expected = {
       'members:list',
       'members:manage',
       'invitations:manage',
-      'viewAs:use',
+      'masquerade:use',
       'resources:anonymise',
     ],
     canSeePrivateNames: false,
@@ -58,9 +58,9 @@ test.group('company directory access grant', (group) => {
     test(`sends the ${role} grant with the company row`, async ({ client, assert, cleanup }) => {
       configureAuth(cleanup);
       const { cookie } = await signIn(client, role);
-      const response = await session(client.get('/api/companies'), cookie).send();
+      const response = await session(client.visit('api.companies.index'), cookie).send();
       response.assertStatus(200);
-      const [row] = response.body() as Record<string, unknown>[];
+      const [row] = response.body().data as Record<string, unknown>[];
       assert.deepEqual(
         {
           role: row?.role,

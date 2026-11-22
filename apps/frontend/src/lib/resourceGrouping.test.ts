@@ -39,7 +39,7 @@ describe('resource grouping and kind rules', () => {
       { key: 'overall', title: 'Overall' },
       { key: 'unassigned', title: 'Unassigned' },
       { key: 'placeholders', title: 'Unassigned demand' },
-      { key: 'external', title: 'External / 3rd party' },
+      { key: 'external', title: 'External party' },
       { key: 'engagement-studio', title: 'Studio' },
       { key: 'engagement-supplementary', title: 'Supplementary' },
     ]);

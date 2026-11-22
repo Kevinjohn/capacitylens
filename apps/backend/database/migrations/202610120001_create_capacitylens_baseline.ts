@@ -45,13 +45,18 @@ const scoped = (
     : never
 ) => {
   metadata(table);
-  table.string('company_id').notNullable().references('id').inTable('accounts').onDelete('CASCADE');
+  table
+    .string('company_id')
+    .notNullable()
+    .references('id')
+    .inTable('companies')
+    .onDelete('CASCADE');
   table.index(['company_id']);
 };
 
 export default class extends BaseSchema {
   async up() {
-    this.schema.createTable('accounts', (table) => {
+    this.schema.createTable('companies', (table) => {
       metadata(table);
       table.string('name').notNullable();
       table.string('color').notNullable();
@@ -60,27 +65,36 @@ export default class extends BaseSchema {
       table.json('week_starts_on').nullable();
       table.json('working_days').nullable();
       table.string('language').nullable();
-      table.json('disciplines_enabled').nullable();
-      table.json('placeholders_enabled').nullable();
-      table.json('external_enabled').nullable();
-      table.json('inline_activity_create_enabled').nullable();
-      table.json('show_task_field_in_schedule').nullable();
+      table.boolean('disciplines_enabled').nullable();
+      table.boolean('placeholders_enabled').nullable();
+      table.boolean('external_enabled').nullable();
+      table.boolean('inline_activity_create_enabled').nullable();
+      table.boolean('show_task_field_in_schedule').nullable();
       table.json('capacity_overview_access').nullable();
       table.string('date_style').nullable();
       table.check("scheduling_mode IS NULL OR scheduling_mode IN ('hourly','days','blocks')");
       table.check(
         "date_style IS NULL OR date_style IN ('day-month','day-ordinal-month','month-day','month-day-ordinal')"
       );
+      table.check('disciplines_enabled IS NULL OR disciplines_enabled IN (0, 1)');
+      table.check('placeholders_enabled IS NULL OR placeholders_enabled IN (0, 1)');
+      table.check('external_enabled IS NULL OR external_enabled IN (0, 1)');
+      table.check(
+        'inline_activity_create_enabled IS NULL OR inline_activity_create_enabled IN (0, 1)'
+      );
+      table.check('show_task_field_in_schedule IS NULL OR show_task_field_in_schedule IN (0, 1)');
     });
     this.schema.createTable('clients', (table) => {
       scoped(table);
       table.string('name').notNullable();
       table.string('color').notNullable();
-      table.json('is_private').nullable();
+      table.boolean('is_private').nullable();
       table.string('code_name').nullable();
-      table.json('builtin').nullable();
+      table.boolean('builtin').nullable();
       table.timestamp('archived_at').nullable();
       table.timestamp('deleted_at').nullable();
+      table.check('is_private IS NULL OR is_private IN (0, 1)');
+      table.check('builtin IS NULL OR builtin IN (0, 1)');
     });
     this.schema.createTable('disciplines', (table) => {
       scoped(table);
@@ -99,10 +113,11 @@ export default class extends BaseSchema {
         .onDelete('CASCADE');
       table.index(['client_id']);
       table.string('color').notNullable();
-      table.json('is_private').nullable();
+      table.boolean('is_private').nullable();
       table.string('code_name').nullable();
       table.timestamp('archived_at').nullable();
       table.timestamp('deleted_at').nullable();
+      table.check('is_private IS NULL OR is_private IN (0, 1)');
     });
     this.schema.createTable('phases', (table) => {
       scoped(table);
@@ -119,7 +134,7 @@ export default class extends BaseSchema {
       scoped(table);
       table.string('kind').notNullable();
       table.string('name').nullable();
-      table.string('role').notNullable();
+      table.string('job_title').notNullable();
       table.string('avatar_url').nullable();
       table
         .string('discipline_id')
@@ -139,7 +154,7 @@ export default class extends BaseSchema {
         .inTable('projects')
         .onDelete('SET NULL');
       table.string('color').notNullable();
-      table.json('is_favourite').nullable();
+      table.boolean('is_favourite').nullable();
       table.date('first_available_date').nullable();
       table.date('last_available_date').nullable();
       table.timestamp('archived_at').nullable();
@@ -152,6 +167,7 @@ export default class extends BaseSchema {
       table.check(
         'first_available_date IS NULL OR last_available_date IS NULL OR first_available_date <= last_available_date'
       );
+      table.check('is_favourite IS NULL OR is_favourite IN (0, 1)');
     });
     this.schema.createTable('activities', (table) => {
       scoped(table);
@@ -168,7 +184,7 @@ export default class extends BaseSchema {
       table.timestamp('deleted_at').nullable();
       table.index(['project_id']);
       table.index(['phase_id']);
-      table.check("kind IN ('project','internal','repeatable')");
+      table.check("kind IN ('project','internal','allProjects')");
     });
     this.schema.createTable('allocations', (table) => {
       scoped(table);
@@ -196,7 +212,7 @@ export default class extends BaseSchema {
       table.string('status').notNullable();
       table.text('note').nullable();
       table.string('task').nullable();
-      table.json('ignore_working_days').nullable();
+      table.boolean('ignore_working_days').nullable();
       table.string('series_id').nullable();
       table.index(['resource_id']);
       table.index(['activity_id']);
@@ -204,6 +220,7 @@ export default class extends BaseSchema {
       table.check("status IN ('confirmed','tentative','completed')");
       table.check('start_date <= end_date');
       table.check('hours_per_day >= 0 AND hours_per_day <= 24');
+      table.check('ignore_working_days IS NULL OR ignore_working_days IN (0, 1)');
     });
     this.schema.createTable('time_off', (table) => {
       scoped(table);
@@ -229,7 +246,7 @@ export default class extends BaseSchema {
       table.check('start_date <= end_date');
     });
 
-    // Account Kit's Lucid adapter maps these columns; password is the Adonis hasher's output.
+    // Account Kit's Lucid adapter maps these columns; password is the AdonisJS hasher's output.
     this.schema.createTable('users', (table) => {
       metadata(table);
       table.string('email', 254).notNullable().unique();
@@ -280,7 +297,7 @@ export default class extends BaseSchema {
         .string('scope_id', 254)
         .notNullable()
         .references('id')
-        .inTable('accounts')
+        .inTable('companies')
         .onDelete('RESTRICT');
       table
         .string('user_id', 254)
@@ -315,7 +332,7 @@ export default class extends BaseSchema {
         .string('scope_id', 255)
         .notNullable()
         .references('id')
-        .inTable('accounts')
+        .inTable('companies')
         .onDelete('CASCADE');
       table.string('command_id', 255).notNullable();
       table.string('operation', 255).notNullable();
@@ -336,7 +353,7 @@ export default class extends BaseSchema {
         .string('company_id')
         .notNullable()
         .references('id')
-        .inTable('accounts')
+        .inTable('companies')
         .onDelete('CASCADE');
       table.string('actor_id').notNullable();
       table
@@ -384,7 +401,7 @@ export default class extends BaseSchema {
       table.string('credential_revision', 64).nullable();
       table.string('action', 255).notNullable();
       // A `delete-account` confirmation is scoped to the person's own id, so the scope cannot
-      // reference `accounts`; confirmations last five minutes and are pruned globally.
+      // reference `companies`; confirmations last five minutes and are pruned globally.
       table.string('scope', 255).notNullable();
       table.string('intent_hash', 64).notNullable();
       // Epoch milliseconds.
@@ -407,14 +424,14 @@ export default class extends BaseSchema {
       table.unique(['company_id', 'key']);
     });
 
-    this.schema.createTable('account_getting_started_dismissals', (table) => {
+    this.schema.createTable('company_getting_started_dismissals', (table) => {
       table.string('id').primary();
       table
         .string('company_id')
         .notNullable()
         .unique()
         .references('id')
-        .inTable('accounts')
+        .inTable('companies')
         .onDelete('CASCADE');
       table.timestamp('created_at').notNullable();
       table.timestamp('updated_at').notNullable();
@@ -595,7 +612,12 @@ export default class extends BaseSchema {
     });
 
     this.schema.createTable('company_planning_revisions', (table) => {
-      table.string('company_id').primary().references('id').inTable('accounts').onDelete('CASCADE');
+      table
+        .string('company_id')
+        .primary()
+        .references('id')
+        .inTable('companies')
+        .onDelete('CASCADE');
       table.integer('revision').notNullable().defaultTo(0);
       table.check('revision >= 0');
     });
@@ -604,7 +626,7 @@ export default class extends BaseSchema {
         .string('company_id')
         .notNullable()
         .references('id')
-        .inTable('accounts')
+        .inTable('companies')
         .onDelete('CASCADE');
       table.string('mutation_id').notNullable();
       table.string('actor_id').notNullable();
@@ -619,7 +641,12 @@ export default class extends BaseSchema {
     // One undo and redo history per company: the last writer's. Any other commit makes it stale,
     // so every write replaces the row in place and the table never holds more rows than companies.
     this.schema.createTable('planning_histories', (table) => {
-      table.string('company_id').primary().references('id').inTable('accounts').onDelete('CASCADE');
+      table
+        .string('company_id')
+        .primary()
+        .references('id')
+        .inTable('companies')
+        .onDelete('CASCADE');
       table
         .integer('session_id')
         .unsigned()
@@ -638,7 +665,7 @@ export default class extends BaseSchema {
     for (const [table, column, target] of relationships) {
       for (const operation of ['INSERT', 'UPDATE'] as const) {
         this.schema.raw(
-          `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND company_id = NEW.company_id) BEGIN SELECT RAISE(ABORT, 'cross-account reference'); END`
+          `CREATE TRIGGER ${table}_${column}_${operation.toLowerCase()} BEFORE ${operation} ON ${table} WHEN NEW.${column} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${target} WHERE id = NEW.${column} AND company_id = NEW.company_id) BEGIN SELECT RAISE(ABORT, 'cross-company reference'); END`
         );
       }
     }
@@ -646,7 +673,7 @@ export default class extends BaseSchema {
     // changing company_id always reports and enforces the immutable company boundary directly.
     for (const table of scopedTables) {
       this.schema.raw(
-        `CREATE TRIGGER ${table}_account_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`
+        `CREATE TRIGGER ${table}_company_immutable BEFORE UPDATE OF company_id ON ${table} WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END`
       );
     }
     this.schema.raw(
@@ -666,10 +693,10 @@ export default class extends BaseSchema {
         );
     }
     this.schema.raw(
-      `CREATE TRIGGER deleted_groups_active_row_guard BEFORE DELETE ON deleted_groups WHEN ${retained.map((name) => `EXISTS (SELECT 1 FROM ${name} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+      `CREATE TRIGGER deleted_groups_active_row_abort BEFORE DELETE ON deleted_groups WHEN ${retained.map((name) => `EXISTS (SELECT 1 FROM ${name} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
     );
     this.schema.raw(
-      "CREATE TRIGGER deleted_groups_account_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"
+      "CREATE TRIGGER deleted_groups_company_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"
     );
   }
 }

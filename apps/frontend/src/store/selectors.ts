@@ -22,7 +22,7 @@ export const DEFAULT_WEEK_STARTS_ON = 1 as const;
 const createCompanyFieldSelector =
   <K extends keyof Company>(key: K, fallback: NonNullable<Company[K]>) =>
   (data: AppData, activeCompanyId: ID | null): NonNullable<Company[K]> =>
-    data.accounts.find((company) => company.id === activeCompanyId)?.[key] ?? fallback;
+    data.companies.find((company) => company.id === activeCompanyId)?.[key] ?? fallback;
 
 // Mirror one company date convention into synchronous formatters. Unknown stored
 // styles fall back so a hand-edited row cannot break date rendering.
@@ -34,7 +34,7 @@ export function resolveDateStyle(data: AppData, activeCompanyId: ID | null): Dat
 }
 
 /** The active company's scheduling input mode. Absent on the company reads as 'hourly'.
- * Shared by the modal and bar. */
+ * Shared by the dialog and bar. */
 export const resolveSchedulingMode = createCompanyFieldSelector('schedulingMode', 'hourly');
 
 /** Whether the active company uses disciplines; every discipline surface shares this value. */
@@ -66,8 +66,8 @@ export const hasPlaceholdersEnabled = createCompanyFieldSelector('placeholdersEn
 /** Whether the active company shows external resources; an absent field defaults to false. */
 export const hasExternalResourcesEnabled = createCompanyFieldSelector('externalEnabled', false);
 
-/** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
- * false (disabled). Single source so Settings and the modal use the same company value. */
+/** Whether the Allocation dialog offers the inline "Add activity" input + button. Absent reads as
+ * false (disabled). Single source so Settings and the dialog use the same company value. */
 export const canCreateInlineActivity = createCompanyFieldSelector(
   'inlineActivityCreateEnabled',
   false,
@@ -93,7 +93,7 @@ export const resolveWeekStart = createCompanyFieldSelector('weekStartsOn', DEFAU
 
 /** Company-wide dates on which a schedule creation gesture may start. */
 export const listCompanyWorkingDays = (data: AppData, activeCompanyId: ID | null): Weekday[] => {
-  const company = data.accounts.find((candidate) => candidate.id === activeCompanyId);
+  const company = data.companies.find((candidate) => candidate.id === activeCompanyId);
   return normalizeCompanyWorkingDays(
     company?.workingDays,
     company?.weekStartsOn ?? DEFAULT_WEEK_STARTS_ON,
@@ -118,7 +118,7 @@ export interface DisciplineGroup {
   /** Null identifies the ungrouped resources bucket. */
   discipline: Discipline | null;
   resources: Resource[];
-  /** True for the synthetic trailing group of external / 3rd-party resources, rendered as a
+  /** True for the synthetic trailing group of external-party resources, rendered as a
    * neutral band at the very bottom of the schedule (externals have no discipline to group by). */
   external?: boolean;
 }
@@ -133,7 +133,7 @@ export const compareByDisciplineOrder = (a: Discipline, b: Discipline): number =
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 };
 
-/** The trailing external / 3rd-party band (neutral, always last), or null when there are none. The
+/** The trailing external-party band (neutral, always last), or null when there are none. The
  * one source for the partition so the disciplines-on (here) and disciplines-off (schedulerModel)
  * schedules can't disagree on where externals split off or how the band is shaped. */
 export function buildExternalBand(resources: Resource[]): DisciplineGroup | null {
@@ -142,7 +142,7 @@ export function buildExternalBand(resources: Resource[]): DisciplineGroup | null
 }
 
 /** Resources grouped by discipline (sorted), with an "ungrouped" bucket, then a trailing external
- * band last. External / 3rd-party resources are partitioned out of the discipline buckets entirely
+ * band last. External-party resources are partitioned out of the discipline buckets entirely
  * so they always render as their own neutral band at the very bottom of the schedule. */
 export function buildDisciplineGroups(data: AppData): DisciplineGroup[] {
   // Seed empty discipline buckets and partition resources once so large rosters are

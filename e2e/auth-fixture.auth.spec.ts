@@ -7,9 +7,9 @@ import {
   clearAuthE2ECompanies,
   readAuthE2EBaselineSnapshot,
   signUpUser,
-} from './authTestSupport';
+} from './authTestKit';
 
-test('native company fixtures preserve baseline data and unrelated principals across cleanup cycles', async ({
+test('native company fixtures preserve baseline data and unrelated users across cleanup cycles', async ({
   request,
   page,
 }) => {
@@ -21,12 +21,12 @@ test('native company fixtures preserve baseline data and unrelated principals ac
   expect(baseline.account).toMatchObject({
     name: 'Daily Planet E2E Baseline',
     scheduling_mode: 'days',
-    inline_activity_create_enabled: 'false',
+    inline_activity_create_enabled: 0,
   });
   expect(baseline.client).toMatchObject({
     id: `internal:${baseline.account.id}`,
     name: 'Internal',
-    builtin: 'true',
+    builtin: 1,
   });
   expect(baseline.revision).toBe(1);
   expect(baseline.owner).toMatchObject({
@@ -43,7 +43,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
     headers: { cookie: first.cookie },
   });
   expect(firstRead.status()).toBe(200);
-  const firstState = await firstRead.json();
+  const firstState = (await firstRead.json()).data;
   expect(firstState.clients).toEqual([
     expect.objectContaining({
       id: `internal:${firstId}`,
@@ -52,7 +52,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       builtin: true,
     }),
   ]);
-  expect(firstState.accounts).toEqual([
+  expect(firstState.companies).toEqual([
     expect.objectContaining({ id: firstId, schedulingMode: 'days' }),
   ]);
 
@@ -63,12 +63,14 @@ test('native company fixtures preserve baseline data and unrelated principals ac
     headers: { cookie: first.cookie },
   });
   expect(firstAfter.status()).toBe(200);
-  expect(await firstAfter.json()).toEqual(firstState);
+  expect((await firstAfter.json()).data).toEqual(firstState);
   const secondState = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
     headers: { cookie: second.cookie },
   });
   expect(secondState.status()).toBe(200);
-  expect((await secondState.json()).accounts).toEqual([expect.objectContaining({ id: secondId })]);
+  expect((await secondState.json()).data.companies).toEqual([
+    expect.objectContaining({ id: secondId }),
+  ]);
   const foreignRead = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {
     headers: { cookie: first.cookie },
   });
@@ -108,7 +110,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       });
     } else {
       expect(companies.status()).toBe(200);
-      expect(await companies.json()).toEqual([]);
+      expect(await companies.json()).toEqual({ data: [] });
     }
     const inaccessibleAccountId = baselineBeforeCycle?.account.id ?? firstId;
     const hiddenBaseline = await request.get(
@@ -142,15 +144,15 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       scheduling_mode: 'days',
       week_starts_on: 1,
       working_days: '[1,2,3,4,5]',
-      disciplines_enabled: 'false',
-      placeholders_enabled: 'false',
-      external_enabled: 'false',
-      inline_activity_create_enabled: 'false',
+      disciplines_enabled: 0,
+      placeholders_enabled: 0,
+      external_enabled: 0,
+      inline_activity_create_enabled: 0,
     });
     expect(restoredBaseline.client).toMatchObject({
       id: `internal:${restoredBaseline.account.id}`,
       name: 'Internal',
-      builtin: 'true',
+      builtin: 1,
     });
     expect(restoredBaseline.revision).toBe(1);
     expect(restoredBaseline.owner).toMatchObject({
@@ -177,7 +179,7 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       await (
         await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
       ).json(),
-    ).toEqual([]);
+    ).toEqual({ data: [] });
   }
 
   for (const user of [first, second]) {
@@ -188,6 +190,6 @@ test('native company fixtures preserve baseline data and unrelated principals ac
       await (
         await request.get(`${AUTH_API}/api/companies`, { headers: { cookie: user.cookie } })
       ).json(),
-    ).toEqual([]);
+    ).toEqual({ data: [] });
   }
 });

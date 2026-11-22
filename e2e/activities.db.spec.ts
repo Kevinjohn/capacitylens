@@ -5,7 +5,7 @@ import {
   resetSchedulerScroll,
   selectShadOption,
   setZoom,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 // Covers the runnable US-ACT-01, US-ACT-03 and US-ACT-04 flows. US-ACT-02 remains manual while
 // phase management is hidden.

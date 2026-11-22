@@ -11,7 +11,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import { PermissionContext } from '@/auth/permissionContext';
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { SchedulerToolbar } from './SchedulerToolbar';
 import { buildEmptyFilters, useStore } from '@/store/useStore';
 import {
@@ -152,7 +152,7 @@ describe('SchedulerToolbar discipline filter visibility', () => {
     useStore.setState((state) => ({
       data: {
         ...state.data,
-        accounts: state.data.accounts.map((company) =>
+        companies: state.data.companies.map((company) =>
           company.id === state.activeCompanyId ? { ...company, disciplinesEnabled: true } : company,
         ),
         disciplines: [],
@@ -393,8 +393,8 @@ describe('SchedulerToolbar project option presentation', () => {
   it('alphabetises activities within the existing Internal and All projects groups', async () => {
     await useStore.getState().addActivity({ name: 'Studio meeting', kind: 'internal' });
     await useStore.getState().addActivity({ name: 'Admin', kind: 'internal' });
-    await useStore.getState().addActivity({ name: 'Workshop', kind: 'repeatable' });
-    await useStore.getState().addActivity({ name: 'Design', kind: 'repeatable' });
+    await useStore.getState().addActivity({ name: 'Workshop', kind: 'allProjects' });
+    await useStore.getState().addActivity({ name: 'Design', kind: 'allProjects' });
     render(<SchedulerToolbar />);
     showFilters();
 
@@ -470,7 +470,7 @@ describe('SchedulerToolbar history errors', () => {
       }),
     );
     const undo = vi.fn(() =>
-      Promise.reject(new PlanningControllerError('The schedule changed.', 'STALE_REVISION', 409)),
+      Promise.reject(new PlanningCacheError('The schedule changed.', 'STALE_REVISION', 409)),
     );
     const original = useStore.getState().undoPlanning;
     useStore.setState({ undoPlanning: undo });
@@ -587,12 +587,12 @@ describe('SchedulerToolbar Clear filter concurrency', () => {
   });
 });
 
-const seedLensActivities = async () => ({
+const createLensActivities = async () => ({
   internal: await requireCreated(
     useStore.getState().addActivity({ name: 'Admin', kind: 'internal' }),
   ),
-  repeatable: await requireCreated(
-    useStore.getState().addActivity({ name: 'Design', kind: 'repeatable' }),
+  allProjects: await requireCreated(
+    useStore.getState().addActivity({ name: 'Design', kind: 'allProjects' }),
   ),
 });
 
@@ -619,7 +619,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 
   it('selecting a specific activity sets activityId and clears the client/project lens', async () => {
     const user = userEvent.setup();
-    const { repeatable } = await seedLensActivities();
+    const { allProjects } = await createLensActivities();
 
     useStore.getState().setFilters({ projectId: 'p1' });
     render(<SchedulerToolbar />);
@@ -627,7 +627,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 
     await chooseOption(user, 'Filter by activity', 'Design');
 
-    expect(useStore.getState().ui.filters.activityId).toBe(repeatable.id);
+    expect(useStore.getState().ui.filters.activityId).toBe(allProjects.id);
     expect(useStore.getState().ui.filters.activityKind).toBeNull();
 
     expect(useStore.getState().ui.filters.projectId).toBeNull();
@@ -635,7 +635,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 
   it('selecting "Internal — All" sets activityKind and clears the client/project lens', async () => {
     const user = userEvent.setup();
-    await seedLensActivities();
+    await createLensActivities();
     useStore.getState().setFilters({ clientId: 'c1' });
     render(<SchedulerToolbar />);
     showFilters();
@@ -651,14 +651,14 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
 describe('SchedulerToolbar activity and project lens interaction', () => {
   it('selecting a project clears an active activity lens (mutual exclusion both ways)', async () => {
     const user = userEvent.setup();
-    const { repeatable } = await seedLensActivities();
+    const { allProjects } = await createLensActivities();
     const client = await requireCreated(
       useStore.getState().addClient({ name: 'Ferris', color: '#111' }),
     );
     const project = await requireCreated(
       useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' }),
     );
-    useStore.getState().setFilters({ activityId: repeatable.id });
+    useStore.getState().setFilters({ activityId: allProjects.id });
     render(<SchedulerToolbar />);
     showFilters();
 

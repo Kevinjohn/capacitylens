@@ -31,7 +31,7 @@ function person(id: string, overrides: Partial<Resource> = {}): Resource {
     id,
     kind: 'person',
     name: id,
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio',
     workingHoursPerDay: 8,
@@ -43,7 +43,7 @@ function person(id: string, overrides: Partial<Resource> = {}): Resource {
 }
 
 function placeholder(id: string, overrides: Partial<Resource> = {}): Resource {
-  return person(id, { kind: 'placeholder', role: 'Designer', ...overrides });
+  return person(id, { kind: 'placeholder', jobTitle: 'Designer', ...overrides });
 }
 
 function data(resources: Resource[]): AppData {

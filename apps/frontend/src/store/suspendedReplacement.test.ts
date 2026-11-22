@@ -6,7 +6,7 @@ import { runSuspendedReplacement } from './suspendedReplacement';
 const original = {
   refreshPlanning: useStore.getState().refreshPlanning,
   planningReadyForReplacement: useStore.getState().planningReadyForReplacement,
-  suspendPlanningCommands: useStore.getState().suspendPlanningCommands,
+  suspendPlanningIntents: useStore.getState().suspendPlanningIntents,
 };
 
 const probe = { ready: true, suspends: 0, releases: 0, refreshed: true };
@@ -19,7 +19,7 @@ beforeEach(async () => {
   useStore.setState({
     refreshPlanning,
     planningReadyForReplacement: () => probe.ready,
-    suspendPlanningCommands: () => {
+    suspendPlanningIntents: () => {
       probe.suspends += 1;
       return () => {
         probe.releases += 1;

@@ -27,8 +27,8 @@ import {
   buildSettingsUpdate,
   buildTimeOffCreate,
   buildTimeOffUpdate,
-} from '@/data/planning/planningCommands';
-import type { PlanningCommand } from '@/data/planning/planningCommands';
+} from '@/data/planning/planningIntents';
+import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 import type { CreateResult, Draft, Patch, RepeatRange, StoreState } from './types';
 import type { StoreInternals } from './storeInternal';
 
@@ -37,9 +37,9 @@ function requireCreatedId(value: unknown): string {
   return value;
 }
 
-/** The remaining planning writers share the allocation controller and await its reconciliation. */
+/** The remaining planning writers share the planning cache and await its reconciliation. */
 export function createTypedPlanningActions(
-  get: () => Pick<StoreState, 'data' | 'planning' | 'masquerade' | 'sendPlanningCommand'>,
+  get: () => Pick<StoreState, 'data' | 'planning' | 'masquerade' | 'sendPlanningIntent'>,
   {
     requireCompany,
     isBlockedByViewer,
@@ -47,25 +47,25 @@ export function createTypedPlanningActions(
 ) {
   const blocked = isBlockedByViewer;
   // After a failed first read the company row was never published, so a create reports that, as it
-  // did before the authority gate existed, instead of the gate's role-unavailable notice.
+  // did before the permission check existed, instead of the check's role-unavailable notice.
   const requireCreateAccount = () => {
     const companyId = requireCompany();
     const { data, planning, masquerade } = get();
     if (
       masquerade.kind === 'inactive' &&
-      planning.authority === null &&
+      planning.access === null &&
       planning.phase.kind === 'failed' &&
-      !data.accounts.some((row) => row.id === companyId)
+      !data.companies.some((row) => row.id === companyId)
     ) {
       throw new Error('No active company is selected.');
     }
     return companyId;
   };
-  // The guard admits a company still loading from the summaries; no command can be built for it
+  // The guard admits a company still loading from the summaries; no intent can be built for it
   // until its row is published, which the person sees as no company being selected yet.
   const buildUnpreparedError = (companyId: string, message: string) =>
     new Error(
-      get().data.accounts.some((row) => row.id === companyId)
+      get().data.companies.some((row) => row.id === companyId)
         ? message
         : 'No active company is selected.',
     );
@@ -84,13 +84,16 @@ export function createTypedPlanningActions(
     id: string,
     companyId: string,
   ) => getOwned(get().data, companyId, key, id);
-  const send = async (command: PlanningCommand | null) =>
-    command ? get().sendPlanningCommand(command) : undefined;
+  const send = async (intentRequest: PlanningIntentRequest | null) =>
+    intentRequest ? get().sendPlanningIntent(intentRequest) : undefined;
   /** Adds the edited row's opening `updatedAt` to an update, when the form supplied one. */
   const applyExpectedUpdatedAt = (
-    command: PlanningCommand | null,
+    intentRequest: PlanningIntentRequest | null,
     expectedUpdatedAt: string | undefined,
-  ) => (command && expectedUpdatedAt !== undefined ? { ...command, expectedUpdatedAt } : command);
+  ) =>
+    intentRequest && expectedUpdatedAt !== undefined
+      ? { ...intentRequest, expectedUpdatedAt }
+      : intentRequest;
   const created = <
     K extends keyof Pick<
       StoreState['data'],
@@ -118,15 +121,15 @@ export function createTypedPlanningActions(
     const companyId = requireCreateAccount();
     if (blocked()) return { kind: 'blocked' };
     const id = createId();
-    const command = buildCatalogueCreate({
+    const intentRequest = buildCatalogueCreate({
       data: get().data,
       companyId,
       args: { entity: key, id, fields } as Parameters<typeof buildCatalogueCreate>[0]['args'],
     });
-    if (!command) {
+    if (!intentRequest) {
       throw buildUnpreparedError(companyId, 'The planning change could not be prepared.');
     }
-    await send(command);
+    await send(intentRequest);
     return { kind: 'created', value: created(key, id) as T };
   };
   const updateCatalogue = async (
@@ -161,15 +164,15 @@ export function createTypedPlanningActions(
     if (blocked()) return { kind: 'blocked' };
     assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
     const id = createId();
-    const command = buildTimeOffCreate({
+    const intentRequest = buildTimeOffCreate({
       data: get().data,
       companyId,
       args: { id, fields: input },
     });
-    if (!command) {
+    if (!intentRequest) {
       throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.');
     }
-    await send(command);
+    await send(intentRequest);
     return { kind: 'created', value: created('timeOff', id) };
   };
   return {
@@ -205,13 +208,15 @@ export function createTypedPlanningActions(
         ...input,
         workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay),
       };
-      const command = buildResourceCreate({
+      const intentRequest = buildResourceCreate({
         data: get().data,
         companyId,
         args: { id, fields },
       });
-      if (!command) throw buildUnpreparedError(companyId, 'The resource could not be prepared.');
-      await send(command);
+      if (!intentRequest) {
+        throw buildUnpreparedError(companyId, 'The resource could not be prepared.');
+      }
+      await send(intentRequest);
       return { kind: 'created', value: created('resources', id) };
     },
     updateResource: async (id: string, patch: Patch<Resource>, expectedUpdatedAt?: string) => {
@@ -247,15 +252,15 @@ export function createTypedPlanningActions(
       const companyId = requireCreateAccount();
       if (blocked()) return { kind: 'blocked' };
       assertResourceExists({ data: get().data, companyId, resourceId: input.resourceId });
-      const command = buildTimeOffCreate({
+      const intentRequest = buildTimeOffCreate({
         data: get().data,
         companyId,
         args: { id: createId(), fields: input },
       });
-      if (!command || command.intent.operation !== 'timeOff.create') {
+      if (!intentRequest || intentRequest.intent.operation !== 'timeOff.create') {
         throw buildUnpreparedError(companyId, 'The time-off entry could not be prepared.');
       }
-      const timeOff = command.intent.timeOff;
+      const timeOff = intentRequest.intent.timeOff;
       // Later entry ids are minted here too, so every created row can be returned by id.
       const occurrenceIds = Array.from({ length: count - 1 }, () => createId());
       const ids = [requireCreatedId(timeOff.id), ...occurrenceIds];
@@ -289,13 +294,15 @@ export function createTypedPlanningActions(
       const companyId = requireCreateAccount();
       if (blocked()) return { kind: 'blocked' };
       const id = createId();
-      const command = buildClosureCreate({
+      const intentRequest = buildClosureCreate({
         data: get().data,
         companyId,
         args: { id, fields: input },
       });
-      if (!command) throw buildUnpreparedError(companyId, 'The closure could not be prepared.');
-      await send(command);
+      if (!intentRequest) {
+        throw buildUnpreparedError(companyId, 'The closure could not be prepared.');
+      }
+      await send(intentRequest);
       return { kind: 'created', value: created('closures', id) };
     },
     updateClosure: async (id: string, changes: Patch<Closure>, expectedUpdatedAt?: string) => {
@@ -327,7 +334,7 @@ export function createTypedPlanningActions(
       if (id !== companyId) {
         throw new Error('Cannot update a company other than the active company.');
       }
-      const original = get().data.accounts.find((row) => row.id === id);
+      const original = get().data.companies.find((row) => row.id === id);
       if (!original) return;
       if (
         patch.workingDays != null &&

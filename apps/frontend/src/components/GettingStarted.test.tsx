@@ -7,7 +7,7 @@ import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
-import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 const NO_STEPS = {
   person: false,
@@ -19,7 +19,7 @@ const NO_STEPS = {
 
 /** The getting-started read body: dismissal plus the milestones the server reports. */
 function readReply(dismissed: boolean, steps: Partial<typeof NO_STEPS> = {}) {
-  return JSON.stringify({ dismissed, steps: { ...NO_STEPS, ...steps } });
+  return JSON.stringify({ data: { dismissed, steps: { ...NO_STEPS, ...steps } } });
 }
 
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
@@ -145,7 +145,7 @@ describe('Getting started', () => {
   });
 
   it.each(['starting', 'active', 'ending'] as const)(
-    'omits privileged onboarding requests while masquerade is %s',
+    'omits privileged getting-started requests while masquerade is %s',
     (kind) => {
       const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(readReply(false)));
       vi.stubGlobal('fetch', fetchMock);
@@ -154,7 +154,7 @@ describe('Getting started', () => {
         targetUserId: 'u-editor',
         targetName: 'Clark Kent',
         effectiveRole: 'editor' as const,
-        ...viewAsGrantFor('editor'),
+        ...masqueradeGrantFor('editor'),
         startedAt: '2026-10-19T10:00:00.000Z',
         expiresAt: '2999-10-19T10:15:00.000Z',
         token: 'test-projection',
@@ -177,7 +177,7 @@ describe('Getting started', () => {
     },
   );
 
-  it('aborts pre-projection guidance and reloads normal Editor onboarding after view-as ends', async () => {
+  it('aborts pre-projection guidance and reloads normal Editor getting-started guidance after view-as ends', async () => {
     let rejectRead!: (error: Error) => void;
     const pending = new Promise<Response>((_resolve, reject) => {
       rejectRead = reject;
@@ -279,7 +279,9 @@ describe('Getting started', () => {
     const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
-      vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(body), { status: 200 })),
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(new Response(JSON.stringify({ data: body }), { status: 200 })),
     );
 
     renderChecklist('owner');

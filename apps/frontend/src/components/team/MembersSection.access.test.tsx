@@ -8,8 +8,8 @@ import { resetStoreWithCompany, DEFAULT_COMPANY_ID, jsonResponse } from '@/test/
 import { useStore } from '@/store/useStore';
 import { MembersSection } from './MembersSection';
 import { useTeamDirectory } from './useTeamDirectory';
-import { makeAuthValue, mockApi, makeRawMember, renderSection } from './MembersSection.testSupport';
-import { viewAsGrantFor } from '@/test/permissionGrants';
+import { makeAuthValue, mockApi, makeRawMember, renderSection } from './MembersSectionTestKit';
+import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
@@ -39,14 +39,16 @@ describe('MembersSection — self-gate', () => {
       const isRead = !init || init.method === undefined || init.method === 'GET';
       if (target.endsWith(`/${DEFAULT_COMPANY_ID}/members`) && isRead) {
         return jsonResponse({
-          members: [
-            makeRawMember({
-              userId: 'first-owner',
-              role: 'owner',
-              email: 'first@example.test',
-              isSelf: true,
-            }),
-          ],
+          data: {
+            members: [
+              makeRawMember({
+                userId: 'first-owner',
+                role: 'owner',
+                email: 'first@example.test',
+                isSelf: true,
+              }),
+            ],
+          },
         });
       }
       if (target.endsWith(`/${nextCompanyId}/members`) && isRead) {
@@ -54,8 +56,8 @@ describe('MembersSection — self-gate', () => {
           resolveNextMembers = resolve;
         });
       }
-      if (target.endsWith('/invites') && isRead) {
-        return jsonResponse({ invites: [] });
+      if (target.endsWith('/invitations') && isRead) {
+        return jsonResponse({ data: { invites: [] } });
       }
       throw new Error(`Unexpected request: ${target}`);
     });
@@ -69,14 +71,16 @@ describe('MembersSection — self-gate', () => {
     await act(async () => {
       resolveNextMembers?.(
         jsonResponse({
-          members: [
-            makeRawMember({
-              userId: 'second-owner',
-              role: 'owner',
-              email: 'second@example.test',
-              isSelf: true,
-            }),
-          ],
+          data: {
+            members: [
+              makeRawMember({
+                userId: 'second-owner',
+                role: 'owner',
+                email: 'second@example.test',
+                isSelf: true,
+              }),
+            ],
+          },
         }),
       );
     });
@@ -119,7 +123,7 @@ describe('MembersSection — self-gate', () => {
     // which would paper over the very thing this test is pinning.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse({ members: [{ userId: 'me', role: 'owner' }] })),
+      vi.fn(async () => jsonResponse({ data: { members: [{ userId: 'me', role: 'owner' }] } })),
     );
     renderSection();
 
@@ -131,7 +135,7 @@ describe('MembersSection — self-gate', () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-        'GET /invites': () => jsonResponse({}, 503),
+        'GET /invitations': () => jsonResponse({}, 503),
       }),
     );
     renderSection();
@@ -153,7 +157,7 @@ describe('MembersSection — directory error retention', () => {
           targetUserId: 'target-user',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
-          ...viewAsGrantFor('viewer'),
+          ...masqueradeGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',
@@ -185,7 +189,7 @@ describe('MembersSection — directory error retention', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('masks a previously authorized directory immediately when its principal changes', async () => {
+  it('masks a previously authorized directory immediately when its user changes', async () => {
     const members = [{ userId: 'me', role: 'owner', isSelf: true }] as const;
     let memberReads = 0;
     vi.stubGlobal(
@@ -196,20 +200,22 @@ describe('MembersSection — directory error retention', () => {
           memberReads += 1;
           if (memberReads > 1) return new Promise<Response>(() => {});
           return jsonResponse({
-            signInTrackingEnabled: false,
-            members: members.map((member) => makeRawMember(member)),
+            data: {
+              signInTrackingEnabled: false,
+              members: members.map((member) => makeRawMember(member)),
+            },
           });
         }
-        if (url.endsWith('/invites')) return jsonResponse({ invites: [] });
+        if (url.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } });
         return new Response(null, { status: 204 });
       }),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const fail = vi.fn();
-    let principalId = 'first-principal';
+    let userId = 'first-user';
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
-        <AuthContext.Provider value={makeAuthValue({ user: { id: principalId } })}>
+        <AuthContext.Provider value={makeAuthValue({ user: { id: userId } })}>
           {children}
         </AuthContext.Provider>
       </QueryClientProvider>
@@ -226,7 +232,7 @@ describe('MembersSection — directory error retention', () => {
     );
     await waitFor(() => expect(result.current.directory.kind).toBe('ready'));
 
-    principalId = 'second-principal';
+    userId = 'second-user';
     rerender();
 
     expect(result.current.directory.kind).toBe('loading');
@@ -242,8 +248,10 @@ describe('MembersSection — directory error retention', () => {
           memberReads += 1;
           return memberReads === 1
             ? jsonResponse({
-                signInTrackingEnabled: false,
-                members: members.map((member) => makeRawMember(member)),
+                data: {
+                  signInTrackingEnabled: false,
+                  members: members.map((member) => makeRawMember(member)),
+                },
               })
             : jsonResponse({ error: 'Forbidden' }, 403);
         },
@@ -290,8 +298,10 @@ describe('MembersSection — transient directory state', () => {
           memberReads += 1;
           return memberReads === 1
             ? jsonResponse({
-                signInTrackingEnabled: false,
-                members: members.map((member) => makeRawMember(member)),
+                data: {
+                  signInTrackingEnabled: false,
+                  members: members.map((member) => makeRawMember(member)),
+                },
               })
             : jsonResponse({ error: 'Unavailable' }, 503);
         },

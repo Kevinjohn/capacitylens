@@ -25,7 +25,7 @@ const makeActiveOnlyResource = (id: string, name: string, tombstones: LifecycleF
   companyId: ACTIVE_ONLY_COMPANY,
   kind: 'person' as const,
   name,
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -74,9 +74,9 @@ const makeActiveOnlyProject = ({
 });
 const ACTIVE_ONLY_DATA: AppData = {
   ...createEmptyAppData(),
-  accounts: [
+  companies: [
     {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: ACTIVE_ONLY_COMPANY,
       name: 'Studio',
       color: '#3b82f6',
@@ -312,7 +312,7 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
     expect(out.allocations.map((row) => row.id)).toEqual(['al1']);
     expect(out.timeOff.map((row) => row.id)).toEqual(['to1']);
     expect(out.disciplines).toBe(input.disciplines);
-    expect(out.accounts).toBe(input.accounts);
+    expect(out.companies).toBe(input.companies);
     expect(
       resolveLifecycleStatus(input.activities.find((row) => row.id === 'act-hidden') ?? {}),
     ).toBe('active');
@@ -384,7 +384,7 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
     expect(out.activities.map(({ id }) => id)).toEqual(['activity-with-null-parents']);
     expect(out.allocations.map(({ id }) => id)).toEqual(['allocation-1']);
   });
-  it('hides a repeatable allocation attributed to an inactive project', () => {
+  it('hides a all-projects allocation attributed to an inactive project', () => {
     const input: AppData = {
       ...createEmptyAppData(),
       projects: [
@@ -477,9 +477,9 @@ const ARCHIVE_IMPACT_COMPANY = 'acct-1';
 
 const ARCHIVE_IMPACT_DATA: AppData = {
   ...createEmptyAppData(),
-  accounts: [
+  companies: [
     {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: ARCHIVE_IMPACT_COMPANY,
       name: 'Studio',
       color: '#3b82f6',
@@ -494,7 +494,7 @@ const ARCHIVE_IMPACT_DATA: AppData = {
       companyId: ARCHIVE_IMPACT_COMPANY,
       kind: 'person',
       name: 'R',
-      role: 'Dev',
+      jobTitle: 'Dev',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,

@@ -29,8 +29,8 @@ regexes = [
   # Exact values keep other APP_KEY credentials reportable, including ones in the same files.
   '''^capacitylens-test-key-0123456789abcdef$''',
   '''^capacitylens-e2e-key-0123456789abcdef$''',
-  # The scaffold .env.example key is public development data; native packaging generates its own
-  # key at runtime. Exact matching keeps arbitrary generated keys reportable.
+  # The former scaffold .env.example key, kept in git history as public development data.
+  # Exact matching keeps arbitrary generated keys reportable.
   '''^zKXHe-Ahdb7aPK1ylAJlRgTefktEaACi$''',
   # Fixed idempotency key for the invalid multiple-owner test, not an authentication credential.
   '''^ownership-broken-owner-key-0001$''',

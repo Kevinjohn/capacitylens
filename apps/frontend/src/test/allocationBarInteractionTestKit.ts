@@ -26,7 +26,7 @@ export const rect = (top: number, bottom: number): DOMRect => ({
 });
 
 /** Creates a stored allocation with optional field overrides for interaction tests. */
-export async function seedAllocation(overrides: Partial<Allocation> = {}): Promise<Allocation> {
+export async function createAllocation(overrides: Partial<Allocation> = {}): Promise<Allocation> {
   const s = useStore.getState();
   const c = await requireCreated(s.addClient({ name: 'Ferris', color: '#1' }));
   const p = await requireCreated(s.addProject({ name: 'P', clientId: c.id, color: '#2' }));
@@ -34,7 +34,7 @@ export async function seedAllocation(overrides: Partial<Allocation> = {}): Promi
     s.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
   );
   const r = await requireCreated(
-    s.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    s.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
   );
   return requireCreated(
     await s.addAllocation({
@@ -50,7 +50,7 @@ export async function seedAllocation(overrides: Partial<Allocation> = {}): Promi
 }
 
 /** Creates a visible allocation whose archived activity is excluded from capacity signals. */
-export async function seedVisibleAllocationWithHiddenCapacity(): Promise<Allocation> {
+export async function createVisibleAllocationWithHiddenCapacity(): Promise<Allocation> {
   const st = useStore.getState();
   const hiddenClient = await requireCreated(st.addClient({ name: 'Archived client', color: '#1' }));
   const hiddenProject = await requireCreated(
@@ -67,7 +67,7 @@ export async function seedVisibleAllocationWithHiddenCapacity(): Promise<Allocat
     st.addActivity({ name: 'Visible work', kind: 'project', projectId: visibleProject.id }),
   );
   const resource = await requireCreated(
-    st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#5' })),
+    st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#5' })),
   );
   await st.addAllocation({
     resourceId: resource.id,

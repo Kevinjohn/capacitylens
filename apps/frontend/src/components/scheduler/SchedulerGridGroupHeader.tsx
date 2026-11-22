@@ -6,7 +6,7 @@ import { LAYOUT } from './layout';
 import type { GroupModel } from './schedulerModel';
 import type { SchedulerUI, StoreState } from '@/store/useStore';
 import type { ColumnGeometry } from './columnGeometry';
-import { buildAverageUtilisationLabel } from './schedulerGridModal';
+import { buildAverageUtilisationLabel } from './schedulerGridDialog';
 
 interface SchedulerGridGroupHeaderProps {
   group: GroupModel;

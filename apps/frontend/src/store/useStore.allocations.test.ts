@@ -7,16 +7,16 @@ import {
   requireValue,
   resetStoreWithCompany,
   WORKDAYS,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { useStore } from './useStore';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import type { Draft } from './useStore';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import {
   queueAllocationDeleteGroupResponse,
   queueAllocationGroupResponse,
-} from '@/test/planning/queuePlanningFixtures';
+} from '@/test/planning/queuePlanningTestKit';
 import { queuePlanningPatch } from '@/test/planning/queuePlanningPatch';
 import { NULLABLE_FIELDS } from '@capacitylens/shared/types/nullableFields';
 
@@ -27,7 +27,9 @@ beforeEach(() => resetStoreWithCompany());
 
 async function allocationSetup() {
   const resource = await requireCreated(state().addResource(makeResourceDraft()));
-  const activity = await requireCreated(state().addActivity({ name: 'Admin', kind: 'repeatable' }));
+  const activity = await requireCreated(
+    state().addActivity({ name: 'Admin', kind: 'allProjects' }),
+  );
   const draft = (overrides: Partial<Draft<Allocation>> = {}): Draft<Allocation> => ({
     resourceId: resource.id,
     activityId: activity.id,
@@ -163,7 +165,7 @@ describe('atomic allocation creation', () => {
   it('applies the Viewer guard to the whole batch', async () => {
     const { draft } = await allocationSetup();
     const historyBefore = typedHistory();
-    setPlanningAuthority({ role: 'viewer', canWrite: false });
+    setPlanningAccess({ role: 'viewer', canWrite: false });
     const returned = await state().addRepeatedAllocation(draft(), weekly('2026-06-08'));
     expect(returned).toEqual({ kind: 'blocked' });
     expect(state().data.allocations).toHaveLength(0);
@@ -232,7 +234,7 @@ describe('server-owned allocation rules', () => {
   // browser sends the write and surfaces the refusal.
   const refuseNext = () =>
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'Allocation must reference an existing resource and activity in this company.',
         'VALIDATION_ERROR',
         400,
@@ -384,9 +386,7 @@ it('leaves a reassignment before the target is available for the server to refus
   );
   const allocation = requireCreated(await state().addAllocation(draft()));
   const refusal = 'Allocation includes a scheduled working day before this person is available.';
-  getStubPlanningTransport().failNext(
-    new PlanningControllerError(refusal, 'VALIDATION_ERROR', 400),
-  );
+  getStubPlanningTransport().failNext(new PlanningCacheError(refusal, 'VALIDATION_ERROR', 400));
   await expect(
     state().reassignAllocation(allocation.id, {
       resourceId: target.id,

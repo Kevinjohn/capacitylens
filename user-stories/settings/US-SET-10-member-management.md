@@ -30,8 +30,8 @@ flowchart TD
   team["TeamAccessView renders MembersSection for managers"] --> section["MembersSection delegates invite and member row controls"]
   team --> approval["AdmissionRequestsPanel shows its explanation only when requests are listed"]
   section --> invite["InviteMemberPanel calls invitation controller actions"]
-  section --> member["Member row actions call teamAccessClient membership methods"]
+  section --> member["Member row actions call teamAccessApi membership methods"]
   member --> list["MembersSection refreshes directory projection"]
 ```
 
-**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessClient.ts](../../apps/frontend/src/account/teamAccessClient.ts)
+**Code references:** [TeamAccessView.tsx](../../apps/frontend/src/components/team/TeamAccessView.tsx), [MembersSection.tsx](../../apps/frontend/src/components/team/MembersSection.tsx), [InviteMemberPanel.tsx](../../apps/frontend/src/components/team/InviteMemberPanel.tsx), [AdmissionRequestsPanel.tsx](../../apps/frontend/src/components/team/AdmissionRequestsPanel.tsx), [teamAccessApi.ts](../../apps/frontend/src/account/teamAccessApi.ts)

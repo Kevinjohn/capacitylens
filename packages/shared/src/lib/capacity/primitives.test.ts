@@ -5,7 +5,7 @@ import {
   allocatedHoursOnDay,
   makeResource,
   makeAlloc,
-} from './capacity.test.support.js';
+} from './capacityTestKit.js';
 import { addCapacityHours, hasOverCapacity } from './primitives.js';
 
 const expansion = (hours: readonly number[]) => hours.reduce(addCapacityHours, [] as number[]);

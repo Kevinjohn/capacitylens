@@ -7,9 +7,9 @@ import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
 import type { AccountUser } from '@kevinjohn/adonisjs-account-kit/types';
 import { DateTime } from 'luxon';
-import { freshDatabase } from '../helpers/fresh_database.js';
-import { createIdentity, clearIdentities } from '../helpers/identities.js';
-import { createFixtureCompanyForOwner } from '../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { createIdentity, clearIdentities } from '#tests/helpers/identities';
+import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
 import limiter from '@adonisjs/limiter/services/main';
 import { resetState } from '#tests/helpers/state_fixture';
 
@@ -69,7 +69,7 @@ test.group('authentication outcome events', (group) => {
     };
     const { lines } = await captureLogs(async () => {
       const success = await client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
@@ -77,7 +77,7 @@ test.group('authentication outcome events', (group) => {
         .send();
       success.assertStatus(200);
       const failure = await client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
@@ -117,7 +117,7 @@ test.group('authentication outcome events', (group) => {
   }) => {
     const request = () =>
       client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email: 'private-throttle@example.test', password: 'never-store-this-password' })
         .send();
@@ -162,9 +162,9 @@ test.group('authentication outcome events', (group) => {
     const signupEmail = 'clark.kent@wayne.example';
     await createIdentity(signupEmail, { name: 'Clark Kent', password });
 
-    const previousSignup = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
+    const previousSignUp = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
     const originalRegister = accountKit.registration.register;
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
     accountKit.registration.register = async () =>
       ({
         id: 'test-registration',
@@ -174,13 +174,13 @@ test.group('authentication outcome events', (group) => {
         emailVerifiedAt: DateTime.now(),
       }) satisfies AccountUser;
     cleanup(() => {
-      env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', previousSignup);
+      env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', previousSignUp);
       accountKit.registration.register = originalRegister;
     });
 
     const { lines, result } = await captureLogs(async () =>
       client
-        .post('/api/auth/sign-up')
+        .visit('api.new_account.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email: signupEmail, password, name: 'Clark Kent' })
         .send()
@@ -230,7 +230,7 @@ test.group('authentication outcome events', (group) => {
 
     const { lines, result } = await captureLogs(() =>
       client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email, password })
         .send()

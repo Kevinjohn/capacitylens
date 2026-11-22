@@ -8,14 +8,17 @@ import type { HttpContext } from '@adonisjs/core/http';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
 import { withActor } from '#services/auth/current_actor';
-import { classifyLogError, reportPrivateFailure } from '#services/logging_safety';
+import { classifyLogError } from '#config/logger';
+import { reportPrivateFailure } from '#services/logging_safety';
 import { parseRequestDocument } from '#services/company_import';
 import { managedGuard } from '#services/auth/managed_guard';
-import { passwordValidator } from '#validators/password_confirmations';
+import { confirmPasswordValidator } from '#validators/password_confirmations';
 
 export default class PasswordConfirmationsController {
-  async password(ctx: HttpContext) {
-    const body = await ctx.request.validateUsing(passwordValidator, { data: ctx.request.body() });
+  async store(ctx: HttpContext) {
+    const body = await ctx.request.validateUsing(confirmPasswordValidator, {
+      data: ctx.request.body(),
+    });
     let intent: unknown = body.intent;
     if (body.action === 'import') {
       const document = parseRequestDocument(body.intent.document);
@@ -44,6 +47,6 @@ export default class PasswordConfirmationsController {
         'Password confirmation pruning failed'
       );
     }
-    return ctx.response.ok({ confirmationId });
+    return ctx.serialize({ confirmationId });
   }
 }

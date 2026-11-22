@@ -52,7 +52,7 @@ describe('DisciplineList', () => {
     expect(screen.getByRole('button', { name: 'Delete Design' })).toBeInTheDocument();
   });
 
-  it('adds a discipline via the modal (fill Name, Save) and sees it listed', async () => {
+  it('adds a discipline via the dialog (fill Name, Save) and sees it listed', async () => {
     const user = userEvent.setup();
     render(<DisciplineList />);
 

@@ -5,11 +5,11 @@ import {
   AUTH_API as API,
   AUTH_PASSWORD as PASSWORD,
   bootstrapOrg,
-  seedFixtureMember,
-  masqueradeContextHeaders,
+  createTestMember,
+  masqueradeTokenHeaders,
   signUpUserWithId,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -26,8 +26,8 @@ async function setupMembers(request: APIRequestContext) {
     signUpUserWithId(EDITOR, 'Diana Prince'),
   ]);
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-  seedFixtureMember(companyId, admin.email, 'admin');
-  seedFixtureMember(companyId, editor.email, 'editor');
+  createTestMember(companyId, admin.email, 'admin');
+  createTestMember(companyId, editor.email, 'editor');
   return { owner, admin, editor, companyId };
 }
 
@@ -62,7 +62,7 @@ async function readRoles(
     headers: { cookie },
   });
   expect(response.status()).toBe(200);
-  const members = (await response.json()).members as Array<{ userId: string; role: string }>;
+  const members = (await response.json()).data.members as Array<{ userId: string; role: string }>;
   return userIds.map((userId) => members.find((member) => member.userId === userId)?.role);
 }
 
@@ -80,7 +80,7 @@ test('the Owner confirms one immediate handover and both memberships refresh', a
     await expect(adminPage.getByTestId('current-access')).toContainText('Admin');
     await expect(adminPage.getByTestId('ownership-transfer-card')).toHaveCount(0);
     const refused = await request.post(`${API}/api/companies/${companyId}/ownership-transfer`, {
-      headers: await masqueradeContextHeaders(request, editor.cookie),
+      headers: await masqueradeTokenHeaders(request, editor.cookie),
       data: { toUserId: admin.userId },
     });
     expect(refused.status()).toBe(403);

@@ -10,7 +10,7 @@ As an Editor, I want a placeholder’s bound project and activities to stay sele
 
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
 
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 
 ## Acceptance criteria
 

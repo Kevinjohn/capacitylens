@@ -6,7 +6,7 @@ As a signed-in person, I want to change my password so that I can keep my accoun
 **Access:** Any signed-in person.
 **Entry:** Account → Change password
 **Documentation:** [Account](../../docs-src/using/account.md)
-**Source:** [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx); [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts); [en.json](../../apps/frontend/messages/en.json)
+**Source:** [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx); [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria
 
@@ -34,13 +34,13 @@ flowchart TD
 ```mermaid
 flowchart TD
   dialog["SecuritySection renders PasswordDialog"] --> submit["usePasswordChange.submit checks fields"]
-  submit --> client["authClient.changePassword sends credentials"]
-  client --> route["auth_routes maps change-password to CredentialController.changePassword"]
+  submit --> client["authApi.changePassword sends credentials"]
+  client --> route["auth_routes maps change-password to PasswordController.update"]
   route --> kit["Account Kit emailPasswordManagement.changePassword"]
   kit --> sessions["Account Kit changePassword call owns password and other-session effects"]
-  sessions --> session["CredentialController ends this session through the managed guard"]
+  sessions --> session["PasswordController ends this session through the managed guard"]
   session --> reload["usePasswordChange.submit navigates to / to sign in with the new password"]
   kit --> error["Rejected credential returns a visible field error"]
 ```
 
-**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityController.ts](../../apps/frontend/src/components/settings/useSecurityController.ts), [authClient.ts](../../apps/frontend/src/auth/authClient.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [credential_controller.ts](../../apps/backend/app/controllers/credential_controller.ts), [DECISIONS.md](../../DECISIONS.md)
+**Code references:** [AccountView.tsx](../../apps/frontend/src/components/account/AccountView.tsx), [SecuritySection.tsx](../../apps/frontend/src/components/settings/SecuritySection.tsx), [useSecurityViewModel.ts](../../apps/frontend/src/components/settings/useSecurityViewModel.ts), [authApi.ts](../../apps/frontend/src/auth/authApi.ts), [auth_routes.ts](../../apps/backend/start/auth_routes.ts), [password_controller.ts](../../apps/backend/app/controllers/password_controller.ts), [DECISIONS.md](../../DECISIONS.md)

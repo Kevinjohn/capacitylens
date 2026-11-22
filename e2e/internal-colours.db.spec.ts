@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, selectShadOption } from './browserTestSupport';
+import { openApp, selectShadOption } from './browserTestKit';
 
 // Covers US-SET-14: Internal work is always neutral grey, and Settings has no colour mode for it.
 test(

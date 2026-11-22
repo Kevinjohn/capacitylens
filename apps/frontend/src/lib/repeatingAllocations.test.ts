@@ -5,11 +5,11 @@ import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveW
 import { generateRepeatingStartDates } from '@capacitylens/shared/lib/repeatingDates';
 import type { Draft } from '@/lib/entityDrafts';
 import { buildRepeatedAllocationDrafts } from '@capacitylens/shared/lib/repeatingOccurrences';
-import type { RepeatProjectionContext } from '@capacitylens/shared/lib/repeatingOccurrences';
+import type { RepeatExpansionInput } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { resolveRepeatPattern } from './repeatingAllocations';
 
-interface RepeatContextTestInput {
-  schedulingMode: RepeatProjectionContext['schedulingMode'];
+interface RepeatExpansionTestInput {
+  schedulingMode: RepeatExpansionInput['schedulingMode'];
   daysOver: number;
   resource?: ReturnType<typeof resourceContext> | undefined;
   companyWorkingDays?: Weekday[] | undefined;
@@ -27,7 +27,7 @@ const baseDraft = (overrides: Partial<Draft<Allocation>> = {}): Draft<Allocation
   ...overrides,
 });
 
-type TestRepeatResource = RepeatProjectionContext['resource'] & { workingDays: Weekday[] };
+type TestRepeatResource = RepeatExpansionInput['resource'] & { workingDays: Weekday[] };
 
 const resourceContext = (overrides: Partial<TestRepeatResource> = {}): TestRepeatResource => ({
   id: 'r1',
@@ -41,7 +41,7 @@ const repeatContext = ({
   daysOver,
   resource = resourceContext(),
   companyWorkingDays = [1, 2, 3, 4, 5],
-}: RepeatContextTestInput): RepeatProjectionContext => ({
+}: RepeatExpansionTestInput): RepeatExpansionInput => ({
   schedulingMode,
   daysOver,
   resource,
@@ -54,7 +54,7 @@ describe('#257 characterization: repeat start-day policy', () => {
     const startDates = generateRepeatingStartDates('2026-06-01', '2026-08-01', {
       kind: 'monthly-date',
     }).startDates;
-    const projected = buildRepeatedAllocationDrafts(
+    const expanded = buildRepeatedAllocationDrafts(
       baseDraft({ startDate: '2026-06-01', endDate: '2026-06-01' }),
       startDates,
       repeatContext({
@@ -65,7 +65,7 @@ describe('#257 characterization: repeat start-day policy', () => {
     );
 
     expect(startDates.map(getWeekday)).toEqual([1, 3, 6]);
-    expect(projected.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
+    expect(expanded.map(({ startDate, endDate }) => [startDate, endDate])).toEqual([
       ['2026-06-01', '2026-06-01'],
       ['2026-07-01', '2026-07-06'],
       ['2026-08-01', '2026-08-03'],

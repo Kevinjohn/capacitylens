@@ -5,19 +5,19 @@ import limiter from '@adonisjs/limiter/services/main';
 import env from '#start/env';
 import User from '#models/user';
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
 import {
   bootstrapInvitation,
   createIdentity,
   rememberSessionCookie,
   signIn,
-} from '../../helpers/identities.js';
+} from '#tests/helpers/identities';
 
 const email = 'bruce.wayne@wayne.example';
 const password = 'company-setup-password-2026';
 const companyTables = [
-  'accounts',
+  'companies',
   'clients',
   'memberships',
   'company_planning_revisions',
@@ -27,16 +27,16 @@ const companyTables = [
 /** The fresh-install journey: the printed bootstrap link, accepted with a password. */
 async function acceptBootstrap(client: ApiClient) {
   const token = await bootstrapInvitation(email);
-  const preview = await client.get(`/api/invites/${token}/preview`).send();
+  const preview = await client.visit('api.invitation_links.show', { token }).send();
   preview.assertStatus(200);
   const oversized = await client
-    .post(`/api/invites/${token}/signup`)
+    .visit('api.invitation_acceptances.store', { token })
     .header('sec-fetch-site', 'same-origin')
     .json({ name: '𐐀'.repeat(101), password })
     .send();
   oversized.assertStatus(400);
   const accepted = await client
-    .post(`/api/invites/${token}/signup`)
+    .visit('api.invitation_acceptances.store', { token })
     .header('sec-fetch-site', 'same-origin')
     .json({ name: '𐐀'.repeat(100), password })
     .send();
@@ -46,7 +46,7 @@ async function acceptBootstrap(client: ApiClient) {
 }
 
 async function setUp(client: ApiClient, cookie: string, name = 'Wayne Enterprises') {
-  return asDataOwner(client.post('/api/installation/company'), cookie)
+  return asDataOwner(client.visit('api.first_company_setup.store'), cookie)
     .json({ name, weekStartsOn: 1, timeZone: 'Etc/GMT' })
     .send();
 }
@@ -61,26 +61,26 @@ test.group('authenticated first company setup', (group) => {
     client,
     assert,
   }) => {
-    const anonymous = await client.get('/api/auth/me').send();
+    const anonymous = await client.visit('api.session.show').send();
     anonymous.assertStatus(401);
     assert.isTrue((anonymous.body() as { needsSetup?: boolean }).needsSetup);
     const { token, cookie, accepted } = await acceptBootstrap(client);
-    const userId = (accepted.body() as { user: { id: string } }).user.id;
-    const before = await asDataOwner(client.get('/api/auth/me'), cookie).send();
-    assert.isTrue(before.body().emailVerified);
-    assert.isTrue(before.body().admission.admitted);
-    assert.isTrue(before.body().companySetupRequired);
+    const userId = (accepted.body().data as { user: { id: string } }).user.id;
+    const before = await asDataOwner(client.visit('api.session.show'), cookie).send();
+    assert.isTrue(before.body().data.emailVerified);
+    assert.isTrue(before.body().data.admission.admitted);
+    assert.isTrue(before.body().data.companySetupRequired);
     assert.lengthOf(await db.from('memberships'), 0, 'the bootstrap role grants nothing');
     const reused = await client
-      .post(`/api/invites/${token}/signup`)
+      .visit('api.invitation_acceptances.store', { token })
       .header('sec-fetch-site', 'same-origin')
       .json({ name: 'Bruce Wayne', password })
       .send();
     reused.assertStatus(400);
     const setup = await setUp(client, cookie, '  Wayne   Enterprises ');
     setup.assertStatus(201);
-    const companyId = setup.body().companyId;
-    assert.equal((await db.from('accounts').first())!.name, 'Wayne Enterprises');
+    const companyId = setup.body().data.companyId;
+    assert.equal((await db.from('companies').first())!.name, 'Wayne Enterprises');
     assert.deepInclude((await db.from('memberships').first())!, {
       scope_id: companyId,
       user_id: userId,
@@ -92,21 +92,24 @@ test.group('authenticated first company setup', (group) => {
     assert.deepInclude(clients[0]!, {
       company_id: companyId,
       name: 'Internal',
-      builtin: 'true',
+      builtin: 1,
     });
     assert.equal((await db.from('company_planning_revisions').first())!.revision, 1);
     assert.deepInclude((await db.from('audit_entries').first())!, {
       actor_id: userId,
       action: 'company.initialized',
     });
-    const state = await asDataOwner(client.get('/api/state').qs({ companyId }), cookie).send();
+    const state = await asDataOwner(
+      client.visit('api.company_state.show').qs({ companyId }),
+      cookie
+    ).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().accounts[0].workingDays, [1, 2, 3, 4, 5]);
-    const after = await asDataOwner(client.get('/api/auth/me'), cookie).send();
-    assert.isFalse(after.body().companySetupRequired);
+    assert.deepEqual(state.body().data.companies[0].workingDays, [1, 2, 3, 4, 5]);
+    const after = await asDataOwner(client.visit('api.session.show'), cookie).send();
+    assert.isFalse(after.body().data.companySetupRequired);
     const duplicate = await setUp(client, cookie, 'Stark Industries');
     duplicate.assertStatus(409);
-    assert.lengthOf(await db.from('accounts'), 1);
+    assert.lengthOf(await db.from('companies'), 1);
   });
 
   test('a Sunday week start gives the first company Sunday through Thursday working days', async ({
@@ -114,16 +117,16 @@ test.group('authenticated first company setup', (group) => {
     assert,
   }) => {
     const { cookie } = await acceptBootstrap(client);
-    const setup = await asDataOwner(client.post('/api/installation/company'), cookie)
+    const setup = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
       .json({ name: 'Wayne Enterprises', weekStartsOn: 0 })
       .send();
     setup.assertStatus(201);
     const state = await asDataOwner(
-      client.get('/api/state').qs({ companyId: setup.body().companyId }),
+      client.visit('api.company_state.show').qs({ companyId: setup.body().data.companyId }),
       cookie
     ).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().accounts[0].workingDays, [0, 1, 2, 3, 4]);
+    assert.deepEqual(state.body().data.companies[0].workingDays, [0, 1, 2, 3, 4]);
   });
 
   for (const choice of [
@@ -146,11 +149,11 @@ test.group('authenticated first company setup', (group) => {
       assert,
     }) => {
       const { cookie } = await acceptBootstrap(client);
-      const result = await asDataOwner(client.post('/api/installation/company'), cookie)
+      const result = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
         .json({ name: 'Wayne Enterprises', ...choice.fields } as never)
         .send();
       result.assertStatus(201);
-      const account = await db.from('accounts').first();
+      const account = await db.from('companies').first();
       assert.equal(account.week_starts_on, choice.weekStart);
       assert.equal(account.timezone, choice.timezone);
       for (const table of companyTables) assert.lengthOf(await db.from(table), 1);
@@ -171,18 +174,18 @@ test.group('authenticated first company setup', (group) => {
       { weekStartsOn: 1, timeZone: '' },
       { weekStartsOn: '1', timeZone: 'Etc/GMT' },
     ]) {
-      const refused = await asDataOwner(client.post('/api/installation/company'), cookie)
+      const refused = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
         // Deliberately outside the generated body type, to reach the server's refusal.
         .json({ name: 'Wayne Enterprises', ...extra } as never)
         .send();
       refused.assertStatus(400);
       for (const table of companyTables) assert.lengthOf(await db.from(table), 0);
     }
-    const response = await asDataOwner(client.post('/api/installation/company'), cookie)
+    const response = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
       .json({ name: 'Wayne Enterprises', weekStartsOn: 0, timeZone: 'America/New_York' })
       .send();
     response.assertStatus(201);
-    const account = await db.from('accounts').first();
+    const account = await db.from('companies').first();
     assert.equal(account.week_starts_on, '0');
     assert.equal(account.timezone, 'America/New_York');
   });
@@ -192,11 +195,11 @@ test.group('authenticated first company setup', (group) => {
     assert,
     cleanup,
   }) => {
-    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
-    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior));
+    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
+    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', prior));
     const route = await client
-      .post('/api/auth/sign-up')
+      .visit('api.new_account.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email: 'joker@wayne.example', password, name: 'Jack Napier' })
       .send();
@@ -213,7 +216,7 @@ test.group('authenticated first company setup', (group) => {
     const [registered, accepted] = await Promise.allSettled([
       register('harley@wayne.example'),
       client
-        .post(`/api/invites/${token}/signup`)
+        .visit('api.invitation_acceptances.store', { token })
         .header('sec-fetch-site', 'same-origin')
         .json({ name: 'Bruce Wayne', password })
         .send(),
@@ -232,7 +235,7 @@ test.group('authenticated first company setup', (group) => {
     assert,
   }) => {
     const anonymous = await client
-      .post('/api/installation/company')
+      .visit('api.first_company_setup.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ name: 'Wayne Enterprises' })
       .send();
@@ -245,7 +248,7 @@ test.group('authenticated first company setup', (group) => {
       { name: 'Wayne Enterprises', ownerId: 'someone-else' },
       ['Wayne Enterprises'],
     ]) {
-      const result = await asDataOwner(client.post('/api/installation/company'), cookie)
+      const result = await asDataOwner(client.visit('api.first_company_setup.store'), cookie)
         // Deliberately outside the generated body type, to reach the server's refusal.
         .json(body as never)
         .send();
@@ -285,11 +288,11 @@ test.group('authenticated first company setup', (group) => {
   }) => {
     const { cookie } = await acceptBootstrap(client);
     await createIdentity('clark.kent@wayne.example', { name: 'Clark Kent' });
-    const me = await asDataOwner(client.get('/api/auth/me'), cookie).send();
-    assert.isFalse(me.body().companySetupRequired);
+    const me = await asDataOwner(client.visit('api.session.show'), cookie).send();
+    assert.isFalse(me.body().data.companySetupRequired);
     const refused = await setUp(client, cookie);
     refused.assertStatus(409);
-    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('companies'), 0);
   });
 
   test('an unconfirmed or unadmitted identity cannot set up the company', async ({
@@ -308,7 +311,7 @@ test.group('authenticated first company setup', (group) => {
     const pending = await setUp(client, unadmitted.cookie);
     pending.assertStatus(403);
     assert.equal((pending.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
-    assert.lengthOf(await db.from('accounts'), 0);
+    assert.lengthOf(await db.from('companies'), 0);
   });
 
   test('an existing company without membership and a revoked sign-in cannot claim setup', async ({
@@ -324,6 +327,6 @@ test.group('authenticated first company setup', (group) => {
     await db.from('account_sessions').delete();
     const revoked = await setUp(client, cookie, 'Stark Industries');
     revoked.assertStatus(401);
-    assert.lengthOf(await db.from('accounts'), 1);
+    assert.lengthOf(await db.from('companies'), 1);
   });
 });

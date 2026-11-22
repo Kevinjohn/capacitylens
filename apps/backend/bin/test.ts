@@ -10,7 +10,7 @@
 |
 */
 
-const { assertSupportedNodeVersion } = await import('#start/node_version');
+const { assertSupportedNodeVersion } = await import('#bin/node_version');
 assertSupportedNodeVersion();
 
 process.env.NODE_ENV = 'test';
@@ -19,11 +19,9 @@ import { fileURLToPath } from 'node:url';
 import { ports } from '../../../tooling/ports.mjs';
 
 const testHttpPort = ports().testHttp;
+// HOST, LOG_LEVEL and APP_KEY are in .env.test; what stays here is port-lane-computed or must beat the shell.
 Object.assign(process.env, {
-  HOST: '127.0.0.1',
   PORT: String(testHttpPort),
-  LOG_LEVEL: 'error',
-  APP_KEY: 'capacitylens-test-key-0123456789abcdef',
   APP_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_PUBLIC_URL: `http://127.0.0.1:${testHttpPort}`,
   CAPACITYLENS_RATE_LIMIT: '10000',

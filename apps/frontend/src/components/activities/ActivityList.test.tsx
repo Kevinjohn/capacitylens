@@ -31,7 +31,7 @@ function TestProviders({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user: { id: 'test-principal' },
+        user: { id: 'test-user' },
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
@@ -51,8 +51,10 @@ function mockInactiveRead() {
       const data = structuredClone(useStore.getState().data);
       const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
-        ...data,
-        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        data: {
+          ...data,
+          clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        },
       });
     }),
   );
@@ -164,14 +166,14 @@ describe('ActivityList', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Save' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(useStore.getState().data.activities[0]?.kind).toBe('repeatable');
+    expect(useStore.getState().data.activities[0]?.kind).toBe('allProjects');
     expect(screen.getByRole('heading', { name: 'All-projects activities' })).toBeInTheDocument();
     const row = within(screen.getByTestId('cross-project-activities')).getByTestId('activity-row');
     expect(row).toHaveTextContent('Design');
   });
 
-  it('does not show global first-activity onboarding when only a later section has rows', async () => {
-    await useStore.getState().addActivity({ name: 'Design system', kind: 'repeatable' });
+  it('does not show global first-activity getting-started guidance when only a later section has rows', async () => {
+    await useStore.getState().addActivity({ name: 'Design system', kind: 'allProjects' });
 
     render(<ActivityList />);
 
@@ -381,7 +383,7 @@ describe('ActivityList', () => {
   });
 
   // An unresolved project ID remains visible as unavailable planning data.
-  const seedOrphanActivity = () => {
+  const createOrphanActivity = () => {
     loadPlanningData(
       makeAppData({
         activities: [
@@ -402,7 +404,7 @@ describe('ActivityList', () => {
   };
 
   it('retains an activity whose project resolves nowhere', () => {
-    seedOrphanActivity();
+    createOrphanActivity();
 
     render(<ActivityList />);
 
@@ -475,7 +477,7 @@ describe('ActivityList', () => {
       useStore.getState().addResource({
         kind: 'person',
         name: 'Barbara Gordon',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio',
         workingHoursPerDay: 8,
@@ -500,10 +502,10 @@ describe('ActivityList', () => {
       hoursPerDay: 8,
       status: 'confirmed',
     });
-    const originalSend = useStore.getState().sendPlanningCommand;
+    const originalSend = useStore.getState().sendPlanningIntent;
     useStore.setState({
-      sendPlanningCommand: async (command) => {
-        void command;
+      sendPlanningIntent: async (intentRequest) => {
+        void intentRequest;
         return {
           status: 'committed',
           mutationId: 'm-archive',
@@ -531,7 +533,7 @@ describe('ActivityList', () => {
         }),
       );
     } finally {
-      useStore.setState({ sendPlanningCommand: originalSend });
+      useStore.setState({ sendPlanningIntent: originalSend });
     }
   });
 
@@ -565,9 +567,9 @@ describe('ActivityList', () => {
     const activity = await requireCreated(
       useStore.getState().addActivity({ name: 'Internal sync', kind: 'internal' }),
     );
-    const originalSend = useStore.getState().sendPlanningCommand;
+    const originalSend = useStore.getState().sendPlanningIntent;
     useStore.setState({
-      sendPlanningCommand: async () => {
+      sendPlanningIntent: async () => {
         throw new Error('Stored activity is inconsistent.');
       },
     });
@@ -590,7 +592,7 @@ describe('ActivityList', () => {
         }),
       );
     } finally {
-      useStore.setState({ sendPlanningCommand: originalSend });
+      useStore.setState({ sendPlanningIntent: originalSend });
     }
   });
 

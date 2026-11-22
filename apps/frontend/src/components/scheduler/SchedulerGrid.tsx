@@ -17,7 +17,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { isCreationStartBlocked } from './creationAvailability';
 import { listRenderableDateRanges } from '@/lib/renderableDateRanges';
 import { SchedulerGridRows } from './SchedulerGridRows';
-import type { ModalState } from './schedulerGridModal';
+import type { DialogState } from './schedulerGridDialog';
 import { useSchedulerGridPreferences, useSchedulerGridModel } from './useSchedulerGridModel';
 import { useSchedulerGridVirtualization } from './useSchedulerGridVirtualization';
 import { PersonScheduleSheet } from '@/components/person-schedule/PersonScheduleSheet';
@@ -25,9 +25,9 @@ import { usePersonScheduleDrawer } from '@/components/person-schedule/usePersonS
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
-const AllocationModal = lazy(() =>
-  import('./AllocationModal').then((module) => ({
-    default: module.AllocationModal,
+const AllocationDialog = lazy(() =>
+  import('./AllocationDialog').then((module) => ({
+    default: module.AllocationDialog,
   })),
 );
 const TimeOffForm = lazy(() =>
@@ -36,26 +36,30 @@ const TimeOffForm = lazy(() =>
   })),
 );
 
-function SchedulerModal({ modal, close }: { modal: ModalState; close: () => void }) {
-  if (modal.kind === 'edit') {
-    return <AllocationModal kind="edit" allocationId={modal.allocationId} onClose={close} />;
+function SchedulerDialog({ dialog, close }: { dialog: DialogState; close: () => void }) {
+  if (dialog.kind === 'edit') {
+    return <AllocationDialog kind="edit" allocationId={dialog.allocationId} onClose={close} />;
   }
-  if (modal.kind === 'timeOff') {
+  if (dialog.kind === 'timeOff') {
     return (
       <TimeOffForm
         defaults={{
-          resourceId: modal.resourceId,
-          startDate: modal.startDate,
-          endDate: modal.endDate,
+          resourceId: dialog.resourceId,
+          startDate: dialog.startDate,
+          endDate: dialog.endDate,
         }}
         onClose={close}
       />
     );
   }
   return (
-    <AllocationModal
+    <AllocationDialog
       kind="create"
-      create={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+      create={{
+        resourceId: dialog.resourceId,
+        startDate: dialog.startDate,
+        endDate: dialog.endDate,
+      }}
       onClose={close}
     />
   );
@@ -109,16 +113,16 @@ function SchedulerEmptyRow({
   );
 }
 
-function openDrawModal({
+function openDrawDialog({
   resourceId,
   startDate,
   endDate,
-  setModal,
+  setDialog,
 }: {
   resourceId: ID;
   startDate: ISODate;
   endDate: ISODate;
-  setModal: (modal: ModalState) => void;
+  setDialog: (dialog: DialogState) => void;
 }) {
   const state = useStore.getState();
   const drawMode = state.ui.drawMode;
@@ -137,13 +141,18 @@ function openDrawModal({
     return;
   }
   if (drawMode === 'timeOff' && isExternalResource(resource)) return;
-  setModal({ kind: drawMode === 'timeOff' ? 'timeOff' : 'create', resourceId, startDate, endDate });
+  setDialog({
+    kind: drawMode === 'timeOff' ? 'timeOff' : 'create',
+    resourceId,
+    startDate,
+    endDate,
+  });
 }
 
 function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
   const screenReaderAnnouncement = useStore((state) => state.srAnnouncement);
   const announceStatus = useStore((state) => state.announceCapacity);
-  const [modal, setModal] = useState<ModalState | null>(null);
+  const [dialog, setDialog] = useState<DialogState | null>(null);
   const previousDrawMode = useRef(ui.drawMode);
   useEffect(() => {
     if (previousDrawMode.current === ui.drawMode) return;
@@ -155,15 +164,15 @@ function useSchedulerInteractions(ui: Pick<SchedulerUI, 'drawMode'>) {
     );
   }, [announceStatus, ui.drawMode]);
   const editAllocation = useCallback(
-    (allocationId: ID) => setModal({ kind: 'edit', allocationId }),
+    (allocationId: ID) => setDialog({ kind: 'edit', allocationId }),
     [],
   );
   const createFromDraw = useCallback(
     (resourceId: ID, startDate: ISODate, endDate: ISODate) =>
-      openDrawModal({ resourceId, startDate, endDate, setModal }),
+      openDrawDialog({ resourceId, startDate, endDate, setDialog }),
     [],
   );
-  return { screenReaderAnnouncement, modal, setModal, editAllocation, createFromDraw };
+  return { screenReaderAnnouncement, dialog, setDialog, editAllocation, createFromDraw };
 }
 
 type GridViewProps = {
@@ -184,14 +193,14 @@ type GridViewProps = {
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 };
 
-function SchedulerModalBoundary({
-  modal,
-  setModal,
-}: Pick<GridViewProps['interactions'], 'modal' | 'setModal'>) {
-  if (!modal) return null;
+function SchedulerDialogHost({
+  dialog,
+  setDialog,
+}: Pick<GridViewProps['interactions'], 'dialog' | 'setDialog'>) {
+  if (!dialog) return null;
   return (
     <Suspense fallback={null}>
-      <SchedulerModal modal={modal} close={() => setModal(null)} />
+      <SchedulerDialog dialog={dialog} close={() => setDialog(null)} />
     </Suspense>
   );
 }
@@ -243,7 +252,7 @@ function SchedulerGridContents(props: GridViewProps) {
         visibleWeeksLabel={visibleWeeksLabel}
         canEdit={canEdit}
         visibleStartDate={visibleStartDate}
-        setModal={interactions.setModal}
+        setDialog={interactions.setDialog}
         days={days}
         todayX={todayX}
         calendarWeekStartsOn={companyPrefs.calendarWeekStartsOn}
@@ -252,7 +261,7 @@ function SchedulerGridContents(props: GridViewProps) {
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
         onViewSchedule={props.onViewSchedule}
       />
-      <SchedulerModalBoundary modal={interactions.modal} setModal={interactions.setModal} />
+      <SchedulerDialogHost dialog={interactions.dialog} setDialog={interactions.setDialog} />
     </>
   );
 }

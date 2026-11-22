@@ -32,7 +32,7 @@ reactRoot.render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
-        <AuthProvider onTenantAccessReady={startData}>
+        <AuthProvider onCompanyAccessReady={startData}>
           <QueryCacheLifecycle />
           <RouterProvider router={router} />
           <RestorationCleanupDialog />

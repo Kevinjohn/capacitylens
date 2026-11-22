@@ -10,7 +10,7 @@ export interface Filters {
   activityId: ID | null;
   /** Activity lens: all activities of a kind ('Internal, All' / 'All projects, All'). Mutually
    * exclusive with the client/project lens and with `activityId`. */
-  activityKind: 'internal' | 'repeatable' | null;
+  activityKind: 'internal' | 'allProjects' | null;
   search: string;
   hideTentative: boolean;
   /** When a client/project/activity filter is active, also show resources with no work on it

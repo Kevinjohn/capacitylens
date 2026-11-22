@@ -28,9 +28,9 @@ flowchart TD
   A["ResourceForm SelectField Discipline"] --> B["useResourceSubmit.buildResourcePatch stores disciplineId"]
   B --> C["updateResource → createTypedPlanningActions.updateResource"] --> D["resource.update planning intent"]
   D --> E{{"Typed server route"}}
-  E --> F["PlanningController.mutate → mutatePlanning → executePlanningIntent.writeRow"] --> F2["writeRow persists disciplineId"]
+  E --> F["PlanningMutationsController.store → mutatePlanning → executePlanningIntent.writeRow"] --> F2["writeRow persists disciplineId"]
   F2 --> H["selectors.buildDisciplineGroups groups resource"]
   G --> H
 ```
 
-**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)
+**Code references:** [ResourceForm.tsx](../../apps/frontend/src/components/resources/ResourceForm.tsx) · [useResourceSubmit.ts](../../apps/frontend/src/components/resources/useResourceSubmit.ts) · [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts) · [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts) · [selectors.ts](../../apps/frontend/src/store/selectors.ts) · [planning_routes.ts](../../apps/backend/start/planning_routes.ts) · [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts) · [planning.ts](../../apps/backend/app/services/planning.ts) · [writer.ts](../../apps/backend/app/services/planning/writer.ts)

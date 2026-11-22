@@ -36,5 +36,5 @@ data in a public report.
 
 ## Other ways to try CapacityLens
 
-[Try the demo](/getting-started/try-the-demo) for temporary sample data. The demo is not an
+[Try the demo](/getting-started/try-the-demo) for temporary demo data. The demo is not an
 installation route and must not hold production scheduling data.

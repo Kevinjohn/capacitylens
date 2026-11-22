@@ -23,7 +23,7 @@ function TestProviders({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user: { id: 'test-principal' },
+        user: { id: 'test-user' },
         refreshAuth: async () => {},
         signOut: async () => {},
       }}
@@ -43,8 +43,10 @@ function mockInactiveRead() {
       const data = structuredClone(useStore.getState().data);
       const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
-        ...data,
-        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        data: {
+          ...data,
+          clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        },
       });
     }),
   );
@@ -215,7 +217,7 @@ describe('ProjectList', () => {
     expect(projects[0]?.clientId).toBe(client.id);
   });
 
-  // Active planning rows stay scoped separately from the server-shaped inactive slice.
+  // Active planning rows stay scoped separately from the server-shaped inactive set.
   it('shows the Archive ConfirmDialog when the archive button is clicked', async () => {
     const user = userEvent.setup();
     const client = await requireCreated(
@@ -352,7 +354,7 @@ describe('ProjectList', () => {
   });
 
   // A dangling client link remains unavailable planning data; it does not prove the parent is archived.
-  const seedOrphanProject = () => {
+  const createOrphanProject = () => {
     loadPlanningData(
       makeAppData({
         projects: [
@@ -373,7 +375,7 @@ describe('ProjectList', () => {
   };
 
   it('retains a project whose client resolves nowhere', () => {
-    seedOrphanProject();
+    createOrphanProject();
 
     render(<ProjectList />);
 

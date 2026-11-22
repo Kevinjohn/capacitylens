@@ -37,7 +37,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   installer["install.sh writes the environment, then runs app:upgrade"] --> upgrade["AppUpgrade.run verifies SQLite connection"]
-  upgrade --> backup["createBundle snapshots existing database"]
+  upgrade --> backup["createBundle backs up the existing database"]
   backup --> migrate["Ace kernel runs migration:run"]
   migrate --> integrity["assertSchemaIntegrity checks schema"]
   integrity --> service["install.sh installs and starts the unit"]

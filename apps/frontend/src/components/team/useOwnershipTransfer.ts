@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { m } from '@/i18n';
-import { teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamMember } from '@/account/teamAccessClient';
-import { resolveRejectionMessage } from '@/account/accessResult';
+import { teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamMember } from '@/account/teamAccessApi';
+import { resolveRefusalMessage } from '@/account/accessResult';
 import { queryClient } from '@/api/queryClient';
 import type { ApiQueryScope } from '@/api/queryClient';
 import { useAuth } from '@/auth/authContext';
@@ -21,24 +21,24 @@ interface OwnershipTransferState {
   error: string | null;
 }
 
-export interface OwnershipTransferController extends OwnershipTransferState {
+export interface OwnershipTransferViewModel extends OwnershipTransferState {
   refresh(): Promise<void>;
-  transfer(targetPrincipalId: string, confirmationId: string): Promise<void>;
+  transfer(targetUserId: string, confirmationId: string): Promise<void>;
 }
 
 const EMPTY_MEMBERS: readonly TeamMember[] = [];
-type OwnershipTransferResult = Awaited<ReturnType<typeof teamAccessClient.transferOwnership>>;
+type OwnershipTransferResult = Awaited<ReturnType<typeof teamAccessApi.transferOwnership>>;
 
 function useOwnerDirectory({
   companyId,
   available,
   scope,
-  principalId,
+  userId,
 }: {
   companyId: string | null;
   available: boolean;
   scope: ApiQueryScope;
-  principalId: string | null;
+  userId: string | null;
 }) {
   // The same members query the team directory reads, so the list is held once.
   const query = useQuery({
@@ -53,9 +53,9 @@ function useOwnerDirectory({
     () =>
       members.filter(
         (member) =>
-          member.role === 'admin' && member.status === 'active' && member.userId !== principalId,
+          member.role === 'admin' && member.status === 'active' && member.userId !== userId,
       ),
-    [members, principalId],
+    [members, userId],
   );
   const error = readDirectoryError(query.error);
   const refresh = useCallback(async (): Promise<void> => {
@@ -73,7 +73,7 @@ function useOwnerDirectory({
 
 function readDirectoryError(error: Error | null): string | null {
   if (error instanceof TeamReadError) {
-    return resolveRejectionMessage(error.result, m.ownership_transfer_read_failed());
+    return resolveRefusalMessage(error.result, m.ownership_transfer_read_failed());
   }
   return error ? m.ownership_transfer_read_failed() : null;
 }
@@ -103,13 +103,13 @@ async function reconcileCallerAccess(
 
 async function sendTransfer(
   companyId: string,
-  targetPrincipalId: string,
+  targetUserId: string,
   confirmationId: string,
 ): Promise<OwnershipTransferResult | null> {
   try {
-    return await teamAccessClient.transferOwnership({
+    return await teamAccessApi.transferOwnership({
       companyId,
-      targetPrincipalId,
+      targetUserId,
       confirmationId,
     });
   } catch (cause) {
@@ -140,10 +140,10 @@ async function settleTransfer({
     await reconcileCallerAccess(companyId, refreshAuth);
     return;
   }
-  setError(resolveRejectionMessage(result, m.ownership_transfer_command_failed()));
+  setError(resolveRefusalMessage(result, m.ownership_transfer_operation_failed()));
 }
 
-function useTransferCommand({
+function useTransferOperation({
   companyId,
   available,
   refreshAuth,
@@ -156,13 +156,13 @@ function useTransferCommand({
   const [error, setError] = useState<string | null>(null);
   const lock = useRef(false);
   const transfer = useCallback(
-    async (targetPrincipalId: string, confirmationId: string): Promise<void> => {
-      if (!available || companyId === null || targetPrincipalId === '' || lock.current) return;
+    async (targetUserId: string, confirmationId: string): Promise<void> => {
+      if (!available || companyId === null || targetUserId === '' || lock.current) return;
       lock.current = true;
       setBusy(true);
       setError(null);
       try {
-        const result = await sendTransfer(companyId, targetPrincipalId, confirmationId);
+        const result = await sendTransfer(companyId, targetUserId, confirmationId);
         await settleTransfer({ result, companyId, refreshAuth, setError });
       } finally {
         lock.current = false;
@@ -178,13 +178,13 @@ function useTransferCommand({
 export function useOwnershipTransfer(
   companyId: string | null,
   refreshAuth: () => Promise<void>,
-): OwnershipTransferController {
+): OwnershipTransferViewModel {
   const { user } = useAuth();
   const mayTransfer = useCan('ownership:transfer');
   const permissionStatus = usePermissionStatus();
   const masquerade = useStore((state) => state.masquerade);
   const scope: ApiQueryScope = {
-    principalId: user?.id ?? null,
+    userId: user?.id ?? null,
     companyId,
     masqueradeGeneration: masquerade.kind === 'inactive' ? 0 : masquerade.generation,
   };
@@ -197,18 +197,18 @@ export function useOwnershipTransfer(
     companyId,
     available,
     scope,
-    principalId: user?.id ?? null,
+    userId: user?.id ?? null,
   });
-  const command = useTransferCommand({ companyId, available, refreshAuth });
+  const operation = useTransferOperation({ companyId, available, refreshAuth });
 
   return {
     available,
     loading: directory.loading,
     directoryLoaded: directory.loaded,
     candidates: directory.candidates,
-    busy: command.busy,
-    error: command.error ?? directory.error,
+    busy: operation.busy,
+    error: operation.error ?? directory.error,
     refresh: directory.refresh,
-    transfer: command.transfer,
+    transfer: operation.transfer,
   };
 }

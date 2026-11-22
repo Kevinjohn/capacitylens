@@ -6,7 +6,7 @@ export type RealProjectionResult =
   { kind: 'restored' } | { kind: 'active' } | { kind: 'superseded' } | { kind: 'failed' };
 
 export function publishMasqueradeCompany(store: StoreState, state: MasqueradeState): void {
-  const company = store.data.accounts.find((candidate) => candidate.id === state.companyId);
+  const company = store.data.companies.find((candidate) => candidate.id === state.companyId);
   store.setCompanySummaries({
     list: company ? [{ id: company.id, name: company.name, role: state.effectiveRole }] : [],
     complete: company !== undefined,
@@ -15,7 +15,7 @@ export function publishMasqueradeCompany(store: StoreState, state: MasqueradeSta
 
 interface RestoreMasqueradeProjectionInput {
   state: MasqueradeState;
-  adoptContextToken: (token: string | null) => void;
+  adoptMasqueradeToken: (token: string | null) => void;
   readStatus: () => Promise<MasqueradeStatus>;
   isCurrent: () => boolean;
   publishActive: (status: Extract<MasqueradeStatus, { active: true }>) => void;
@@ -26,7 +26,7 @@ interface RestoreMasqueradeProjectionInput {
 /** Confirms server state before restoring real data or retaining the projected identity. */
 export async function restoreMasqueradeProjection({
   state,
-  adoptContextToken,
+  adoptMasqueradeToken,
   readStatus,
   isCurrent,
   publishActive,
@@ -35,7 +35,7 @@ export async function restoreMasqueradeProjection({
 }: RestoreMasqueradeProjectionInput): Promise<RealProjectionResult> {
   const status = await readStatus();
   if (!isCurrent()) return { kind: 'superseded' };
-  adoptContextToken(status.contextToken);
+  adoptMasqueradeToken(status.masqueradeToken);
   if (status.active) {
     publishActive(status);
     return { kind: 'active' };

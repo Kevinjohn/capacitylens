@@ -144,7 +144,7 @@ jobs:
         if: steps.archive.outputs.enabled == 'true'
         run: |
           # Historical release tags retain their original server build command.
-          # The current workspace build already compiles the Adonis backend.
+          # The current workspace build already compiles the AdonisJS backend.
           if [ ! -f apps/backend/package.json ]; then
             pnpm --filter capacitylens-server run build:runtime
           fi
