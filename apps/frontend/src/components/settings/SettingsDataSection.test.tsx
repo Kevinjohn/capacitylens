@@ -1,10 +1,11 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { companyDataRequests } from '@/data/companyDataRequests';
 import { PermissionContext } from '@/auth/permissionContext';
 import { fetchApi } from '@/data/requestTimeout';
+import { fetchInactiveRecords } from '@/data/fetchInactiveRecords';
 import { reloadPage } from '@/lib/reloadPage';
 import { useStore } from '@/store/useStore';
 import {
@@ -19,6 +20,10 @@ import { SettingsDataSection } from './SettingsDataSection';
 import { permissionValue } from '@/test/permissionGrants';
 
 vi.mock('@/data/requestTimeout', () => ({ fetchApi: vi.fn(), API_BULK_TIMEOUT_MS: 30000 }));
+vi.mock('@/data/fetchInactiveRecords', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/data/fetchInactiveRecords')>()),
+  fetchInactiveRecords: vi.fn(),
+}));
 vi.mock('@/lib/reloadPage', () => ({ reloadPage: vi.fn() }));
 vi.mock('@/auth/PasswordConfirmationDialog', () => ({
   PasswordConfirmationDialog: ({ onConfirmed }: { onConfirmed: (id: string) => void }) => (
@@ -55,6 +60,8 @@ beforeEach(async () => {
   planningProbe.suspends = 0;
   planningProbe.releases = 0;
   planningProbe.ready = true;
+  // The server's inactive read mirrors the store unless a test says the company holds hidden rows.
+  vi.mocked(fetchInactiveRecords).mockImplementation(async () => useStore.getState().data);
   useStore.setState({
     refreshPlanning: async (options) => {
       planningProbe.reads += 1;
@@ -79,7 +86,7 @@ afterEach(() => {
 });
 
 describe('Settings example data', () => {
-  it('is offered to an admin of an empty company, including one that only holds the Internal client', () => {
+  it('is offered to an admin of an empty company, including one that only holds the Internal client', async () => {
     useStore.setState((state) => ({
       data: {
         ...state.data,
@@ -94,8 +101,35 @@ describe('Settings example data', () => {
       },
     }));
     renderSection({ role: 'admin' });
+    expect(await screen.findByRole('button', { name: 'Add example data' })).toBeEnabled();
     expect(section()).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add example data' })).toBeEnabled();
+  });
+
+  it.each([
+    [
+      'an archived person',
+      { resources: [makeResource({ ...owned, archivedAt: '2026-01-05T09:00:00.000Z' })] },
+    ],
+    [
+      'a deleted client',
+      { clients: [makeClient({ ...owned, deletedAt: '2026-01-05T09:00:00.000Z' })] },
+    ],
+  ])('is hidden when the company still holds %s', async (_label, rows) => {
+    vi.mocked(fetchInactiveRecords).mockImplementation(async () => ({
+      ...useStore.getState().data,
+      ...rows,
+    }));
+    renderSection();
+    await waitFor(() => expect(fetchInactiveRecords).toHaveBeenCalledOnce());
+    // Let the resolved read render before asserting the section stayed hidden.
+    await act(async () => {});
+    expect(section()).not.toBeInTheDocument();
+  });
+
+  it('stays hidden until the inactive rows have loaded', () => {
+    vi.mocked(fetchInactiveRecords).mockReturnValue(new Promise(() => {}));
+    renderSection();
+    expect(section()).not.toBeInTheDocument();
   });
 
   it.each([
@@ -106,6 +140,7 @@ describe('Settings example data', () => {
     useStore.setState((state) => ({ data: { ...state.data, ...rows } }));
     renderSection();
     expect(section()).not.toBeInTheDocument();
+    expect(fetchInactiveRecords).not.toHaveBeenCalled();
   });
 
   it('is hidden from an editor', () => {
@@ -118,7 +153,7 @@ describe('Settings example data', () => {
       .spyOn(companyDataRequests, 'addExampleData')
       .mockResolvedValue(jsonResponse({ added: 15 }, 201));
     renderSection();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Add example data' }));
     await waitFor(() => expect(useStore.getState().notice?.message).toBe('Example data added.'));
     expect(add).toHaveBeenCalledWith(DEFAULT_COMPANY_ID);
     expect(planningProbe.reads).toBe(1);
@@ -131,7 +166,7 @@ describe('Settings example data', () => {
       jsonResponse({ error: 'Example data can only be added to an empty company.' }, 409),
     );
     renderSection();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Add example data' }));
     await waitFor(() =>
       expect(useStore.getState().notice).toMatchObject({
         tone: 'error',
@@ -146,7 +181,7 @@ describe('Settings example data', () => {
     const add = vi.spyOn(companyDataRequests, 'addExampleData');
     useStore.setState({ suspendPlanningIntents: () => null });
     renderSection();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Add example data' }));
     expect(add).not.toHaveBeenCalled();
     expect(useStore.getState().notice?.tone).toBe('error');
   });
@@ -157,7 +192,7 @@ describe('Settings example data', () => {
     );
     useStore.setState({ refreshPlanning: async () => false });
     renderSection();
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Add example data' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Add example data' }));
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'));
     expect(planningProbe.releases).toBe(0);
     expect(useStore.getState().notice?.message).toContain('Unavailable');
