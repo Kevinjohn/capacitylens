@@ -134,12 +134,12 @@ export async function resolveEffectiveReadUser(
   if (context.isMasquerading) {
     // Without a company there is no rank to check, so a view never reads company-free.
     if (!companyId) {
-      throw new IdentityAuthorizationException('Masquerade company authority changed.');
+      throw new IdentityAuthorizationException('Masquerade company access changed.');
     }
     const actorRole = await getActiveCompanyRole(actor.userId, companyId, trx);
     const targetRole = await getActiveCompanyRole(context.effectiveId, companyId, trx);
     if (!actorRole || !targetRole || !canMasqueradeAs(actorRole, targetRole)) {
-      throw new IdentityAuthorizationException('Masquerade company authority changed.');
+      throw new IdentityAuthorizationException('Masquerade company access changed.');
     }
   }
   return {

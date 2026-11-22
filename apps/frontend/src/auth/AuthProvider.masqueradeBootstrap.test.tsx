@@ -86,7 +86,7 @@ describe('AuthProvider — server mode', () => {
         return makeMeResponse(200, {
           companyId: 'a-studio',
           revision: 1,
-          authority: {
+          access: {
             actorId: 'real-user',
             effectiveActorId: 'target-user',
             role: 'viewer',

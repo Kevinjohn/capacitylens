@@ -32,7 +32,7 @@ The suites cover the frontend, backend and shared workspace packages.
   a refused response; successful writes are never mocked.
 - Planning-controller transition tests use controlled responses to check revision ordering,
   pending and unconfirmed outcomes (including HTTP 408), context invalidation, explicit server write
-  authority, the page's history id on every read and write, and Undo and Redo availability taken
+  access, the page's history id on every read and write, and Undo and Redo availability taken
   only from the read. A missing write capability rejects
   the snapshot; a read-only snapshot cannot open a writable draft or execute history. Completion results are suppressed if the initiating context changes during the
   post-commit read. A context change or a lost reply starts a new history id, and a refused Undo or

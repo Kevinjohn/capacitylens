@@ -214,15 +214,15 @@ export function loadPlanningData(data: AppData): void {
   }));
 }
 
-/** Publish a planning authority as the last accepted read's, and have later reads return it. */
+/** Publish a planning access as the last accepted read's, and have later reads return it. */
 export function setPlanningAccess(overrides: Partial<PlanningAccess>): void {
   getStubPlanningTransport().setAccess(overrides);
   useStore.setState((state) => ({
-    planning: { ...state.planning, authority: makePlanningAccess(overrides) },
+    planning: { ...state.planning, access: makePlanningAccess(overrides) },
   }));
 }
 
-/** Reset test data and authority, then wait for the selected canonical company snapshot. */
+/** Reset test data and access, then wait for the selected canonical company snapshot. */
 export function resetStoreWithData(
   data: AppData,
   companyId: ID = data.companies[0]?.id ?? DEFAULT_COMPANY_ID,
