@@ -132,6 +132,6 @@ privately; do not put it in a ticket, shell history shared with others, or servi
 `node ace.js app:reset <new-database-path> --confirm-server-stopped --disposable` is a separate,
 destructive operator action. It is unavailable in production and requires an explicit disposable
 confirmation outside production. It requires the server to be stopped, preserves a verified backup
-and archived copy of the original installation, then initializes a new database path. Update
+and archived copy of the original installation, then initialises a new database path. Update
 `CAPACITYLENS_DB` only after the command succeeds. If it fails, preserve the named recovery files and
 partial destination; do not retry over them.

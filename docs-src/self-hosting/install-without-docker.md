@@ -114,7 +114,7 @@ Fill in the mail settings before inviting anyone else. See
 
 ### 4. Upgrade the database and start the service
 
-Run the upgrade as the service user with the same environment file. It initializes a fresh database;
+Run the upgrade as the service user with the same environment file. It initialises a fresh database;
 for an existing database, it writes and verifies a pre-upgrade backup before running pending
 migrations.
 
@@ -167,7 +167,7 @@ exists, even when open signup is enabled in configuration.
 Browser setup requires exactly one existing sign-in identity and no company or membership. If
 multiple identities were created before the company, browser setup refuses rather than choosing
 an Owner. Resolving that uncommon state currently needs the hosting operator's stopped-server
-`company:initialize` initializer. This is a limitation, not an extra installation step. A second company is never created.
+`company:initialize` initialiser. This is a limitation, not an extra installation step. A second company is never created.
 
 ## Restore planning from a beta JSON export
 

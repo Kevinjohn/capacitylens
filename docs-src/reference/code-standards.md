@@ -157,7 +157,7 @@ numbered so a review can cite one.
 
 1. **A comment says why; the code says what.** Delete any comment a reader would not miss.
 2. **Every exported symbol gets TSDoc.** The first sentence stands alone and says what the call
-   does, in the third person: "Authorizes one company permission from live membership." State
+   does, in the third person: "Authorises one company permission from live membership." State
    preconditions, what a throw means, and purity whenever they apply. Document the contract the
    type cannot carry: "a foreign id throws and nothing is changed" is the most important thing a
    caller can know.

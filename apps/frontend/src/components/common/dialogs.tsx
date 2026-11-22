@@ -31,7 +31,7 @@ function hasOpenNestedOverlay(): boolean {
   );
 }
 
-/** Provides the shared dialog title, body, and dismissal behavior. */
+/** Provides the shared dialog title, body, and dismissal behaviour. */
 export function FormDialog({
   title,
   description,

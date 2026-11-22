@@ -306,7 +306,7 @@ export function buildClosureUpdate(
   };
 }
 
-/** Build an explicit resource creation intent with normalized kind-specific fields. */
+/** Build an explicit resource creation intent with normalised kind-specific fields. */
 export function buildResourceCreate(
   context: CreateIntentScope & { args: { id: string; fields: Draft<Resource> } },
 ): PlanningIntentRequest | null {
@@ -360,7 +360,7 @@ const RESOURCE_FIELDS = [
   'lastAvailableDate',
 ] as const satisfies readonly (keyof Resource)[];
 
-/** Build a resource patch with kind changes normalized to valid resource fields. */
+/** Build a resource patch with kind changes normalised to valid resource fields. */
 export function buildResourceUpdate(
   context: UpdateIntentScope<Resource> & { args: { id: string; changes: Patch<Resource> } },
 ): PlanningIntentRequest | null {

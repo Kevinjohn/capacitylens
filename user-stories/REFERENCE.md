@@ -3,7 +3,7 @@
 Stories describe user intent and the fields or controls a person encounters. The
 [coverage matrix](COVERAGE.md) inventories current and retained capabilities
 [decision gaps](GAPS.md) distinguishes documentation omissions from differences against the
-agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the target behavior.
+agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the target behaviour.
 
 ## Reading the catalogue
 
@@ -16,7 +16,7 @@ agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the ta
 
 Read status together with access and entry conditions. A Current story can include an unavailable
 alternative, explicitly labelled as such. Status is source-reviewed availability, not a claim
-that its journey was exercised in a browser. A retained story does not authorize new functionality.
+that its journey was exercised in a browser. A retained story does not authorise new functionality.
 
 ## Reading the diagrams
 

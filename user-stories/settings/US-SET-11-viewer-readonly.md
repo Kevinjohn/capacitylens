@@ -10,7 +10,7 @@ As a company member, I want to review my role capabilities so that I know what I
 
 ## Acceptance criteria
 
-- Every member can review their role and capability summary. Server authorization independently controls access.
+- Every member can review their role and capability summary. Server authorisation independently controls access.
 
 ## User flow
 

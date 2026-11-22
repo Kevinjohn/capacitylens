@@ -1,7 +1,7 @@
 # Decision gaps and retained capabilities
 
 This records differences found while reconciling the catalogue with current source and
-[DECISIONS.md](../DECISIONS.md). It does not change the agreed decisions or authorize product
+[DECISIONS.md](../DECISIONS.md). It does not change the agreed decisions or authorise product
 changes. Source inspection establishes the controls that exist; it is not runtime verification
 of every implementation guarantee.
 

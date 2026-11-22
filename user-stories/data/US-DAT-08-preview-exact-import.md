@@ -1,6 +1,6 @@
 # US-DAT-08 — Confirm the exact import operation
 
-As an Owner, I want to confirm the exact import operation so that my password cannot authorize a different replacement.
+As an Owner, I want to confirm the exact import operation so that my password cannot authorise a different replacement.
 
 **Status:** Current
 **Access:** Owner

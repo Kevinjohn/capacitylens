@@ -16,7 +16,7 @@ This ledger is an evidence-based source/configuration review, not an OWASP certi
 - **N/A** — the governed technology/function does not exist in CapacityLens.
 
 An inherited library/framework control is only marked Pass where the application constrains its use
-and the behavior is covered by configuration/tests or the maintained library contract. External
+and the behaviour is covered by configuration/tests or the maintained library contract. External
 TLS, disks, collectors, secret stores and external authentication policy cannot become Pass merely because
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the [official ASVS 5.0.0 release](https://github.com/OWASP/ASVS/tree/v5.0.0_release) alongside these IDs.
@@ -52,13 +52,13 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V3.4 Browser headers       | Host-only one-year HSTS for an HTTPS public URL, exact CORS, one application CSP, nosniff, no-referrer, frame denial and COEP/COOP/CORP | V3.4.1, V3.4.2, V3.4.4, V3.4.5, V3.4.6, V3.4.7, V3.4.8 | V3.4.3         | —   | —              |
 | V3.5 Cross-origin controls | Unsafe Origin/Fetch-Metadata rejection, correct methods, no JSONP/script data, same-origin CORP                                                                                            | V3.5.1, V3.5.2, V3.5.3, V3.5.6, V3.5.7, V3.5.8         | —              | —   | V3.5.4, V3.5.5 |
 | V3.6 External assets       | Runtime JS/CSS/fonts are self-hosted; no CDN runtime dependency                                                                                                                            | V3.6.1                                                 | —              | —   | —              |
-| V3.7 Client behavior       | Supported web platform; preload and incompatible-browser behavior remain deployment-dependent | V3.7.1, V3.7.2, V3.7.3 | V3.7.4, V3.7.5 | — | — |
+| V3.7 Client behavior       | Supported web platform; preload and incompatible-browser behaviour remain deployment-dependent | V3.7.1, V3.7.2, V3.7.3 | V3.7.4, V3.7.5 | — | — |
 
 ## V4 API and web service
 
 | Section              | Evidence summary                                                                                                    | Pass                   | Partial                        | Gap | N/A                            |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------ | --- | ------------------------------ |
-| V4.1 HTTP use        | Correct content types and explicit methods; deployed TLS behavior needs operator evidence | V4.1.1, V4.1.4 | V4.1.2, V4.1.3 | — | V4.1.5 |
+| V4.1 HTTP use        | Correct content types and explicit methods; deployed TLS behaviour needs operator evidence | V4.1.1, V4.1.4 | V4.1.2, V4.1.3 | — | V4.1.5 |
 | V4.2 Message framing | AdonisJS/Node framing; deployed proxy and outbound URI/header compatibility need evidence | — | V4.2.1, V4.2.2, V4.2.3, V4.2.4, V4.2.5 | — | — |
 | V4.3 GraphQL         | No GraphQL endpoint                                                                                                 | —                      | —                              | —   | V4.3.1, V4.3.2                 |
 | V4.4 WebSocket       | No WebSocket endpoint                                                                                               | —                      | —                              | —   | V4.4.1, V4.4.2, V4.4.3, V4.4.4 |
@@ -132,7 +132,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V11.2 Design/implementation   | Node/Web Crypto, Account Kit and AdonisJS primitives, ≥128-bit random tokens and fail-closed errors; password scrypt parameters are documented separately | V11.2.1, V11.2.3, V11.2.5 | V11.2.2, V11.2.4 | — | — |
 | V11.3 Symmetric encryption    | `config/encryption.ts` declares AES-256-GCM with `APP_KEY`, but current call sites and protected stored data are not established | — | V11.3.1, V11.3.2, V11.3.3, V11.3.4 | — | V11.3.5 |
 | V11.4 Hash/KDF                | SHA-256 token and intent digests; password verifier uses OWASP-minimum scrypt `N=2^14`, `r=8`, `p=5`; no password-derived application encryption key | V11.4.1, V11.4.2, V11.4.3 | — | — | V11.4.4 |
-| V11.5 Randomness              | Platform CSPRNG with ≥128-bit security for tokens/keys and OS heavy-demand behavior                                                                                 | V11.5.1, V11.5.2                   | —                | —       | —       |
+| V11.5 Randomness              | Platform CSPRNG with ≥128-bit security for tokens/keys and OS heavy-demand behaviour                                                                                 | V11.5.1, V11.5.2                   | —                | —       | —       |
 | V11.6 Key generation/exchange | Platform-approved generation and TLS exchange primitives                                                                                                            | V11.6.1, V11.6.2                   | —                | —       | —       |
 | V11.7 In-use data             | Data minimisation/short-lived values exist; no full-memory encryption and necessary plaintext exists while processing                                               | —                                  | V11.7.2          | V11.7.1 | —       |
 
@@ -148,7 +148,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 
 | Section                       | Evidence summary                                                                                                                                                              | Pass                                                          | Partial                   | Gap     | N/A     |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------- | ------- | ------- |
-| V13.1 Communication/resources | Communication inventory defines socket/service/work maxima, queue/timeout/refusal behavior and recovery; deployment certificate/credential rotation remains operator-specific | V13.1.1, V13.1.2                                              | V13.1.3, V13.1.4          | —       | —       |
+| V13.1 Communication/resources | Communication inventory defines socket/service/work maxima, queue/timeout/refusal behaviour and recovery; deployment certificate/credential rotation remains operator-specific | V13.1.1, V13.1.2                                              | V13.1.3, V13.1.4          | —       | —       |
 | V13.2 Backend communication   | Unprivileged components, no defaults, fixed/configured outbound endpoints; network egress and connection policy require deployment controls                                   | V13.2.2, V13.2.3                                              | V13.2.4, V13.2.5, V13.2.6 | —       | V13.2.1 |
 | V13.3 Secret management       | Docs require secret manager/least privilege/rotation; env delivery is supported, not a vault/HSM or enforced expiry                                                           | —                                                             | V13.3.1, V13.3.2, V13.3.4 | V13.3.3 | —       |
 | V13.4 Production exposure     | `.dockerignore`, production-only dependencies, no debug/reset, no listing/TRACE, intentional health, no detailed backend versions, exact static-file handling                 | V13.4.1, V13.4.2, V13.4.3, V13.4.4, V13.4.5, V13.4.6, V13.4.7 | —                         | —       | —       |
@@ -158,7 +158,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | Section                      | Evidence summary                                                                                                                        | Pass                               | Partial                   | Gap | N/A     |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ------------------------- | --- | ------- |
 | V14.1 Classification         | Privacy/control inventories identify data classes and application/operator protections                                                  | V14.1.1, V14.1.2                   | —                         | —   | —       |
-| V14.2 Server-side protection | API no-store, no trackers, projection/minimisation and 404 file behavior; link tokens, deployment storage and retention remain partial  | V14.2.2, V14.2.3, V14.2.5, V14.2.6 | V14.2.1, V14.2.4, V14.2.7 | —   | V14.2.8 |
+| V14.2 Server-side protection | API no-store, no trackers, projection/minimisation and 404 file behaviour; link tokens, deployment storage and retention remain partial  | V14.2.2, V14.2.3, V14.2.5, V14.2.6 | V14.2.1, V14.2.4, V14.2.7 | —   | V14.2.8 |
 | V14.3 Browser data           | API no-store; scheduling and identity snapshots are not persisted in the browser; no universal Clear-Site-Data | V14.3.2                            | V14.3.1, V14.3.3          | —   | —       |
 
 ## V15 Secure coding and architecture
@@ -175,9 +175,9 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | Section                | Evidence summary                                                                                                                                                                                                                                                                        | Pass                               | Partial          | Gap | N/A |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------- | --- | --- |
 | V16.1 Inventory        | Layer/event/format/destination/sensitivity inventory exists; actual access control and retention need operator evidence | — | V16.1.1 | — | — |
-| V16.2 Log content      | UTC ISO metadata, documented JSON streams and credential/body redaction; clock synchronization and deployed processor correlation need evidence | V16.2.1, V16.2.3, V16.2.5 | V16.2.2, V16.2.4 | — | — |
+| V16.2 Log content      | UTC ISO metadata, documented JSON streams and credential/body redaction; clock synchronisation and deployed processor correlation need evidence | V16.2.1, V16.2.3, V16.2.5 | V16.2.2, V16.2.4 | — | — |
 | V16.3 Security events  | Optional request logging records event, method, route, status, outcome and `request_id`; password sign-in success, credential failure and throttling are separately logged with bounded fields; other authority/confirmation/validation failures are not individually logged | V16.3.1, V16.3.4 | V16.3.2, V16.3.3 | — | — |
-| V16.4 Log protection   | Structured serialization prevents injection; audit rows are in SQLite; external forwarding is not provided and deployment access controls require operator evidence | V16.4.1 | V16.4.2, V16.4.3 | — | — |
+| V16.4 Log protection   | Structured serialisation prevents injection; audit rows are in SQLite; external forwarding is not provided and deployment access controls require operator evidence | V16.4.1 | V16.4.2, V16.4.3 | — | — |
 | V16.5 Failure handling | Generic responses, fail-closed external/control failures, transaction rollback and startup error handling; no process-wide last-resort handler for unhandled exceptions was identified | V16.5.1, V16.5.2, V16.5.3 | — | V16.5.4 | — |
 
 ## V17 WebRTC
@@ -191,7 +191,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 ## Account Kit authentication amendment (2026-10-26)
 
 The current authentication classifications above were checked against the password-only routes,
-Account Kit configuration and pinned Kit release behavior. Dated security-review documents retain their
+Account Kit configuration and pinned Kit release behaviour. Dated security-review documents retain their
 original evidence; these current classifications supersede earlier authentication claims. The
 changed rows are supported by the following source evidence:
 
@@ -217,7 +217,7 @@ were made against the applicable [ASVS 5.0.0 release](https://github.com/OWASP/A
 
 | Controls | Evidence and limit | Assessment boundary |
 | --- | --- | --- |
-| V1.1, V1.2, V1.3, V2.1–V2.2 | Shared NFC/whitespace normalization runs before 100-code-point name and 1,000-code-point note limits; strict ordinary-write validation rejects malformed supplied fields while import repair remains separate. React renders text as text and SQLite binds values. | No rich-HTML or dynamic SQL sink was found in the reviewed paths. Valid punctuation remains allowed. |
+| V1.1, V1.2, V1.3, V2.1–V2.2 | Shared NFC/whitespace normalisation runs before 100-code-point name and 1,000-code-point note limits; strict ordinary-write validation rejects malformed supplied fields while import repair remains separate. React renders text as text and SQLite binds values. | No rich-HTML or dynamic SQL sink was found in the reviewed paths. Valid punctuation remains allowed. |
 | V1.4–V1.5, V4.1–V4.2 | AdonisJS BodyParser owns JSON syntax and uses its supported defaults; compiled Vine validators reject invalid supplied values and strip unknown object fields. | Authentication requests use the same framework parser. Duplicate-key, depth, and numeric-range guarantees are not added by the application boundary. |
 | V2.3–V2.4, V5.1–V5.2 | Import and batch bodies use the framework parser defaults; server import replacement remains atomic. Approved-domain input is capped at 50 raw entries and 16 KiB UTF-8 before IDNA. | Imported legacy row repair or skipping remains deliberate and reported; malformed JSON cannot replace stored data. |
 | V8.1–V8.4 | Scope, relationship, lifecycle, repeat-series and confidential-field pins remain enforced by the server independently of form visibility. | Blind writers may echo redacted or blank hidden fields; the stored confidential value is retained. Existing role and company tests cover these exceptions. |
@@ -232,8 +232,8 @@ not claims that input validation alone completes another control.
 | Control IDs and current status | Remaining outcome and evidence owner |
 | --- | --- |
 | V1.1.1, V1.5.3 — Partial | Maintainers must audit every parser and downstream encoding context, including Account Kit password and recovery request bodies, against the maintained parser contracts; the application scan does not cover `/api/auth/`. |
-| V1.3.11 — Partial | Account addresses are validated and handed to structured `nodemailer` fields. The review has not proved every user-controlled SMTP field and transport library behavior against header injection. |
-| V4.1.2 — Partial | Historical 2026-10-10 proxy evidence; current product routes call Account Kit directly and have no authentication proxy. Reassess deployed HTTP redirect behavior separately. |
+| V1.3.11 — Partial | Account addresses are validated and handed to structured `nodemailer` fields. The review has not proved every user-controlled SMTP field and transport library behaviour against header injection. |
+| V4.1.2 — Partial | Historical 2026-10-10 proxy evidence; current product routes call Account Kit directly and have no authentication proxy. Reassess deployed HTTP redirect behaviour separately. |
 | V4.1.3, V4.2.1–V4.2.4 — Partial | Historical 2026-10-10 proxy evidence. Current product routes call Account Kit directly and have no authentication proxy; deployed proxy/Node framing and trusted-forwarding still require deployment evidence. |
 | V4.2.5 — Partial | Maintainers must bound constructed outbound URI and header fields against each receiving service's accepted size; transport response limits do not establish that request-side property. |
 | V5.2.2 — Partial | Import parses and validates JSON content, while the file chooser's `.json` hint does not enforce extension/content agreement. Maintainers would need an explicit filename and content check for this control. |
@@ -243,11 +243,11 @@ not claims that input validation alone completes another control.
 | V6.3.8 — Partial | Generic messages alone do not prove indistinguishable response codes and timing across sign-in, sign-up and recovery. Maintainers need differential boundary tests and timing assessment. |
 | V6.3.3, V6.3.5 — Gap | Password-only access does not meet the multi-factor requirement; suspicious-attempt notices are absent. |
 | V6.3.7 — Partial | Account Kit sends notices after password change and reset completion when mail is configured. No email-change route is exposed by the product. |
-| V8.2.4 — Gap; V8.4.2 — Partial | Adaptive device/risk authorization is absent, and action-bound password confirmations cover only the specified sensitive actions. Maintainers would need a separate product decision and enforcement tests to change this scope. |
+| V8.2.4 — Gap; V8.4.2 — Partial | Adaptive device/risk authorisation is absent, and action-bound password confirmations cover only the specified sensitive actions. Maintainers would need a separate product decision and enforcement tests to change this scope. |
 | V16.2.2, V16.3.2, V16.4.2–V16.4.3 — Partial | Operators must provide clock and external collector/ACL/retention evidence; maintainers would need additional event coverage for successful high-assurance decisions. Local safe-error tests do not prove those deployment controls. |
 | V16.5.4 — Gap | The 2026-10-26 source review found no process-wide last-resort handler; `apps/backend/bin/server.ts` catches startup failure only. |
 | V16.1.1, V16.2.4 — Partial | The checked-in logging inventory does not establish deployed retention/access or show that the selected log processor can read and correlate each stream. Operators must supply processor and access evidence. |
 
 ## Interpretation
 
-CapacityLens supports password sign-in only and has no local multi-factor authentication or breached-password screening. It therefore does not meet V6.3.3 L2. A Gap in a Level 3-only requirement documents a higher-assurance boundary rather than an L2 failure. Partial/Gap controls remain real limitations, including broader authorization-event coverage, URL bearer links and deployment public-TLS/secret/log/storage evidence.
+CapacityLens supports password sign-in only and has no local multi-factor authentication or breached-password screening. It therefore does not meet V6.3.3 L2. A Gap in a Level 3-only requirement documents a higher-assurance boundary rather than an L2 failure. Partial/Gap controls remain real limitations, including broader authorisation-event coverage, URL bearer links and deployment public-TLS/secret/log/storage evidence.

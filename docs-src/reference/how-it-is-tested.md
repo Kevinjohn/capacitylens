@@ -12,14 +12,14 @@ The suites cover the frontend, backend and shared workspace packages.
 | Suite | Tool | Covers |
 | --- | --- | --- |
 | App and shared unit tests | Vitest, Testing Library | Shared scheduling rules, the client store and React components |
-| Backend tests | Japa | API behavior, authorization, SQLite, backups and sign-in |
+| Backend tests | Japa | API behaviour, authorisation, SQLite, backups and sign-in |
 | End-to-end tests | Playwright | Authenticated SQLite interaction checks and scheduler gestures in real browsers |
 | Accessibility checks | axe, inside the end-to-end tests | Automated accessibility rules on key screens |
 | Mutation checks | By hand, in review | Whether the tests for the changed code fail when that code is reverted or altered; see step 6 of [Contributing](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md#your-first-change) |
 
 ## Limits of each suite
 
-- Backup and upgrade tests cover supported databases and recovery behavior.
+- Backup and upgrade tests cover supported databases and recovery behaviour.
 - End-to-end tests run Chromium by default. WebKit and Firefox runs are opt-in, and run only the tests tagged `@engine`: those whose result can differ between engines, such as dragging, keyboard movement, focus, scrolling, native inputs and layout. Chromium runs every test.
 - Every browser project exercises the real server. Each parallel worker owns an API, Vite proxy and SQLite database; fixture resets preserve sign-ins and restore company data before authentication.
 - Database-project scenarios use authenticated sessions against SQLite; persisted server data is

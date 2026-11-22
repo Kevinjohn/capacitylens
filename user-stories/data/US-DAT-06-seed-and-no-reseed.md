@@ -1,6 +1,6 @@
 # US-DAT-06 — Explore disposable demo data
 
-As an evaluator, I want to explore a demo company on the real server so that I can try the same planning and permission behavior as an installation.
+As an evaluator, I want to explore a demo company on the real server so that I can try the same planning and permission behaviour as an installation.
 
 **Status:** Demo
 **Access:** Printed development Owner sign-in
@@ -14,7 +14,7 @@ As an evaluator, I want to explore a demo company on the real server so that I c
 - Changes survive refresh and reset when the command restarts.
 - Normal development and installation never automatically grant company ownership or add demo data.
 - Preparation and seeding refuse production and nonempty company or membership storage. Seeding independently requires the admitted development identity.
-- Demo rows, the Owner membership, planning revision and initialization audit commit together.
+- Demo rows, the Owner membership, planning revision and initialisation audit commit together.
 
 ## User flow
 

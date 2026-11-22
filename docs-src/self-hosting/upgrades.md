@@ -40,7 +40,7 @@ node ace.js app:upgrade
 ```
 
 For an existing database, this command writes and verifies an online pre-upgrade backup before
-running `migration:run --force --no-schema-generate`. A fresh database is initialized without a
+running `migration:run --force --no-schema-generate`. A fresh database is initialised without a
 pre-upgrade backup. Schema drift refuses the upgrade. Do not start the new
 service after a failed upgrade; retain the source database and recovery files and investigate the
 reported refusal.
@@ -75,7 +75,7 @@ and startup refuse it with a `Database schema drift` message. Start a fresh data
 
 1. Stop the service and keep the old database file where it is.
 2. Point `CAPACITYLENS_DB` at a new, unused path.
-3. Run `node ace.js app:upgrade` to initialize it, then start the service.
+3. Run `node ace.js app:upgrade` to initialise it, then start the service.
 4. Print a setup link with `node ace.js account-kit:admission:bootstrap <owner-email> --role=viewer`
    and send it to the Owner, who recreates the company and invites everyone again.
 

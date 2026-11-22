@@ -144,7 +144,7 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Current |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Current |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Current |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Current |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognise action meaning and product identity | Current |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Current |
 | [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Current |
 | [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Removed |

@@ -151,7 +151,7 @@ to make it look substantial.
   Nothing to write in the Markdown, and nothing to opt into. The one image that does not
   get it is one you have made a link yourself (`[![alt](path)](target)`), since the click
   has to mean one thing or the other. The checkbox and labels provide click and Space
-  behavior without changing history; the published and standalone docs retain a small
+  behaviour without changing history; the published and standalone docs retain a small
   handler so Escape or Tab closes the lightbox. The standalone 404 link points to the
   hosted base so nested fallback URLs work; its retained script makes the link relative
   when opened from disk. Never reach for a lightbox library.

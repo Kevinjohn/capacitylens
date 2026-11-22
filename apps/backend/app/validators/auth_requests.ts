@@ -9,7 +9,7 @@ import {
 
 const message = 'Unsupported authentication field.';
 
-/** Retains the product's email shape, normalization and strict authentication field rules. */
+/** Retains the product's email shape, normalisation and strict authentication field rules. */
 export const signInValidator = vine.create(
   vine
     .object({

@@ -307,7 +307,7 @@ lockfile records each archive's integrity. To change a pin, update the backend m
 lockfile together; pnpm records the new archive's integrity.
 
 Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
-serializers validate the UTC ISO timestamp sent to the shared domain and wire contract. Product
+serialisers validate the UTC ISO timestamp sent to the shared domain and wire contract. Product
 `createdAt`, `updatedAt` and `archivedAt` are Luxon attributes too, declared with
 `timestampColumn` (`app/models_support/scalar_column.ts`), which stores and serialises the same canonical
 UTC ISO string. `database/schema_rules.ts` leaves every date-time column on Lucid's default
@@ -324,7 +324,7 @@ exist in AdonisJS. The package integration does not introduce a public soft-dele
 a retention policy or deletion undo tokens for lifecycle models. Planning deletes for bookings,
 time off, closures, phases and disciplines use package lifecycle operations. Their rows stay in
 their own tables; the recovery ledger contains only expected row IDs and surviving-child links.
-These five types keep internal deletion fields out of serialization and omit deleted rows even
+These five types keep internal deletion fields out of serialisation and omit deleted rows even
 from inactive-inclusive state reads. A group foreign key and mandatory company-matching
 guards bind each retained row to its current deletion. Session and privacy cleanup cannot affect
 a replacement or a later deletion. Package lifecycle operations and database bookkeeping share the caller's
@@ -354,7 +354,7 @@ redact data. A redacted export cannot be restored as a full replacement.
 The public entry point is `@capacitylens/shared/data/companyDocument`: `buildCompanyExport`,
 `serializeCompanyExport`, `parseCompanyExport` and `prepareCompanyImport`. Preparation receives explicit
 server-owned `{ companyId, memberResourceLinks }` context and returns `{ data, imported }`, where
-`imported` includes the company row. Export callers must supply an authorized, confidentially
+`imported` includes the company row. Export callers must supply an authorised, confidentially
 projected dataset; the completeness marker grants no authority.
 
 Settings uses this contract for import/export, including the disposable demo. Preview and apply go

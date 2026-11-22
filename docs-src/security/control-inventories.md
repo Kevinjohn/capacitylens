@@ -79,7 +79,7 @@ policy and backup-encryption controls.
 
 ## Service connection and work limits
 
-| Service/resource | Maximum | Limit behavior and recovery |
+| Service/resource | Maximum | Limit behaviour and recovery |
 | --- | ---: | --- |
 | API accepted sockets | 512 per process | New sockets are refused; proxy surfaces upstream failure |
 | API request/incomplete connection | 30 seconds for request reception and socket inactivity | These are HTTP receive/inactivity timeouts, not handler or database execution deadlines; clients and proxies should bound retries and upstream waits |
@@ -88,7 +88,7 @@ policy and backup-encryption controls.
 | Failed password confirmation checks | 5 failures per minute per account, then a 20-minute block | The confirm-action-with-password package reserves each attempt before hashing through the app database limiter; success resets only that account; sign-in has separate Account Kit throttles |
 | Account Kit sign-in throttle | 10 requests/minute per client; 5/minute per identity with a 20-minute block | Defaults in the pinned Account Kit release; application configuration changes only test throttling |
 | Import preparation | Atomic database operation; framework request-size limit | Invalid imports fail without replacing stored data |
-| Batch mutation | Framework parser limits | One SQLite transaction; authorization/validation per operation; a stale conflict rolls the batch back |
+| Batch mutation | Framework parser limits | One SQLite transaction; authorisation/validation per operation; a stale conflict rolls the batch back |
 | Backup operation | One in flight | Scheduler skips overlap; shutdown waits before closing SQLite |
 
 ## Security and audit event inventory
@@ -103,7 +103,7 @@ policy and backup-encryption controls.
 
 Production configuration requires application audit to remain enabled. Authentication outcomes
 use the opt-in application log stream, not transactional audit rows. The operator must document
-access, retention, time synchronization, alerting and any external log collection.
+access, retention, time synchronisation, alerting and any external log collection.
 
 ## Third parties and build inputs
 

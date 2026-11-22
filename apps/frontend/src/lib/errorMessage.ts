@@ -52,7 +52,7 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
 export const resolveDomainErrorMessage = (code: DomainErrorCode): string =>
   DOMAIN_ERROR_MESSAGES[code]();
 
-/** Normalize anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
+/** Normalise anything thrown (an Error, a bare string, a React Router ErrorResponse, …)
  * to a human message, so a non-Error throw never renders a blank screen.
  *
  * @remarks This function returns the localized fallback when an unsupported or hostile value

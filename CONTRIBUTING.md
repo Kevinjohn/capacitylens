@@ -45,7 +45,7 @@ cd ../..
 ```
 
 The example file leaves `APP_KEY` empty; do not commit your `.env` file.
-Initialize the local SQLite database and run its migrations before starting the full-stack
+Initialise the local SQLite database and run its migrations before starting the full-stack
 development servers:
 
 ```bash
@@ -126,12 +126,12 @@ pnpm run e2e
 ```
 
 A prose-only change needs formatting and a content and link review instead; rebuild the
-documentation when its sources change. Run the focused checks for changed behavior and preserve
+documentation when its sources change. Run the focused checks for changed behaviour and preserve
 the security, data-integrity and migration invariants in [DECISIONS.md](DECISIONS.md).
 
 Authentication and account changes require focused backend tests for the affected authority and
-failure paths. Use controlled responses for external-service behavior; any live-service check needs
-an authorized test account and must be reported separately.
+failure paths. Use controlled responses for external-service behaviour; any live-service check needs
+an authorised test account and must be reported separately.
 
 Run the applicable cross-browser suite for interaction or layout changes:
 
@@ -191,7 +191,7 @@ planning or ideation Markdown files to the repository.
 
 Every contributor-authored commit must include a
 [Developer Certificate of Origin](https://developercertificate.org/) sign-off whose email matches
-the commit author or committer (after `.mailmap` normalization). GitHub-generated merge commits are
+the commit author or committer (after `.mailmap` normalisation). GitHub-generated merge commits are
 exempt; every commit on the feature branch still requires a sign-off:
 
 ```bash
@@ -241,7 +241,7 @@ failure paths, including missing or invalid configuration.
 
 Edit Markdown in `docs-src/`; `docs/` is generated site output and is not committed. Run
 `pnpm run docs:build` after changing documentation to check links and navigation; `docs/` then
-holds a copy that opens from disk with no server. GitHub Pages publishes only when an authorized
+holds a copy that opens from disk with no server. GitHub Pages publishes only when an authorised
 maintainer runs `gh workflow run pages.yml --ref main`, which builds the site from `main` in that
 run; publishing a release does not update the site. The workflow accepts only `main`, so merge the
 source before publishing.

@@ -205,11 +205,11 @@ This is the short, present-tense record of decisions that constrain future work.
 - Account Kit owns accounts: password sign-in, registration, address confirmation, password
   change and reset, invitations, sessions and admission. CapacityLens owns company membership,
   roles, the member↔resource link, the permission keys, the access-control services and every
-  screen and word that renders a kit outcome. CapacityLens has no authorization policies of its
+  screen and word that renders a kit outcome. CapacityLens has no authorisation policies of its
   own. Password sign-in is the only sign-in method; there are no identity providers.
 - Roles rank viewer < editor < admin < owner, and the permission keys are declared once. A route
   with the company in its path refuses a caller without an active membership before its handler,
-  with the refusal the handler would give. The server always authorizes inside the request
+  with the refusal the handler would give. The server always authorises inside the request
   transaction; a route that takes the company from the request body has only that check. The
   server sends the effective member's permission keys and the private-name and time-off-note flags
   with the company directory and the view-as state; the browser shows or hides permission-gated
@@ -263,7 +263,7 @@ This is the short, present-tense record of decisions that constrain future work.
   company exists, even when open signup is enabled in configuration, and rechecks this under the
   transaction lock used by identity creation. The controlled first identity can still sign in and
   finish setup. Once the first company exists, the configured signup policy applies. The
-  stopped-server operator initializer remains a recovery option, never the normal install path, and
+  stopped-server operator initialiser remains a recovery option, never the normal install path, and
   also requires an admitted identity. Neither path creates credentials or changes identity
   admission. No environment variable grants company ownership.
   A development-only demo command may, on an empty disposable database, create the demo company and make the development bootstrap identity its Owner. Production refuses it. It is not an install path and grants nothing through an environment variable.

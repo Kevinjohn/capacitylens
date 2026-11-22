@@ -1,6 +1,6 @@
 # US-NAV-14 — Set up and open the installation company
 
-As an initial admitted person, I want to initialize the empty installation’s company so that the company can begin planning.
+As an initial admitted person, I want to initialise the empty installation’s company so that the company can begin planning.
 
 **Status:** Current
 

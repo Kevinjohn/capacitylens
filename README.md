@@ -167,7 +167,7 @@ the [architecture reference](docs-src/reference/architecture.md) and the
 | To change…                                        | Edit                                                                                                                                        |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | A screen, form or the schedule grid               | [`apps/frontend/`](apps/frontend/) (React SPA)                                                                                              |
-| An API route, authorization, a migration or a job | [`apps/backend/`](apps/backend/) (AdonisJS server)                                                                                          |
+| An API route, authorisation, a migration or a job | [`apps/backend/`](apps/backend/) (AdonisJS server)                                                                                          |
 | A scheduling or validation rule both sides share  | [`packages/shared/`](packages/shared/), for example [`src/domain/`](packages/shared/src/domain/) and [`src/lib/`](packages/shared/src/lib/) |
 | A user guide                                      | [`docs-src/`](docs-src/), the guide sources                                                                                                 |
 | The offline documentation site                    | Nothing: `docs/` is generated from `docs-src/` by `pnpm run docs:build` and not committed                                                   |
