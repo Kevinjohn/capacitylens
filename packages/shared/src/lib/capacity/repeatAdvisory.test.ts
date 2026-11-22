@@ -71,7 +71,7 @@ const fullResource = (
   updatedAt: 't',
   kind: 'person',
   name: 'Person',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio' as const,
   workingHoursPerDay: 8,

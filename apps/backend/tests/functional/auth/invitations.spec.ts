@@ -102,7 +102,7 @@ test.group('company invitations', (group) => {
       preview.assertStatus(200);
       assert.deepEqual(preview.body().data, {
         companyId,
-        accountName: 'Wayne Enterprises',
+        companyName: 'Wayne Enterprises',
         role: 'editor',
         email: invitee,
       });

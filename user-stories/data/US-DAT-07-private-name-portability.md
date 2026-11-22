@@ -36,4 +36,4 @@ flowchart TD
   import --> replace["Import service replaces company rows only after preparation"]
 ```
 
-**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Code references:** [useExportOperation.ts](../../apps/frontend/src/components/import-export/useExportOperation.ts), [company_exports_controller.ts](../../apps/backend/app/controllers/company_exports_controller.ts), [state_transformer.ts](../../apps/backend/app/transformers/state_transformer.ts), [privateNames.ts](../../packages/shared/src/domain/privateNames.ts), [companyExport.ts](../../packages/shared/src/data/companyExport.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)

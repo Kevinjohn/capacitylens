@@ -173,10 +173,10 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
               <form onSubmit={(event) => void submit(event, state.preview)} noValidate>
                 <FieldGroup className="gap-3">
                   <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-                    {state.preview.accountName && (
+                    {state.preview.companyName && (
                       <>
                         <dt className="text-muted-foreground">{m.invite_company_label()}</dt>
-                        <dd data-testid="invite-company">{state.preview.accountName}</dd>
+                        <dd data-testid="invite-company">{state.preview.companyName}</dd>
                       </>
                     )}
                     <dt className="text-muted-foreground">{m.invite_proposed_role_label()}</dt>

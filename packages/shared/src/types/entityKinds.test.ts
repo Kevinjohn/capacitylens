@@ -7,6 +7,6 @@ describe('entity kind lists', () => {
   });
 
   it('lists every activity kind once', () => {
-    expect(ACTIVITY_KINDS).toEqual(['project', 'internal', 'repeatable']);
+    expect(ACTIVITY_KINDS).toEqual(['project', 'internal', 'allProjects']);
   });
 });

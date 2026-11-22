@@ -66,7 +66,11 @@ function buildDisciplines(stamp: Stamp) {
 }
 
 // A person inherits their discipline colour so example data obeys the same rule as ordinary resource writes.
-function buildPerson(stamp: Stamp, discipline: Discipline, who: { name: string; role: string }) {
+function buildPerson(
+  stamp: Stamp,
+  discipline: Discipline,
+  who: { name: string; jobTitle: string },
+) {
   return {
     ...NULLABLE_FIELDS.resources,
     id: createId(),
@@ -193,8 +197,11 @@ export function buildExampleCompany({
   const buildWorkday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5));
   const stamp = { companyId, createdAt: now, updatedAt: now };
   const { design, development } = buildDisciplines(stamp);
-  const dick = buildPerson(stamp, design, { name: 'Dick Grayson', role: 'Designer' });
-  const barbara = buildPerson(stamp, development, { name: 'Barbara Gordon', role: 'Developer' });
+  const dick = buildPerson(stamp, design, { name: 'Dick Grayson', jobTitle: 'Designer' });
+  const barbara = buildPerson(stamp, development, {
+    name: 'Barbara Gordon',
+    jobTitle: 'Developer',
+  });
   const work = buildWork(stamp);
 
   return {

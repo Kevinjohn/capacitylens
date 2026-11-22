@@ -104,7 +104,7 @@ test.group('authenticated first company setup', (group) => {
       cookie
     ).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().data.accounts[0].workingDays, [1, 2, 3, 4, 5]);
+    assert.deepEqual(state.body().data.companies[0].workingDays, [1, 2, 3, 4, 5]);
     const after = await asDataOwner(client.visit('api.session.show'), cookie).send();
     assert.isFalse(after.body().data.companySetupRequired);
     const duplicate = await setUp(client, cookie, 'Stark Industries');
@@ -126,7 +126,7 @@ test.group('authenticated first company setup', (group) => {
       cookie
     ).send();
     state.assertStatus(200);
-    assert.deepEqual(state.body().data.accounts[0].workingDays, [0, 1, 2, 3, 4]);
+    assert.deepEqual(state.body().data.companies[0].workingDays, [0, 1, 2, 3, 4]);
   });
 
   for (const choice of [
@@ -195,9 +195,9 @@ test.group('authenticated first company setup', (group) => {
     assert,
     cleanup,
   }) => {
-    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
-    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior));
+    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
+    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', prior));
     const route = await client
       .visit('api.new_account.store')
       .header('sec-fetch-site', 'same-origin')

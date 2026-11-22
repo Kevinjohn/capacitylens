@@ -25,7 +25,7 @@ import { ACTIVITY_KIND_ORDER } from './activityKinds';
 const buildKindOptions = (): { value: ActivityKind; label: string }[] => {
   const labels: Record<ActivityKind, string> = {
     internal: m.form_activity_kind_internal(),
-    repeatable: m.form_activity_kind_repeatable(),
+    allProjects: m.form_activity_kind_all_projects(),
     project: m.form_activity_kind_project(),
   };
   return ACTIVITY_KIND_ORDER.map((value) => ({ value, label: labels[value] }));

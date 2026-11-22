@@ -342,19 +342,19 @@ test.group('database contract', (group) => {
   test('keeps company discovery global while filtering scoped entity reads to one company', async ({
     assert,
   }) => {
-    const accounts = await Company.all();
+    const companies = await Company.all();
     assert.includeMembers(
-      accounts.map((account) => account.id),
+      companies.map((account) => account.id),
       [companyIds.dc, companyIds.marvel]
     );
 
     const state = await readState(companyIds.dc);
     assert.deepEqual(
-      state.accounts.map((account) => account.id),
+      state.companies.map((account) => account.id),
       [companyIds.dc]
     );
     for (const [table, rows] of Object.entries(state)) {
-      if (table === 'accounts') continue;
+      if (table === 'companies') continue;
       assert.isTrue(
         (rows as Array<{ companyId: string }>).every((row) => row.companyId === companyIds.dc),
         `${table} contains only the requested company`
@@ -496,11 +496,7 @@ test.group('database contract', (group) => {
     const actual = await readState();
     for (const [table, fixtures] of fullFixtureRows) {
       const rows = actual[
-        table === 'time_off'
-          ? 'timeOff'
-          : table === 'companies'
-            ? 'accounts'
-            : (table as keyof typeof actual)
+        table === 'time_off' ? 'timeOff' : (table as keyof typeof actual)
       ] as unknown as Array<Record<string, unknown>>;
       for (const fixture of fixtures) {
         const actualRow = rows.find((row) => row.id === fixture.id);
@@ -746,7 +742,7 @@ test.group('database contract', (group) => {
     assert.equal(await rowCount('clients', { id: 'm1-marvel-client' }), 1);
   });
 
-  test('resource deletion cascades allocations and time off without crossing accounts', async ({
+  test('resource deletion cascades allocations and time off without crossing companies', async ({
     assert,
   }) => {
     await db.from('resources').where('id', 'm1-dc-resource').delete();

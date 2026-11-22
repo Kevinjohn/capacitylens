@@ -12,9 +12,9 @@ test.group('product table map', (group) => {
   test('the company snapshot reads every AppData key from its mapped table', async ({ assert }) => {
     await resetState(true);
     assert.sameMembers(Object.keys(tables), [...APP_DATA_KEYS]);
-    const accounts = await db.from('companies').select('id');
+    const companies = await db.from('companies').select('id');
     const read = Object.fromEntries(APP_DATA_KEYS.map((key) => [key, 0]));
-    for (const account of accounts) {
+    for (const account of companies) {
       const state = await readStateWithClient(db.connection(), String(account.id), true);
       assert.sameMembers(Object.keys(state), [...APP_DATA_KEYS]);
       for (const key of APP_DATA_KEYS) read[key] += state[key].length;

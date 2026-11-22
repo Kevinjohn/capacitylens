@@ -158,7 +158,7 @@ test.group('company member access and tracking', (group) => {
       'a-studio'
     );
     const now = new Date().toISOString();
-    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' };
+    const otherCompany = { ...seed().companies[0]!, id: 'a-loft', name: 'Stark Industries' };
     await db.table('companies').insert(encodeRow('companies', otherCompany));
     await db
       .table('clients')

@@ -23,7 +23,7 @@ export async function createInitialCompany(
   const now = input.now ?? new Date().toISOString();
   await trx.table('companies').insert(
     encodeRow('companies', {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: companyId,
       name,
       color: FALLBACK_PRESET_COLOR,

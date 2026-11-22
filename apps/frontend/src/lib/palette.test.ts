@@ -9,7 +9,7 @@ import {
 } from './palette';
 
 describe('DEFAULT_COLORS', () => {
-  it('uses the refreshed blue family for new accounts and resources', () => {
+  it('uses the refreshed blue family for new companies and resources', () => {
     expect(DEFAULT_COLORS.account).toBe('#2d75da');
     expect(DEFAULT_COLORS.resource).toBe('#2d75da');
     expect(DEFAULT_COLORS.placeholder).toBe('#2d75da');

@@ -244,7 +244,7 @@ test.group('company initialize command', () => {
       const { url } = JSON.parse(bootstrap.stdout.trim()) as { url: string };
       const token = new URL(url).pathname.split('/').at(-1)!;
       await withOperatorServer(f, async (origin) => {
-        const accepted = await fetch(`${origin}/api/invites/${token}/signup`, {
+        const accepted = await fetch(`${origin}/api/invitations/${token}/sign-up`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({ password: credentials.password, name: 'Bruce Wayne' }),
@@ -280,7 +280,7 @@ test.group('company initialize command', () => {
               'members:manage',
               'members:signInTracking',
               'invitations:manage',
-              'viewAs:use',
+              'masquerade:use',
               'resources:anonymise',
               'ownership:transfer',
               'company:import',
@@ -300,25 +300,25 @@ test.group('company initialize command', () => {
         const { data } = (await state.json()) as {
           data: {
             clients: { builtin: boolean }[];
-            accounts: { weekStartsOn: number; workingDays: number[] }[];
+            companies: { weekStartsOn: number; workingDays: number[] }[];
           };
         };
-        assert.deepEqual(data.accounts[0]!.workingDays, [1, 2, 3, 4, 5]);
-        assert.equal(data.accounts[0]!.weekStartsOn, 1);
+        assert.deepEqual(data.companies[0]!.workingDays, [1, 2, 3, 4, 5]);
+        assert.equal(data.companies[0]!.weekStartsOn, 1);
         assert.lengthOf(data.clients, 1);
         assert.equal(data.clients[0]!.builtin, true);
         const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } });
         const modeBody = await modeResponse.text();
         assert.equal(modeResponse.status, 200, modeBody);
-        const { data: mode } = JSON.parse(modeBody) as { data: { contextToken?: unknown } };
-        assert.isString(mode.contextToken);
+        const { data: mode } = JSON.parse(modeBody) as { data: { masqueradeToken?: unknown } };
+        assert.isString(mode.masqueradeToken);
         const { seed } = await import('@capacitylens/shared/data/seed');
         const { allocation } = await writeSmokeSchedule(
           origin,
           cookie,
           companyId,
           seed(),
-          mode.contextToken as string
+          mode.masqueradeToken as string
         );
         const persisted = f.inspect();
         assert.equal(

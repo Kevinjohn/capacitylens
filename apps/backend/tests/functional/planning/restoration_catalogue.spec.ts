@@ -59,7 +59,10 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const detachedResource = await db.from('resources').where('id', resource.id).first();
     assert.equal(detachedResource.updated_at, hiddenResource.updated_at);
     assert.equal(detachedResource.deleted_at, childDeletedAt);
-    await db.from('resources').where('id', resource.id).update({ role: 'Updated Gotham role' });
+    await db
+      .from('resources')
+      .where('id', resource.id)
+      .update({ job_title: 'Updated Gotham role' });
     const restored = await restore(
       client,
       cookie,
@@ -70,7 +73,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
     const after = await readState(companyId, true);
     assert.equal(after.resources.find((row) => row.id === resource.id)?.disciplineId, disciplineId);
     assert.equal(
-      after.resources.find((row) => row.id === resource.id)?.role,
+      after.resources.find((row) => row.id === resource.id)?.jobTitle,
       'Updated Gotham role'
     );
     const relinkedResource = await db.from('resources').where('id', resource.id).first();

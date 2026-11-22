@@ -16,7 +16,7 @@ const editor = { email: 'dick.grayson@wayne.example', password: 'nightwing-secre
 
 const deleteAccount = (client: ApiClient, cookie: string, currentPassword: string) =>
   asDataOwner(client.visit('api.account.destroy'), cookie).json({ currentPassword }).send();
-const accounts = (client: ApiClient, cookie: string) =>
+const companies = (client: ApiClient, cookie: string) =>
   asDataOwner(client.visit('api.companies.index'), cookie).send();
 
 async function company() {
@@ -105,7 +105,7 @@ test.group('account deletion', (group) => {
     assert.lengthOf(after.links, 0);
     assert.lengthOf(after.admissions, 0);
     assert.lengthOf(after.sessions, 0);
-    await expectStatus(accounts(client, cookie), 401);
+    await expectStatus(companies(client, cookie), 401);
     const audit = await db
       .from('audit_entries')
       .where({ company_id: companyId, action: 'identity.deleted', actor_id: userId });
@@ -136,7 +136,7 @@ test.group('account deletion', (group) => {
     assert.lengthOf(after.users, 1);
     assert.lengthOf(after.memberships, 1);
     assert.lengthOf(after.admissions, 1);
-    await expectStatus(accounts(client, cookie), 200);
+    await expectStatus(companies(client, cookie), 200);
   });
 
   test('a wrong password or malformed body changes nothing', async ({ client, assert }) => {
@@ -157,7 +157,7 @@ test.group('account deletion', (group) => {
     assert.lengthOf(after.users, 1);
     assert.lengthOf(after.memberships, 1);
     assert.lengthOf(after.links, 1);
-    await expectStatus(accounts(client, cookie), 200);
+    await expectStatus(companies(client, cookie), 200);
   });
 
   test('a signed-out request is refused', async ({ client }) => {

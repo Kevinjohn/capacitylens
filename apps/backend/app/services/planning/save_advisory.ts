@@ -40,7 +40,7 @@ export function buildSaveAdvisory(
     .filter((row): row is Allocation => row !== undefined);
   if (written.length === 0) return {};
   const [first] = written;
-  const company = after.accounts.find((row) => row.id === companyId);
+  const company = after.companies.find((row) => row.id === companyId);
   const resource = after.resources.find((row) => row.id === first.resourceId);
   if (!company || !resource) return {};
   const blocksMode = !hasHourlyLoad(company.schedulingMode ?? 'hourly');

@@ -86,7 +86,7 @@ describe('MembersSection — mutation failure reconciliation', () => {
     await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(nextCompanyId));
     expect(useStore.getState().notice).toBeNull();
   });
-  it('does not publish an unknown reconcile whose member reread switches accounts', async () => {
+  it('does not publish an unknown reconcile whose member reread switches companies', async () => {
     const nextCompanyId = 'acc_second';
     let mutationSent = false;
     vi.stubGlobal(

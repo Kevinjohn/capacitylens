@@ -60,17 +60,17 @@ test.group('disposable development demo', (group) => {
     assert.lengthOf(await db.from('companies'), 0);
     assert.lengthOf(await db.from('memberships'), 0);
     await seedDisposableDemo(app);
-    const accounts = await db.from('companies');
+    const companies = await db.from('companies');
     assert.deepEqual(
-      accounts.map((row) => row.id),
+      companies.map((row) => row.id),
       ['a-studio']
     );
     const graph = await readState('a-studio', true);
     assert.deepEqual(
-      graph.accounts,
-      seedForCurrentWeek().accounts.filter((row) => row.id === 'a-studio')
+      graph.companies,
+      seedForCurrentWeek().companies.filter((row) => row.id === 'a-studio')
     );
-    assert.deepEqual(graph.accounts[0]!.workingDays, [1, 2, 3, 4, 5]);
+    assert.deepEqual(graph.companies[0]!.workingDays, [1, 2, 3, 4, 5]);
     const membership = await db.from('memberships').firstOrFail();
     assert.equal(membership.scope_id, 'a-studio');
     assert.equal(membership.user_id, owner.id);
@@ -125,7 +125,7 @@ test.group('disposable development demo', (group) => {
     assert.equal(membership.user_id, owner);
   });
 
-  test('authority failure rolls back demo rows, membership and revision together', async ({
+  test('access failure rolls back demo rows, membership and revision together', async ({
     assert,
   }) => {
     await createIdentity(email, { password });

@@ -66,7 +66,7 @@ function dataset(): AppData {
         companyId: ACC,
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Partner studio',
+        jobTitle: 'Partner studio',
         color: '#999',
       }),
     ],
@@ -94,7 +94,7 @@ describe('SchedulerGrid', () => {
       'aria-colindex',
       '1',
     );
-    expect(screen.queryByTestId('overall-utilization')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('overall-utilisation')).not.toBeInTheDocument();
   });
 
   it('positions a bar by start date with inclusive width', () => {
@@ -231,8 +231,8 @@ describe('SchedulerGrid', () => {
     const row = screen.getByTestId('scheduler-row');
     expect(within(row).getByTestId('over-marker')).toBeInTheDocument();
     expect(within(row).getByText(/Over capacity on 1 day\./)).toBeInTheDocument();
-    expect(within(row).getByTestId('utilization')).toHaveTextContent('0%');
-    expect(screen.getByTestId('overall-utilization')).toHaveTextContent('0%');
+    expect(within(row).getByTestId('utilisation')).toHaveTextContent('0%');
+    expect(screen.getByTestId('overall-utilisation')).toHaveTextContent('0%');
   });
 
   it('renders each closure once across tracked rows, alongside personal time off, and stops before External', async () => {
@@ -411,7 +411,7 @@ describe('SchedulerGrid visible-window utilisation', () => {
     return renderGrid();
   };
   const overallPct = () =>
-    Number.parseInt(screen.getByTestId('overall-utilization').textContent, 10);
+    Number.parseInt(screen.getByTestId('overall-utilisation').textContent, 10);
 
   it("the week-range toggle redraws the overall % from the server's figures for the visible span", async () => {
     const v1 = await renderAtZoom(1);

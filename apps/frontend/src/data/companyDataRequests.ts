@@ -8,14 +8,14 @@ import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import type { ScopedEntityKey } from '@capacitylens/shared/types/entities';
 
 /** What the server reports about a transfer document it would import into one company. */
-export interface TransferPreview {
+export interface ImportPreviewSummary {
   baseRevision: number;
   companyName: string;
   counts: Record<ScopedEntityKey, number>;
 }
 
 /** The confirmed import of one transfer document into one company. */
-export interface ApplyTransferInput {
+export interface ApplyImportInput {
   companyId: string;
   document: unknown;
   baseRevision: number;
@@ -60,8 +60,8 @@ export const companyDataRequests = {
    * @throws An `Error` whose message is safe to show when the server refuses the document or
    *   answers off-spec.
    */
-  async readTransferPreview(companyId: string, document: unknown): Promise<TransferPreview> {
-    const response = await fetchApi('/api/transfer/preview', {
+  async readImportPreview(companyId: string, document: unknown): Promise<ImportPreviewSummary> {
+    const response = await fetchApi('/api/import/preview', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -95,14 +95,14 @@ export const companyDataRequests = {
   },
 
   /** Sends a confirmed whole-company import. */
-  applyTransfer({
+  applyImport({
     companyId,
     document,
     baseRevision,
     confirmationId,
-  }: ApplyTransferInput): Promise<Response> {
+  }: ApplyImportInput): Promise<Response> {
     return fetchApi(
-      '/api/transfer/apply',
+      '/api/import/apply',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -29,7 +29,7 @@ export default class StateTransformer extends BaseTransformer<AppData> {
     const named = <K extends 'clients' | 'projects'>(table: K) =>
       scoped(table).map((row) => ({ ...row, displayName: resolveDisplayName(row) })) as AppData[K];
     return {
-      accounts: companyId ? data.accounts.filter((row) => row.id === companyId) : data.accounts,
+      companies: companyId ? data.companies.filter((row) => row.id === companyId) : data.companies,
       clients: named('clients'),
       disciplines: scoped('disciplines'),
       projects: named('projects'),

@@ -33,7 +33,7 @@ describe('planning intent builders', () => {
     const data = makeAppData({
       resources: [makeResource({ id: 'resource-1', companyId })],
       activities: [
-        makeActivity({ id: 'activity-1', companyId, kind: 'repeatable', projectId: null }),
+        makeActivity({ id: 'activity-1', companyId, kind: 'allProjects', projectId: null }),
       ],
     });
 
@@ -273,7 +273,7 @@ describe('planning intent builders', () => {
 
   it('normalizes create drafts and reports created IDs for resources and time off', () => {
     const data = makeAppData({
-      accounts: [makeCompany({ id: companyId })],
+      companies: [makeCompany({ id: companyId })],
       resources: [makeResource({ id: 'resource-1', companyId })],
     });
     const resource = buildResourceCreate({
@@ -284,7 +284,7 @@ describe('planning intent builders', () => {
         fields: {
           kind: 'placeholder',
           name: null,
-          role: 'Designer',
+          jobTitle: 'Designer',
           employmentType: 'permanent',
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
@@ -368,21 +368,25 @@ describe('planning intent builders', () => {
       },
     });
 
-    const resource = makeResource({ id: 'resource-1', companyId, role: 'Designer' });
+    const resource = makeResource({ id: 'resource-1', companyId, jobTitle: 'Designer' });
     expect(
       buildResourceUpdate({
         data: makeAppData({ resources: [resource] }),
         companyId,
         original: resource,
-        args: { id: resource.id, changes: { role: 'Lead designer' } },
+        args: { id: resource.id, changes: { jobTitle: 'Lead designer' } },
       }),
     ).toEqual({
-      intent: { operation: 'resource.update', id: resource.id, changes: { role: 'Lead designer' } },
+      intent: {
+        operation: 'resource.update',
+        id: resource.id,
+        changes: { jobTitle: 'Lead designer' },
+      },
     });
   });
 
   it('preserves supplied activity fields for authoritative validation and creates closures by id', () => {
-    const data = makeAppData({ accounts: [makeCompany({ id: companyId })] });
+    const data = makeAppData({ companies: [makeCompany({ id: companyId })] });
     expect(
       buildCatalogueCreate({
         data,
@@ -439,7 +443,7 @@ describe('planning intent builders', () => {
 
     const company = makeCompany({ id: companyId, name: 'Before' });
     const settings = buildSettingsUpdate({
-      data: makeAppData({ accounts: [company] }),
+      data: makeAppData({ companies: [company] }),
       companyId,
       original: company,
       args: { name: 'After' },
@@ -451,7 +455,7 @@ describe('planning intent builders', () => {
     const nullableSetting = makeCompany({ id: companyId, timezone: 'Etc/GMT' });
     expect(
       buildSettingsUpdate({
-        data: makeAppData({ accounts: [nullableSetting] }),
+        data: makeAppData({ companies: [nullableSetting] }),
         companyId,
         original: nullableSetting,
         args: { timezone: undefined },

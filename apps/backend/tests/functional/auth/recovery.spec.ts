@@ -119,7 +119,7 @@ test.group('password recovery', (group) => {
       cookie
     )
       .headers({
-        'x-account-command-id': 'recovery-role-command-0001',
+        'x-account-operation-id': 'recovery-role-command-0001',
         'idempotency-key': 'recovery-role-idempotency-0001',
       })
       .json({ role: 'viewer' })
