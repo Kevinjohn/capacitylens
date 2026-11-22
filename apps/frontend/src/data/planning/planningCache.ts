@@ -50,7 +50,7 @@ function keptLastWrite(phase: PlanningPhase): PlanningWriteResult | null {
 
 const initialMetadata = (context: PlanningSessionScope | null = null): PlanningCacheMetadata => ({
   context,
-  authority: null,
+  access: null,
   revision: null,
   today: null,
   capacity: null,
@@ -173,10 +173,10 @@ export function createPlanningCache(options: PlanningCacheOptions) {
       throw new PlanningCacheError('The canonical planning read was invalid.');
     }
     const accessChanged =
-      current.planning.authority !== null &&
-      buildAccessKey(snapshot.authority) !== buildAccessKey(current.planning.authority);
+      current.planning.access !== null &&
+      buildAccessKey(snapshot.access) !== buildAccessKey(current.planning.access);
     if (
-      snapshot.slice === 'unchanged' &&
+      snapshot.content === 'unchanged' &&
       (accessChanged || snapshot.revision !== current.planning.revision)
     ) {
       return null;
@@ -190,10 +190,10 @@ export function createPlanningCache(options: PlanningCacheOptions) {
       historyId = createHistoryId();
       abortAll();
       store.setState(() => ({
-        data: older || snapshot.slice === 'unchanged' ? createEmptyAppData() : snapshot.data,
+        data: older || snapshot.content === 'unchanged' ? createEmptyAppData() : snapshot.data,
         planning: {
           ...initialMetadata(context),
-          authority: older ? null : snapshot.authority,
+          access: older ? null : snapshot.access,
           revision: older ? null : snapshot.revision,
           today: older ? null : snapshot.today,
           capacity: older ? null : snapshot.capacity,
@@ -235,10 +235,10 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     };
     store.setState((state) => ({
       // An unchanged read keeps the cached rows and their identities.
-      ...(snapshot.slice === 'unchanged' ? {} : { data: snapshot.data }),
+      ...(snapshot.content === 'unchanged' ? {} : { data: snapshot.data }),
       planning: {
         ...state.planning,
-        authority: snapshot.authority,
+        access: snapshot.access,
         revision: snapshot.revision,
         today: snapshot.today,
         capacity: snapshot.capacity,
@@ -254,7 +254,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
    * a move of the capacity window, leaves a ready phase alone so writes stay allowed meanwhile. Any
    * other read shows as loading, except while a write is pending, when the phase stays writing.
    * A newer read aborts this one, and this one then resolves with the newer read's outcome.
-   * A read names the revision the cache holds, unless `full` asks for the complete slice.
+   * A read names the revision the cache holds, unless `full` asks for the complete data.
    */
   function refresh(readOptions: { quiet?: boolean; full?: boolean } = {}): Promise<boolean> {
     const read = readSnapshot(readOptions);
@@ -299,7 +299,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
       });
       if (!isCurrent(capturedGeneration, context)) return false;
       if (sequence !== readSequence) return await (latestRead ?? false);
-      // Rows the cache cannot stand on are never guessed at: read the complete slice once.
+      // Rows the cache cannot stand on are never guessed at: read the complete data once.
       return acceptRead(snapshot) ?? (await refresh({ quiet, full: true }));
     } catch (error) {
       if (!isCurrent(capturedGeneration, context)) return false;
@@ -332,7 +332,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     const state = store.getState();
     const context = state.planning.context;
     const baseRevision = state.planning.revision;
-    if (!canWritePlanning(state.planning.authority)) {
+    if (!canWritePlanning(state.planning.access)) {
       throw new PlanningCacheError('This planning view is read-only.', 'AUTHORIZATION_DENIED', 403);
     }
     if (!context || baseRevision === null || !isPlanningReadyForChange(state.planning)) {
@@ -367,7 +367,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     if (!isCurrent(draft.generation, draft.context) || state.planning.revision === null) {
       throw new PlanningCacheError('Planning context changed before the change could be sent.');
     }
-    if (!canWritePlanning(state.planning.authority)) {
+    if (!canWritePlanning(state.planning.access)) {
       throw new PlanningCacheError('This planning view is read-only.', 'AUTHORIZATION_DENIED', 403);
     }
     if (state.planning.phase.kind === 'writing') {
@@ -485,7 +485,7 @@ export function createPlanningCache(options: PlanningCacheOptions) {
     }
     acknowledge(owner, receipt.revision);
     // The receipt's rows apply only on top of the revision it was written against; otherwise the
-    // read below differs in revision and returns the full slice.
+    // read below differs in revision and returns the full data.
     if (
       isCurrent(draft.generation, draft.context) &&
       store.getState().planning.revision === receipt.revision - 1

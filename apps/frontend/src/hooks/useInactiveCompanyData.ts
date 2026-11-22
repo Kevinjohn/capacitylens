@@ -27,7 +27,7 @@ export function useInactiveCompanyData(): {
   const masquerade = useStore((state) => state.masquerade);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const setNotice = useStore((state) => state.setNotice);
-  const accessKey = buildAccessKey(planning.authority);
+  const accessKey = buildAccessKey(planning.access);
   const [serverData, setServerData] = useState<{
     companyId: string;
     reloadKey: number;

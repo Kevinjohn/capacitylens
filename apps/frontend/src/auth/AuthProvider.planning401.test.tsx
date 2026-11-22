@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 
 vi.mock('./masqueradeApi', () => ({
-  masqueradeApi: { status: vi.fn(async () => ({ active: false, contextToken: 'idle' })) },
+  masqueradeApi: { status: vi.fn(async () => ({ active: false, masqueradeToken: 'idle' })) },
 }));
 vi.mock('@/data/planning/storePlanningTransport', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/planning/storePlanningTransport')>();

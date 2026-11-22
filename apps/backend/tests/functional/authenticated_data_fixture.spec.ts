@@ -32,10 +32,10 @@ test.group('authenticated data fixture', (group) => {
     proxied.assertStatus(200);
     const context = await owner.visit('api.masquerade.show').send();
     context.assertStatus(200);
-    const contextToken = (context.body()!.data as unknown as { contextToken?: unknown })
-      .contextToken;
-    assert.isString(contextToken);
-    assert.isAbove((contextToken as string).length, 0);
+    const masqueradeToken = (context.body()!.data as unknown as { masqueradeToken?: unknown })
+      .masqueradeToken;
+    assert.isString(masqueradeToken);
+    assert.isAbove((masqueradeToken as string).length, 0);
     const write = await owner
       .visit('api.getting_started.update', { companyId: 'a-studio' })
       .json({ dismissed: true })
