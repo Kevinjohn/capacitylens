@@ -4,7 +4,7 @@
 import { m } from '@/paraglide/messages.js';
 import { baseLocale, getLocale, isLocale, setLocale } from '@/paraglide/runtime.js';
 import type { Locale } from '@/paraglide/runtime.js';
-import { enGB } from 'date-fns/locale';
+import { enGB } from 'date-fns/locale/en-GB';
 import type { Locale as DateFnsLocale } from 'date-fns';
 
 /** Compiled, type-checked message functions exposed through the application i18n seam. */

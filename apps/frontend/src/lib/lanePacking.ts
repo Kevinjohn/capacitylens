@@ -1,4 +1,5 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { differenceInCalendarDays } from 'date-fns/differenceInCalendarDays';
+import { parseISO } from 'date-fns/parseISO';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import type { ID, ISODate } from '@capacitylens/shared/types/entities';
 

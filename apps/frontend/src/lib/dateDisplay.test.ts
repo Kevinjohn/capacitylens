@@ -1,4 +1,5 @@
-import { enGB, fr } from 'date-fns/locale';
+import { enGB } from 'date-fns/locale/en-GB';
+import { fr } from 'date-fns/locale/fr';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   formatDayCount,

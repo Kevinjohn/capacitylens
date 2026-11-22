@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format } from 'date-fns/format';
 import { isValidISODate } from '@capacitylens/shared/lib/isoDates';
 import { parseDate } from '@capacitylens/shared/lib/dateMath';
 import type { ISODate, TimeOff } from '@capacitylens/shared/types/entities';
