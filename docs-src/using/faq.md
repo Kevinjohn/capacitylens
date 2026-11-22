@@ -53,17 +53,17 @@ Your company can switch [Disciplines](/using/disciplines) off.
 ## Can I use CapacityLens without a connection?
 
 The company schedule needs a server connection. If a read or save fails, reconnect and use the
-retry or recovery control offered. Changes are never queued for later. The disposable demo uses the same server path; restarting its command resets the sample data. [Connection errors](/using/settings#connection-errors)
+retry or recovery control offered. Changes are never queued for later. The disposable demo uses the same server path; restarting its command resets the demo data. [Connection errors](/using/settings#connection-errors)
 
 ## Where do clients, projects and activities come from?
 
 An Admin or Owner normally sets them up. [Clients](/using/projects#clients) ·
 [Projects](/using/projects) · [Activities](/using/activities)
 
-## Is this a timesheet or a leave request?
+## Is this a timesheet or a time-off request?
 
-No. CapacityLens records planned work and absence. Ask your agency how it handles time reporting
-and leave approval.
+No. CapacityLens records planned work and time off. Ask your agency how it handles time reporting
+and time-off approval.
 
 <span id="my-invitation-doesnt-work"></span>
 

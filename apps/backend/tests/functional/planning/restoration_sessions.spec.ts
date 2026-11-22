@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import {
@@ -10,7 +10,7 @@ import {
   session,
   signIn,
   signInAgain,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 import {
   deleteOne,
   restore,
@@ -21,7 +21,7 @@ import {
   planningAudit,
   group,
   consumedAt,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 test.group('session-bound allocation restoration', (suite) => {
   suite.setup(() => freshDatabase());
@@ -39,7 +39,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const [id] = await createAllocations(client, owner.cookie, 1);
     const deleted = await deleteOne(client, owner.cookie, id!, 1);
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     const editor = await signIn(client, 'editor');
     const otherSession = await signInAgain(client, owner.email);
     const now = new Date().toISOString();
@@ -87,9 +87,9 @@ test.group('session-bound allocation restoration', (suite) => {
     const [id] = await createAllocations(client, owner.cookie, 1);
     const deleted = await deleteOne(client, owner.cookie, id!, 1);
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
     assert.exists(await group(groupId));
-    const signedOut = await session(client.post('/api/auth/sign-out'), owner.cookie).send();
+    const signedOut = await session(client.visit('api.session.destroy'), owner.cookie).send();
     signedOut.assertStatus(200);
     assert.notExists(await group(groupId));
     assert.lengthOf(await db.from('deleted_rows').where('group_id', groupId), 0);
@@ -116,7 +116,7 @@ test.group('session-bound allocation restoration', (suite) => {
     const deleteId = randomUUID();
     const deleted = await deleteOne(client, owner.cookie, id!, 1, deleteId);
     deleted.assertStatus(200);
-    const groupId = deleted.body().restoration.replacementGroupId;
+    const groupId = deleted.body().data.restoration.replacementGroupId;
 
     const lateDelete = await deleteOne(client, owner.cookie, id!, 1, deleteId);
     lateDelete.assertStatus(409);

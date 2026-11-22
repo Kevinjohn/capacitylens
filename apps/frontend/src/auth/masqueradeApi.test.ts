@@ -15,14 +15,14 @@ vi.mock('./masqueradeRequests', () => ({
 }));
 
 import { masqueradeApi } from './masqueradeApi';
-import { viewAsGrantFor } from '@/test/permissionGrants';
+import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 const state = {
   companyId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',
-  ...viewAsGrantFor('viewer'),
+  ...masqueradeGrantFor('viewer'),
   startedAt: '2026-09-01T10:00:00.000Z',
   expiresAt: '2026-09-01T10:15:00.000Z',
   token: 'token-1',
@@ -30,12 +30,13 @@ const state = {
 const activeStatus = {
   active: true,
   ...state,
-  contextToken: state.token,
-  principal: { id: 'u-actor', email: 'actor@example.test' },
+  masqueradeToken: state.token,
+  actor: { id: 'u-actor', email: 'actor@example.test' },
 };
 
+// A 2xx answer arrives inside the `{ data }` envelope; a refusal is flat.
 function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify(status < 300 ? { data: body } : body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
@@ -48,7 +49,7 @@ beforeEach(() => {
 });
 
 describe('masqueradeApi', () => {
-  it('decodes status transported by the account client', async () => {
+  it('decodes status transported by the account api', async () => {
     mocks.status.mockResolvedValue(json(activeStatus));
 
     await expect(masqueradeApi.status('a-studio')).resolves.toEqual(activeStatus);
@@ -75,7 +76,7 @@ describe('masqueradeApi', () => {
     mocks.status.mockResolvedValue(new Response(null, { status: 503 }));
 
     await expect(masqueradeApi.status()).rejects.toThrow(
-      'Masquerade status could not be read (503).',
+      'View as member status could not be read (503).',
     );
   });
 
@@ -114,7 +115,7 @@ describe('masqueradeApi', () => {
       json({
         active: true,
         ...malformedState,
-        principal: activeStatus.principal,
+        actor: activeStatus.actor,
       }),
     );
 
@@ -142,14 +143,14 @@ describe('masqueradeApi', () => {
   });
 
   it('requires a current idle context token from inactive status', async () => {
-    mocks.status.mockResolvedValue(json({ active: false, contextToken: 'idle-context' }));
+    mocks.status.mockResolvedValue(json({ active: false, masqueradeToken: 'idle-context' }));
     await expect(masqueradeApi.status()).resolves.toEqual({
       active: false,
-      contextToken: 'idle-context',
+      masqueradeToken: 'idle-context',
     });
 
-    mocks.status.mockResolvedValue(json({ active: false, contextToken: null }));
-    await expect(masqueradeApi.status()).resolves.toEqual({ active: false, contextToken: null });
+    mocks.status.mockResolvedValue(json({ active: false, masqueradeToken: null }));
+    await expect(masqueradeApi.status()).resolves.toEqual({ active: false, masqueradeToken: null });
 
     mocks.status.mockResolvedValue(json({ active: false }));
     await expect(masqueradeApi.status()).rejects.toThrow(
@@ -158,17 +159,17 @@ describe('masqueradeApi', () => {
   });
 
   it.each([undefined, null, { id: 'u-actor' }, { id: '', email: 'actor@example.test' }])(
-    'rejects an active status whose principal is %j',
-    async (principal) => {
-      mocks.status.mockResolvedValue(json({ ...activeStatus, principal }));
+    'rejects an active status whose actor is %j',
+    async (actor) => {
+      mocks.status.mockResolvedValue(json({ ...activeStatus, actor }));
       await expect(masqueradeApi.status()).rejects.toThrow(
-        'The server returned an invalid masquerade principal.',
+        'The server returned an invalid masquerade actor.',
       );
     },
   );
 
   it('rejects a status whose active context proof differs from the active mode token', async () => {
-    mocks.status.mockResolvedValue(json({ ...activeStatus, contextToken: 'stale-context' }));
+    mocks.status.mockResolvedValue(json({ ...activeStatus, masqueradeToken: 'stale-context' }));
     await expect(masqueradeApi.status()).rejects.toThrow(
       'The server returned an invalid masquerade status.',
     );

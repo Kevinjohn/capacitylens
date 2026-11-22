@@ -1,6 +1,7 @@
 import { isIsoInstant } from '@capacitylens/shared/account/types';
-import { commandOutcomeDecisions, readUnknownAccountCommandOutcome } from './commandOutcome';
+import { operationOutcomeDecisions, readUnknownAccountOperationOutcome } from './operationOutcome';
 import { extractApiErrorMessage, readApiError } from '@/lib/readApiError';
+import { readApiData } from '@/api/readApiData';
 
 /**
  * The shared shape of every account-administration answer, and the Response handling that produces
@@ -16,7 +17,7 @@ export type TeamAccessResult<T> =
   | { kind: 'invalid'; status: number; message: string };
 
 /** Uses the server message only for a decoded rejection; ambiguous or undecodable outcomes use the operation fallback. An empty rejection message also falls back. */
-export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
+export function resolveRefusalMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
   return result.kind === 'rejected' && result.message ? result.message : fallback;
 }
 
@@ -31,7 +32,7 @@ async function parseOkBody<T>(
   response: Response,
   decode: (body: unknown) => T | null,
 ): Promise<TeamAccessResult<T>> {
-  const body: unknown = await response.json().catch(() => null);
+  const body: unknown = await readApiData(response).catch(() => null);
   const value = decode(body);
   return value === null
     ? {
@@ -42,8 +43,8 @@ async function parseOkBody<T>(
     : { kind: 'ok', status: response.status, value };
 }
 
-/** Decodes a command response and distinguishes rejection from an unknown outcome. */
-export async function readCommandResult<T>(
+/** Decodes a operation response and distinguishes rejection from an unknown outcome. */
+export async function readOperationResult<T>(
   response: Response,
   decode: (body: unknown) => T | null,
   expectedStatus?: number,
@@ -53,15 +54,15 @@ export async function readCommandResult<T>(
     const body: unknown = await response.json().catch(() => null);
     const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
     const unknown =
-      commandOutcomeDecisions.get(response) ??
-      (await readUnknownAccountCommandOutcome(response, body));
+      operationOutcomeDecisions.get(response) ??
+      (await readUnknownAccountOperationOutcome(response, body));
     return unknown
       ? { kind: 'unknown', status: response.status, message }
       : { kind: 'rejected', status: response.status, message };
   }
   if (expectedStatus !== undefined && response.status !== expectedStatus) {
     console.warn(
-      `teamAccessClient: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
+      `teamAccessApi: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
     );
   }
   return parseOkBody(response, decode);

@@ -15,8 +15,8 @@ Restart the single backend process after changing its environment.
 | --- | --- |
 | `NODE_ENV` | Set to `production` for a deployed service. |
 | `HOST`, `PORT` | Listener address and port. The supplied release example binds loopback on port 8787. |
-| `APP_URL` | Adonis framework URL; also the public-origin fallback when `CAPACITYLENS_PUBLIC_URL` is unset. |
-| `APP_KEY` | Adonis encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
+| `APP_URL` | AdonisJS framework URL; also the public-origin fallback when `CAPACITYLENS_PUBLIC_URL` is unset. |
+| `APP_KEY` | AdonisJS encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
 | `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
 | `CAPACITYLENS_PUBLIC_URL` | Optional public-origin override shared by emailed links, cookies and transport security. Bare HTTP(S) origin only: no credentials, path, query or fragment. Production requires HTTPS; development/test allow HTTP only on `localhost`, `127.0.0.1` or `[::1]`. |
 
@@ -40,7 +40,7 @@ Set `CAPACITYLENS_ALLOWED_EMAIL_DOMAINS` to a comma-separated list, for example
 `example.com,example.org`, to also require one of those address domains. Unset, any invited address
 may join.
 
-Keep `CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset unless you intentionally allow open registration. An
+Keep `CAPACITYLENS_ALLOW_OPEN_SIGN_UP` unset unless you intentionally allow open registration. An
 openly registered identity still needs an Owner or Admin approval before it sees company data.
 
 SQL audit records remain active for every installation; no setting disables them.
@@ -55,7 +55,7 @@ invitation is refused.
 
 ## Backups
 
-`CAPACITYLENS_BACKUP_DIR` enables an online SQLite snapshot at web-service startup and every 24
+`CAPACITYLENS_BACKUP_DIR` enables an online SQLite backup at web-service startup and every 24
 hours while it runs. Use a private local directory that does not contain the live database, writable only by the service user. Network filesystems and `file:` database URIs are unsupported. Leave it
 unset only when you have an explicitly managed backup process. The old
 `CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used.

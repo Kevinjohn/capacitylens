@@ -14,7 +14,7 @@ it('adapts real generated-client 400 failures without a phantom validation statu
       ),
   );
   const [, error] = await client
-    .request('api.auth.sign-in', { body: { email: 'invalid', password: 'secret' } })
+    .request('api.session.store', { body: { email: 'invalid', password: 'secret' } })
     .safe();
   const failure = readProductHttpFailure(error, 'Fallback');
   expect(failure).toEqual({
@@ -33,7 +33,7 @@ it('keeps native transport and generated network failures distinct from HTTP', a
   const cause = new TypeError('Network unavailable');
   vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(cause));
   const [, error] = await client
-    .request('api.auth.sign-in', { body: { email: 'bruce@wayne.example', password: 'secret' } })
+    .request('api.session.store', { body: { email: 'bruce@wayne.example', password: 'secret' } })
     .safe();
   expect(error?.kind).toBe('network');
   expect(readProductHttpFailure(error, 'Fallback')).toBeNull();

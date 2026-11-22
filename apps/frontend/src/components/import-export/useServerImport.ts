@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { companyDataRequests, readImportSummary } from '@/data/companyDataRequests';
-import type { ApplyTransferInput, ImportSummary } from '@/data/companyDataRequests';
+import type { ApplyImportInput, ImportSummary } from '@/data/companyDataRequests';
 import { runSuspendedReplacement } from '@/store/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useStore } from '@/store/useStore';
@@ -19,7 +19,7 @@ const reportCommittedImport = (
 ): void => {
   const { imported, skipped } = summary;
   if (imported === null) {
-    console.warn('import: 200 response with an off-spec body; the slice was replaced server-side');
+    console.warn('import: 200 response with an off-spec body; the set was replaced server-side');
   } else if (summary.unchanged) {
     setNotice(m.data_import_done());
     return;
@@ -43,11 +43,11 @@ const reportCommittedImport = (
   );
 };
 
-const runServerImport = async (input: ApplyTransferInput, report: ImportReport): Promise<void> => {
+const runServerImport = async (input: ApplyImportInput, report: ImportReport): Promise<void> => {
   const { setNotice, markReloadRequired } = report;
   const noticeBefore = useStore.getState().notice;
   const outcome = await runSuspendedReplacement({
-    send: () => companyDataRequests.applyTransfer(input),
+    send: () => companyDataRequests.applyImport(input),
     recovery: 'refresh',
     isChanged: async (response) => {
       const summary = await readImportSummary(response.clone());

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
-import { resolveRejectionMessage, teamAccessClient } from '@/account/teamAccessClient';
-import type { TeamMember } from '@/account/teamAccessClient';
+import { resolveRefusalMessage, teamAccessApi } from '@/account/teamAccessApi';
+import type { TeamMember } from '@/account/teamAccessApi';
 
 interface MemberResourceLinkRequestsInput {
   companyId: string | null;
@@ -27,15 +27,15 @@ function resolveResourceStatus({
 
 function requestResourceLinkChange(member: TeamMember, companyId: string, resourceId: string) {
   if (resourceId !== '') {
-    return teamAccessClient.setMemberResourceLink({
+    return teamAccessApi.setMemberResourceLink({
       companyId,
-      principalId: member.userId,
+      userId: member.userId,
       resourceId,
       expectedRevision: member.resourceLink?.revision ?? null,
     });
   }
   if (member.resourceLink) {
-    return teamAccessClient.clearMemberResourceLink(
+    return teamAccessApi.clearMemberResourceLink(
       companyId,
       member.userId,
       member.resourceLink.revision,
@@ -72,7 +72,7 @@ export interface MemberResourceLinkRequest {
  * Resource-link requests for every member of the section, keyed by member id so a request outlives
  * its row and dialog: closing the dialog, collapsing the inactive group or a failed directory read
  * all unmount them. A request owns effects only while it is that member's newest in the same
- * company, so late replies cannot overwrite a newer choice or cross tenants. A finished change
+ * company, so late replies cannot overwrite a newer choice or cross companies. A finished change
  * stays pending until a directory read requested after it is accepted, so the next change sends a
  * fresh revision. `statusMessage` announces success only once the reloaded member shows the link.
  */
@@ -114,7 +114,7 @@ export function useMemberResourceLinkRequests({
           update(userId, { error: m.settings_member_resource_unknown() });
         } else if (result.kind === 'rejected') {
           update(userId, {
-            error: resolveRejectionMessage(result, m.settings_member_resource_error()),
+            error: resolveRefusalMessage(result, m.settings_member_resource_error()),
           });
         } else update(userId, { expectedResourceId: resourceId === '' ? null : resourceId });
       })

@@ -1,5 +1,6 @@
 import env from '#start/env';
 import { defineConfig, transports } from '@adonisjs/mail';
+import type { InferMailers } from '@adonisjs/mail/types';
 
 const host = env.get('CAPACITYLENS_MAIL_HOST')?.trim();
 const from = env.get('CAPACITYLENS_MAIL_FROM')?.trim();
@@ -23,7 +24,7 @@ if (
 }
 
 // The Postmark transport is unsupported because it is incompatible with Nodemailer 10.
-export default defineConfig({
+const mailConfig = defineConfig({
   default: 'smtp',
   from: from ?? 'noreply@capacitylens.local',
   mailers: {
@@ -40,3 +41,9 @@ export default defineConfig({
     }),
   },
 });
+
+export default mailConfig;
+
+declare module '@adonisjs/mail/types' {
+  export interface MailersList extends InferMailers<typeof mailConfig> {}
+}

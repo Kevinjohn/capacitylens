@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  controllerLoaded: vi.fn(),
+  modelLoaded: vi.fn(),
   transitionCompany: vi.fn(),
   start: vi.fn(),
   adoptStatus: vi.fn(),
@@ -24,9 +24,9 @@ vi.mock('./masqueradeApi', () => ({
   masqueradeApi: { status: mocks.status },
 }));
 
-vi.mock('./masqueradeControllerInstance', () => ({
-  masqueradeController:
-    (mocks.controllerLoaded(),
+vi.mock('./masqueradeModelInstance', () => ({
+  masqueradeModel:
+    (mocks.modelLoaded(),
     {
       transitionCompany: mocks.transitionCompany,
       start: mocks.start,
@@ -40,7 +40,7 @@ vi.mock('./masqueradeControllerInstance', () => ({
 describe('account transition boundary', () => {
   beforeEach(() => {
     vi.resetModules();
-    mocks.controllerLoaded.mockReset();
+    mocks.modelLoaded.mockReset();
     mocks.transitionCompany.mockReset();
     mocks.start.mockReset();
     mocks.adoptStatus.mockReset();
@@ -51,14 +51,14 @@ describe('account transition boundary', () => {
     mocks.activeCompanyId = 'a-studio';
   });
 
-  it('rechecks refresh ownership after the controller finishes loading', async () => {
-    const isCurrent = vi.fn(() => mocks.controllerLoaded.mock.calls.length === 0);
+  it('rechecks refresh ownership after the model finishes loading', async () => {
+    const isCurrent = vi.fn(() => mocks.modelLoaded.mock.calls.length === 0);
     const boundary = await import('./companyTransition');
 
     await expect(
-      boundary.adoptMasqueradeStatus({ active: false, contextToken: 'idle-context' }, isCurrent),
+      boundary.adoptMasqueradeStatus({ active: false, masqueradeToken: 'idle-context' }, isCurrent),
     ).resolves.toBe(false);
-    expect(mocks.controllerLoaded).toHaveBeenCalledOnce();
+    expect(mocks.modelLoaded).toHaveBeenCalledOnce();
     expect(isCurrent).toHaveBeenCalledOnce();
     expect(mocks.adoptStatus).not.toHaveBeenCalled();
   });
@@ -79,7 +79,7 @@ describe('account transition boundary', () => {
     expect(mocks.transitionCompany).toHaveBeenCalledWith(null);
   });
 
-  it('starts masquerade through the same lazy controller boundary', async () => {
+  it('starts masquerade through the same lazy model boundary', async () => {
     mocks.start.mockResolvedValue(true);
     const boundary = await import('./companyTransition');
 
@@ -87,8 +87,8 @@ describe('account transition boundary', () => {
     expect(mocks.start).toHaveBeenCalledWith('a-studio', 'u-viewer');
   });
 
-  it('adopts server status through the lazy controller boundary', async () => {
-    const status = { active: false as const, contextToken: 'idle-context' };
+  it('adopts server status through the lazy model boundary', async () => {
+    const status = { active: false as const, masqueradeToken: 'idle-context' };
     const boundary = await import('./companyTransition');
 
     await expect(boundary.adoptMasqueradeStatus(status)).resolves.toBe(true);
@@ -98,7 +98,7 @@ describe('account transition boundary', () => {
 
   it('ignores a status response that arrives after its captured projection becomes stale', async () => {
     let isCurrent = true;
-    let resolveStatus!: (status: { active: false; contextToken: string }) => void;
+    let resolveStatus!: (status: { active: false; masqueradeToken: string }) => void;
     mocks.captureStatusReconciliation.mockReturnValue(() => isCurrent);
     mocks.status.mockReturnValue(
       new Promise((resolve) => {
@@ -110,13 +110,13 @@ describe('account transition boundary', () => {
 
     await vi.waitFor(() => expect(mocks.status).toHaveBeenCalledWith('a-studio'));
     isCurrent = false;
-    resolveStatus({ active: false, contextToken: 'stale-idle-context' });
+    resolveStatus({ active: false, masqueradeToken: 'stale-idle-context' });
 
     await expect(reconciliation).resolves.toBeUndefined();
     expect(mocks.adoptStatus).not.toHaveBeenCalled();
   });
 
-  it('retries projection through the lazy controller boundary', async () => {
+  it('retries projection through the lazy model boundary', async () => {
     mocks.retryProjection.mockResolvedValue(true);
     const boundary = await import('./companyTransition');
 
@@ -124,7 +124,7 @@ describe('account transition boundary', () => {
     expect(mocks.retryProjection).toHaveBeenCalledOnce();
   });
 
-  it('ends masquerade through the lazy controller boundary', async () => {
+  it('ends masquerade through the lazy model boundary', async () => {
     mocks.end.mockResolvedValue(true);
     const navigate = vi.fn();
     const boundary = await import('./companyTransition');

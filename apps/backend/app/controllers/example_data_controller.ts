@@ -5,7 +5,7 @@ import { assertCompanyPermission } from '#services/auth/authorization';
 
 export default class ExampleDataController {
   async store(ctx: HttpContext) {
-    const { params, response, logger } = ctx;
+    const { params, response, logger, serialize } = ctx;
     const companyId = params.companyId;
     const added = await withActor(ctx, async (_actor, trx) => {
       const actor = await assertCompanyPermission(companyId, 'members:manage', trx);
@@ -16,6 +16,6 @@ export default class ExampleDataController {
     } catch {
       // The audit and data are already committed; logging is diagnostic only.
     }
-    return response.created({ added });
+    return response.created(await serialize({ added }));
   }
 }

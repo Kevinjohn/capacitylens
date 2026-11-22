@@ -10,7 +10,7 @@ import {
   showPlaceholders,
   showScheduleFilters,
   waitForWeekSnap,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 test.describe('Feature flows', () => {
   test('filtering by project narrows the schedule to that project', async ({ page }) => {
@@ -227,7 +227,7 @@ test.describe('Feature flows', () => {
     },
   );
   test(
-    'drawing on a placeholder locks the modal to its bound project',
+    'drawing on a placeholder locks the dialog to its bound project',
     { tag: '@engine' },
     async ({ page }) => {
       await openApp(page, '/settings');

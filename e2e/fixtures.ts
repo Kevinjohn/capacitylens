@@ -6,7 +6,7 @@ import type {
   Locator,
   Page,
 } from '@playwright/test';
-import { clearAuthE2ECompanies, waitForAuthE2EBaseline } from './authTestSupport';
+import { clearAuthE2ECompanies, waitForAuthE2EBaseline } from './authTestKit';
 
 export { expect, type APIRequestContext, type Locator, type Page };
 

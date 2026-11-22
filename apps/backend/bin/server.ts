@@ -10,7 +10,7 @@
 */
 
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-const { assertSupportedNodeVersion } = await import('#start/node_version');
+const { assertSupportedNodeVersion } = await import('#bin/node_version');
 assertSupportedNodeVersion();
 
 await import('reflect-metadata');

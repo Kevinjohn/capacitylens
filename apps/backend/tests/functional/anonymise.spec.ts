@@ -1,15 +1,14 @@
-import { fixtureSession, signIn, signUpAndIn } from '../helpers/identities.js';
+import { fixtureSession, signIn, signUpAndIn } from '#tests/helpers/identities';
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
-import { freshDatabase } from '../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import type { ApiClient } from '@japa/api-client';
 import { randomUUID } from 'node:crypto';
-import { withTransaction } from '#services/with_transaction';
 import { getPlanningRevision } from '#services/planning_revision';
 import { encodeRow } from '#services/state_repository';
 import { readState } from '#tests/helpers/state_fixture';
@@ -19,11 +18,11 @@ const companyId = 'a-studio';
 const password = 'fixture-password-2026';
 
 async function proof(client: ApiClient, cookie: string) {
-  const issued = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
+  const issued = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
     .json({ action: 'anonymise', companyId, intent: {}, password: 'fixture-password-2026' })
     .send();
   issued.assertStatus(200);
-  return (issued.body() as { confirmationId: string }).confirmationId;
+  return (issued.body().data as { confirmationId: string }).confirmationId;
 }
 
 async function deleteAllocation(client: ApiClient, cookie: string, resourceId: string) {
@@ -32,10 +31,10 @@ async function deleteAllocation(client: ApiClient, cookie: string, resourceId: s
     .where({ company_id: companyId, resource_id: resourceId })
     .first();
   if (!allocation) throw new Error(`Missing allocation for resource ${resourceId}`);
-  const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, companyId));
+  const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, companyId));
   const mutationId = randomUUID();
   const removed = await asDataOwner(
-    client.post(`/api/companies/${companyId}/planning/mutations`),
+    client.visit('api.planning_mutations.store', { companyId }),
     cookie
   )
     .json({
@@ -47,14 +46,14 @@ async function deleteAllocation(client: ApiClient, cookie: string, resourceId: s
     })
     .send();
   removed.assertStatus(200);
-  const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
-    .replacementGroupId;
+  const groupId = (removed.body().data as { restoration: { replacementGroupId: string } })
+    .restoration.replacementGroupId;
   return { allocation, groupId, mutationId };
 }
 
 async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
-  const baseRevision = await withTransaction((trx) => getPlanningRevision(trx, companyId));
-  return asDataOwner(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
+  const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, companyId));
+  return asDataOwner(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
@@ -68,7 +67,7 @@ async function insertOtherCompanyRestoration(actorId: string) {
   const mutationId = randomUUID();
   const sessionId = await fixtureSession(actorId);
   const createdAt = new Date().toISOString();
-  const revision = (await withTransaction((trx) => getPlanningRevision(trx, 'a-loft'))) + 1;
+  const revision = (await db.transaction((trx) => getPlanningRevision(trx, 'a-loft'))) + 1;
   await db.table('deleted_groups').insert({
     group_id: groupId,
     company_id: 'a-loft',
@@ -164,9 +163,9 @@ test.group('company anonymisation', (group) => {
     const deleted = await deleteAllocation(client, cookie, other.id);
     const savedRows = await db.from('deleted_rows').where('group_id', deleted.groupId);
     assert.isAbove(savedRows.length, 0);
-    const before = await withTransaction((trx) => getPlanningRevision(trx, companyId));
+    const before = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const changed = await asDataOwner(
-      client.post(`/api/companies/${companyId}/resources/${target.id}/anonymise`),
+      client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
       cookie
     )
       .json({})
@@ -178,7 +177,7 @@ test.group('company anonymisation', (group) => {
       scrubbed.name,
       `Removed person #${target.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`
     );
-    assert.equal(scrubbed.role, 'Removed resource');
+    assert.equal(scrubbed.job_title, 'Removed resource');
     assert.isNull(scrubbed.avatar_url);
     const untouched = await db.from('resources').where('id', other.id).first();
     assert.equal(untouched.name, other.name);
@@ -204,7 +203,7 @@ test.group('company anonymisation', (group) => {
       await db.from('audit_entries').where({ company_id: companyId, action: 'anonymise' }),
       1
     );
-    assert.equal(await withTransaction((trx) => getPlanningRevision(trx, companyId)), before + 1);
+    assert.equal(await db.transaction((trx) => getPlanningRevision(trx, companyId)), before + 1);
   });
 
   test('an Editor cannot anonymise an individual resource', async ({ client, assert }) => {
@@ -215,7 +214,7 @@ test.group('company anonymisation', (group) => {
       .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'editor' });
     const refused = await asDataOwner(
-      client.post(`/api/companies/${companyId}/resources/${target.id}/anonymise`),
+      client.visit('api.resource_anonymisations.store', { companyId, id: target.id }),
       cookie
     )
       .json({})
@@ -305,22 +304,26 @@ test.group('company anonymisation', (group) => {
       .from('planning_mutations')
       .where('company_id', 'a-loft')
       .select('*');
-    const foreignRevisionBefore = await withTransaction((trx) =>
-      getPlanningRevision(trx, 'a-loft')
-    );
+    const foreignRevisionBefore = await db.transaction((trx) => getPlanningRevision(trx, 'a-loft'));
     const foreignAuditBefore = await db
       .from('audit_entries')
       .where('company_id', 'a-loft')
       .select('*');
-    const accountBefore = await db.from('accounts').where('id', companyId).first();
-    const before = await withTransaction((trx) => getPlanningRevision(trx, companyId));
-    const missing = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+    const accountBefore = await db.from('companies').where('id', companyId).first();
+    const before = await db.transaction((trx) => getPlanningRevision(trx, companyId));
+    const missing = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId }),
+      cookie
+    )
       .json({ confirmationId: '' })
       .send();
     missing.assertStatus(403);
-    assert.equal(await withTransaction((trx) => getPlanningRevision(trx, companyId)), before);
+    assert.equal(await db.transaction((trx) => getPlanningRevision(trx, companyId)), before);
     const confirmationId = await proof(client, cookie);
-    const applied = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+    const applied = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId }),
+      cookie
+    )
       .json({ confirmationId })
       .send();
     applied.assertStatus(204);
@@ -331,7 +334,7 @@ test.group('company anonymisation', (group) => {
         savedResource.name,
         `Removed person #${savedResource.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)}`
       );
-      assert.equal(savedResource.role, 'Removed resource');
+      assert.equal(savedResource.job_title, 'Removed resource');
       assert.isNull(savedResource.avatar_url);
     }
     assert.lengthOf(await db.from('deleted_groups').where('company_id', companyId), 0);
@@ -360,7 +363,7 @@ test.group('company anonymisation', (group) => {
       foreignCommitmentsBefore
     );
     assert.equal(
-      await withTransaction((trx) => getPlanningRevision(trx, 'a-loft')),
+      await db.transaction((trx) => getPlanningRevision(trx, 'a-loft')),
       foreignRevisionBefore
     );
     assert.deepEqual(
@@ -382,7 +385,7 @@ test.group('company anonymisation', (group) => {
         .whereNotNull('note'),
       0
     );
-    assert.deepEqual(await db.from('accounts').where('id', companyId).first(), accountBefore);
+    assert.deepEqual(await db.from('companies').where('id', companyId).first(), accountBefore);
     const memberships = await db.from('memberships').where('scope_id', companyId);
     assert.isAbove(memberships.length, 0);
     assert.deepEqual(memberships, membershipBefore);
@@ -404,7 +407,7 @@ test.group('company anonymisation', (group) => {
     assert.deepEqual(auditAfter.slice(0, auditBefore.length), auditBefore);
     assert.equal(auditAfter.at(-1)?.action, 'anonymise');
     assert.equal(auditAfter.at(-1)?.entity_id, companyId);
-    assert.equal(await withTransaction((trx) => getPlanningRevision(trx, companyId)), before + 1);
+    assert.equal(await db.transaction((trx) => getPlanningRevision(trx, companyId)), before + 1);
   });
 
   test('a failed audit write restores saved rows, leaves proof usable and permits restoration', async ({
@@ -430,12 +433,15 @@ test.group('company anonymisation', (group) => {
     assert.isDefined(groupBefore);
     assert.isAbove(payloadBefore.length, 0);
     assert.isDefined(commitmentBefore);
-    const before = await withTransaction((trx) => getPlanningRevision(trx, companyId));
+    const before = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const confirmationId = await proof(client, cookie);
     await db.rawQuery(`CREATE TRIGGER fail_anonymise_audit BEFORE INSERT ON audit_entries
       WHEN NEW.action = 'anonymise' BEGIN SELECT RAISE(ABORT, 'injected failure'); END`);
     try {
-      const failed = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+      const failed = await asDataOwner(
+        client.visit('api.company_anonymisations.store', { companyId }),
+        cookie
+      )
         .json({ confirmationId })
         .send();
       failed.assertStatus(500);
@@ -466,7 +472,7 @@ test.group('company anonymisation', (group) => {
         .whereNull('consumed_at'),
       1
     );
-    assert.equal(await withTransaction((trx) => getPlanningRevision(trx, companyId)), before);
+    assert.equal(await db.transaction((trx) => getPlanningRevision(trx, companyId)), before);
     const restored = await restoreAllocation(client, cookie, groupId);
     restored.assertStatus(200);
     const restoredAllocation = await db.from('allocations').where('id', allocation!.id).first();
@@ -477,7 +483,10 @@ test.group('company anonymisation', (group) => {
       await db.from('deleted_rows').where('group_id', groupId).select('*'),
       payloadBefore
     );
-    const applied = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+    const applied = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId }),
+      cookie
+    )
       .json({ confirmationId })
       .send();
     applied.assertStatus(204);
@@ -490,17 +499,26 @@ test.group('company anonymisation', (group) => {
     const { cookie } = await resetAuthenticatedData(client, true);
     const before = await db.from('resources').where('company_id', 'a-loft').first();
     const confirmationId = await proof(client, cookie);
-    const mismatch = await asDataOwner(client.post('/api/companies/a-loft/anonymise'), cookie)
+    const mismatch = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId: 'a-loft' }),
+      cookie
+    )
       .json({ confirmationId })
       .send();
     mismatch.assertStatus(403);
     const unchangedBefore = await db.from('resources').where('id', before.id).first();
     assert.equal(unchangedBefore.name, before.name);
-    const first = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+    const first = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId }),
+      cookie
+    )
       .json({ confirmationId })
       .send();
     first.assertStatus(204);
-    const replay = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+    const replay = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId }),
+      cookie
+    )
       .json({ confirmationId })
       .send();
     replay.assertStatus(403);
@@ -523,7 +541,10 @@ test.group('company anonymisation', (group) => {
       .from('memberships')
       .where({ scope_id: companyId, user_id: userId })
       .update({ role: 'editor' });
-    const denied = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+    const denied = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId }),
+      cookie
+    )
       .json({ confirmationId })
       .send();
     denied.assertStatus(403);
@@ -546,7 +567,7 @@ test.group('company anonymisation', (group) => {
     const allocation = await db.from('allocations').where('company_id', companyId).first();
     await db.from('allocations').where('id', allocation.id).update({ note: 'Private note' });
     const removed = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -556,10 +577,13 @@ test.group('company anonymisation', (group) => {
       })
       .send();
     removed.assertStatus(200);
-    const groupId = (removed.body() as { restoration: { replacementGroupId: string } }).restoration
-      .replacementGroupId;
+    const groupId = (removed.body().data as { restoration: { replacementGroupId: string } })
+      .restoration.replacementGroupId;
     const confirmationId = await proof(client, cookie);
-    const scrubbed = await asDataOwner(client.post(`/api/companies/${companyId}/anonymise`), cookie)
+    const scrubbed = await asDataOwner(
+      client.visit('api.company_anonymisations.store', { companyId }),
+      cookie
+    )
       .json({ confirmationId })
       .send();
     scrubbed.assertStatus(204);
@@ -570,9 +594,9 @@ test.group('company anonymisation', (group) => {
       .where({ company_id: companyId, restoration_group_id: groupId })
       .first();
     assert.isNumber(commitment.origin_session_id);
-    const revision = await withTransaction((trx) => getPlanningRevision(trx, companyId));
+    const revision = await db.transaction((trx) => getPlanningRevision(trx, companyId));
     const restored = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -584,7 +608,7 @@ test.group('company anonymisation', (group) => {
     restored.assertStatus(409);
     assert.lengthOf(await db.from('allocations').where('id', allocation.id), 0);
     const unknown = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -600,7 +624,7 @@ test.group('company anonymisation', (group) => {
       'fixture-password-2026'
     );
     const foreignSession = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       otherSession
     )
       .json({
@@ -612,17 +636,17 @@ test.group('company anonymisation', (group) => {
     foreignSession.assertStatus(403);
 
     const wrongCompany = await asDataOwner(
-      client.post('/api/companies/a-loft/planning/mutations'),
+      client.visit('api.planning_mutations.store', { companyId: 'a-loft' }),
       cookie
     )
       .json({
         mutationId: randomUUID(),
-        baseRevision: await withTransaction((trx) => getPlanningRevision(trx, 'a-loft')),
+        baseRevision: await db.transaction((trx) => getPlanningRevision(trx, 'a-loft')),
         intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
       })
       .send();
     wrongCompany.assertStatus(403);
-    assert.equal(wrongCompany.body().code, 'AUTHORIZATION_DENIED');
+    assert.equal((wrongCompany.body() as unknown as { code: string }).code, 'AUTHORIZATION_DENIED');
 
     const otherActorSignup = await signUpAndIn(client, {
       email: 'diana.prince@wayne.example',
@@ -632,7 +656,7 @@ test.group('company anonymisation', (group) => {
     otherActorSignup.assertStatus(200);
     const otherActorCookie = otherActorSignup.cookie('adonis-session')?.value;
     assert.isString(otherActorCookie);
-    const otherActorId = String((otherActorSignup.body() as { user: { id: string } }).user.id);
+    const otherActorId = String((otherActorSignup.body().data as { user: { id: string } }).user.id);
     const now = new Date().toISOString();
     await db.table('memberships').insert({
       scope_id: companyId,
@@ -643,16 +667,16 @@ test.group('company anonymisation', (group) => {
       updated_at: now,
     });
     const otherActor = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       otherActorCookie!
     )
       .json({
         mutationId: randomUUID(),
-        baseRevision: await withTransaction((trx) => getPlanningRevision(trx, companyId)),
+        baseRevision: await db.transaction((trx) => getPlanningRevision(trx, companyId)),
         intent: { operation: 'planning.restoreGroup', restorationGroupId: groupId },
       })
       .send();
     otherActor.assertStatus(403);
-    assert.equal(otherActor.body().code, 'AUTHORIZATION_DENIED');
+    assert.equal((otherActor.body() as unknown as { code: string }).code, 'AUTHORIZATION_DENIED');
   });
 });

@@ -55,7 +55,7 @@ export function SchedulerGridHeader({
               >
                 {m.scheduler_total_util_label({ span: visibleSpanCompact })}
               </span>
-              <span data-testid="overall-utilization" className="text-sm font-semibold">
+              <span data-testid="overall-utilisation" className="text-sm font-semibold">
                 {overallUtil}%
               </span>
             </>

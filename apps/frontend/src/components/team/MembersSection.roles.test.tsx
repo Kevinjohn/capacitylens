@@ -16,8 +16,8 @@ import {
   renderSection,
   saveRoleVia,
   soleOwnerAndEditor,
-} from './MembersSection.testSupport';
-import type { RawMember } from './MembersSection.testSupport';
+} from './MembersSectionTestKit';
+import type { RawMember } from './MembersSectionTestKit';
 
 const companyTransitionMocks = vi.hoisted(() => ({
   startMasquerade: vi.fn(async () => true),
@@ -124,8 +124,8 @@ describe('MembersSection — admin affordances', () => {
 
     await user.click(within(editorRow).getByTestId('member-masquerade'));
     const dialog = screen.getByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Confirm you would like to masquerade as theeditor@x.io');
-    await user.click(within(dialog).getByRole('button', { name: 'Start masquerade' }));
+    expect(dialog).toHaveTextContent('Confirm you would like to view the app as theeditor@x.io');
+    await user.click(within(dialog).getByRole('button', { name: 'View as member' }));
     expect(companyTransitionMocks.startMasquerade).toHaveBeenCalledWith(
       DEFAULT_COMPANY_ID,
       'theeditor',

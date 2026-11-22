@@ -1,5 +1,5 @@
 import { test, expect } from './dbFixtures';
-import { openApp, selectShadOption, showScheduleFilters } from './browserTestSupport';
+import { openApp, selectShadOption, showScheduleFilters } from './browserTestKit';
 
 test.describe('Filters', () => {
   // Covers US-FIL-01..08. Seed has 6 allocations (one tentative: Bruce's Visual Design)
@@ -137,7 +137,7 @@ test.describe('Filters', () => {
   test('filters the schedule to an all-projects activity (the activity lens)', async ({ page }) => {
     await openApp(page);
     await showScheduleFilters(page);
-    await selectShadOption(page.getByLabel('Filter by activity'), 'kind:repeatable');
+    await selectShadOption(page.getByLabel('Filter by activity'), 'kind:allProjects');
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Design' })).toBeVisible();
     await expect(page.getByTestId('allocation-bar')).toHaveCount(1);
   });
@@ -148,7 +148,7 @@ test.describe('Filters', () => {
     await showScheduleFilters(page);
     await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');
     await expect(page.getByLabel('Filter by project')).toHaveText('LexCorp / Metropolis Rebrand');
-    await selectShadOption(page.getByLabel('Filter by activity'), 'kind:repeatable');
+    await selectShadOption(page.getByLabel('Filter by activity'), 'kind:allProjects');
     await expect(page.getByLabel('Filter by project')).toHaveText('All projects');
 
     await selectShadOption(page.getByLabel('Filter by project'), 'p-brand');

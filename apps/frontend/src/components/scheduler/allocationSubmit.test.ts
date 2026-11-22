@@ -10,7 +10,7 @@ import {
   makeResource,
   makeTimeOff,
 } from '@/test/fixtures';
-import { createAllocationCommands } from './allocationSubmit';
+import { createAllocationIntents } from './allocationSubmit';
 
 // Lets a test return an assignment failure without codes, which the real validator never does.
 const assignment = vi.hoisted(() => ({ withoutCode: false }));
@@ -27,7 +27,7 @@ vi.mock('@capacitylens/shared/lib/integrity', async (importOriginal) => {
   };
 });
 
-type CommandInput = Parameters<typeof createAllocationCommands>[0];
+type IntentInput = Parameters<typeof createAllocationIntents>[0];
 
 function created<T>(value: T) {
   return { kind: 'created' as const, value };
@@ -35,7 +35,7 @@ function created<T>(value: T) {
 
 // A Monday-to-Tuesday hourly creation for a person working Monday to Friday. Every test changes
 // only the fields it needs from this valid baseline and asserts which store action ran.
-function validInput(overrides: Partial<CommandInput> = {}): CommandInput {
+function validInput(overrides: Partial<IntentInput> = {}): IntentInput {
   return {
     data: { activities: [], allocations: [], closures: [], timeOff: [] },
     create: { resourceId: 'r1', startDate: '2027-01-04', endDate: '2027-01-05' },
@@ -74,18 +74,18 @@ function validInput(overrides: Partial<CommandInput> = {}): CommandInput {
     spanFitsDateDomain: true,
     spanLimitedByDateDomain: false,
     maximumDaysOver: 30,
-    addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
+    addAllocation: vi.fn<IntentInput['addAllocation']>(() =>
       Promise.resolve(created(makeAllocation())),
     ),
-    addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
+    addRepeatedAllocation: vi.fn<IntentInput['addRepeatedAllocation']>(() =>
       Promise.resolve(created([makeAllocation()])),
     ),
-    duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
+    duplicateAllocation: vi.fn<IntentInput['duplicateAllocation']>(() =>
       Promise.resolve(created(makeAllocation())),
     ),
-    updateAllocation: vi.fn<CommandInput['updateAllocation']>(() => Promise.resolve({})),
-    deleteAllocation: vi.fn<CommandInput['deleteAllocation']>(() => Promise.resolve()),
-    deleteAllocationSeriesFrom: vi.fn<CommandInput['deleteAllocationSeriesFrom']>(() =>
+    updateAllocation: vi.fn<IntentInput['updateAllocation']>(() => Promise.resolve({})),
+    deleteAllocation: vi.fn<IntentInput['deleteAllocation']>(() => Promise.resolve()),
+    deleteAllocationSeriesFrom: vi.fn<IntentInput['deleteAllocationSeriesFrom']>(() =>
       Promise.resolve(),
     ),
     setNotice: vi.fn(),
@@ -99,7 +99,7 @@ function validInput(overrides: Partial<CommandInput> = {}): CommandInput {
 }
 
 // An edit of the stored row the baseline describes.
-function editInput(overrides: Partial<CommandInput> = {}): CommandInput {
+function editInput(overrides: Partial<IntentInput> = {}): IntentInput {
   const editing: Allocation = makeAllocation({
     id: 'a9',
     resourceId: 'r1',
@@ -111,21 +111,21 @@ function editInput(overrides: Partial<CommandInput> = {}): CommandInput {
   return validInput({ create: undefined, editing, ...overrides });
 }
 
-// Commands are fire-and-forget; let every awaited write settle before asserting.
+// Intents are fire-and-forget; let every awaited write settle before asserting.
 async function settle() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-async function submit(input: CommandInput) {
-  createAllocationCommands(input).submit();
+async function submit(input: IntentInput) {
+  createAllocationIntents(input).submit();
   await settle();
 }
 
-function expectFailed(input: CommandInput, field: string | null, message: string) {
+function expectFailed(input: IntentInput, field: string | null, message: string) {
   expect(input.fail).toHaveBeenCalledExactlyOnceWith(field, message);
 }
 
-function expectNothingWritten(input: CommandInput) {
+function expectNothingWritten(input: IntentInput) {
   expect(input.addAllocation).not.toHaveBeenCalled();
   expect(input.addRepeatedAllocation).not.toHaveBeenCalled();
   expect(input.updateAllocation).not.toHaveBeenCalled();
@@ -140,7 +140,7 @@ beforeEach(() => {
   assignment.withoutCode = false;
 });
 
-describe('createAllocationCommands submit', () => {
+describe('createAllocationIntents submit', () => {
   it('creates the validated draft and closes the dialog', async () => {
     const input = validInput();
     await submit(input);
@@ -161,7 +161,7 @@ describe('createAllocationCommands submit', () => {
 
   it('keeps the dialog open when the create is blocked', async () => {
     const input = validInput({
-      addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
+      addAllocation: vi.fn<IntentInput['addAllocation']>(() =>
         Promise.resolve({ kind: 'blocked' }),
       ),
     });
@@ -177,7 +177,7 @@ describe('createAllocationCommands submit', () => {
     expectNothingWritten(input);
   });
 
-  it('ignores a second command while a write is in flight', async () => {
+  it('ignores a second intent while a write is in flight', async () => {
     const input = validInput({ writing: { current: true } });
     await submit(input);
     expectNothingWritten(input);
@@ -253,26 +253,26 @@ describe('createAllocationCommands submit', () => {
   });
 });
 
-describe('createAllocationCommands text fields', () => {
+describe('createAllocationIntents text fields', () => {
   it('trims the task, keeps a cleared task as null and omits an empty note', () => {
-    expect(createAllocationCommands(validInput({ task: '  Review  ' })).validatedDraft()).toEqual(
+    expect(createAllocationIntents(validInput({ task: '  Review  ' })).validatedDraft()).toEqual(
       expect.objectContaining({ task: 'Review' }),
     );
-    const draft = createAllocationCommands(validInput()).validatedDraft();
+    const draft = createAllocationIntents(validInput()).validatedDraft();
     expect(draft).toHaveProperty('task', null);
     expect(draft).not.toHaveProperty('note');
   });
 
   it('attributes the project only when one is chosen', () => {
-    expect(createAllocationCommands(validInput()).validatedDraft()).not.toHaveProperty('projectId');
+    expect(createAllocationIntents(validInput()).validatedDraft()).not.toHaveProperty('projectId');
     expect(
-      createAllocationCommands(validInput({ attributedProjectId: 'p1' })).validatedDraft(),
+      createAllocationIntents(validInput({ attributedProjectId: 'p1' })).validatedDraft(),
     ).toHaveProperty('projectId', 'p1');
   });
 
   it('always ignores weekends for an external resource', () => {
     const external = validInput({ isExternal: true, hoursPerDay: 0, effHoursPerDay: 0 });
-    expect(createAllocationCommands(external).validatedDraft()).toHaveProperty(
+    expect(createAllocationIntents(external).validatedDraft()).toHaveProperty(
       'ignoreWorkingDays',
       true,
     );
@@ -290,12 +290,12 @@ describe('createAllocationCommands text fields', () => {
     expectNothingWritten(tooLong);
 
     const longest = validInput({ task: 'x'.repeat(MAX_NAME_LENGTH) });
-    expect(createAllocationCommands(longest).validatedDraft()).not.toBeNull();
+    expect(createAllocationIntents(longest).validatedDraft()).not.toBeNull();
   });
 
   it('accepts a multiline note until the user edits it', async () => {
     expect(
-      createAllocationCommands(validInput({ note: 'Bring\nthe deck' })).validatedDraft(),
+      createAllocationIntents(validInput({ note: 'Bring\nthe deck' })).validatedDraft(),
     ).toEqual(expect.objectContaining({ note: 'Bring\nthe deck' }));
 
     const edited = validInput({ note: 'Bring\nthe deck', noteEdited: true });
@@ -306,7 +306,7 @@ describe('createAllocationCommands text fields', () => {
 
   it('limits the note to the note length, not the name length', async () => {
     const longNote = validInput({ note: 'x'.repeat(MAX_NAME_LENGTH + 1) });
-    expect(createAllocationCommands(longNote).validatedDraft()).not.toBeNull();
+    expect(createAllocationIntents(longNote).validatedDraft()).not.toBeNull();
 
     const tooLong = validInput({ note: 'x'.repeat(MAX_NOTE_LENGTH + 1) });
     await submit(tooLong);
@@ -315,7 +315,7 @@ describe('createAllocationCommands text fields', () => {
   });
 });
 
-describe('createAllocationCommands assignment', () => {
+describe('createAllocationIntents assignment', () => {
   it('reports a placeholder bound to another project on the activity', async () => {
     const input = validInput({ selectedResource: placeholder });
     await submit(input);
@@ -325,7 +325,7 @@ describe('createAllocationCommands assignment', () => {
 
   it('skips the assignment rule until both resource and activity are resolved', () => {
     const noActivity = validInput({ selectedResource: placeholder, selectedActivity: undefined });
-    expect(createAllocationCommands(noActivity).validatedDraft()).not.toBeNull();
+    expect(createAllocationIntents(noActivity).validatedDraft()).not.toBeNull();
     expect(noActivity.fail).not.toHaveBeenCalled();
   });
 
@@ -333,18 +333,18 @@ describe('createAllocationCommands assignment', () => {
     const input = validInput({
       selectedResource: makeResource({ kind: 'placeholder', projectId: 'p1' }),
     });
-    expect(createAllocationCommands(input).validatedDraft()).not.toBeNull();
+    expect(createAllocationIntents(input).validatedDraft()).not.toBeNull();
   });
 
   it('throws when a failed assignment check carries no code', () => {
     assignment.withoutCode = true;
-    expect(() => createAllocationCommands(validInput()).validatedDraft()).toThrow(
+    expect(() => createAllocationIntents(validInput()).validatedDraft()).toThrow(
       'Invalid allocation assignment did not provide an error code.',
     );
   });
 });
 
-describe('createAllocationCommands new placement', () => {
+describe('createAllocationIntents new placement', () => {
   it('rejects a new placement on a resource with no effective working days', async () => {
     const input = validInput({ selectedEffectiveWeek: { kind: 'none' } });
     await submit(input);
@@ -352,7 +352,7 @@ describe('createAllocationCommands new placement', () => {
     expectNothingWritten(input);
   });
 
-  it('skips the placement gate when the resource or its week is unresolved', async () => {
+  it('skips the placement check when the resource or its week is unresolved', async () => {
     const noResource = validInput({
       selectedResource: undefined,
       selectedEffectiveWeek: { kind: 'none' },
@@ -360,7 +360,7 @@ describe('createAllocationCommands new placement', () => {
     await submit(noResource);
     expect(noResource.addAllocation).toHaveBeenCalledOnce();
 
-    // A Saturday start would be refused if the gate ran.
+    // A Saturday start would be refused if the check ran.
     const noWeek = validInput({
       selectedEffectiveWeek: undefined,
       startDate: '2027-01-09',
@@ -402,7 +402,7 @@ describe('createAllocationCommands new placement', () => {
     expectFailed(closure, 'startDate', m.form_allocation_err_start_time_off());
   });
 
-  it('gates an edit only when it moves the allocation to another resource', async () => {
+  it('checks an edit only when it moves the allocation to another resource', async () => {
     const sameResource = editInput({ selectedEffectiveWeek: { kind: 'none' } });
     await submit(sameResource);
     expect(sameResource.updateAllocation).toHaveBeenCalledOnce();
@@ -418,7 +418,7 @@ describe('createAllocationCommands new placement', () => {
   });
 });
 
-describe('createAllocationCommands repeats', () => {
+describe('createAllocationIntents repeats', () => {
   const weekly = { repeat: 'weekly', repeatUntil: '2027-01-25' } as const;
 
   it('sends the first occurrence and the pattern in one group write and closes', async () => {
@@ -435,7 +435,7 @@ describe('createAllocationCommands repeats', () => {
   it('keeps the dialog open when the group write is blocked', async () => {
     const input = validInput({
       ...weekly,
-      addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
+      addRepeatedAllocation: vi.fn<IntentInput['addRepeatedAllocation']>(() =>
         Promise.resolve({ kind: 'blocked' }),
       ),
     });
@@ -447,7 +447,7 @@ describe('createAllocationCommands repeats', () => {
   it('reports a repeat range failure on the repeat cutoff', async () => {
     const input = validInput({
       ...weekly,
-      addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
+      addRepeatedAllocation: vi.fn<IntentInput['addRepeatedAllocation']>(() =>
         Promise.reject(new RangeError('Beyond the calendar.')),
       ),
     });
@@ -458,7 +458,7 @@ describe('createAllocationCommands repeats', () => {
 
   it('reports a range failure without a repeat at form level with its own message', async () => {
     const input = validInput({
-      addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
+      addAllocation: vi.fn<IntentInput['addAllocation']>(() =>
         Promise.reject(new RangeError('Beyond the calendar.')),
       ),
     });
@@ -468,17 +468,17 @@ describe('createAllocationCommands repeats', () => {
 
   it('reports a non-Error rejection with the generic save message', async () => {
     const input = validInput({
-      addAllocation: vi.fn<CommandInput['addAllocation']>(() => Promise.reject('nope' as never)),
+      addAllocation: vi.fn<IntentInput['addAllocation']>(() => Promise.reject('nope' as never)),
     });
     await submit(input);
     expectFailed(input, null, m.form_allocation_err_save_failed());
   });
 });
 
-describe('createAllocationCommands duplicate', () => {
+describe('createAllocationIntents duplicate', () => {
   it('requires an allocation being edited', async () => {
     const input = validInput();
-    createAllocationCommands(input).onDuplicate();
+    createAllocationIntents(input).onDuplicate();
     await settle();
     expect(input.duplicateAllocation).not.toHaveBeenCalled();
     expect(input.fail).not.toHaveBeenCalled();
@@ -486,7 +486,7 @@ describe('createAllocationCommands duplicate', () => {
 
   it('duplicates the validated draft and closes only after it is created', async () => {
     const input = editInput();
-    createAllocationCommands(input).onDuplicate();
+    createAllocationIntents(input).onDuplicate();
     await settle();
     expect(input.duplicateAllocation).toHaveBeenCalledExactlyOnceWith(
       'a9',
@@ -495,18 +495,18 @@ describe('createAllocationCommands duplicate', () => {
     expect(input.onClose).toHaveBeenCalledOnce();
 
     const blocked = editInput({
-      duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
+      duplicateAllocation: vi.fn<IntentInput['duplicateAllocation']>(() =>
         Promise.resolve({ kind: 'blocked' }),
       ),
     });
-    createAllocationCommands(blocked).onDuplicate();
+    createAllocationIntents(blocked).onDuplicate();
     await settle();
     expect(blocked.onClose).not.toHaveBeenCalled();
   });
 
   it('treats a duplicate as a new placement even on the same resource', async () => {
     const input = editInput({ selectedEffectiveWeek: { kind: 'none' } });
-    createAllocationCommands(input).onDuplicate();
+    createAllocationIntents(input).onDuplicate();
     await settle();
     expectFailed(input, 'resource', m.form_allocation_err_no_effective_working_days());
     expect(input.duplicateAllocation).not.toHaveBeenCalled();
@@ -514,7 +514,7 @@ describe('createAllocationCommands duplicate', () => {
 
   it('does not duplicate an invalid draft', async () => {
     const input = editInput({ activityId: '' });
-    createAllocationCommands(input).onDuplicate();
+    createAllocationIntents(input).onDuplicate();
     await settle();
     expectFailed(input, 'activity', m.form_allocation_err_choose_activity());
     expect(input.duplicateAllocation).not.toHaveBeenCalled();
@@ -522,31 +522,31 @@ describe('createAllocationCommands duplicate', () => {
 
   it('reports a failed duplication at form level', async () => {
     const input = editInput({
-      duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
+      duplicateAllocation: vi.fn<IntentInput['duplicateAllocation']>(() =>
         Promise.reject(new Error('Duplicate refused.')),
       ),
     });
-    createAllocationCommands(input).onDuplicate();
+    createAllocationIntents(input).onDuplicate();
     await settle();
     expectFailed(input, null, 'Duplicate refused.');
 
     const opaque = editInput({
-      duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
+      duplicateAllocation: vi.fn<IntentInput['duplicateAllocation']>(() =>
         Promise.reject('nope' as never),
       ),
     });
-    createAllocationCommands(opaque).onDuplicate();
+    createAllocationIntents(opaque).onDuplicate();
     await settle();
     expectFailed(opaque, null, m.form_allocation_err_save_failed());
   });
 });
 
-describe('createAllocationCommands delete', () => {
+describe('createAllocationIntents delete', () => {
   it('requires an edit the viewer may change', async () => {
     const creation = validInput();
-    createAllocationCommands(creation).onDelete();
+    createAllocationIntents(creation).onDelete();
     const readOnly = editInput({ canEdit: false });
-    createAllocationCommands(readOnly).onDelete();
+    createAllocationIntents(readOnly).onDelete();
     await settle();
     for (const input of [creation, readOnly]) {
       expect(input.setConfirmDelete).not.toHaveBeenCalled();
@@ -556,14 +556,14 @@ describe('createAllocationCommands delete', () => {
 
   it('deletes one allocation by default and the rest of the series on request', async () => {
     const one = editInput();
-    createAllocationCommands(one).onDelete();
+    createAllocationIntents(one).onDelete();
     await settle();
     expect(one.setConfirmDelete).toHaveBeenCalledExactlyOnceWith(false);
     expect(one.deleteAllocation).toHaveBeenCalledExactlyOnceWith('a9');
     expect(one.deleteAllocationSeriesFrom).not.toHaveBeenCalled();
 
     const future = editInput();
-    createAllocationCommands(future).onDelete('future');
+    createAllocationIntents(future).onDelete('future');
     await settle();
     expect(future.deleteAllocationSeriesFrom).toHaveBeenCalledExactlyOnceWith('a9');
     expect(future.deleteAllocation).not.toHaveBeenCalled();
@@ -571,33 +571,33 @@ describe('createAllocationCommands delete', () => {
 
   it('reports a failed deletion at form level', async () => {
     const input = editInput({
-      deleteAllocation: vi.fn<CommandInput['deleteAllocation']>(() =>
+      deleteAllocation: vi.fn<IntentInput['deleteAllocation']>(() =>
         Promise.reject(new Error('Delete refused.')),
       ),
     });
-    createAllocationCommands(input).onDelete();
+    createAllocationIntents(input).onDelete();
     await settle();
     expectFailed(input, null, 'Delete refused.');
 
     const opaque = editInput({
-      deleteAllocation: vi.fn<CommandInput['deleteAllocation']>(() =>
+      deleteAllocation: vi.fn<IntentInput['deleteAllocation']>(() =>
         Promise.reject('nope' as never),
       ),
     });
-    createAllocationCommands(opaque).onDelete();
+    createAllocationIntents(opaque).onDelete();
     await settle();
     expectFailed(opaque, null, m.form_allocation_err_delete_failed());
   });
 });
 
-describe('createAllocationCommands save advisory', () => {
+describe('createAllocationIntents save advisory', () => {
   const overTwo = { overDays: 2, timeOffDays: 1 };
   const overTwoNotice =
     'Saved. This allocation is over capacity on 2 days and on time off for 1 day.';
 
   it('shows the reply advisory for a create, an edit and a duplicate after closing', async () => {
     const create = validInput({
-      addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
+      addAllocation: vi.fn<IntentInput['addAllocation']>(() =>
         Promise.resolve({ ...created(makeAllocation()), advisory: overTwo }),
       ),
     });
@@ -606,7 +606,7 @@ describe('createAllocationCommands save advisory', () => {
     expect(create.setNotice).toHaveBeenCalledExactlyOnceWith(overTwoNotice, 'warning');
 
     const edit = editInput({
-      updateAllocation: vi.fn<CommandInput['updateAllocation']>(() =>
+      updateAllocation: vi.fn<IntentInput['updateAllocation']>(() =>
         Promise.resolve({ advisory: overTwo }),
       ),
     });
@@ -614,11 +614,11 @@ describe('createAllocationCommands save advisory', () => {
     expect(edit.setNotice).toHaveBeenCalledExactlyOnceWith(overTwoNotice, 'warning');
 
     const duplicate = editInput({
-      duplicateAllocation: vi.fn<CommandInput['duplicateAllocation']>(() =>
+      duplicateAllocation: vi.fn<IntentInput['duplicateAllocation']>(() =>
         Promise.resolve({ ...created(makeAllocation()), advisory: overTwo }),
       ),
     });
-    createAllocationCommands(duplicate).onDuplicate();
+    createAllocationIntents(duplicate).onDuplicate();
     await settle();
     expect(duplicate.onClose).toHaveBeenCalledOnce();
     expect(duplicate.setNotice).toHaveBeenCalledExactlyOnceWith(overTwoNotice, 'warning');
@@ -626,7 +626,7 @@ describe('createAllocationCommands save advisory', () => {
 
   it('stays silent when the reply has nothing to report', async () => {
     const clear = validInput({
-      addAllocation: vi.fn<CommandInput['addAllocation']>(() =>
+      addAllocation: vi.fn<IntentInput['addAllocation']>(() =>
         Promise.resolve({
           ...created(makeAllocation()),
           advisory: { overDays: 0, timeOffDays: 0 },
@@ -647,7 +647,7 @@ describe('createAllocationCommands save advisory', () => {
     const input = validInput({
       repeat: 'weekly',
       repeatUntil: '2027-01-18',
-      addRepeatedAllocation: vi.fn<CommandInput['addRepeatedAllocation']>(() =>
+      addRepeatedAllocation: vi.fn<IntentInput['addRepeatedAllocation']>(() =>
         Promise.resolve({
           ...created([makeAllocation()]),
           repeatAdvisory: {

@@ -3,7 +3,9 @@
 import { publicOrigin } from '#config/public_origin';
 import { defineConfig, stores } from '@adonisjs/session';
 import { protectManagedSessionConfig } from '@kevinjohn/adonisjs-account-kit/http';
-import { SESSION_IDLE_EXPIRY } from '#services/auth/session_expiry';
+
+/** Sessions end after this long without use, in the Account Kit registry and the native store alike. */
+export const SESSION_IDLE_EXPIRY = '14d';
 
 const secure = publicOrigin.secure;
 

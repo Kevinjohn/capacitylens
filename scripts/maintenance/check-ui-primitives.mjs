@@ -28,7 +28,7 @@ if (!registryDir || !mcpArgs.includes('--cwd') || registryDir !== mcpDir) {
 
 const sourceOwnedPrimitives = {
   'apps/frontend/src/components/ui/alert-dialog.tsx':
-    '273382747aad1d469a774b70f2c7dde4ff612549ac5917be545c8525f8e0aac8',
+    'b0606594b1c6c7cbdd3395b4b8da2883a1f152624b2d259b2871ccf0358ca24f',
   'apps/frontend/src/components/ui/alert.tsx':
     '330a5f4c1f07b0d2630d8e752b2b02ad2236c8e62c15695a21da94f5576bfce0',
   'apps/frontend/src/components/ui/avatar.tsx':
@@ -38,7 +38,7 @@ const sourceOwnedPrimitives = {
   'apps/frontend/src/components/ui/button.tsx':
     '1baae11e67b9d548f3c538dfdc6ae25c5edc84d42188d98fd708fc35d175cc05',
   'apps/frontend/src/components/ui/dialog.tsx':
-    'f1bafa06701b857f6d6f93bf58f394930dfd44a1a5946961dce5c82a2869da36',
+    '31cd1372d5c69bef92316cbc1b34d481ef4c15edbf2609152756724410f253e3',
   'apps/frontend/src/components/ui/empty.tsx':
     'e6966082b4736bdd01cbb874a908360d7f6795e3158d446ede0fcb3f10df832d',
   'apps/frontend/src/components/ui/item.tsx':
@@ -46,11 +46,11 @@ const sourceOwnedPrimitives = {
   'apps/frontend/src/components/ui/popover.tsx':
     'd1a4b8d715144227a0719d54b00d377f4750542f70551074cf939cce7a52c40f',
   'apps/frontend/src/components/ui/select.tsx':
-    '161de554ec8f384a3952c93fda760344c41840111144fd3e7c39b3c883995a70',
+    '018b4b97f964c8d38c90457ff1c1fd687d6274ef397fc4c3f5f20b966faafd02',
   'apps/frontend/src/components/ui/sheet.tsx':
-    '24c91251cd1db5c375e2b901c0dbfa1f1f7b2f05a5b8e84294d394d41136fa38',
+    'bcb106e68d6e286c01a5c672908c64fdc3f3500c439378b8b97a8d61ff96f7a6',
   'apps/frontend/src/components/ui/sidebar.tsx':
-    '4b73293293b8fafc2ced19ede1b949ad8e5d216fb228d985115896a6b45d62e8',
+    'a06748292da44fefdf9027b3deb6195610953710b3f6dd20ff68355826bd70fe',
   'apps/frontend/src/components/ui/toggle.tsx':
     'ca13c0cc45a5951155d7d321d782ef91bd5f68c0a623af1bdbd9288212238aa0',
   'apps/frontend/src/components/ui/toggle-group.tsx':

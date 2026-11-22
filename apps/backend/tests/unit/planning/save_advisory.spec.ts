@@ -43,7 +43,7 @@ const booking = (id: string, resourceId: string = person.id): Allocation => ({
 function companyData(schedulingMode: SchedulingMode, resourceId: string = person.id): AppData {
   return {
     ...createEmptyAppData(),
-    accounts: [
+    companies: [
       { ...FIXTURE_COMPANY, schedulingMode, weekStartsOn: 1, workingDays: [1, 2, 3, 4, 5] },
     ],
     resources: [person, FIXTURE_RESOURCE_EXTERNAL],

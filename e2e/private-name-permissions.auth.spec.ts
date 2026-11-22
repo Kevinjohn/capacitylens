@@ -2,11 +2,11 @@ import { expect, test } from './fixtures';
 import {
   AUTH_PASSWORD,
   bootstrapOrg,
-  seedFixtureMember,
-  sendPlanningFixtureCommand,
+  createTestMember,
+  sendPlanningIntent,
   signUpUser,
-} from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+} from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
@@ -50,9 +50,7 @@ async function assertPrivateNamesForMember(
     await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('"Nightwing"');
     await expect(dialog.getByRole('switch', { name: 'Use code name' })).toHaveCount(0);
     await expect(dialog.getByLabel('Code name', { exact: true })).toHaveCount(0);
-    await expect(
-      dialog.getByText('Only an account owner can change this private name.'),
-    ).toBeVisible();
+    await expect(dialog.getByText('Only an Owner can change this private name.')).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
   }
 
@@ -68,14 +66,12 @@ async function assertPrivateNamesForMember(
     await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('"Aurora"');
     await expect(dialog.getByRole('switch', { name: 'Use code name' })).toHaveCount(0);
     await expect(dialog.getByLabel('Code name', { exact: true })).toHaveCount(0);
-    await expect(
-      dialog.getByText('Only an account owner can change this private name.'),
-    ).toBeVisible();
+    await expect(dialog.getByText('Only an Owner can change this private name.')).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
   }
 }
 
-function seedMembers(
+function createMembers(
   companyId: string,
   members: ReadonlyArray<{
     role: 'editor' | 'viewer';
@@ -83,18 +79,18 @@ function seedMembers(
   }>,
 ) {
   for (const { role, user } of members) {
-    seedFixtureMember(companyId, user.email, role);
+    createTestMember(companyId, user.email, role);
   }
 }
 
-async function seedPrivateNames(
+async function createPrivateNames(
   request: import('@playwright/test').APIRequestContext,
   companyId: string,
   ownerCookie: string,
 ) {
   const clientId = crypto.randomUUID();
   const projectId = crypto.randomUUID();
-  await sendPlanningFixtureCommand(request, ownerCookie, companyId, {
+  await sendPlanningIntent(request, ownerCookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'clients',
@@ -102,7 +98,7 @@ async function seedPrivateNames(
       fields: { name: REAL_CLIENT, color: '#76a5e7', isPrivate: true, codeName: 'Nightwing' },
     },
   });
-  await sendPlanningFixtureCommand(request, ownerCookie, companyId, {
+  await sendPlanningIntent(request, ownerCookie, companyId, {
     operation: 'catalogue.create',
     entity: {
       entity: 'projects',
@@ -134,8 +130,8 @@ test('non-owners see protected code names without owner controls', async ({
   ] as const;
 
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
-  seedMembers(companyId, members);
-  await seedPrivateNames(request, companyId, owner.cookie);
+  createMembers(companyId, members);
+  await createPrivateNames(request, companyId, owner.cookie);
 
   for (const { role, user } of members) {
     await assertPrivateNamesForMember(page, context, role, user.email);

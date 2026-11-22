@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
 import router from '@adonisjs/core/services/router';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
-import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_fixture.js';
-import { signUpAndIn } from '../../helpers/identities.js';
+import { createFixtureCompanyForOwner } from '#tests/helpers/authenticated_data_fixture';
+import { signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 
@@ -16,7 +16,7 @@ async function outsider(client: any) {
     name: 'Bruce Wayne',
   });
   owner.assertStatus(200);
-  const ownerId = String((owner.body() as { user: { id: string } }).user.id);
+  const ownerId = String((owner.body().data as { user: { id: string } }).user.id);
   await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
   const other = await signUpAndIn(client, {
     email: 'selina.kyle@gotham.example',
@@ -26,22 +26,28 @@ async function outsider(client: any) {
   other.assertStatus(200);
   return {
     cookie: other.cookie('adonis-session')!.value,
-    userId: String((other.body() as { user: { id: string } }).user.id),
+    userId: String((other.body().data as { user: { id: string } }).user.id),
   };
 }
 
 async function refusals(client: any, cookie: string) {
-  const status = await client.get('/api/masquerade').withCookie('adonis-session', cookie).send();
+  const status = await client
+    .visit('api.masquerade.show')
+    .withCookie('adonis-session', cookie)
+    .send();
   status.assertStatus(200);
   const company = await client
-    .put('/api/companies/a-studio/getting-started')
+    .visit('api.getting_started.update', { companyId: 'a-studio' })
     .header('sec-fetch-site', 'same-origin')
-    .header('X-Masquerade-Context', (status.body() as { contextToken: string }).contextToken)
+    .header(
+      'X-Masquerade-Context',
+      (status.body().data as { masqueradeToken: string }).masqueradeToken
+    )
     .withCookie('adonis-session', cookie)
     .json({ dismissed: true })
     .send();
   const planning = await client
-    .get('/api/companies/a-studio/planning')
+    .visit('api.planning.show', { companyId: 'a-studio' })
     .withCookie('adonis-session', cookie)
     .send();
   return { company, planning };
@@ -65,7 +71,10 @@ test.group('company scope middleware', (group) => {
     const expectRefused = async () => {
       const { company, planning } = await refusals(client, cookie);
       company.assertStatus(403);
-      assert.deepEqual(company.body(), { error: 'Forbidden.', code: 'IDENTITY_AUTHORITY_DENIED' });
+      assert.deepEqual(company.body(), {
+        error: 'Forbidden.',
+        code: 'IDENTITY_AUTHORIZATION_DENIED',
+      });
       planning.assertStatus(403);
       assert.deepEqual(planning.body(), {
         error: 'Company membership is unavailable.',
@@ -85,7 +94,7 @@ test.group('company scope middleware', (group) => {
     });
     await expectRefused();
     assert.notExists(
-      await db.from('account_getting_started_dismissals').where('company_id', 'a-studio').first()
+      await db.from('company_getting_started_dismissals').where('company_id', 'a-studio').first()
     );
   });
 

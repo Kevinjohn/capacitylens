@@ -36,7 +36,7 @@ Invitation links are stored only as digests and never shown in the app.
 values. They remain in SQLite with the company data; database backups can contain them. Sign-in
 success, failure and throttling outcomes are not recorded in the application audit table.
 
-**Backups.** Database snapshots contain the full database; protect them like the live data.
+**Backups.** Database backups contain the full database; protect them like the live data.
 
 **Code names.** Clients and projects can have a private code name alongside the real name. This is
 access control, not encryption: the real name stays in SQLite, in operator backups and in an
@@ -84,5 +84,5 @@ The operator is responsible for the SMTP provider's processing and retention.
 
 For a self-hosted install, the operator decides the purpose, lawful basis, access, retention,
 backup policy and access control, which in most privacy frameworks makes them the data controller.
-Protect the SQLite database, `APP_KEY`, SMTP credentials, backup snapshots and staff devices
+Protect the SQLite database, `APP_KEY`, SMTP credentials, backups and staff devices
 accordingly. The [Self-hosting](/self-hosting/) guide covers each.

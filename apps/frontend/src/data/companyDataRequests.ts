@@ -1,4 +1,5 @@
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { readApiData } from '@/api/readApiData';
 import { fetchApi, API_BULK_TIMEOUT_MS } from '@/data/requestTimeout';
 import { readApiError } from '@/lib/readApiError';
 import { m } from '@/i18n';
@@ -7,14 +8,14 @@ import { SCOPED_KEYS } from '@capacitylens/shared/types/entities';
 import type { ScopedEntityKey } from '@capacitylens/shared/types/entities';
 
 /** What the server reports about a transfer document it would import into one company. */
-export interface TransferPreview {
+export interface ImportPreviewSummary {
   baseRevision: number;
   companyName: string;
   counts: Record<ScopedEntityKey, number>;
 }
 
 /** The confirmed import of one transfer document into one company. */
-export interface ApplyTransferInput {
+export interface ApplyImportInput {
   companyId: string;
   document: unknown;
   baseRevision: number;
@@ -39,7 +40,7 @@ const parseCount = (value: unknown): number | null =>
 /** Reads the summary of a committed import response, consuming its body. */
 export async function readImportSummary(response: Response): Promise<ImportSummary> {
   // An unreadable body is an off-spec success, reported with the generic completion notice.
-  const body: unknown = await response.json().catch(() => null);
+  const body: unknown = await readApiData(response).catch(() => null);
   const imported = parseCount(isRecord(body) ? body.imported : undefined);
   const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
   const unchanged = isRecord(body) && body.changed === false;
@@ -59,19 +60,19 @@ export const companyDataRequests = {
    * @throws An `Error` whose message is safe to show when the server refuses the document or
    *   answers off-spec.
    */
-  async readTransferPreview(companyId: string, document: unknown): Promise<TransferPreview> {
-    const response = await fetchApi('/api/transfer/preview', {
+  async readImportPreview(companyId: string, document: unknown): Promise<ImportPreviewSummary> {
+    const response = await fetchApi('/api/import/preview', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.transfer.preview', { companyId, document }),
+      body: buildJsonBody('api.import_previews.store', { companyId, document }),
     });
     if (!response.ok) {
       throw new Error(
         (await readApiError(response)) ?? m.data_import_failed({ status: response.status }),
       );
     }
-    const result: unknown = await response.json();
+    const result: unknown = await readApiData(response);
     const counts = isRecord(result) && isRecord(result.counts) ? result.counts : null;
     if (
       !isRecord(result) ||
@@ -94,19 +95,19 @@ export const companyDataRequests = {
   },
 
   /** Sends a confirmed whole-company import. */
-  applyTransfer({
+  applyImport({
     companyId,
     document,
     baseRevision,
     confirmationId,
-  }: ApplyTransferInput): Promise<Response> {
+  }: ApplyImportInput): Promise<Response> {
     return fetchApi(
-      '/api/transfer/apply',
+      '/api/import/apply',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: buildJsonBody('api.transfer.apply', {
+        body: buildJsonBody('api.imports.store', {
           companyId,
           document,
           baseRevision,
@@ -125,7 +126,7 @@ export const companyDataRequests = {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.companies.anonymise', { confirmationId }),
+        body: buildJsonBody('api.company_anonymisations.store', { confirmationId }),
       },
       API_BULK_TIMEOUT_MS,
     );
@@ -139,7 +140,7 @@ export const companyDataRequests = {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.resources.anonymise', {}),
+        body: buildJsonBody('api.resource_anonymisations.store', {}),
       },
       API_BULK_TIMEOUT_MS,
     );
@@ -147,7 +148,7 @@ export const companyDataRequests = {
 
   /** Adds the small example company to an empty company. Not idempotent: a second call is refused. */
   addExampleData(companyId: string): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.example-data', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.example_data.store', { params: { companyId } }), {
       method: 'POST',
       credentials: 'include',
     });

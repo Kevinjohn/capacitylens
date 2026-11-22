@@ -1,6 +1,6 @@
 import type { Entity } from '@capacitylens/shared/types/entities';
 import type { Patch, StoreState } from './types';
-import { createGuards } from './storeGuards';
+import { createStoreRules } from './storeRules';
 
 const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
   const next = { ...row, ...patch };
@@ -10,9 +10,9 @@ const applyPatch = <T extends Entity>(row: T, patch: Patch<T>): T => {
   return next;
 };
 
-/** Create the guard and patch capabilities shared by canonical planning actions. */
+/** Create the rule and patch capabilities shared by canonical planning actions. */
 export function createStoreInternals(get: () => StoreState) {
-  const { requireCompany, isBlockedByViewer, resolveOwnedRow } = createGuards(get);
+  const { requireCompany, isBlockedByViewer, resolveOwnedRow } = createStoreRules(get);
 
   return {
     applyPatch,

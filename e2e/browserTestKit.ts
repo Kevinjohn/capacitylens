@@ -1,0 +1,416 @@
+import { expect } from '@playwright/test';
+import type { JSHandle, Locator, Page, Request } from '@playwright/test';
+import { WEEK_SNAP_IDLE_MS } from '../apps/frontend/src/lib/schedulerConfig';
+
+// Freeze browser Date inside the June seed window so scheduler tests remain independent of the wall clock.
+// Keep timers native because Firefox clock emulation can run pending scroll frames during Strict Mode layout replay.
+// Noon leaves a margin for host and browser time-zone differences.
+const FIXED_NOW = '2026-06-03T12:00:00';
+
+/** Disables the free-scroll week snap before each page load so a test can keep the grid parked mid-week.
+ * Settings has no control for this preference. Call before openApp; the init script applies
+ * capacitylens/snapToWeekStart on every load. The idle re-floor delay is WEEK_SNAP_IDLE_MS. */
+export async function disableWeekSnap(page: Page): Promise<void> {
+  await page.addInitScript(() => localStorage.setItem('capacitylens/snapToWeekStart', 'off'));
+}
+
+/** Seed the persisted explicit theme before the app's pre-paint script runs. */
+export async function setTheme(page: Page, theme: 'light' | 'dark'): Promise<void> {
+  await page.addInitScript((value) => localStorage.setItem('capacitylens/theme', value), theme);
+}
+
+/** Read a small named set of computed CSS properties from one rendered element. */
+export async function computedStyles<const Properties extends readonly string[]>(
+  locator: Locator,
+  properties: Properties,
+): Promise<Record<Properties[number], string>> {
+  return locator.evaluate((element, names) => {
+    const style = getComputedStyle(element);
+    return Object.fromEntries(names.map((name) => [name, style.getPropertyValue(name)])) as Record<
+      Properties[number],
+      string
+    >;
+  }, properties);
+}
+
+/**
+ * Reach a target through real keyboard navigation. `:focus-visible` depends on input modality, so
+ * programmatic focus does not reproduce a keyboard user and can diverge across browsers. Safari on
+ * macOS may reserve plain Tab for text fields and pop-up menus; Option+Tab also reaches buttons
+ * and links. Start with plain Tab, then use that Safari path only after a complete cycle misses the
+ * target. This works with either keyboard-navigation preference without changing host settings.
+ * For a roving-tabindex group, the selected item is the group's tab stop. Call this helper before
+ * any mouse interaction in the test, or `:focus-visible` will not match.
+ * @throws An error named FocusByKeyboardError when the target is not reached within 100 key presses.
+ */
+export async function focusByKeyboard(page: Page, target: Locator): Promise<number> {
+  const maxTabPresses = 100;
+  const browserName = page.context().browser()?.browserType().name();
+  const useSafariFallback = process.platform === 'darwin' && browserName === 'webkit';
+  let firstFocusedElement: JSHandle<Element | null> | undefined;
+  let safariFallbackActive = false;
+
+  try {
+    for (let keyPresses = 1; keyPresses <= maxTabPresses; keyPresses += 1) {
+      await page.keyboard.press(safariFallbackActive ? 'Alt+Tab' : 'Tab');
+      if (await target.evaluate((element) => element === document.activeElement)) return keyPresses;
+
+      if (useSafariFallback && !safariFallbackActive) {
+        if (firstFocusedElement === undefined) {
+          firstFocusedElement = await page.evaluateHandle(() => document.activeElement);
+        } else if (
+          await firstFocusedElement.evaluate((first) => first === document.activeElement)
+        ) {
+          // A complete plain-Tab cycle without reaching the target means Safari is using its
+          // default native-control policy. Option+Tab includes buttons and links in that mode.
+          safariFallbackActive = true;
+          await firstFocusedElement.dispose();
+          firstFocusedElement = undefined;
+        }
+      }
+    }
+  } finally {
+    await firstFocusedElement?.dispose();
+  }
+
+  const error = new Error(`Target was not reached after ${maxTabPresses} keyboard presses`);
+  error.name = 'FocusByKeyboardError';
+  throw error;
+}
+
+/** Select every connected segment and prove the active separator edges are cleared. */
+export async function expectConnectedSelectionEdges(
+  group: Locator,
+  afterSelect?: (selected: Locator, index: number) => Promise<void>,
+): Promise<void> {
+  const items = group.getByRole('radio');
+  const count = await items.count();
+  for (let selectedIndex = 0; selectedIndex < count; selectedIndex += 1) {
+    const selected = items.nth(selectedIndex);
+    await selected.click();
+    await expect(selected).toHaveAttribute('aria-checked', 'true');
+    await selected.evaluate((element) => (element as HTMLElement).blur());
+
+    const shadows = await items.evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).boxShadow),
+    );
+    expect(shadows[selectedIndex]).not.toContain('inset 1px 0px');
+    if (selectedIndex + 1 < count)
+      expect(shadows[selectedIndex + 1]).not.toContain('inset 1px 0px');
+    await afterSelect?.(selected, selectedIndex);
+  }
+}
+
+/** Freeze only the browser's Date constructor and Date.now, leaving every timer API native. */
+export async function freezeBrowserDate(page: Page): Promise<void> {
+  await page.addInitScript((fixedNow) => {
+    const NativeDate = Date;
+    const fixedMs = new NativeDate(fixedNow).getTime();
+
+    function FixedDate(this: Date, ...args: unknown[]) {
+      if (!new.target) return new NativeDate(fixedMs).toString();
+      return Reflect.construct(NativeDate, args.length ? args : [fixedMs], new.target);
+    }
+
+    Object.setPrototypeOf(FixedDate, NativeDate);
+    FixedDate.prototype = NativeDate.prototype;
+    Object.defineProperty(FixedDate, 'name', { value: 'Date' });
+    Object.defineProperty(FixedDate, 'now', { value: () => fixedMs });
+    globalThis.Date = FixedDate as unknown as DateConstructor;
+  }, FIXED_NOW);
+}
+
+/** Remove CSS motion before an assertion that reads rendered colours or geometry.
+ *
+ * `reducedMotion: 'reduce'` shortens the app's animations, but WebKit can briefly retain a
+ * composited opacity frame after the animation reports as finished. Axe then samples the blended
+ * frame and reports false low-contrast violations. Installing the override before opening the
+ * animated surface and waiting for two paint frames makes those assertions deterministic without
+ * weakening the accessibility rules being checked. */
+export async function disableCssMotion(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: `
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    `,
+  });
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
+/** Returns the rendered bounding box.
+ * @throws Error when the locator has no rendered box, so geometry assertions cannot proceed with null.
+ */
+export async function boundingBoxOrThrow(
+  locator: Locator,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  const b = await locator.boundingBox();
+  if (!b) throw new Error('no bounding box');
+  return b;
+}
+
+/** Shrink to a phone-portrait viewport and dismiss the resulting "Best in landscape" hint dialog,
+ * for specs that need the narrow layout without testing the hint itself (see mobile.spec.ts for
+ * that coverage). */
+export async function dismissLandscapeHint(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page
+    .getByRole('dialog', { name: 'Best in landscape' })
+    .getByRole('button', { name: 'Got it' })
+    .click();
+}
+
+/** Choose an option through a ShadCN Select's visible listbox, by stored value or visible label. */
+export async function selectShadOption(
+  trigger: Locator,
+  option: string | { label: string },
+): Promise<void> {
+  await trigger.click();
+  const content = trigger.page().locator('[data-slot="select-content"][data-state="open"]');
+  if (typeof option === 'string') {
+    await content.locator(`[role="option"][data-value="${option}"]`).click();
+  } else {
+    await content.getByRole('option', { name: option.label, exact: true }).click();
+  }
+  // Don't hand back control until the popup has actually gone: while it is open Radix puts
+  // `pointer-events: none` on the body, so the caller's very next click can silently miss.
+  await expect(content).toHaveCount(0);
+}
+
+/** Set the schedule toolbar's "Weeks visible" dropdown. Centralised so every zoom-dependent spec
+ * goes through one locator. */
+export async function setZoom(page: Page, weeks: 1 | 2 | 4 | 6 | 8): Promise<void> {
+  await selectShadOption(page.getByRole('combobox', { name: 'Weeks visible' }), String(weeks));
+}
+
+/** Reveal the schedule's secondary filter row when a flow needs one of its controls. */
+export async function showScheduleFilters(page: Page): Promise<void> {
+  const show = page.getByRole('button', { name: 'Show filters' });
+  const hide = page.getByRole('button', { name: 'Hide filters' });
+  await show.or(hide).first().waitFor();
+  if (await show.isVisible()) await show.click();
+  await expect(hide).toHaveAttribute('aria-expanded', 'true');
+}
+
+/** Turn on the "Show placeholders" per-account pref (default off) from Settings, for specs that
+ * just need placeholders visible rather than testing the toggle itself. */
+export async function showPlaceholders(page: Page): Promise<void> {
+  const toggle = page.getByRole('switch', { name: 'Show placeholders' });
+  if ((await toggle.getAttribute('aria-checked')) !== 'true')
+    await changeCompanySetting(page, () => toggle.click());
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+}
+
+/** True for a planning mutation request carrying the named operation and, when given, entity. */
+export function isPlanningMutation(request: Request, operation?: string, entity?: string): boolean {
+  if (
+    request.method() !== 'POST' ||
+    !/^\/api\/companies\/[^/]+\/planning\/mutations$/.test(new URL(request.url()).pathname)
+  )
+    return false;
+  const intent = (request.postDataJSON() as { intent?: { operation?: string; entity?: unknown } })
+    ?.intent;
+  if (operation !== undefined && intent?.operation !== operation) return false;
+  if (entity === undefined) return true;
+  return (intent?.entity as { entity?: string } | undefined)?.entity === entity;
+}
+
+/** Wait for a planning mutation's receipt and the canonical read that follows it. Until that read
+ * lands, the scheduler is still settling the write, so a pointer resting on a bar may not open its
+ * popover. */
+export async function commitPlanningChange(
+  page: Page,
+  operation: string,
+  action: () => Promise<unknown>,
+): Promise<void> {
+  const written = page
+    .waitForResponse((response) => isPlanningMutation(response.request(), operation))
+    .then(async (response) => {
+      expect(response.ok(), await response.text()).toBe(true);
+      const receipt = (await response.json()).data;
+      expect(Number.isInteger(receipt.revision)).toBe(true);
+      return receipt;
+    });
+  const canonical = page.waitForResponse(async (response) => {
+    if (
+      response.request().method() !== 'GET' ||
+      !/\/api\/companies\/[^/]+\/planning$/.test(new URL(response.url()).pathname) ||
+      !response.ok()
+    )
+      return false;
+    const receipt = await written;
+    const snapshot = (await response.json()).data;
+    return snapshot.revision >= receipt.revision;
+  });
+  await Promise.all([action(), written, canonical]);
+}
+
+/** Wait for a settings receipt and its canonical read before starting another planning change. */
+export async function changeCompanySetting(
+  page: Page,
+  action: () => Promise<unknown>,
+): Promise<void> {
+  await commitPlanningChange(page, 'settings.update', action);
+}
+
+/** Turn on workspace inline activity creation from Settings for flows that exercise the opt-in UI. */
+export async function enableInlineActivityCreation(page: Page): Promise<void> {
+  const toggle = page.getByRole('switch', { name: 'Inline activity creation' });
+  if ((await toggle.getAttribute('aria-checked')) !== 'true')
+    await changeCompanySetting(page, () => toggle.click());
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+}
+
+/** Re-anchor the schedule on the seeded week. `freezeBrowserDate` pins the clock to 2026-06-03,
+ * whose week start is 2026-06-01, so **Today** puts the seed week's Monday at the left edge. */
+export async function goToSeedWeek(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Today', exact: true }).click();
+}
+
+/** Snap the scheduler grid's horizontal scroll back to 0. A literal DOM write resetting to the
+ * timeline origin, deliberately not `goToSeedWeek`, which drives app navigation instead. */
+export async function resetSchedulerScroll(page: Page): Promise<void> {
+  await page.getByTestId('scheduler-grid').evaluate((el) => {
+    (el as HTMLElement).scrollLeft = 0;
+    el.dispatchEvent(new Event('scroll'));
+  });
+}
+
+/** Wait for a destination inside the application shell and clear first-use guidance when present. */
+export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<void> {
+  await landedOn.waitFor();
+  const orientation = page.getByTestId('product-orientation');
+  if (await orientation.isVisible()) {
+    await orientation.getByRole('button', { name: 'Got it' }).click();
+  }
+}
+
+/** Wait until the bar accepts pointer input and the schedule has stopped moving.
+ *
+ * Bars render read-only (`role="img"`, no pointer handlers) until the membership role resolves,
+ * which can be after the planning data has drawn them. The same update inserts the getting-started
+ * strip above the schedule, moving every row down. A click or a measured drag before it is ignored
+ * or lands on another row (#1928). */
+export async function expectEditableBar(bar: Locator): Promise<void> {
+  await expect(bar).toHaveRole('button');
+}
+
+/** Opens the authenticated fixture company and dismisses non-blocking orientation. */
+export async function openApp(page: Page, path = '/'): Promise<void> {
+  await freezeBrowserDate(page);
+  await page.goto(path);
+  await waitForAppLanding(page, page.locator('#main'));
+}
+
+/** Reports the visible timeline's left edge, day count, and weekday column width. */
+export interface SchedulerGeometryProbe {
+  leftDate: string;
+  leftWeekday: string;
+  visibleDays: number;
+  weekdayWidth: number;
+}
+
+/**
+ * Read settled scheduler geometry through semantic test hooks. Shared by every scroll/zoom spec so
+ * sticky-column measurement, double-rAF settling and weekday-width selection cannot drift.
+ * The scheduler grid, resource header and date tier must be mounted.
+ * @throws When required DOM hooks are absent, rather than returning a substitute measurement.
+ */
+export async function probeSchedulerGeometry(page: Page): Promise<SchedulerGeometryProbe> {
+  return page.evaluate(async () => {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement;
+    const resourceHeader = document.querySelector(
+      '[data-testid="scheduler-resource-header"]',
+    ) as HTMLElement;
+    const dayTier = document.querySelector('[data-testid="scheduler-day-tier"]') as HTMLElement;
+    const cells = dayTier ? Array.from(dayTier.children) : [];
+    const gridRect = grid.getBoundingClientRect();
+    const laneLeft = resourceHeader.getBoundingClientRect().right;
+    const weekdayLabel = (cell: Element) => {
+      const spans = cell.querySelectorAll('span');
+      return (spans[spans.length - 1]?.textContent || '').trim();
+    };
+    let leftDate = '';
+    let leftWeekday = '';
+    let visibleDays = 0;
+    let weekdayWidth = 0;
+    for (const cell of cells) {
+      const rect = (cell as HTMLElement).getBoundingClientRect();
+      const label = weekdayLabel(cell);
+      if (!leftDate && rect.right > laneLeft + 1) {
+        leftDate = (cell.textContent || '').trim();
+        leftWeekday = label;
+      }
+      if (rect.right > laneLeft && rect.left < gridRect.right) visibleDays += 1;
+      if (!weekdayWidth && label.length === 3) weekdayWidth = rect.width;
+    }
+    return { leftDate, leftWeekday, visibleDays, weekdayWidth };
+  });
+}
+
+/** Waits for horizontal scrolling to settle, then returns the date at the timeline's left edge. */
+export async function settledSchedulerLeftDate(page: Page): Promise<string> {
+  const grid = page.getByTestId('scheduler-grid');
+  let last = Number.NaN;
+  await expect
+    .poll(
+      async () => {
+        const current = await grid.evaluate((node) => (node as HTMLElement).scrollLeft);
+        const stable = current === last;
+        last = current;
+        return stable;
+      },
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+  return (await probeSchedulerGeometry(page)).leftDate;
+}
+
+/** Scrolls the timeline by the measured width of the requested number of weekday columns. */
+export async function nudgeScheduler(page: Page, columns: number): Promise<void> {
+  const { weekdayWidth } = await probeSchedulerGeometry(page);
+  await page.getByTestId('scheduler-grid').evaluate(
+    (node, delta) => {
+      (node as HTMLElement).scrollLeft += delta;
+    },
+    Math.round(weekdayWidth * columns),
+  );
+}
+
+/** The month label covering the left edge of the visible timeline (e.g. "Jun 2026"). The date header
+ * always renders every month in the window, so `getByText("Jul 2026")` proves nothing about where
+ * the window sits, this reads the month block that actually spans the first visible column. */
+export async function schedulerLeftMonthLabel(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    const header = document.querySelector(
+      '[role="columnheader"][aria-colindex="2"]',
+    ) as HTMLElement;
+    const resourceHeader = document.querySelector(
+      '[data-testid="scheduler-resource-header"]',
+    ) as HTMLElement;
+    const laneLeft = resourceHeader.getBoundingClientRect().right;
+    const monthTier = header.firstElementChild as HTMLElement;
+    for (const block of Array.from(monthTier.children)) {
+      if (block.getBoundingClientRect().right > laneLeft + 1)
+        return (block.textContent || '').trim();
+    }
+    return '';
+  });
+}
+
+/** Leave the production idle timer plus layout/paint margin before asserting snap or no-snap. */
+export async function waitForWeekSnap(page: Page): Promise<void> {
+  await page.waitForTimeout(WEEK_SNAP_IDLE_MS + 280);
+}

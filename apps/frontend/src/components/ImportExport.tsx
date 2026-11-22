@@ -2,23 +2,23 @@ import { useRef, useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useCan } from '@/auth/permissionContext';
-import { ConfirmDialog, Modal } from './common/ui';
+import { ConfirmDialog, FormDialog } from './common/ui';
 import { m } from '@/i18n';
 import { Button } from './ui/button';
 import { reloadPage } from '@/lib/reloadPage';
 import { useServerImport } from './import-export/useServerImport';
 import { ImportPreview } from './import-export/ImportPreview';
 import { summarize } from './import-export/importExportMessages';
-import { useExportAction } from './import-export/useExportAction';
+import { useExportOperation } from './import-export/useExportOperation';
 import { usePendingImport } from './import-export/usePendingImport';
 import type { PendingImport } from './import-export/usePendingImport';
 import { PasswordConfirmationDialog } from '@/auth/PasswordConfirmationDialog';
 import { companyDataRequests } from '@/data/companyDataRequests';
-import type { TransferPreview } from '@/data/companyDataRequests';
+import type { ImportPreviewSummary } from '@/data/companyDataRequests';
 
 function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
   return (
-    <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
+    <FormDialog title={m.data_importing_title()} onClose={() => {}} warnOnDirty={false}>
       {requiresReload ? (
         <div className="flex flex-col gap-3">
           <p
@@ -37,7 +37,7 @@ function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
           {m.data_importing_body()}
         </p>
       )}
-    </Modal>
+    </FormDialog>
   );
 }
 
@@ -48,7 +48,7 @@ function ImportConfirmation({
   onCancel,
 }: {
   pending: PendingImport;
-  counts: TransferPreview['counts'];
+  counts: ImportPreviewSummary['counts'];
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -135,7 +135,7 @@ export function ImportExport() {
   const setNotice = useStore((state) => state.setNotice);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const canImport = useCan('company:import');
-  // A full-slice replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
+  // A full-set replacement needs explicit confirmation. Scheduler Undo covers bookings only, so no import mode can be undone from the UI.
   const {
     pending: pendingImport,
     readFile,
@@ -147,8 +147,8 @@ export function ImportExport() {
     busy: importBusy,
     requiresReload: importRequiresReload,
   } = useServerImport();
-  const { busy: exportBusy, exportData } = useExportAction();
-  const [preview, setPreview] = useState<TransferPreview | null>(null);
+  const { busy: exportBusy, exportData } = useExportOperation();
+  const [preview, setPreview] = useState<ImportPreviewSummary | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [continued, setContinued] = useState(false);
   const [confirmingAction, setConfirmingAction] = useState(false);
@@ -157,7 +157,7 @@ export function ImportExport() {
     setPreview(null);
     setPreviewError(null);
   };
-  // The server is the only validator: its reply is either the preview or the refusal shown in the modal.
+  // The server is the only validator: its reply is either the preview or the refusal shown in the dialog.
   const requestPreview = async (pending: PendingImport) => {
     const companyId = pending.companyId;
     if (!companyId) return;
@@ -165,7 +165,7 @@ export function ImportExport() {
     const isCurrent = () =>
       selectionRef.current === selection && useStore.getState().activeCompanyId === companyId;
     try {
-      const reply = await companyDataRequests.readTransferPreview(companyId, pending.document);
+      const reply = await companyDataRequests.readImportPreview(companyId, pending.document);
       if (isCurrent()) setPreview(reply);
     } catch (error) {
       if (isCurrent()) setPreviewError(resolveErrorMessage(error));
@@ -199,24 +199,24 @@ export function ImportExport() {
         }}
       />
 
-      {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale slice. */}
+      {/* The progress dialog stays open until the import and authoritative reload settle. Its no-op dismissal handler prevents Escape or backdrop interaction from exposing a stale set. */}
       {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
       {pendingImport && canImport && !continued && (
-        <Modal
+        <FormDialog
           title={m.data_import_confirm_title()}
           onClose={() => {
             selectionRef.current += 1;
             clearPendingImport();
           }}
-          guardDirty={false}
+          warnOnDirty={false}
         >
           <ImportPreview
             preview={preview}
             error={previewError}
             onContinue={() => preview && setContinued(true)}
           />
-        </Modal>
+        </FormDialog>
       )}
       {pendingImport && canImport && preview && continued && !confirmingAction && (
         <ImportConfirmation

@@ -1,4 +1,4 @@
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 import { requireCreated } from '@/test/requireCreated';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -11,7 +11,7 @@ import {
   resetStoreWithCompany,
   DEFAULT_COMPANY_ID,
   makeResourceDraft,
-  setPlanningAuthority,
+  setPlanningAccess,
 } from '@/test/fixtures';
 import { renderWithOwnerAndTooltip as render, GEOM, indexAtClientX } from '@/test/schedulerTestKit';
 
@@ -21,7 +21,7 @@ import {
   getStoredAllocation,
   laneRect,
   rect,
-  seedAllocation,
+  createAllocation,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 import { permissionValue } from '@/test/permissionGrants';
@@ -80,7 +80,7 @@ async function verifyWorkingDayRejection({
     st.addResource({
       kind: 'person',
       name: 'Jess Chambers',
-      role: 'Dev',
+      jobTitle: 'Dev',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -93,7 +93,7 @@ async function verifyWorkingDayRejection({
     st.addResource({
       kind: 'person',
       name: 'Marie Moreau',
-      role: 'PM',
+      jobTitle: 'PM',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -140,7 +140,7 @@ async function verifyWorkingDayRejection({
 
 describe('AllocationBar pointer drag and reassignment interactions', () => {
   it('appends the save reply capacity advisory to the move toast', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(a)}
@@ -171,7 +171,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
   });
 
   it('does not report a successful move when permission drops to Viewer mid-drag', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     const barUi = (role: 'editor' | 'viewer') => (
       <PermissionContext.Provider value={permissionValue(role, 'resolved')}>
         <AllocationBar
@@ -187,7 +187,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 });
     document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }));
-    act(() => setPlanningAuthority({ role: 'viewer', canWrite: false }));
+    act(() => setPlanningAccess({ role: 'viewer', canWrite: false }));
     rerender(barUi('viewer'));
     document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }));
     await settlePlanning();
@@ -208,13 +208,13 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addActivity({ name: 'Wires', kind: 'project', projectId: p1.id }),
     );
     const person = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
     // A placeholder bound to p2 cannot take a p1 activity, dropping onto it must be rejected.
     const slot = await requireCreated(
       st.addResource({
         kind: 'placeholder',
-        role: 'Slot',
+        jobTitle: 'Slot',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -252,7 +252,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
 
     // The server owns availability and attribution; the browser surfaces its refusal.
     getStubPlanningTransport().failNext(
-      new PlanningControllerError(
+      new PlanningCacheError(
         'A placeholder bound to a project can only take activities from that project.',
         'VALIDATION_ERROR',
         400,
@@ -297,7 +297,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addResource({
         kind: 'person',
         name: 'Jess Chambers',
-        role: 'Dev',
+        jobTitle: 'Dev',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -310,7 +310,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addResource({
         kind: 'person',
         name: 'Marie Moreau',
-        role: 'PM',
+        jobTitle: 'PM',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -368,7 +368,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
     });
   });
   it('updates a vertical drag without a trailing transform transition', async () => {
-    const allocation = await seedAllocation();
+    const allocation = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(allocation)}
@@ -403,13 +403,13 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addActivity({ name: 'Wires', kind: 'project', projectId: project.id }),
     );
     const source = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
     );
     const destination = await requireCreated(
       st.addResource({
         kind: 'person',
         name: 'Sam',
-        role: 'Dev',
+        jobTitle: 'Dev',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -472,7 +472,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       st.addResource({
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Partner studio',
+        jobTitle: 'Partner studio',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -482,7 +482,7 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
       }),
     );
     const person = await requireCreated(
-      st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#4' })),
+      st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#4' })),
     );
     const allocation = requireCreated(
       await st.addAllocation({
@@ -553,13 +553,13 @@ describe('AllocationBar pointer drag and reassignment interactions', () => {
           st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
         );
         const r1 = await requireCreated(
-          st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+          st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
         );
         const r2 = await requireCreated(
           st.addResource({
             kind: 'person',
             name: 'Sam',
-            role: 'Dev',
+            jobTitle: 'Dev',
             employmentType: 'permanent',
             engagement: 'studio' as const,
             workingHoursPerDay: 8,

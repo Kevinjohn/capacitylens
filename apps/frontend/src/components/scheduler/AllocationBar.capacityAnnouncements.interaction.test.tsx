@@ -15,14 +15,14 @@ import {
   barFor,
   getSrAnnouncement,
   getStoredAllocation,
-  seedAllocation,
-  seedVisibleAllocationWithHiddenCapacity,
+  createAllocation,
+  createVisibleAllocationWithHiddenCapacity,
   settlePlanning,
 } from '@/test/allocationBarInteractionTestKit';
 
 beforeEach(async () => resetStoreWithCompany());
 
-async function seedConflictPair() {
+async function createConflictPair() {
   const st = useStore.getState();
   const c = await requireCreated(st.addClient({ name: 'Ferris', color: '#1' }));
   const p = await requireCreated(st.addProject({ name: 'P', clientId: c.id, color: '#2' }));
@@ -30,7 +30,7 @@ async function seedConflictPair() {
     st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
   );
   const r = await requireCreated(
-    st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
   );
   await st.addAllocation({
     resourceId: r.id,
@@ -59,7 +59,7 @@ describe('AllocationBar capacity announcement interactions', () => {
     it('announces the over-capacity outcome from the reply, and "no conflicts" when the next reply resolves it', async () => {
       // Anchor the visible window to the fixed fixture dates so capacity announcements remain deterministic as today advances.
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
-      const b = await seedConflictPair();
+      const b = await createConflictPair();
       await settlePlanning();
       const transport = getStubPlanningTransport();
       const range = { from: '2026-06-01', to: '2026-06-14' };
@@ -107,7 +107,7 @@ describe('AllocationBar capacity announcement interactions', () => {
 
     it('stays silent when the read after the write fails, as the store still holds older figures', async () => {
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
-      const b = await seedConflictPair();
+      const b = await createConflictPair();
       // Let the pan's delayed read run now, so it cannot land after the failed read and clear it.
       await act(() => new Promise((resolve) => setTimeout(resolve, WINDOW_READ_DELAY_MS)));
       await settlePlanning();
@@ -141,7 +141,7 @@ describe('AllocationBar capacity announcement interactions', () => {
     // figures that reach past the window is covered by the gestureAnnouncements unit tests.
     it('counts over days from the read for the visible window, which the zoom widens', async () => {
       useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } }));
-      const b = await seedConflictPair();
+      const b = await createConflictPair();
       await settlePlanning();
       const transport = getStubPlanningTransport();
       const narrow = { from: '2026-06-01', to: '2026-06-14' };
@@ -181,7 +181,7 @@ describe('AllocationBar capacity announcement interactions', () => {
       expect(getSrAnnouncement().text).toBe('Ty now over capacity on 1 day.');
     });
     it('does NOT announce on a pointer drag (sighted feedback — would be noise)', async () => {
-      const a = await seedAllocation();
+      const a = await createAllocation();
       render(
         <AllocationBar
           bar={barFor(a)}
@@ -202,7 +202,7 @@ describe('AllocationBar capacity announcement interactions', () => {
     });
   });
   it('excludes retained hidden allocations from pointer capacity advice', async () => {
-    const visible = await seedVisibleAllocationWithHiddenCapacity();
+    const visible = await createVisibleAllocationWithHiddenCapacity();
     // Adopt the helper's direct archive fixture before sending an allocation edit.
     await useStore.getState().refreshPlanning();
     render(
@@ -227,7 +227,7 @@ describe('AllocationBar capacity announcement interactions', () => {
   });
 
   it('pins the dragged row (draggingAllocationId) on the first move and clears it on commit', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     render(
       <AllocationBar
         bar={barFor(a)}
@@ -249,7 +249,7 @@ describe('AllocationBar capacity announcement interactions', () => {
   });
 
   it('clears the drag-pin on pointercancel, and on unmount if the bar still owns it', async () => {
-    const a = await seedAllocation();
+    const a = await createAllocation();
     const { unmount } = render(
       <AllocationBar
         bar={barFor(a)}

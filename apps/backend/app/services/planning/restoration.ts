@@ -12,11 +12,15 @@ import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWor
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
 import { parseAffectedRows } from '#services/affected_rows';
-import { buildRetainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
+import {
+  buildRetainedQuery,
+  isRetainedTable,
+  type RetainedTable,
+} from '#services/planning/retained_rows';
 import { tables } from '#services/product_tables';
 import { transformRow } from '#transformers/row_transformer';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { asRecord, requireExistingRow, type WrittenRow } from './writer.js';
+import { asRecord, requireExistingRow, type WrittenRow } from '#services/planning/writer';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
@@ -233,7 +237,7 @@ export async function restoreGroup(
   }
   if (rows.length === 0) refuseRestorationConflict();
   const dependencies = await readStateWithClient(trx, companyId, true);
-  const company = dependencies.accounts.find((row) => row.id === companyId);
+  const company = dependencies.companies.find((row) => row.id === companyId);
   const companyWorkingDays = normalizeCompanyWorkingDays(
     company?.workingDays,
     company?.weekStartsOn === 0 ? 0 : 1

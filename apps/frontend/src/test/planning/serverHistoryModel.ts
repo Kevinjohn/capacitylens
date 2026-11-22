@@ -1,7 +1,7 @@
 import type { PlanningHistory } from '@/data/planning/planningCacheTypes';
 
 /**
- * The server's one history row per company, reduced to counts for controller tests: the last
+ * The server's one history row per company, reduced to counts for cache tests: the last
  * writer's page id, the revision it holds and how many steps it has each way. A change under another
  * id or with none, or any revision the row does not hold, leaves the reading page with no history.
  */

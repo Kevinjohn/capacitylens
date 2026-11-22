@@ -2,18 +2,18 @@ import { E2E_SCRIPT_TEST_SLOTS } from './e2eTestSlots.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  LANE_CEILING,
-  WORKER_SLOTS_PER_LANE,
+  PORT_LANE_CEILING,
+  WORKER_SLOTS_PER_PORT_LANE,
   workerPorts,
-  portsForLane,
+  portsForPortLane,
   reservationCeiling,
-  resolveLane,
+  resolvePortLane,
   soloShare,
   testShare,
 } from './ports.mjs';
 
-test('lane 0 reproduces the ports this repository bound before lanes existed', () => {
-  assert.deepEqual(portsForLane(0), {
+test('port lane 0 reproduces the ports this repository bound before port lanes existed', () => {
+  assert.deepEqual(portsForPortLane(0), {
     web: 5173,
     dbWeb: 5273,
     authWeb: 5373,
@@ -26,7 +26,7 @@ test('lane 0 reproduces the ports this repository bound before lanes existed', (
   });
 });
 
-test('no two services share a port anywhere in the lane range', () => {
+test('no two services share a port anywhere in the port lane range', () => {
   const seen = new Map();
   const claim = (port, owner) => {
     assert.equal(
@@ -36,30 +36,30 @@ test('no two services share a port anywhere in the lane range', () => {
     );
     seen.set(port, owner);
   };
-  for (let lane = 0; lane < LANE_CEILING; lane += 1) {
-    for (const [service, port] of Object.entries(portsForLane(lane)))
-      claim(port, `${service} lane ${lane}`);
-    for (let slot = 0; slot < WORKER_SLOTS_PER_LANE; slot += 1)
-      for (const [service, port] of Object.entries(workerPorts(lane, slot)))
-        claim(port, `${service} lane ${lane} slot ${slot}`);
+  for (let portLane = 0; portLane < PORT_LANE_CEILING; portLane += 1) {
+    for (const [service, port] of Object.entries(portsForPortLane(portLane)))
+      claim(port, `${service} port lane ${portLane}`);
+    for (let slot = 0; slot < WORKER_SLOTS_PER_PORT_LANE; slot += 1)
+      for (const [service, port] of Object.entries(workerPorts(portLane, slot)))
+        claim(port, `${service} port lane ${portLane} slot ${slot}`);
   }
 });
 
-test('a lane outside the ceiling is rejected rather than silently wrapped', () => {
-  assert.throws(() => portsForLane(LANE_CEILING), RangeError);
-  assert.throws(() => portsForLane(-1), RangeError);
-  assert.throws(() => portsForLane(1.5), RangeError);
+test('a port lane outside the ceiling is rejected rather than silently wrapped', () => {
+  assert.throws(() => portsForPortLane(PORT_LANE_CEILING), RangeError);
+  assert.throws(() => portsForPortLane(-1), RangeError);
+  assert.throws(() => portsForPortLane(1.5), RangeError);
 });
 
-test('the lane comes from the environment, defaulting to 0 when nothing claimed one', () => {
-  assert.equal(resolveLane({}), 0);
-  assert.equal(resolveLane({ CAPACITYLENS_PORT_LANE: '' }), 0);
-  assert.equal(resolveLane({ CAPACITYLENS_PORT_LANE: '7' }), 7);
-  assert.throws(() => resolveLane({ CAPACITYLENS_PORT_LANE: 'ten' }), RangeError);
-  assert.throws(() => resolveLane({ CAPACITYLENS_PORT_LANE: '10' }), RangeError);
+test('the port lane comes from the environment, defaulting to 0 when nothing claimed one', () => {
+  assert.equal(resolvePortLane({}), 0);
+  assert.equal(resolvePortLane({ CAPACITYLENS_PORT_LANE: '' }), 0);
+  assert.equal(resolvePortLane({ CAPACITYLENS_PORT_LANE: '7' }), 7);
+  assert.throws(() => resolvePortLane({ CAPACITYLENS_PORT_LANE: 'ten' }), RangeError);
+  assert.throws(() => resolvePortLane({ CAPACITYLENS_PORT_LANE: '10' }), RangeError);
 });
 
-test('a run outside a lane gets the same ceiling a solo claim would', () => {
+test('a run outside a port lane gets the same ceiling a solo claim would', () => {
   assert.equal(testShare({}), reservationCeiling());
   assert.equal(testShare({ CAPACITYLENS_TEST_SHARE: '3' }), 3);
   assert.throws(() => testShare({ CAPACITYLENS_TEST_SHARE: '0' }), RangeError);
@@ -73,7 +73,7 @@ test('the pool leaves a core for everything that is not a test worker, and never
   assert.equal(reservationCeiling(1), 1);
 });
 
-test('worker slots are bounded and keep each lane in its reserved range', () => {
+test('worker slots are bounded and keep each port lane in its reserved range', () => {
   assert.deepEqual(workerPorts(0, 0), { api: 10000, web: 10001 });
   assert.deepEqual(workerPorts(9, 49), { api: 10998, web: 10999 });
   for (const slot of [-1, 0.5, 50, NaN, Infinity])
@@ -81,10 +81,10 @@ test('worker slots are bounded and keep each lane in its reserved range', () => 
   assert.throws(() => workerPorts(10, 0), RangeError);
 });
 
-test('script fixtures use distinct slots within the claimed lane', () => {
+test('script fixtures use distinct slots within the claimed port lane', () => {
   const slots = Object.values(E2E_SCRIPT_TEST_SLOTS);
   assert.equal(new Set(slots).size, slots.length);
   for (const slot of slots) {
-    assert.ok(Number.isInteger(slot) && slot >= 0 && slot < WORKER_SLOTS_PER_LANE);
+    assert.ok(Number.isInteger(slot) && slot >= 0 && slot < WORKER_SLOTS_PER_PORT_LANE);
   }
 });

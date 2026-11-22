@@ -42,11 +42,11 @@ flowchart TD
 ```mermaid
 flowchart TD
   nav["AppSidebar renders HELP_LINK"] --> route["router renders HelpView at help route"]
-  help["HelpView calls useTourAction"] --> action["useTourAction checks permission readiness"]
+  help["HelpView calls useTourOperation"] --> action["useTourOperation checks permission readiness"]
   action --> start["startTour builds role tour and navigates"]
   start --> guide["driver.js presents tour steps"]
   help --> orient["button calls showOrientation from Outlet context"]
   help --> diag["useDiagnosticsAccessDecision allowed renders Diagnostics link"]
 ```
 
-**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [router.tsx](../../apps/frontend/src/router.tsx); [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx); [useDiagnosticsAccessDecision.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsAccessDecision.ts); [useTourAction.ts](../../apps/frontend/src/hooks/useTourAction.ts); [tour.ts](../../apps/frontend/src/lib/tour.ts); [tourSteps.ts](../../apps/frontend/src/lib/tourSteps.ts)
+**Code references:** [AppSidebar.tsx](../../apps/frontend/src/components/AppSidebar.tsx); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [router.tsx](../../apps/frontend/src/router.tsx); [HelpView.tsx](../../apps/frontend/src/components/HelpView.tsx); [useDiagnosticsAccessDecision.ts](../../apps/frontend/src/components/diagnostics/useDiagnosticsAccessDecision.ts); [useTourOperation.ts](../../apps/frontend/src/hooks/useTourOperation.ts); [tour.ts](../../apps/frontend/src/lib/tour.ts); [tourSteps.ts](../../apps/frontend/src/lib/tourSteps.ts)

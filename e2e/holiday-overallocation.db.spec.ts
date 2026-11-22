@@ -6,7 +6,7 @@ import {
   resetSchedulerScroll,
   selectShadOption,
   setZoom,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 async function addTimeOff(page: Page, resource: string, start: string, end = start) {
   await page.getByRole('button', { name: 'Add time off' }).click();
@@ -55,7 +55,7 @@ async function markerOnFirstTimeOff(lane: Locator) {
 }
 
 test(
-  'modal edits, drag and repeat creation show work on holiday as over allocation',
+  'dialog edits, drag and repeat creation show work on holiday as over allocation',
   { tag: '@engine' },
   async ({ page }, testInfo) => {
     await openApp(page);
@@ -168,7 +168,7 @@ test(
     await expect(bruceLane.getByTestId('over-marker')).toHaveCount(3);
     const bruceRow = page.getByTestId('scheduler-row').filter({ hasText: 'Bruce Wayne' });
     await expect(bruceRow).toContainText('Over capacity on 3 days.');
-    await expect(bruceRow.getByTestId('utilization')).toHaveText('0%');
-    await expect(page.getByTestId('overall-utilization')).toHaveText('0%');
+    await expect(bruceRow.getByTestId('utilisation')).toHaveText('0%');
+    await expect(page.getByTestId('overall-utilisation')).toHaveText('0%');
   },
 );

@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { clearIdentities, signUpAndIn } from '../../helpers/identities.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { clearIdentities, signUpAndIn } from '#tests/helpers/identities';
 
 const owner = {
   email: 'bruce.wayne@wayne.example',
@@ -37,7 +37,10 @@ test.group('company route identifier bounds', (group) => {
       const response = await asDataOwner(request, cookie).send();
       response.assertStatus(404);
     }
-    const listed = await asDataOwner(client.get('/api/companies/a-studio/members'), cookie).send();
+    const listed = await asDataOwner(
+      client.visit('api.members.index', { companyId: 'a-studio' }),
+      cookie
+    ).send();
     listed.assertStatus(200);
   });
 });

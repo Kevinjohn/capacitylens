@@ -9,7 +9,7 @@ import {
   setTheme,
   setZoom,
   showScheduleFilters,
-} from './browserTestSupport';
+} from './browserTestKit';
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
@@ -134,7 +134,7 @@ async function openAllocationEditor(page: import('@playwright/test').Page): Prom
 }
 
 test(
-  'the allocation editor modal has no serious or critical violations',
+  'the allocation editor dialog has no serious or critical violations',
   { tag: '@engine' },
   async ({ page }) => {
     await openAllocationEditor(page);
@@ -143,7 +143,7 @@ test(
 );
 
 test(
-  'the allocation editor modal (dark) has no serious or critical violations',
+  'the allocation editor dialog (dark) has no serious or critical violations',
   { tag: '@engine' },
   async ({ page }) => {
     await setTheme(page, 'dark');
@@ -154,7 +154,7 @@ test(
 );
 
 test(
-  'a resource form modal has no serious or critical violations',
+  'a resource form dialog has no serious or critical violations',
   { tag: '@engine' },
   async ({ page }) => {
     await openApp(page, '/resources');
@@ -216,7 +216,7 @@ test(
   { tag: '@engine' },
   async ({ page }) => {
     await openApp(page, '/diagnostics');
-    await expect(page.getByTestId('diagnostics-report-text')).toContainText('Snapshot observed:');
+    await expect(page.getByTestId('diagnostics-report-text')).toContainText('Observed at:');
     await settledAxe(page);
   },
 );

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { UserSchema } from '#database/schema';
 import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm';
-import { hasNoCompany } from '#models/installation_company';
+import { hasNoCompany } from '#services/installation_company';
 
 export default class User extends UserSchema {
   // Identities use UUIDs; without this Lucid replaces the id with SQLite's row id after insert.

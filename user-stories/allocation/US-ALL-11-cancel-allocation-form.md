@@ -6,7 +6,7 @@ As an Editor, I want to cancel an allocation form so that an unsaved draft is di
 **Access:** Editor, Admin or Owner
 **Entry:** New allocation or Edit allocation dialog
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
 
 ## Acceptance criteria
 
@@ -29,7 +29,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationModal onClose"] --> B["useAllocationModalState close handler"]
+  A["AllocationDialog onClose"] --> B["useAllocationDialogState close handler"]
   B --> C["Clear local form state and close dialog"]
   C --> D["No addAllocation or updateAllocation call"]
   D --> E["Existing Schedule data remains unchanged"]
@@ -37,5 +37,5 @@ flowchart TD
 
 **Code references:**
 
-- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
-- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)

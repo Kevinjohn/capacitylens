@@ -1,11 +1,11 @@
 import { seed } from '@capacitylens/shared/data/seed';
-import { withTransaction } from '#services/with_transaction';
+import db from '@adonisjs/lucid/services/db';
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
 
 /** Add the seed rows without replacing operator data or audit history. */
 export async function insertSeed() {
-  await withTransaction(async (trx) => {
+  await db.transaction(async (trx) => {
     const data = seed();
     for (const [key, table] of Object.entries(tables)) {
       const rows = data[key as keyof typeof tables];

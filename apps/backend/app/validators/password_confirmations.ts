@@ -4,7 +4,7 @@ import { allowedFields, fixedMessage } from '#validators/request_rules';
 const message = 'Invalid password confirmation.';
 
 /** Each action names its own intent; the import document keeps its own parser in the controller. */
-export const passwordValidator = vine.create(
+export const confirmPasswordValidator = vine.create(
   vine
     .object({
       companyId: vine.string().minLength(1),
@@ -39,4 +39,4 @@ export const passwordValidator = vine.create(
     )
     .use(allowedFields({ fields: ['action', 'companyId', 'intent', 'password'], message }))
 );
-passwordValidator.messagesProvider = fixedMessage(message);
+confirmPasswordValidator.messagesProvider = fixedMessage(message);

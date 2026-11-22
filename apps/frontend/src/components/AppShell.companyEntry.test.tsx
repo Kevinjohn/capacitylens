@@ -3,7 +3,7 @@ import { screen, act, fireEvent, waitFor } from '@testing-library/react';
 import { useStore } from '@/store/useStore';
 import { loadPlanningData, makeAppData, makeCompany, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { createEmptyAppData } from '@capacitylens/shared/types/entities';
-import { setUpAppShellTests, companyDirectory, renderAppShell } from './AppShell.testSupport';
+import { setUpAppShellTests, companyDirectory, renderAppShell } from './AppShellTestKit';
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromCompany: vi.fn() }));
 vi.mock('@/i18n', async (importOriginal) => ({
@@ -61,7 +61,7 @@ it('does not reactivate a consumed joined-account handoff after a later account-
   const otherCompanyId = 'acct-other';
   const companies = [makeCompany(), makeCompany({ id: otherCompanyId, name: 'Other Co' })];
   companyDirectory.response = companies.map(({ id, name }) => ({ id, name, role: 'owner' }));
-  loadPlanningData(makeAppData({ accounts: companies }));
+  loadPlanningData(makeAppData({ companies }));
   useStore
     .getState()
     .setCompanySummaries({ list: companies.map(({ id, name }) => ({ id, name, role: 'owner' })) });
@@ -108,7 +108,7 @@ it('does not apply a late joined-account handoff after an explicit company choic
 it('shows an installation error when the account directory contains multiple memberships', async () => {
   const companies = [makeCompany(), makeCompany({ id: 'acct-other', name: 'Other Co' })];
   companyDirectory.refused = true;
-  loadPlanningData(makeAppData({ accounts: companies }));
+  loadPlanningData(makeAppData({ companies }));
   useStore.setState({
     activeCompanyId: null,
     companySummaries: companies.map(({ id, name }) => ({ id, name, role: 'owner' as const })),
@@ -183,7 +183,7 @@ it('opens the sole server-selected company after a reload even when an invite ha
   expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();
 });
 
-it('keeps the server-selected company when its active slice is empty', async () => {
+it('keeps the server-selected company when its active set is empty', async () => {
   const summary = { id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' as const };
   useStore.setState({
     activeCompanyId: null,

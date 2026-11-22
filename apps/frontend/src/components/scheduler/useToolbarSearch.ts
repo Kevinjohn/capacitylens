@@ -21,7 +21,7 @@ export function useToolbarSearch({
   // Keep the input snappy locally; push to filters after a short pause.
   const [searchInput, setSearchInput] = useState(filters.search);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  // Reconcile pending text on filter-object or tenant changes, because an external replacement may keep the committed search string unchanged.
+  // Reconcile pending text on filter-object or company changes, because an external replacement may keep the committed search string unchanged.
   const [seen, setSeen] = useState({ filters, companyId: activeCompanyId });
   if (filters !== seen.filters || activeCompanyId !== seen.companyId) {
     setSeen({ filters, companyId: activeCompanyId });

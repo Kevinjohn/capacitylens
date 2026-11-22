@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { ResourceForm } from './ResourceForm';
 import { useStore } from '@/store/useStore';
 import { makeResourceDraft, requireValue, resetStoreWithCompany } from '@/test/fixtures';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const addResource = useStore.getState().addResource;
@@ -76,7 +76,7 @@ describe('ResourceForm availability dates', () => {
       useStore.getState().addResource({
         kind: 'person',
         name: 'Barbara Gordon',
-        role: 'Designer',
+        jobTitle: 'Designer',
         avatarUrl: 'https://images.example/barbara.png',
         employmentType: 'permanent',
         engagement: 'studio',
@@ -89,12 +89,12 @@ describe('ResourceForm availability dates', () => {
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
     expect(screen.queryByLabelText('Avatar URL')).not.toBeInTheDocument();
-    await user.clear(screen.getByLabelText('Role'));
-    await user.type(screen.getByLabelText('Role'), 'Design lead');
+    await user.clear(screen.getByLabelText('Job title'));
+    await user.type(screen.getByLabelText('Job title'), 'Design lead');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
-      role: 'Design lead',
+      jobTitle: 'Design lead',
       avatarUrl: 'https://images.example/barbara.png',
     });
   });
@@ -123,7 +123,7 @@ describe('ResourceForm availability dates', () => {
       useStore.getState().addResource({
         kind: 'person',
         name: 'Dinah Lance',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio',
         workingHoursPerDay: 8,
@@ -137,13 +137,13 @@ describe('ResourceForm availability dates', () => {
     render(<ResourceForm resource={resource} onClose={onClose} />);
 
     await user.clear(screen.getByLabelText('Start date'));
-    await user.clear(screen.getByLabelText('Role'));
-    await user.type(screen.getByLabelText('Role'), 'Design lead');
+    await user.clear(screen.getByLabelText('Job title'));
+    await user.type(screen.getByLabelText('Job title'), 'Design lead');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     const updated = requireValue(useStore.getState().data.resources[0], 'updated resource');
     expect(updated).toHaveProperty('firstAvailableDate', null);
-    expect(updated).toMatchObject({ lastAvailableDate: '2026-09-30', role: 'Design lead' });
+    expect(updated).toMatchObject({ lastAvailableDate: '2026-09-30', jobTitle: 'Design lead' });
     expect(onClose).toHaveBeenCalledOnce();
   });
 
@@ -194,7 +194,7 @@ describe('ResourceForm disciplines', () => {
       useStore.getState().addResource({
         kind: 'person',
         name: 'Barbara Gordon',
-        role: 'Designer',
+        jobTitle: 'Designer',
         disciplineId: discipline.id,
         employmentType: 'permanent',
         engagement: 'studio',
@@ -206,18 +206,18 @@ describe('ResourceForm disciplines', () => {
     );
     await useStore
       .getState()
-      .updateCompany(requireValue(useStore.getState().data.accounts[0], 'account').id, {
+      .updateCompany(requireValue(useStore.getState().data.companies[0], 'account').id, {
         disciplinesEnabled: false,
       });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
     expect(screen.queryByLabelText('Discipline')).not.toBeInTheDocument();
-    await user.clear(screen.getByLabelText('Role'));
-    await user.type(screen.getByLabelText('Role'), 'Design lead');
+    await user.clear(screen.getByLabelText('Job title'));
+    await user.type(screen.getByLabelText('Job title'), 'Design lead');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
-      role: 'Design lead',
+      jobTitle: 'Design lead',
       disciplineId: discipline.id,
     });
   });
@@ -230,7 +230,7 @@ it('rejects a stale person edit instead of overwriting a concurrent change', asy
     useStore.getState().addResource({
       kind: 'person',
       name: 'Alice',
-      role: 'Designer',
+      jobTitle: 'Designer',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -245,12 +245,12 @@ it('rejects a stale person edit instead of overwriting a concurrent change', asy
     upserts: [
       {
         entity: 'resources',
-        row: { ...resource, role: 'Design lead', updatedAt: '2098-01-01T00:00:00.000Z' },
+        row: { ...resource, jobTitle: 'Design lead', updatedAt: '2098-01-01T00:00:00.000Z' },
       },
     ],
     removed: [],
   }));
-  await useStore.getState().updateResource(resource.id, { role: 'Design lead' });
+  await useStore.getState().updateResource(resource.id, { jobTitle: 'Design lead' });
   await user.clear(screen.getByLabelText('Name'));
   await user.type(screen.getByLabelText('Name'), 'Alice renamed');
   await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -259,7 +259,7 @@ it('rejects a stale person edit instead of overwriting a concurrent change', asy
   expect(onClose).not.toHaveBeenCalled();
   expect(useStore.getState().data.resources[0]).toMatchObject({
     name: 'Alice',
-    role: 'Design lead',
+    jobTitle: 'Design lead',
   });
 });
 
@@ -288,7 +288,7 @@ it('keeps the draft and displays a refusal returned by the planning transport', 
   const onClose = vi.fn();
   const transport = getStubPlanningTransport();
   transport.failNext(
-    new PlanningControllerError(
+    new PlanningCacheError(
       'The planning server refused this resource change.',
       'VALIDATION_ERROR',
       400,
@@ -313,7 +313,7 @@ it('shows a planning conflict when the typed write is refused', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   vi.spyOn(useStore.getState(), 'addResource').mockRejectedValue(
-    new PlanningControllerError('Row is stale.', 'revision_conflict', 409),
+    new PlanningCacheError('Row is stale.', 'revision_conflict', 409),
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
@@ -331,7 +331,7 @@ it("keeps the server's own reason when a save is rejected as invalid", async () 
   const user = userEvent.setup();
   const onClose = vi.fn();
   vi.spyOn(useStore.getState(), 'addResource').mockRejectedValue(
-    new PlanningControllerError('That discipline no longer exists.', 'VALIDATION_ERROR', 400),
+    new PlanningCacheError('That discipline no longer exists.', 'VALIDATION_ERROR', 400),
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
@@ -378,7 +378,7 @@ it('retries an existing edit from its latest optimistic snapshot', async () => {
     useStore.getState().addResource({
       kind: 'person',
       name: 'Bruce Wayne',
-      role: 'Designer',
+      jobTitle: 'Designer',
       employmentType: 'permanent',
       engagement: 'studio',
       workingHoursPerDay: 8,
@@ -393,8 +393,8 @@ it('retries an existing edit from its latest optimistic snapshot', async () => {
     .mockImplementation(updateResource);
   try {
     render(<ResourceForm resource={resource} onClose={onClose} />);
-    await user.clear(screen.getByLabelText('Role'));
-    await user.type(screen.getByLabelText('Role'), 'Lead designer');
+    await user.clear(screen.getByLabelText('Job title'));
+    await user.type(screen.getByLabelText('Job title'), 'Lead designer');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Temporary server failure.');
 
@@ -405,7 +405,7 @@ it('retries an existing edit from its latest optimistic snapshot', async () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(useStore.getState().data.resources[0]).toMatchObject({
       name: 'Bruce Wayne',
-      role: 'Lead designer',
+      jobTitle: 'Lead designer',
     });
   } finally {
     vi.restoreAllMocks();
@@ -443,7 +443,7 @@ it('ignores a second submit while the first typed write is pending', async () =>
     const save = screen.getByRole('button', { name: 'Save' });
     await user.click(save);
     expect(screen.getByLabelText('Name')).toBeDisabled();
-    expect(screen.getByLabelText('Role')).toBeDisabled();
+    expect(screen.getByLabelText('Job title')).toBeDisabled();
     for (const radio of screen.getAllByRole('radio')) expect(radio).toBeDisabled();
     await user.click(save);
     expect(useStore.getState().data.resources).toHaveLength(1);
@@ -516,7 +516,7 @@ it('hides Employment and Engagement for a placeholder and requires a bound proje
 
   expect(screen.queryByLabelText('Employment')).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Engagement')).not.toBeInTheDocument();
-  await user.type(screen.getByLabelText('Role'), 'Senior Designer');
+  await user.type(screen.getByLabelText('Job title'), 'Senior Designer');
   await user.click(screen.getByRole('button', { name: 'Save' }));
 
   expect(screen.getByRole('alert')).toHaveTextContent(/bound to a project/i);
@@ -529,7 +529,7 @@ it('saves a placeholder once a bound project is chosen', async () => {
   const onClose = vi.fn();
   await useStore
     .getState()
-    .updateCompany(requireValue(useStore.getState().data.accounts[0], 'account').id, {
+    .updateCompany(requireValue(useStore.getState().data.companies[0], 'account').id, {
       workingDays: [1, 3, 5],
     });
   const client = await requireCreated(
@@ -540,7 +540,7 @@ it('saves a placeholder once a bound project is chosen', async () => {
   );
   render(<ResourceForm kind="placeholder" onClose={onClose} />);
 
-  await user.type(screen.getByLabelText('Role'), 'Senior Designer');
+  await user.type(screen.getByLabelText('Job title'), 'Senior Designer');
   fireEvent.keyDown(screen.getByLabelText('Bound project'), { key: 'ArrowDown' });
   fireEvent.click(screen.getByRole('option', { name: 'Ferris / Lightning' }));
   await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -568,7 +568,7 @@ it('edits a placeholder bound to an archived project without forcing a reassignm
   const placeholder = await requireCreated(
     useStore.getState().addResource({
       kind: 'placeholder',
-      role: 'Designer',
+      jobTitle: 'Designer',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -591,14 +591,14 @@ it('edits a placeholder bound to an archived project without forcing a reassignm
   );
   fireEvent.keyDown(document, { key: 'Escape' });
 
-  await user.clear(screen.getByLabelText('Role'));
-  await user.type(screen.getByLabelText('Role'), 'Senior Designer');
+  await user.clear(screen.getByLabelText('Job title'));
+  await user.type(screen.getByLabelText('Job title'), 'Senior Designer');
   await user.click(screen.getByRole('button', { name: 'Save' }));
 
   expect(onClose).toHaveBeenCalled();
   const saved = useStore.getState().data.resources[0];
   if (!saved) throw new Error('Expected saved resource');
-  expect(saved.role).toBe('Senior Designer');
+  expect(saved.jobTitle).toBe('Senior Designer');
   expect(saved.projectId).toBe(project.id);
 });
 
@@ -629,7 +629,7 @@ describe('ResourceForm engagement', () => {
       useStore.getState().addResource({
         kind: 'person',
         name: 'Barry Allen',
-        role: 'Developer',
+        jobTitle: 'Developer',
         employmentType: 'freelancer',
         engagement: 'studio',
         workingHoursPerDay: 8,
@@ -666,7 +666,7 @@ it('opens legacy working days as full days and unselected weekdays as not workin
   ).toBeChecked();
 });
 
-it('preserves a six-hour working day when editing a person’s role', async () => {
+it('preserves a six-hour working day when editing a person’s job title', async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
   const resource = await requireCreated(
@@ -676,14 +676,14 @@ it('preserves a six-hour working day when editing a person’s role', async () =
   );
   render(<ResourceForm resource={resource} onClose={onClose} />);
 
-  await user.clear(screen.getByLabelText('Role'));
-  await user.type(screen.getByLabelText('Role'), 'Design lead');
+  await user.clear(screen.getByLabelText('Job title'));
+  await user.type(screen.getByLabelText('Job title'), 'Design lead');
   await user.click(screen.getByRole('button', { name: 'Save' }));
 
   expect(onClose).toHaveBeenCalledOnce();
   expect(useStore.getState().data.resources[0]).toMatchObject({
     id: resource.id,
-    role: 'Design lead',
+    jobTitle: 'Design lead',
     workingHoursPerDay: 6,
   });
 });

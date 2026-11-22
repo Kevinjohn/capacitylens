@@ -1,16 +1,24 @@
 import { ClientSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column, hasMany } from '@adonisjs/lucid/orm';
 import type { HasMany } from '@adonisjs/lucid/types/relations';
+import { compose } from '@adonisjs/core/helpers';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
-import { booleanColumn, deletedAtColumn, timestampColumn } from '#models/scalar_column';
+import { booleanColumn, deletedAtColumn, timestampColumn } from '#models_support/scalar_column';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import Project from '#models/project';
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
-export default class Client extends SoftDeletes(ClientSchema) {
+export default class Client extends compose(ClientSchema, SoftDeletes) {
   static forCompany = forCompany;
-  @beforeFind() static requireFindScope = requireCompanyScope;
-  @beforeFetch() static requireFetchScope = requireCompanyScope;
+  @beforeFind()
+  static requireFindScope(query: ModelQueryBuilderContract<typeof Client>) {
+    requireCompanyScope(query);
+  }
+  @beforeFetch()
+  static requireFetchScope(query: ModelQueryBuilderContract<typeof Client>) {
+    requireCompanyScope(query);
+  }
   @hasMany(() => Project, { foreignKey: 'clientId' }) declare projects: HasMany<typeof Project>;
   @column(booleanColumn('clients', 'is_private'))
   declare isPrivate: boolean | null;

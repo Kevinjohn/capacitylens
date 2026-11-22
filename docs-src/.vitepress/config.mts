@@ -12,8 +12,8 @@ const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs/docs-light
 // VitePress is Vite, so `docs:dev` would default to 5173 and `docs:preview` to 4173, the exact
 // ports the application dev server and the E2E suite bind. Writing documentation would then quietly
 // block a test run in another worktree, and the collision surfaces as an unrelated E2E failure.
-// Pin both to the documentation lane instead (tooling/ports.mjs).
-const lanePorts = ports();
+// Pin both to the documentation port lane instead (tooling/ports.mjs).
+const portLanePorts = ports();
 
 const usingSidebar = [
   {
@@ -96,7 +96,7 @@ const selfHostingSidebar = [
       { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },
       { text: "Upgrades", link: "/self-hosting/upgrades" },
       { text: "Monitoring and health checks", link: "/self-hosting/monitoring" },
-      { text: "Sign-in and access", link: "/company-login/" },
+      { text: "Sign-in and access", link: "/sign-in/" },
       { text: "Recover a blocked ownership transfer", link: "/self-hosting/ownership-transfer-recovery" },
       { text: "When something goes wrong", link: "/self-hosting/incidents" },
       { text: "Install and operations FAQ", link: "/self-hosting/faq" },
@@ -148,8 +148,8 @@ export default defineConfig({
     },
   },
   vite: {
-    server: { port: lanePorts.docsDev, strictPort: true },
-    preview: { port: lanePorts.docsPreview, strictPort: true },
+    server: { port: portLanePorts.docsDev, strictPort: true },
+    preview: { port: portLanePorts.docsPreview, strictPort: true },
   },
   head: [["script", { "data-cl-keep": "" }, escapeClosesLightbox]],
   title: "CapacityLens",
@@ -199,7 +199,7 @@ export default defineConfig({
       "/getting-started/roles-and-permissions": ownerSidebar,
       "/admin/": adminSidebar,
       "/self-hosting/": selfHostingSidebar,
-      "/company-login/": selfHostingSidebar,
+      "/sign-in/": selfHostingSidebar,
       "/reference/": referenceSidebar,
       "/security/": referenceSidebar,
       "/open-source": referenceSidebar,

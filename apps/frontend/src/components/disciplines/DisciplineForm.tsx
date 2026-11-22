@@ -6,7 +6,13 @@ import { resolveErrorMessage } from '@/lib/errorMessage';
 import { useFieldError } from '@/hooks/useFieldError';
 import { validatePresetColor, parseName } from '@/lib/validation';
 import { m } from '@/i18n';
-import { ColorField, FormActions, Modal, RequiredLegend, TextField } from '@/components/common/ui';
+import {
+  ColorField,
+  FormButtons,
+  FormDialog,
+  RequiredLegend,
+  TextField,
+} from '@/components/common/ui';
 import { FieldError } from '@/components/ui/field';
 import { DEFAULT_COLORS } from '@/lib/palette';
 import type { Discipline } from '@capacitylens/shared/types/entities';
@@ -44,13 +50,13 @@ export function DisciplineForm({
   };
 
   return (
-    <Modal
+    <FormDialog
       title={discipline ? m.form_discipline_edit_title() : m.form_discipline_add_title()}
       onClose={onClose}
       onSubmit={() => {
         void submit(prepareSave);
       }}
-      footer={<FormActions onCancel={onClose} disabled={pending} />}
+      footer={<FormButtons onCancel={onClose} disabled={pending} />}
     >
       <fieldset disabled={pending} className="flex min-w-0 flex-col gap-3">
         <TextField
@@ -75,6 +81,6 @@ export function DisciplineForm({
       </fieldset>
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
-    </Modal>
+    </FormDialog>
   );
 }

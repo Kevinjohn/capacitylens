@@ -1,19 +1,19 @@
 import { readProductHttpFailure } from '@/api/productHttpError';
 import type { PlanningExecution, PlanningMutationSuccess } from '@/api/planningContracts';
 import { client } from '@/api/queryClient';
-import { PlanningControllerError } from './planningErrors';
-import type { PlanningClientContext, PlanningTransport } from './planningCacheTypes';
+import { PlanningCacheError } from './planningErrors';
+import type { PlanningSessionScope, PlanningTransport } from './planningCacheTypes';
 
 type PlanningClient = typeof client;
 
 // The caller captures the proof into the context; a missing one sends an empty proof, never a newer one.
-function getContextToken(context: PlanningClientContext): string | null {
-  return context.masqueradeContextToken ?? null;
+function getScopeMasqueradeToken(context: PlanningSessionScope): string | null {
+  return context.masqueradeToken ?? null;
 }
 
-function applyMasqueradeContext(
+function applyMasqueradeHeader(
   apiClient: PlanningClient,
-  contextToken: string | null | undefined,
+  masqueradeToken: string | null | undefined,
 ): PlanningClient {
   return new Proxy(apiClient, {
     get(target, property, receiver) {
@@ -28,7 +28,7 @@ function applyMasqueradeContext(
         // An empty proof is explicit too: a delayed action cannot inherit a newer global context.
         return target.request(name, {
           ...args,
-          headers: { ...args.headers, 'X-Masquerade-Context': contextToken ?? '' },
+          headers: { ...args.headers, 'X-Masquerade-Context': masqueradeToken ?? '' },
         });
       };
     },
@@ -45,7 +45,7 @@ function requireReply<T>(reply: T | void): T {
 function mapPlanningError(error: unknown): unknown {
   const failure = readProductHttpFailure(error, 'The planning request was refused.');
   if (!failure) return error;
-  return new PlanningControllerError(
+  return new PlanningCacheError(
     failure.body.error,
     failure.body.code,
     failure.status,
@@ -56,17 +56,17 @@ function mapPlanningError(error: unknown): unknown {
 
 async function sendOperation(
   apiClient: PlanningClient,
-  context: PlanningClientContext,
+  context: PlanningSessionScope,
   execution: PlanningExecution,
   signal: AbortSignal,
 ): Promise<PlanningMutationSuccess> {
   return requireReply(
-    await apiClient.request('api.planning.mutate', {
+    await apiClient.request('api.planning_mutations.store', {
       params: { companyId: context.companyId },
       body: execution,
       signal,
     }),
-  );
+  ).data;
 }
 
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
@@ -74,7 +74,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
   return {
     async read(context, signal, { window, historyId, ifRevision } = {}) {
       try {
-        const scopedClient = applyMasqueradeContext(apiClient, getContextToken(context));
+        const scopedClient = applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context));
         const snapshot = requireReply(
           await scopedClient.request('api.planning.show', {
             params: { companyId: context.companyId },
@@ -85,38 +85,38 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             },
             signal,
           }),
-        );
+        ).data;
         if (snapshot.companyId !== context.companyId) {
-          throw new PlanningControllerError("The server returned another company's planning data.");
+          throw new PlanningCacheError("The server returned another company's planning data.");
         }
-        const authority = snapshot.authority;
+        const access = snapshot.access;
         if (
-          typeof authority.actorId !== 'string' ||
-          typeof authority.effectiveActorId !== 'string' ||
-          typeof authority.role !== 'string' ||
-          typeof authority.canWrite !== 'boolean' ||
-          typeof authority.canSeePrivateNames !== 'boolean' ||
-          typeof authority.canSeeTimeOffNote !== 'boolean'
+          typeof access.actorId !== 'string' ||
+          typeof access.effectiveActorId !== 'string' ||
+          typeof access.role !== 'string' ||
+          typeof access.canWrite !== 'boolean' ||
+          typeof access.canSeePrivateNames !== 'boolean' ||
+          typeof access.canSeeTimeOffNote !== 'boolean'
         ) {
-          throw new PlanningControllerError('The server returned an invalid planning authority.');
+          throw new PlanningCacheError('The server returned an invalid planning access.');
         }
         const base = {
           revision: snapshot.revision,
-          authority: {
-            actorId: authority.actorId,
-            effectiveActorId: authority.effectiveActorId,
-            role: authority.role,
-            canWrite: authority.canWrite,
-            canSeePrivateNames: authority.canSeePrivateNames,
-            canSeeTimeOffNote: authority.canSeeTimeOffNote,
+          access: {
+            actorId: access.actorId,
+            effectiveActorId: access.effectiveActorId,
+            role: access.role,
+            canWrite: access.canWrite,
+            canSeePrivateNames: access.canSeePrivateNames,
+            canSeeTimeOffNote: access.canSeeTimeOffNote,
           },
           today: snapshot.today,
           capacity: snapshot.capacity,
           history: snapshot.history,
         };
-        return snapshot.slice === 'unchanged'
-          ? { ...base, slice: 'unchanged' }
-          : { ...base, slice: 'full', data: snapshot.data };
+        return snapshot.content === 'unchanged'
+          ? { ...base, content: 'unchanged' }
+          : { ...base, content: 'full', data: snapshot.data };
       } catch (error) {
         throw mapPlanningError(error);
       }
@@ -124,7 +124,7 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async execute(context, execution, signal) {
       try {
         return await sendOperation(
-          applyMasqueradeContext(apiClient, getContextToken(context)),
+          applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)),
           context,
           execution,
           signal,
@@ -136,11 +136,11 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async undo(context, step, signal) {
       try {
         return requireReply(
-          await applyMasqueradeContext(apiClient, getContextToken(context)).request(
-            'api.planning.undo',
+          await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
+            'api.planning_undo.store',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
-        );
+        ).data;
       } catch (error) {
         throw mapPlanningError(error);
       }
@@ -148,11 +148,11 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
     async redo(context, step, signal) {
       try {
         return requireReply(
-          await applyMasqueradeContext(apiClient, getContextToken(context)).request(
-            'api.planning.redo',
+          await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
+            'api.planning_redo.store',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
-        );
+        ).data;
       } catch (error) {
         throw mapPlanningError(error);
       }

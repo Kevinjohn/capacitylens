@@ -2,7 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ports, resolveLane, workerPorts } from '../../../tooling/ports.mjs';
+import { ports, resolvePortLane, workerPorts } from '../../../tooling/ports.mjs';
 import { portInUse } from '../../../tooling/devProcesses.mjs';
 import { admitIdentity } from './e2e-identity.mjs';
 
@@ -12,15 +12,15 @@ if (flavour !== 'db' && flavour !== 'auth') {
   process.exit(2);
 }
 
-const lane = ports();
+const portLane = ports();
 const slotArgument = process.argv.indexOf('--slot');
 const slot = slotArgument === -1 ? null : Number(process.argv[slotArgument + 1]);
 if (slot !== null && flavour !== 'db') throw new Error('Only db fixtures have worker slots.');
 if (flavour === 'db' && slot === null) throw new Error('Database E2E fixtures require --slot <n>.');
-const worker = slot === null ? null : workerPorts(resolveLane(), slot);
-const port = worker?.api ?? lane.authApi;
-const webPort = worker?.web ?? lane.authWeb;
-const database = slot === null ? '.auth-e2e.db' : `.e2e-l${resolveLane()}-w${slot}.db`;
+const worker = slot === null ? null : workerPorts(resolvePortLane(), slot);
+const port = worker?.api ?? portLane.authApi;
+const webPort = worker?.web ?? portLane.authWeb;
+const database = slot === null ? '.auth-e2e.db' : `.e2e-l${resolvePortLane()}-w${slot}.db`;
 if (worker) {
   const [apiOccupied, webOccupied] = await Promise.all([portInUse(port), portInUse(webPort)]);
   if (apiOccupied || webOccupied) {
@@ -43,7 +43,7 @@ const env = {
   APP_URL: `http://127.0.0.1:${port}`,
   CAPACITYLENS_DB: database,
   CAPACITYLENS_ALLOW_RESET: '1',
-  // Matches FIXED_NOW in e2e/browserTestSupport.ts, so the server's today is the browser's.
+  // Matches FIXED_NOW in e2e/browserTestKit.ts, so the server's today is the browser's.
   CAPACITYLENS_FIXED_TODAY: '2026-06-03',
   CAPACITYLENS_BACKUP_DIR: '',
   CAPACITYLENS_MAIL_HOST: '',
@@ -60,7 +60,7 @@ const env = {
   // membership-free administrator used by recovery/login scenarios.
   CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+  CAPACITYLENS_ALLOW_OPEN_SIGN_UP: '1',
   CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
   CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
 };
@@ -130,7 +130,7 @@ child.on('exit', (code, signal) => {
 
 async function establishAuthFixtureBaseline(signal) {
   const origin = env.CAPACITYLENS_PUBLIC_URL;
-  const setup = await fetch(`${origin}/api/invites/${baselineToken}/signup`, {
+  const setup = await fetch(`${origin}/api/invitations/${baselineToken}/sign-up`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
     signal,
@@ -148,8 +148,8 @@ async function establishAuthFixtureBaseline(signal) {
     headers: { cookie, 'sec-fetch-site': 'same-origin' },
     signal,
   });
-  const mode = await modeResponse.json();
-  if (modeResponse.status !== 200 || typeof mode.contextToken !== 'string')
+  const { data: mode } = await modeResponse.json();
+  if (modeResponse.status !== 200 || typeof mode.masqueradeToken !== 'string')
     throw new Error(`Auth E2E baseline masquerade context unavailable (${modeResponse.status}).`);
 
   const company = await fetch(`${origin}/api/installation/company`, {
@@ -158,7 +158,7 @@ async function establishAuthFixtureBaseline(signal) {
       'content-type': 'application/json',
       cookie,
       'sec-fetch-site': 'same-origin',
-      'X-Masquerade-Context': mode.contextToken,
+      'X-Masquerade-Context': mode.masqueradeToken,
     },
     signal,
     body: JSON.stringify({ name: 'Daily Planet E2E Baseline' }),

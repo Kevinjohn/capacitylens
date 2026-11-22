@@ -26,7 +26,7 @@ const A2 = 'a-loft';
 
 const meta = (id: ID, companyId: ID = A1) => ({ id, companyId, createdAt: TS, updatedAt: TS });
 const company = (id: ID, name: string): Company => ({
-  ...NULLABLE_FIELDS.accounts,
+  ...NULLABLE_FIELDS.companies,
   id,
   name,
   color: '#3b82f6',
@@ -58,7 +58,7 @@ const person = (id: ID, overrides: Partial<Resource> = {}): Resource => ({
   ...meta(id),
   kind: 'person',
   name: 'Bruce Wayne',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio',
   workingHoursPerDay: 8,
@@ -81,7 +81,7 @@ const activity = (id: ID, overrides: Partial<Activity> = {}): Activity => ({
 function data(): AppData {
   return {
     ...createEmptyAppData(),
-    accounts: [company(A1, 'Wayne Enterprises'), company(A2, 'Stark Industries')],
+    companies: [company(A1, 'Wayne Enterprises'), company(A2, 'Stark Industries')],
     clients: [
       client('c1'),
       client('c-archived', { archivedAt: TS }),
@@ -96,7 +96,7 @@ function data(): AppData {
     phases: [phase('ph1', 'p1'), phase('ph-loft', 'p-loft', A2)],
     activities: [
       activity('t1'),
-      activity('t-repeatable', { kind: 'repeatable', projectId: null }),
+      activity('t-all-projects', { kind: 'allProjects', projectId: null }),
       activity('t-archived', { archivedAt: TS }),
       { ...activity('t-loft', { projectId: 'p-loft' }), companyId: A2 },
     ],
@@ -137,17 +137,17 @@ describe('assertScopedRefs required references', () => {
 
   it('rejects a non-string, missing, cross-company or archived reference on create', () => {
     for (const clientId of [42, 'c-missing', 'c-loft', 'c-archived']) {
-      expect(scoped('projects', { clientId })).toBe('reference_wrong_account');
+      expect(scoped('projects', { clientId })).toBe('reference_wrong_company');
     }
   });
 
   it('requires the parent on create, on a full row and when an update clears it', () => {
-    expect(scoped('projects', {})).toBe('reference_wrong_account');
+    expect(scoped('projects', {})).toBe('reference_wrong_company');
     expect(scoped('phases', {}, phase('ph1', 'p1'), { fullRow: true })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('phases', { projectId: null }, phase('ph1', 'p1'))).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
   });
 
@@ -164,12 +164,12 @@ describe('assertScopedRefs required references', () => {
     const gone = project('p1', { clientId: 'c-missing' });
     expect(scoped('projects', { clientId: 'c-missing' }, gone)).toBeUndefined();
     const foreign = project('p1', { clientId: 'c-loft' });
-    expect(scoped('projects', { clientId: 'c-loft' }, foreign)).toBe('reference_wrong_account');
+    expect(scoped('projects', { clientId: 'c-loft' }, foreign)).toBe('reference_wrong_company');
   });
 
   it('checks a changed reference on update', () => {
     expect(scoped('projects', { clientId: 'c-archived' }, project('p1'))).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('projects', { clientId: 'c1' }, project('p1'))).toBeUndefined();
   });
@@ -181,8 +181,8 @@ describe('assertScopedRefs activities', () => {
     expect(scoped('activities', { kind: 'project', projectId: 'p1' })).toBeUndefined();
   });
 
-  it('forbids a project or phase on internal and repeatable activities', () => {
-    for (const kind of ['internal', 'repeatable']) {
+  it('forbids a project or phase on internal and all-projects activities', () => {
+    for (const kind of ['internal', 'allProjects']) {
       expect(scoped('activities', { kind, projectId: 'p1' })).toBe('activity_project_forbidden');
       expect(scoped('activities', { kind, phaseId: 'ph1' })).toBe('activity_phase_forbidden');
       expect(scoped('activities', { kind })).toBeUndefined();
@@ -191,16 +191,16 @@ describe('assertScopedRefs activities', () => {
 
   it('rejects a phase of another company or one that does not exist', () => {
     expect(scoped('activities', { kind: 'project', projectId: 'p-loft', phaseId: 'ph-loft' })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-loft' })).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
     expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-missing' })).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
     expect(scoped('activities', { projectId: 'p1', phaseId: 7 })).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
   });
 
@@ -221,7 +221,7 @@ describe('assertScopedRefs activities', () => {
     ).toBeUndefined();
     const foreign = activity('t1', { phaseId: 'ph-loft' });
     expect(scoped('activities', { projectId: 'p1', phaseId: 'ph-loft' }, foreign)).toBe(
-      'activity_phase_wrong_account',
+      'activity_phase_wrong_company',
     );
   });
 
@@ -293,10 +293,10 @@ describe('assertScopedRefs resources', () => {
 
   it('checks discipline and placeholder project references', () => {
     expect(scoped('resources', { kind: 'person', disciplineId: 'd-missing' })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
     expect(scoped('resources', { kind: 'placeholder', projectId: 'p-loft' })).toBe(
-      'reference_wrong_account',
+      'reference_wrong_company',
     );
   });
 });
@@ -360,25 +360,25 @@ describe('assertAllocationRefs', () => {
     expect(allocationCode('r1', 't-archived', 8, undefined, existing)).toBeUndefined();
   });
 
-  it('allows attribution only on a repeatable activity', () => {
+  it('allows attribution only on a all-projects activity', () => {
     expect(allocationCode('r1', 't1', 8, 'p1')).toBe('allocation_project_forbidden');
-    expect(allocationCode('r1', 't-repeatable', 8, 'p1')).toBeUndefined();
-    expect(allocationCode('r1', 't-repeatable', 8, null)).toBeUndefined();
+    expect(allocationCode('r1', 't-all-projects', 8, 'p1')).toBeUndefined();
+    expect(allocationCode('r1', 't-all-projects', 8, null)).toBeUndefined();
   });
 
   it('rejects attribution to a missing, foreign or newly chosen archived project', () => {
     for (const projectId of ['p-missing', 'p-loft', 'p-archived']) {
-      expect(allocationCode('r1', 't-repeatable', 8, projectId)).toBe(
+      expect(allocationCode('r1', 't-all-projects', 8, projectId)).toBe(
         'allocation_project_inactive',
       );
     }
-    const existing = { resourceId: 'r1', activityId: 't-repeatable', projectId: 'p-archived' };
-    expect(allocationCode('r1', 't-repeatable', 8, 'p-archived', existing)).toBeUndefined();
+    const existing = { resourceId: 'r1', activityId: 't-all-projects', projectId: 'p-archived' };
+    expect(allocationCode('r1', 't-all-projects', 8, 'p-archived', existing)).toBeUndefined();
   });
 
   it('applies the placeholder project rule through the assignment check', () => {
     expect(allocationCode('ph-p1', 't1')).toBeUndefined();
-    expect(allocationCode('ph-p1', 't-repeatable', 8, 'p2')).toBe('placeholder_project_mismatch');
+    expect(allocationCode('ph-p1', 't-all-projects', 8, 'p2')).toBe('placeholder_project_mismatch');
   });
 
   it('lets an external resource carry only zero hours', () => {
