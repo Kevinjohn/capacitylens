@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 
 vi.mock('./masqueradeApi', () => ({
-  masqueradeApi: { status: vi.fn(async () => ({ active: false, contextToken: 'idle' })) },
+  masqueradeApi: { status: vi.fn(async () => ({ active: false, masqueradeToken: 'idle' })) },
 }));
 vi.mock('@/data/planning/storePlanningTransport', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/data/planning/storePlanningTransport')>();
@@ -31,10 +31,12 @@ it('revalidates /me after a real planning GET returns 401 and clears private que
         return Response.json(
           authReads === 1
             ? {
-                user: { id: 'u1', email: 'a@b.test' },
-                emailVerified: true,
-                membershipRequired: false,
-                admission: { admitted: true, requirements: {} },
+                data: {
+                  user: { id: 'u1', email: 'a@b.test' },
+                  emailVerified: true,
+                  membershipRequired: false,
+                  admission: { admitted: true, requirements: {} },
+                },
               }
             : {},
           { status: authReads === 1 ? 200 : 401 },

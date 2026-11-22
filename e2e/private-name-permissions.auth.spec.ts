@@ -50,9 +50,7 @@ async function assertPrivateNamesForMember(
     await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('"Nightwing"');
     await expect(dialog.getByRole('switch', { name: 'Use code name' })).toHaveCount(0);
     await expect(dialog.getByLabel('Code name', { exact: true })).toHaveCount(0);
-    await expect(
-      dialog.getByText('Only an account owner can change this private name.'),
-    ).toBeVisible();
+    await expect(dialog.getByText('Only an Owner can change this private name.')).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
   }
 
@@ -68,9 +66,7 @@ async function assertPrivateNamesForMember(
     await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('"Aurora"');
     await expect(dialog.getByRole('switch', { name: 'Use code name' })).toHaveCount(0);
     await expect(dialog.getByLabel('Code name', { exact: true })).toHaveCount(0);
-    await expect(
-      dialog.getByText('Only an account owner can change this private name.'),
-    ).toBeVisible();
+    await expect(dialog.getByText('Only an Owner can change this private name.')).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
   }
 }

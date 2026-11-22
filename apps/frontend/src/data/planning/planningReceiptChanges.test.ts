@@ -4,7 +4,7 @@ import { applyReceiptChanges } from './planningReceiptChanges';
 
 const wayne = makeClient({ id: 'client-wayne', companyId: 'wayne', name: 'Wayne Enterprises' });
 const kord = makeClient({ id: 'client-kord', companyId: 'wayne', name: 'Kord Industries' });
-const data = makeAppData({ accounts: [makeCompany({ id: 'wayne' })], clients: [wayne, kord] });
+const data = makeAppData({ companies: [makeCompany({ id: 'wayne' })], clients: [wayne, kord] });
 
 describe('applyReceiptChanges', () => {
   it('appends an upsert with a new id', () => {
@@ -38,7 +38,7 @@ describe('applyReceiptChanges', () => {
       upserts: [],
       removed: [{ entity: 'clients', id: wayne.id }],
     });
-    expect(next.accounts).toBe(data.accounts);
+    expect(next.companies).toBe(data.companies);
     expect(next.projects).toBe(data.projects);
     expect(next.clients).not.toBe(data.clients);
     expect(data.clients).toEqual([wayne, kord]);

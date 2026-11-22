@@ -1,6 +1,6 @@
 import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import app from '@adonisjs/core/services/app';
 import { defineConfig } from '@adonisjs/core/http';
 import db from '@adonisjs/lucid/services/db';
@@ -30,7 +30,7 @@ function trustProxyHeaders(trusted: boolean) {
 
 /** A public, rate-limited read: signed out, it answers 401 until the client's budget runs out. */
 async function requestSignedOutSession(client: ApiClient, forwardedIp?: string) {
-  const request = client.get('/api/auth/me');
+  const request = client.visit('api.session.show');
   if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
   return request.send();
 }
@@ -45,7 +45,7 @@ async function signIn(
   forwardedIp?: string,
   email = 'private-limit@example.test'
 ) {
-  const request = client.post('/api/auth/sign-in').header('sec-fetch-site', 'same-origin');
+  const request = client.visit('api.session.store').header('sec-fetch-site', 'same-origin');
   if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
   return request.json({ email, password: 'never-store-this-password-012345' }).send();
 }
@@ -68,20 +68,36 @@ test.group('native auth and API rate limits', (group) => {
     captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
     setEnvironment('CAPACITYLENS_RATE_LIMIT', '2');
 
-    assert.equal(await responseStatus(requestSignedOutSession(client)), 401);
-    assert.equal(await responseStatus(requestSignedOutSession(client)), 401);
+    for (const remaining of ['1', '0']) {
+      const counted = await requestSignedOutSession(client);
+      assert.equal(counted.status(), 401);
+      assert.equal(counted.header('x-ratelimit-limit'), '2');
+      assert.equal(counted.header('x-ratelimit-remaining'), remaining);
+    }
     const limited = await requestSignedOutSession(client);
     assert.equal(limited.status(), 429);
     assert.deepEqual(limited.body(), { error: 'Rate limit exceeded.' });
+    assert.equal(limited.header('x-ratelimit-limit'), '2');
+    assert.equal(limited.header('x-ratelimit-remaining'), '0');
+    assert.match(String(limited.header('retry-after')), /^[1-9]\d*$/);
+    assert.isFalse(Number.isNaN(Date.parse(String(limited.header('x-ratelimit-reset')))));
     const persistedLimits = await db.from('rate_limits').select('key', 'points');
     assert.isNotEmpty(persistedLimits, 'the native database limiter records the client bucket');
     for (const limit of persistedLimits) {
       assert.isAbove(Number(limit.points), 0);
-      assert.match(String(limit.key), /^rlflx:api:[a-f0-9]{64}$/);
+      assert.match(String(limit.key), /^rlflx:api_[a-f0-9]{64}$/);
     }
 
     for (let attempt = 0; attempt < 5; attempt++)
-      assert.equal(await responseStatus(client.get('/api/health').send()), 200);
+      assert.equal(await responseStatus(client.visit('api.health_checks.live').send()), 200);
+  });
+
+  test('GET /api/health is not limited', async ({ client, assert, cleanup }) => {
+    captureEnvironment(cleanup, ['CAPACITYLENS_RATE_LIMIT']);
+    setEnvironment('CAPACITYLENS_RATE_LIMIT', '1');
+
+    for (let attempt = 0; attempt < 3; attempt++)
+      assert.equal(await responseStatus(client.visit('api.health_checks.live').send()), 200);
   });
 
   test('API rate limiting is disabled when unset, zero, or malformed', async ({

@@ -40,7 +40,7 @@ describe('MasqueradeModel', () => {
 
   it('publishes the company name from the loaded account projection, not the member name', async () => {
     loadPlanningData(
-      makeAppData({ accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
+      makeAppData({ companies: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
     );
     useStore.getState().setActiveCompany('a-studio');
     await useStore.getState().refreshPlanning();
@@ -131,7 +131,7 @@ describe('MasqueradeModel transitions', () => {
     // Informational, not an error: the first start succeeds, and an error notice never
     // auto-dismisses, so an error tone here would leave a permanent banner over a working view.
     expect(useStore.getState().notice).toMatchObject({
-      message: 'A member view is already starting.',
+      message: 'View as member is already starting.',
       tone: 'info',
     });
   });
@@ -154,7 +154,7 @@ describe('MasqueradeModel transitions', () => {
 
     await expect(model.transitionCompany('a-loft')).resolves.toBe(false);
     expect(useStore.getState().notice).toMatchObject({
-      message: 'Wait for the current masquerade transition to finish.',
+      message: 'Wait for the current View as member change to finish.',
       tone: 'error',
     });
     expect(dependencies.api.end).not.toHaveBeenCalled();

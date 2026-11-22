@@ -64,7 +64,7 @@ describe('browser account api', () => {
     expect(urls).toEqual(
       expect.arrayContaining([
         '/api/companies/company%20%2F%20one/members/person%20%2F%20one',
-        '/api/companies/company%20%2F%20one/invites/invite%20%2F%20one',
+        '/api/companies/company%20%2F%20one/invitations/invite%20%2F%20one',
       ]),
     );
   });
@@ -86,9 +86,11 @@ describe('browser account api', () => {
     await memberRequests.transferOwnership(input);
 
     const headers = mocks.fetchApi.mock.calls.map((call) => new Headers(call[1]?.headers));
-    expect(headers[0]?.get('x-account-command-id')).toBe('00000000-0000-4000-8000-000000000201');
+    expect(headers[0]?.get('x-account-operation-id')).toBe('00000000-0000-4000-8000-000000000201');
     expect(headers[0]?.get('idempotency-key')).toBe('00000000-0000-4000-8000-000000000202');
-    expect(headers[1]?.get('x-account-command-id')).toBe(headers[0]?.get('x-account-command-id'));
+    expect(headers[1]?.get('x-account-operation-id')).toBe(
+      headers[0]?.get('x-account-operation-id'),
+    );
     expect(headers[1]?.get('idempotency-key')).toBe(headers[0]?.get('idempotency-key'));
   });
   it('reuses a stored operation across unknown outcomes and rotates it after terminal completion', async () => {
@@ -107,7 +109,7 @@ describe('browser account api', () => {
     await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000001',
@@ -131,7 +133,7 @@ describe('browser account api', () => {
     await transferOwner({ name: 'Timeout Studio' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000071',
@@ -155,7 +157,7 @@ describe('browser account api', () => {
     await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000003',
@@ -177,7 +179,7 @@ describe('browser account api', () => {
     await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000041',
@@ -198,7 +200,7 @@ describe('browser account api', () => {
     await transferOwner({ name: 'Studio' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000031',
@@ -219,7 +221,7 @@ describe('browser account api', () => {
     await transferOwner({ name: 'Studio A' });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000011',

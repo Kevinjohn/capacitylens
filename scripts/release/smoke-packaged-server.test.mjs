@@ -15,7 +15,7 @@ test('packaged smoke seeds its fictional Viewer only in the disposable stopped d
   const database = new DatabaseSync(path);
   try {
     database.exec(`
-      CREATE TABLE accounts (id TEXT PRIMARY KEY);
+      CREATE TABLE companies (id TEXT PRIMARY KEY);
       CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT, email_verified_at TEXT, unverified_email TEXT);
       CREATE TABLE account_admissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT UNIQUE, invited_email TEXT,
@@ -29,7 +29,7 @@ test('packaged smoke seeds its fictional Viewer only in the disposable stopped d
       CREATE TABLE masquerade_modes (
         authority_namespace TEXT, actor_id TEXT, state TEXT, started_at TEXT, expires_at TEXT
       );
-      INSERT INTO accounts VALUES ('wayne-enterprises');
+      INSERT INTO companies VALUES ('wayne-enterprises');
       INSERT INTO users (id, email) VALUES ('owner', 'bruce@wayne.example');
       INSERT INTO users (id, email) VALUES ('viewer', 'clark@wayne.example');
       INSERT INTO masquerade_modes VALUES (
@@ -137,17 +137,19 @@ test('authenticated smoke writes a typed allocation under its isolated company',
   const requests = [];
   globalThis.fetch = async (url, options) => {
     requests.push({ url, headers: options.headers, body: JSON.parse(options.body) });
-    return new Response(JSON.stringify({ revision: requests.length + 1 }), { status: 200 });
+    return new Response(JSON.stringify({ data: { revision: requests.length + 1 } }), {
+      status: 200,
+    });
   };
   try {
     const fixture = {
-      accounts: [{ id: 'a-studio', name: 'Wayne Enterprises', color: '#6366f1' }],
+      companies: [{ id: 'a-studio', name: 'Wayne Enterprises', color: '#6366f1' }],
       resources: [
         {
           id: 'bruce',
           companyId: 'a-studio',
           kind: 'person',
-          role: 'Planner',
+          jobTitle: 'Planner',
           employmentType: 'permanent',
           engagement: 'studio',
           workingHoursPerDay: 8,

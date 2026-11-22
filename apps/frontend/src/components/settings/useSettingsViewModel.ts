@@ -59,7 +59,7 @@ export function useSettingsViewModel() {
   const role = useRole();
   const data = useStore((state) => state.data);
   const activeCompanyId = useStore((state) => state.activeCompanyId);
-  const activeCompany = data.accounts.find((company) => company.id === activeCompanyId) ?? null;
+  const activeCompany = data.companies.find((company) => company.id === activeCompanyId) ?? null;
   const updateCompany = useStore((state) => state.updateCompany);
   const setNotice = useStore((state) => state.setNotice);
   const display = useDisplayPreferences();

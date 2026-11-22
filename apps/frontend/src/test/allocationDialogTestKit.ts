@@ -36,7 +36,7 @@ export function closestForm(control: HTMLElement): HTMLFormElement {
   return required(control.closest('form'), 'Expected the allocation control to belong to a form.');
 }
 
-/** Render an ordinary dialog as a resolved Owner; tests may still supply inner authority boundaries. */
+/** Render an ordinary dialog as a resolved Owner; tests may still supply inner access boundaries. */
 export function renderAsOwner(ui: ReactElement, options: Omit<RenderOptions, 'wrapper'> = {}) {
   return render(ui, { ...options, wrapper: OwnerPermissions });
 }
@@ -82,7 +82,8 @@ export async function resetAllocationDialogStore(): Promise<void> {
 }
 
 /** Builds a person fixture with the supplied display name. */
-export const person = (name: string) => makeResourceDraft({ name, role: 'Dev', color: '#2d75da' });
+export const person = (name: string) =>
+  makeResourceDraft({ name, jobTitle: 'Dev', color: '#2d75da' });
 
 /** Enables day scheduling for the test company. */
 export const enableDays = (workingDays?: Weekday[]) =>

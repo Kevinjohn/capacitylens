@@ -75,7 +75,7 @@ describe('errorMessage', () => {
 
   it('maps a domain code through translations instead of trusting fallback prose', () => {
     expect(
-      resolveErrorMessage(new DomainError('record_wrong_account', 'obsolete server wording')),
+      resolveErrorMessage(new DomainError('record_wrong_company', 'obsolete server wording')),
     ).toBe('That record does not belong to the active company.');
   });
 });
@@ -83,15 +83,15 @@ describe('errorMessage', () => {
 describe('domainErrorMessage', () => {
   // Assert exact translated copy for the fixed-message cases below.
   const fixedMessageCases: Array<[DomainErrorCode, string]> = [
-    ['record_wrong_account', 'That record does not belong to the active company.'],
-    ['reference_wrong_account', 'That change references data outside the active company.'],
+    ['record_wrong_company', 'That record does not belong to the active company.'],
+    ['reference_wrong_company', 'That change references data outside the active company.'],
     ['activity_project_required', 'A project-specific activity must be assigned to a project.'],
     [
       'activity_project_forbidden',
       'An internal or all-projects activity cannot belong to a project.',
     ],
     ['activity_phase_forbidden', 'An internal or all-projects activity cannot belong to a phase.'],
-    ['activity_phase_wrong_account', 'Activity phase must belong to this company.'],
+    ['activity_phase_wrong_company', 'Activity phase must belong to this company.'],
     [
       'activity_phase_project_required',
       'An activity with a phase must also belong to that phase’s project.',
@@ -115,10 +115,7 @@ describe('domainErrorMessage', () => {
       'Allocation must reference an activity under an active project.',
     ],
     ['placeholder_project_missing', 'This placeholder is not bound to a project yet.'],
-    [
-      'external_allocation_hours',
-      'An external / 3rd-party resource’s allocation can’t carry hours.',
-    ],
+    ['external_allocation_hours', 'An external party’s allocation can’t carry hours.'],
     [
       'resource_external_dependents',
       'Reassign or remove this resource’s work and time off before making it external.',
@@ -136,10 +133,7 @@ describe('domainErrorMessage', () => {
     ['date_reversed', 'End date cannot be before the start date.'],
     ['time_off_resource_invalid', 'Time off must reference an existing resource in this company.'],
     ['time_off_resource_inactive', 'Time off must reference an active resource in this company.'],
-    [
-      'time_off_external_resource',
-      'Time off can’t be recorded for an external / 3rd-party resource.',
-    ],
+    ['time_off_external_resource', 'Time off can’t be recorded for an external party.'],
     ['closure_name_required', 'Closure name is required.'],
   ];
 

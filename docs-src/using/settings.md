@@ -174,12 +174,12 @@ import with your password. A recent sign-in alone is not enough. The confirmatio
 file and company. Cancel leaves the company unchanged. If the company changed since the preview,
 preview again before retrying.
 
-### Beta transfer contract {#beta-transfer-contract}
+### Beta import contract {#beta-import-contract}
 
 Import replaces the selected company's scheduling records and supported settings atomically. It
 keeps scheduling IDs in the file and existing member-to-person links, which means every linked person
 must still be present. Another company's data stays in place. An import cannot be undone. Export
-before replacing data if you may need the current version. The disposable demo uses the same server validation and password proof; restarting its command restores the sample data.
+before replacing data if you may need the current version. The disposable demo uses the same server validation and password proof; restarting its command restores the demo data.
 
 A full beta export also restores into a fresh installation. Create its Owner and company first,
 then import the unchanged file while signed in as that Owner. The company ID and every row's
@@ -196,7 +196,7 @@ An Owner can select **Anonymise all people** to remove personal details and depe
 time-off notes across the company, including placeholders and external people. Clients, projects
 and activities stay unchanged. The company,
 its members and planning links remain. This cannot be undone. A signed-in Owner confirms the exact
-action with their password. The disposable demo requires the same password confirmation. Restarting its command resets the sample data.
+action with their password. The disposable demo requires the same password confirmation. Restarting its command resets the demo data.
 
 ### Company details {#calendar}
 

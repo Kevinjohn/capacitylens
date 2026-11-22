@@ -10,7 +10,7 @@ import {
 } from '@capacitylens/shared/lib/repeatingOccurrences';
 import { countSpanDays } from '@capacitylens/shared/lib/schedulingDays';
 import type { AppData, ISODate } from '@capacitylens/shared/types/entities';
-import { requireExistingRow } from './writer.js';
+import { requireExistingRow } from '#services/planning/writer';
 import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 // The server's expansion of a repeat pattern into dated occurrences, using the shared rules.
@@ -42,7 +42,7 @@ export function buildAllocationOccurrences(
   first: FirstAllocation,
   repeat: RepeatRange
 ): Array<{ startDate: ISODate; endDate: ISODate }> {
-  const company = requireExistingRow(data, 'accounts', companyId);
+  const company = requireExistingRow(data, 'companies', companyId);
   const resource = requireExistingRow(data, 'resources', first.resourceId);
   const effectiveWeek = resolveEffectiveWorkingWeek(
     resource,

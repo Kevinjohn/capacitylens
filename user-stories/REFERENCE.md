@@ -3,20 +3,20 @@
 Stories describe user intent and the fields or controls a person encounters. The
 [coverage matrix](COVERAGE.md) inventories current and retained capabilities
 [decision gaps](GAPS.md) distinguishes documentation omissions from differences against the
-agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the target behavior.
+agreed product. [DECISIONS.md](../DECISIONS.md) remains authoritative for the target behaviour.
 
 ## Reading the catalogue
 
 - **Current**: exposed in the product, subject to its role, configuration and feature conditions.
 - **Hidden**: retained implementation with its ordinary entry point hidden.
 - **Removed**: historical capability with no current product entry point.
-- **Demo**: available only through the disposable sample-data command.
+- **Demo**: available only through the disposable demo command.
 - **Operator**: hosting or recovery procedure outside the application UI.
 - **Planned**: agreed target for which an ordinary product journey is absent.
 
 Read status together with access and entry conditions. A Current story can include an unavailable
 alternative, explicitly labelled as such. Status is source-reviewed availability, not a claim
-that its journey was exercised in a browser. A retained story does not authorize new functionality.
+that its journey was exercised in a browser. A retained story does not authorise new functionality.
 
 ## Reading the diagrams
 
@@ -34,7 +34,7 @@ from missing controls. See [the template](TEMPLATE.md#diagram-conventions) for m
   client/project identities, transfer ownership and perform whole-company import or anonymisation.
 - Signed-in people can manage their own account. Confirmation, admission and membership may limit
   access to company screens. A schedulable resource is separate from an account or membership.
-- View-as-member is read-only. Device display preferences and navigation do not grant write access.
+- View as member is read-only. Device display preferences and navigation do not grant write access.
 - The product serves one company. The disposable demo uses the real server and sign-in; changes
   survive refresh and reset on command restart.
 - Feature switches can hide disciplines, placeholders, external parties, inline activity creation

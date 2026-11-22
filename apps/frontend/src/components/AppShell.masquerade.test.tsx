@@ -25,7 +25,7 @@ it('shows a fail-closed banner while a member view is starting', () => {
   renderAppShell({});
 
   const banner = screen.getByTestId('masquerade-banner');
-  expect(banner).toHaveTextContent('Starting member view…');
+  expect(banner).toHaveTextContent('Starting View as member…');
   expect(within(banner).queryByRole('button')).not.toBeInTheDocument();
 });
 
@@ -80,7 +80,7 @@ it('hides old actor route data during a member-view projection while keeping rec
     </MemoryRouter>,
   );
 
-  expect(screen.getByTestId('masquerade-banner')).toHaveTextContent('Starting member view…');
+  expect(screen.getByTestId('masquerade-banner')).toHaveTextContent('Starting View as member…');
   expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'End now' })).toBeInTheDocument();
   expect(screen.queryByText('old actor private row')).not.toBeInTheDocument();

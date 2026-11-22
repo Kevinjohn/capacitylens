@@ -14,15 +14,18 @@ export interface MemberResourceFields {
   resourceLink: MemberResourceLinkProjection | null;
 }
 
-/** Reads same-company person candidates for an administrator's member directory. */
+/** Reads same-company person candidates for an Owner's or Admin's member directory. */
 export async function readResourceCandidates(trx: TransactionClientContract, companyId: string) {
   const rows = await Resource.query({ client: trx })
     .withScopes((scopes) => scopes.forCompany(companyId))
     .where('kind', 'person')
     .whereNull('archived_at')
     .whereNull('deleted_at')
-    .select('id', 'name', 'role');
-  return rows.map((row) => ({ resourceId: String(row.id), label: String(row.name ?? row.role) }));
+    .select('id', 'name', 'job_title');
+  return rows.map((row) => ({
+    resourceId: String(row.id),
+    label: String(row.name ?? row.jobTitle),
+  }));
 }
 
 /** Reads a selected set of same-company association fields, keyed by member ID. */

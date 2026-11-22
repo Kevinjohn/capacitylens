@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import { resetState } from '#tests/helpers/state_fixture';
-import { signUpAndIn } from '../../helpers/identities.js';
+import { signUpAndIn } from '#tests/helpers/identities';
 
 const password = 'batman-secret-2026';
 const withSession = asDataOwner;
@@ -32,26 +32,26 @@ test.group('direct member resource association', (group) => {
       password,
     });
     const ownerCookie = owner.cookie('adonis-session')!.value;
-    const ownerId = (owner.body() as { user: { id: string } }).user.id;
+    const ownerId = (owner.body().data as { user: { id: string } }).user.id;
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const clark = await signUpAndIn(client, {
       email: 'clark.kent@wayne.example',
       name: 'Clark Kent',
       password,
     });
-    const clarkId = (clark.body() as { user: { id: string } }).user.id;
+    const clarkId = (clark.body().data as { user: { id: string } }).user.id;
     const diana = await signUpAndIn(client, {
       email: 'diana.prince@wayne.example',
       name: 'Diana Prince',
       password,
     });
-    const dianaId = (diana.body() as { user: { id: string } }).user.id;
+    const dianaId = (diana.body().data as { user: { id: string } }).user.id;
     const barbara = await signUpAndIn(client, {
       email: 'barbara.gordon@wayne.example',
       name: 'Barbara Gordon',
       password,
     });
-    const barbaraId = (barbara.body() as { user: { id: string } }).user.id;
+    const barbaraId = (barbara.body().data as { user: { id: string } }).user.id;
     const now = new Date().toISOString();
     const orderedAt = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
     await db.table('memberships').insert([
@@ -80,7 +80,7 @@ test.group('direct member resource association', (group) => {
         updated_at: now,
       },
     ]);
-    await db.table('accounts').insert({
+    await db.table('companies').insert({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
@@ -97,7 +97,7 @@ test.group('direct member resource association', (group) => {
       company_id: companyId,
       kind: 'person',
       name: id,
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,
@@ -157,11 +157,11 @@ test.group('direct member resource association', (group) => {
     });
 
     const response = await asDataOwner(
-      client.get('/api/companies/a-studio/members'),
+      client.visit('api.members.index', { companyId: 'a-studio' }),
       ownerCookie
     ).send();
     response.assertStatus(200);
-    const body = response.body() as {
+    const body = response.body().data as {
       members: Array<{ userId: string; resourceLink: null | Record<string, unknown> }>;
       resourceCandidates: Array<{ resourceId: string; label: string }>;
     };
@@ -195,10 +195,10 @@ test.group('direct member resource association', (group) => {
     });
     owner.assertStatus(200);
     const ownerCookie = owner.cookie('adonis-session')!.value;
-    const ownerId = (owner.body() as { user: { id: string } }).user.id;
+    const ownerId = (owner.body().data as { user: { id: string } }).user.id;
     await createFixtureCompanyForOwner(ownerId, 'Wayne Enterprises', 'a-studio');
     const now = new Date().toISOString();
-    await db.table('accounts').insert({
+    await db.table('companies').insert({
       id: 'a-loft',
       name: 'Stark Industries',
       color: '#6366f1',
@@ -210,7 +210,7 @@ test.group('direct member resource association', (group) => {
       company_id: companyId,
       kind,
       name: id,
-      role: 'Designer',
+      job_title: 'Designer',
       employment_type: 'permanent',
       engagement: 'studio',
       working_hours_per_day: 8,
@@ -231,7 +231,7 @@ test.group('direct member resource association', (group) => {
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${userId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
@@ -254,12 +254,12 @@ test.group('direct member resource association', (group) => {
     const createLinkCommand = () =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-link-command-0001',
+          'x-account-operation-id': 'member-link-command-0001',
           'idempotency-key': 'member-link-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: null })
@@ -268,8 +268,8 @@ test.group('direct member resource association', (group) => {
     linked.assertStatus(200);
     const replayLinked = await createLinkCommand();
     replayLinked.assertStatus(200);
-    assert.deepEqual(replayLinked.body(), linked.body());
-    const revision = (linked.body() as { revision: string }).revision;
+    assert.deepEqual(replayLinked.body().data, linked.body().data);
+    const revision = (linked.body().data as { revision: string }).revision;
     const revisionRowAfterLink = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
@@ -284,22 +284,22 @@ test.group('direct member resource association', (group) => {
     const repeatLink = () =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-link-noop-command-0001',
+          'x-account-operation-id': 'member-link-noop-command-0001',
           'idempotency-key': 'member-link-noop-idempotency-0001',
         })
         .json({ resourceId: 'r-clark', expectedRevision: revision })
         .send();
     const unchanged = await repeatLink();
     unchanged.assertStatus(200);
-    assert.deepEqual(unchanged.body(), linked.body());
+    assert.deepEqual(unchanged.body().data, linked.body().data);
     const replay = await repeatLink();
     replay.assertStatus(200);
-    assert.deepEqual(replay.body(), linked.body());
+    assert.deepEqual(replay.body().data, linked.body().data);
     const revisionRowAfterNoop = await db
       .from('company_planning_revisions')
       .where('company_id', 'a-studio')
@@ -318,12 +318,12 @@ test.group('direct member resource association', (group) => {
     const unlink = () =>
       withSession(
         client
-          .delete(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
         .headers({
-          'x-account-command-id': 'member-unlink-command-0001',
+          'x-account-operation-id': 'member-unlink-command-0001',
           'idempotency-key': 'member-unlink-idempotency-0001',
         })
         .json({ expectedRevision: revision })
@@ -369,13 +369,13 @@ test.group('direct member resource association', (group) => {
     const clear = (userId: string, expectedRevision: string) =>
       withSession(
         client
-          .delete(`/api/companies/a-studio/members/${userId}/resource-link`)
+          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
         .json({ expectedRevision })
         .send();
-    const ownerCleared = await clear(ownerId, second.body().revision);
+    const ownerCleared = await clear(ownerId, second.body().data.revision);
     ownerCleared.assertStatus(204);
     await db
       .from('memberships')
@@ -387,7 +387,7 @@ test.group('direct member resource association', (group) => {
       .update({ status: 'active' });
     const link = await put(otherId, 'r-barry', null);
     link.assertStatus(200);
-    const expected = link.body().revision;
+    const expected = link.body().data.revision;
     await db
       .from('memberships')
       .where({ scope_id: 'a-studio', user_id: otherId })

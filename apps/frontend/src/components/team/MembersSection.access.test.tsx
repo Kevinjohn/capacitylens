@@ -39,14 +39,16 @@ describe('MembersSection — self-gate', () => {
       const isRead = !init || init.method === undefined || init.method === 'GET';
       if (target.endsWith(`/${DEFAULT_COMPANY_ID}/members`) && isRead) {
         return jsonResponse({
-          members: [
-            makeRawMember({
-              userId: 'first-owner',
-              role: 'owner',
-              email: 'first@example.test',
-              isSelf: true,
-            }),
-          ],
+          data: {
+            members: [
+              makeRawMember({
+                userId: 'first-owner',
+                role: 'owner',
+                email: 'first@example.test',
+                isSelf: true,
+              }),
+            ],
+          },
         });
       }
       if (target.endsWith(`/${nextCompanyId}/members`) && isRead) {
@@ -54,8 +56,8 @@ describe('MembersSection — self-gate', () => {
           resolveNextMembers = resolve;
         });
       }
-      if (target.endsWith('/invites') && isRead) {
-        return jsonResponse({ invites: [] });
+      if (target.endsWith('/invitations') && isRead) {
+        return jsonResponse({ data: { invites: [] } });
       }
       throw new Error(`Unexpected request: ${target}`);
     });
@@ -69,14 +71,16 @@ describe('MembersSection — self-gate', () => {
     await act(async () => {
       resolveNextMembers?.(
         jsonResponse({
-          members: [
-            makeRawMember({
-              userId: 'second-owner',
-              role: 'owner',
-              email: 'second@example.test',
-              isSelf: true,
-            }),
-          ],
+          data: {
+            members: [
+              makeRawMember({
+                userId: 'second-owner',
+                role: 'owner',
+                email: 'second@example.test',
+                isSelf: true,
+              }),
+            ],
+          },
         }),
       );
     });
@@ -119,7 +123,7 @@ describe('MembersSection — self-gate', () => {
     // which would paper over the very thing this test is pinning.
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse({ members: [{ userId: 'me', role: 'owner' }] })),
+      vi.fn(async () => jsonResponse({ data: { members: [{ userId: 'me', role: 'owner' }] } })),
     );
     renderSection();
 
@@ -131,7 +135,7 @@ describe('MembersSection — self-gate', () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-        'GET /invites': () => jsonResponse({}, 503),
+        'GET /invitations': () => jsonResponse({}, 503),
       }),
     );
     renderSection();
@@ -196,11 +200,13 @@ describe('MembersSection — directory error retention', () => {
           memberReads += 1;
           if (memberReads > 1) return new Promise<Response>(() => {});
           return jsonResponse({
-            signInTrackingEnabled: false,
-            members: members.map((member) => makeRawMember(member)),
+            data: {
+              signInTrackingEnabled: false,
+              members: members.map((member) => makeRawMember(member)),
+            },
           });
         }
-        if (url.endsWith('/invites')) return jsonResponse({ invites: [] });
+        if (url.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } });
         return new Response(null, { status: 204 });
       }),
     );
@@ -242,8 +248,10 @@ describe('MembersSection — directory error retention', () => {
           memberReads += 1;
           return memberReads === 1
             ? jsonResponse({
-                signInTrackingEnabled: false,
-                members: members.map((member) => makeRawMember(member)),
+                data: {
+                  signInTrackingEnabled: false,
+                  members: members.map((member) => makeRawMember(member)),
+                },
               })
             : jsonResponse({ error: 'Forbidden' }, 403);
         },
@@ -290,8 +298,10 @@ describe('MembersSection — transient directory state', () => {
           memberReads += 1;
           return memberReads === 1
             ? jsonResponse({
-                signInTrackingEnabled: false,
-                members: members.map((member) => makeRawMember(member)),
+                data: {
+                  signInTrackingEnabled: false,
+                  members: members.map((member) => makeRawMember(member)),
+                },
               })
             : jsonResponse({ error: 'Unavailable' }, 503);
         },

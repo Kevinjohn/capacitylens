@@ -1,6 +1,6 @@
 # US-SCH-11 — Time off renders as a labelled hatched block
 
-As an Editor, I want time off shown as a labelled block so that absence is distinct from scheduled work.
+As an Editor, I want time off shown as a labelled block so that time off is distinct from scheduled work.
 
 **Status:** Current
 

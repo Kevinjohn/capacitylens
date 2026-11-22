@@ -52,7 +52,7 @@ test('serverState retries one reset and returns the actual canonical response', 
         return;
       }
       response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(JSON.stringify(canonicalState));
+      response.end(JSON.stringify({ data: canonicalState }));
     },
     async ({ context, target }) => {
       assert.deepEqual(await serverState(context, target), canonicalState);

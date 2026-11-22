@@ -83,10 +83,14 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
-    return (await response.json()) as {
-      clients: Array<{ name: string }>;
-      accounts: Array<{ id: string; dateStyle: string | null }>;
-    };
+    return (
+      (await response.json()) as {
+        data: {
+          clients: Array<{ name: string }>;
+          companies: Array<{ id: string; dateStyle: string | null }>;
+        };
+      }
+    ).data;
   };
   await expect
     .poll(async () => (await state()).clients.some((row) => row.name === 'Wayne Foundation'))
@@ -99,17 +103,17 @@ test('authenticated client creation and settings Undo/Redo persist as typed writ
   await monthDay.click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
+    .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
     .toBe('month-day');
 
   await page.getByRole('link', { name: 'Schedule' }).click();
   await page.getByTestId('undo-button').click();
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
+    .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
     .toBeNull();
   await page.getByTestId('redo-button').click();
   await expect
-    .poll(async () => (await state()).accounts.find((row) => row.id === companyId)?.dateStyle)
+    .poll(async () => (await state()).companies.find((row) => row.id === companyId)?.dateStyle)
     .toBe('month-day');
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(monthDay).toHaveAttribute('aria-checked', 'true');
@@ -135,7 +139,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
   });
   // The Time off page lists entries from the current week onward; the fixed dates below stay
   // visible only with the frozen browser date.
@@ -153,10 +157,14 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
       headers: { cookie: owner.cookie },
     });
     expect(response.status()).toBe(200);
-    return (await response.json()) as {
-      disciplines: Array<{ id: string; name: string }>;
-      timeOff: Array<{ id: string; note: string }>;
-    };
+    return (
+      (await response.json()) as {
+        data: {
+          disciplines: Array<{ id: string; name: string }>;
+          timeOff: Array<{ id: string; note: string }>;
+        };
+      }
+    ).data;
   };
 
   await page.getByRole('link', { name: 'Disciplines' }).click();
@@ -256,7 +264,7 @@ for (const repeat of [false, true]) {
     await createTestPerson(request, owner.cookie, companyId, {
       id: resourceId,
       name: 'Barbara Gordon',
-      role: 'Designer',
+      jobTitle: 'Designer',
     });
     createTestMember(companyId, editor.email, 'editor');
 
@@ -297,9 +305,11 @@ for (const repeat of [false, true]) {
       headers: { cookie: owner.cookie },
     });
     expect(stored.status()).toBe(200);
-    const state = (await stored.json()) as {
-      timeOff: Array<{ resourceId: string; note: string | null }>;
-    };
+    const state = (
+      (await stored.json()) as {
+        data: { timeOff: Array<{ resourceId: string; note: string | null }> };
+      }
+    ).data;
     expect(state.timeOff.filter((entry) => entry.resourceId === resourceId)).toHaveLength(
       repeat ? 2 : 1,
     );

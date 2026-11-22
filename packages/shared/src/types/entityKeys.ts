@@ -6,7 +6,7 @@ export const FULL_DAY_HOURS = 8;
 /** Every logical AppData table, independent of persistence implementation. Keep this list in
  * dependency-neutral shape order; use APP_DATA_WRITE_ORDER when parent/child ordering matters. */
 export const APP_DATA_KEYS = [
-  'accounts',
+  'companies',
   'disciplines',
   'resources',
   'clients',
@@ -25,8 +25,8 @@ type MissingAppDataKey = Exclude<keyof AppData, AppDataKey>;
 const appDataKeysAreComplete: MissingAppDataKey extends never ? true : never = true;
 void appDataKeysAreComplete;
 
-/** The AppData arrays holding account-scoped entities (everything except `accounts`). */
-export type ScopedEntityKey = Exclude<AppDataKey, 'accounts'>;
+/** The AppData arrays holding company-scoped entities (everything except `companies`). */
+export type ScopedEntityKey = Exclude<AppDataKey, 'companies'>;
 
 /** Every table whose rows carry `companyId`. */
 export const SCOPED_KEYS = [
@@ -48,7 +48,7 @@ void scopedEntityKeysAreComplete;
 /** Parent-before-child order for writes; reverse it for child-before-parent deletion. This is a
  * domain relationship graph shared by the browser diff engine and SQLite adapter, not SQL DDL. */
 export const APP_DATA_WRITE_ORDER = [
-  'accounts',
+  'companies',
   'clients',
   'disciplines',
   'projects',

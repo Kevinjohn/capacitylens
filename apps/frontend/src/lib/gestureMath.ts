@@ -78,7 +78,7 @@ function isPast(date: ISODate, limit: ISODate, direction: Direction): boolean {
   return direction === 1 ? date > limit : date < limit;
 }
 
-// Use one clamp path for both edges so weekend-aware resize behavior stays symmetric.
+// Use one clamp path for both edges so weekend-aware resize behaviour stays symmetric.
 function resolveResizedEdge({
   range,
   deltaDays,

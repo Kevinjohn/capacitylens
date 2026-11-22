@@ -92,7 +92,7 @@ test(
       element.scrollTop = element.scrollHeight;
     });
     await expect(
-      page.getByTestId('discipline-group').filter({ hasText: 'External / 3rd party' }),
+      page.getByTestId('discipline-group').filter({ hasText: 'External party' }),
     ).toBeVisible();
     await expect(page.getByLabel('Filter by discipline')).toHaveCount(0);
 

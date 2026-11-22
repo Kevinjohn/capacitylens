@@ -46,7 +46,7 @@ describe('SettingsView — scheduling mode', () => {
 
     await user.click(days);
 
-    const company = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_COMPANY_ID);
+    const company = useStore.getState().data.companies.find((a) => a.id === DEFAULT_COMPANY_ID);
     expect(company?.schedulingMode).toBe('days');
     expect(days).toHaveAttribute('aria-checked', 'true');
   });
@@ -60,14 +60,14 @@ describe('SettingsView — scheduling mode', () => {
 
     await user.click(blocks);
 
-    const company = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_COMPANY_ID);
+    const company = useStore.getState().data.companies.find((a) => a.id === DEFAULT_COMPANY_ID);
     expect(company?.schedulingMode).toBe('blocks');
     expect(blocks).toHaveAttribute('aria-checked', 'true');
   });
 });
 
 describe('SettingsView — Overview access', () => {
-  it('defaults to Owner and Admin and lets an administrator widen access', async () => {
+  it('defaults to Owner and Admin and lets an Admin widen access', async () => {
     const user = userEvent.setup();
     render(
       <PermissionContext.Provider value={permissionValue('admin', 'resolved')}>
@@ -82,7 +82,7 @@ describe('SettingsView — Overview access', () => {
     await user.click(everyone);
 
     expect(
-      useStore.getState().data.accounts.find((company) => company.id === DEFAULT_COMPANY_ID),
+      useStore.getState().data.companies.find((company) => company.id === DEFAULT_COMPANY_ID),
     ).toHaveProperty('capacityOverviewAccess', 'everyone');
   });
 
@@ -175,7 +175,7 @@ it('defaults to the first five days and persists checkbox changes', async () => 
   await user.click(screen.getByRole('checkbox', { name: 'Saturday' }));
 
   expect(
-    useStore.getState().data.accounts.find((company) => company.id === DEFAULT_COMPANY_ID)
+    useStore.getState().data.companies.find((company) => company.id === DEFAULT_COMPANY_ID)
       ?.workingDays,
   ).toEqual([1, 2, 3, 4, 6]);
 });
@@ -191,7 +191,7 @@ it('toggles a company working day when its visible weekday label is clicked', as
 
   expect(screen.getByRole('checkbox', { name: 'Saturday' })).toBeChecked();
   expect(
-    useStore.getState().data.accounts.find((company) => company.id === DEFAULT_COMPANY_ID)
+    useStore.getState().data.companies.find((company) => company.id === DEFAULT_COMPANY_ID)
       ?.workingDays,
   ).toEqual([1, 2, 3, 4, 5, 6]);
 });
@@ -204,7 +204,7 @@ it('warns that calendar changes reinterpret existing allocations without moving 
 
   expect(
     screen.getByText(
-      'New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto recurring non-working days. Time off remains separate.',
+      'New allocations must begin on a company and personal working day. Ignore working days makes the saved allocation use calendar days and allows an existing allocation to move onto non-working days. Time off remains separate.',
       { exact: false },
     ),
   ).toBeInTheDocument();
@@ -239,7 +239,7 @@ it('reorders from Sunday without changing an explicit saved selection', async ()
   expect(screen.getByRole('checkbox', { name: 'Monday' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'Wednesday' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'Friday' })).toBeChecked();
-  expect(useStore.getState().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
+  expect(useStore.getState().data.companies[0]?.workingDays).toEqual([1, 3, 5]);
 });
 
 describe('SettingsView — minimum company working week', () => {
@@ -263,7 +263,7 @@ describe('SettingsView — minimum company working week', () => {
     await user.click(screen.getByText('Fri', { exact: true }));
 
     expect(
-      useStore.getState().data.accounts.find((company) => company.id === DEFAULT_COMPANY_ID)
+      useStore.getState().data.companies.find((company) => company.id === DEFAULT_COMPANY_ID)
         ?.workingDays,
     ).toEqual([5]);
   });
@@ -408,13 +408,13 @@ describe('SettingsView — account toggle wiring', () => {
     render(<SettingsView />);
     const before = useStore
       .getState()
-      .data.accounts.find((company) => company.id === DEFAULT_COMPANY_ID)?.[key];
+      .data.companies.find((company) => company.id === DEFAULT_COMPANY_ID)?.[key];
 
     await user.click(screen.getByRole('switch', { name: label }));
 
     const after = useStore
       .getState()
-      .data.accounts.find((company) => company.id === DEFAULT_COMPANY_ID)?.[key];
+      .data.companies.find((company) => company.id === DEFAULT_COMPANY_ID)?.[key];
     expect(after).toBe(!(before ?? whenAbsent));
   });
 
@@ -436,8 +436,8 @@ describe('SettingsView — account toggle wiring', () => {
     await user.click(
       within(section as HTMLElement).getByRole('switch', { name: 'Show placeholders' }),
     );
-    expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
-    expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeNull();
+    expect(useStore.getState().data.companies[0]?.placeholdersEnabled).toBe(true);
+    expect(useStore.getState().data.companies[0]?.externalEnabled).toBeNull();
 
     for (const name of [
       'Use disciplines',

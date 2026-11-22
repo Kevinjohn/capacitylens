@@ -200,7 +200,7 @@ test.describe('Allocation editor', () => {
       expect(tailDeleteResponse.request().postDataJSON()).toMatchObject({
         intent: { operation: 'allocation.delete', scope: 'future' },
       });
-      const tailDeleteReceipt = await tailDeleteResponse.json();
+      const tailDeleteReceipt = (await tailDeleteResponse.json()).data;
       expect(tailDeleteReceipt.status).toBe('committed');
       await expect(editor).toBeHidden();
       await expect(page.getByTestId('undo-button')).toBeEnabled();
@@ -220,7 +220,7 @@ test.describe('Allocation editor', () => {
       await page.keyboard.press('ControlOrMeta+z');
       const tailRestoreResponse = await tailRestoreCommitted;
       expect(tailRestoreResponse.status()).toBe(200);
-      const tailRestoreReceipt = await tailRestoreResponse.json();
+      const tailRestoreReceipt = (await tailRestoreResponse.json()).data;
       expect(tailRestoreReceipt.status).toBe('committed');
       await expect(page.getByTestId('allocation-bar')).toHaveCount(10);
       await expect(julyOccurrence).toBeVisible();

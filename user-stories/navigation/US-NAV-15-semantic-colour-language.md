@@ -1,6 +1,6 @@
-# US-NAV-15 — Recognize action meaning and product identity
+# US-NAV-15 — Recognise action meaning and product identity
 
-As a company member, I want consistent semantic colours so that I can recognize product, positive, and destructive actions.
+As a company member, I want consistent semantic colours so that I can recognise product, positive, and destructive actions.
 
 **Status:** Current
 

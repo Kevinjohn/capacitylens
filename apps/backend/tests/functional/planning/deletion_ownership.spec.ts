@@ -6,9 +6,9 @@ import Closure from '#models/closure';
 import Discipline from '#models/discipline';
 import Phase from '#models/phase';
 import TimeOff from '#models/time_off';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { fixtureSession } from '../../helpers/identities.js';
-import { resetPlanningFixture } from './helpers.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { fixtureSession } from '#tests/helpers/identities';
+import { resetPlanningFixture } from '#tests/functional/planning/helpers';
 
 const models = {
   allocations: Allocation,

@@ -12,7 +12,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 
 | Input | Format and limit | Trusted enforcement | Security treatment |
 | --- | --- | --- | --- |
-| Tenant API route, body, query and path | JSON requests up to the configured 5 MB limit; compiled Vine schemas | Adonis and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
+| Company API route, body, query and path | JSON requests up to the configured 5 MB limit; compiled Vine schemas | AdonisJS and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
 | Whole-company import | JSON request, subject to the configured 5 MB limit | Owner-only API and SQLite | Schema validation, reference checks, import preparation and atomic replacement |
 | Password creation, change and reset | 15–128 Unicode code points | Account Kit with application auth routes | Password length validation; no common-password or breached-password screening |
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
@@ -32,9 +32,9 @@ processing entry point.
 | --- | --- | --- | --- |
 | Authentication secrets | Password verifier, session id, reset/invitation/action-link tokens | SQLite and session cookie; emailed links through configured SMTP | Session registry expires after 14 days without use; link lifetimes are defined above; raw credentials and bearer values are not written to application logs |
 | Identity and admission data | Name, email, memberships, invitation evidence, approval decisions and last sign-in confirmation | SQLite over the configured connection | Retained while needed for account access; identity/account removal follows the account deletion policy |
-| Tenant confidential data | Schedule, notes and real private client/project names | SQLite, backups and role-filtered API | Operator controls database, exports, backups and retention |
+| Company confidential data | Schedule, notes and real private client/project names | SQLite, backups and role-filtered API | Operator controls database, exports, backups and retention |
 | Audit metadata | Timestamp, actor, company, action, entity, id and changed field names | Transactional `audit_entries` rows in SQLite | Values and credentials are not included; database and backup retention are operator-controlled |
-| Session metadata | User, session registry handle, user-agent label (up to 200 characters), expiry and last-seen time | Kit session registry and application session store in SQLite | 14-day idle expiry; no absolute lifetime or concurrent-session cap; no product session inventory or administrator revocation screen |
+| Session metadata | User, session registry handle, user-agent label (up to 200 characters), expiry and last-seen time | Kit session registry and application session store in SQLite | 14-day idle expiry; no absolute lifetime or concurrent-session cap; no product session inventory or revocation screen for an Owner or Admin |
 | Device preference | Theme, zoom and similar settings | Browser `localStorage` | Device-local and outside company export |
 
 Every `/api/*` response receives `Cache-Control: no-store` and `Pragma: no-cache`. The SPA contains
@@ -48,17 +48,17 @@ retaining its URL path.
 
 | Purpose | Primitive/library | Key/material | Lifecycle and migration |
 | --- | --- | --- | --- |
-| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=5`; 16-byte salt and 64-byte derived result | Password-derived; random salt | New and password-replacement hashes meet the OWASP Password Storage Cheat Sheet minimum profile for the 16 MiB memory target. Legacy hashes remain verifiable and Adonis detects their older profile with `needsReHash`, but Account Kit sign-in only verifies hashes and does not automatically rehash them; they remain unchanged until password replacement |
-| Password verifier comparison | Adonis scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
+| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=5`; 16-byte salt and 64-byte derived result | Password-derived; random salt | New and password-replacement hashes meet the OWASP Password Storage Cheat Sheet minimum profile for the 16 MiB memory target. Legacy hashes remain verifiable and AdonisJS detects their older profile with `needsReHash`, but Account Kit sign-in only verifies hashes and does not automatically rehash them; they remain unchanged until password replacement |
+| Password verifier comparison | AdonisJS scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
 | Invitation and reset lookup | Account Kit SHA-256 token digest | Random one-time token shown to the recipient | Expiring, single-use rows are removed or invalidated by the Kit flow |
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |
 | Password confirmation intent | SHA-256 over canonical action, company and intent; UUID confirmation id | No raw import document is stored in the confirmation | Five-minute, single-use, session- and company-bound confirmation; mutation and consume share a transaction |
 | API rate-limit key | SHA-256 of request client IP | Address-derived limiter key | Used as the limiter key; application configuration controls the API request limit |
-| View-as-member context | Package-owned revision and random nonce | Identity-wide context checked on covered mutations, including idle-mode writes | Idle control rows remain to reject stale contexts; active modes expire after 15 minutes |
-| Account-command payload | Package-owned SHA-256 over plain-JSON company and payload; command/idempotency UUIDs scoped per operation and actor | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as command results |
+| View as member context | Package-owned revision and random nonce | Identity-wide context checked on covered mutations, including idle-mode writes | Idle control rows remain to reject stale contexts; active modes expire after 15 minutes |
+| Account-operation payload | Package-owned SHA-256 over plain-JSON company and payload; command/idempotency UUIDs scoped per operation and actor | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as operation results |
 | Import impact fingerprint | SHA-256 of canonical full export rows | Current company data fingerprint | Compares previewed content with current rows; stale-preview rejection separately compares the planning revision and requires a new preview |
-| Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account command and password-confirmation records |
-| Encryption configuration | Adonis AES-256-GCM encryptor declaration | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
+| Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account operation and password-confirmation records |
+| Encryption configuration | AdonisJS AES-256-GCM encryptor declaration | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
 | Account Kit limiter | HMAC-keyed limiter with `APP_KEY` | `APP_KEY` | Keeps rate-limit keys scoped to the application secret |
 | Internal service TLS | OpenSSL P-256/SHA-256, Node HTTPS and nginx verification | Per-install root-only CA key; API-only leaf key; public CA/leaf | automatic in Compose; optional for same-host bare metal; configured identities never fall back silently; coordinated renewal/recreation |
 | Public TLS | TLS proxy and Node trust store | Public certificate and chain | Operator-managed certificate lifecycle |
@@ -79,7 +79,7 @@ policy and backup-encryption controls.
 
 ## Service connection and work limits
 
-| Service/resource | Maximum | Limit behavior and recovery |
+| Service/resource | Maximum | Limit behaviour and recovery |
 | --- | ---: | --- |
 | API accepted sockets | 512 per process | New sockets are refused; proxy surfaces upstream failure |
 | API request/incomplete connection | 30 seconds for request reception and socket inactivity | These are HTTP receive/inactivity timeouts, not handler or database execution deadlines; clients and proxies should bound retries and upstream waits |
@@ -88,7 +88,7 @@ policy and backup-encryption controls.
 | Failed password confirmation checks | 5 failures per minute per account, then a 20-minute block | The confirm-action-with-password package reserves each attempt before hashing through the app database limiter; success resets only that account; sign-in has separate Account Kit throttles |
 | Account Kit sign-in throttle | 10 requests/minute per client; 5/minute per identity with a 20-minute block | Defaults in the pinned Account Kit release; application configuration changes only test throttling |
 | Import preparation | Atomic database operation; framework request-size limit | Invalid imports fail without replacing stored data |
-| Batch mutation | Framework parser limits | One SQLite transaction; authorization/validation per operation; a stale conflict rolls the batch back |
+| Batch mutation | Framework parser limits | One SQLite transaction; authorisation/validation per operation; a stale conflict rolls the batch back |
 | Backup operation | One in flight | Scheduler skips overlap; shutdown waits before closing SQLite |
 
 ## Security and audit event inventory
@@ -103,7 +103,7 @@ policy and backup-encryption controls.
 
 Production configuration requires application audit to remain enabled. Authentication outcomes
 use the opt-in application log stream, not transactional audit rows. The operator must document
-access, retention, time synchronization, alerting and any external log collection.
+access, retention, time synchronisation, alerting and any external log collection.
 
 ## Third parties and build inputs
 

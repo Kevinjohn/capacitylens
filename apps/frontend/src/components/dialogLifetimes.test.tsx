@@ -90,7 +90,7 @@ beforeEach(async () => {
     vi.fn(async () => Response.json({ avatars: [] })),
   );
   const data = makeAppData({
-    accounts: [makeCompany({ externalEnabled: true })],
+    companies: [makeCompany({ externalEnabled: true })],
     clients: [makeClient({ companyId, name: 'Wayne Enterprises', color: '#2d75da' })],
     projects: [makeProject({ companyId, name: 'Gotham', color: '#da2d92' })],
     activities: [makeActivity({ companyId, name: 'Design' })],

@@ -28,7 +28,7 @@ function expectCodeNameDescriptionOnOwnRow() {
   const codeName = screen.getByLabelText('Code name');
   const field = codeName.closest('[data-slot="field"]');
   const description = screen.getByText(
-    'Only account owners can see real names. Everyone else sees the code name.',
+    'Only Owners can see real names. Everyone else sees the code name.',
   );
   expect(codeName.parentElement).toBe(field);
   expect(description.parentElement).toBe(field);

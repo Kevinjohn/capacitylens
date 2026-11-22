@@ -19,7 +19,7 @@ import type {
 /** Editable values submitted by the person or placeholder form. */
 export type ResourceSubmitDraft = {
   name: string;
-  role: string;
+  jobTitle: string;
   disciplineId: string;
   engagement: ResourceEngagement;
   workingDays: Weekday[];
@@ -47,11 +47,11 @@ type SubmitInputBase = {
   readActiveCompanyId: () => string | null;
 };
 
-type ValidatedFields = { name: string; role: string };
+type ValidatedFields = { name: string; jobTitle: string };
 
 function parseFormFields(input: {
   name: string;
-  role: string;
+  jobTitle: string;
   projectId: string;
   workingDays: Weekday[];
   firstAvailableDate: string;
@@ -59,15 +59,22 @@ function parseFormFields(input: {
   isPlaceholder: boolean;
   fail: Fail;
 }): ValidatedFields | null {
-  const { name: rawName, role: rawRole, projectId, workingDays, isPlaceholder, fail } = input;
+  const {
+    name: rawName,
+    jobTitle: rawJobTitle,
+    projectId,
+    workingDays,
+    isPlaceholder,
+    fail,
+  } = input;
   const name = parseText(rawName, fail, {
     field: 'name',
     required: !isPlaceholder,
     requiredMessage: m.form_resource_err_name_required(),
   });
   if (name === null) return null;
-  const role = parseText(rawRole, fail, { field: 'role', required: false });
-  if (role === null) return null;
+  const jobTitle = parseText(rawJobTitle, fail, { field: 'jobTitle', required: false });
+  if (jobTitle === null) return null;
   if (isPlaceholder && !projectId) {
     fail('projectId', m.form_resource_err_placeholder_project());
     return null;
@@ -82,13 +89,13 @@ function parseFormFields(input: {
     fail('lastAvailableDate', String(m.form_resource_err_availability_dates_order()));
     return null;
   }
-  return { name, role };
+  return { name, jobTitle };
 }
 
 type ResourcePatch = Pick<
   Resource,
   | 'kind'
-  | 'role'
+  | 'jobTitle'
   | 'employmentType'
   | 'engagement'
   | 'workingHoursPerDay'
@@ -122,7 +129,7 @@ function buildResourcePatch(input: {
   const { resource, kind, isPlaceholder, fields } = input;
   const basePatch = {
     name: fields.name || undefined,
-    role: fields.role,
+    jobTitle: fields.jobTitle,
     avatarUrl: kind === 'person' ? (resource?.avatarUrl ?? undefined) : undefined,
     disciplineId: input.disciplineId || undefined,
     employmentType: isPlaceholder
@@ -157,7 +164,7 @@ async function saveResource(input: {
     return undefined;
   }
   return await add({
-    role: patch.role,
+    jobTitle: patch.jobTitle,
     employmentType: patch.employmentType,
     engagement: patch.engagement,
     workingHoursPerDay: patch.workingHoursPerDay,

@@ -1,11 +1,12 @@
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
+import { readApiData } from '@/api/readApiData';
 import { readApiError, readApiErrorCode } from '@/lib/readApiError';
 import type { InvitationSignupBody } from './accountRequestTypes';
 import { invitationSignupRequests } from './invitationSignupRequests';
 
 /** What an invitation link shows before sign-up. */
 export interface InvitationPreview {
-  accountName: string | null;
+  companyName: string | null;
   role: string | null;
   email: string;
 }
@@ -32,7 +33,7 @@ function parsePreview(body: unknown): InvitationPreview | null {
   if (!isRecord(body) || typeof body.email !== 'string') return null;
   return {
     email: body.email,
-    accountName: typeof body.accountName === 'string' ? body.accountName : null,
+    companyName: typeof body.companyName === 'string' ? body.companyName : null,
     role: typeof body.role === 'string' ? body.role : null,
   };
 }
@@ -47,7 +48,7 @@ export async function readInvitationPreview(token: string): Promise<InvitationPr
   if (response.status === 400 || response.status === 404) return { kind: 'invalid' };
   if (!response.ok) return { kind: 'unavailable' };
   // An unreadable body is an off-spec answer and is reported as unavailable.
-  const preview = parsePreview(await response.json().catch(() => null));
+  const preview = parsePreview(await readApiData(response).catch(() => null));
   return preview ? { kind: 'ok', preview } : { kind: 'unavailable' };
 }
 

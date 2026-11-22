@@ -23,8 +23,8 @@ integrity. Investigate a failing response before handover; verify backups separa
 ## Confirm persistence and backups
 
 Open the setup link, create the first Owner and company, and make a harmless test change.
-Restart the service, sign in again, and confirm the change remains. Check that a completed snapshot
-exists under `CAPACITYLENS_BACKUP_DIR` and copy a protected snapshot off-host. Follow
+Restart the service, sign in again, and confirm the change remains. Check that a completed backup
+exists under `CAPACITYLENS_BACKUP_DIR` and copy a protected backup off-host. Follow
 [Backups and restore](/self-hosting/backups-and-restore) to validate recovery on an isolated path.
 
 ## Hand over access

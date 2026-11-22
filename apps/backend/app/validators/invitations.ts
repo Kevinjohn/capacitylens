@@ -16,7 +16,7 @@ const signUpMessage = 'Invalid sign-up details.';
  * Fields are checked in the order the controller reports them: a role or body-shape failure
  * answers the generic sentence before an email failure does.
  */
-export const createValidator = vine.create(
+export const createInvitationValidator = vine.create(
   vine
     .object({
       role: vine.enum(INVITABLE_ROLES),
@@ -25,13 +25,13 @@ export const createValidator = vine.create(
     })
     .use(allowedFields({ fields: ['companyId', 'role', 'email'], message: admissionMessage }))
 );
-createValidator.messagesProvider = {
+createInvitationValidator.messagesProvider = {
   getMessage: (_message, _rule, field) =>
     field.name === 'email' ? emailMessage : admissionMessage,
 };
 
 /** The body shape answers the generic sentence; a bad name or password names the sign-up details. */
-export const signUpValidator = vine.create(
+export const acceptInvitationSignUpValidator = vine.create(
   vine
     .object({
       name: vine
@@ -42,6 +42,6 @@ export const signUpValidator = vine.create(
     })
     .use(allowedFields({ fields: ['name', 'password'], message: admissionMessage }))
 );
-signUpValidator.messagesProvider = {
+acceptInvitationSignUpValidator.messagesProvider = {
   getMessage: (_message, _rule, field) => (field.name === '' ? admissionMessage : signUpMessage),
 };

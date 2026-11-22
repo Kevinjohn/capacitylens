@@ -9,8 +9,8 @@ import {
   clearIdentities,
   createIdentity,
   signIn as signInIdentity,
-} from '../../helpers/identities.js';
-import { asDataOwner } from '../../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/identities';
+import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';
 
 export const companyId = 'a-studio';
 export const planningUrl = `/api/companies/${companyId}/planning`;

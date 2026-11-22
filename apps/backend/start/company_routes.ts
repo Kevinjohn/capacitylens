@@ -8,13 +8,9 @@ export function registerCompanyRoutes() {
   router
     .group(() => {
       router
-        .post('/api/installation/company', [controllers.FirstCompanySetup, 'store'])
-        .as('api.installation.company')
+        .post('/installation/company', [controllers.FirstCompanySetup, 'store'])
         .use(asMember());
-      router
-        .get('/api/companies', [controllers.Companies, 'index'])
-        .as('api.companies.index')
-        .use(asMemberOnly());
+      router.get('/companies', [controllers.Companies, 'index']).use(asMemberOnly());
     })
     .use(middleware.accountGate({ access: 'admitted' }));
 }

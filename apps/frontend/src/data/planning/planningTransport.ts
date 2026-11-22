@@ -61,12 +61,12 @@ async function sendOperation(
   signal: AbortSignal,
 ): Promise<PlanningMutationSuccess> {
   return requireReply(
-    await apiClient.request('api.planning.mutate', {
+    await apiClient.request('api.planning_mutations.store', {
       params: { companyId: context.companyId },
       body: execution,
       signal,
     }),
-  );
+  ).data;
 }
 
 /** Calls implemented generated routes directly; this transport never owns or persists planning data. */
@@ -85,38 +85,38 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
             },
             signal,
           }),
-        );
+        ).data;
         if (snapshot.companyId !== context.companyId) {
           throw new PlanningCacheError("The server returned another company's planning data.");
         }
-        const authority = snapshot.authority;
+        const access = snapshot.access;
         if (
-          typeof authority.actorId !== 'string' ||
-          typeof authority.effectiveActorId !== 'string' ||
-          typeof authority.role !== 'string' ||
-          typeof authority.canWrite !== 'boolean' ||
-          typeof authority.canSeePrivateNames !== 'boolean' ||
-          typeof authority.canSeeTimeOffNote !== 'boolean'
+          typeof access.actorId !== 'string' ||
+          typeof access.effectiveActorId !== 'string' ||
+          typeof access.role !== 'string' ||
+          typeof access.canWrite !== 'boolean' ||
+          typeof access.canSeePrivateNames !== 'boolean' ||
+          typeof access.canSeeTimeOffNote !== 'boolean'
         ) {
-          throw new PlanningCacheError('The server returned an invalid planning authority.');
+          throw new PlanningCacheError('The server returned an invalid planning access.');
         }
         const base = {
           revision: snapshot.revision,
-          authority: {
-            actorId: authority.actorId,
-            effectiveActorId: authority.effectiveActorId,
-            role: authority.role,
-            canWrite: authority.canWrite,
-            canSeePrivateNames: authority.canSeePrivateNames,
-            canSeeTimeOffNote: authority.canSeeTimeOffNote,
+          access: {
+            actorId: access.actorId,
+            effectiveActorId: access.effectiveActorId,
+            role: access.role,
+            canWrite: access.canWrite,
+            canSeePrivateNames: access.canSeePrivateNames,
+            canSeeTimeOffNote: access.canSeeTimeOffNote,
           },
           today: snapshot.today,
           capacity: snapshot.capacity,
           history: snapshot.history,
         };
-        return snapshot.slice === 'unchanged'
-          ? { ...base, slice: 'unchanged' }
-          : { ...base, slice: 'full', data: snapshot.data };
+        return snapshot.content === 'unchanged'
+          ? { ...base, content: 'unchanged' }
+          : { ...base, content: 'full', data: snapshot.data };
       } catch (error) {
         throw mapPlanningError(error);
       }
@@ -137,10 +137,10 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
       try {
         return requireReply(
           await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
-            'api.planning.undo',
+            'api.planning_undo.store',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
-        );
+        ).data;
       } catch (error) {
         throw mapPlanningError(error);
       }
@@ -149,10 +149,10 @@ export function createPlanningTransport(apiClient: PlanningClient = client): Pla
       try {
         return requireReply(
           await applyMasqueradeHeader(apiClient, getScopeMasqueradeToken(context)).request(
-            'api.planning.redo',
+            'api.planning_redo.store',
             { params: { companyId: context.companyId }, body: step, signal },
           ),
-        );
+        ).data;
       } catch (error) {
         throw mapPlanningError(error);
       }
