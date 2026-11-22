@@ -101,7 +101,7 @@ describe('browser account api', () => {
     expect(sessionStorage.getItem('capacitylens.unrelated-preference')).toBe('keep');
     expect(
       Array.from({ length: sessionStorage.length }, (_unused, index) => sessionStorage.key(index)),
-    ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-operation\./));
+    ).not.toContainEqual(expect.stringMatching(/^capacitylens\.account-command\./));
   });
   it('retains same-user recovery but clears a ceremony before a different identity can use it', async () => {
     vi.spyOn(globalThis.crypto, 'randomUUID')
