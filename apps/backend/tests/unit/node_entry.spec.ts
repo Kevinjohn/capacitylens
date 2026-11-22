@@ -132,7 +132,7 @@ registerHooks({
         cwd: process.cwd(),
         encoding: 'utf8',
         timeout: 15000,
-        // The entry ends itself gracefully on SIGTERM, which would hide a hang behind exit code 1.
+        // SIGKILL, so the result shows a signal whenever the entry had to be stopped.
         killSignal: 'SIGKILL',
         env: { ...process.env, CAPACITYLENS_PORT_LANE: String(portLane) },
       });
