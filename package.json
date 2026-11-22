@@ -69,7 +69,7 @@
     "e2e:firefox": "node scripts/dev/with-lane.mjs node scripts/e2e/run-preset.mjs firefox",
     "e2e:browsers": "node scripts/dev/with-lane.mjs node scripts/e2e/e2e-browsers.mjs",
     "e2e:all": "node scripts/dev/with-lane.mjs node scripts/e2e/e2e-all.mjs",
-    "gate:deps": "pnpm audit --prod --no-optional --audit-level high",
+    "check:deps": "pnpm audit --prod --no-optional --audit-level high",
     "gate": "node scripts/dev/with-lane.mjs node scripts/ci/run-gate.mjs app",
     "gate:all": "node scripts/dev/with-lane.mjs node scripts/ci/run-gate.mjs all",
     "gate:tooling": "node scripts/dev/with-lane.mjs node scripts/ci/run-gate.mjs tooling",

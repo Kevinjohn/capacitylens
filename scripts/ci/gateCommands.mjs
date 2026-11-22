@@ -13,7 +13,7 @@ const structuralChecks = [
 
 // Repository policy, dependency and packaging checks that need no application build.
 const toolingChecks = [
-  ['run', 'gate:deps'],
+  ['run', 'check:deps'],
   ['run', 'policy:dependabot'],
   ['run', 'policy:dependabot:test'],
   ['run', 'dependency:major-report:test'],
