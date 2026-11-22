@@ -46,7 +46,7 @@
     "policy:workflow-report:test": "node --test scripts/ci/report-workflow-outcome.test.mjs",
     "policy:release-validation:test": "node --test scripts/release/require-release-validation.test.mjs",
     "policy:script-processes:test": "node --test tooling/devProcesses.test.mjs scripts/shared/pnpmSpawn.test.mjs scripts/e2e/run-preset.test.mjs scripts/build/bundleBudget.test.mjs scripts/e2e/serve-dist.test.mjs scripts/e2e/playwrightFixturesPolicy.test.mjs",
-    "ui:check": "node scripts/maintenance/check-ui-primitives.mjs",
+    "check:ui": "node scripts/maintenance/check-ui-primitives.mjs",
     "ui:registry": "node scripts/maintenance/ui-registry.mjs",
     "check:push": "pnpm run format:check && pnpm run typecheck && pnpm run lint",
     "check:changed": "node scripts/dev/with-lane.mjs node scripts/ci/check-changed.mjs",

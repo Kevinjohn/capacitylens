@@ -25,7 +25,7 @@ const toolingChecks = [
   ['run', 'policy:script-processes:test'],
 ];
 const staticChecks = [
-  ['run', 'ui:check'],
+  ['run', 'check:ui'],
   ['run', 'format:check'],
   ['run', 'typecheck'],
   ['run', 'lint'],
