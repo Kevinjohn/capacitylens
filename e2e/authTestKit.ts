@@ -35,11 +35,11 @@ export async function masqueradeTokenHeaders(
   const headers = { 'sec-fetch-site': 'same-origin', ...(cookie ? { cookie } : {}) };
   const response = await request.get(`${origin}/api/masquerade`, { headers });
   expect(response.status(), 'read masquerade context for fixture request').toBe(200);
-  const contextToken = ((await response.json()) as { data?: { contextToken?: unknown } }).data
-    ?.contextToken;
-  if (typeof contextToken !== 'string' || contextToken.length === 0)
+  const masqueradeToken = ((await response.json()) as { data?: { masqueradeToken?: unknown } }).data
+    ?.masqueradeToken;
+  if (typeof masqueradeToken !== 'string' || masqueradeToken.length === 0)
     throw new Error('Authenticated fixture session did not return a masquerade context token.');
-  return { ...headers, 'X-Masquerade-Context': contextToken };
+  return { ...headers, 'X-Masquerade-Context': masqueradeToken };
 }
 
 const AUTH_E2E_DATABASE = fileURLToPath(new URL('../apps/backend/.auth-e2e.db', import.meta.url));
@@ -197,7 +197,7 @@ export function createTestMember(
   }
 }
 
-/** Revokes a disposable E2E user's real session authority without relying on browser cookie timing. */
+/** Revokes a disposable E2E user's real session access without relying on browser cookie timing. */
 export function revokeTestSessions(email: string): void {
   const db = openAuthE2EDatabase();
   try {
@@ -558,7 +558,7 @@ export async function createTestPerson(
   request: APIRequestContext,
   cookie: string,
   companyId: string,
-  person: { id: string; name: string; role: string; color?: string; avatarUrl?: string | null },
+  person: { id: string; name: string; jobTitle: string; color?: string; avatarUrl?: string | null },
 ): Promise<void> {
   await sendPlanningIntent(request, cookie, companyId, {
     operation: 'resource.create',
@@ -566,7 +566,7 @@ export async function createTestPerson(
     fields: {
       kind: 'person',
       name: person.name,
-      role: person.role,
+      jobTitle: person.jobTitle,
       avatarUrl: person.avatarUrl ?? null,
       disciplineId: null,
       employmentType: 'permanent',
@@ -673,7 +673,7 @@ function operatorFixtureEnvironment(): NodeJS.ProcessEnv {
     APP_KEY: 'capacitylens-e2e-key-0123456789abcdef',
     APP_URL: `http://127.0.0.1:${portLane.authApi}`,
     CAPACITYLENS_DB: '.auth-e2e.db',
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+    CAPACITYLENS_ALLOW_OPEN_SIGN_UP: '1',
     CAPACITYLENS_CREATE_ADMIN_ADMIN: 'false',
     CAPACITYLENS_PUBLIC_URL: `http://localhost:${portLane.authApi}`,
   };

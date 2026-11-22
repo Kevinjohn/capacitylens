@@ -16,7 +16,7 @@ sign-in. Editors, Admins and the Owner can add and edit people; Viewers cannot.
 ![Resources: Add resource and the person form with Working days](../screenshots/flows/admin_add_person_form.jpg)
 
 1. Open **Resources** and select **Add resource**.
-2. Enter the **Name**, then add a **Role**, choose **Engagement** and, if your company uses them, a
+2. Enter the **Name**, then add a **Job title**, choose **Engagement** and, if your company uses them, a
    **Discipline**. Create disciplines on the [Disciplines page](/using/disciplines) first.
 3. Set **Working days** to their usual week. Use **Start date** and **End date** if they are only
    available for a set period.

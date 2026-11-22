@@ -39,7 +39,10 @@ async function refusals(client: any, cookie: string) {
   const company = await client
     .visit('api.getting_started.update', { companyId: 'a-studio' })
     .header('sec-fetch-site', 'same-origin')
-    .header('X-Masquerade-Context', (status.body().data as { contextToken: string }).contextToken)
+    .header(
+      'X-Masquerade-Context',
+      (status.body().data as { masqueradeToken: string }).masqueradeToken
+    )
     .withCookie('adonis-session', cookie)
     .json({ dismissed: true })
     .send();
@@ -68,7 +71,10 @@ test.group('company scope middleware', (group) => {
     const expectRefused = async () => {
       const { company, planning } = await refusals(client, cookie);
       company.assertStatus(403);
-      assert.deepEqual(company.body(), { error: 'Forbidden.', code: 'IDENTITY_AUTHORITY_DENIED' });
+      assert.deepEqual(company.body(), {
+        error: 'Forbidden.',
+        code: 'IDENTITY_AUTHORIZATION_DENIED',
+      });
       planning.assertStatus(403);
       assert.deepEqual(planning.body(), {
         error: 'Company membership is unavailable.',

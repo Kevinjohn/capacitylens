@@ -82,7 +82,7 @@ async function addOptionalResources() {
   await useStore.getState().addResource(
     makeResourceDraft({
       kind: 'placeholder',
-      role: 'Senior Designer',
+      jobTitle: 'Senior Designer',
       projectId: project.id,
     }),
   );
@@ -90,7 +90,7 @@ async function addOptionalResources() {
     makeResourceDraft({
       kind: 'external',
       name: 'Kord Industries',
-      role: 'Partner studio',
+      jobTitle: 'Partner studio',
     }),
   );
 }
@@ -100,10 +100,10 @@ beforeEach(async () => {
   await useStore.getState().addClient({ name: 'Queen Consolidated', color: '#6366f1' });
   await useStore
     .getState()
-    .addResource(makeResourceDraft({ name: 'Bruce Wayne', role: 'Designer' }));
+    .addResource(makeResourceDraft({ name: 'Bruce Wayne', jobTitle: 'Designer' }));
   await useStore
     .getState()
-    .addResource(makeResourceDraft({ name: 'Diana Prince', role: 'Copywriter' }));
+    .addResource(makeResourceDraft({ name: 'Diana Prince', jobTitle: 'Copywriter' }));
 });
 
 describe('CommandPalette', () => {
@@ -309,7 +309,7 @@ describe('CommandPalette', () => {
   it('finds an accented resource name from its unaccented spelling', async () => {
     await useStore
       .getState()
-      .addResource(makeResourceDraft({ name: 'José Müller', role: 'Strategist' }));
+      .addResource(makeResourceDraft({ name: 'José Müller', jobTitle: 'Strategist' }));
     renderPalette();
 
     fireEvent.change(screen.getByTestId('command-palette-input'), {

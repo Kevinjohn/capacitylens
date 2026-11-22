@@ -32,7 +32,7 @@ The suites cover the frontend, backend and shared workspace packages.
   a refused response; successful writes are never mocked.
 - Planning-controller transition tests use controlled responses to check revision ordering,
   pending and unconfirmed outcomes (including HTTP 408), context invalidation, explicit server write
-  authority, the page's history id on every read and write, and Undo and Redo availability taken
+  access, the page's history id on every read and write, and Undo and Redo availability taken
   only from the read. A missing write capability rejects
   the snapshot; a read-only snapshot cannot open a writable draft or execute history. Completion results are suppressed if the initiating context changes during the
   post-commit read. A context change or a lost reply starts a new history id, and a refused Undo or
@@ -44,7 +44,7 @@ The suites cover the frontend, backend and shared workspace packages.
   source-ID duplication, while a copy with edited non-date fields uses explicit creation with a fresh
   ID. Scheduler booking commands use these builders. A separate
   authenticated browser harness exercises the controller through real typed routes and SQLite:
-  create, move, resize, reassign, duplicate, grouped creation, archive/unarchive, update
+  create, move, resize, reassign, duplicate, grouped creation, archive/restore, update
   Undo/Redo, stale-edit refusal, lost-response
   recovery by refetch and sign-out cache clearing. The schedule uses the controller for bookings,
   and Undo/Redo step through the server-held history for the page. History is

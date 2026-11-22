@@ -13,7 +13,7 @@ import { createInvitationValidator } from '#validators/invitations';
 
 /**
  * Company invitations through the Account Kit: it owns the token, its one lifetime and the email.
- * The Kit re-checks the sender's authority inside the transaction that stores the invitation.
+ * The Kit re-checks the sender's access inside the transaction that stores the invitation.
  */
 export default class InvitationsController {
   async store(ctx: HttpContext) {

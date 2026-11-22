@@ -195,9 +195,9 @@ test.group('authenticated first company setup', (group) => {
     assert,
     cleanup,
   }) => {
-    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
-    env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', true);
-    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGNUP', prior));
+    const prior = env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
+    env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', true);
+    cleanup(() => env.set('CAPACITYLENS_ALLOW_OPEN_SIGN_UP', prior));
     const route = await client
       .visit('api.new_account.store')
       .header('sec-fetch-site', 'same-origin')

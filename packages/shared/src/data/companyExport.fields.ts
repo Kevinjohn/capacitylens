@@ -29,7 +29,7 @@ export const FIELDS = {
     'updatedAt',
     'kind',
     'name',
-    'role',
+    'jobTitle',
     'avatarUrl',
     'disciplineId',
     'employmentType',

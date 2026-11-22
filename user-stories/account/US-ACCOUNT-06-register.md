@@ -6,7 +6,7 @@ As an invited person, I want to create my sign-in from the emailed invitation so
 **Access:** Person with a valid invitation for an address that does not already have an account.
 **Entry:** Emailed invitation link → Accept invitation
 **Documentation:** [Join your team](../../docs-src/using/join-your-team.md)
-**Source:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx); [en.json](../../apps/frontend/messages/en.json)
+**Source:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria
 
@@ -42,4 +42,4 @@ flowchart TD
   kitAccept --> reload["Browser reload rechecks AuthProvider session and access gate"]
 ```
 
-**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invites/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [new_account_controller.ts](../../apps/backend/app/controllers/new_account_controller.ts)
+**Code references:** [InviteAccept.tsx](../../apps/frontend/src/components/invitations/InviteAccept.tsx), [invitationSignupApi.ts](../../apps/frontend/src/account/invitationSignupApi.ts), [invitation_links_controller.ts](../../apps/backend/app/controllers/invitation_links_controller.ts), [invitation_acceptances_controller.ts](../../apps/backend/app/controllers/invitation_acceptances_controller.ts), [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [new_account_controller.ts](../../apps/backend/app/controllers/new_account_controller.ts)

@@ -57,7 +57,7 @@ describe('SignInScreen — password sign-in', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
     expect(screen.getByLabelText('Password')).toHaveValue(password);
-    expect(screen.getByRole('alert')).toHaveTextContent(m.login_password_input_too_long());
+    expect(screen.getByRole('alert')).toHaveTextContent(m.sign_in_password_input_too_long());
     expect(signInEmail).not.toHaveBeenCalled();
   });
 });
@@ -75,7 +75,7 @@ describe('SignInScreen — per-control error cues (WCAG 3.3.1)', () => {
       });
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(m.login_network_error());
+      expect(await screen.findByRole('alert')).toHaveTextContent(m.sign_in_network_error());
       expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled();
     } finally {
       consoleError.mockRestore();
@@ -147,8 +147,8 @@ describe('SignInScreen — per-control error cues (WCAG 3.3.1)', () => {
 describe('SignInScreen — before company setup (needsSetup)', () => {
   it('points to the setup link and keeps the sign-in form', () => {
     render(<SignInScreen needsSetup onSignedIn={vi.fn()} />);
-    expect(screen.getByTestId('login-setup-needed')).toHaveTextContent(
-      m.login_setup_link_needed({ app: 'CapacityLens' }),
+    expect(screen.getByTestId('sign-in-setup-needed')).toHaveTextContent(
+      m.sign_in_setup_link_needed({ app: 'CapacityLens' }),
     );
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
@@ -156,7 +156,7 @@ describe('SignInScreen — before company setup (needsSetup)', () => {
 
   it('shows no setup notice by default', () => {
     render(<SignInScreen onSignedIn={vi.fn()} />);
-    expect(screen.queryByTestId('login-setup-needed')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sign-in-setup-needed')).not.toBeInTheDocument();
   });
 });
 

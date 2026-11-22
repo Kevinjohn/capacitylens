@@ -86,8 +86,8 @@ test.group('retained id recreation ownership', (suite) => {
       }
       const snapshot = await session(client.get(planningUrl), cookie).send();
       snapshot.assertStatus(200);
-      assert.equal(snapshot.body().data.authority.role, 'editor');
-      assert.isTrue(snapshot.body().data.authority.canWrite);
+      assert.equal(snapshot.body().data.access.role, 'editor');
+      assert.isTrue(snapshot.body().data.access.canWrite);
       assert.equal(snapshot.body().data.revision, 2);
       const before = await readPlanningStorage();
       const refused = await sendPlanning({

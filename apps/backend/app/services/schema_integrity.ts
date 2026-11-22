@@ -226,8 +226,8 @@ export async function assertSchemaIntegrity() {
     }
   }
   await assertTrigger(
-    'deleted_groups_active_row_guard',
-    `CREATE TRIGGER deleted_groups_active_row_guard BEFORE DELETE ON deleted_groups WHEN ${['allocations', 'time_off', 'closures', 'phases', 'disciplines'].map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+    'deleted_groups_active_row_abort',
+    `CREATE TRIGGER deleted_groups_active_row_abort BEFORE DELETE ON deleted_groups WHEN ${['allocations', 'time_off', 'closures', 'phases', 'disciplines'].map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
   );
   await assertTrigger(
     'deleted_groups_company_immutable',

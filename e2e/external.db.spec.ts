@@ -82,7 +82,7 @@ test.describe('External parties (per-account pref, default off)', () => {
         page
           .getByTestId('scheduler-row')
           .filter({ hasText: 'Kord Industries' })
-          .getByTestId('utilization'),
+          .getByTestId('utilisation'),
       ).toHaveCount(0);
     },
   );

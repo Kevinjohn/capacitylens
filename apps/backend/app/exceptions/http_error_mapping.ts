@@ -10,7 +10,7 @@ import type {
 import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { errors as limiterErrors } from '@adonisjs/limiter';
-import { CompanyDocumentError } from '@capacitylens/shared/data/companyDocument';
+import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
@@ -393,7 +393,7 @@ export function mapHttpError(
       } satisfies ProductValidationFailure['body'],
     };
   }
-  if (error instanceof CompanyDocumentError) {
+  if (error instanceof CompanyExportError) {
     return { status: 400, body: { error: error.message } };
   }
   if (error instanceof limiterErrors.E_TOO_MANY_REQUESTS) {

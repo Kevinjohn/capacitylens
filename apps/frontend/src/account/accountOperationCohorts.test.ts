@@ -27,7 +27,7 @@ function operationHeadersAt(
   const init = mocks.fetchApi.mock.calls[index]?.[1];
   if (!init) throw new Error(`Expected request call ${index} to include init options.`);
   const headers = new Headers(init.headers);
-  return [headers.get('x-account-command-id'), headers.get('idempotency-key')];
+  return [headers.get('x-account-operation-id'), headers.get('idempotency-key')];
 }
 
 async function waitForRequests(count: number): Promise<void> {
@@ -74,7 +74,7 @@ describe('implicit account operation cohorts', () => {
         body.email = 'barbara@wayne.test';
         await masqueradeModel.adoptStatus({
           active: false,
-          contextToken: changed ? 'idle-after' : 'idle-before',
+          masqueradeToken: changed ? 'idle-after' : 'idle-before',
         });
         const args = digest.mock.calls[0];
         if (!args) throw new Error('Expected payload digest');

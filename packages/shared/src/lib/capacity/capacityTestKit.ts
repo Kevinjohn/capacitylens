@@ -205,7 +205,7 @@ export const makeResource = (
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',
-  role: 'Developer',
+  jobTitle: 'Developer',
   employmentType: 'permanent',
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
