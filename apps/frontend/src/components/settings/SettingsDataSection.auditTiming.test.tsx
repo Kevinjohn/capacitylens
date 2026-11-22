@@ -30,6 +30,11 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
   );
   return { createStorePlanningTransport: actual.createTestPlanningTransport };
 });
+// The offer waits for the server's inactive rows; this company holds none.
+vi.mock('@/data/fetchInactiveRecords', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/data/fetchInactiveRecords')>()),
+  fetchInactiveRecords: async () => useStore.getState().data,
+}));
 function ShellListener() {
   useAppShellViewModel();
   return null;
@@ -109,7 +114,7 @@ it.each(
       </QueryClientProvider>,
     );
     try {
-      fireEvent.click(screen.getByTestId('add-example-data'));
+      fireEvent.click(await screen.findByTestId('add-example-data'));
       await waitFor(() => expect(writes).toHaveBeenCalledOnce());
       const canonicalData = structuredClone(useStore.getState().data);
       canonicalData.resources = [makeResource({ companyId, name: 'Bruce Wayne' })];

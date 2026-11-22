@@ -150,9 +150,9 @@ that point. The app never replaces a failed read with a browser snapshot or queu
 ### Example data
 
 Owners and Admins see **Example data** only while the company has no people, clients, projects or
-bookings. **Add example data** adds two people, a client, a project and a few bookings across
-this week and next. They are ordinary records that can be archived. The request is refused
-if the company already holds any of these, including archived ones.
+bookings, including archived or deleted ones. **Add example data** adds two people, a client, a
+project and a few bookings across this week and next. They are ordinary records that can be
+archived. The server refuses the request if the company already holds any of these.
 
 <!-- Compatibility anchor for existing links to import and export. -->
 
