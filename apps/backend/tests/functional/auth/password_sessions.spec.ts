@@ -67,7 +67,7 @@ test.group('password sign-in and sessions', (group) => {
     await owner();
     const { cookie } = await signIn(client, email, password);
     const session = await db.from('adonis_sessions').select('id').first();
-    assert.isNotNull(session, 'sign-in creates a database-backed Adonis session');
+    assert.isNotNull(session, 'sign-in creates a database-backed AdonisJS session');
 
     const service = await masqueradeAdmission();
     const original = service.resolve.bind(service);

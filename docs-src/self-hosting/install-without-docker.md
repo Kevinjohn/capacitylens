@@ -92,7 +92,7 @@ sudo install -o root -g root -m 0600 \
   /opt/capacitylens/current/capacitylens.env.example /etc/capacitylens.env
 ```
 
-Generate an Adonis application key from the backend directory and copy the printed value into
+Generate an AdonisJS application key from the backend directory and copy the printed value into
 `APP_KEY`:
 
 ```bash

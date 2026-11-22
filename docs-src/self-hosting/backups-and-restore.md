@@ -1,6 +1,6 @@
 ---
 title: Backups and restore
-description: Protect and restore the native SQLite database using verified bundles and the Adonis backup commands.
+description: Protect and restore the native SQLite database using verified bundles and the AdonisJS backup commands.
 ---
 
 # Backups and restore

@@ -100,7 +100,7 @@ test.group('documentation and repository rule contracts', () => {
     }
   });
 
-  test('documents the native Adonis commands and health routes without legacy server entry points', ({
+  test('documents the native AdonisJS commands and health routes without legacy server entry points', ({
     assert,
   }) => {
     const install = read('docs-src/self-hosting/install-without-docker.md');

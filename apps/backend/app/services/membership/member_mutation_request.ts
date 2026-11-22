@@ -6,7 +6,7 @@ import { runAccountOperation, parseAccountOperation } from '#services/account_op
 
 /** Reads a member route's parameter. */
 export function readRouteParam(value: unknown) {
-  // Adonis calls the controller after matching a route, so each parameter is already a string.
+  // AdonisJS calls the controller after matching a route, so each parameter is already a string.
   return value as string;
 }
 

@@ -15,8 +15,8 @@ Restart the single backend process after changing its environment.
 | --- | --- |
 | `NODE_ENV` | Set to `production` for a deployed service. |
 | `HOST`, `PORT` | Listener address and port. The supplied release example binds loopback on port 8787. |
-| `APP_URL` | Adonis framework URL; also the public-origin fallback when `CAPACITYLENS_PUBLIC_URL` is unset. |
-| `APP_KEY` | Adonis encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
+| `APP_URL` | AdonisJS framework URL; also the public-origin fallback when `CAPACITYLENS_PUBLIC_URL` is unset. |
+| `APP_KEY` | AdonisJS encryption key. Generate it from `backend/` with `node ace.js generate:key --show`; keep it stable and secret. |
 | `CAPACITYLENS_DB` | SQLite database path. Put it in persistent storage outside the release. |
 | `CAPACITYLENS_PUBLIC_URL` | Optional public-origin override shared by emailed links, cookies and transport security. Bare HTTP(S) origin only: no credentials, path, query or fragment. Production requires HTTPS; development/test allow HTTP only on `localhost`, `127.0.0.1` or `[::1]`. |
 

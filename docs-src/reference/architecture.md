@@ -320,7 +320,7 @@ The shared `buildActiveData` projection owns descendant hiding, using the comple
 The package hides a model's own tombstone and does not implement application ancestry rules.
 
 Archive transitions, planning revisions, audit rows and session-bound restoration groups already
-exist in Adonis. The package integration does not introduce a public soft-delete or purge action,
+exist in AdonisJS. The package integration does not introduce a public soft-delete or purge action,
 a retention policy or deletion undo tokens for lifecycle models. Planning deletes for bookings,
 time off, closures, phases and disciplines use package lifecycle operations. Their rows stay in
 their own tables; the recovery ledger contains only expected row IDs and surviving-child links.

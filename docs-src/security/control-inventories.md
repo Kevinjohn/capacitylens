@@ -12,7 +12,7 @@ substitute for deployment-specific data classification, key inventory or log-ret
 
 | Input | Format and limit | Trusted enforcement | Security treatment |
 | --- | --- | --- | --- |
-| Company API route, body, query and path | JSON requests up to the configured 5 MB limit; compiled Vine schemas | Adonis and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
+| Company API route, body, query and path | JSON requests up to the configured 5 MB limit; compiled Vine schemas | AdonisJS and shared domain | Authenticated operation; server membership/action checks, validated fields and relational checks; unknown Vine object properties are stripped |
 | Whole-company import | JSON request, subject to the configured 5 MB limit | Owner-only API and SQLite | Schema validation, reference checks, import preparation and atomic replacement |
 | Password creation, change and reset | 15–128 Unicode code points | Account Kit with application auth routes | Password length validation; no common-password or breached-password screening |
 | Sign-in credentials | Email and password in bounded JSON | Account Kit with application auth routes | Generic invalid-credential response and authentication throttling |
@@ -48,8 +48,8 @@ retaining its URL path.
 
 | Purpose | Primitive/library | Key/material | Lifecycle and migration |
 | --- | --- | --- | --- |
-| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=5`; 16-byte salt and 64-byte derived result | Password-derived; random salt | New and password-replacement hashes meet the OWASP Password Storage Cheat Sheet minimum profile for the 16 MiB memory target. Legacy hashes remain verifiable and Adonis detects their older profile with `needsReHash`, but Account Kit sign-in only verifies hashes and does not automatically rehash them; they remain unchanged until password replacement |
-| Password verifier comparison | Adonis scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
+| Password storage | Node scrypt, `N=2^14`, `r=8`, `p=5`; 16-byte salt and 64-byte derived result | Password-derived; random salt | New and password-replacement hashes meet the OWASP Password Storage Cheat Sheet minimum profile for the 16 MiB memory target. Legacy hashes remain verifiable and AdonisJS detects their older profile with `needsReHash`, but Account Kit sign-in only verifies hashes and does not automatically rehash them; they remain unchanged until password replacement |
+| Password verifier comparison | AdonisJS scrypt hasher | Stored and derived verifier | Uses framework verification; test coverage is in Account Kit password-flow tests |
 | Invitation and reset lookup | Account Kit SHA-256 token digest | Random one-time token shown to the recipient | Expiring, single-use rows are removed or invalidated by the Kit flow |
 | Session registry handle | Account Kit random token and SHA-256 digest | Raw token remains in the server session; registry stores the digest | Database-backed session with sliding idle expiry; no maximum simultaneous-session count is configured |
 | Password confirmation intent | SHA-256 over canonical action, company and intent; UUID confirmation id | No raw import document is stored in the confirmation | Five-minute, single-use, session- and company-bound confirmation; mutation and consume share a transaction |
@@ -58,7 +58,7 @@ retaining its URL path.
 | Account-command payload | Package-owned SHA-256 over plain-JSON company and payload; command/idempotency UUIDs scoped per operation and actor | Payload hash and operation context | Replay/identity handles only; raw credentials are not stored as command results |
 | Import impact fingerprint | SHA-256 of canonical full export rows | Current company data fingerprint | Compares previewed content with current rows; stale-preview rejection separately compares the planning revision and requires a new preview |
 | Record identifiers | CSPRNG UUIDs | Identifier, not a secret | Used for users, restoration groups and account command and password-confirmation records |
-| Encryption configuration | Adonis AES-256-GCM encryptor declaration | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
+| Encryption configuration | AdonisJS AES-256-GCM encryptor declaration | `APP_KEY` | The application configures the key, but this inventory does not establish which stored application data uses the encryptor; the session cookie flags are configured separately |
 | Account Kit limiter | HMAC-keyed limiter with `APP_KEY` | `APP_KEY` | Keeps rate-limit keys scoped to the application secret |
 | Internal service TLS | OpenSSL P-256/SHA-256, Node HTTPS and nginx verification | Per-install root-only CA key; API-only leaf key; public CA/leaf | automatic in Compose; optional for same-host bare metal; configured identities never fall back silently; coordinated renewal/recreation |
 | Public TLS | TLS proxy and Node trust store | Public certificate and chain | Operator-managed certificate lifecycle |

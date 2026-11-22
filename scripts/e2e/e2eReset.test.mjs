@@ -382,13 +382,13 @@ test(
       assert.deepEqual(
         nativeActivity.pendingRequests.map(({ method, path }) => ({ method, path })),
         [{ method: 'GET', path: '/api/masquerade' }],
-        'native accounting sees the request before Adonis begins handling it',
+        'native accounting sees the request before AdonisJS begins handling it',
       );
       assert.ok(nativeActivity.pendingRequests[0].elapsedMs >= 0);
       await assert.rejects(
         resetServer({ target }),
         /api pause failed:.*pause timed out with 1 active handlers/i,
-        'reset refuses before SQLite while the native handler has not entered Adonis',
+        'reset refuses before SQLite while the native handler has not entered AdonisJS',
       );
       assert.equal(
         database.prepare("SELECT name FROM clients WHERE id='c-acme'").get().name,
@@ -460,7 +460,7 @@ test(
       assert.equal(
         (await bufferedDispatchCount).count,
         0,
-        'the incomplete request on the retired API socket never reaches Adonis after resume',
+        'the incomplete request on the retired API socket never reaches AdonisJS after resume',
       );
       assert.equal((await fetch(`${target.api}/health/ready`)).ok, true);
       assert.deepEqual(database.prepare('SELECT * FROM clients ORDER BY id').all(), clients);

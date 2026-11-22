@@ -241,7 +241,7 @@ export default class extends BaseSchema {
       table.check('start_date <= end_date');
     });
 
-    // Account Kit's Lucid adapter maps these columns; password is the Adonis hasher's output.
+    // Account Kit's Lucid adapter maps these columns; password is the AdonisJS hasher's output.
     this.schema.createTable('users', (table) => {
       metadata(table);
       table.string('email', 254).notNullable().unique();

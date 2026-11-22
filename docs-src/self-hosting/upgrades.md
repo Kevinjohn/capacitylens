@@ -1,6 +1,6 @@
 ---
 title: Upgrades
-description: Upgrade the native CapacityLens archive with a verified pre-migration backup and the Adonis migration command.
+description: Upgrade the native CapacityLens archive with a verified pre-migration backup and the AdonisJS migration command.
 ---
 
 # Upgrade CapacityLens
