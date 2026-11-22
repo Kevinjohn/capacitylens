@@ -1,4 +1,4 @@
-const JOINED_COMPANY_PARAM = 'joinedAccount';
+const JOINED_COMPANY_PARAM = 'joinedCompany';
 
 /** Read the requested post-invite destination from a URL search string. Empty values are ignored. */
 export function readJoinedCompanyHandoff(search: string): string | null {

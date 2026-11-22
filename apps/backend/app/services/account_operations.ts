@@ -36,7 +36,7 @@ export function parseAccountOperation(
   }
   if (!isAccountCommandId(commandId) || !isAccountIdempotencyKey(requestKey)) {
     throw new AccountOperationException(
-      'Invalid or unpaired command headers.',
+      'Invalid or unpaired operation headers.',
       400,
       'VALIDATION_ERROR'
     );
@@ -47,14 +47,10 @@ export function parseAccountOperation(
 /** Adapts package refusals to the existing account-operation HTTP contract. */
 export function mapAccountOperationError(error: unknown): unknown {
   if (error instanceof E_DUPLICATE_REQUEST_CONFLICT) {
-    return new AccountOperationException(
-      'Command identity already used.',
-      409,
-      'IDEMPOTENCY_CONFLICT'
-    );
+    return new AccountOperationException('Operation id already used.', 409, 'IDEMPOTENCY_CONFLICT');
   }
   if (error instanceof E_INVALID_COMMAND_VALUE) {
-    return new AccountOperationException('Invalid command payload.', 400, 'VALIDATION_ERROR');
+    return new AccountOperationException('Invalid operation payload.', 400, 'VALIDATION_ERROR');
   }
   return error;
 }

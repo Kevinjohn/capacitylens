@@ -23,7 +23,7 @@ function WorkingDayCheckbox({
   workingDaysMinimumId: string;
   updateSetting: UpdateSetting;
 }) {
-  const id = `account-working-day-${day}`;
+  const id = `company-working-day-${day}`;
   const checked = workingDays.includes(day);
   // Live-disable rather than submit-time validation: each toggle saves immediately, so a refused
   // change must be impossible rather than rejected after it appears to save.

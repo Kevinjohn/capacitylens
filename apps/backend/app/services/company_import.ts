@@ -184,7 +184,7 @@ export async function applyCompanyImport(
     companyId,
     actorId,
     action: 'import',
-    entity: 'account',
+    entity: 'company',
     entityId: companyId,
     fields: [],
   });

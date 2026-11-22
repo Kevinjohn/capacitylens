@@ -45,7 +45,7 @@ function productTypeContracts() {
   };
   const registered = {
     error: 'An account already uses this email.',
-    code: 'EMAIL_REGISTERED',
+    code: 'EMAIL_IN_USE',
   } satisfies ProductHttpErrorBody;
   // @ts-expect-error Product validation does not use Tuyau's default 422 status.
   const wrongStatus: ProductValidationFailure = { ...validation, status: 422 };

@@ -38,7 +38,7 @@ export default class MemberResourceLinksController {
         },
         actorId: currentActor.userId,
         scopeId: companyId,
-        payload: { principalId: userId, ...body },
+        payload: { userId, ...body },
         command,
       });
     });
@@ -74,7 +74,7 @@ export default class MemberResourceLinksController {
         },
         actorId: currentActor.userId,
         scopeId: companyId,
-        payload: { principalId: userId, ...body },
+        payload: { userId, ...body },
         command,
       });
     });

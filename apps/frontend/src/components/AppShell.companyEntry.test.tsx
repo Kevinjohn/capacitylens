@@ -15,7 +15,7 @@ setUpAppShellTests(i18nMocks.syncLocaleFromCompany);
 
 it('consumes a joined-company query only once and preserves later route queries', async () => {
   renderAppShell({
-    initialEntries: [`/?joinedAccount=${DEFAULT_COMPANY_ID}`],
+    initialEntries: [`/?joinedCompany=${DEFAULT_COMPANY_ID}`],
     includeLocationProbe: true,
   });
 
@@ -28,7 +28,7 @@ it('consumes a joined-company query only once and preserves later route queries'
 
 it('removes only the joined-company handoff from the entry query', async () => {
   renderAppShell({
-    initialEntries: [`/?tab=security&joinedAccount=${DEFAULT_COMPANY_ID}&view=archived#members`],
+    initialEntries: [`/?tab=security&joinedCompany=${DEFAULT_COMPANY_ID}&view=archived#members`],
     includeLocationProbe: true,
   });
 
@@ -43,7 +43,7 @@ it('waits for initial hydration before consuming a joined-company handoff', asyn
   useStore.getState().setActiveCompany(null);
   useStore.getState().setHydrated(false);
 
-  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_COMPANY_ID}`] });
+  renderAppShell({ initialEntries: [`/?joinedCompany=${DEFAULT_COMPANY_ID}`] });
 
   await waitFor(() =>
     expect(
@@ -67,7 +67,7 @@ it('does not reuse a consumed joined-company handoff after a later company-list 
     .setCompanySummaries({ list: companies.map(({ id, name }) => ({ id, name, role: 'owner' })) });
   useStore.getState().setActiveCompany(otherCompanyId);
 
-  renderAppShell({ initialEntries: [`/?joinedAccount=${DEFAULT_COMPANY_ID}`] });
+  renderAppShell({ initialEntries: [`/?joinedCompany=${DEFAULT_COMPANY_ID}`] });
   act(() => useStore.getState().setHydrated(true));
   await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
 
@@ -85,7 +85,7 @@ it('does not apply a late joined-company handoff after an explicit company choic
   const lateCompanyId = 'acct-late';
   useStore.getState().setActiveCompany(null);
 
-  renderAppShell({ initialEntries: [`/?joinedAccount=${lateCompanyId}`] });
+  renderAppShell({ initialEntries: [`/?joinedCompany=${lateCompanyId}`] });
   await waitFor(() =>
     expect(
       useStore.getState().companySummaries.some((company) => company.id === DEFAULT_COMPANY_ID),
@@ -177,7 +177,7 @@ it('waits when the sole membership role is unavailable', async () => {
 it('opens the sole server-selected company after a reload even when an invite handoff is present', async () => {
   useStore.setState({ activeCompanyId: null });
 
-  renderAppShell({ initialEntries: ['/clients?joinedAccount=not-yet-authorized'] });
+  renderAppShell({ initialEntries: ['/clients?joinedCompany=not-yet-authorized'] });
 
   await waitFor(() => expect(useStore.getState().activeCompanyId).toBe(DEFAULT_COMPANY_ID));
   expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument();

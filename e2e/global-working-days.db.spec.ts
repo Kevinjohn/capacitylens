@@ -48,13 +48,13 @@ test(
     await expect
       .poll(() => weekdays.evaluateAll((controls) => controls.map((control) => control.id)))
       .toEqual([
-        'account-working-day-1',
-        'account-working-day-2',
-        'account-working-day-3',
-        'account-working-day-4',
-        'account-working-day-5',
-        'account-working-day-6',
-        'account-working-day-0',
+        'company-working-day-1',
+        'company-working-day-2',
+        'company-working-day-3',
+        'company-working-day-4',
+        'company-working-day-5',
+        'company-working-day-6',
+        'company-working-day-0',
       ]);
 
     // Friday becomes globally unavailable; Saturday becomes globally available so Bruce's personal

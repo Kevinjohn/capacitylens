@@ -26,7 +26,7 @@ export type InvitationSignUpResult =
   | { kind: 'signed-up' }
   | { kind: 'uncertain' }
   | { kind: 'invalid-token' }
-  | { kind: 'email-registered' }
+  | { kind: 'email-in-use' }
   | { kind: 'refused'; message: string | undefined };
 
 function parsePreview(body: unknown): InvitationPreview | null {
@@ -66,6 +66,6 @@ export async function signUpWithInvitation(
   if (response.status >= 500) return { kind: 'uncertain' };
   const code = await readApiErrorCode(response);
   if (code === 'INVALID_TOKEN') return { kind: 'invalid-token' };
-  if (code === 'EMAIL_REGISTERED') return { kind: 'email-registered' };
+  if (code === 'EMAIL_IN_USE') return { kind: 'email-in-use' };
   return { kind: 'refused', message: await readApiError(response) };
 }
