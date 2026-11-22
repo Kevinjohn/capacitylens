@@ -98,7 +98,7 @@ test.group('disposable development demo', (group) => {
     assert.lengthOf(await db.from('memberships'), 1);
     const session = await signIn(client, email, password);
     const directory = await client
-      .get('/api/companies')
+      .visit('api.companies.index')
       .header('cookie', session.cookieHeader)
       .send();
     directory.assertStatus(200);

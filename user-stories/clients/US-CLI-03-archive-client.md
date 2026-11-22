@@ -30,7 +30,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   A["ClientList archive confirmation"] --> B["useLifecycleOperations.archive"] --> C["sendPlanningIntent: catalogue.archive"]
-  C --> D["createPlanningTransport → api.planning.mutate"] --> E["PlanningMutationsController.store → mutatePlanning begins scoped transaction"]
+  C --> D["createPlanningTransport → api.planning_mutations.store"] --> E["PlanningMutationsController.store → mutatePlanning begins scoped transaction"]
   E --> F["transitionLifecycle updates only the archived row"] --> K["mutatePlanning records revision/audit and commits"] --> F2["useActiveScopedData buildActiveData hides archived ancestry"]
   F2 --> H["ArchivedEntitySection / ArchiveRecoverySection refresh"]
 ```

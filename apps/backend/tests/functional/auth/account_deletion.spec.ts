@@ -15,9 +15,9 @@ const owner = { email: 'bruce.wayne@wayne.example', password: 'batman-secret-202
 const editor = { email: 'dick.grayson@wayne.example', password: 'nightwing-secret-2026' };
 
 const deleteAccount = (client: ApiClient, cookie: string, currentPassword: string) =>
-  asDataOwner(client.post('/api/auth/delete-account'), cookie).json({ currentPassword }).send();
+  asDataOwner(client.visit('api.account.destroy'), cookie).json({ currentPassword }).send();
 const accounts = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get('/api/companies'), cookie).send();
+  asDataOwner(client.visit('api.companies.index'), cookie).send();
 
 async function company() {
   const ownerId = await createIdentity(owner.email, {
@@ -147,7 +147,7 @@ test.group('account deletion', (group) => {
     const wrong = await deleteAccount(client, cookie, 'not-the-password-2026');
     wrong.assertStatus(403);
     wrong.assertBodyContains({ code: 'PASSWORD_CONFIRMATION_DENIED' });
-    const malformed = await asDataOwner(client.post('/api/auth/delete-account'), cookie)
+    const malformed = await asDataOwner(client.visit('api.account.destroy'), cookie)
       // Deliberately outside the generated body type, to reach the server's refusal.
       .json({ currentPassword: editor.password, extra: true } as never)
       .send();
@@ -163,7 +163,7 @@ test.group('account deletion', (group) => {
   test('a signed-out request is refused', async ({ client }) => {
     await company();
     const response = await client
-      .post('/api/auth/delete-account')
+      .visit('api.account.destroy')
       .header('sec-fetch-site', 'same-origin')
       .json({ currentPassword: owner.password })
       .send();

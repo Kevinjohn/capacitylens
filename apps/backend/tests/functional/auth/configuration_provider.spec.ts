@@ -48,7 +48,7 @@ test.group('development bootstrap provider recovery', (group) => {
       passwordHash
     );
     const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
+    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
     status.assertStatus(200);
     assert.isTrue(status.body().data.decision.admitted);
   });
@@ -101,7 +101,7 @@ test.group('development bootstrap provider recovery', (group) => {
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', false);
     await provider.start();
     const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
+    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
     status.assertStatus(200);
     const decision = (
       status.body().data as {
@@ -141,7 +141,7 @@ test.group('development bootstrap provider recovery', (group) => {
     env.set('CAPACITYLENS_CREATE_ADMIN_ADMIN', false);
     await provider.start();
     const session = await signIn(client, bootstrapEmail, bootstrapPassword);
-    const status = await asDataOwner(client.get('/api/admission'), session.cookie).send();
+    const status = await asDataOwner(client.visit('api.admission.show'), session.cookie).send();
     status.assertStatus(200);
     const decision = (
       status.body().data as {

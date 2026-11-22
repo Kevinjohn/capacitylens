@@ -8,11 +8,7 @@ export function registerOwnershipRoutes() {
   router
     .group(() => {
       router
-        .post('/api/companies/:companyId/ownership-transfer', [
-          controllers.OwnershipTransfers,
-          'store',
-        ])
-        .as('api.ownership.transfer')
+        .post('/companies/:companyId/ownership-transfer', [controllers.OwnershipTransfers, 'store'])
         .use(asCompanyMember());
     })
     .use(middleware.accountGate({ access: 'admitted' }));

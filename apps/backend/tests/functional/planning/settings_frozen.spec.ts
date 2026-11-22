@@ -43,7 +43,7 @@ test.group('typed company calendar settings', (group) => {
       refused.assertStatus(409);
       assert.deepEqual(await readState(companyId, true), before);
       const planning = await session(
-        client.get(`/api/companies/${companyId}/planning`),
+        client.visit('api.planning.show', { companyId }),
         cookie
       ).send();
       planning.assertStatus(200);

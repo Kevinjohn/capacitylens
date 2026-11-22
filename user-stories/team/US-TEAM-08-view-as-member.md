@@ -34,7 +34,7 @@ flowchart TD
     Row["MemberRow offers view action to eligible Owner or Admin"] --> Confirm["MemberConfirmations confirmMemberAction"]
     Confirm --> Start["useMembersOrchestration calls accountTransition.startMasquerade"]
     Start --> Model["masqueradeModel.start → masqueradeApi.start"]
-    Model --> Request["masqueradeRequests POST api.masquerade.start"]
+    Model --> Request["masqueradeRequests POST api.masquerade.store"]
     Request --> Server["MasqueradeController.store → auth masquerade service → Masquerade package start"]
     Server --> Projection["Controller returns readCurrentMasquerade; model loads target projection into store"]
     Projection --> Banner["AppShell renders MasqueradeBanner; permissionContext hides write affordances"]

@@ -126,7 +126,7 @@ test.group('company member administration', (group) => {
     assert.equal(Number(unchangedRevision?.revision), 2);
     const ownerId = await userId('bruce.wayne@wayne.example');
     const refused = await signed(
-      client.patch(`/api/companies/a-studio/members/${ownerId}`),
+      client.visit('api.members.update', { companyId: 'a-studio', userId: ownerId }),
       ownerCookie
     )
       .json({ role: 'viewer' })
@@ -297,7 +297,10 @@ test.group('company member administration', (group) => {
       {
         name: 'invalid tracking value',
         send: () =>
-          signed(client.put('/api/companies/a-studio/member-sign-in-tracking'), ownerCookie)
+          signed(
+            client.visit('api.member_sign_in_tracking.update', { companyId: 'a-studio' }),
+            ownerCookie
+          )
             .json({ enabled: 'true' })
             .send(),
         error: 'enabled must be a Boolean.',
@@ -305,8 +308,11 @@ test.group('company member administration', (group) => {
       {
         name: 'unknown tracking field',
         send: () =>
-          signed(client.put('/api/companies/a-studio/member-sign-in-tracking'), ownerCookie)
-            .json({ enabled: true, extra: true })
+          signed(
+            client.visit('api.member_sign_in_tracking.update', { companyId: 'a-studio' }),
+            ownerCookie
+          )
+            .json({ enabled: true, extra: true } as never)
             .send(),
         error: 'enabled must be a Boolean.',
       },
@@ -397,15 +403,18 @@ test.group('company member administration', (group) => {
     ]);
     const adminCookie = admin.cookie('adonis-session')!.value;
     const invalidPromotion = await signed(
-      client.patch(`/api/companies/a-studio/members/${editorId}`),
+      client.visit('api.members.update', { companyId: 'a-studio', userId: editorId }),
       adminCookie
     )
       .json({ role: 'owner' })
       .send();
     invalidPromotion.assertStatus(400);
-    assert.equal((invalidPromotion.body() as { code: string }).code, 'OWNER_TRANSFER_REQUIRED');
+    assert.equal(
+      (invalidPromotion.body() as unknown as { code: string }).code,
+      'OWNER_TRANSFER_REQUIRED'
+    );
     const ownerDemotion = await signed(
-      client.patch(`/api/companies/a-studio/members/${ownerId}`),
+      client.visit('api.members.update', { companyId: 'a-studio', userId: ownerId }),
       adminCookie
     )
       .json({ role: 'editor' })
@@ -413,7 +422,7 @@ test.group('company member administration', (group) => {
     ownerDemotion.assertStatus(403);
     // The package refuses self-management, so an Admin cannot change their own role.
     const selfDemotion = await signed(
-      client.patch(`/api/companies/a-studio/members/${adminId}`),
+      client.visit('api.members.update', { companyId: 'a-studio', userId: adminId }),
       adminCookie
     )
       .json({ role: 'editor' })
@@ -425,7 +434,7 @@ test.group('company member administration', (group) => {
       .first();
     assert.equal(unchangedAdmin.role, 'admin');
     const unauthorized = await signed(
-      client.patch(`/api/companies/a-studio/members/${editorId}`),
+      client.visit('api.members.update', { companyId: 'a-studio', userId: editorId }),
       editor.cookie('adonis-session')!.value
     )
       .json({ role: 'owner' })
@@ -474,9 +483,9 @@ test.group('company member administration', (group) => {
     try {
       Date.now = () => realNow() + 16 * 60 * 1000;
       const cookie = admin.cookie('adonis-session')!.value;
-      const current = await signed(client.get('/api/auth/me'), cookie).send();
+      const current = await signed(client.visit('api.session.show'), cookie).send();
       current.assertStatus(200);
-      const second = await signed(client.post('/api/installation/company'), cookie)
+      const second = await signed(client.visit('api.first_company_setup.store'), cookie)
         .json({ name: 'Stark Industries' })
         .send();
       second.assertStatus(409);

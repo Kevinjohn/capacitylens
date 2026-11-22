@@ -37,10 +37,10 @@ flowchart TD
     Dialog["MemberResourceDialog renders eligible choices"] --> Select["MemberResourceEditor change calls the member's request from useMemberResourceLinkRequests, owned by useMembersOrchestration"]
     Select --> Choose{"Person selected?"}
     Choose -->|"Yes"| SetClient["teamAccessApi.setMemberResourceLink → memberRequests PUT resource-link"]
-    SetClient --> SetRoute["api.member-resources.set → MemberResourceLinksController.update"]
+    SetClient --> SetRoute["api.member_resource_links.update → MemberResourceLinksController.update"]
     SetRoute --> SetLink["setMemberResourceLink updates account_member_resources"]
     Choose -->|"None"| ClearClient["teamAccessApi.clearMemberResourceLink → memberRequests DELETE resource-link"]
-    ClearClient --> ClearRoute["api.member-resources.clear → MemberResourceLinksController.destroy"]
+    ClearClient --> ClearRoute["api.member_resource_links.destroy → MemberResourceLinksController.destroy"]
     ClearRoute --> ClearLink["clearMemberResourceLink removes account_member_resources row"]
     SetLink --> Reload["Request hook reloads directory"]
     ClearLink --> Reload

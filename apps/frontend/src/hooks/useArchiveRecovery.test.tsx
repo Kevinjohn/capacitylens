@@ -71,10 +71,10 @@ describe('archive recovery request boundaries', () => {
       .mockResolvedValueOnce({ data: payload('a-studio', 'Second') });
     render(view(new QueryClient()));
     expect(await screen.findByText('First')).toBeInTheDocument();
-    expect(request.mock.calls[0]?.[0]).toBe('api.planning.archive');
+    expect(request.mock.calls[0]?.[0]).toBe('api.planning_archive.show');
     act(() => notifyInactiveDataChanged('a-studio'));
     expect(await screen.findByText('Second')).toBeInTheDocument();
-    expect(request.mock.calls.every(([name]) => name === 'api.planning.archive')).toBe(true);
+    expect(request.mock.calls.every(([name]) => name === 'api.planning_archive.show')).toBe(true);
   });
   it('hides cached A synchronously on A → B → A and aborts obsolete reads', async () => {
     const pending = createDeferred<{ data: ArchiveRecovery }>();

@@ -21,7 +21,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_controller').default['show']>>>
     }
   }
-  'api.planning.archive': {
+  'api.planning_archive.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/planning/archive'
     types: {
@@ -34,7 +34,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_archive_controller').default['show']>>>
     }
   }
-  'api.planning.mutate': {
+  'api.planning_mutations.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/mutations'
     types: {
@@ -47,7 +47,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_mutations_controller').default['store']>>>
     }
   }
-  'api.planning.undo': {
+  'api.planning_undo.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/undo'
     types: {
@@ -60,7 +60,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_undo_controller').default['store']>>>
     }
   }
-  'api.planning.redo': {
+  'api.planning_redo.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/planning/redo'
     types: {
@@ -73,7 +73,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/planning_redo_controller').default['store']>>>
     }
   }
-  'api.installation.company': {
+  'api.first_company_setup.store': {
     methods: ["POST"]
     pattern: '/api/installation/company'
     types: {
@@ -99,7 +99,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/companies_controller').default['index']>>>
     }
   }
-  'api.transfer.preview': {
+  'api.import_previews.store': {
     methods: ["POST"]
     pattern: '/api/transfer/preview'
     types: {
@@ -112,7 +112,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
     }
   }
-  'api.transfer.apply': {
+  'api.imports.store': {
     methods: ["POST"]
     pattern: '/api/transfer/apply'
     types: {
@@ -125,7 +125,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
     }
   }
-  'api.state': {
+  'api.company_state.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/state'
     types: {
@@ -138,7 +138,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/company_state_controller').default['show']>>>
     }
   }
-  'api.export': {
+  'api.company_exports.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/export'
     types: {
@@ -151,7 +151,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/company_exports_controller').default['show']>>>
     }
   }
-  'api.companies.anonymise': {
+  'api.company_anonymisations.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/anonymise'
     types: {
@@ -164,7 +164,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/company_anonymisations_controller').default['store']>>>
     }
   }
-  'api.resources.anonymise': {
+  'api.resource_anonymisations.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/resources/:id/anonymise'
     types: {
@@ -177,7 +177,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/resource_anonymisations_controller').default['store']>>>
     }
   }
-  'api.example-data': {
+  'api.example_data.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/example-data'
     types: {
@@ -190,7 +190,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/example_data_controller').default['store']>>>
     }
   }
-  'api.getting-started.show': {
+  'api.getting_started.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/getting-started'
     types: {
@@ -203,7 +203,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['show']>>>
     }
   }
-  'api.getting-started.update': {
+  'api.getting_started.update': {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/getting-started'
     types: {
@@ -216,7 +216,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/getting_started_controller').default['update']>>>
     }
   }
-  'api.auth.me': {
+  'api.session.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/auth/me'
     types: {
@@ -229,7 +229,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['show']>>>
     }
   }
-  'api.auth.sign-up': {
+  'api.new_account.store': {
     methods: ["POST"]
     pattern: '/api/auth/sign-up'
     types: {
@@ -242,7 +242,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/new_account_controller').default['store']>>>
     }
   }
-  'api.auth.sign-in': {
+  'api.session.store': {
     methods: ["POST"]
     pattern: '/api/auth/sign-in'
     types: {
@@ -255,7 +255,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['store']>>>
     }
   }
-  'api.auth.sign-out': {
+  'api.session.destroy': {
     methods: ["POST"]
     pattern: '/api/auth/sign-out'
     types: {
@@ -268,7 +268,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/session_controller').default['destroy']>>>
     }
   }
-  'api.auth.password-confirmation': {
+  'api.password_confirmations.store': {
     methods: ["POST"]
     pattern: '/api/auth/password-confirmation'
     types: {
@@ -281,7 +281,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_confirmations_controller').default['store']>>>
     }
   }
-  'api.auth.request-reset': {
+  'api.password_reset_requests.store': {
     methods: ["POST"]
     pattern: '/api/auth/request-reset'
     types: {
@@ -294,7 +294,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_reset_requests_controller').default['store']>>>
     }
   }
-  'api.auth.inspect-reset': {
+  'api.password_resets.show': {
     methods: ["POST"]
     pattern: '/api/auth/inspect-reset'
     types: {
@@ -307,7 +307,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['show']>>>
     }
   }
-  'api.auth.reset-password': {
+  'api.password_resets.update': {
     methods: ["POST"]
     pattern: '/api/auth/reset-password'
     types: {
@@ -320,7 +320,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_resets_controller').default['update']>>>
     }
   }
-  'api.auth.change-password': {
+  'api.password.update': {
     methods: ["POST"]
     pattern: '/api/auth/change-password'
     types: {
@@ -333,7 +333,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/password_controller').default['update']>>>
     }
   }
-  'api.auth.delete-account': {
+  'api.account.destroy': {
     methods: ["POST"]
     pattern: '/api/auth/delete-account'
     types: {
@@ -346,7 +346,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/account_controller').default['destroy']>>>
     }
   }
-  'api.auth.verification.send': {
+  'api.email_verification_requests.store': {
     methods: ["POST"]
     pattern: '/api/auth/verification/send'
     types: {
@@ -359,7 +359,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/email_verification_requests_controller').default['store']>>>
     }
   }
-  'api.auth.verification.inspect': {
+  'api.email_verifications.show': {
     methods: ["POST"]
     pattern: '/api/auth/verification/inspect'
     types: {
@@ -372,7 +372,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/email_verifications_controller').default['show']>>>
     }
   }
-  'api.auth.verification.complete': {
+  'api.email_verifications.update': {
     methods: ["POST"]
     pattern: '/api/auth/verification/complete'
     types: {
@@ -398,7 +398,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['index']>>>
     }
   }
-  'api.members.tracking': {
+  'api.member_sign_in_tracking.update': {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/member-sign-in-tracking'
     types: {
@@ -411,7 +411,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_sign_in_tracking_controller').default['update']>>>
     }
   }
-  'api.members.role': {
+  'api.members.update': {
     methods: ["PATCH"]
     pattern: '/api/companies/:companyId/members/:userId'
     types: {
@@ -424,7 +424,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/members_controller').default['update']>>>
     }
   }
-  'api.members.status': {
+  'api.member_status.update': {
     methods: ["PATCH"]
     pattern: '/api/companies/:companyId/members/:userId/status'
     types: {
@@ -437,7 +437,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_status_controller').default['update']>>>
     }
   }
-  'api.invites.create': {
+  'api.invitations.store': {
     methods: ["POST"]
     pattern: '/api/invites'
     types: {
@@ -450,7 +450,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['store']>>>
     }
   }
-  'api.invites.index': {
+  'api.invitations.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/companies/:companyId/invites'
     types: {
@@ -463,7 +463,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['index']>>>
     }
   }
-  'api.invites.resend': {
+  'api.invitation_deliveries.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/invites/:id/resend'
     types: {
@@ -476,7 +476,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_deliveries_controller').default['store']>>>
     }
   }
-  'api.invites.revoke': {
+  'api.invitations.destroy': {
     methods: ["DELETE"]
     pattern: '/api/companies/:companyId/invites/:id'
     types: {
@@ -489,7 +489,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitations_controller').default['destroy']>>>
     }
   }
-  'api.invites.preview': {
+  'api.invitation_links.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/invites/:token/preview'
     types: {
@@ -502,7 +502,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/invitation_links_controller').default['show']>>>
     }
   }
-  'api.invites.sign-up': {
+  'api.invitation_acceptances.store': {
     methods: ["POST"]
     pattern: '/api/invites/:token/signup'
     types: {
@@ -528,7 +528,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_controller').default['show']>>>
     }
   }
-  'api.admission.request': {
+  'api.admission_requests.store': {
     methods: ["POST"]
     pattern: '/api/admission/request'
     types: {
@@ -541,7 +541,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['store']>>>
     }
   }
-  'api.admission.complete': {
+  'api.memberships.store': {
     methods: ["POST"]
     pattern: '/api/admission/complete'
     types: {
@@ -554,7 +554,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/memberships_controller').default['store']>>>
     }
   }
-  'api.admission.index': {
+  'api.admission_requests.index': {
     methods: ["GET","HEAD"]
     pattern: '/api/admission/requests'
     types: {
@@ -567,7 +567,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_requests_controller').default['index']>>>
     }
   }
-  'api.admission.approve': {
+  'api.admission_approvals.store': {
     methods: ["POST"]
     pattern: '/api/admission/:userId/approve'
     types: {
@@ -580,7 +580,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_approvals_controller').default['store']>>>
     }
   }
-  'api.admission.reject': {
+  'api.admission_rejections.store': {
     methods: ["POST"]
     pattern: '/api/admission/:userId/reject'
     types: {
@@ -593,7 +593,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_rejections_controller').default['store']>>>
     }
   }
-  'api.admission.revoke': {
+  'api.admission_revocations.store': {
     methods: ["POST"]
     pattern: '/api/admission/:userId/revoke'
     types: {
@@ -606,7 +606,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/admission_revocations_controller').default['store']>>>
     }
   }
-  'api.member-resources.set': {
+  'api.member_resource_links.update': {
     methods: ["PUT"]
     pattern: '/api/companies/:companyId/members/:userId/resource-link'
     types: {
@@ -619,7 +619,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['update']>>>
     }
   }
-  'api.member-resources.clear': {
+  'api.member_resource_links.destroy': {
     methods: ["DELETE"]
     pattern: '/api/companies/:companyId/members/:userId/resource-link'
     types: {
@@ -632,7 +632,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/member_resource_links_controller').default['destroy']>>>
     }
   }
-  'api.masquerade.start': {
+  'api.masquerade.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/masquerade'
     types: {
@@ -645,7 +645,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['store']>>>
     }
   }
-  'api.masquerade.status': {
+  'api.masquerade.show': {
     methods: ["GET","HEAD"]
     pattern: '/api/masquerade'
     types: {
@@ -658,7 +658,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['show']>>>
     }
   }
-  'api.masquerade.end': {
+  'api.masquerade.destroy': {
     methods: ["DELETE"]
     pattern: '/api/masquerade'
     types: {
@@ -671,7 +671,7 @@ export interface Registry {
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/masquerade_controller').default['destroy']>>>
     }
   }
-  'api.ownership.transfer': {
+  'api.ownership_transfers.store': {
     methods: ["POST"]
     pattern: '/api/companies/:companyId/ownership-transfer'
     types: {
@@ -695,6 +695,32 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['live']>>>
+    }
+  }
+  'api.diagnostics.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/diagnostics'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
+      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
+    }
+  }
+  'api.not_found': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/*'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { '*': ParamValue[] }
+      query: {}
+      response: unknown
+      errorResponse: unknown
+      rawResponse: ExtractRawResponse<unknown>
     }
   }
   'health_checks.live': {
@@ -721,32 +747,6 @@ export interface Registry {
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/health_checks_controller').default['ready']>>>
-    }
-  }
-  'api.diagnostics': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/diagnostics'
-    types: {
-      body: {}
-      paramsTuple: []
-      params: {}
-      query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
-      rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/diagnostics_controller').default['show']>>>
-    }
-  }
-  'api.not-found': {
-    methods: ["GET","HEAD"]
-    pattern: '/api/*'
-    types: {
-      body: {}
-      paramsTuple: [ParamValue]
-      params: { '*': ParamValue[] }
-      query: {}
-      response: unknown
-      errorResponse: unknown
-      rawResponse: ExtractRawResponse<unknown>
     }
   }
 }

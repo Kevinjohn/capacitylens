@@ -74,21 +74,18 @@ test.group('typed bulk writer company isolation', (group) => {
       const beforeOwn = await readState(companyId, true);
       const intent = scenario.intent(beforeOwn);
       const beforeOther = await readState(otherCompanyId, true);
-      const own = await session(
-        client.post(`/api/companies/${companyId}/planning/mutations`),
-        cookie
-      )
-        .json(requestBody(0, intent))
+      const own = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
+        .json(requestBody(0, intent) as never)
         .send();
       own.assertStatus(200);
       assert.notDeepEqual(await readState(companyId, true), beforeOwn);
       assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
 
       const foreign = await session(
-        client.post(`/api/companies/${otherCompanyId}/planning/mutations`),
+        client.visit('api.planning_mutations.store', { companyId: otherCompanyId }),
         cookie
       )
-        .json(requestBody(0, intent))
+        .json(requestBody(0, intent) as never)
         .send();
       foreign.assertStatus(403);
       assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
@@ -105,10 +102,10 @@ test.group('typed bulk writer company isolation', (group) => {
     const initial = await readState(companyId, true);
     const id = initial.allocations[0]!.id;
     const removed = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(requestBody(0, { operation: 'allocation.deleteGroup', ids: [id] }))
+      .json(requestBody(0, { operation: 'allocation.deleteGroup', ids: [id] }) as never)
       .send();
     removed.assertStatus(200);
     const groupId = (removed.body().data as { restoration: { replacementGroupId: string } })
@@ -117,20 +114,20 @@ test.group('typed bulk writer company isolation', (group) => {
     const beforeOwn = await readState(companyId, true);
     const beforeOther = await readState(otherCompanyId, true);
     const restored = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(requestBody(1, intent))
+      .json(requestBody(1, intent) as never)
       .send();
     restored.assertStatus(200);
     assert.notDeepEqual(await readState(companyId, true), beforeOwn);
     assert.deepEqual(await readState(otherCompanyId, true), beforeOther);
 
     const foreign = await session(
-      client.post(`/api/companies/${otherCompanyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId: otherCompanyId }),
       cookie
     )
-      .json(requestBody(0, intent))
+      .json(requestBody(0, intent) as never)
       .send();
     foreign.assertStatus(403);
     assert.deepEqual(await readState(otherCompanyId, true), beforeOther);

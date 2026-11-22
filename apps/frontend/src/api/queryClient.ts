@@ -57,7 +57,7 @@ export function buildJsonBody<Name extends keyof ProductRoutes>(
   return JSON.stringify(body);
 }
 
-type QueryReadRoute = 'api.state' | 'api.admission.index';
+type QueryReadRoute = 'api.company_state.show' | 'api.admission_requests.index';
 
 /** Build query-bearing read URLs with generated inputs; Tuyau getRoute omits query arguments. */
 export function buildApiReadRouteUrl<Name extends QueryReadRoute>(

@@ -68,7 +68,10 @@ test.group('membership control-data isolation', (group) => {
       created_at: stamp,
     });
 
-    const exported = await client.get('/api/state?companyId=a-studio&includeInactive=1').send();
+    const exported = await client
+      .visit('api.company_state.show')
+      .qs({ companyId: 'a-studio', includeInactive: '1' })
+      .send();
     exported.assertStatus(200);
     for (const property of [
       'memberships',

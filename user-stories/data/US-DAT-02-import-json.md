@@ -39,7 +39,7 @@ flowchart TD
   parse --> serverBoundary["ImportPreviewsController.store validates the document and replies with the reason or the summary and base revision"]
   serverBoundary --> preview["ImportPreview renders the reply without replacing"]
   preview --> confirm["Continue opens the replace confirmation, then PasswordConfirmationDialog"]
-  confirm --> apply["useServerImport posts api.transfer.apply; ImportsController.store consumes confirmation and calls applyCompanyImport"]
+  confirm --> apply["useServerImport posts api.imports.store; ImportsController.store consumes confirmation and calls applyCompanyImport"]
   apply --> refresh["useServerImport refreshes canonical planning data"]
 ```
 

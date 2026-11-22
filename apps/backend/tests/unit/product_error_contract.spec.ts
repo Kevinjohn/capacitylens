@@ -127,7 +127,7 @@ test.group('product error adapters', () => {
       error: 'Planning access is unavailable.',
       code: 'ACCOUNT_MEMBERSHIP_LOST',
     });
-    const admissionRoute = context(identity, 'api.member-resources.set');
+    const admissionRoute = context(identity, 'api.member_resource_links.update');
     await new HttpExceptionHandler().handle(identity, admissionRoute.ctx);
     assert.deepEqual(admissionRoute.result.body, {
       error: 'Forbidden.',
@@ -151,7 +151,7 @@ test.group('product error adapters', () => {
     const routes = {
       product: 'api.companies.index',
       planning: 'api.planning.show',
-      admission: 'api.member-resources.set',
+      admission: 'api.member_resource_links.update',
     } as const;
     const productAdmission = 'Your access to this company is waiting on admission.';
     const cases = [
@@ -216,7 +216,7 @@ test.group('product error adapters', () => {
       },
     ];
     for (const { thrown, expected } of cases) {
-      const { ctx, result } = context(thrown, 'api.export');
+      const { ctx, result } = context(thrown, 'api.company_exports.show');
       await new HttpExceptionHandler().handle(thrown, ctx);
       assert.deepEqual(result.body, expected, thrown.constructor.name);
     }

@@ -34,12 +34,12 @@ flowchart TD
     Row["InviteMemberPanel renders outstanding invite row"] --> Action{"Resend or Revoke?"}
     Action -->|"Resend"| ResendHook["useMemberInvites resendInvite"]
     ResendHook --> ResendClient["teamAccessApi.resendInvitation → invitationRequests.resendInvitation"]
-    ResendClient --> ResendRoute["api.invites.resend → InvitationDeliveriesController.store"]
+    ResendClient --> ResendRoute["api.invitation_deliveries.store → InvitationDeliveriesController.store"]
     ResendRoute --> KitResend["Account Kit resend replaces invitation link and emails it"]
     KitResend --> Reload["reloadInvites refreshes the directory; UI shows outcome"]
     Action -->|"Revoke"| RevokeHook["useMemberInvites revokeInvite"]
     RevokeHook --> RevokeClient["teamAccessApi.revokeInvitation → invitationRequests.revokeInvitation"]
-    RevokeClient --> RevokeRoute["api.invites.revoke → InvitationsController.destroy"]
+    RevokeClient --> RevokeRoute["api.invitations.destroy → InvitationsController.destroy"]
     RevokeRoute --> KitRevoke["Account Kit revokes the invitation"]
     KitRevoke --> Reload
     ResendRoute -. "Mail unavailable or delivery failure is shown" .-> Error["Resend notice or error"]

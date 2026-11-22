@@ -69,7 +69,7 @@ test.group('authentication outcome events', (group) => {
     };
     const { lines } = await captureLogs(async () => {
       const success = await client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
@@ -77,7 +77,7 @@ test.group('authentication outcome events', (group) => {
         .send();
       success.assertStatus(200);
       const failure = await client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .header('user-agent', sentinels.userAgent)
         .header('x-forwarded-for', sentinels.ip)
@@ -117,7 +117,7 @@ test.group('authentication outcome events', (group) => {
   }) => {
     const request = () =>
       client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email: 'private-throttle@example.test', password: 'never-store-this-password' })
         .send();
@@ -180,7 +180,7 @@ test.group('authentication outcome events', (group) => {
 
     const { lines, result } = await captureLogs(async () =>
       client
-        .post('/api/auth/sign-up')
+        .visit('api.new_account.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email: signupEmail, password, name: 'Clark Kent' })
         .send()
@@ -230,7 +230,7 @@ test.group('authentication outcome events', (group) => {
 
     const { lines, result } = await captureLogs(() =>
       client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ email, password })
         .send()

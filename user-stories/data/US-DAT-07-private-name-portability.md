@@ -28,7 +28,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  fetch["useExportOperation fetches api.export"] --> role["CompanyCompanyStateController.show projects rows and sets completeness"]
+  fetch["useExportOperation fetches api.company_exports.show"] --> role["CompanyCompanyStateController.show projects rows and sets completeness"]
   role --> project["transformState redacts private names for non-Owners"]
   project --> beta["buildCompanyExport validates and serializes portable data"]
   beta --> file["downloadTextFile saves the server's file"]

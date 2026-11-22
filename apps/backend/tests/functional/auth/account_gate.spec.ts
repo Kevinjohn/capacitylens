@@ -139,10 +139,10 @@ test.group('account gate', (group) => {
     }
     // The body is invalid; the gate answers before the handler reads it.
     const write = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json({ unknown: true })
+      .json({ unknown: true } as never)
       .send();
     write.assertStatus(403);
     assert.equal((write.body() as { code?: string }).code, 'ADMISSION_REQUIRED');
@@ -156,7 +156,10 @@ test.group('account gate', (group) => {
       const reached = await get(path);
       reached.assertStatus(status);
     }
-    const requested = await asDataOwner(client.post('/api/admission/request'), cookie).send();
+    const requested = await asDataOwner(
+      client.visit('api.admission_requests.store'),
+      cookie
+    ).send();
     requested.assertStatus(200);
     // The remaining limited routes pass the gate; their handlers then refuse a person with no
     // authority, in their own words.
@@ -165,16 +168,18 @@ test.group('account gate', (group) => {
     const listed = await get('/api/admission/requests');
     listed.assertStatus(403);
     const limited = [listed];
-    for (const action of ['approve', 'reject', 'revoke']) {
-      limited.push(
-        await asDataOwner(client.post(`/api/admission/${ownerId}/${action}`), cookie).send()
-      );
+    for (const name of [
+      'api.admission_approvals.store',
+      'api.admission_rejections.store',
+      'api.admission_revocations.store',
+    ] as const) {
+      limited.push(await asDataOwner(client.visit(name, { userId: ownerId }), cookie).send());
     }
     limited.push(
-      await asDataOwner(client.post(`/api/companies/${companyId}/masquerade`), cookie)
-        .json({ userId: ownerId })
+      await asDataOwner(client.visit('api.masquerade.store', { companyId }), cookie)
+        .json({ userId: ownerId } as never)
         .send(),
-      await asDataOwner(client.delete('/api/masquerade'), cookie).send()
+      await asDataOwner(client.visit('api.masquerade.destroy'), cookie).send()
     );
     for (const response of limited) {
       assert.notEqual(response.status(), 401);
@@ -184,7 +189,7 @@ test.group('account gate', (group) => {
 
   test('a session that lost its registry handle is refused', async ({ client, assert }) => {
     const { cookieHeader } = await signIn(client, owner);
-    const allowed = await client.get('/api/companies').header('cookie', cookieHeader).send();
+    const allowed = await client.visit('api.companies.index').header('cookie', cookieHeader).send();
     allowed.assertStatus(200);
     const session = await db.from('adonis_sessions').firstOrFail();
     const data = String(session.data);

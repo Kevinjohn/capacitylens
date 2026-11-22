@@ -138,7 +138,7 @@ describe('archived resource actions', () => {
     );
     expect(await screen.findByRole('button', { name: 'Restore Diana Prince' })).toBeInTheDocument();
     expect(request).toHaveBeenCalledWith(
-      'api.planning.archive',
+      'api.planning_archive.show',
       expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
     expect(screen.queryByText('Designer')).not.toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('archived resource actions', () => {
     );
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeNull();
     expect(request).toHaveBeenCalledWith(
-      'api.planning.archive',
+      'api.planning_archive.show',
       expect.objectContaining({ params: { companyId: DEFAULT_COMPANY_ID } }),
     );
   });

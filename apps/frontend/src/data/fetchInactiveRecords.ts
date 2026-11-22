@@ -47,7 +47,7 @@ export class InactiveRecordsShapeError extends Error {
  */
 export async function fetchInactiveRecords(companyId: ID, signal?: AbortSignal): Promise<AppData> {
   const res = await fetchApi(
-    buildApiReadRouteUrl('api.state', { query: { companyId, includeInactive: '1' } }),
+    buildApiReadRouteUrl('api.company_state.show', { query: { companyId, includeInactive: '1' } }),
     { credentials: 'include', ...(signal ? { signal } : {}) },
     // The complete (archived + soft-deleted) set is the heaviest read the app makes, the bulk
     // tier, not the interactive 15s, so a large company's archived records aren't aborted mid-flight.

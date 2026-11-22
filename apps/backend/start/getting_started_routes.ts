@@ -8,12 +8,10 @@ export function registerGettingStartedRoutes() {
   router
     .group(() => {
       router
-        .get('/api/companies/:companyId/getting-started', [controllers.GettingStarted, 'show'])
-        .as('api.getting-started.show')
+        .get('/companies/:companyId/getting-started', [controllers.GettingStarted, 'show'])
         .use(asCompanyMemberOnly());
       router
-        .put('/api/companies/:companyId/getting-started', [controllers.GettingStarted, 'update'])
-        .as('api.getting-started.update')
+        .put('/companies/:companyId/getting-started', [controllers.GettingStarted, 'update'])
         .use(asCompanyMember());
     })
     .use(middleware.accountGate({ access: 'admitted' }));

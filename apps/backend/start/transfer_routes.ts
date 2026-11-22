@@ -7,14 +7,8 @@ import { controllers } from '#generated/controllers';
 export function registerTransferRoutes() {
   router
     .group(() => {
-      router
-        .post('/api/transfer/preview', [controllers.ImportPreviews, 'store'])
-        .as('api.transfer.preview')
-        .use(asMember());
-      router
-        .post('/api/transfer/apply', [controllers.Imports, 'store'])
-        .as('api.transfer.apply')
-        .use(asMember());
+      router.post('/transfer/preview', [controllers.ImportPreviews, 'store']).use(asMember());
+      router.post('/transfer/apply', [controllers.Imports, 'store']).use(asMember());
     })
     .use(middleware.accountGate({ access: 'admitted' }));
 }

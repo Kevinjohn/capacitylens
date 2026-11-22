@@ -30,7 +30,7 @@ function trustProxyHeaders(trusted: boolean) {
 
 /** A public, rate-limited read: signed out, it answers 401 until the client's budget runs out. */
 async function requestSignedOutSession(client: ApiClient, forwardedIp?: string) {
-  const request = client.get('/api/auth/me');
+  const request = client.visit('api.session.show');
   if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
   return request.send();
 }
@@ -45,7 +45,7 @@ async function signIn(
   forwardedIp?: string,
   email = 'private-limit@example.test'
 ) {
-  const request = client.post('/api/auth/sign-in').header('sec-fetch-site', 'same-origin');
+  const request = client.visit('api.session.store').header('sec-fetch-site', 'same-origin');
   if (forwardedIp) request.header('x-forwarded-for', forwardedIp);
   return request.json({ email, password: 'never-store-this-password-012345' }).send();
 }
@@ -81,7 +81,7 @@ test.group('native auth and API rate limits', (group) => {
     }
 
     for (let attempt = 0; attempt < 5; attempt++)
-      assert.equal(await responseStatus(client.get('/api/health').send()), 200);
+      assert.equal(await responseStatus(client.visit('api.health').send()), 200);
   });
 
   test('API rate limiting is disabled when unset, zero, or malformed', async ({

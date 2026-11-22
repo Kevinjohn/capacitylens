@@ -17,11 +17,11 @@ const password = 'batman-secret-2026';
 const companyId = 'a-studio';
 
 const accounts = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get('/api/companies'), cookie).send();
+  asDataOwner(client.visit('api.companies.index'), cookie).send();
 const planning = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.get(`/api/companies/${companyId}/planning`), cookie).send();
+  asDataOwner(client.visit('api.planning.show', { companyId }), cookie).send();
 const dismiss = (client: ApiClient, cookie: string) =>
-  asDataOwner(client.put(`/api/companies/${companyId}/getting-started`), cookie)
+  asDataOwner(client.visit('api.getting_started.update', { companyId }), cookie)
     .timeout({ response: 10000, deadline: 15000 })
     .json({ dismissed: true })
     .send();
@@ -44,7 +44,7 @@ test.group('password sign-in and sessions', (group) => {
   test('each sign-in is separate and sign-out ends only its own', async ({ client, assert }) => {
     const userId = await owner();
     const wrong = await client
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email, password: 'not-the-password-2026' })
       .send();
@@ -53,7 +53,7 @@ test.group('password sign-in and sessions', (group) => {
     const phone = await signIn(client, 'Bruce.Wayne@Wayne.example', password);
     assert.equal(phone.userId, userId);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 2);
-    const signedOut = await asDataOwner(client.post('/api/auth/sign-out'), laptop.cookie).send();
+    const signedOut = await asDataOwner(client.visit('api.session.destroy'), laptop.cookie).send();
     signedOut.assertStatus(200);
     await expectStatus(accounts(client, laptop.cookie), 401);
     await expectStatus(accounts(client, phone.cookie), 200);
@@ -89,7 +89,7 @@ test.group('password sign-in and sessions', (group) => {
     try {
       // The real handler completes before session middleware attempts its database-store commit.
       await barrier.entered();
-      const signedOut = await asDataOwner(client.post('/api/auth/sign-out'), cookie).send();
+      const signedOut = await asDataOwner(client.visit('api.session.destroy'), cookie).send();
       signedOut.assertStatus(200);
       assert.isNull(
         await db.from('adonis_sessions').where('id', session!.id).first(),
@@ -121,7 +121,7 @@ test.group('password sign-in and sessions', (group) => {
   }) => {
     const userId = await owner({ verified: false });
     const unconfirmed = await signIn(client, email, password);
-    const me = await asDataOwner(client.get('/api/auth/me'), unconfirmed.cookie).send();
+    const me = await asDataOwner(client.visit('api.session.show'), unconfirmed.cookie).send();
     me.assertStatus(200);
     assert.isFalse(me.body().data.emailVerified);
     await expectStatus(planning(client, unconfirmed.cookie), 403);
@@ -138,7 +138,7 @@ test.group('password sign-in and sessions', (group) => {
       .where('user_id', userId)
       .update({ approval_status: 'revoked' });
     await expectStatus(planning(client, unconfirmed.cookie), 403);
-    const limited = await asDataOwner(client.get('/api/auth/me'), unconfirmed.cookie).send();
+    const limited = await asDataOwner(client.visit('api.session.show'), unconfirmed.cookie).send();
     assert.isFalse(limited.body().data.admission.admitted);
 
     await db
@@ -157,13 +157,13 @@ test.group('password sign-in and sessions', (group) => {
     const userId = await owner();
     const laptop = await signIn(client, email, password);
     const phone = await signIn(client, email, password);
-    const wrong = await asDataOwner(client.post('/api/auth/change-password'), laptop.cookie)
+    const wrong = await asDataOwner(client.visit('api.password.update'), laptop.cookie)
       .json({ currentPassword: 'not-the-password-2026', newPassword: 'another-batman-2026' })
       .send();
     wrong.assertStatus(403);
     assert.equal((wrong.body() as { code?: string }).code, 'CURRENT_PASSWORD_INCORRECT');
     await expectStatus(accounts(client, phone.cookie), 200);
-    const changed = await asDataOwner(client.post('/api/auth/change-password'), laptop.cookie)
+    const changed = await asDataOwner(client.visit('api.password.update'), laptop.cookie)
       .json({ currentPassword: password, newPassword: 'another-batman-2026' })
       .send();
     changed.assertStatus(200);
@@ -172,7 +172,7 @@ test.group('password sign-in and sessions', (group) => {
     await expectStatus(accounts(client, phone.cookie), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 0);
     const old = await client
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email, password })
       .send();

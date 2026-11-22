@@ -71,17 +71,17 @@ async function setRole(userId: string, role: Role) {
 
 async function stateFor(client: ApiClient, cookie: string, targetCompanyId = companyId) {
   return withSession(
-    trusted(client.get(`/api/state?companyId=${encodeURIComponent(targetCompanyId)}`)),
+    trusted(client.visit('api.company_state.show').qs({ companyId: targetCompanyId })),
     cookie
   ).send();
 }
 
 async function currentUser(client: ApiClient, cookie: string) {
-  return withSession(trusted(client.get('/api/auth/me')), cookie).send();
+  return withSession(trusted(client.visit('api.session.show')), cookie).send();
 }
 
 async function writeDismissal(client: ApiClient, cookie: string) {
-  return withSession(trusted(client.put(`/api/companies/${companyId}/getting-started`)), cookie)
+  return withSession(trusted(client.visit('api.getting_started.update', { companyId })), cookie)
     .json({ dismissed: true })
     .send();
 }
@@ -93,14 +93,14 @@ async function importSeed(client: ApiClient, cookie: string) {
       completeness: 'full',
     })
   );
-  return withSession(trusted(client.post('/api/transfer/apply')), cookie)
+  return withSession(trusted(client.visit('api.imports.store')), cookie)
     .json({ companyId, document, baseRevision: 0 })
     .send();
 }
 
 async function anonymiseResource(client: ApiClient, cookie: string, id: string) {
   return withSession(
-    trusted(client.post(`/api/companies/${companyId}/resources/${id}/anonymise`)),
+    trusted(client.visit('api.resource_anonymisations.store', { companyId, id })),
     cookie
   )
     .json({})
@@ -153,9 +153,11 @@ test.group('native authorization and role projections', (group) => {
     configureAuth(cleanup);
     const { cookie, userId } = await createMember(client, 'editor');
 
-    const anonymous = await trusted(client.get(`/api/state?companyId=${companyId}`)).send();
+    const anonymous = await trusted(
+      client.visit('api.company_state.show').qs({ companyId })
+    ).send();
     anonymous.assertStatus(401);
-    const openHealth = await client.get('/api/health').send();
+    const openHealth = await client.visit('api.health').send();
     openHealth.assertStatus(200);
 
     await db.from('memberships').where({ user_id: userId }).delete();
@@ -219,15 +221,13 @@ test.group('native authorization and role projections', (group) => {
       const currentPlanning = await withSession(trusted(client.get(planningUrl)), cookie).send();
       currentPlanning.assertStatus(200);
       const planning = currentPlanning.body().data as { revision: number };
-      const settingsRequest = trusted(
-        client.post(`/api/companies/${companyId}/planning/mutations`)
-      );
+      const settingsRequest = trusted(client.visit('api.planning_mutations.store', { companyId }));
       const setting = await withSession(settingsRequest, cookie)
         .json(
           input(planning.revision, {
             operation: 'settings.update',
             changes: { name: `Gotham planning ${role}` },
-          })
+          }) as never
         )
         .send();
       assert.equal(setting.status(), role === 'viewer' ? 403 : 200, `${role} ordinary write`);

@@ -38,14 +38,14 @@ flowchart TD
 flowchart TD
     Row["MemberRow opens role edit or More actions"] --> RoleDialog["MemberConfirmations role dialog calls changeRole"]
     RoleDialog --> RoleMutation["createRoleMutation → teamAccessApi.changeMemberRole"]
-    RoleMutation --> RoleAPI["memberRequests PATCH api.members.role"]
+    RoleMutation --> RoleAPI["memberRequests PATCH api.members.update"]
     RoleAPI --> RoleServer["MembersController.update → changeMemberRole → Access Control membership update"]
     RoleServer --> RoleResult{"Role update succeeded?"}
     RoleResult -->|"Yes"| RefreshRole["useMembersOrchestration refreshDirectory updates role row"]
     RoleResult -->|"No"| RoleError["useFieldError presents the role update error"]
     Row --> StatusConfirm["MemberConfirmations confirms Suspend or Restore"]
     StatusConfirm --> StatusMutation["createStatusMutation → teamAccessApi.changeMemberStatus"]
-    StatusMutation --> StatusAPI["memberRequests PATCH api.members.status"]
+    StatusMutation --> StatusAPI["memberRequests PATCH api.member_status.update"]
     StatusAPI --> StatusServer["MemberStatusController.update → changeMemberStatus → Access Control membership status"]
     StatusServer --> StatusResult{"Status update succeeded?"}
     StatusResult -->|"Yes"| RefreshStatus["useMembersOrchestration refreshDirectory updates active group"]

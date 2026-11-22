@@ -42,7 +42,7 @@ async function deleteForRestoration(
   const baseRevision = await db.transaction((trx) => getPlanningRevision(trx, targetCompanyId));
   const mutationId = randomUUID();
   const response = await asDataOwner(
-    client.post(`/api/companies/${targetCompanyId}/planning/mutations`),
+    client.visit('api.planning_mutations.store', { companyId: targetCompanyId }),
     cookie
   )
     .json({
@@ -61,7 +61,7 @@ async function deleteForRestoration(
 }
 
 async function proof(client: ApiClient, cookie: string, intent: unknown, action = 'import') {
-  const result = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
+  const result = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
     // The helper takes any action and intent; each test supplies a valid pair.
     .json({ action, companyId, intent, password } as never)
     .send();
@@ -76,7 +76,7 @@ async function apply(
   baseRevision: number,
   confirmationId?: string
 ) {
-  return asDataOwner(client.post('/api/transfer/apply'), cookie)
+  return asDataOwner(client.visit('api.imports.store'), cookie)
     .json({
       companyId,
       document: asExportFile(documentValue),
@@ -104,7 +104,7 @@ test.group('beta transfer apply', (group) => {
     const memberships = await db.from('memberships').select('*');
     const identities = await db.from('users').select('*');
     const admissions = await db.from('account_admissions').select('*');
-    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
       .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
@@ -140,7 +140,7 @@ test.group('beta transfer apply', (group) => {
     assert.deepEqual(await db.from('users').select('*'), identities);
     assert.deepEqual(await db.from('account_admissions').select('*'), admissions);
     assert.deepEqual(full, original);
-    const repeatPreview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+    const repeatPreview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
       .json({ companyId, document: asExportFile(full) })
       .send();
     repeatPreview.assertStatus(200);
@@ -160,7 +160,7 @@ test.group('beta transfer apply', (group) => {
       [redacted, 'completeness: only full exports can be imported'],
     ];
     for (const [value, error] of refusals) {
-      const response = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+      const response = await asDataOwner(client.visit('api.import_previews.store'), cookie)
         .json({ companyId, document: asExportFile(value) })
         .send();
       response.assertStatus(400);
@@ -177,7 +177,7 @@ test.group('beta transfer apply', (group) => {
     const before = await readState(companyId, true);
     const otherBefore = await readState('a-loft', true);
     const baseRevision = await revision();
-    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
       .json({ companyId, document: asExportFile(foreign) })
       .send();
     preview.assertStatus(409);
@@ -234,7 +234,7 @@ test.group('beta transfer apply', (group) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
-    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
       .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
@@ -319,7 +319,7 @@ test.group('beta transfer apply', (group) => {
         .first()
     );
     const restore = await asDataOwner(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -363,7 +363,7 @@ test.group('beta transfer apply', (group) => {
     const wrongAction = await proof(client, cookie, {}, 'anonymise');
     const wrongProof = await apply(client, cookie, full, baseRevision, wrongAction);
     wrongProof.assertStatus(403);
-    const wrongCompany = await asDataOwner(client.post('/api/transfer/apply'), cookie)
+    const wrongCompany = await asDataOwner(client.visit('api.imports.store'), cookie)
       .json({
         companyId: 'a-loft',
         document: asExportFile(full),
@@ -395,7 +395,7 @@ test.group('beta transfer apply', (group) => {
     const bytes = Buffer.byteLength(JSON.stringify(full));
     assert.isAbove(bytes, 1024 * 1024);
     assert.isBelow(bytes, 5 * 1024 * 1024);
-    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
       .json({ companyId, document: asExportFile(full) })
       .send();
     preview.assertStatus(200);
@@ -475,7 +475,7 @@ test.group('beta transfer apply', (group) => {
     const documentWithPrototypeKey = JSON.parse(JSON.stringify(full)) as CompanyExportDocument;
     documentWithPrototypeKey.data.clients[0] = clientWithPrototypeKey;
 
-    const preview = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+    const preview = await asDataOwner(client.visit('api.import_previews.store'), cookie)
       .json({ companyId, document: asExportFile(documentWithPrototypeKey) })
       .send();
 
@@ -570,7 +570,7 @@ test.group('beta transfer apply', (group) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const full = await document();
     const baseRevision = await revision();
-    const denied = await asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
+    const denied = await asDataOwner(client.visit('api.password_confirmations.store'), cookie)
       .json({
         action: 'import',
         companyId,
@@ -588,7 +588,7 @@ test.group('beta transfer apply', (group) => {
       .update({ role: 'admin' });
     const roleDenied = await apply(client, cookie, full, baseRevision, roleProof);
     roleDenied.assertStatus(403);
-    const previewDenied = await asDataOwner(client.post('/api/transfer/preview'), cookie)
+    const previewDenied = await asDataOwner(client.visit('api.import_previews.store'), cookie)
       .json({ companyId, document: asExportFile(full) })
       .send();
     previewDenied.assertStatus(403);
@@ -635,7 +635,7 @@ test.group('beta transfer apply', (group) => {
       return result;
     };
     try {
-      const request = asDataOwner(client.post('/api/auth/password-confirmation'), cookie)
+      const request = asDataOwner(client.visit('api.password_confirmations.store'), cookie)
         .json({
           action: 'import',
           companyId,

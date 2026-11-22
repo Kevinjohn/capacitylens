@@ -49,7 +49,7 @@ test.group('company member access and tracking', (group) => {
     );
     await db.from('memberships').delete();
     const response = await signed(
-      client.post('/api/installation/company'),
+      client.visit('api.first_company_setup.store'),
       owner.cookie('adonis-session')!.value
     )
       .json({ name: 'Stark Industries' })
@@ -101,14 +101,14 @@ test.group('company member access and tracking', (group) => {
         .signInConfirmed
     );
     const enabled = await signed(
-      client.put('/api/companies/a-studio/member-sign-in-tracking'),
+      client.visit('api.member_sign_in_tracking.update', { companyId: 'a-studio' }),
       ownerCookie
     )
       .json({ enabled: true })
       .send();
     enabled.assertStatus(200);
     const signedIn = await client
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email: 'clark.kent@wayne.example', password })
       .send();
@@ -192,7 +192,7 @@ test.group('company member access and tracking', (group) => {
     );
     for (const companyId of ['a-studio', 'a-loft']) {
       const enabled = await signed(
-        client.put(`/api/companies/${companyId}/member-sign-in-tracking`),
+        client.visit('api.member_sign_in_tracking.update', { companyId }),
         ownerCookie
       )
         .json({ enabled: true })
@@ -200,14 +200,14 @@ test.group('company member access and tracking', (group) => {
       enabled.assertStatus(200);
     }
     const suspended = await signed(
-      client.patch(`/api/companies/a-studio/members/${editorId}/status`),
+      client.visit('api.member_status.update', { companyId: 'a-studio', userId: editorId }),
       ownerCookie
     )
       .json({ status: 'suspended' })
       .send();
     suspended.assertStatus(200);
     const signedIn = await client
-      .post('/api/auth/sign-in')
+      .visit('api.session.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email: 'clark.kent@wayne.example', password })
       .send();
@@ -255,24 +255,27 @@ test.group('company member access and tracking', (group) => {
       created_at: now,
       updated_at: now,
     });
-    const available = await signed(client.get('/api/auth/me'), adminCookie).send();
+    const available = await signed(client.visit('api.session.show'), adminCookie).send();
     available.assertStatus(200);
-    const refusedWhileActive = await signed(client.post('/api/installation/company'), adminCookie)
+    const refusedWhileActive = await signed(
+      client.visit('api.first_company_setup.store'),
+      adminCookie
+    )
       .json({ name: 'Stark Industries' })
       .send();
     refusedWhileActive.assertStatus(409);
     refusedWhileActive.assertBodyContains({ code: 'COMPANY_SETUP_UNAVAILABLE' });
     assert.deepEqual(await db.from('accounts').select('id'), [{ id: 'a-studio' }]);
     const suspended = await signed(
-      client.patch(`/api/companies/a-studio/members/${adminId}/status`),
+      client.visit('api.member_status.update', { companyId: 'a-studio', userId: adminId }),
       ownerCookie
     )
       .json({ status: 'suspended' })
       .send();
     suspended.assertStatus(200);
-    const unavailable = await signed(client.get('/api/auth/me'), adminCookie).send();
+    const unavailable = await signed(client.visit('api.session.show'), adminCookie).send();
     unavailable.assertStatus(200);
-    const refused = await signed(client.post('/api/installation/company'), ownerCookie)
+    const refused = await signed(client.visit('api.first_company_setup.store'), ownerCookie)
       .json({ name: 'Stark Industries' })
       .send();
     refused.assertStatus(409);

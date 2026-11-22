@@ -77,7 +77,7 @@ export function useArchiveRecovery() {
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
-      const { data: recovery } = await client.request('api.planning.archive', {
+      const { data: recovery } = await client.request('api.planning_archive.show', {
         params: { companyId: companyId ?? '' },
         signal,
         headers: { 'X-Masquerade-Context': masqueradeToken ?? '' },

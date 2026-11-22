@@ -58,7 +58,7 @@ export async function createIdentity(
 /** Signs in through the public route and returns the session cookie and its raw header. */
 export async function signIn(client: ApiClient, email: string, password = fixturePassword) {
   const response = await client
-    .post('/api/auth/sign-in')
+    .visit('api.session.store')
     .header('sec-fetch-site', 'same-origin')
     .json({ email, password })
     .send();
@@ -92,7 +92,7 @@ export async function signUpAndIn(
 ) {
   await createIdentity(details.email, { name: details.name, password: details.password });
   const response = await client
-    .post('/api/auth/sign-in')
+    .visit('api.session.store')
     .header('sec-fetch-site', 'same-origin')
     .json({ email: details.email, password: details.password })
     .send();

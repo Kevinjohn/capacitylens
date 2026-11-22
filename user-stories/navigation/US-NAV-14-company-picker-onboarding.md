@@ -41,7 +41,7 @@ flowchart TD
   command["Account Kit bootstrap CLI issues invitation"] --> invite["InviteAccept accepts invitation"]
   invite --> auth["AuthProvider identifies admitted principal"]
   auth --> setup["companySetupRequired renders CompanySetup"]
-  setup --> submit["CompanySetup.submit posts api.installation.company"]
+  setup --> submit["CompanySetup.submit posts api.first_company_setup.store"]
   submit --> route["FirstCompanySetupController.store validates request"]
   route --> guard["isFirstCompanySetupRequired checks empty installation under lock"]
   guard --> create["createInitialCompany creates company and Owner membership"]

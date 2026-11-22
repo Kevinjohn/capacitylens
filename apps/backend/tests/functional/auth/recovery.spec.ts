@@ -93,7 +93,7 @@ test.group('password recovery', (group) => {
     const reset = await post(client, '/api/auth/reset-password', { token, newPassword });
     reset.assertStatus(200);
     assert.equal(reset.header('cache-control'), 'no-store');
-    await expectStatus(asDataOwner(client.get('/api/auth/me'), cookie).send(), 401);
+    await expectStatus(asDataOwner(client.visit('api.session.show'), cookie).send(), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', editorId), 0);
     await signIn(client, editor, newPassword);
     assert.isFalse(await inspect(client, token));
@@ -115,7 +115,7 @@ test.group('password recovery', (group) => {
     const token = mail.tokenFor(editor);
     const { cookie } = await signIn(client, owner);
     const changed = await asDataOwner(
-      client.patch(`/api/companies/${companyId}/members/${editorId}`),
+      client.visit('api.members.update', { companyId, userId: editorId }),
       cookie
     )
       .headers({

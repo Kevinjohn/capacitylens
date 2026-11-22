@@ -25,7 +25,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  dialog["PasswordConfirmationDialog receives import action and exact intent"] --> issue["POST api.auth.password-confirmation"]
+  dialog["PasswordConfirmationDialog receives import action and exact intent"] --> issue["POST api.password_confirmations.store"]
   issue --> controller["PasswordConfirmationsController.store parses and checks request"]
   controller --> kit["Package confirmPassword issues confirmationId for action, scope and intent"]
   issue --> apply["useServerImport sends document, baseRevision and confirmationId"]

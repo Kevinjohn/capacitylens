@@ -29,7 +29,7 @@ test.group('retired persistence routes', (group) => {
       response.assertStatus(404);
     }
 
-    const read = await owner.get(`/api/state?companyId=${companyId}`).send();
+    const read = await owner.visit('api.company_state.show').qs({ companyId }).send();
     read.assertStatus(200);
     assert.deepEqual(
       read.body().data.accounts.map((account: { id: string }) => account.id),
@@ -44,7 +44,7 @@ test.group('retired persistence routes', (group) => {
     await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises');
     await createFixtureCompanyForOwner(session.userId, 'Stark Industries');
     const owner = authenticatedDataClient(client, session.cookie);
-    const directory = await owner.get('/api/companies').send();
+    const directory = await owner.visit('api.companies.index').send();
     directory.assertStatus(409);
   });
 });

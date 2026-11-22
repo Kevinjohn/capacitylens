@@ -157,7 +157,7 @@ test.group('direct member resource association', (group) => {
     });
 
     const response = await asDataOwner(
-      client.get('/api/companies/a-studio/members'),
+      client.visit('api.members.index', { companyId: 'a-studio' }),
       ownerCookie
     ).send();
     response.assertStatus(200);
@@ -231,7 +231,7 @@ test.group('direct member resource association', (group) => {
     const put = (userId: string, resourceId: string, expectedRevision: string | null) =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${userId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
@@ -254,7 +254,7 @@ test.group('direct member resource association', (group) => {
     const createLinkCommand = () =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
@@ -284,7 +284,7 @@ test.group('direct member resource association', (group) => {
     const repeatLink = () =>
       withSession(
         client
-          .put(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.update', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
@@ -318,7 +318,7 @@ test.group('direct member resource association', (group) => {
     const unlink = () =>
       withSession(
         client
-          .delete(`/api/companies/a-studio/members/${ownerId}/resource-link`)
+          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId: ownerId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )
@@ -369,7 +369,7 @@ test.group('direct member resource association', (group) => {
     const clear = (userId: string, expectedRevision: string) =>
       withSession(
         client
-          .delete(`/api/companies/a-studio/members/${userId}/resource-link`)
+          .visit('api.member_resource_links.destroy', { companyId: 'a-studio', userId })
           .header('sec-fetch-site', 'same-origin'),
         ownerCookie
       )

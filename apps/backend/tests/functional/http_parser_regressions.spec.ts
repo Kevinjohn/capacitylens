@@ -72,7 +72,7 @@ test.group('HTTP parser regressions', (group) => {
     const fixture = await reset(client, true);
     client = fixture.client;
     const cookie = fixture.cookie;
-    const context = await client.get('/api/masquerade').send();
+    const context = await client.visit('api.masquerade.show').send();
     context.assertStatus(200);
     const contextToken = (context.body()!.data as unknown as { contextToken?: unknown })
       .contextToken;
