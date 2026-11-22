@@ -21,7 +21,7 @@ import { PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithCompany());
 
-const personDraft = makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#1' });
+const personDraft = makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#1' });
 
 describe('store CRUD', () => {
   it('adds entities with a generated id and timestamps', async () => {

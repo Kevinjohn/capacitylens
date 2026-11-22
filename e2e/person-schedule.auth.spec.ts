@@ -33,7 +33,7 @@ async function createPrivacyScenario(request: APIRequestContext) {
   await createTestPerson(request, owner.cookie, companyId, {
     id: RESOURCE_ID,
     name: 'Victor Stone',
-    role: 'Developer',
+    jobTitle: 'Developer',
   });
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'timeOff.create',

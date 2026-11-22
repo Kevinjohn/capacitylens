@@ -320,7 +320,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 400);
     assert.include(output, 'POST');
-    assert.include(output, '"path":"/api/transfer/apply"');
+    assert.include(output, '"path":"/api/import/apply"');
     assert.include(output, '400');
     assert.notInclude(output, secret);
   });
@@ -340,7 +340,7 @@ test.group('general HTTP logging privacy', (group) => {
     );
 
     assert.equal(result.status(), 400);
-    assert.include(output, '/api/transfer/apply');
+    assert.include(output, '/api/import/apply');
     assert.notInclude(output, secret);
     assert.notInclude(output, 'stack');
   });

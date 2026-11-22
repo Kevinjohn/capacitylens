@@ -386,7 +386,7 @@ export class MasqueradeModel {
 
   /** Adopt status before PermissionProvider publishes an effective role, preventing a writable frame. */
   async adoptStatus(status: MasqueradeStatus): Promise<void> {
-    this.dependencies.setMasqueradeToken(status.contextToken);
+    this.dependencies.setMasqueradeToken(status.masqueradeToken);
     if (!status.active) {
       const current = this.store.masquerade;
       if (current.kind === 'starting' && current.state && this.store.activeCompanyId === null) {

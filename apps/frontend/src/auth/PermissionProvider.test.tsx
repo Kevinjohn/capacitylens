@@ -17,7 +17,7 @@ import { createDeferred } from '@/test/createDeferred';
 const permissionMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -101,7 +101,7 @@ function addSecondCompany() {
 beforeEach(async () => {
   permissionMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   await resetStoreWithCompany();
   useStore.setState({ masquerade: { kind: 'inactive' } });
 });
@@ -189,7 +189,7 @@ describe('PermissionProvider refresh behavior', () => {
 
 describe('PermissionProvider membership invalidation', () => {
   it('starts the directory read only after status resolves and adopts status before publishing the role', async () => {
-    let resolveStatus!: (status: { active: false; contextToken: string }) => void;
+    let resolveStatus!: (status: { active: false; masqueradeToken: string }) => void;
     permissionMocks.masqueradeStatus.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -219,7 +219,7 @@ describe('PermissionProvider membership invalidation', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     await waitFor(() => expect(permissionMocks.masqueradeStatus).toHaveBeenCalledOnce());
-    resolveStatus({ active: false, contextToken: 'idle' });
+    resolveStatus({ active: false, masqueradeToken: 'idle' });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(await screen.findByText('resolved:owner:edit')).toBeInTheDocument();
 
@@ -318,10 +318,10 @@ describe('PermissionProvider account-switch safety', () => {
 
   it("does not adopt an old account's delayed masquerade status after a switch", async () => {
     addSecondCompany();
-    const aStatus = createDeferred<{ active: false; contextToken: string }>();
+    const aStatus = createDeferred<{ active: false; masqueradeToken: string }>();
     permissionMocks.masqueradeStatus
       .mockImplementationOnce(() => aStatus.promise)
-      .mockResolvedValueOnce({ active: false, contextToken: 'idle' });
+      .mockResolvedValueOnce({ active: false, masqueradeToken: 'idle' });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(companyResponse('a-studio', 'editor')));
     const adoptStatus = vi.spyOn(companyTransition, 'adoptMasqueradeStatus');
     renderProvider();
@@ -331,7 +331,7 @@ describe('PermissionProvider account-switch safety', () => {
     expect(screen.getByText('pending:viewer:read')).toBeInTheDocument();
     expect(await screen.findByText('resolved:editor:edit')).toBeInTheDocument();
 
-    await act(async () => aStatus.resolve({ active: false, contextToken: 'idle' }));
+    await act(async () => aStatus.resolve({ active: false, masqueradeToken: 'idle' }));
     expect(adoptStatus).toHaveBeenCalledTimes(1);
     expect(screen.getByText('resolved:editor:edit')).toBeInTheDocument();
   });
@@ -368,7 +368,7 @@ describe('PermissionProvider account-switch safety', () => {
         startedAt: '2026-09-01T10:00:00.000Z',
         expiresAt: '2026-09-01T10:15:00.000Z',
         token: 'stale-mode-token',
-        contextToken: 'stale-mode-token',
+        masqueradeToken: 'stale-mode-token',
       }),
     );
 

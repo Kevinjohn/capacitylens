@@ -114,9 +114,9 @@ async function manageAdminMembers(
   await expect(page.getByTestId('current-access')).toContainText('Admin');
   await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible();
   await expect(page.getByText('View the schedule')).toHaveCount(0);
-  await page.getByTestId('capabilities-toggle').click();
+  await page.getByTestId('permissions-toggle').click();
   await expect(page.getByText('View the schedule')).toBeVisible();
-  await page.getByTestId('capabilities-toggle').click();
+  await page.getByTestId('permissions-toggle').click();
   const rows = page.getByTestId('member-row');
   await expect(rows).toHaveCount(3);
   await expect(page.getByText(OWNER)).toBeVisible();

@@ -30,7 +30,7 @@ async function createConflictPair() {
     st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
   );
   const r = await requireCreated(
-    st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+    st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
   );
   await st.addAllocation({
     resourceId: r.id,

@@ -421,7 +421,7 @@ describe('AllocationDialog edit', () => {
     );
     await useStore.getState().addResource({
       kind: 'placeholder',
-      role: 'Designer',
+      jobTitle: 'Designer',
       employmentType: 'permanent',
       engagement: 'studio' as const,
       workingHoursPerDay: 8,
@@ -456,7 +456,7 @@ describe('AllocationDialog edit', () => {
     const ph = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -492,7 +492,7 @@ describe('AllocationDialog edit', () => {
       useStore.getState().addResource({
         kind: 'external',
         name: 'Kord Industries',
-        role: 'Partner studio',
+        jobTitle: 'Partner studio',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -526,7 +526,7 @@ describe('AllocationDialog edit', () => {
     const ph = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,
@@ -572,7 +572,7 @@ describe('AllocationDialog edit', () => {
     const ph = await requireCreated(
       useStore.getState().addResource({
         kind: 'placeholder',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio' as const,
         workingHoursPerDay: 8,

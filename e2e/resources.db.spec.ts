@@ -85,7 +85,7 @@ test('adds a person and shows them in the list and schedule', async ({ page }) =
   await page.getByRole('button', { name: 'Add resource' }).click();
 
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Oliver Queen');
-  await page.getByLabel('Role').fill('Motion Designer');
+  await page.getByLabel('Job title').fill('Motion Designer');
   await selectShadOption(page.getByLabel('Discipline'), { label: 'Design' });
   await page.getByRole('button', { name: 'Save' }).click();
 
@@ -107,7 +107,7 @@ test(
     await expectWorkingDaysGeometry(dialog);
     await expectAvailabilityDateGeometry(dialog);
 
-    for (const label of ['Name', 'Role', 'Discipline', 'Engagement']) {
+    for (const label of ['Name', 'Job title', 'Discipline', 'Engagement']) {
       const control = dialog.getByLabel(label, { exact: true });
       const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
       const fieldBox = await field.boundingBox();
@@ -125,7 +125,7 @@ test(
     await dismissLandscapeHint(page);
     await expect(dialog).toBeVisible();
     await expectNarrowAvailabilityDateGeometry(dialog);
-    for (const label of ['Name', 'Role', 'Discipline', 'Engagement']) {
+    for (const label of ['Name', 'Job title', 'Discipline', 'Engagement']) {
       const control = dialog.getByLabel(label, { exact: true });
       const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
       const labelBox = await field.locator(':scope > :first-child').boundingBox();
@@ -173,7 +173,7 @@ test('adds a placeholder bound to a project and shows it as "Placeholder" on the
   await page.getByRole('link', { name: 'Resources' }).click();
   await page.getByRole('button', { name: 'Add placeholder' }).click();
 
-  await page.getByLabel('Role').fill('Junior Dev');
+  await page.getByLabel('Job title').fill('Junior Dev');
   await selectShadOption(page.getByLabel('Bound project'), 'p-acme');
   await page.getByRole('button', { name: 'Save' }).click();
 
@@ -190,7 +190,7 @@ test('rejects a placeholder with no bound project', async ({ page }) => {
   await showPlaceholders(page);
   await page.getByRole('link', { name: 'Resources' }).click();
   await page.getByRole('button', { name: 'Add placeholder' }).click();
-  await page.getByLabel('Role').fill('Unbound slot');
+  await page.getByLabel('Job title').fill('Unbound slot');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('alert')).toContainText(/must be bound to a project/i);
 });
@@ -202,8 +202,8 @@ test('edits a resource and the change persists', async ({ page }) => {
     .filter({ hasText: 'Clark Kent' })
     .getByRole('button', { name: /^Edit / })
     .click();
-  const role = page.getByLabel('Role');
-  await role.fill('Lead Developer');
+  const jobTitle = page.getByLabel('Job title');
+  await jobTitle.fill('Lead Developer');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Lead Developer')).toBeVisible();
 });
@@ -357,7 +357,7 @@ test('uses fixed working hours without showing an hours field', async ({ page })
   await page.getByRole('button', { name: 'Add resource' }).click();
   await expect(page.getByLabel('Working hours / day')).toHaveCount(0);
   await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Fixed Hours');
-  await page.getByLabel('Role').fill('Tester');
+  await page.getByLabel('Job title').fill('Tester');
   await page.getByRole('button', { name: 'Save' }).click();
 
   const row = page.getByTestId('resource-row').filter({ hasText: 'Fixed Hours' });

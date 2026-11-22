@@ -9,7 +9,7 @@ import db from '@adonisjs/lucid/services/db';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import type { Role } from '@capacitylens/shared/domain/access';
 import { transformState } from '#transformers/state_transformer';
 import { readState } from '#tests/helpers/state_fixture';

@@ -477,7 +477,7 @@ describe('ActivityList', () => {
       useStore.getState().addResource({
         kind: 'person',
         name: 'Barbara Gordon',
-        role: 'Designer',
+        jobTitle: 'Designer',
         employmentType: 'permanent',
         engagement: 'studio',
         workingHoursPerDay: 8,

@@ -134,7 +134,7 @@ export default class extends BaseSchema {
       scoped(table);
       table.string('kind').notNullable();
       table.string('name').nullable();
-      table.string('role').notNullable();
+      table.string('job_title').notNullable();
       table.string('avatar_url').nullable();
       table
         .string('discipline_id')
@@ -693,7 +693,7 @@ export default class extends BaseSchema {
         );
     }
     this.schema.raw(
-      `CREATE TRIGGER deleted_groups_active_row_guard BEFORE DELETE ON deleted_groups WHEN ${retained.map((name) => `EXISTS (SELECT 1 FROM ${name} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
+      `CREATE TRIGGER deleted_groups_active_row_abort BEFORE DELETE ON deleted_groups WHEN ${retained.map((name) => `EXISTS (SELECT 1 FROM ${name} WHERE deletion_group_id = OLD.group_id AND deleted_at IS NULL)`).join(' OR ')} BEGIN SELECT RAISE(ABORT, 'active row cannot belong to deletion group'); END`
     );
     this.schema.raw(
       "CREATE TRIGGER deleted_groups_company_immutable BEFORE UPDATE OF company_id ON deleted_groups WHEN NEW.company_id <> OLD.company_id BEGIN SELECT RAISE(ABORT, 'company_id is immutable'); END"

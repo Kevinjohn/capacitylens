@@ -27,7 +27,7 @@ export default class DiagnosticsController {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: null },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
     }

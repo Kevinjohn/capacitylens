@@ -152,7 +152,7 @@ describe('typed planning flow', () => {
         fields: {
           kind: 'person',
           name: 'Bruce Wayne',
-          role: 'Designer',
+          jobTitle: 'Designer',
           employmentType: 'permanent',
           engagement: 'studio',
           workingHoursPerDay: 8,

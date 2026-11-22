@@ -35,7 +35,7 @@ export const entityConfig: Record<
 
 export function resolveRowName(row: LifecycleRow): string {
   if ('name' in row && row.name) return row.name;
-  if ('role' in row) return row.role;
+  if ('jobTitle' in row) return row.jobTitle;
   return '';
 }
 

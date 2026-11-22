@@ -54,7 +54,7 @@ async function createClosureCompany(request: APIRequestContext) {
   await createTestPerson(request, owner.cookie, companyId, {
     id: IDS.person,
     name: 'Barbara Gordon',
-    role: 'Designer',
+    jobTitle: 'Designer',
   });
   await sendPlanningIntent(request, owner.cookie, companyId, {
     operation: 'resource.create',
@@ -62,7 +62,7 @@ async function createClosureCompany(request: APIRequestContext) {
     fields: {
       kind: 'external',
       name: 'Kord Industries',
-      role: 'Partner studio',
+      jobTitle: 'Partner studio',
       avatarUrl: null,
       disciplineId: null,
       ...buildExternalCapacityDefaults(),

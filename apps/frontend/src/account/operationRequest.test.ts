@@ -64,7 +64,7 @@ describe('browser account api', () => {
     expect(urls).toEqual(
       expect.arrayContaining([
         '/api/companies/company%20%2F%20one/members/person%20%2F%20one',
-        '/api/companies/company%20%2F%20one/invites/invite%20%2F%20one',
+        '/api/companies/company%20%2F%20one/invitations/invite%20%2F%20one',
       ]),
     );
   });

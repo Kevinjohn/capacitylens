@@ -51,7 +51,7 @@ export const RESOURCE_KINDS = ['person', 'placeholder', 'external'] as const;
  * - `external`: an outsourced external-party company. Can be assigned activities, but has no
  *   hours/capacity/utilisation and is excluded from all capacity math; it renders in its own
  *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
- *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
+ *   `jobTitle` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
  *   defaults. See the external-resource rule in DECISIONS.md.
  */
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
@@ -144,12 +144,12 @@ export interface Discipline extends ScopedEntity {
 /** A schedulable resource: a person, a placeholder or an external supplier. */
 export interface Resource extends ScopedEntity {
   kind: ResourceKind;
-  /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
+  /** Optional: placeholders may be nameless (shown by `jobTitle`). For `external` this holds the
    * company name (the External form requires it). */
   name: string | null;
   /** e.g. "Senior Designer", the label used for nameless placeholders; an `external`'s
    * optional descriptor (e.g. "Print", "Overflow dev"). */
-  role: string;
+  jobTitle: string;
   /** Optional externally hosted avatar for people. Must be an absolute HTTPS URL without credentials. */
   avatarUrl: string | null;
   disciplineId: ID | null;
