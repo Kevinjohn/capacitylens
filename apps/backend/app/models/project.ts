@@ -5,12 +5,19 @@ import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import { booleanColumn, deletedAtColumn, timestampColumn } from '#models_support/scalar_column';
 import type { DateTime } from 'luxon';
 import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import Activity from '#models/activity';
 /** A company-scoped project; `isPrivate` protects its name in member projections. */
 export default class Project extends SoftDeletes(ProjectSchema) {
   static forCompany = forCompany;
-  @beforeFind() static requireFindScope = requireCompanyScope;
-  @beforeFetch() static requireFetchScope = requireCompanyScope;
+  @beforeFind()
+  static requireFindScope(query: ModelQueryBuilderContract<typeof Project>) {
+    requireCompanyScope(query);
+  }
+  @beforeFetch()
+  static requireFetchScope(query: ModelQueryBuilderContract<typeof Project>) {
+    requireCompanyScope(query);
+  }
   @hasMany(() => Activity, { foreignKey: 'projectId' }) declare activities: HasMany<
     typeof Activity
   >;

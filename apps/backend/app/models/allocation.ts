@@ -5,12 +5,19 @@ import type { DateTime } from 'luxon';
 import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import type { ISODate } from '@capacitylens/shared/types/entities';
 import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import { isoDateColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 /** A company-scoped allocation; deletion metadata never serializes. */
 export default class Allocation extends SoftDeletes(AllocationSchema) {
   static forCompany = forCompany;
-  @beforeFind() static requireFindScope = requireCompanyScope;
-  @beforeFetch() static requireFetchScope = requireCompanyScope;
+  @beforeFind()
+  static requireFindScope(query: ModelQueryBuilderContract<typeof Allocation>) {
+    requireCompanyScope(query);
+  }
+  @beforeFetch()
+  static requireFetchScope(query: ModelQueryBuilderContract<typeof Allocation>) {
+    requireCompanyScope(query);
+  }
   @column(booleanColumn('allocations', 'ignore_working_days'))
   declare ignoreWorkingDays: boolean | null;
 
