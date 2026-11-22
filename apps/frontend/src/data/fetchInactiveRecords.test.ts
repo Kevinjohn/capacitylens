@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { companySeed } from '@/test/companyDocument';
+import { companySeed } from '@/test/companyExport';
 import {
   fetchInactiveRecords,
   InactiveRecordsHttpError,

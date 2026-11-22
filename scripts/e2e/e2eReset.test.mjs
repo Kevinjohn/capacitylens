@@ -53,7 +53,7 @@ function waitForChildMessage(child, type, timeoutMs = 10_000) {
   });
 }
 
-function requestPendingConfirmation(target, cookie, contextToken) {
+function requestPendingConfirmation(target, cookie, masqueradeToken) {
   const url = new URL('/api/auth/password-confirmation', target.api);
   const request = http.request(url, {
     method: 'POST',
@@ -61,7 +61,7 @@ function requestPendingConfirmation(target, cookie, contextToken) {
       cookie,
       origin: target.api,
       'sec-fetch-site': 'same-origin',
-      'x-masquerade-context': contextToken,
+      'x-masquerade-context': masqueradeToken,
       'content-type': 'application/json',
     },
   });
@@ -359,7 +359,7 @@ test(
       });
       assert.equal(contextResponse.status, 200);
       const context = (await contextResponse.json()).data;
-      assert.equal(typeof context.contextToken, 'string');
+      assert.equal(typeof context.masqueradeToken, 'string');
       await waitForApiIdle(target.api);
       for (const table of ['adonis_sessions', 'account_sessions'])
         preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
@@ -405,7 +405,7 @@ test(
 
       const entered = waitForChildMessage(server, 'entered-verification');
       server.send({ type: 'arm' });
-      const pending = requestPendingConfirmation(target, cookie, context.contextToken);
+      const pending = requestPendingConfirmation(target, cookie, context.masqueradeToken);
       await entered;
       pending.request.destroy();
       await pending.socketClosed;

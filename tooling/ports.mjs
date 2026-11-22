@@ -16,7 +16,7 @@ export const PORT_LANE_CEILING = 10;
 /** The launcher-selected port lane key, read before configuration evaluation because global setup occurs too late to claim a port lane. */
 export const PORT_LANE_ENVIRONMENT_KEY = 'CAPACITYLENS_PORT_LANE';
 /** Environment key identifying the outer launcher’s claim so nested launchers do not release it. */
-export const PORT_LANE_CLAIM_ENVIRONMENT_KEY = 'CAPACITYLENS_LANE_CLAIM';
+export const PORT_LANE_CLAIM_ENVIRONMENT_KEY = 'CAPACITYLENS_PORT_LANE_CLAIM';
 /** Environment key containing the run’s reserved worker share. */
 export const SHARE_ENVIRONMENT_KEY = 'CAPACITYLENS_TEST_SHARE';
 

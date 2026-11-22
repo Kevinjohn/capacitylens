@@ -18,7 +18,7 @@ async function fetchOk(url, options = {}) {
 }
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
-export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, contextToken) {
+export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, masqueradeToken) {
   const account = fixture.companies.find((row) => row.id === 'a-studio');
   assert.ok(account);
   const resource = {
@@ -35,7 +35,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
         cookie,
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({
         mutationId: randomUUID(),
@@ -81,7 +81,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
         cookie,
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({
         mutationId: randomUUID(),
@@ -117,7 +117,7 @@ export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, co
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
         cookie,
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({
         mutationId: randomUUID(),

@@ -203,7 +203,7 @@ test.describe('Scheduler', () => {
       // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) fails.
       expect(rgba.r - Math.max(rgba.g, rgba.b)).toBeGreaterThan(60);
       await expect(page.getByTestId('unavailable-day').first()).toBeVisible();
-      await expect(page.getByTestId('utilization').first()).toBeVisible();
+      await expect(page.getByTestId('utilisation').first()).toBeVisible();
     },
   );
   test(
@@ -510,7 +510,7 @@ test.describe('Scheduler', () => {
   );
   test('shows overall and per-discipline utilisation summaries (US-SCH-14)', async ({ page }) => {
     await openApp(page);
-    await expect(page.getByTestId('overall-utilization')).toContainText('%');
+    await expect(page.getByTestId('overall-utilisation')).toContainText('%');
     await expect(page.getByTestId('discipline-group').first()).toContainText(/avg utilisation/);
   });
   test(
@@ -524,18 +524,18 @@ test.describe('Scheduler', () => {
       // locally. June 1 is the shared left edge this zoom comparison is actually meant to exercise.
       await goToSeedWeek(page);
       await expect(page.getByText('Jun 2026')).toBeVisible();
-      const overall = page.getByTestId('overall-utilization');
+      const overall = page.getByTestId('overall-utilisation');
       const pct = async () =>
         Number.parseInt((await overall.textContent())?.replace('%', '') ?? '', 10);
 
       // Per-person % for a known seeded resource row (Bruce Wayne). Its utilisation lives in the row
-      // header's `utilization` testid, scoped to Bruce's scheduler-row so it can't pick up another
+      // header's `utilisation` testid, scoped to Bruce's scheduler-row so it can't pick up another
       // person's cell. Bruce is front-loaded in the seed (8h/day Mon–Thu of the frozen-clock week +
       // a tentative bar) → dense week 1 that idle later weeks dilute as the span widens.
       const bruceUtil = page
         .getByTestId('scheduler-row')
         .filter({ hasText: 'Bruce Wayne' })
-        .getByTestId('utilization');
+        .getByTestId('utilisation');
       const brucePct = async () =>
         Number.parseInt((await bruceUtil.textContent())?.replace('%', '') ?? '', 10);
 

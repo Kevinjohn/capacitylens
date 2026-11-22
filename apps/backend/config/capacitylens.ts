@@ -4,7 +4,7 @@ import env from '#start/env';
 const capacitylens = {
   /** Whether a visitor may create an account without an invitation. */
   get allowOpenSignUp() {
-    return env.get('CAPACITYLENS_ALLOW_OPEN_SIGNUP');
+    return env.get('CAPACITYLENS_ALLOW_OPEN_SIGN_UP');
   },
   /** The folder that holds database backups. */
   get backupDirectory() {
