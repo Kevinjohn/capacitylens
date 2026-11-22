@@ -20,8 +20,8 @@ import { createDeferred } from '@/test/createDeferred';
 /** A read without rows, as the harness's server reports it for the revision the page named. */
 const unchanged = (revision: number): PlanningSnapshot => ({
   revision,
-  authority: makePlanningAccess(),
-  slice: 'unchanged',
+  access: makePlanningAccess(),
+  content: 'unchanged',
   today: '2026-06-03',
   capacity: emptyCapacity(),
 });
@@ -105,7 +105,7 @@ describe('planning read transitions', () => {
     expect(h.state().planning.history.canUndo).toBe(true);
   });
 
-  it('rejects an older snapshot under the same authority without replacing rows', async () => {
+  it('rejects an older snapshot under the same access without replacing rows', async () => {
     const h = await ready();
     h.server.revision = 5;
     await h.cache.refresh();
@@ -169,7 +169,7 @@ describe('planning read transitions', () => {
     expect(h.state().planning.today).toBe('2026-06-04');
   });
 
-  it('reads the full slice once when an unchanged read names another revision', async () => {
+  it('reads the full data once when an unchanged read names another revision', async () => {
     const h = await ready();
     h.read.mockResolvedValueOnce(unchanged(2));
     await expect(h.cache.refresh()).resolves.toBe(true);

@@ -116,7 +116,7 @@ it.each(
       const canonicalSnapshot: PlanningSnapshot = {
         data: canonicalData,
         revision: revision + 1,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         today: getStubPlanningTransport().todayFor(companyId),
         capacity: emptyCapacity(),
       };

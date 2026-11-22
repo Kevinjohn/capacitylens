@@ -31,6 +31,12 @@ Download the archive for the host's operating system and architecture. Verify it
 it next to the current release, and move the `current` link to the new version. Do not overwrite an
 existing release folder.
 
+If nginx serves the site from a copy of the release's `capacitylens.nginx.conf`, compare that copy
+with the new release's file and copy over any changed `location` blocks before starting the service.
+Upgrades never replace it, and its `location` blocks keep secret-bearing sign-in and invitation
+paths out of the access log. Invitation paths are now `/api/invitations/<token>/...` and
+`/invitation/<token>`; an older copy logs the tokens in them.
+
 ## Upgrade the database
 
 From the new release's `backend/` directory, with the same environment used by the service, run:

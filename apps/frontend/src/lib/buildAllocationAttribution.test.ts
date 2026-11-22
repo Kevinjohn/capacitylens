@@ -26,12 +26,12 @@ describe('buildAllocationAttribution', () => {
       kind: 'project',
       projectId: project.id,
     });
-    const repeatableActivity = withoutProjectId(
-      makeActivity({ id: 'repeatable', kind: 'repeatable' }),
+    const allProjectsActivity = withoutProjectId(
+      makeActivity({ id: 'allProjects', kind: 'allProjects' }),
     );
     const activitiesById = new Map([
       [projectActivity.id, projectActivity],
-      [repeatableActivity.id, repeatableActivity],
+      [allProjectsActivity.id, allProjectsActivity],
     ]);
 
     expect(
@@ -45,7 +45,7 @@ describe('buildAllocationAttribution', () => {
     ).toEqual({ projectId: project.id, project, client });
     expect(
       buildAllocationAttribution({
-        allocation: makeAllocation({ activityId: repeatableActivity.id, projectId: project.id }),
+        allocation: makeAllocation({ activityId: allProjectsActivity.id, projectId: project.id }),
         activitiesById,
         projectsById,
         clientsById,

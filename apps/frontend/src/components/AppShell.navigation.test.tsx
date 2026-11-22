@@ -46,7 +46,7 @@ describe('AppShell navigation links', () => {
 
     secondLocale = true;
     act(() => {
-      useStore.setState({ data: makeAppData({ accounts: [makeCompany({ language: 'fr' })] }) });
+      useStore.setState({ data: makeAppData({ companies: [makeCompany({ language: 'fr' })] }) });
     });
 
     await waitFor(() =>
@@ -57,7 +57,7 @@ describe('AppShell navigation links', () => {
   it("preserves the last locale while a selected company's set is still loading", async () => {
     const currentAccount = makeCompany({ language: 'en' });
     const destinationCompany = makeCompany({ id: 'acct-other', name: 'Other Co' });
-    loadPlanningData(makeAppData({ accounts: [currentAccount] }));
+    loadPlanningData(makeAppData({ companies: [currentAccount] }));
     renderAppShell({});
     await waitFor(() => expect(i18nMocks.syncLocaleFromCompany).toHaveBeenCalledWith('en'));
     i18nMocks.syncLocaleFromCompany.mockClear();
@@ -74,7 +74,7 @@ describe('AppShell navigation links', () => {
     });
     expect(i18nMocks.syncLocaleFromCompany).not.toHaveBeenCalled();
 
-    act(() => useStore.setState({ data: makeAppData({ accounts: [destinationCompany] }) }));
+    act(() => useStore.setState({ data: makeAppData({ companies: [destinationCompany] }) }));
     await waitFor(() => expect(i18nMocks.syncLocaleFromCompany).toHaveBeenCalledWith(undefined));
   });
   it('renders all expected nav links', () => {

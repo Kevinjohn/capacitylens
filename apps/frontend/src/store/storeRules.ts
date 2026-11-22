@@ -16,7 +16,7 @@ export function createStoreRules(get: StoreApi<StoreState>['getState']) {
     const id = state.activeCompanyId;
     if (!id) throw new Error('No active company is selected.');
     if (
-      !state.data.accounts.some((company) => company.id === id) &&
+      !state.data.companies.some((company) => company.id === id) &&
       !state.companySummaries.some((company) => company.id === id)
     ) {
       throw new Error('The active account is not loaded — cannot mutate scoped data.');
@@ -32,9 +32,9 @@ export function createStoreRules(get: StoreApi<StoreState>['getState']) {
       state.setNotice(m.notice_masquerade_read_only(), 'error');
       return true;
     }
-    if (canWritePlanning(state.planning.authority)) return false;
+    if (canWritePlanning(state.planning.access)) return false;
     let message = m.notice_viewer_read_only();
-    if (state.planning.authority === null) {
+    if (state.planning.access === null) {
       message =
         state.planning.phase.kind === 'failed'
           ? m.access_unavailable_summary()

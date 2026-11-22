@@ -7,7 +7,7 @@ import db from '@adonisjs/lucid/services/db';
 import hash from '@adonisjs/core/services/hash';
 import proofs from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import PasswordConfirmationsController from '#controllers/password_confirmations_controller';
 import {
   requireAdmissionDecision,

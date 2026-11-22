@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { seed } from './seed.js';
 import {
-  CompanyDocumentError,
+  CompanyExportError,
   buildCompanyExport,
   parseCompanyExport,
   prepareCompanyImport,
-} from './companyDocument.js';
+} from './companyExport.js';
 import { APP_DATA_KEYS } from '../types/entities.js';
 import type { AppDataKey } from '../types/entities.js';
-import type { CompanyExportDocument } from './companyDocument.js';
+import type { CompanyExport } from './companyExport.js';
 
 function requireValue<T>(value: T | undefined | null): T {
   if (value == null) throw new Error('The complete beta fixture is missing a required row.');
@@ -18,7 +18,7 @@ function requireValue<T>(value: T | undefined | null): T {
 const context = { companyId: 'a-studio', memberResourceLinks: [] };
 const freshDocument = () => {
   const source = seed();
-  const account = requireValue(source.accounts.find((row) => row.id === context.companyId));
+  const account = requireValue(source.companies.find((row) => row.id === context.companyId));
   source.closures.push({
     id: 'gotham-closure',
     companyId: context.companyId,
@@ -30,7 +30,7 @@ const freshDocument = () => {
   });
   return buildCompanyExport(source, { companyId: context.companyId, completeness: 'full' });
 };
-type CorruptDocument = (document: CompanyExportDocument) => void;
+type CorruptDocument = (document: CompanyExport) => void;
 
 const failures: [string, CorruptDocument][] = [
   [
@@ -98,13 +98,13 @@ const failures: [string, CorruptDocument][] = [
   [
     'boolean strings',
     (doc) => {
-      Object.assign(requireValue(doc.data.accounts[0]), { placeholdersEnabled: 'false' });
+      Object.assign(requireValue(doc.data.companies[0]), { placeholdersEnabled: 'false' });
     },
   ],
   [
     'unsupported time zones',
     (doc) => {
-      requireValue(doc.data.accounts[0]).timezone = 'Gotham/Invalid';
+      requireValue(doc.data.companies[0]).timezone = 'Gotham/Invalid';
     },
   ],
   [
@@ -130,7 +130,7 @@ const failures: [string, CorruptDocument][] = [
   [
     'unsupported text',
     (doc) => {
-      requireValue(doc.data.accounts[0]).name = 'Wayne\u0000Enterprises';
+      requireValue(doc.data.companies[0]).name = 'Wayne\u0000Enterprises';
     },
   ],
   [
@@ -202,8 +202,13 @@ describe('company import failure boundaries', () => {
     const row = requireValue(document.data.clients.find((item) => !item.builtin));
     row.name = 'N'.repeat(101);
     row.isPrivate = false;
-    const file = JSON.stringify(document).replaceAll('"companyId":', '"accountId":');
+    const file = JSON.stringify(document);
     expect(() => parseCompanyExport(file)).toThrow(/data\.clients\[\d+\]\.name/);
+  });
+
+  it('refuses a file whose rows name their company accountId', () => {
+    const file = JSON.stringify(freshDocument()).replaceAll('"companyId":', '"accountId":');
+    expect(() => parseCompanyExport(file)).toThrow(/data\.disciplines\[0\]\.companyId/);
   });
 
   it.each(['closure/one', '_closure', 'götham', 'x'.repeat(129)])(
@@ -227,7 +232,7 @@ describe('company import failure boundaries', () => {
     const document = freshDocument();
     corrupt(document);
     const before = structuredClone(document);
-    expect(() => prepareCompanyImport(document, context)).toThrow(CompanyDocumentError);
+    expect(() => prepareCompanyImport(document, context)).toThrow(CompanyExportError);
     expect(document).toEqual(before);
   });
 
@@ -268,12 +273,12 @@ describe('company import failure boundaries', () => {
     const document = freshDocument();
     const before = structuredClone(document);
     const prepared = prepareCompanyImport(document, context);
-    requireValue(prepared.data.accounts[0]).name = 'Gotham Studio';
+    requireValue(prepared.data.companies[0]).name = 'Gotham Studio';
     requireValue(prepared.data.resources[0]).workingDays.push(0);
     expect(document).toEqual(before);
   });
 
-  it('projects authority and device fields away rather than importing them', () => {
+  it('projects access and device fields away rather than importing them', () => {
     const document = freshDocument();
     const input = {
       ...document,
@@ -282,7 +287,7 @@ describe('company import failure boundaries', () => {
       memberships: [{ role: 'owner' }],
       activeAccountId: 'a-loft',
     };
-    Object.assign(requireValue(input.data.accounts[0]), {
+    Object.assign(requireValue(input.data.companies[0]), {
       admissionPolicy: 'open',
       role: 'owner',
       theme: 'dark',
@@ -290,8 +295,8 @@ describe('company import failure boundaries', () => {
     const prepared = prepareCompanyImport(input, context);
     expect(prepared.data).toEqual(freshDocument().data);
     expect(JSON.stringify(prepared)).not.toContain('must-not-survive');
-    expect(prepared.data.accounts[0]).not.toHaveProperty('admissionPolicy');
-    expect(prepared.data.accounts[0]).not.toHaveProperty('role');
-    expect(prepared.data.accounts[0]).not.toHaveProperty('theme');
+    expect(prepared.data.companies[0]).not.toHaveProperty('admissionPolicy');
+    expect(prepared.data.companies[0]).not.toHaveProperty('role');
+    expect(prepared.data.companies[0]).not.toHaveProperty('theme');
   });
 });

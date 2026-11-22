@@ -158,7 +158,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
       3,
       {
         operation: 'catalogue.update',
-        entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
+        entity: { entity: 'activities', id: activity.id, changes: { kind: 'allProjects' } },
       },
       randomUUID()
     );
@@ -176,7 +176,7 @@ test.group('typed catalogue and time-off restoration', (suite) => {
         confirmedRestorationCount: 1,
         intent: {
           operation: 'catalogue.update',
-          entity: { entity: 'activities', id: activity.id, changes: { kind: 'repeatable' } },
+          entity: { entity: 'activities', id: activity.id, changes: { kind: 'allProjects' } },
         },
       })
       .send();

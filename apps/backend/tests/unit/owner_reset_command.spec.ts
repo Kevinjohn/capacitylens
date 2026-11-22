@@ -131,7 +131,7 @@ test.group('owner reset command', () => {
       insertOwner(database);
       const now = new Date().toISOString();
       database
-        .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
+        .prepare('INSERT INTO companies (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
         .run('a-loft', 'Stark Industries', '#6366f1', now, now);
       database
         .prepare(
@@ -171,7 +171,7 @@ test.group('owner reset command', () => {
       insertOwner(database);
       const now = new Date().toISOString();
       database
-        .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
+        .prepare('INSERT INTO companies (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
         .run('a-loft', 'Stark Industries', '#6366f1', now, now);
       database
         .prepare(

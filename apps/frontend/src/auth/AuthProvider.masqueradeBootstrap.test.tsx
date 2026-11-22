@@ -8,7 +8,7 @@ import { masqueradeGrantFor } from '@/test/permissionGrants';
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -18,7 +18,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -37,8 +37,8 @@ describe('AuthProvider — server mode', () => {
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
-      contextToken: 'session-token',
-      principal: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      masqueradeToken: 'session-token',
+      actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
@@ -68,8 +68,8 @@ describe('AuthProvider — server mode', () => {
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
-      contextToken: 'session-token',
-      principal: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
+      masqueradeToken: 'session-token',
+      actor: { id: 'real-user', name: 'Bruce Wayne', email: 'bruce@example.test' },
     });
     vi.doMock('@/data/planning/storePlanningTransport', async () => {
       const { createPlanningTransport } = await import('@/data/planning/planningTransport');
@@ -86,7 +86,7 @@ describe('AuthProvider — server mode', () => {
         return makeMeResponse(200, {
           companyId: 'a-studio',
           revision: 1,
-          authority: {
+          access: {
             actorId: 'real-user',
             effectiveActorId: 'target-user',
             role: 'viewer',
@@ -95,7 +95,7 @@ describe('AuthProvider — server mode', () => {
             canSeeTimeOffNote: false,
           },
           data: makeAppData({
-            accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
+            companies: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
           }),
           today: '2026-06-03',
         });

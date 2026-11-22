@@ -49,7 +49,7 @@ function ArchivedRow({
       <ItemContent className="min-w-0">
         <span className="font-medium">{name}</span>
         {entity === 'resources' && (
-          <span className="text-sm text-muted-foreground">{(row as Resource).role}</span>
+          <span className="text-sm text-muted-foreground">{(row as Resource).jobTitle}</span>
         )}
         {ancestor && <span className="text-xs text-muted-foreground">{ancestor.message}</span>}
       </ItemContent>
@@ -198,7 +198,7 @@ function PrivilegedArchivedEntitySection({ entity }: { entity: ArchivedEntity })
 
   const onRestore = (model: ArchivedRowModel) =>
     run(
-      () => actions.unarchive(entity, model.row.id),
+      () => actions.restore(entity, model.row.id),
       (error) => setNotice(resolveErrorMessage(error), 'error'),
     );
   const onAnonymise = (model: ArchivedRowModel) => {

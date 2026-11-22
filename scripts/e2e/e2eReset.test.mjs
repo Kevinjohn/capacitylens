@@ -53,7 +53,7 @@ function waitForChildMessage(child, type, timeoutMs = 10_000) {
   });
 }
 
-function requestPendingConfirmation(target, cookie, contextToken) {
+function requestPendingConfirmation(target, cookie, masqueradeToken) {
   const url = new URL('/api/auth/password-confirmation', target.api);
   const request = http.request(url, {
     method: 'POST',
@@ -61,7 +61,7 @@ function requestPendingConfirmation(target, cookie, contextToken) {
       cookie,
       origin: target.api,
       'sec-fetch-site': 'same-origin',
-      'x-masquerade-context': contextToken,
+      'x-masquerade-context': masqueradeToken,
       'content-type': 'application/json',
     },
   });
@@ -332,7 +332,7 @@ test(
         .run('receipt', 'a-studio', 'command', 'operation', 'key', 'hash', 'committed', now, now);
       database
         .prepare(
-          'INSERT INTO account_getting_started_dismissals (id, company_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
+          'INSERT INTO company_getting_started_dismissals (id, company_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
         )
         .run('dismissed', 'a-studio', now, now);
 
@@ -359,7 +359,7 @@ test(
       });
       assert.equal(contextResponse.status, 200);
       const context = (await contextResponse.json()).data;
-      assert.equal(typeof context.contextToken, 'string');
+      assert.equal(typeof context.masqueradeToken, 'string');
       await waitForApiIdle(target.api);
       for (const table of ['adonis_sessions', 'account_sessions'])
         preserved[table] = database.prepare(`SELECT * FROM "${table}"`).all();
@@ -405,7 +405,7 @@ test(
 
       const entered = waitForChildMessage(server, 'entered-verification');
       server.send({ type: 'arm' });
-      const pending = requestPendingConfirmation(target, cookie, context.contextToken);
+      const pending = requestPendingConfirmation(target, cookie, context.masqueradeToken);
       await entered;
       pending.request.destroy();
       await pending.socketClosed;
@@ -472,7 +472,7 @@ test(
         'deleted_groups',
         'deleted_rows',
         'request_receipts',
-        'account_getting_started_dismissals',
+        'company_getting_started_dismissals',
       ])
         assert.equal(
           database.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get().count,
@@ -489,9 +489,9 @@ test(
       );
       failNextVitePause = true;
       await assert.rejects(resetServer({ target }), /in-flight API sockets/);
-      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM accounts').get().count, 1);
+      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 1);
       await resetServer({ target, withSeed: false });
-      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM accounts').get().count, 0);
+      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 0);
       assert.equal(database.prepare('SELECT COUNT(*) AS count FROM memberships').get().count, 0);
       assert.deepEqual(
         database.prepare('SELECT * FROM adonis_sessions').all(),
@@ -514,7 +514,7 @@ test(
       database.prepare('DELETE FROM memberships WHERE user_id = ?').run(admin.id);
       database.prepare('DELETE FROM users WHERE id = ?').run(admin.id);
       await assert.rejects(resetServer({ target }), /administrator is unavailable; restart/);
-      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM accounts').get().count, 1);
+      assert.equal(database.prepare('SELECT COUNT(*) AS count FROM companies').get().count, 1);
       const replacementId = randomUUID();
       for (const table of ['users', 'account_admissions']) {
         const original = preserved[table][0];

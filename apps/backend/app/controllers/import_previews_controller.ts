@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http';
 import { withActor } from '#services/auth/current_actor';
 import { requirePasswordConfirmationActor } from '#services/auth/password_confirmation';
 import { previewCompanyImport, readRequestDocument } from '#services/company_import';
-import { previewImportValidator } from '#validators/transfer';
+import { previewImportValidator } from '#validators/import';
 
 /** Previews what importing a company document would change. */
 export default class ImportPreviewsController {

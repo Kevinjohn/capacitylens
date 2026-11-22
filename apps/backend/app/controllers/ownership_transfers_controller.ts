@@ -11,7 +11,7 @@ export default class OwnershipTransfersController {
       data: ctx.request.body(),
     });
     const command = parseAccountOperation(
-      ctx.request.header('x-account-command-id'),
+      ctx.request.header('x-account-operation-id'),
       ctx.request.header('idempotency-key')
     );
     const companyId = ctx.params.companyId;

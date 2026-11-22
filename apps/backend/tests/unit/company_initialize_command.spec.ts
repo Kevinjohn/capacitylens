@@ -44,7 +44,7 @@ test.group('company initialize command', () => {
       assert.equal(result.status, 0, result.output);
       const { companyId } = JSON.parse(result.stdout.trim());
       const inspect = f.inspect();
-      const account = inspect.prepare('SELECT * FROM accounts').get()!;
+      const account = inspect.prepare('SELECT * FROM companies').get()!;
       assert.equal(account.id, companyId);
       assert.equal(account.name, 'Wayne Enterprises');
       assert.equal(account.week_starts_on, '1');
@@ -60,11 +60,11 @@ test.group('company initialize command', () => {
         inspect.prepare('SELECT revision FROM company_planning_revisions').get()!.revision,
         1
       );
-      const before = inspect.prepare('SELECT * FROM accounts').all();
+      const before = inspect.prepare('SELECT * FROM companies').all();
       inspect.close();
       assert.notEqual(f.command(args).status, 0);
       const after = f.inspect();
-      assert.deepEqual(after.prepare('SELECT * FROM accounts').all(), before);
+      assert.deepEqual(after.prepare('SELECT * FROM companies').all(), before);
       assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
       assert.equal(
         after.prepare('SELECT password FROM users').get()!.password,
@@ -93,7 +93,7 @@ test.group('company initialize command', () => {
       assert.notEqual(locked.status, 0);
       assert.match(locked.output, /Another process holds/);
       database.exec('ROLLBACK');
-      assert.equal(database.prepare('SELECT COUNT(*) AS n FROM accounts').get()!.n, 0);
+      assert.equal(database.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0);
       database.close();
     } finally {
       f.cleanup();
@@ -117,7 +117,7 @@ test.group('company initialize command', () => {
       const refused = f.command(args);
       assert.notEqual(refused.status, 0, refused.output);
       const after = f.inspect();
-      for (const table of ['accounts', 'memberships', 'audit_entries'])
+      for (const table of ['companies', 'memberships', 'audit_entries'])
         assert.equal(after.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n, 0);
       after.prepare('INSERT INTO account_transaction_lock (id, version) VALUES (1, 0)').run();
       after.close();
@@ -150,7 +150,7 @@ test.group('company initialize command', () => {
       assert.notInclude(result.output, 'private database detail');
       const inspect = f.inspect();
       for (const table of [
-        'accounts',
+        'companies',
         'clients',
         'memberships',
         'company_planning_revisions',
@@ -219,7 +219,7 @@ test.group('company initialize command', () => {
       assert.notEqual(refused.status, 0);
       assert.match(refused.output, /is not admitted/);
       const after = f.inspect();
-      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM accounts').get()!.n, 0);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 0);
       after.close();
     } finally {
       f.cleanup();
@@ -244,7 +244,7 @@ test.group('company initialize command', () => {
       const { url } = JSON.parse(bootstrap.stdout.trim()) as { url: string };
       const token = new URL(url).pathname.split('/').at(-1)!;
       await withOperatorServer(f, async (origin) => {
-        const accepted = await fetch(`${origin}/api/invites/${token}/signup`, {
+        const accepted = await fetch(`${origin}/api/invitations/${token}/sign-up`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
           body: JSON.stringify({ password: credentials.password, name: 'Bruce Wayne' }),
@@ -280,7 +280,7 @@ test.group('company initialize command', () => {
               'members:manage',
               'members:signInTracking',
               'invitations:manage',
-              'viewAs:use',
+              'masquerade:use',
               'resources:anonymise',
               'ownership:transfer',
               'company:import',
@@ -300,25 +300,25 @@ test.group('company initialize command', () => {
         const { data } = (await state.json()) as {
           data: {
             clients: { builtin: boolean }[];
-            accounts: { weekStartsOn: number; workingDays: number[] }[];
+            companies: { weekStartsOn: number; workingDays: number[] }[];
           };
         };
-        assert.deepEqual(data.accounts[0]!.workingDays, [1, 2, 3, 4, 5]);
-        assert.equal(data.accounts[0]!.weekStartsOn, 1);
+        assert.deepEqual(data.companies[0]!.workingDays, [1, 2, 3, 4, 5]);
+        assert.equal(data.companies[0]!.weekStartsOn, 1);
         assert.lengthOf(data.clients, 1);
         assert.equal(data.clients[0]!.builtin, true);
         const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } });
         const modeBody = await modeResponse.text();
         assert.equal(modeResponse.status, 200, modeBody);
-        const { data: mode } = JSON.parse(modeBody) as { data: { contextToken?: unknown } };
-        assert.isString(mode.contextToken);
+        const { data: mode } = JSON.parse(modeBody) as { data: { masqueradeToken?: unknown } };
+        assert.isString(mode.masqueradeToken);
         const { seed } = await import('@capacitylens/shared/data/seed');
         const { allocation } = await writeSmokeSchedule(
           origin,
           cookie,
           companyId,
           seed(),
-          mode.contextToken as string
+          mode.masqueradeToken as string
         );
         const persisted = f.inspect();
         assert.equal(
@@ -331,7 +331,7 @@ test.group('company initialize command', () => {
       });
       assert.notEqual(f.command(args).status, 0);
       const after = f.inspect();
-      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM accounts').get()!.n, 1);
+      assert.equal(after.prepare('SELECT COUNT(*) AS n FROM companies').get()!.n, 1);
       assert.equal(after.prepare('SELECT COUNT(*) AS n FROM memberships').get()!.n, 1);
       after.close();
     } finally {
@@ -361,7 +361,7 @@ test.group('company initialize command', () => {
         const after = f.inspect();
         assert.deepEqual(after.prepare('SELECT * FROM users').all(), users);
         for (const table of [
-          'accounts',
+          'companies',
           'clients',
           'memberships',
           'audit_entries',

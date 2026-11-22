@@ -34,15 +34,15 @@ const contracts: Record<string, BodyContract> = {
   },
   'api.import_previews.store': {
     method: 'post',
-    url: () => '/api/transfer/preview',
-    sentence: 'Invalid beta transfer document.',
+    url: () => '/api/import/preview',
+    sentence: 'Invalid beta import document.',
     body: (companyId) => ({ companyId, document: {} }),
     untyped: ['document'],
   },
   'api.imports.store': {
     method: 'post',
-    url: () => '/api/transfer/apply',
-    sentence: 'Invalid beta transfer request.',
+    url: () => '/api/import/apply',
+    sentence: 'Invalid beta import request.',
     body: (companyId) => ({ companyId, document: {}, baseRevision: 0, confirmationId: 'x' }),
     untyped: ['document'],
     scalar: { baseRevision: '1' },
@@ -128,14 +128,14 @@ const contracts: Record<string, BodyContract> = {
   },
   'api.invitations.store': {
     method: 'post',
-    url: () => '/api/invites',
+    url: () => '/api/invitations',
     sentence: admission,
     body: (companyId) => ({ companyId, role: 'viewer', email: 'clark.kent@wayne.example' }),
     keySentences: { email: 'Invalid invitation email.' },
   },
   'api.invitation_acceptances.store': {
     method: 'post',
-    url: () => '/api/invites/token/signup',
+    url: () => '/api/invitations/token/sign-up',
     sentence: admission,
     body: () => ({ name: 'Clark Kent', password }),
     keySentences: { name: 'Invalid sign-up details.', password: 'Invalid sign-up details.' },
@@ -182,7 +182,7 @@ test.group('request body contracts', (group) => {
       captureMail(cleanup);
       const contract = contracts[name];
       const owner = await resetAuthenticatedClient(client);
-      const { id: companyId } = await db.from('accounts').select('id').firstOrFail();
+      const { id: companyId } = await db.from('companies').select('id').firstOrFail();
       const valid = contract.body(companyId);
       const refusals: [string, Record<string, unknown>, string][] = [
         ['unknown key', { ...valid, extra: true }, contract.sentence],

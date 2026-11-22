@@ -25,7 +25,7 @@ test.group('data routes', (group) => {
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();
     await db.from('audit_entries').delete();
-    await db.from('account_getting_started_dismissals').delete();
+    await db.from('company_getting_started_dismissals').delete();
   });
 
   test('inactive export follows effective member role and a default read stays active-only', async ({
@@ -59,11 +59,11 @@ test.group('data routes', (group) => {
     }
   });
 
-  test('example data requires Admin authority', async ({ client }) => {
+  test('example data requires Admin access', async ({ client }) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
-    const account = { ...seed().accounts[0]!, id: 'a-example' };
-    await db.table('accounts').insert(encodeRow('accounts', account));
+    const account = { ...seed().companies[0]!, id: 'a-example' };
+    await db.table('companies').insert(encodeRow('companies', account));
     await grantDataOwner(dataOwner.userId, account.id);
     for (const role of ['editor', 'admin']) {
       await db
@@ -106,7 +106,7 @@ test.group('data routes', (group) => {
     inactive.assertStatus(200);
     const body = inactive.body().data as ReturnType<typeof seed>;
     assert.isTrue(body.resources.every((row) => row.companyId === 'a-studio'));
-    assert.isTrue(body.accounts.every((row) => row.id === 'a-studio'));
+    assert.isTrue(body.companies.every((row) => row.id === 'a-studio'));
     assert.includeMembers(
       body.resources.map((row) => row.id),
       candidates.map((row) => row.id)
@@ -296,8 +296,8 @@ test.group('data routes', (group) => {
   test('example data inserts once and refuses a second request', async ({ client, assert }) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
-    const account = { ...seed().accounts[0]!, id: 'a-example' };
-    await db.table('accounts').insert(encodeRow('accounts', account));
+    const account = { ...seed().companies[0]!, id: 'a-example' };
+    await db.table('companies').insert(encodeRow('companies', account));
     await grantDataOwner(dataOwner.userId, account.id);
     const otherCompanyId = await createFixtureCompanyForOwner(
       dataOwner.userId,
@@ -333,8 +333,8 @@ test.group('data routes', (group) => {
   }) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
-    const account = { ...seed().accounts[0]!, id: 'a-example' };
-    await db.table('accounts').insert(encodeRow('accounts', account));
+    const account = { ...seed().companies[0]!, id: 'a-example' };
+    await db.table('companies').insert(encodeRow('companies', account));
     await grantDataOwner(dataOwner.userId, account.id);
     const resource = {
       ...seed().resources[0]!,
@@ -356,8 +356,8 @@ test.group('data routes', (group) => {
   test('example data rejects archived-only work and unknown company', async ({ client }) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
-    const account = { ...seed().accounts[0]!, id: 'a-example' };
-    await db.table('accounts').insert(encodeRow('accounts', account));
+    const account = { ...seed().companies[0]!, id: 'a-example' };
+    await db.table('companies').insert(encodeRow('companies', account));
     await grantDataOwner(dataOwner.userId, account.id);
     const resource = {
       ...seed().resources[0]!,
@@ -383,8 +383,8 @@ test.group('data routes', (group) => {
     for (const kind of ['client', 'project'] as const) {
       const dataOwner = await reset(client, false);
       client = dataOwner.client;
-      const account = { ...seed().accounts[0]!, id: 'a-example' };
-      await db.table('accounts').insert(encodeRow('accounts', account));
+      const account = { ...seed().companies[0]!, id: 'a-example' };
+      await db.table('companies').insert(encodeRow('companies', account));
       await grantDataOwner(dataOwner.userId, account.id);
       const clientRow = {
         ...seed().clients.find((row) => row.builtin !== true)!,

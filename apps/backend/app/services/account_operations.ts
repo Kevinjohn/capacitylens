@@ -24,7 +24,7 @@ export interface AccountOperationIdentity {
 }
 
 /**
- * Parses the paired account-operation headers (`X-Account-Command-Id`, `Idempotency-Key`), minting
+ * Parses the paired account-operation headers (`X-Account-Operation-Id`, `Idempotency-Key`), minting
  * both for older callers that send neither.
  */
 export function parseAccountOperation(

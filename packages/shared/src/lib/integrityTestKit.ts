@@ -8,7 +8,7 @@ export const makePlaceholder = (over: Partial<Resource> = {}): Resource => ({
   createdAt: 't',
   updatedAt: 't',
   kind: 'placeholder',
-  role: 'Senior Designer',
+  jobTitle: 'Senior Designer',
   employmentType: 'permanent',
   engagement: 'studio' as const,
   workingHoursPerDay: 8,

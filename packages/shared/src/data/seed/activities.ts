@@ -64,7 +64,7 @@ const ACTIVITIES: AppData['activities'] = [
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Design',
-    kind: 'repeatable',
+    kind: 'allProjects',
   },
   {
     ...NULLABLE_FIELDS.activities,
@@ -73,7 +73,7 @@ const ACTIVITIES: AppData['activities'] = [
     createdAt: SEED_TIMESTAMP,
     updatedAt: SEED_TIMESTAMP,
     name: 'Workshop',
-    kind: 'repeatable',
+    kind: 'allProjects',
   },
   {
     ...NULLABLE_FIELDS.activities,
