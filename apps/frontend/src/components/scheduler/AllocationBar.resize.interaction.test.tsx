@@ -95,7 +95,7 @@ describe('AllocationBar day-mode resize interactions', () => {
         st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
       );
       const r = await requireCreated(
-        st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+        st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
       );
       // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
       // day would need 48h/day, clamped to 24, so half the volume is lost (the user must be told).
@@ -162,7 +162,7 @@ describe('AllocationBar day-mode resize interactions', () => {
         st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id }),
       );
       const r = await requireCreated(
-        st.addResource(makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#3' })),
+        st.addResource(makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#3' })),
       );
 
       const a = requireCreated(

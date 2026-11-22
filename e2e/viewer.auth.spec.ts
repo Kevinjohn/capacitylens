@@ -78,7 +78,7 @@ async function createViewerScenario(request: APIRequestContext) {
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Viewer-visible person',
-    role: 'Designer',
+    jobTitle: 'Designer',
     avatarUrl: VIEWER_AVATAR_URL,
   });
   for (const [who, role] of [
@@ -118,7 +118,7 @@ test('a viewer sees no edit affordances; an editor does; a direct viewer write i
   const currentAccess = page.getByTestId('current-access');
   await expect(currentAccess).toContainText('Viewer');
   await expect(currentAccess.getByText('View the schedule')).toHaveCount(0);
-  await currentAccess.getByTestId('capabilities-toggle').click();
+  await currentAccess.getByTestId('permissions-toggle').click();
   await expect(currentAccess.getByText('View the schedule')).toBeVisible();
   await expect(currentAccess.getByText('Edit scheduling data')).toHaveClass(/text-muted/);
   await expect(page.getByText(/An Owner or Admin manages invitations/)).toBeVisible();

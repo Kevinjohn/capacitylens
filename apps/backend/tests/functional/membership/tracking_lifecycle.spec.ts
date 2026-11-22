@@ -45,7 +45,7 @@ test.group('member sign-in tracking lifecycle', (group) => {
     owner.assertStatus(200);
     const ownerCookie = owner.cookie('adonis-session')!.value;
     const now = new Date().toISOString();
-    await db.table('accounts').insert([
+    await db.table('companies').insert([
       {
         id: 'a-studio',
         name: 'Wayne Enterprises',

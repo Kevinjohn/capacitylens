@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { seed } from './seed.js';
-import { buildCompanyExport, prepareCompanyImport } from './companyDocument.js';
-import type { CompanyExportDocument } from './companyDocument.js';
+import { buildCompanyExport, prepareCompanyImport } from './companyExport.js';
+import type { CompanyExport } from './companyExport.js';
 
 // A value that exists only in the shared lists below. Import validation must accept it, which it
 // can only do by reading the shared list rather than a copy of its values.
@@ -32,10 +32,10 @@ function firstRow<T>(
   return row as Record<string, unknown>;
 }
 
-const cases: [string, (doc: CompanyExportDocument) => Record<string, unknown>][] = [
-  ['accounts.schedulingMode', (doc) => firstRow(doc.data.accounts)],
-  ['accounts.capacityOverviewAccess', (doc) => firstRow(doc.data.accounts)],
-  ['accounts.dateStyle', (doc) => firstRow(doc.data.accounts)],
+const cases: [string, (doc: CompanyExport) => Record<string, unknown>][] = [
+  ['companies.schedulingMode', (doc) => firstRow(doc.data.companies)],
+  ['companies.capacityOverviewAccess', (doc) => firstRow(doc.data.companies)],
+  ['companies.dateStyle', (doc) => firstRow(doc.data.companies)],
   ['resources.employmentType', (doc) => firstRow(doc.data.resources, (r) => r.kind === 'person')],
   ['resources.engagement', (doc) => firstRow(doc.data.resources, (r) => r.kind === 'person')],
   ['allocations.status', (doc) => firstRow(doc.data.allocations)],

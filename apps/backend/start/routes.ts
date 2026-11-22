@@ -10,7 +10,7 @@ import { registerMasqueradeRoutes } from '#start/masquerade_routes';
 import { registerOwnershipRoutes } from '#start/ownership_routes';
 import { registerPlanningRoutes } from '#start/planning_routes';
 import { registerCompanyRoutes } from '#start/company_routes';
-import { registerTransferRoutes } from '#start/transfer_routes';
+import { registerImportRoutes } from '#start/import_routes';
 import { registerExportRoutes } from '#start/export_routes';
 import { registerAnonymiseRoutes } from '#start/anonymise_routes';
 import { registerExampleDataRoutes } from '#start/example_data_routes';
@@ -33,7 +33,7 @@ router
   .group(() => {
     registerPlanningRoutes();
     registerCompanyRoutes();
-    registerTransferRoutes();
+    registerImportRoutes();
     registerExportRoutes();
     registerAnonymiseRoutes();
     registerExampleDataRoutes();

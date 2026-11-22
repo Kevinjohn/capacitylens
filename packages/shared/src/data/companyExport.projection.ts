@@ -1,20 +1,20 @@
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import type { AppData } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
-import { fail, hasOwn } from './companyDocument.errors.js';
-import { FIELDS } from './companyDocument.fields.js';
-import type { Row } from './companyDocument.fields.js';
+import { fail, hasOwn } from './companyExport.errors.js';
+import { FIELDS } from './companyExport.fields.js';
+import type { Row } from './companyExport.fields.js';
 
-/** Copy only the named portable fields for one already scoped account. */
-export function projectCompanyData(data: AppData, accountId: string): AppData {
+/** Copy only the named portable fields for one already scoped company. */
+export function projectCompanyData(data: AppData, companyId: string): AppData {
   const projected = {} as AppData;
   for (const key of APP_DATA_KEYS) {
     const source = data[key] as unknown[];
     if (!Array.isArray(source)) fail(`data.${key}`, 'must be a list');
     const selected =
-      key === 'accounts'
-        ? source.filter((row): row is Row => isRecord(row) && row.id === accountId)
-        : source.filter((row): row is Row => isRecord(row) && row.accountId === accountId);
+      key === 'companies'
+        ? source.filter((row): row is Row => isRecord(row) && row.id === companyId)
+        : source.filter((row): row is Row => isRecord(row) && row.companyId === companyId);
     (projected as unknown as Record<string, unknown>)[key] = selected.map((input) => {
       const copy: Row = {};
       for (const field of FIELDS[key] as readonly string[]) {

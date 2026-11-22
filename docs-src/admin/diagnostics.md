@@ -25,15 +25,15 @@ The page shows exactly the text that is copied:
 
 - the app version, build revision, deployment mode and export schema;
 - server connectivity, database status, the latest schema migration and the creation time
-  recorded in the newest backup bundle, as observed when the page opened (**Snapshot observed**);
+  recorded in the newest backup bundle, as observed when the page opened (**Observed at**);
 - the browser's viewport, time zone and language. The user-agent field is always **Unknown**.
 
-A value the page cannot read shows **Unknown** or **unavailable**. The newest snapshot time is
-**Unknown** when it cannot be read or no snapshot is found. This recorded time does not establish that
+A value the page cannot read shows **Unknown** or **unavailable**. The newest backup time is
+**Unknown** when it cannot be read or no backup is found. This recorded time does not establish that
 a backup completed successfully, is intact or can be restored. If the build provides a revision or feedback address,
 **Build details** shows it and may include a **Send feedback** link.
 
-Diagnostics does not verify backup health. Operators check service logs and completed snapshots as
+Diagnostics does not verify backup health. Operators check service logs and completed backups as
 described in [Backups and restore](/self-hosting/backups-and-restore).
 
 The report is a snapshot: reopen the page to check the server again.

@@ -4,7 +4,7 @@ import { openApp } from './browserTestKit';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
 
 const COMPANY_ID = 'a-studio';

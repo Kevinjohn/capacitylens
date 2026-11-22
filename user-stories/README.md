@@ -86,16 +86,16 @@ status definitions. Guide and implementation links live with each story; tests r
 
 ## Data
 
-| Story                                                   | Action                                    | Status  |
-| ------------------------------------------------------- | ----------------------------------------- | ------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Current |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Current |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Current |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Current |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Current |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data            | Demo    |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Current |
-| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Current |
+| Story                                                   | Action                                             | Status  |
+| ------------------------------------------------------- | -------------------------------------------------- | ------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                                | Current |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data                   | Current |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history            | Current |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files                        | Current |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload                   | Current |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable demo data                       | Demo    |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in export and import | Current |
+| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation                 | Current |
 
 ## Disciplines
 
@@ -140,11 +140,11 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                | Current |
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                 | Current |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen             | Current |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application               | Current |
+| [US-NAV-10](navigation/US-NAV-10-sign-in-screen.md)            | Enter the persisted application               | Current |
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Current |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Current |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Current |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Current |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognise action meaning and product identity | Current |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Current |
 | [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Current |
 | [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Removed |

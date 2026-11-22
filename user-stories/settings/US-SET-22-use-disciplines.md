@@ -10,9 +10,9 @@ As a company Editor, I want to enable disciplines so that people can be grouped 
 
 ## Acceptance criteria
 
-| Field           | Control | Required/default/conditions                                                          |
-| --------------- | ------- | ------------------------------------------------------------------------------------ |
-| Use disciplines | Switch  | Company-wide; Off in a new company; on in the sample demo. Hiding preserves records. |
+| Field           | Control | Required/default/conditions                                                   |
+| --------------- | ------- | ----------------------------------------------------------------------------- |
+| Use disciplines | Switch  | Company-wide; Off in a new company; on in the demo. Hiding preserves records. |
 
 ## User flow
 

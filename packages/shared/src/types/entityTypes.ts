@@ -51,7 +51,7 @@ export const RESOURCE_KINDS = ['person', 'placeholder', 'external'] as const;
  * - `external`: an outsourced external-party company. Can be assigned activities, but has no
  *   hours/capacity/utilisation and is excluded from all capacity math; it renders in its own
  *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
- *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
+ *   `jobTitle` (optional descriptor); its `workingHoursPerDay`/`workingDays`/`halfDays` are unused silent
  *   defaults. See the external-resource rule in DECISIONS.md.
  */
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];
@@ -68,14 +68,14 @@ export const TIME_OFF_TYPES = ['holiday', 'sick', 'unpaid', 'other'] as const;
 /** The reason for a time-off entry. */
 export type TimeOffType = (typeof TIME_OFF_TYPES)[number];
 /** Every activity kind, in the order validation lists them. */
-export const ACTIVITY_KINDS = ['project', 'internal', 'repeatable'] as const;
+export const ACTIVITY_KINDS = ['project', 'internal', 'allProjects'] as const;
 /**
  * What an activity is, the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`: project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
  * - `internal`: project-less internal work (Admin, internal review/meeting).
- * - `repeatable`: all-projects: project-less activity used across many projects (Design, Workshop).
+ * - `allProjects`: project-less activity used across many projects (Design, Workshop).
  * Coherence (enforced in assertScopedRefs and validated on import): `project` has a `projectId`;
- * `internal`/`repeatable` have neither `projectId` nor `phaseId`.
+ * `internal`/`allProjects` have neither `projectId` nor `phaseId`.
  */
 export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
 
@@ -144,12 +144,12 @@ export interface Discipline extends ScopedEntity {
 /** A schedulable resource: a person, a placeholder or an external supplier. */
 export interface Resource extends ScopedEntity {
   kind: ResourceKind;
-  /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
+  /** Optional: placeholders may be nameless (shown by `jobTitle`). For `external` this holds the
    * company name (the External form requires it). */
   name: string | null;
   /** e.g. "Senior Designer", the label used for nameless placeholders; an `external`'s
    * optional descriptor (e.g. "Print", "Overflow dev"). */
-  role: string;
+  jobTitle: string;
   /** Optional externally hosted avatar for people. Must be an absolute HTTPS URL without credentials. */
   avatarUrl: string | null;
   disciplineId: ID | null;
@@ -236,7 +236,7 @@ export interface Activity extends ScopedEntity {
    * discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
   kind: ActivityKind;
   /** Set only for `kind: 'project'`, the project this activity belongs to. Internal and
-   * all-projects (`repeatable`) activities are project-less at the activity level; repeatable
+   * `allProjects` activities are project-less at the activity level; all-projects
    * allocations may carry their own project attribution. */
   projectId: ID | null;
   phaseId: ID | null;
@@ -250,7 +250,7 @@ export interface Activity extends ScopedEntity {
 export interface Allocation extends ScopedEntity {
   resourceId: ID;
   activityId: ID;
-  /** Set only for `repeatable`-activity allocations to attribute this booking to a project.
+  /** Set only for `allProjects`-activity allocations to attribute this booking to a project.
    * Null means unattributed; `project` and `internal` activities must not carry it. */
   projectId: ID | null;
   /** System-owned identity shared by allocations created in one repeat batch. Null = one-off. */
@@ -289,7 +289,7 @@ export interface Closure extends ScopedEntity {
 
 /** Every portable table, as held in memory and exported. */
 export interface AppData {
-  accounts: Company[];
+  companies: Company[];
   disciplines: Discipline[];
   resources: Resource[];
   clients: Client[];

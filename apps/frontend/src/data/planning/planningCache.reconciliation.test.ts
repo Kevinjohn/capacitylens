@@ -33,7 +33,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -42,7 +42,7 @@ describe('planning cache', () => {
     const write = h.cache.execute(draft, intent);
     await h.readSnapshot({
       revision: 2,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -53,7 +53,7 @@ describe('planning cache', () => {
     expect(h.state().planning.history.canUndo).toBe(true);
     await h.readSnapshot({
       revision: 3,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -65,41 +65,41 @@ describe('planning cache', () => {
     {},
     {
       revision: 2,
-      authority: makePlanningAccess(),
-      data: { ...createEmptyAppData(), accounts: [{ id: 'other-company' }] },
+      access: makePlanningAccess(),
+      data: { ...createEmptyAppData(), companies: [{ id: 'other-company' }] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 3,
-      data: { ...createEmptyAppData(), accounts: [{ id: 'company-1', name: 'Unverified' }] },
+      data: { ...createEmptyAppData(), companies: [{ id: 'company-1', name: 'Unverified' }] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 4,
-      authority: makePlanningAccess(),
-      data: { ...makeCanonicalData(), accounts: [] },
+      access: makePlanningAccess(),
+      data: { ...makeCanonicalData(), companies: [] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 5,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: {
         ...makeCanonicalData(),
-        accounts: [...makeCanonicalData().accounts, ...makeCanonicalData().accounts],
+        companies: [...makeCanonicalData().companies, ...makeCanonicalData().companies],
       },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 6,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: '2026-02-30',
     },
-    { revision: 7, authority: makePlanningAccess(), data: makeCanonicalData() },
+    { revision: 7, access: makePlanningAccess(), data: makeCanonicalData() },
   ])('surfaces invalid canonical reads instead of remaining loading: %j', async (snapshot) => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue(snapshot as PlanningSnapshot);
     const h = createHarness({ execute: vi.fn(), read });
@@ -108,7 +108,7 @@ describe('planning cache', () => {
     expect(h.state().planning.phase.kind).toBe('failed');
     expect(readPlanningError(h.state().planning.phase)).toBeInstanceOf(Error);
     expect(h.state().data).toEqual(createEmptyAppData());
-    expect(h.state().planning.authority).toBeNull();
+    expect(h.state().planning.access).toBeNull();
     expect(h.state().planning.history.canUndo).toBe(false);
     expect(() => h.cache.begin()).toThrow(/read-only/);
   });

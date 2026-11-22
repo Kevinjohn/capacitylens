@@ -5,7 +5,7 @@ As a signed-in person with an unconfirmed address, I want to confirm my email so
 **Status:** Current
 **Access:** Signed-in person at the email-confirmation gate; a valid emailed confirmation link is required to complete confirmation.
 **Entry:** Account access → Email me a confirmation link; emailed link
-**Documentation:** [Sign-in and access](../../docs-src/company-login/index.md)
+**Documentation:** [Sign-in and access](../../docs-src/sign-in/index.md)
 **Source:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx); [VerifyEmail.tsx](../../apps/frontend/src/auth/VerifyEmail.tsx); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria

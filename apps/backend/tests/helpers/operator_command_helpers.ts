@@ -54,7 +54,7 @@ export function operatorFixture() {
 export function insertOwner(database: DatabaseSync) {
   const now = new Date().toISOString();
   database
-    .prepare('INSERT INTO accounts (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
+    .prepare('INSERT INTO companies (id,name,color,created_at,updated_at) VALUES (?,?,?,?,?)')
     .run('a-studio', 'Wayne Enterprises', '#6366f1', now, now);
   database
     .prepare(

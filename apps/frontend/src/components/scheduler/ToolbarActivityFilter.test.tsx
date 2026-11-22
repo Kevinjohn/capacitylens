@@ -4,14 +4,14 @@ import { makeActivity } from '@/test/fixtures';
 import { ToolbarActivityFilter } from './ToolbarActivityFilter';
 
 const admin = makeActivity({ id: 'act-admin', name: 'Admin', kind: 'internal' });
-const design = makeActivity({ id: 'act-design', name: 'Design', kind: 'repeatable' });
+const design = makeActivity({ id: 'act-design', name: 'Design', kind: 'allProjects' });
 
 function renderFilter(props: Partial<React.ComponentProps<typeof ToolbarActivityFilter>> = {}) {
   const onChange = vi.fn();
   render(
     <ToolbarActivityFilter
       internalActivities={[admin]}
-      repeatableActivities={[design]}
+      allProjectsActivities={[design]}
       activityId={null}
       activityKind={null}
       onChange={onChange}
@@ -55,8 +55,8 @@ describe('ToolbarActivityFilter', () => {
     expect(onChange).toHaveBeenCalledWith({ activityId: null, activityKind: null });
   });
 
-  it('displays "All projects — All" for the repeatable activity group', () => {
-    renderFilter({ activityKind: 'repeatable' });
+  it('displays "All projects — All" for the all-projects activity group', () => {
+    renderFilter({ activityKind: 'allProjects' });
 
     expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
       'All projects — All',
@@ -79,7 +79,7 @@ describe('ToolbarActivityFilter', () => {
   });
 
   it('keeps an archived activity selection visible when no activities remain', () => {
-    renderFilter({ activityId: 'act-archived', internalActivities: [], repeatableActivities: [] });
+    renderFilter({ activityId: 'act-archived', internalActivities: [], allProjectsActivities: [] });
 
     expect(screen.getByRole('combobox', { name: 'Filter by activity' })).toHaveTextContent(
       'Unavailable activity',

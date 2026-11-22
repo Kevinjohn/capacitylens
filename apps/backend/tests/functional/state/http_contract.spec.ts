@@ -50,7 +50,7 @@ test.group('HTTP contract', (group) => {
     const scoped = await client.visit('api.company_state.show').qs({ companyId: 'a-studio' });
     assert.equal(scoped.status(), 200);
     assert.deepEqual(
-      scoped.body().data.accounts.map(({ id }: { id: string }) => id),
+      scoped.body().data.companies.map(({ id }: { id: string }) => id),
       ['a-studio']
     );
     for (const key of [
@@ -195,7 +195,7 @@ test.group('HTTP contract', (group) => {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: null },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
     } finally {

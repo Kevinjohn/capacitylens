@@ -3,7 +3,7 @@
 As a company member, I want saved server changes to persist after reload so that committed work remains available.
 
 **Status:** Current
-**Access:** Any authorized company member
+**Access:** Any authorised company member
 **Entry:** Any saved planning edit
 **Documentation:** [Settings](../../docs-src/using/settings.md#connection-errors)
 **Source:** [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

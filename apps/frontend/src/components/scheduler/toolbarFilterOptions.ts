@@ -50,8 +50,8 @@ export function buildFilterOptions(
     internalActivities: data.activities
       .filter((activity) => activity.kind === 'internal')
       .sort(byName),
-    repeatableActivities: data.activities
-      .filter((activity) => activity.kind === 'repeatable')
+    allProjectsActivities: data.activities
+      .filter((activity) => activity.kind === 'allProjects')
       .sort(byName),
   };
 }

@@ -88,7 +88,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Every undo and redo request, in order, including refused ones. */
   readonly historySteps: Array<'undo' | 'redo'> = [];
   private data = createEmptyAppData();
-  private authority = makePlanningAccess();
+  private access = makePlanningAccess();
   private today: ISODate | null = null;
   private capacity: CapacitySection | null = null;
   /** The capacity window each read asked for; undefined for a read that asked for the default. */
@@ -101,7 +101,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** Replace the test's loaded rows and discard earlier calls and responses. */
   reset(companyId: string, data: AppData): void {
     this.data = structuredClone(data);
-    this.authority = makePlanningAccess();
+    this.access = makePlanningAccess();
     this.today = null;
     this.capacity = null;
     this.readWindows.length = 0;
@@ -152,9 +152,9 @@ export class StubPlanningTransport implements PlanningTransport {
     this.queued.push({ kind: 'error', error });
   }
 
-  /** Set the canonical authority returned by subsequent reads: an Owner who can write, with these overrides. */
+  /** Set the canonical access returned by subsequent reads: an Owner who can write, with these overrides. */
   setAccess(overrides: Partial<PlanningAccess>): void {
-    this.authority = makePlanningAccess(overrides);
+    this.access = makePlanningAccess(overrides);
   }
 
   /** Set the company date returned by subsequent reads, in place of the one read from the clock. */
@@ -170,7 +170,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** The company date a read returns: the set value, or the clock's date in the company's zone. */
   todayFor(companyId: string): ISODate {
     if (this.today !== null) return this.today;
-    const company = this.data.accounts.find((row) => row.id === companyId);
+    const company = this.data.companies.find((row) => row.id === companyId);
     return resolveCalendarToday(company?.timezone ?? 'Etc/GMT').date;
   }
 
@@ -191,17 +191,17 @@ export class StubPlanningTransport implements PlanningTransport {
     const history = this.history(context.companyId).model.report(historyId, revision);
     const base = {
       revision,
-      authority: this.authority,
+      access: this.access,
       today: this.todayFor(context.companyId),
       capacity: this.capacity ?? emptyCapacity(window),
       history: {
-        canUndo: this.authority.canWrite && history.canUndo,
-        canRedo: this.authority.canWrite && history.canRedo,
+        canUndo: this.access.canWrite && history.canUndo,
+        canRedo: this.access.canWrite && history.canRedo,
       },
     };
     return ifRevision === revision
-      ? { ...base, slice: 'unchanged' }
-      : { ...base, slice: 'full', data: this.companyRows(context.companyId) };
+      ? { ...base, content: 'unchanged' }
+      : { ...base, content: 'full', data: this.companyRows(context.companyId) };
   }
 
   async execute(
@@ -341,7 +341,7 @@ export class StubPlanningTransport implements PlanningTransport {
     const data = createEmptyAppData();
     for (const entity of APP_DATA_KEYS) {
       const rows = this.rows(entity).filter((row) =>
-        entity === 'accounts' ? row.id === companyId : row.companyId === companyId,
+        entity === 'companies' ? row.id === companyId : row.companyId === companyId,
       );
       Object.assign(data, { [entity]: structuredClone(rows) });
     }
@@ -351,7 +351,7 @@ export class StubPlanningTransport implements PlanningTransport {
   private replaceCompanyRows(companyId: string, rows: AppData, kind: 'undo' | 'redo'): void {
     for (const entity of APP_DATA_KEYS) {
       const inCompany = (row: Row) =>
-        entity === 'accounts' ? row.id === companyId : row.companyId === companyId;
+        entity === 'companies' ? row.id === companyId : row.companyId === companyId;
       const others = this.rows(entity).filter((row) => !inCompany(row));
       const restored = structuredClone(rows[entity]) as unknown as Row[];
       const restoredIds = new Set(restored.map((row) => row.id));
@@ -400,7 +400,7 @@ export class StubPlanningTransport implements PlanningTransport {
         updatedAt: now,
         ...fields,
         id,
-        ...(entity === 'accounts' ? {} : { companyId }),
+        ...(entity === 'companies' ? {} : { companyId }),
       } as Row;
       this.replaceRows(entity, [...this.rows(entity).filter((current) => current.id !== id), row]);
     };
@@ -434,7 +434,7 @@ export class StubPlanningTransport implements PlanningTransport {
           Allocation | undefined;
         const target = this.rows('resources').find((row) => row.id === resourceId) as
           Resource | undefined;
-        const company = this.rows('accounts').find((row) => row.id === companyId) as
+        const company = this.rows('companies').find((row) => row.id === companyId) as
           Company | undefined;
         if (!existing || !target || !company) {
           throw new Error('stub: load the allocation, target and company before reassigning');
@@ -475,7 +475,7 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'catalogue.archive':
         update(intent.entity.entity, intent.entity.id, { archivedAt: new Date().toISOString() });
         break;
-      case 'catalogue.unarchive':
+      case 'catalogue.restore':
         update(intent.entity.entity, intent.entity.id, { archivedAt: null });
         break;
       case 'resource.create':
@@ -487,7 +487,7 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'resource.archive':
         update('resources', intent.id, { archivedAt: new Date().toISOString() });
         break;
-      case 'resource.unarchive':
+      case 'resource.restore':
         update('resources', intent.id, { archivedAt: null });
         break;
       case 'timeOff.create':
@@ -507,7 +507,7 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'closure.delete':
         return remove('closures', intent.id);
       case 'settings.update':
-        update('accounts', companyId, intent.changes);
+        update('companies', companyId, intent.changes);
         break;
       case 'allocation.createGroup':
       case 'allocation.deleteGroup':

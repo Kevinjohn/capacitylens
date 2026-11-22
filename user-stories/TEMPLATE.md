@@ -120,4 +120,4 @@ action. Keep both diagrams in these stories; navigation and read-only actions do
   The code diagram shows the actual missing entry point and any retained support; it must
   not imply an unavailable journey currently executes.
 - Check Mermaid syntax and representative rendering when changing diagrams. Syntax checks do
-  not establish behavioral correctness; reconcile labels and branches against source.
+  not establish behavioural correctness; reconcile labels and branches against source.

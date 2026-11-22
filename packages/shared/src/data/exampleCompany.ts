@@ -5,7 +5,7 @@ import { addDaysISO, startOfWeekISO } from '../lib/dateMath.js';
 
 // One small company's worth of rows a new owner can add to an empty company: just enough to see a
 // schedule working (two people, a client, a project, a few bookings) and small enough to read at a
-// glance. Rows are ordinary rows with fresh ids; nothing marks them as sample data, so deleting them
+// glance. Rows are ordinary rows with fresh ids; nothing marks them as example data, so deleting them
 // leaves no trace. Names follow the comic-book rule for invented people (DC universe).
 
 /**
@@ -66,7 +66,11 @@ function buildDisciplines(stamp: Stamp) {
 }
 
 // A person inherits their discipline colour so example data obeys the same rule as ordinary resource writes.
-function buildPerson(stamp: Stamp, discipline: Discipline, who: { name: string; role: string }) {
+function buildPerson(
+  stamp: Stamp,
+  discipline: Discipline,
+  who: { name: string; jobTitle: string },
+) {
   return {
     ...NULLABLE_FIELDS.resources,
     id: createId(),
@@ -193,8 +197,11 @@ export function buildExampleCompany({
   const buildWorkday = (n: number): ISODate => addDaysISO(monday, n + 2 * Math.floor(n / 5));
   const stamp = { companyId, createdAt: now, updatedAt: now };
   const { design, development } = buildDisciplines(stamp);
-  const dick = buildPerson(stamp, design, { name: 'Dick Grayson', role: 'Designer' });
-  const barbara = buildPerson(stamp, development, { name: 'Barbara Gordon', role: 'Developer' });
+  const dick = buildPerson(stamp, design, { name: 'Dick Grayson', jobTitle: 'Designer' });
+  const barbara = buildPerson(stamp, development, {
+    name: 'Barbara Gordon',
+    jobTitle: 'Developer',
+  });
   const work = buildWork(stamp);
 
   return {

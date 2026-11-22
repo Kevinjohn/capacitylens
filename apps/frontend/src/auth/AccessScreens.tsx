@@ -81,7 +81,7 @@ function useStep() {
       await action();
     } catch (failure) {
       console.warn('AccessScreen: request failed', failure);
-      setError(m.login_network_error());
+      setError(m.sign_in_network_error());
     } finally {
       setBusy(false);
     }

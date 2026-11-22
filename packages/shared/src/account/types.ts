@@ -5,10 +5,10 @@
  * pulling in a framework, the database or React.
  */
 
-/** Opaque company (workspace) identifier. */
-export type WorkspaceId = string;
-/** Opaque identity-global principal (user) identifier. */
-export type PrincipalId = string;
+/** Opaque company identifier. */
+export type CompanyId = string;
+/** Opaque identity-global user identifier. */
+export type UserId = string;
 /** Canonical UTC instant produced by `Date#toISOString()`, including exactly three millisecond
  * digits and a trailing `Z` (for example `2026-07-18T10:00:00.000Z`). */
 export type IsoInstant = string;
@@ -31,7 +31,7 @@ export function isRole(value: unknown): value is Role {
 }
 /**
  * The lifecycle state of one membership, as the Access Control package stores it. Only `'active'`
- * confers authority; a `'suspended'` membership keeps its role and blocks entry until restored.
+ * confers access; a `'suspended'` membership keeps its role and blocks entry until restored.
  */
 export const MEMBERSHIP_STATUSES = Object.freeze(['active', 'suspended'] as const);
 /** A membership lifecycle state; see {@link MEMBERSHIP_STATUSES}. */

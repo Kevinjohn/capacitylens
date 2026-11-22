@@ -5,7 +5,7 @@ As a signed-in person who cannot yet open company data, I want to see and comple
 **Status:** Current
 **Access:** Signed-in person at an admission or membership gate.
 **Entry:** Account access screen
-**Documentation:** [Sign-in and access](../../docs-src/company-login/index.md)
+**Documentation:** [Sign-in and access](../../docs-src/sign-in/index.md)
 **Source:** [AccessScreens.tsx](../../apps/frontend/src/auth/AccessScreens.tsx); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria

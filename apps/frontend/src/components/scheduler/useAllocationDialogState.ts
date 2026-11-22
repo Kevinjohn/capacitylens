@@ -42,7 +42,7 @@ function useAllocationStoreActions() {
 function useSchedulingContext() {
   const mode = useStore((state) => resolveSchedulingMode(state.data, state.activeCompanyId));
   const activeCompany = useStore((state) =>
-    state.data.accounts.find((company) => company.id === state.activeCompanyId),
+    state.data.companies.find((company) => company.id === state.activeCompanyId),
   );
   const companyWorkingDays = useMemo(
     () => normalizeCompanyWorkingDays(activeCompany?.workingDays, activeCompany?.weekStartsOn ?? 1),

@@ -49,7 +49,7 @@ Doing all of it yourself? Small agencies often do.
 [The quick start](/getting-started/quick-start) covers installation, browser company setup and the first booking.
 
 Want a look first? Watch the walkthrough above. If you are comfortable with a terminal,
-[try the demo](/getting-started/try-the-demo) on your own computer with sample data: it needs the
+[try the demo](/getting-started/try-the-demo) on your own computer with demo data: it needs the
 developer tools Node and git, and runs a disposable local server with a printed sign-in.
 
 ## How setup fits together

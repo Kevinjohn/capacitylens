@@ -56,7 +56,7 @@ describe('MembersSection — self-gate', () => {
           resolveNextMembers = resolve;
         });
       }
-      if (target.endsWith('/invites') && isRead) {
+      if (target.endsWith('/invitations') && isRead) {
         return jsonResponse({ data: { invites: [] } });
       }
       throw new Error(`Unexpected request: ${target}`);
@@ -135,7 +135,7 @@ describe('MembersSection — self-gate', () => {
     vi.stubGlobal(
       'fetch',
       mockApi([{ userId: 'me', role: 'owner', isSelf: true }], {
-        'GET /invites': () => jsonResponse({}, 503),
+        'GET /invitations': () => jsonResponse({}, 503),
       }),
     );
     renderSection();
@@ -206,7 +206,7 @@ describe('MembersSection — directory error retention', () => {
             },
           });
         }
-        if (url.endsWith('/invites')) return jsonResponse({ data: { invites: [] } });
+        if (url.endsWith('/invitations')) return jsonResponse({ data: { invites: [] } });
         return new Response(null, { status: 204 });
       }),
     );

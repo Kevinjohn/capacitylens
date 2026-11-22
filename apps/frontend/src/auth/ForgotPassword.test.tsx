@@ -13,11 +13,11 @@ describe('ForgotPassword', () => {
       vi.stubGlobal('fetch', fetch);
       render(<ForgotPassword />);
 
-      fireEvent.click(screen.getByRole('button', { name: m.login_forgot_password() }));
+      fireEvent.click(screen.getByRole('button', { name: m.sign_in_forgot_password() }));
       const email =
         invalidKind === 'malformed address' ? 'not-an-address' : `${'é'.repeat(124)}@x.test`;
-      fireEvent.change(screen.getByLabelText(m.login_email()), { target: { value: email } });
-      fireEvent.click(screen.getByRole('button', { name: m.login_send_reset_link() }));
+      fireEvent.change(screen.getByLabelText(m.sign_in_email()), { target: { value: email } });
+      fireEvent.click(screen.getByRole('button', { name: m.sign_in_send_reset_link() }));
 
       expect(screen.getByRole('alert')).toHaveTextContent(m.identity_err_email());
       expect(fetch).not.toHaveBeenCalled();
@@ -30,16 +30,16 @@ describe('ForgotPassword', () => {
     vi.stubGlobal('fetch', fetch);
     render(<ForgotPassword />);
 
-    fireEvent.click(screen.getByRole('button', { name: m.login_forgot_password() }));
-    fireEvent.change(screen.getByLabelText(m.login_email()), {
+    fireEvent.click(screen.getByRole('button', { name: m.sign_in_forgot_password() }));
+    fireEvent.change(screen.getByLabelText(m.sign_in_email()), {
       target: { value: '  Owner@Example.com  ' },
     });
-    fireEvent.click(screen.getByRole('button', { name: m.login_send_reset_link() }));
+    fireEvent.click(screen.getByRole('button', { name: m.sign_in_send_reset_link() }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
     const [, request] = fetch.mock.calls[0] as unknown as [RequestInfo | URL, RequestInit];
     expect(JSON.parse(String(request.body))).toEqual({ email: 'owner@example.com' });
-    expect(await screen.findByRole('status')).toHaveTextContent(m.login_reset_confirmation());
+    expect(await screen.findByRole('status')).toHaveTextContent(m.sign_in_reset_confirmation());
   });
 
   it('shows recovery-specific feedback when the reset request is rejected', async () => {
@@ -49,13 +49,13 @@ describe('ForgotPassword', () => {
     vi.stubGlobal('fetch', fetch);
     render(<ForgotPassword />);
 
-    fireEvent.click(screen.getByRole('button', { name: m.login_forgot_password() }));
-    fireEvent.change(screen.getByLabelText(m.login_email()), {
+    fireEvent.click(screen.getByRole('button', { name: m.sign_in_forgot_password() }));
+    fireEvent.change(screen.getByLabelText(m.sign_in_email()), {
       target: { value: 'bruce@example.test' },
     });
-    fireEvent.click(screen.getByRole('button', { name: m.login_send_reset_link() }));
+    fireEvent.click(screen.getByRole('button', { name: m.sign_in_send_reset_link() }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(m.login_reset_request_failed());
+    expect(await screen.findByRole('alert')).toHaveTextContent(m.sign_in_reset_request_failed());
     expect(screen.getByRole('alert')).not.toHaveTextContent('Private server detail.');
   });
 });

@@ -1,6 +1,6 @@
 // `@kevinjohn/adonisjs-confirm-action-with-password` 0.2.1, used with exactly Account Kit 0.4.1,
 // owns issuance, credential/session/request binding, expiry and transactional consumption. Product
-// code owns live company authority and the response contract; its pre-flight and transactional
+// code owns live company access and the response contract; its pre-flight and transactional
 // rules require a confirmed email, admission, a live Owner and no view-as mode. Credential writes
 // remain Account Kit-owned.
 
@@ -39,7 +39,7 @@ export function refuseWhileViewing(actor: CurrentActor) {
   if (actor.masqueradeContext?.isMasquerading) throw new PasswordConfirmationException();
 }
 
-/** Resolves live authority for a password confirmation request or spend inside `withActor`. */
+/** Resolves live access for a password confirmation request or spend inside `withActor`. */
 export async function requirePasswordConfirmationActor(
   companyId: string,
   trx: TransactionClientContract,
@@ -49,7 +49,7 @@ export async function requirePasswordConfirmationActor(
   refuseWhileViewing(actor);
   // The company id arrives in a request body with no length bound, and the membership lookup
   // rejects an overlong id as a fault. This probe turns any unknown id into the proof refusal.
-  if (!(await trx.from('accounts').where('id', companyId).select('id').first())) {
+  if (!(await trx.from('companies').where('id', companyId).select('id').first())) {
     throw new PasswordConfirmationException();
   }
   if (!canConfirmPassword(await getActiveCompanyRole(actor.userId, companyId, trx), kind)) {

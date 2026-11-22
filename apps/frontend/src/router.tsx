@@ -70,7 +70,9 @@ const HelpView = lazy(() =>
 // Keep invite acceptance outside the company gate so a new identity can inspect and
 // accept an invitation before selecting a company. Load its route only when opened.
 const InviteAccept = lazy(() =>
-  import('./components/invites/InviteAccept').then((module) => ({ default: module.InviteAccept })),
+  import('./components/invitations/InviteAccept').then((module) => ({
+    default: module.InviteAccept,
+  })),
 );
 const VerifyEmail = lazy(() =>
   import('./auth/VerifyEmail').then((module) => ({ default: module.VerifyEmail })),

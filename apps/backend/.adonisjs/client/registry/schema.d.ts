@@ -114,12 +114,12 @@ export interface Registry {
   }
   'api.import_previews.store': {
     methods: ["POST"]
-    pattern: '/api/transfer/preview'
+    pattern: '/api/import/preview'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/import').previewImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').previewImportValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/import').previewImportValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/import_previews_controller').default['store']>>>
@@ -127,12 +127,12 @@ export interface Registry {
   }
   'api.imports.store': {
     methods: ["POST"]
-    pattern: '/api/transfer/apply'
+    pattern: '/api/import/apply'
     types: {
-      body: ExtractBody<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
+      body: ExtractBody<InferInput<(typeof import('#validators/import').applyImportValidator)>>
       paramsTuple: []
       params: {}
-      query: ExtractQuery<InferInput<(typeof import('#validators/transfer').applyImportValidator)>>
+      query: ExtractQuery<InferInput<(typeof import('#validators/import').applyImportValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
       rawResponse: ExtractRawResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['store']>>>
@@ -452,7 +452,7 @@ export interface Registry {
   }
   'api.invitations.store': {
     methods: ["POST"]
-    pattern: '/api/invites'
+    pattern: '/api/invitations'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').createInvitationValidator)>>
       paramsTuple: []
@@ -465,7 +465,7 @@ export interface Registry {
   }
   'api.invitations.index': {
     methods: ["GET","HEAD"]
-    pattern: '/api/companies/:companyId/invites'
+    pattern: '/api/companies/:companyId/invitations'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -478,7 +478,7 @@ export interface Registry {
   }
   'api.invitation_deliveries.store': {
     methods: ["POST"]
-    pattern: '/api/companies/:companyId/invites/:id/resend'
+    pattern: '/api/companies/:companyId/invitations/:id/resend'
     types: {
       body: {}
       paramsTuple: [ParamValue, ParamValue]
@@ -491,7 +491,7 @@ export interface Registry {
   }
   'api.invitations.destroy': {
     methods: ["DELETE"]
-    pattern: '/api/companies/:companyId/invites/:id'
+    pattern: '/api/companies/:companyId/invitations/:id'
     types: {
       body: {}
       paramsTuple: [ParamValue, ParamValue]
@@ -504,7 +504,7 @@ export interface Registry {
   }
   'api.invitation_links.show': {
     methods: ["GET","HEAD"]
-    pattern: '/api/invites/:token/preview'
+    pattern: '/api/invitations/:token/preview'
     types: {
       body: {}
       paramsTuple: [ParamValue]
@@ -517,7 +517,7 @@ export interface Registry {
   }
   'api.invitation_acceptances.store': {
     methods: ["POST"]
-    pattern: '/api/invites/:token/signup'
+    pattern: '/api/invitations/:token/sign-up'
     types: {
       body: ExtractBody<InferInput<(typeof import('#validators/invitations').acceptInvitationSignUpValidator)>>
       paramsTuple: [ParamValue]

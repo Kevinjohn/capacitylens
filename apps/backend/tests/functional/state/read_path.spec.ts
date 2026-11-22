@@ -51,7 +51,7 @@ test.group('read path', (group) => {
                 connectivity: 'ok',
                 database: { status: 'ok' },
                 schema: { migration: lastMigration?.name ?? null },
-                backup: { newestSnapshotAt: null },
+                backup: { newestBackupAt: null },
               },
             }
           : expected.path.startsWith('/api/state')

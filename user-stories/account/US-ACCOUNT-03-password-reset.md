@@ -4,7 +4,7 @@ As a person with an account, I want to reset a forgotten password so that I can 
 
 **Status:** Current
 **Access:** Anyone can request a link; a person with a valid reset link can set a new password.
-**Entry:** [Sign-in screen](../navigation/US-NAV-10-login-screen.md) → Forgot password?; emailed reset link
+**Entry:** [Sign-in screen](../navigation/US-NAV-10-sign-in-screen.md) → Forgot password?; emailed reset link
 **Documentation:** [Account](../../docs-src/using/account.md)
 **Source:** [ForgotPassword.tsx](../../apps/frontend/src/auth/ForgotPassword.tsx); [ResetPassword.tsx](../../apps/frontend/src/auth/ResetPassword.tsx); [en.json](../../apps/frontend/messages/en.json)
 

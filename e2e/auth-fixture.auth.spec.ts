@@ -52,7 +52,7 @@ test('native company fixtures preserve baseline data and unrelated users across 
       builtin: true,
     }),
   ]);
-  expect(firstState.accounts).toEqual([
+  expect(firstState.companies).toEqual([
     expect.objectContaining({ id: firstId, schedulingMode: 'days' }),
   ]);
 
@@ -68,7 +68,7 @@ test('native company fixtures preserve baseline data and unrelated users across 
     headers: { cookie: second.cookie },
   });
   expect(secondState.status()).toBe(200);
-  expect((await secondState.json()).data.accounts).toEqual([
+  expect((await secondState.json()).data.companies).toEqual([
     expect.objectContaining({ id: secondId }),
   ]);
   const foreignRead = await request.get(`${AUTH_API}/api/state?companyId=${secondId}`, {

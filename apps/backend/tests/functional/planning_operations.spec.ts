@@ -148,7 +148,7 @@ test.group('typed planning writers', (group) => {
       )
     );
     const state = await readState('a-studio', true);
-    const account = state.accounts[0];
+    const account = state.companies[0];
     assert.equal(account?.weekStartsOn, 0);
     assert.equal(account?.timezone, 'Europe/London');
     await assert.rejects(

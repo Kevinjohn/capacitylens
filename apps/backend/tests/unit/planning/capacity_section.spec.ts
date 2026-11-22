@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
 import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
 import { buildCapacityWindow } from '@capacitylens/shared/lib/capacity';
@@ -28,7 +29,7 @@ const stamp = { companyId: COMPANY, createdAt: 't', updatedAt: 't' };
 
 function companyRow(changes: Partial<Company> = {}): Company {
   return {
-    ...NULLABLE_FIELDS.accounts,
+    ...NULLABLE_FIELDS.companies,
     id: COMPANY,
     createdAt: 't',
     updatedAt: 't',
@@ -45,7 +46,7 @@ function resource(id: string, changes: Partial<Resource> = {}): Resource {
     id,
     kind: 'person',
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio',
     workingHoursPerDay: 8,
@@ -56,13 +57,11 @@ function resource(id: string, changes: Partial<Resource> = {}): Resource {
   };
 }
 
-let nextId = 0;
 function allocation(changes: Partial<Allocation> & Pick<Allocation, 'startDate'>): Allocation {
-  nextId += 1;
   return {
     ...NULLABLE_FIELDS.allocations,
     ...stamp,
-    id: `al-${nextId}`,
+    id: `al-${randomUUID()}`,
     resourceId: 'r-diana',
     activityId: 'act-1',
     endDate: changes.startDate,
@@ -90,7 +89,7 @@ function closure(startDate: string, endDate: string): Closure {
 
 function data(rows: Partial<AppData>): AppData {
   return {
-    accounts: [],
+    companies: [],
     clients: [],
     disciplines: [],
     projects: [],
@@ -295,13 +294,13 @@ test.group('capacity section', () => {
   });
 });
 
-test.group('capacity section on the sample company', (group) => {
+test.group('capacity section on the example company', (group) => {
   group.setup(() => freshDatabase());
 
   test('equals the shared straight-line capacity window for every resource', async ({ assert }) => {
     await resetPlanningFixture();
     const stored = buildActiveData(await readState('a-studio', true));
-    const company = stored.accounts[0]!;
+    const company = stored.companies[0]!;
     const today = '2026-06-03';
     const result = buildCapacitySection({ data: stored, company, today });
     const companyWorkingDays: Weekday[] = normalizeCompanyWorkingDays(
@@ -351,9 +350,9 @@ test.group('capacity section on the sample company', (group) => {
       assert.deepEqual(figures(actual.horizon), expected(result.horizon), row.id);
       overDays += window.over.filter(Boolean).length;
     }
-    // The sample company books tentative work, so the confirmed comparison is not all hours again.
+    // The example company books tentative work, so the confirmed comparison is not all hours again.
     assert.isTrue(stored.allocations.some((entry) => entry.status === 'tentative'));
-    // The sample company books someone over capacity, so the comparison covers that case.
+    // The example company books someone over capacity, so the comparison covers that case.
     assert.isAbove(overDays, 0);
   });
 });

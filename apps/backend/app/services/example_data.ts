@@ -29,7 +29,7 @@ export async function addExampleData(
   actorId: string
 ) {
   const state = await readStateWithClient(trx, companyId, true);
-  const company = state.accounts.at(0);
+  const company = state.companies.at(0);
   if (!company) throw new EntityWriteException('Company not found.', 404);
   if (
     state.resources.length > 0 ||

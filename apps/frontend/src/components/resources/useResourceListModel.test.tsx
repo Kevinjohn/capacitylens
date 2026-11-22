@@ -11,7 +11,7 @@ it('presents an unassigned person neutrally while preserving stored blue and dis
   useStore.setState((state) => ({
     data: {
       ...state.data,
-      accounts: state.data.accounts.map((a) => ({ ...a, disciplinesEnabled: true })),
+      companies: state.data.companies.map((a) => ({ ...a, disciplinesEnabled: true })),
       resources: [person, assigned],
       disciplines: [
         {
