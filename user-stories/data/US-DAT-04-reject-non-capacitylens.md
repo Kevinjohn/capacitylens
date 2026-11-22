@@ -34,4 +34,4 @@ flowchart TD
   validate -->|"valid"| preview["ImportPreview shows the summary; apply validates the document again"]
 ```
 
-**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [companyDocument.ts](../../packages/shared/src/data/companyDocument.ts), [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)
+**Code references:** [ImportExport.tsx](../../apps/frontend/src/components/ImportExport.tsx), [usePendingImport.ts](../../apps/frontend/src/components/import-export/usePendingImport.ts), [ImportPreview.tsx](../../apps/frontend/src/components/import-export/ImportPreview.tsx), [companyExport.ts](../../packages/shared/src/data/companyExport.ts), [import_previews_controller.ts](../../apps/backend/app/controllers/import_previews_controller.ts), [company_import.ts](../../apps/backend/app/services/company_import.ts)

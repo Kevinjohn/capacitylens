@@ -13,9 +13,14 @@ const acme = makeResource({
   id: 'ext-acme',
   kind: 'external',
   name: 'Ferris Studio',
-  role: 'Partner',
+  jobTitle: 'Partner',
 });
-const zed = makeResource({ id: 'ext-zed', kind: 'external', name: 'Zed Films', role: 'Partner' });
+const zed = makeResource({
+  id: 'ext-zed',
+  kind: 'external',
+  name: 'Zed Films',
+  jobTitle: 'Partner',
+});
 
 function renderSection(externals = [acme]) {
   const onAdd = vi.fn();

@@ -32,7 +32,7 @@ const render = (ui: Parameters<typeof renderTestingLibrary>[0]) =>
 const resourceDraft = {
   kind: 'person' as const,
   name: 'Alice',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,
@@ -43,7 +43,7 @@ const resourceDraft = {
 
 const placeholderDraft = {
   kind: 'placeholder' as const,
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent' as const,
   engagement: 'studio' as const,
   workingHoursPerDay: 8,

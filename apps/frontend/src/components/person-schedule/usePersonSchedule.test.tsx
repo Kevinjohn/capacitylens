@@ -186,12 +186,12 @@ describe('usePersonSchedule permissions and identity', () => {
 });
 
 describe('usePersonSchedule authorized projection', () => {
-  it('includes placeholder role and discipline context when the row feature is enabled', () => {
+  it('includes placeholder job title and discipline context when the row feature is enabled', () => {
     const placeholder = withoutName(
       makeResource({
         ...resource,
         kind: 'placeholder',
-        role: 'Designer',
+        jobTitle: 'Designer',
         disciplineId: 'discipline-1',
       }),
     );

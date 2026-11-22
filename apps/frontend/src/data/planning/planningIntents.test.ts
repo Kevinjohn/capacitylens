@@ -33,7 +33,7 @@ describe('planning intent builders', () => {
     const data = makeAppData({
       resources: [makeResource({ id: 'resource-1', companyId })],
       activities: [
-        makeActivity({ id: 'activity-1', companyId, kind: 'repeatable', projectId: null }),
+        makeActivity({ id: 'activity-1', companyId, kind: 'allProjects', projectId: null }),
       ],
     });
 
@@ -284,7 +284,7 @@ describe('planning intent builders', () => {
         fields: {
           kind: 'placeholder',
           name: null,
-          role: 'Designer',
+          jobTitle: 'Designer',
           employmentType: 'permanent',
           workingHoursPerDay: 8,
           workingDays: [1, 2, 3, 4, 5],
@@ -368,16 +368,20 @@ describe('planning intent builders', () => {
       },
     });
 
-    const resource = makeResource({ id: 'resource-1', companyId, role: 'Designer' });
+    const resource = makeResource({ id: 'resource-1', companyId, jobTitle: 'Designer' });
     expect(
       buildResourceUpdate({
         data: makeAppData({ resources: [resource] }),
         companyId,
         original: resource,
-        args: { id: resource.id, changes: { role: 'Lead designer' } },
+        args: { id: resource.id, changes: { jobTitle: 'Lead designer' } },
       }),
     ).toEqual({
-      intent: { operation: 'resource.update', id: resource.id, changes: { role: 'Lead designer' } },
+      intent: {
+        operation: 'resource.update',
+        id: resource.id,
+        changes: { jobTitle: 'Lead designer' },
+      },
     });
   });
 

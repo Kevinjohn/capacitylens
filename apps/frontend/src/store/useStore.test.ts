@@ -21,7 +21,7 @@ import { PAST_BUFFER_DAYS } from '@/lib/schedulerConfig';
 const s = () => useStore.getState();
 beforeEach(() => resetStoreWithCompany());
 
-const personDraft = makeResourceDraft({ name: 'Ty', role: 'Dev', color: '#1' });
+const personDraft = makeResourceDraft({ name: 'Ty', jobTitle: 'Dev', color: '#1' });
 
 describe('store CRUD', () => {
   it('adds entities with a generated id and timestamps', async () => {
@@ -253,8 +253,8 @@ describe('store scheduler UI', () => {
     expect(s().ui.filters.activityId).toBe('activity-1');
     expect(s().ui.filters.activityKind).toBeNull();
 
-    s().setFilters({ activityKind: 'repeatable' });
-    expect(s().ui.filters.activityKind).toBe('repeatable');
+    s().setFilters({ activityKind: 'allProjects' });
+    expect(s().ui.filters.activityKind).toBe('allProjects');
     expect(s().ui.filters.activityId).toBeNull();
   });
 

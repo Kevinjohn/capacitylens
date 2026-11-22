@@ -33,7 +33,7 @@ export function snapshot(
 ): FullPlanningSnapshot {
   return {
     revision,
-    authority: makePlanningAccess(),
+    access: makePlanningAccess(),
     data: makeAppData({
       companies: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],

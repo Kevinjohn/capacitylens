@@ -25,7 +25,7 @@ export function usePasswordSignIn({
       return;
     }
     if (password.length > MAX_PASSWORD_INPUT_CODE_UNITS) {
-      setError(m.login_password_input_too_long());
+      setError(m.sign_in_password_input_too_long());
       return;
     }
     setBusy(true);
@@ -44,7 +44,7 @@ export function usePasswordSignIn({
     } catch (error) {
       // A transport failure must restore the sign-in controls and surface a generic message while logging its cause.
       console.error('SignInScreen: password sign-in request failed', error);
-      setError(m.login_network_error());
+      setError(m.sign_in_network_error());
       setBusy(false);
     }
   };

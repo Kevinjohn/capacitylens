@@ -139,7 +139,7 @@ test('authenticated discipline and time-off deletion restore the same rows', asy
   await createTestPerson(request, owner.cookie, companyId, {
     id: resourceId,
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
   });
   // The Time off page lists entries from the current week onward; the fixed dates below stay
   // visible only with the frozen browser date.
@@ -264,7 +264,7 @@ for (const repeat of [false, true]) {
     await createTestPerson(request, owner.cookie, companyId, {
       id: resourceId,
       name: 'Barbara Gordon',
-      role: 'Designer',
+      jobTitle: 'Designer',
     });
     createTestMember(companyId, editor.email, 'editor');
 

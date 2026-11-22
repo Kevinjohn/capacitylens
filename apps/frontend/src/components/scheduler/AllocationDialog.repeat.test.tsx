@@ -201,7 +201,7 @@ describe('AllocationDialog repeat creation', { timeout: 15_000 }, () => {
     "derives every repeated allocation's attribution for the %s scope",
     async (scope, activityName, projectId) => {
       await useStore.getState().addActivity({ name: 'Operations', kind: 'internal' });
-      await useStore.getState().addActivity({ name: 'Planning', kind: 'repeatable' });
+      await useStore.getState().addActivity({ name: 'Planning', kind: 'allProjects' });
       const resource = await addPerson();
       const user = userEvent.setup();
       renderAsOwner(

@@ -46,7 +46,7 @@ function resource(id: string, changes: Partial<Resource> = {}): Resource {
     id,
     kind: 'person',
     name: 'Diana Prince',
-    role: 'Designer',
+    jobTitle: 'Designer',
     employmentType: 'permanent',
     engagement: 'studio',
     workingHoursPerDay: 8,

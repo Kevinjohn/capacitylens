@@ -118,7 +118,7 @@ describe('planning intent suspension', () => {
     expect(useStore.getState().planningReadyForReplacement()).toBe(false);
   });
 
-  it('can claim an unsettled selected context for authority recovery without permitting an ordinary replacement', () => {
+  it('can claim an unsettled selected context for access recovery without permitting an ordinary replacement', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
@@ -136,7 +136,7 @@ describe('planning intent suspension', () => {
     expect(useStore.getState().planningReadyForReplacement()).toBe(false);
   });
 
-  it('refuses authority recovery while a typed mutation remains unresolved', () => {
+  it('refuses access recovery while a typed mutation remains unresolved', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,

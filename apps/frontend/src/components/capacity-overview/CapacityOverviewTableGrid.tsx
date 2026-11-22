@@ -104,7 +104,7 @@ function PersonCell({
         <PersonScheduleTrigger
           resourceId={resource.id}
           scheduleTitle={scheduleTitle}
-          avatarName={resource.name ?? resource.role}
+          avatarName={resource.name ?? resource.jobTitle}
           color={group.color ?? resource.color}
           placeholder={isPlaceholderResource(resource)}
           {...(imageUrl ? { imageUrl } : {})}
@@ -114,7 +114,7 @@ function PersonCell({
           <span className="block truncate text-[13.5px] font-[550] tracking-[-0.005em] text-ink">
             {resolveResourceDisplayName(resource)}
           </span>
-          <span className="block truncate text-[11.5px] text-faint">{resource.role}</span>
+          <span className="block truncate text-[11.5px] text-faint">{resource.jobTitle}</span>
         </div>
       </div>
     </th>

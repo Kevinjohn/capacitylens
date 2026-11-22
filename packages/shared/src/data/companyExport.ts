@@ -2,21 +2,21 @@ import { APP_DATA_KEYS, SCOPED_KEYS } from '../types/entityKeys.js';
 import type { AppData, ScopedEntityKey } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
 import { hasUsablePrivateCodeName } from '../domain/privateNames.js';
-import { assert, fail, isId, isOneOf, hasOwn } from './companyDocument.errors.js';
-import { FIELDS } from './companyDocument.fields.js';
-import { projectCompanyData } from './companyDocument.projection.js';
-import { assertRow } from './companyDocument.validation.js';
-import { assertCompanyReferences } from './companyDocument.references.js';
-import { CompanyDocumentError } from './companyDocument.errors.js';
+import { assert, fail, isId, isOneOf, hasOwn } from './companyExport.errors.js';
+import { FIELDS } from './companyExport.fields.js';
+import { projectCompanyData } from './companyExport.projection.js';
+import { assertRow } from './companyExport.validation.js';
+import { assertCompanyReferences } from './companyExport.references.js';
+import { CompanyExportError } from './companyExport.errors.js';
 
-export { CompanyDocumentError };
+export { CompanyExportError };
 
 /** Stable identifier for the beta-native interchange format. */
 export const COMPANY_EXPORT_FORMAT = 'capacitylens-beta' as const;
 /** Beta interchange schema version, independent of the database schema. */
 export const COMPANY_EXPORT_SCHEMA_VERSION = 2 as const;
 
-export interface CompanyExportDocument {
+export interface CompanyExport {
   format: typeof COMPANY_EXPORT_FORMAT;
   schemaVersion: typeof COMPANY_EXPORT_SCHEMA_VERSION;
   completeness: 'full' | 'redacted';
@@ -38,7 +38,7 @@ export interface PreparedCompanyImport {
 type Row = Record<string, unknown>;
 
 // Checks the interchange shape and throws on the first fault.
-function assertDocument(value: unknown): CompanyExportDocument {
+function assertDocument(value: unknown): CompanyExport {
   assert(isRecord(value), 'document', 'must be an object');
   assert(
     value.format === COMPANY_EXPORT_FORMAT,
@@ -130,7 +130,7 @@ function assertDocument(value: unknown): CompanyExportDocument {
 export function buildCompanyExport(
   data: AppData,
   options: { companyId: string; completeness: 'full' | 'redacted' },
-): CompanyExportDocument {
+): CompanyExport {
   const document = {
     format: COMPANY_EXPORT_FORMAT,
     schemaVersion: COMPANY_EXPORT_SCHEMA_VERSION,
@@ -141,25 +141,25 @@ export function buildCompanyExport(
 }
 
 /** Serialize the named portable fields as formatted JSON after validating the entire document. */
-export function serializeCompanyExport(document: CompanyExportDocument): string {
+export function serializeCompanyExport(document: CompanyExport): string {
   const validated = assertDocument(document);
   return JSON.stringify(validated, null, 2);
 }
 
 /** Parse and strictly validate a beta-native export, projecting away undeclared properties. */
-export function parseCompanyExport(json: string): CompanyExportDocument {
+export function parseCompanyExport(json: string): CompanyExport {
   let raw: unknown;
   try {
     raw = JSON.parse(json) as unknown;
   } catch (cause) {
-    throw new CompanyDocumentError('document', 'is not valid JSON', { cause });
+    throw new CompanyExportError('document', 'is not valid JSON', { cause });
   }
   return assertDocument(raw);
 }
 
 /** Validate a full source document and bind its company scope to the selected destination. */
 export function prepareCompanyImport(
-  document: CompanyExportDocument,
+  document: CompanyExport,
   context: CompanyImportContext,
 ): PreparedCompanyImport {
   assert(

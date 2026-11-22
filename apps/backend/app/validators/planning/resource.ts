@@ -35,7 +35,7 @@ import {
 const resourceFields = {
   kind: vine.enum(RESOURCE_KINDS),
   name: nullableUserText(),
-  role: userText(),
+  jobTitle: userText(),
   avatarUrl: resourceAvatar(),
   disciplineId: nullableId(),
   employmentType: vine.enum(EMPLOYMENT_TYPES),
@@ -58,7 +58,7 @@ const resourceFields = {
 };
 export const resourceChanges = {
   name: resourceFields.name.optional(),
-  role: resourceFields.role.optional(),
+  jobTitle: resourceFields.jobTitle.optional(),
   avatarUrl: resourceFields.avatarUrl.optional(),
   disciplineId: resourceFields.disciplineId.optional(),
   employmentType: resourceFields.employmentType.optional(),
@@ -181,7 +181,7 @@ export const resourceIntent = vine.union([
   ),
   vine.union.else(
     vine.object({
-      operation: vine.enum(['resource.archive', 'resource.unarchive'] as const),
+      operation: vine.enum(['resource.archive', 'resource.restore'] as const),
       id: entityId(),
     })
   ),

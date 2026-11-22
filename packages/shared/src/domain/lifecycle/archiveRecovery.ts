@@ -46,8 +46,8 @@ export function archiveRecovery(data: AppData, companyId: string, role: Role): A
     }
     return typeof row.name === 'string' && row.name
       ? row.name
-      : typeof row.role === 'string'
-        ? row.role
+      : typeof row.jobTitle === 'string'
+        ? row.jobTitle
         : '';
   };
   const rows: ArchiveRecoveryRow[] = [];
