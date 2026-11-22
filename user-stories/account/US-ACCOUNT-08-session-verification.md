@@ -5,7 +5,7 @@ As a person whose session could not be checked, I want to retry verification so 
 **Status:** Current
 **Access:** Person whose session verification failed.
 **Entry:** Session verification error → Try again
-**Documentation:** [Sign-in and access](../../docs-src/company-login/index.md)
+**Documentation:** [Sign-in and access](../../docs-src/sign-in/index.md)
 **Source:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx); [en.json](../../apps/frontend/messages/en.json)
 
 ## Acceptance criteria
@@ -30,7 +30,7 @@ flowchart TD
   error["AuthProvider renders AuthError for failed check"] --> retry["AuthError retry sets checking and calls checkAuth"]
   retry --> fetch["checkAuth runs fetchAuthStatus"]
   fetch --> me["fetchAuthStatus reads sessionRequests.me"]
-  me --> status["AuthProvider renders pass, login or retryable error state"]
+  me --> status["AuthProvider renders pass, sign-in or retryable error state"]
 ```
 
 **Code references:** [AuthProvider.tsx](../../apps/frontend/src/auth/AuthProvider.tsx), [fetchAuthStatus.ts](../../apps/frontend/src/auth/fetchAuthStatus.ts), [sessionRequests.ts](../../apps/frontend/src/account/sessionRequests.ts)

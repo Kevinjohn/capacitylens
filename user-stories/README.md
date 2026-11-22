@@ -140,7 +140,7 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                | Current |
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                 | Current |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen             | Current |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application               | Current |
+| [US-NAV-10](navigation/US-NAV-10-sign-in-screen.md)            | Enter the persisted application               | Current |
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Current |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Current |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Current |

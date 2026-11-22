@@ -21,8 +21,8 @@ As an evaluator, I want to explore a sample company on the real server so that I
 ```mermaid
 flowchart TD
   command["Start dev:demo"] --> ready["Read the printed URL and sign-in"]
-  ready --> login["Sign in as the development Owner"]
-  login --> company["Explore the sample company"]
+  ready --> signin["Sign in as the development Owner"]
+  signin --> company["Explore the sample company"]
   company --> refresh["Refresh retains changes"]
   company --> restart["Restart command resets the sample data"]
 ```

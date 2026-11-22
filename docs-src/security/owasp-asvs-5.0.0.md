@@ -92,7 +92,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V7.1 Documentation               | The 14-day inactivity timeout and unlimited concurrent sessions are documented; there is no absolute session lifetime | V7.1.2 | V7.1.1 | — | V7.1.3 |
 | V7.2 Token creation/verification | Backend stateful CSPRNG reference sessions; new token on authentication                                                             | V7.2.1, V7.2.2, V7.2.3, V7.2.4         | —       | —   | —   |
 | V7.3 Timeouts                    | Server-enforced 14-day sliding inactivity expiry; no absolute maximum lifetime | V7.3.1 | — | V7.3.2 | — |
-| V7.4 Termination                 | Logout, expiry, account deletion and password change/reset invalidate sessions; no Owner or Admin session-revocation control | V7.4.1, V7.4.2, V7.4.3, V7.4.4 | — | V7.4.5 | — |
+| V7.4 Termination                 | Sign-out, expiry, account deletion and password change/reset invalidate sessions; no Owner or Admin session-revocation control | V7.4.1, V7.4.2, V7.4.3, V7.4.4 | — | V7.4.5 | — |
 | V7.5 Reauthentication | Password confirmation protects sensitive operations; password confirmations are single-use and bound to the user, session, company, action and intent | V7.5.1, V7.5.3 | — | V7.5.2 | — |
 | V7.6 Federation                  | CapacityLens has no identity-provider session federation; session creation follows explicit user sign-in | V7.6.2 | — | — | V7.6.1 |
 
@@ -240,7 +240,7 @@ not claims that input validation alone completes another control.
 | V5.4.1 — N/A | Export uses a fixed browser Blob filename through `anchor.download`; it has no HTTP attachment response or user-submitted download filename. No `Content-Disposition` header is emitted or claimed. |
 | V6.2.4, V6.2.12 — Gap | There is no common-password list or breached-password screening at product password routes. |
 | V6.4.6 — Partial | A host operator can issue a Kit reset link, but an application Admin cannot initiate this flow in the product. |
-| V6.3.8 — Partial | Generic messages alone do not prove indistinguishable response codes and timing across login, registration and recovery. Maintainers need differential boundary tests and timing assessment. |
+| V6.3.8 — Partial | Generic messages alone do not prove indistinguishable response codes and timing across sign-in, sign-up and recovery. Maintainers need differential boundary tests and timing assessment. |
 | V6.3.3, V6.3.5 — Gap | Password-only access does not meet the multi-factor requirement; suspicious-attempt notices are absent. |
 | V6.3.7 — Partial | Account Kit sends notices after password change and reset completion when mail is configured. No email-change route is exposed by the product. |
 | V8.2.4 — Gap; V8.4.2 — Partial | Adaptive device/risk authorization is absent, and action-bound password confirmations cover only the specified sensitive actions. Maintainers would need a separate product decision and enforcement tests to change this scope. |

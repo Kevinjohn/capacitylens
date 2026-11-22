@@ -127,7 +127,7 @@ support remains optional; see
 For the native installation, proxies in separate containers or on separate machines are not yet
 supported; use the native same-machine proxy setup for the first release. Sign-in is by password,
 and invitations and password resets need email delivery. See
-[sign-in and access](https://kevinjohn.github.io/capacitylens/company-login/index.html).
+[sign-in and access](https://kevinjohn.github.io/capacitylens/sign-in/index.html).
 
 ## Documentation
 

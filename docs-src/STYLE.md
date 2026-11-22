@@ -128,7 +128,7 @@ to make it look substantial.
 
 - **Keep a clear focus.** A page introduction may cover several related interactions. Separate detailed procedures when they would obscure that introduction.
 - **Plain language.** Prefer the everyday word: "sign in" not "authenticate", "company
-  login" not "IdP-initiated SSO", "link" not "federate". The first use of any term in
+  sign-in" not "IdP-initiated SSO", "link" not "federate". The first use of any term in
   the [glossary](reference/glossary.md) links to it. Jargon that has no everyday
   substitute (such as TOTP) is allowed _after_ the glossary link.
 - **Short sentences, active voice.** If a sentence needs a second comma, try splitting it.
@@ -172,7 +172,7 @@ to make it look substantial.
 | Instead of                    | Write                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------ |
 | authenticate / authentication | sign in / sign-in (the glossary covers the rest)                               |
-| IdP                           | company login provider (link _identity provider_ in the glossary on first use) |
+| IdP                           | company sign-in provider (link _identity provider_ in the glossary on first use) |
 | provision / deprovision       | create / remove                                                                |
 | utilize, leverage             | use                                                                            |
 | in order to                   | to                                                                             |
