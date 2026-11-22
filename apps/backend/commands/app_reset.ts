@@ -15,12 +15,21 @@ export default class AppReset extends BaseCommand {
   @flags.boolean({ description: 'Confirm this is a disposable non-production installation' })
   declare disposable: boolean;
 
+  #reported = false;
+
   async run() {
     try {
       this.logger.log(JSON.stringify(await resetInstallation(this)));
     } catch (error) {
       this.logger.error(error instanceof Error ? error.message : 'Installation reset failed');
+      this.error = error;
+      this.#reported = true;
       this.exitCode = 1;
     }
+  }
+
+  /** Marks a caught error as already reported, so Ace does not print it raw. */
+  async completed() {
+    return this.#reported;
   }
 }

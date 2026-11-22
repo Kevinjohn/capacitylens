@@ -12,6 +12,8 @@ export default class CompanyInitialize extends BaseCommand {
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
   declare confirmServerStopped: boolean;
 
+  #reported = false;
+
   async run() {
     try {
       this.logger.log(JSON.stringify(await initializeCompany(this)));
@@ -23,7 +25,14 @@ export default class CompanyInitialize extends BaseCommand {
           ? 'Database schema is not current'
           : 'Company initialization failed; no company access was created';
       this.logger.error(safe);
+      this.error = error;
+      this.#reported = true;
       this.exitCode = 1;
     }
+  }
+
+  /** Marks a caught error as already reported, so Ace does not print it raw. */
+  async completed() {
+    return this.#reported;
   }
 }
