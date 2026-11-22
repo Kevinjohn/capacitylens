@@ -14,7 +14,7 @@ export interface MemberResourceFields {
   resourceLink: MemberResourceLinkProjection | null;
 }
 
-/** Reads same-company person candidates for an administrator's member directory. */
+/** Reads same-company person candidates for an Owner's or Admin's member directory. */
 export async function readResourceCandidates(trx: TransactionClientContract, companyId: string) {
   const rows = await Resource.query({ client: trx })
     .withScopes((scopes) => scopes.forCompany(companyId))

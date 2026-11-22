@@ -34,7 +34,7 @@ processing entry point.
 | Identity and admission data | Name, email, memberships, invitation evidence, approval decisions and last sign-in confirmation | SQLite over the configured connection | Retained while needed for account access; identity/account removal follows the account deletion policy |
 | Tenant confidential data | Schedule, notes and real private client/project names | SQLite, backups and role-filtered API | Operator controls database, exports, backups and retention |
 | Audit metadata | Timestamp, actor, company, action, entity, id and changed field names | Transactional `audit_entries` rows in SQLite | Values and credentials are not included; database and backup retention are operator-controlled |
-| Session metadata | User, session registry handle, user-agent label (up to 200 characters), expiry and last-seen time | Kit session registry and application session store in SQLite | 14-day idle expiry; no absolute lifetime or concurrent-session cap; no product session inventory or administrator revocation screen |
+| Session metadata | User, session registry handle, user-agent label (up to 200 characters), expiry and last-seen time | Kit session registry and application session store in SQLite | 14-day idle expiry; no absolute lifetime or concurrent-session cap; no product session inventory or revocation screen for an Owner or Admin |
 | Device preference | Theme, zoom and similar settings | Browser `localStorage` | Device-local and outside company export |
 
 Every `/api/*` response receives `Cache-Control: no-store` and `Pragma: no-cache`. The SPA contains

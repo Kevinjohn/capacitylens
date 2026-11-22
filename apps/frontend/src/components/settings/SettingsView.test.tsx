@@ -67,7 +67,7 @@ describe('SettingsView — scheduling mode', () => {
 });
 
 describe('SettingsView — Overview access', () => {
-  it('defaults to Owner and Admin and lets an administrator widen access', async () => {
+  it('defaults to Owner and Admin and lets an Admin widen access', async () => {
     const user = userEvent.setup();
     render(
       <PermissionContext.Provider value={permissionValue('admin', 'resolved')}>

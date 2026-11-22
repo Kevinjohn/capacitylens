@@ -97,7 +97,7 @@ export async function updateSettings(
     throw new PlanningOperationException(
       403,
       'AUTHORIZATION_DENIED',
-      'This setting requires an administrator.'
+      'This setting requires an Owner or Admin.'
     );
   }
   const existing = requireExistingRow(data, 'accounts', companyId);

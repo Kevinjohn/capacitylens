@@ -139,7 +139,7 @@ export function CapacityOverviewRoute() {
   );
 }
 
-/** Renders diagnostics only for authorized owners or administrators. */
+/** Renders diagnostics only for authorised Owners or Admins. */
 export function DiagnosticsRoute() {
   const decision = useDiagnosticsAccessDecision();
   if (decision === 'pending') {

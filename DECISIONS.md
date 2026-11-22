@@ -237,8 +237,8 @@ This is the short, present-tense record of decisions that constrain future work.
 - Invitations, address confirmation and password resets need configured mail delivery. Without
   it they are refused with an explanation rather than falling back to a copyable link.
 - Sessions end after 14 days without use. Changing or resetting a password ends every session,
-  including the current one. Administrator password resets and session revocation for other members
-  are deferred; the operator's kit commands cover recovery.
+  including the current one. Password resets and session revocation by an Owner or Admin for other
+  members are deferred; the operator's kit commands cover recovery.
 - Ownership transfer, whole-company import and company-wide people anonymisation each require a
   password confirmation for that action; no time-based fresh-session window replaces it.
 - A password confirmation is single-use, lasts five minutes and binds the real principal, Kit

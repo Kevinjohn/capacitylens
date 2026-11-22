@@ -92,7 +92,7 @@ Original 2026-08-18 totals: **200 Pass, 48 Partial, 7 Gap and 90 N/A = 345**. Fo
 | V7.1 Documentation               | The 14-day inactivity timeout and unlimited concurrent sessions are documented; there is no absolute session lifetime | V7.1.2 | V7.1.1 | — | V7.1.3 |
 | V7.2 Token creation/verification | Backend stateful CSPRNG reference sessions; new token on authentication                                                             | V7.2.1, V7.2.2, V7.2.3, V7.2.4         | —       | —   | —   |
 | V7.3 Timeouts                    | Server-enforced 14-day sliding inactivity expiry; no absolute maximum lifetime | V7.3.1 | — | V7.3.2 | — |
-| V7.4 Termination                 | Logout, expiry, account deletion and password change/reset invalidate sessions; no administrator session-revocation control | V7.4.1, V7.4.2, V7.4.3, V7.4.4 | — | V7.4.5 | — |
+| V7.4 Termination                 | Logout, expiry, account deletion and password change/reset invalidate sessions; no Owner or Admin session-revocation control | V7.4.1, V7.4.2, V7.4.3, V7.4.4 | — | V7.4.5 | — |
 | V7.5 Reauthentication | Password confirmation protects sensitive operations; password confirmations are single-use and bound to the user, session, company, action and intent | V7.5.1, V7.5.3 | — | V7.5.2 | — |
 | V7.6 Federation                  | CapacityLens has no identity-provider session federation; session creation follows explicit user sign-in | V7.6.2 | — | — | V7.6.1 |
 
@@ -202,7 +202,7 @@ changed rows are supported by the following source evidence:
 | V6.3.7 | Account Kit credential-change notifications are configured in `apps/backend/config/account_kit.ts`; the product exposes password change/reset but no email-change route in `apps/backend/start/auth_routes.ts`. |
 | V6.4.6 | Account Kit operator commands are registered in `apps/backend/adonisrc.ts`; `apps/backend/app/services/operator/owner_recovery.ts` adds the stopped-server sole-Owner recovery path and audit. The product has no Admin-triggered reset route. |
 | V6.8, V7.6.1, V9, V10 | `apps/backend/start/auth_routes.ts` registers password sign-in only: no federation or OAuth callback routes. |
-| V7.3.2, V7.4.5, V7.5.2 | `apps/backend/config/session.ts` sets a 14-day idle expiry; `apps/backend/config/account_kit.ts` enables session management; `apps/backend/start/auth_routes.ts` has no session inventory or administrator revocation route. |
+| V7.3.2, V7.4.5, V7.5.2 | `apps/backend/config/session.ts` sets a 14-day idle expiry; `apps/backend/config/account_kit.ts` enables session management; `apps/backend/start/auth_routes.ts` has no session inventory or revocation route for an Owner or Admin. |
 | V7.1.1–V7.1.3 | `apps/backend/config/account_kit.ts` sets a 14-day idle expiry; it does not configure an absolute lifetime or concurrent-session cap. Current docs record the absence of an absolute lifetime but not its risk rationale; unlimited concurrent sessions are allowed with no count-based eviction. No federation exists. |
 | V7.5.3 | `@kevinjohn/adonisjs-confirm-action-with-password` binds single-use, five-minute password confirmations to user, Kit session, live credential revision, company, action and intent; host authority is rechecked through `config/password_confirmations.ts`. |
 | V11.3 | `apps/backend/config/encryption.ts` declares AES-256-GCM using `APP_KEY`; no application call site proving which stored data uses it was identified, so the classifications remain Partial. |

@@ -82,7 +82,7 @@ Test paths below are relative to `apps/backend/tests/functional/` unless the ful
 ## Residual and accepted risks
 
 - Authentication is password-only. There is no local MFA, identity-provider sign-in, breached-password
-  screening, member session inventory or administrator session-revocation screen.
+  screening, member session inventory or Owner or Admin session-revocation screen.
 - Sessions use a 14-day sliding idle expiry, have no absolute lifetime, and have no configured
   maximum number of simultaneous sessions. Password changes and
   resets revoke sessions, but operators cannot revoke another member's active sessions through the
