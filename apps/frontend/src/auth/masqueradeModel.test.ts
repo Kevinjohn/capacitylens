@@ -40,7 +40,7 @@ describe('MasqueradeModel', () => {
 
   it('publishes the company name from the loaded account projection, not the member name', async () => {
     loadPlanningData(
-      makeAppData({ accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
+      makeAppData({ companies: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })] }),
     );
     useStore.getState().setActiveCompany('a-studio');
     await useStore.getState().refreshPlanning();

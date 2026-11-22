@@ -43,8 +43,10 @@ function mockInactiveRead() {
       const data = structuredClone(useStore.getState().data);
       const internal = buildInternalClient(DEFAULT_COMPANY_ID, '2026-01-01T00:00:00.000Z');
       return Response.json({
-        ...data,
-        clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        data: {
+          ...data,
+          clients: [...data.clients.filter((client) => client.id !== internal.id), internal],
+        },
       });
     }),
   );

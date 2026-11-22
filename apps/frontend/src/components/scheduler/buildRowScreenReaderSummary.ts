@@ -45,7 +45,7 @@ export function buildRowScreenReaderSummary(row: RowModel, context: RowSummaryCo
       }),
     );
   }
-  // Time-off draw mode is about absences, not bookings: an allocation count would be noise there.
+  // Time-off draw mode is about time off, not bookings: an allocation count would be noise there.
   if (context.drawMode !== 'timeOff') {
     const count = row.bars.length;
     parts.push(

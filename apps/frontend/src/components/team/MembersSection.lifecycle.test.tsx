@@ -426,20 +426,22 @@ describe('MembersSection — member lifecycle', () => {
       {
         'GET /members': () =>
           jsonResponse({
-            members: [
-              makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
-              makeRawMember({
-                userId: 'ed',
-                role: 'editor',
-                name: 'Clark Kent',
-                resourceLink: linked ? { resourceId: resource.id, revision: 'rev-2' } : null,
-              }),
-            ],
-            resourceCandidates: [{ resourceId: resource.id, label: 'Bruce Wayne' }],
+            data: {
+              members: [
+                makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
+                makeRawMember({
+                  userId: 'ed',
+                  role: 'editor',
+                  name: 'Clark Kent',
+                  resourceLink: linked ? { resourceId: resource.id, revision: 'rev-2' } : null,
+                }),
+              ],
+              resourceCandidates: [{ resourceId: resource.id, label: 'Bruce Wayne' }],
+            },
           }),
         'PUT /members/ed/resource-link': () => {
           linked = true;
-          return jsonResponse({ resourceId: resource.id, revision: 'rev-2' });
+          return jsonResponse({ data: { resourceId: resource.id, revision: 'rev-2' } });
         },
       },
     );
@@ -517,25 +519,27 @@ describe('MembersSection — member lifecycle', () => {
       {
         'GET /members': () =>
           jsonResponse({
-            signInTrackingEnabled: false,
-            members: [
-              makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
-              makeRawMember({
-                userId: 'ed',
-                role: 'editor',
-                resourceLink: {
-                  resourceId: 'r-server-only',
-                  resourceName: 'Barry Allen',
-                  revision: 'rev-1',
-                },
-              }),
-            ],
+            data: {
+              signInTrackingEnabled: false,
+              members: [
+                makeRawMember({ userId: 'me', role: 'owner', isSelf: true }),
+                makeRawMember({
+                  userId: 'ed',
+                  role: 'editor',
+                  resourceLink: {
+                    resourceId: 'r-server-only',
+                    resourceName: 'Barry Allen',
+                    revision: 'rev-1',
+                  },
+                }),
+              ],
 
-            resourceCandidates: [
-              { resourceId: 'r-server-only', label: 'Barry Allen' },
-              { resourceId: diana.id, label: 'Diana Prince' },
-              { resourceId: bruce.id, label: 'Bruce Wayne' },
-            ],
+              resourceCandidates: [
+                { resourceId: 'r-server-only', label: 'Barry Allen' },
+                { resourceId: diana.id, label: 'Diana Prince' },
+                { resourceId: bruce.id, label: 'Bruce Wayne' },
+              ],
+            },
           }),
       },
     );
@@ -568,7 +572,7 @@ describe('MembersSection — member lifecycle', () => {
       ],
       {
         'PUT /members/ed/resource-link': () =>
-          jsonResponse({ resourceId: resource.id, revision: 'rev-2' }),
+          jsonResponse({ data: { resourceId: resource.id, revision: 'rev-2' } }),
       },
     );
     vi.stubGlobal('fetch', fetchMock);

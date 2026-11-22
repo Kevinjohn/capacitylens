@@ -84,16 +84,16 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 ## Data
 
-| Story                                                   | Action                                    | Access                               | Status  | Catalogue |
-| ------------------------------------------------------- | ----------------------------------------- | ------------------------------------ | ------- | --------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Owner, Admin, Editor, Viewer         | Current | Existing  |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Owner                                | Current | Existing  |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Owner                                | Current | Existing  |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Owner                                | Current | Existing  |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Any authorized company member        | Current | Existing  |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data            | Printed development Owner            | Demo    | Existing  |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Owner for import; role-tiered export | Current | Existing  |
-| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Owner                                | Current | New       |
+| Story                                                   | Action                                             | Access                               | Status  | Catalogue |
+| ------------------------------------------------------- | -------------------------------------------------- | ------------------------------------ | ------- | --------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                                | Owner, Admin, Editor, Viewer         | Current | Existing  |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data                   | Owner                                | Current | Existing  |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history            | Owner                                | Current | Existing  |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files                        | Owner                                | Current | Existing  |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload                   | Any authorised company member        | Current | Existing  |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable demo data                       | Printed development Owner            | Demo    | Existing  |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in export and import | Owner for import; role-tiered export | Current | Existing  |
+| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation                 | Owner                                | Current | New       |
 
 ## Disciplines
 
@@ -138,11 +138,11 @@ inventory, not an assertion that every runtime, security or error-path test has 
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                 | Owner, Admin, Editor, Viewer; results respect destination access                                | Current | Existing  |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen             | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application               | Unauthenticated visitors; admitted users can sign in                                            | Current | Existing  |
+| [US-NAV-10](navigation/US-NAV-10-sign-in-screen.md)            | Enter the persisted application               | Unauthenticated visitors; admitted users can sign in                                            | Current | Existing  |
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Owner, Admin, Editor; Viewer does not see the Getting Started panel                             | Current | Existing  |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Initial admitted identity only during empty-install setup; subsequent entry requires membership | Current | Existing  |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognise action meaning and product identity | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Owner, Admin, Editor, Viewer; sign-in wall still applies to protected routes.                   | Current | New       |
 | [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Owner, Admin, Editor, Viewer.                                                                   | Removed | New       |

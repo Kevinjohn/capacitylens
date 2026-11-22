@@ -60,7 +60,7 @@ const env = {
   // membership-free administrator used by recovery/login scenarios.
   CAPACITYLENS_CREATE_ADMIN_ADMIN: flavour === 'auth' ? 'false' : '1',
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: flavour === 'auth' ? '' : 'auth-e2e-password-2026',
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+  CAPACITYLENS_ALLOW_OPEN_SIGN_UP: '1',
   CAPACITYLENS_PUBLIC_URL: `http://localhost:${port}`,
   CAPACITYLENS_CORS_ORIGIN: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
 };
@@ -130,7 +130,7 @@ child.on('exit', (code, signal) => {
 
 async function establishAuthFixtureBaseline(signal) {
   const origin = env.CAPACITYLENS_PUBLIC_URL;
-  const setup = await fetch(`${origin}/api/invites/${baselineToken}/signup`, {
+  const setup = await fetch(`${origin}/api/invitations/${baselineToken}/sign-up`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
     signal,
@@ -148,8 +148,8 @@ async function establishAuthFixtureBaseline(signal) {
     headers: { cookie, 'sec-fetch-site': 'same-origin' },
     signal,
   });
-  const mode = await modeResponse.json();
-  if (modeResponse.status !== 200 || typeof mode.contextToken !== 'string')
+  const { data: mode } = await modeResponse.json();
+  if (modeResponse.status !== 200 || typeof mode.masqueradeToken !== 'string')
     throw new Error(`Auth E2E baseline masquerade context unavailable (${modeResponse.status}).`);
 
   const company = await fetch(`${origin}/api/installation/company`, {
@@ -158,7 +158,7 @@ async function establishAuthFixtureBaseline(signal) {
       'content-type': 'application/json',
       cookie,
       'sec-fetch-site': 'same-origin',
-      'X-Masquerade-Context': mode.contextToken,
+      'X-Masquerade-Context': mode.masqueradeToken,
     },
     signal,
     body: JSON.stringify({ name: 'Daily Planet E2E Baseline' }),

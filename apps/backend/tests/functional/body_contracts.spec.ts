@@ -25,146 +25,146 @@ const admission = 'Invalid admission request.';
 const password = 'krypton-password-2026';
 
 const contracts: Record<string, BodyContract> = {
-  'api.installation.company': {
+  'api.first_company_setup.store': {
     method: 'post',
     url: () => '/api/installation/company',
     sentence: firstCompanySetupMessage,
     body: () => ({ name: 'Wayne Enterprises', weekStartsOn: 1, timeZone: 'Etc/GMT' }),
     scalar: { weekStartsOn: '1' },
   },
-  'api.transfer.preview': {
+  'api.import_previews.store': {
     method: 'post',
-    url: () => '/api/transfer/preview',
-    sentence: 'Invalid beta transfer document.',
+    url: () => '/api/import/preview',
+    sentence: 'Invalid beta import document.',
     body: (companyId) => ({ companyId, document: {} }),
     untyped: ['document'],
   },
-  'api.transfer.apply': {
+  'api.imports.store': {
     method: 'post',
-    url: () => '/api/transfer/apply',
-    sentence: 'Invalid beta transfer request.',
+    url: () => '/api/import/apply',
+    sentence: 'Invalid beta import request.',
     body: (companyId) => ({ companyId, document: {}, baseRevision: 0, confirmationId: 'x' }),
     untyped: ['document'],
     scalar: { baseRevision: '1' },
   },
-  'api.companies.anonymise': {
+  'api.company_anonymisations.store': {
     method: 'post',
     url: (companyId) => `/api/companies/${companyId}/anonymise`,
     sentence: 'Invalid anonymisation request.',
     body: () => ({ confirmationId: 'x' }),
   },
-  'api.resources.anonymise': {
+  'api.resource_anonymisations.store': {
     method: 'post',
     url: (companyId) => `/api/companies/${companyId}/resources/r1/anonymise`,
     sentence: 'Invalid anonymisation request.',
     body: () => ({}),
   },
-  'api.auth.password-confirmation': {
+  'api.password_confirmations.store': {
     method: 'post',
     url: () => '/api/auth/password-confirmation',
     sentence: 'Invalid password confirmation.',
     body: (companyId) => ({ action: 'anonymise', companyId, intent: {}, password }),
   },
-  'api.auth.request-reset': {
+  'api.password_reset_requests.store': {
     method: 'post',
     url: () => '/api/auth/request-reset',
     sentence: 'Invalid recovery request.',
     body: () => ({ email: 'clark.kent@wayne.example' }),
   },
-  'api.auth.inspect-reset': {
+  'api.password_resets.show': {
     method: 'post',
     url: () => '/api/auth/inspect-reset',
     sentence: 'Invalid recovery request.',
     body: () => ({ token: 'token' }),
   },
-  'api.auth.reset-password': {
+  'api.password_resets.update': {
     method: 'post',
     url: () => '/api/auth/reset-password',
     sentence: 'Invalid recovery request.',
     body: () => ({ token: 'token', newPassword: password }),
   },
-  'api.auth.change-password': {
+  'api.password.update': {
     method: 'post',
     url: () => '/api/auth/change-password',
     sentence: 'Invalid credential request.',
     body: () => ({ currentPassword: password, newPassword: password }),
   },
-  'api.auth.delete-account': {
+  'api.account.destroy': {
     method: 'post',
     url: () => '/api/auth/delete-account',
     sentence: 'Invalid credential request.',
     body: () => ({ currentPassword: password }),
   },
-  'api.auth.verification.inspect': {
+  'api.email_verifications.show': {
     method: 'post',
     url: () => '/api/auth/verification/inspect',
     sentence: 'Invalid confirmation request.',
     body: () => ({ token: 'token' }),
   },
-  'api.auth.verification.complete': {
+  'api.email_verifications.update': {
     method: 'post',
     url: () => '/api/auth/verification/complete',
     sentence: 'Invalid confirmation request.',
     body: () => ({ token: 'token', password }),
   },
-  'api.members.tracking': {
+  'api.member_sign_in_tracking.update': {
     method: 'put',
     url: (companyId) => `/api/companies/${companyId}/member-sign-in-tracking`,
     sentence: 'enabled must be a Boolean.',
     body: () => ({ enabled: true }),
     scalar: { enabled: 'true' },
   },
-  'api.members.role': {
+  'api.members.update': {
     method: 'patch',
     url: (companyId) => `/api/companies/${companyId}/members/u1`,
     sentence: 'Invalid member role.',
     body: () => ({ role: 'editor' }),
   },
-  'api.members.status': {
+  'api.member_status.update': {
     method: 'patch',
     url: (companyId) => `/api/companies/${companyId}/members/u1/status`,
     sentence: 'Invalid member status.',
     body: () => ({ status: 'active' }),
   },
-  'api.invites.create': {
+  'api.invitations.store': {
     method: 'post',
-    url: () => '/api/invites',
+    url: () => '/api/invitations',
     sentence: admission,
     body: (companyId) => ({ companyId, role: 'viewer', email: 'clark.kent@wayne.example' }),
     keySentences: { email: 'Invalid invitation email.' },
   },
-  'api.invites.sign-up': {
+  'api.invitation_acceptances.store': {
     method: 'post',
-    url: () => '/api/invites/token/signup',
+    url: () => '/api/invitations/token/sign-up',
     sentence: admission,
     body: () => ({ name: 'Clark Kent', password }),
     keySentences: { name: 'Invalid sign-up details.', password: 'Invalid sign-up details.' },
   },
-  'api.member-resources.set': {
+  'api.member_resource_links.update': {
     method: 'put',
     url: (companyId) => `/api/companies/${companyId}/members/u1/resource-link`,
     sentence: admission,
     body: () => ({ resourceId: 'r1', expectedRevision: null }),
   },
-  'api.member-resources.clear': {
+  'api.member_resource_links.destroy': {
     method: 'delete',
     url: (companyId) => `/api/companies/${companyId}/members/u1/resource-link`,
     sentence: admission,
     body: () => ({ expectedRevision: '1' }),
   },
-  'api.masquerade.start': {
+  'api.masquerade.store': {
     method: 'post',
     url: (companyId) => `/api/companies/${companyId}/masquerade`,
     sentence: 'Target member is required.',
     body: () => ({ targetUserId: 'u1' }),
   },
-  'api.masquerade.end': {
+  'api.masquerade.destroy': {
     method: 'delete',
     url: () => '/api/masquerade',
     sentence: 'Invalid masquerade end request.',
     body: () => ({ token: 'token', reason: 'explicit' }),
   },
-  'api.ownership.transfer': {
+  'api.ownership_transfers.store': {
     method: 'post',
     url: (companyId) => `/api/companies/${companyId}/ownership-transfer`,
     sentence: 'An eligible target user is required.',
@@ -182,7 +182,7 @@ test.group('request body contracts', (group) => {
       captureMail(cleanup);
       const contract = contracts[name];
       const owner = await resetAuthenticatedClient(client);
-      const { id: companyId } = await db.from('accounts').select('id').firstOrFail();
+      const { id: companyId } = await db.from('companies').select('id').firstOrFail();
       const valid = contract.body(companyId);
       const refusals: [string, Record<string, unknown>, string][] = [
         ['unknown key', { ...valid, extra: true }, contract.sentence],

@@ -3,8 +3,8 @@ import { test } from '@japa/runner';
 import type { ApiClient } from '@japa/api-client';
 import db from '@adonisjs/lucid/services/db';
 import accountKit from '@kevinjohn/adonisjs-account-kit/services/main';
-import { freshDatabase } from '../../helpers/fresh_database.js';
-import { captureMail } from '../../helpers/identities.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
+import { captureMail } from '#tests/helpers/identities';
 import {
   companyId,
   configureAuth,
@@ -13,7 +13,7 @@ import {
   session,
   signIn,
   signInAgain,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 import { readState } from '#tests/helpers/state_fixture';
 
 async function revision() {
@@ -25,10 +25,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
   const data = await readState(companyId, true);
   const allocation = newAllocation(data);
   const baseRevision = await revision();
-  const created = await session(
-    client.post(`/api/companies/${companyId}/planning/mutations`),
-    cookie
-  )
+  const created = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
@@ -36,10 +33,7 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
     })
     .send();
   created.assertStatus(200);
-  const deleted = await session(
-    client.post(`/api/companies/${companyId}/planning/mutations`),
-    cookie
-  )
+  const deleted = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision: baseRevision + 1,
@@ -49,16 +43,13 @@ async function deleteAllocation(client: ApiClient, cookie: string) {
   deleted.assertStatus(200);
   return {
     allocationId: allocation.id,
-    groupId: (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
+    groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId,
   };
 }
 
 async function deleteExistingAllocation(client: ApiClient, cookie: string, allocationId: string) {
-  const deleted = await session(
-    client.post(`/api/companies/${companyId}/planning/mutations`),
-    cookie
-  )
+  const deleted = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision: await revision(),
@@ -68,13 +59,13 @@ async function deleteExistingAllocation(client: ApiClient, cookie: string, alloc
   deleted.assertStatus(200);
   return {
     allocationId,
-    groupId: (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
+    groupId: (deleted.body().data as { restoration: { replacementGroupId: string } }).restoration
       .replacementGroupId,
   };
 }
 
 async function restoreAllocation(client: ApiClient, cookie: string, groupId: string) {
-  return session(client.post(`/api/companies/${companyId}/planning/mutations`), cookie)
+  return session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision: await revision(),
@@ -87,10 +78,7 @@ async function createActiveAllocation(client: ApiClient, cookie: string) {
   const data = await readState(companyId, true);
   const allocation = newAllocation(data);
   const baseRevision = await revision();
-  const created = await session(
-    client.post(`/api/companies/${companyId}/planning/mutations`),
-    cookie
-  )
+  const created = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
     .json({
       mutationId: randomUUID(),
       baseRevision,
@@ -123,7 +111,7 @@ test.group('retained planning cleanup', (suite) => {
       .where('restoration_group_id', first.groupId)
       .first();
 
-    const signedOut = await session(client.post('/api/auth/sign-out'), owner.cookie).send();
+    const signedOut = await session(client.visit('api.session.destroy'), owner.cookie).send();
     signedOut.assertStatus(200);
 
     assert.isNull(await db.from('deleted_groups').where('group_id', first.groupId).first());
@@ -158,7 +146,7 @@ test.group('retained planning cleanup', (suite) => {
       .where('restoration_group_id', first.groupId)
       .select('mutation_id');
 
-    const signedOut = await session(client.post('/api/auth/sign-out'), owner.cookie).send();
+    const signedOut = await session(client.visit('api.session.destroy'), owner.cookie).send();
     signedOut.assertStatus(200);
 
     assert.isNull(await db.from('deleted_groups').where('group_id', first.groupId).first());
@@ -223,7 +211,7 @@ test.group('retained planning cleanup', (suite) => {
     const second = await deleteAllocation(client, secondCookie);
     const activeId = await createActiveAllocation(client, owner.cookie);
 
-    const changed = await session(client.post('/api/auth/change-password'), owner.cookie)
+    const changed = await session(client.visit('api.password.update'), owner.cookie)
       .json({ currentPassword: 'batman-secret-2026', newPassword: 'another-batman-2026' })
       .send();
     changed.assertStatus(200);
@@ -253,14 +241,14 @@ test.group('retained planning cleanup', (suite) => {
     const activeId = await createActiveAllocation(client, owner.cookie);
 
     const requested = await client
-      .post('/api/auth/request-reset')
+      .visit('api.password_reset_requests.store')
       .header('sec-fetch-site', 'same-origin')
       .json({ email: owner.email })
       .send();
     requested.assertStatus(200);
     const token = mail.tokenFor(owner.email);
     const reset = await client
-      .post('/api/auth/reset-password')
+      .visit('api.password_resets.update')
       .header('sec-fetch-site', 'same-origin')
       .json({ token, newPassword: 'another-batman-2026' })
       .send();

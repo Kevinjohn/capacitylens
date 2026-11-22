@@ -21,7 +21,7 @@ describe('resetStoreWithCompany', () => {
     expect(read).toHaveBeenCalled();
     expect(useStore.getState().planning.context?.companyId).toBe('acct-cold-reset');
     expect(useStore.getState().planning.phase.kind).toBe('ready');
-    expect(useStore.getState().data.accounts.map(({ id }) => id)).toEqual(['acct-cold-reset']);
+    expect(useStore.getState().data.companies.map(({ id }) => id)).toEqual(['acct-cold-reset']);
   });
 
   it('restores the seeded rows and revision on a repeated same-company reset', async () => {
@@ -33,7 +33,7 @@ describe('resetStoreWithCompany', () => {
     await expect(resetStoreWithCompany(companyId)).resolves.toBe(true);
 
     expect(useStore.getState().planning.revision).toBe(0);
-    expect(useStore.getState().data.accounts.map(({ name }) => name)).toEqual(['Test Co']);
+    expect(useStore.getState().data.companies.map(({ name }) => name)).toEqual(['Test Co']);
     expect(useStore.getState().planning.context?.companyId).toBe(companyId);
     expect(useStore.getState().planning.phase.kind).toBe('ready');
   });
@@ -47,14 +47,14 @@ describe('resetStoreWithCompany', () => {
     await expect(resetStoreWithCompany(companyId)).resolves.toBe(true);
     expect(useStore.getState().data.resources).toHaveLength(0);
     await useStore.getState().updateCompany(companyId, { name: 'New Company' });
-    expect(useStore.getState().data.accounts[0]?.name).toBe('New Company');
+    expect(useStore.getState().data.companies[0]?.name).toBe('New Company');
   });
 
   it('re-enters the first company after visiting another and clearing the active context', async () => {
     const first = makeCompany({ id: 'acct-first' });
     const second = makeCompany({ id: 'acct-second', name: 'Stark Industries' });
     const data = makeAppData({
-      accounts: [first, second],
+      companies: [first, second],
       resources: [
         makeResource({ id: 'resource-first', companyId: first.id }),
         makeResource({ id: 'resource-second', companyId: second.id }),

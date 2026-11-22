@@ -386,7 +386,7 @@ export class MasqueradeModel {
 
   /** Adopt status before PermissionProvider publishes an effective role, preventing a writable frame. */
   async adoptStatus(status: MasqueradeStatus): Promise<void> {
-    this.dependencies.setMasqueradeToken(status.contextToken);
+    this.dependencies.setMasqueradeToken(status.masqueradeToken);
     if (!status.active) {
       const current = this.store.masquerade;
       if (current.kind === 'starting' && current.state && this.store.activeCompanyId === null) {
@@ -472,7 +472,7 @@ export class MasqueradeModel {
       }
       publishMasqueradeCompany(this.store, state);
       const loadedName =
-        this.store.data.accounts.find((company) => company.id === state.companyId)?.name ?? name;
+        this.store.data.companies.find((company) => company.id === state.companyId)?.name ?? name;
       this.store.setCompanySummaries({
         list: [{ id: state.companyId, name: loadedName, role: state.effectiveRole }],
         complete: true,

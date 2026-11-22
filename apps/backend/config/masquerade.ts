@@ -29,7 +29,7 @@ function requestedCompanyId(request?: HttpContext): string | null {
 
 /**
  * Whether the actor may view the target in the request's company, or in any company the actor
- * belongs to when the request names none: the actor holds `viewAs:use` there and the target is an
+ * belongs to when the request names none: the actor holds `masquerade:use` there and the target is an
  * active member who does not rank above the actor.
  */
 async function sharesMasqueradeCompany(actorId: string, targetId: string, request?: HttpContext) {

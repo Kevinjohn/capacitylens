@@ -23,7 +23,7 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
     { id: crypto.randomUUID(), name: 'Clark Kent' },
   ];
   for (const resource of resources) {
-    await createTestPerson(request, owner.cookie, companyId, { ...resource, role: 'Planner' });
+    await createTestPerson(request, owner.cookie, companyId, { ...resource, jobTitle: 'Planner' });
   }
 
   await page.goto('/');
@@ -89,15 +89,19 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
     },
   );
   expect(stateResponse.status()).toBe(200);
-  const state = (await stateResponse.json()) as {
-    accounts: Array<{ id: string }>;
-    resources: Array<{ id: string; name: string; role: string; avatarUrl: string | null }>;
-  };
-  expect(state.accounts.some((account) => account.id === companyId)).toBe(true);
+  const state = (
+    (await stateResponse.json()) as {
+      data: {
+        companies: Array<{ id: string }>;
+        resources: Array<{ id: string; name: string; jobTitle: string; avatarUrl: string | null }>;
+      };
+    }
+  ).data;
+  expect(state.companies.some((account) => account.id === companyId)).toBe(true);
   for (const resource of resources) {
     const scrubbed = state.resources.find((row) => row.id === resource.id);
     expect(scrubbed?.name).toMatch(/^Removed person/);
-    expect(scrubbed?.role).toBe('Removed resource');
+    expect(scrubbed?.jobTitle).toBe('Removed resource');
     expect(scrubbed?.avatarUrl).toBeNull();
   }
 });
@@ -114,7 +118,7 @@ test('an Editor rediscovers an archived resource after reload and restores it in
   await createTestPerson(request, owner.cookie, companyId, {
     id: crypto.randomUUID(),
     name: 'Barry Allen',
-    role: 'Designer',
+    jobTitle: 'Designer',
   });
   createTestMember(companyId, editor.email, 'editor');
   await page.goto('/');

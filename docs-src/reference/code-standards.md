@@ -146,7 +146,7 @@ whose cause would otherwise be invisible leaves a `console.warn` breadcrumb.
 
 Backend boundary rule: `ctx.params`, `request.body()` and Lucid query rows arrive typed `any`.
 Narrow them where they enter, with a `validateUsing` schema for bodies and queries, a one-line
-checked read for route parameters (`parseUserIdParam` in `app/controllers/admission_controller.ts`),
+checked read for route parameters (`parseUserIdParam` in `app/services/admission/admission_decisions.ts`),
 and `String(row.column)` or a typed model for rows. An `as` cast is not a narrowing; a comment
 beside any remaining cast says why it is sound.
 
@@ -157,7 +157,7 @@ numbered so a review can cite one.
 
 1. **A comment says why; the code says what.** Delete any comment a reader would not miss.
 2. **Every exported symbol gets TSDoc.** The first sentence stands alone and says what the call
-   does, in the third person: "Authorizes one company permission from live membership." State
+   does, in the third person: "Authorises one company permission from live membership." State
    preconditions, what a throw means, and purity whenever they apply. Document the contract the
    type cannot carry: "a foreign id throws and nothing is changed" is the most important thing a
    caller can know.
@@ -194,7 +194,7 @@ export default class CompaniesController {
 export async function assertCompanyPermission(
 
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
-export default class Client extends SoftDeletes(ClientSchema) {
+export default class Client extends compose(ClientSchema, SoftDeletes) {
 
 /**
  * The Masquerade package's route rules: on a member route it admits the view-as mode, requires

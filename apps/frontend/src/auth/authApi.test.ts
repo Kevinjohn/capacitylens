@@ -14,7 +14,9 @@ describe('product auth api', () => {
     const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input, init) => {
       sent = new Request(input, init).clone();
       return Response.json({
-        user: { id: 'u1', name: 'Bruce Wayne', email: 'bruce@example.test', image: null },
+        data: {
+          user: { id: 'u1', name: 'Bruce Wayne', email: 'bruce@example.test', image: null },
+        },
       });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -189,7 +191,9 @@ describe('product auth api', () => {
   });
 
   it('uses native recovery, password-change, and sign-out routes', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ ok: true }));
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ data: { ok: true } }));
     vi.stubGlobal('fetch', fetchMock);
 
     await authApi.requestPasswordReset('bruce@example.test');

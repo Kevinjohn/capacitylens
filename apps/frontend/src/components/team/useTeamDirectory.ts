@@ -122,7 +122,7 @@ function useDirectoryQueries(options: TeamDirectoryOptions, scope: ApiQueryScope
       membersKey: teamMembersQueryKey(keyScope, activeCompanyId),
       invitesKey: buildScopeQueryKey(keyScope, [
         'team-invitations',
-        ...api.api.invites.index.queryKey({ params: { companyId } }),
+        ...api.api.invitations.index.queryKey({ params: { companyId } }),
       ]),
     };
   }, [userId, activeCompanyId, masqueradeGeneration, companyId]);

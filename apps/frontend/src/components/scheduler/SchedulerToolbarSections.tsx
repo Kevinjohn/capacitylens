@@ -135,13 +135,13 @@ function EntityFilters(props: FiltersProps) {
         options={props.projectOptions}
       />
       {(props.internalActivities.length > 0 ||
-        props.repeatableActivities.length > 0 ||
+        props.allProjectsActivities.length > 0 ||
         Boolean(props.filters.activityId ?? props.filters.activityKind)) && (
         <ToolbarActivityFilter
           activityId={props.filters.activityId ?? null}
           activityKind={props.filters.activityKind ?? null}
           internalActivities={props.internalActivities}
-          repeatableActivities={props.repeatableActivities}
+          allProjectsActivities={props.allProjectsActivities}
           onChange={props.setToolbarFilters}
         />
       )}

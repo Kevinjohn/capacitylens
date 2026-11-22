@@ -8,13 +8,13 @@ type CompanyReader = Pick<Trx, 'from'>;
 
 /** Whether the installation holds more than one company, which only seeded development data does. */
 export async function hasMultipleCompanies(reader: CompanyReader): Promise<boolean> {
-  const rows = await reader.from('accounts').select('id').limit(2);
+  const rows = await reader.from('companies').select('id').limit(2);
   return rows.length > 1;
 }
 
 /** Whether first-company setup has not happened yet. */
 export async function hasNoCompany(reader: CompanyReader): Promise<boolean> {
-  return !(await reader.from('accounts').first());
+  return !(await reader.from('companies').first());
 }
 
 /**
@@ -22,7 +22,7 @@ export async function hasNoCompany(reader: CompanyReader): Promise<boolean> {
  * @throws AdmissionException 409 `MULTIPLE_COMPANIES` when a second company exists.
  */
 export async function getInstallationCompanyId(reader: CompanyReader): Promise<string | null> {
-  const rows = await reader.from('accounts').select('id').limit(2);
+  const rows = await reader.from('companies').select('id').limit(2);
   // Only seeded development data holds two companies; say so rather than fail with a 500.
   if (rows.length > 1) {
     throw new AdmissionException(
@@ -38,9 +38,9 @@ export async function getInstallationCompanyId(reader: CompanyReader): Promise<s
 export async function getInstallationCompany(reader: CompanyReader) {
   const companyId = await getInstallationCompanyId(reader);
   const company = companyId
-    ? await reader.from('accounts').where('id', companyId).select('name').first()
+    ? await reader.from('companies').where('id', companyId).select('name').first()
     : null;
-  return { companyId, accountName: (company?.name as string | undefined) ?? null };
+  return { companyId, companyName: (company?.name as string | undefined) ?? null };
 }
 
 /** Whether any identity exists yet; before the first one, sign-in offers setup instead. */

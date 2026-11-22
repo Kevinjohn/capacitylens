@@ -4,9 +4,9 @@ import {
   createFixtureCompanyForOwner,
   resetAuthenticatedClient,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 import { LoggerFactory } from '@adonisjs/logger/factories';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import Company from '#models/company';
 import logger from '@adonisjs/core/services/logger';
@@ -20,7 +20,7 @@ import {
   resetPlanningFixture,
   session as withPlanningSession,
   signIn,
-} from './planning/helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const privateError = 'SENTINEL_PRIVATE_EXCEPTION_VALUE';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -133,7 +133,9 @@ test.group('general HTTP logging privacy', (group) => {
     for (const setting of ['', '0']) {
       env.set('CAPACITYLENS_LOG', setting);
       try {
-        const { output, result } = await captureLogs(() => client.get('/api/health').send());
+        const { output, result } = await captureLogs(() =>
+          client.visit('api.health_checks.live').send()
+        );
         assert.equal(result.status(), 200);
         assert.equal(output, '');
       } finally {
@@ -155,7 +157,7 @@ test.group('general HTTP logging privacy', (group) => {
     }) as typeof Company.query;
     try {
       const { output, result } = await captureLogs(() =>
-        client.get('/api/state?companyId=a-studio').send()
+        client.visit('api.company_state.show').qs({ companyId: 'a-studio' }).send()
       );
       assert.equal(result.status(), 500);
       assert.include(output, '"event":"http.request.error"');
@@ -182,7 +184,7 @@ test.group('general HTTP logging privacy', (group) => {
     }) as typeof Company.query;
     try {
       const { output, result } = await captureLogs(() =>
-        client.get('/api/state?companyId=a-studio').send()
+        client.visit('api.company_state.show').qs({ companyId: 'a-studio' }).send()
       );
       assert.equal(result.status(), 500);
       const line = output.split('\n').find((entry) => entry.includes('"http.request.error"'));
@@ -209,7 +211,7 @@ test.group('general HTTP logging privacy', (group) => {
     const { output, result } = await captureLogs(
       () =>
         client
-          .post('/api/companies/a-studio/example-data')
+          .visit('api.example_data.store', { companyId: 'a-studio' })
           .header('sec-fetch-site', 'same-origin')
           .json({})
           .send(),
@@ -290,7 +292,7 @@ test.group('general HTTP logging privacy', (group) => {
     const { output } = await captureLogs(() =>
       Promise.all(
         Array.from({ length: 3 }, () =>
-          client.get('/api/health').header('x-request-id', suppliedId).send()
+          client.visit('api.health_checks.live').header('x-request-id', suppliedId).send()
         )
       )
     );
@@ -312,7 +314,7 @@ test.group('general HTTP logging privacy', (group) => {
     const secret = 'SENTINEL_MALFORMED_REQUEST_BODY';
     const { output, result } = await captureLogs(() =>
       client
-        .post('/api/transfer/apply')
+        .visit('api.imports.store')
         .header('sec-fetch-site', 'same-origin')
         .unsafeJson(`{"secret":"${secret}"`)
         .send()
@@ -320,7 +322,7 @@ test.group('general HTTP logging privacy', (group) => {
 
     assert.equal(result.status(), 400);
     assert.include(output, 'POST');
-    assert.include(output, '"path":"/api/transfer/apply"');
+    assert.include(output, '"path":"/api/import/apply"');
     assert.include(output, '400');
     assert.notInclude(output, secret);
   });
@@ -333,14 +335,14 @@ test.group('general HTTP logging privacy', (group) => {
     const secret = 'SENTINEL_IMPORT_PARSER_VALUE';
     const { output, result } = await captureLogs(() =>
       client
-        .post('/api/transfer/apply')
+        .visit('api.imports.store')
         .header('sec-fetch-site', 'same-origin')
         .json({ companyId: 'a-studio', document: { secret }, baseRevision: 0 })
         .send()
     );
 
     assert.equal(result.status(), 400);
-    assert.include(output, '/api/transfer/apply');
+    assert.include(output, '/api/import/apply');
     assert.notInclude(output, secret);
     assert.notInclude(output, 'stack');
   });
@@ -355,7 +357,9 @@ test.group('general HTTP logging privacy', (group) => {
       throw new Error(privateError);
     }) as typeof Company.query;
     try {
-      const captured = await captureLogs(() => client.get('/api/state?companyId=a-studio').send());
+      const captured = await captureLogs(() =>
+        client.visit('api.company_state.show').qs({ companyId: 'a-studio' }).send()
+      );
       assert.notInclude(captured.output, privateError);
       assert.equal(captured.result.status(), 500);
       assert.deepEqual(captured.result.body(), { error: 'Internal server error.' });

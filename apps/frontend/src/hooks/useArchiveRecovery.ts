@@ -29,17 +29,17 @@ export function useArchiveRecovery() {
       }),
     [reload],
   );
-  const accessKey = buildAccessKey(planning.authority);
+  const accessKey = buildAccessKey(planning.access);
   const enabled =
     mayWrite &&
     !!companyId &&
     !!user &&
     permissionStatus === 'resolved' &&
-    planning.authority !== null &&
-    planning.authority.actorId === user.id &&
-    planning.authority.effectiveActorId === user.id &&
-    planning.authority.role === role &&
-    planning.authority.canWrite &&
+    planning.access !== null &&
+    planning.access.actorId === user.id &&
+    planning.access.effectiveActorId === user.id &&
+    planning.access.role === role &&
+    planning.access.canWrite &&
     planning.context?.companyId === companyId &&
     planning.phase.kind === 'ready';
   const scope = {
@@ -77,15 +77,15 @@ export function useArchiveRecovery() {
     retry: false,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
-      const response = await client.request('api.planning.archive', {
+      const { data: recovery } = await client.request('api.planning_archive.show', {
         params: { companyId: companyId ?? '' },
         signal,
         headers: { 'X-Masquerade-Context': masqueradeToken ?? '' },
       });
-      if (response.companyId !== companyId) {
+      if (recovery.companyId !== companyId) {
         throw new Error(m.settings_archived_err_incomplete());
       }
-      return response;
+      return recovery;
     },
   });
   if (!enabled) return { data: null, error: null, reload };

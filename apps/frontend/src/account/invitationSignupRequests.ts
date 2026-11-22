@@ -8,17 +8,17 @@ import type { InvitationSignupBody } from './accountRequestTypes';
  */
 export const invitationSignupRequests = {
   previewInvitation(token: string): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.invites.preview', { params: { token } }), {
+    return fetchApi(buildApiRouteUrl('api.invitation_links.show', { params: { token } }), {
       credentials: 'include',
     });
   },
 
   signupWithInvitation(token: string, body: InvitationSignupBody): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.invites.sign-up', { params: { token } }), {
+    return fetchApi(buildApiRouteUrl('api.invitation_acceptances.store', { params: { token } }), {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: buildJsonBody('api.invites.sign-up', body),
+      body: buildJsonBody('api.invitation_acceptances.store', body),
     });
   },
 };

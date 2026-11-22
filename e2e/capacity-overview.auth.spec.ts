@@ -28,8 +28,8 @@ test('the account access setting gates viewer navigation and direct routes', asy
 }) => {
   const owner = await signUpUser(OWNER);
   const viewer = await signUpUser(VIEWER);
-  const accountName = `Overview Studio ${STAMP}`;
-  const companyId = await bootstrapOrg(request, owner.cookie, accountName);
+  const companyName = `Overview Studio ${STAMP}`;
+  const companyId = await bootstrapOrg(request, owner.cookie, companyName);
   createTestMember(companyId, viewer.email, 'viewer');
 
   await signIn(page, VIEWER);

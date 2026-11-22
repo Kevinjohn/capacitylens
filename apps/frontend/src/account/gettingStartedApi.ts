@@ -1,4 +1,5 @@
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
+import { readApiData } from '@/api/readApiData';
 import { fetchApi } from '@/data/requestTimeout';
 import { isRecord } from '@capacitylens/shared/lib/isRecord';
 import type { GettingStartedSteps } from '@capacitylens/shared/domain/gettingStarted';
@@ -15,14 +16,14 @@ export const gettingStartedApi = {
     signal?: AbortSignal,
   ): Promise<{ dismissed: boolean; steps: GettingStartedSteps }> {
     const response = await fetchApi(
-      buildApiRouteUrl('api.getting-started.show', { params: { companyId } }),
+      buildApiRouteUrl('api.getting_started.show', { params: { companyId } }),
       {
         credentials: 'include',
         ...(signal ? { signal } : {}),
       },
     );
     if (!response.ok) throw new Error(`Getting started read failed (${response.status})`);
-    const result: unknown = await response.json();
+    const result: unknown = await readApiData(response);
     if (!isRecord(result) || typeof result.dismissed !== 'boolean') {
       throw new Error('Getting started response was invalid');
     }
@@ -48,12 +49,12 @@ export const gettingStartedApi = {
    */
   async dismiss(companyId: string): Promise<void> {
     const response = await fetchApi(
-      buildApiRouteUrl('api.getting-started.update', { params: { companyId } }),
+      buildApiRouteUrl('api.getting_started.update', { params: { companyId } }),
       {
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: buildJsonBody('api.getting-started.update', { dismissed: true }),
+        body: buildJsonBody('api.getting_started.update', { dismissed: true }),
       },
     );
     if (!response.ok) throw new Error(`Getting started dismissal failed (${response.status})`);

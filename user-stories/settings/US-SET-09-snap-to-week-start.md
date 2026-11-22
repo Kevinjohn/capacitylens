@@ -2,7 +2,7 @@
 
 As a company member, I want the schedule to align to week boundaries so that weekly planning stays easy to read.
 
-**Status:** Current — automatic Schedule behavior; no Settings switch.
+**Status:** Current — automatic Schedule behaviour; no Settings switch.
 **Access:** Owner, Admin, Editor, Viewer
 **Entry:** Schedule horizontal scrolling
 **Documentation:** [Schedule](../../docs-src/using/read-the-schedule.md)

@@ -1,13 +1,13 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { transactionalDatabase } from '../helpers/transactional_database.js';
+import { transactionalDatabase } from '#tests/helpers/transactional_database';
 import Client from '#models/client';
 
 test.group('company isolation', (group) => {
   transactionalDatabase(group);
   group.each.setup(async () => {
     const now = new Date().toISOString();
-    await db.table('accounts').multiInsert([
+    await db.table('companies').multiInsert([
       {
         id: 'a-studio',
         name: 'Wayne Enterprises',
@@ -49,12 +49,12 @@ test.group('transactional database helper', (group) => {
   test('a test may leave a row behind', async ({ assert }) => {
     const now = new Date().toISOString();
     await db
-      .table('accounts')
+      .table('companies')
       .insert({ id: 'a-gotham', name: 'Gotham', color: '#333', created_at: now, updated_at: now });
-    assert.exists(await db.from('accounts').where('id', 'a-gotham').first());
+    assert.exists(await db.from('companies').where('id', 'a-gotham').first());
   });
 
   test('the next test starts without it', async ({ assert }) => {
-    assert.notExists(await db.from('accounts').where('id', 'a-gotham').first());
+    assert.notExists(await db.from('companies').where('id', 'a-gotham').first());
   });
 });

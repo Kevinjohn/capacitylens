@@ -120,7 +120,7 @@ function resolveInitialCapacityHours({
   );
 }
 
-/** Initializes dialog fields from an existing allocation or the create defaults. */
+/** Initialises dialog fields from an existing allocation or the create defaults. */
 export function buildAllocationDialogSeed({
   editing,
   create,
@@ -180,5 +180,5 @@ export function buildAllocationDialogSeed({
     initialCapacityHours,
   };
 }
-/** Fields used to initialize an allocation dialog. */
+/** Fields used to initialise an allocation dialog. */
 export type AllocationDialogSeed = ReturnType<typeof buildAllocationDialogSeed>;

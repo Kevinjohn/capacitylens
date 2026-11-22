@@ -21,8 +21,11 @@ export async function readResourceCandidates(trx: TransactionClientContract, com
     .where('kind', 'person')
     .whereNull('archived_at')
     .whereNull('deleted_at')
-    .select('id', 'name', 'role');
-  return rows.map((row) => ({ resourceId: String(row.id), label: String(row.name ?? row.role) }));
+    .select('id', 'name', 'job_title');
+  return rows.map((row) => ({
+    resourceId: String(row.id),
+    label: String(row.name ?? row.jobTitle),
+  }));
 }
 
 /** Reads a selected set of same-company association fields, keyed by member ID. */
