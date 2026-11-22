@@ -48,7 +48,7 @@ describe('browser account api', () => {
     });
 
     const commandIds = mocks.fetchApi.mock.calls.map(([, init]) =>
-      new Headers(init?.headers).get('x-account-command-id'),
+      new Headers(init?.headers).get('x-account-operation-id'),
     );
     expect(commandIds).toEqual([
       '00000000-0000-4000-8000-000000000021',

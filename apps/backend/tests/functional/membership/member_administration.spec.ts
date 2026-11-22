@@ -75,7 +75,7 @@ test.group('company member administration', (group) => {
     });
     const path = `/api/companies/a-studio/members/${editorId}`;
     const identity = {
-      'x-account-command-id': 'member-role-command-0001',
+      'x-account-operation-id': 'member-role-command-0001',
       'idempotency-key': 'member-role-idempotency-0001',
     };
     const requestRole = (role: string) =>
@@ -113,7 +113,7 @@ test.group('company member administration', (group) => {
     assert.lengthOf(audits, 1);
     const unchanged = await signed(client.patch(path), ownerCookie)
       .headers({
-        'x-account-command-id': 'member-role-command-noop-0001',
+        'x-account-operation-id': 'member-role-command-noop-0001',
         'idempotency-key': 'member-role-idempotency-noop-0001',
       })
       .json({ role: 'admin' })
@@ -165,7 +165,7 @@ test.group('company member administration', (group) => {
     });
     const path = `/api/companies/a-studio/members/${editorId}`;
     const identity = {
-      'x-account-command-id': 'member-shared-command-0001',
+      'x-account-operation-id': 'member-shared-command-0001',
       'idempotency-key': 'member-shared-key-0001',
     };
     const role = () =>
@@ -220,7 +220,7 @@ test.group('company member administration', (group) => {
     );
     const receipts = await db
       .from('request_receipts')
-      .where({ scope_id: 'a-studio', command_id: identity['x-account-command-id'] });
+      .where({ scope_id: 'a-studio', command_id: identity['x-account-operation-id'] });
     assert.sameMembers(
       receipts.map((row) => row.operation),
       [

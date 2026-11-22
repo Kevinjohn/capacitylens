@@ -1029,7 +1029,7 @@
   "ownership_transfer_read_failed": "Active Admins could not be loaded.",
   "ownership_transfer_uncertain": "The transfer response was interrupted. Access is being checked again; this does not mean the transfer was rolled back.",
   "ownership_transfer_retry": "Try again",
-  "ownership_transfer_command_failed": "The ownership transfer could not be completed.",
+  "ownership_transfer_operation_failed": "The ownership transfer could not be completed.",
   "login_forgot_password": "Forgot password?",
   "login_send_reset_link": "Email reset link",
   "login_reset_confirmation": "If an account uses that address, we've emailed a reset link.",
