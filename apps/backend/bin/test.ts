@@ -70,13 +70,15 @@ ignitor
     configure({
       ...app.rcFile.tests,
       ...config,
-      ...{
-        setup: runnerHooks.setup,
-        teardown: runnerHooks.teardown.concat([() => app.terminate()]),
-      },
+      ...{ setup: runnerHooks.setup, teardown: runnerHooks.teardown },
     });
   })
-  .run(() => run())
+  .run(async (app) => {
+    await run();
+    // Terminating after `run()` lets Japa print the summary and set the exit code first. A failed test
+    // can leave the pooled connection held, and termination then never finishes.
+    await app.terminate();
+  })
   .catch(async (error) => {
     process.exitCode = 1;
     await prettyPrintError(error);
