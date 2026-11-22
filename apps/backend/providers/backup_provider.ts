@@ -4,6 +4,7 @@
 import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, sep } from 'node:path';
 import type { ApplicationService } from '@adonisjs/core/types';
+import logger from '@adonisjs/core/services/logger';
 import type { CreateResult, SqliteBackup } from '@kevinjohn/adonisjs-sqlite-backup';
 import { formatBackupStartupFailure, type BackupConfig } from '#config/backup';
 
@@ -31,7 +32,7 @@ export default class BackupProvider {
   constructor(protected application: ApplicationService) {}
 
   protected log(message: string): void {
-    console.log(message);
+    logger.info(message);
   }
 
   protected schedule(callback: () => void, delayMs: number): () => void {

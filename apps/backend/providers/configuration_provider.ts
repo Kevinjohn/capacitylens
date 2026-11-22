@@ -4,6 +4,7 @@
 // `masquerade:stop`.
 
 import type { ApplicationService } from '@adonisjs/core/types';
+import logger from '@adonisjs/core/services/logger';
 import capacitylens from '#config/capacitylens';
 import db from '@adonisjs/lucid/services/db';
 import { rememberSchemaIntegrity } from '#services/schema_integrity';
@@ -82,10 +83,10 @@ export default class ConfigurationProvider {
   async ready() {
     const emitter = await this.app.container.make('emitter');
     emitter.on('queued:mail:error', ({ error, mailerName }) => {
-      console.error('Queued mail delivery failed', {
-        mailer: mailerName,
-        error: error instanceof Error ? error.name : 'unknown',
-      });
+      logger.error(
+        { mailer: mailerName, errorName: error instanceof Error ? error.name : 'unknown' },
+        'Queued mail delivery failed'
+      );
     });
     if (this.app.getEnvironment() !== 'web' || this.app.inTest) return;
     // Shutdown can begin while an earlier provider is still getting ready; a pass started after
@@ -98,7 +99,11 @@ export default class ConfigurationProvider {
         ['Request receipt pruning', () => pruneRequestReceipts()],
         ['Masquerade pruning', () => pruneExpiredMasquerades(this.app)],
       ],
-      (task, error) => console.error(`${task} failed`, error instanceof Error ? error.name : error)
+      (task, error) =>
+        logger.error(
+          { task, errorName: error instanceof Error ? error.name : 'unknown' },
+          `${task} failed`
+        )
     );
     // A pass still in flight would reopen the database after shutdown closed it.
     this.app.terminating(() => maintenance.stop());
