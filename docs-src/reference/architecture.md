@@ -308,7 +308,7 @@ lockfile together; pnpm records the new archive's integrity.
 Client, Project, Activity and Resource keep the package's Luxon `deletedAt` attribute. Their
 serializers validate the UTC ISO timestamp sent to the shared domain and wire contract. Product
 `createdAt`, `updatedAt` and `archivedAt` are Luxon attributes too, declared with
-`timestampColumn` (`app/models/scalar_column.ts`), which stores and serialises the same canonical
+`timestampColumn` (`app/models_support/scalar_column.ts`), which stores and serialises the same canonical
 UTC ISO string. `database/schema_rules.ts` leaves every date-time column on Lucid's default
 `DateTime` type except `users.created_at` and `users.updated_at`, which the `User` model writes as
 strings.

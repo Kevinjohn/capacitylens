@@ -2,9 +2,9 @@ import { ClientSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column, hasMany } from '@adonisjs/lucid/orm';
 import type { HasMany } from '@adonisjs/lucid/types/relations';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
-import { booleanColumn, deletedAtColumn, timestampColumn } from '#models/scalar_column';
+import { booleanColumn, deletedAtColumn, timestampColumn } from '#models_support/scalar_column';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
 import Project from '#models/project';
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
 export default class Client extends SoftDeletes(ClientSchema) {

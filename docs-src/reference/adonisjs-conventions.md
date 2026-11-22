@@ -100,6 +100,7 @@ apps/backend/
     exceptions/     the exception handler and custom exceptions
     middleware/     one class per file
     models/         one model per table
+    models_support/ model scopes, hooks and column helpers
     services/       business logic
     transformers/   response shapes
     validators/     VineJS validators

@@ -8,7 +8,7 @@ import { initializeCompanyAccess } from '#services/initial_company_access';
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
 import capacitylens from '#config/capacitylens';
-import { hasNoCompany } from '#models/installation_company';
+import { hasNoCompany } from '#services/installation_company';
 
 /** Insert the single disposable company graph and its first membership in one transaction. */
 async function insertDisposableDemoSeed(ownerId: string) {

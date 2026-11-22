@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http';
 import access from '#config/access_control';
 import { withActor } from '#services/auth/current_actor';
-import { hasMultipleCompanies } from '#models/installation_company';
+import { hasMultipleCompanies } from '#services/installation_company';
 import { buildAccessGrant } from '#services/auth/access_grant';
 import { isRole } from '@capacitylens/shared/account/types';
 

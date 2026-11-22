@@ -10,7 +10,7 @@ import { isMailConfigured } from '#services/mail_delivery';
 import { setProofHeaders } from '#services/request_helpers';
 import { assertCompanyPermission } from '#services/auth/authorization';
 import { withActor } from '#services/auth/current_actor';
-import { getInstallationCompany, getInstallationCompanyId } from '#models/installation_company';
+import { getInstallationCompany, getInstallationCompanyId } from '#services/installation_company';
 import {
   refuseInvalidAdmission,
   refuseInvalidAdmissionBody,

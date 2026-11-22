@@ -63,7 +63,7 @@ await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 | ------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                  | `canArchive` in `packages/shared/src/domain/lifecycle/transitions.ts`             |
 | `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyPermission` in `apps/backend/app/services/auth/authorization.ts`        |
-| `require`          | Returns what the caller needs or throws. The throwing partner of `get`.                              | `requireCompanyScope` in `apps/backend/app/models/scoped_model.ts`                |
+| `require`          | Returns what the caller needs or throws. The throwing partner of `get`.                              | `requireCompanyScope` in `apps/backend/app/models_support/scoped_model.ts`                |
 | `prepare`           | Prepares a resource for use according to its stated prerequisites.                                         | `prepareDirectory` from `@kevinjohn/adonisjs-sqlite-backup`  |
 | `get`              | Looks one thing up by key. Returns it, or `null` when absent. Never throws for absence.               | `getMasqueradeContextToken` in `apps/frontend/src/api/masqueradeContext.ts`         |
 | `list`             | Returns an array of matches, empty when there are none.                                              | `listActiveCompanyIds` in `apps/backend/app/services/auth/authorization.ts`                |

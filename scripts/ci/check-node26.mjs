@@ -3,7 +3,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isSupportedNodeVersion } from '../../apps/backend/start/node_version.ts';
+import { isSupportedNodeVersion } from '../../apps/backend/bin/node_version.ts';
 import { reportSpawnFailureAndResolveExitStatus, spawnPnpmSync } from '../shared/pnpmSpawn.mjs';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));

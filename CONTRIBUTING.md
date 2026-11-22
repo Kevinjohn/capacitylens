@@ -255,7 +255,7 @@ standard CI setup, while [`check:node26`](scripts/ci/check-node26.mjs) covers se
 paths rather than the complete gate. Keep the documented production host boundary in the
 [self-hosting installation guide](docs-src/self-hosting/install.md): Linux. The runtime floors are
 declared in [package.json](package.json) and enforced before the backend starts in
-[node_version.ts](apps/backend/start/node_version.ts).
+[node_version.ts](apps/backend/bin/node_version.ts).
 
 Keep patch and minor updates within the existing runtime and browser requirements. Check dependency
 engines, peers and generated output, and verify on the minimum supported Node 24 version. Treat an

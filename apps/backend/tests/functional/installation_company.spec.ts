@@ -4,7 +4,7 @@ import {
   hasMultipleCompanies,
   hasNoCompany,
   getInstallationCompanyId,
-} from '#models/installation_company';
+} from '#services/installation_company';
 import { freshDatabase } from '../helpers/fresh_database.js';
 import { resetState } from '../helpers/state_fixture.js';
 

@@ -4,7 +4,7 @@ import type { CapacityOverviewAccess, Weekday } from '@capacitylens/shared/types
 import { AccountSchema } from '#database/schema';
 import type { DateTime } from 'luxon';
 import { isArrayOf, isOneOf, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
-import { booleanColumn, isWeekday, timestampColumn } from '#models/scalar_column';
+import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scalar_column';
 
 export default class Company extends AccountSchema {
   static table = 'accounts';

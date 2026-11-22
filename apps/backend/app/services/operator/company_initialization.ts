@@ -7,7 +7,7 @@ import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/acco
 import access from '#config/access_control';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import { operatorDatabasePath, withOperatorDatabase } from '@kevinjohn/adonisjs-sqlite-backup';
-import { hasNoCompany } from '#models/installation_company';
+import { hasNoCompany } from '#services/installation_company';
 
 /** Establish the first company role for an existing native identity without changing admission. */
 export async function initializeCompany(input: {

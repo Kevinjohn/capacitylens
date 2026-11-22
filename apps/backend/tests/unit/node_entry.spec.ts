@@ -1,4 +1,4 @@
-import { isSupportedNodeVersion } from '#start/node_version';
+import { isSupportedNodeVersion } from '#bin/node_version';
 import { test } from '@japa/runner';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

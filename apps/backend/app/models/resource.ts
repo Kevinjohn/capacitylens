@@ -3,8 +3,13 @@ import { beforeFetch, beforeFind, column } from '@adonisjs/lucid/orm';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
 import type { ISODate, Weekday } from '@capacitylens/shared/types/entities';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope } from '#models/scoped_model';
-import { booleanColumn, deletedAtColumn, isWeekday, timestampColumn } from '#models/scalar_column';
+import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import {
+  booleanColumn,
+  deletedAtColumn,
+  isWeekday,
+  timestampColumn,
+} from '#models_support/scalar_column';
 import { isArrayOf, isoDateColumn, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
 
 /** A company-scoped resource; working-day and half-day arrays contain validated weekdays. */
