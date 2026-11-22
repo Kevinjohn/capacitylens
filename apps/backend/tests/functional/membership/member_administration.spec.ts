@@ -104,7 +104,7 @@ test.group('company member administration', (group) => {
     const mismatch = await requestRole('viewer');
     mismatch.assertStatus(409);
     assert.deepEqual(mismatch.body(), {
-      error: 'Command identity already used.',
+      error: 'Operation id already used.',
       code: 'IDEMPOTENCY_CONFLICT',
     });
     const audits = await db

@@ -301,7 +301,7 @@ test.group('company invitations', (group) => {
     response.assertStatus(409);
     assert.deepEqual(response.body(), {
       error: 'An account already uses this email. Sign in instead.',
-      code: 'EMAIL_REGISTERED',
+      code: 'EMAIL_IN_USE',
     });
     assert.equal(response.header('cache-control'), 'no-store');
     assert.equal(response.header('referrer-policy'), 'no-referrer');

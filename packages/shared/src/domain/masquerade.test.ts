@@ -5,7 +5,7 @@ describe('masquerade contracts', () => {
   it('keeps the public end reasons and error codes stable', () => {
     expect(MASQUERADE_END_REASONS).toEqual([
       'explicit',
-      'account_switch',
+      'company_switch',
       'sign_out',
       'session_expired',
       'session_revoked',

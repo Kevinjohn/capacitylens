@@ -277,7 +277,7 @@ function insertAuthE2ECompany(
   if (recordInitialization) {
     db.prepare(
       `INSERT INTO audit_entries (id, company_id, actor_id, action, entity, entity_id, details, created_at, updated_at)
-       VALUES (?, ?, ?, 'company.initialized', 'account', ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, 'company.initialized', 'company', ?, ?, ?, ?)`,
     ).run(
       crypto.randomUUID(),
       companyId,

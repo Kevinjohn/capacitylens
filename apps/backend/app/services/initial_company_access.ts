@@ -19,7 +19,7 @@ export async function initializeCompanyAccess(
     company_id: input.companyId,
     actor_id: input.actorId,
     action: 'company.initialized',
-    entity: 'account',
+    entity: 'company',
     entity_id: input.companyId,
     details: JSON.stringify({ changedFields: ['company', 'owner'] }),
     created_at: input.now,

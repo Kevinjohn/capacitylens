@@ -118,7 +118,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         return;
       }
       setError(
-        result.kind === 'email-registered'
+        result.kind === 'email-in-use'
           ? m.invite_err_email_registered()
           : (result.message ?? m.invite_err_failed()),
       );
@@ -183,7 +183,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                     <dd data-testid="invite-role">{getRoleText(state.preview.role)}</dd>
                   </dl>
                   <p className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
-                    {m.invite_signup_intro({ email: state.preview.email })}
+                    {m.invite_sign_up_intro({ email: state.preview.email })}
                   </p>
                   <Field>
                     <FieldLabel htmlFor={nameId}>{m.invite_name()}</FieldLabel>
@@ -217,7 +217,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                       data-testid="invite-submit"
                       disabled={state.kind === 'working'}
                     >
-                      {m.invite_signup_submit()}
+                      {m.invite_sign_up_submit()}
                     </Button>
                   </div>
                 </FieldGroup>

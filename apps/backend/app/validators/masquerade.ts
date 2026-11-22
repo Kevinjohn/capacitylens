@@ -14,7 +14,7 @@ export const endMasqueradeValidator = vine.create(
   vine
     .object({
       token: vine.string().minLength(1),
-      reason: vine.enum(['explicit', 'account_switch'] as const),
+      reason: vine.enum(['explicit', 'company_switch'] as const),
     })
     .use(allowedFields({ fields: ['token', 'reason'], message: endMessage }))
 );

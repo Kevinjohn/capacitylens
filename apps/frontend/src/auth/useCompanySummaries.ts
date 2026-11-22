@@ -77,7 +77,7 @@ function reportCompanySummaryParse(
   isCurrent: () => boolean,
 ): void {
   if (outcome.droppedCount > 0 && isCurrent()) {
-    useStore.getState().setNotice(m.account_directory_incomplete(), 'warning');
+    useStore.getState().setNotice(m.company_directory_incomplete(), 'warning');
   }
 }
 
@@ -118,7 +118,7 @@ export async function fetchCompanySummaries(requestOptions?: {
     if (!res.ok) {
       if (res.status === 409 && isCurrent()) {
         useStore.getState().setCompanySummaries({ list: [], complete: false, ambiguous: true });
-        useStore.getState().setNotice(m.account_directory_ambiguous(), 'warning');
+        useStore.getState().setNotice(m.company_directory_ambiguous(), 'warning');
       }
       return null;
     }

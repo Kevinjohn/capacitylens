@@ -222,13 +222,13 @@ it('reorders from Sunday without changing an explicit saved selection', async ()
   render(<SettingsView />);
 
   expect(screen.getAllByRole('checkbox').map((checkbox) => checkbox.id)).toEqual([
-    'account-working-day-0',
-    'account-working-day-1',
-    'account-working-day-2',
-    'account-working-day-3',
-    'account-working-day-4',
-    'account-working-day-5',
-    'account-working-day-6',
+    'company-working-day-0',
+    'company-working-day-1',
+    'company-working-day-2',
+    'company-working-day-3',
+    'company-working-day-4',
+    'company-working-day-5',
+    'company-working-day-6',
   ]);
   const companyDays = screen.getByRole('group', { name: 'Company working days' });
   expect(

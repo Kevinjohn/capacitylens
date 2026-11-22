@@ -311,7 +311,7 @@ export class MasqueradeModel {
       return isSwitchSuccessful(await this.dependencies.switchCompany(companyId));
     }
     const ended = await this.endProjection({
-      reason: 'account_switch',
+      reason: 'company_switch',
       finish: async () => {
         const outcome = await this.dependencies.switchCompany(companyId);
         if (!isSwitchSuccessful(outcome)) {

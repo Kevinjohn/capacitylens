@@ -13,12 +13,12 @@ test('package refusals for an account operation retain the exact HTTP status and
     [
       new E_INVALID_COMMAND_VALUE(),
       400,
-      { error: 'Invalid command payload.', code: 'VALIDATION_ERROR' },
+      { error: 'Invalid operation payload.', code: 'VALIDATION_ERROR' },
     ],
     [
       new E_DUPLICATE_REQUEST_CONFLICT(),
       409,
-      { error: 'Command identity already used.', code: 'IDEMPOTENCY_CONFLICT' },
+      { error: 'Operation id already used.', code: 'IDEMPOTENCY_CONFLICT' },
     ],
   ] as const) {
     assert.deepEqual(mapHttpError(mapAccountOperationError(error), 'admission'), { status, body });

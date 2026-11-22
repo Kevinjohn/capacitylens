@@ -71,7 +71,7 @@ export async function addExampleData(
     companyId,
     actorId,
     action: 'exampleData',
-    entity: 'account',
+    entity: 'company',
     entityId: companyId,
     fields: Object.keys(sample),
   });

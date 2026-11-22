@@ -88,7 +88,7 @@ export async function changeMemberSignInTracking(
         companyId,
         actorId,
         action: 'memberSignInTrackingChange',
-        entity: 'account',
+        entity: 'company',
         entityId: companyId,
         fields: ['memberSignInTracking'],
       },

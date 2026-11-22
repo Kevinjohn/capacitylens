@@ -4,7 +4,7 @@ import type { IsoInstant, UserId, Role, CompanyId } from '../account/types.js';
 /** Reasons a masquerade can end. Only the first two may be supplied by the browser. */
 export const MASQUERADE_END_REASONS = [
   'explicit',
-  'account_switch',
+  'company_switch',
   'sign_out',
   'session_expired',
   'session_revoked',
@@ -16,7 +16,7 @@ export const MASQUERADE_END_REASONS = [
 export type MasqueradeEndReason = (typeof MASQUERADE_END_REASONS)[number];
 
 /** End reasons accepted from the browser-facing DELETE route. */
-export type ClientMasqueradeEndReason = Extract<MasqueradeEndReason, 'explicit' | 'account_switch'>;
+export type ClientMasqueradeEndReason = Extract<MasqueradeEndReason, 'explicit' | 'company_switch'>;
 
 /** Server-computed wire representation of an active identity read projection. */
 export interface MasqueradeState extends AccessGrant {
