@@ -1,0 +1,141 @@
+import { act, renderHook } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { useExclusiveOperation } from './useExclusiveOperation';
+import { createDeferred } from '@/test/createDeferred';
+
+// The load-bearing property is the same-render one: the ref must already refuse a second action
+// inside the very click that started the first, before React has committed `busy = true` and had a
+// chance to disable anything. A test that only asserts on `busy` would pass against a
+// state-flag-only implementation and miss exactly the double-click this hook exists to stop.
+
+describe('useExclusiveOperation', () => {
+  it('starts idle', () => {
+    const { result } = renderHook(() => useExclusiveOperation());
+    expect(result.current.busy).toBe(false);
+    expect(result.current.locked()).toBe(false);
+  });
+
+  it('locks synchronously, before React has committed the busy flag', () => {
+    const pending = createDeferred();
+    const { result } = renderHook(() => useExclusiveOperation());
+    const lock = result.current;
+
+    act(() => {
+      lock.run(() => pending.promise, vi.fn());
+
+      expect(lock.locked()).toBe(true);
+      expect(result.current.busy).toBe(false);
+    });
+
+    expect(result.current.busy).toBe(true);
+  });
+  it('discards a second action started while one is in flight', async () => {
+    const pending = createDeferred();
+    const second = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() => useExclusiveOperation());
+    const lock = result.current;
+
+    act(() => {
+      lock.run(() => pending.promise, vi.fn());
+      lock.run(second, vi.fn());
+    });
+    expect(second).not.toHaveBeenCalled();
+
+    await act(async () => {
+      pending.resolve();
+      await pending.promise;
+    });
+
+    expect(second).not.toHaveBeenCalled();
+  });
+
+  it('releases the lock once the action settles', async () => {
+    const pending = createDeferred();
+    const { result } = renderHook(() => useExclusiveOperation());
+
+    act(() => result.current.run(() => pending.promise, vi.fn()));
+    await act(async () => {
+      pending.resolve();
+      await pending.promise;
+    });
+
+    expect(result.current.busy).toBe(false);
+    expect(result.current.locked()).toBe(false);
+
+    const next = vi.fn(() => Promise.resolve());
+    await act(async () => result.current.run(next, vi.fn()));
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+  it('surfaces a rejection to onError and still releases the lock', async () => {
+    const pending = createDeferred();
+    const onError = vi.fn();
+    const failure = new Error('the server refused');
+    const { result } = renderHook(() => useExclusiveOperation());
+
+    act(() => result.current.run(() => pending.promise, onError));
+    await act(async () => {
+      pending.reject(failure);
+      await pending.promise.catch(() => {});
+    });
+
+    expect(onError).toHaveBeenCalledWith(failure);
+
+    expect(result.current.busy).toBe(false);
+    expect(result.current.locked()).toBe(false);
+  });
+  it('surfaces a synchronous action throw and still releases the lock', async () => {
+    const onError = vi.fn();
+    const failure = new Error('the action threw before returning a promise');
+    const { result } = renderHook(() => useExclusiveOperation());
+
+    expect(() =>
+      act(() =>
+        result.current.run(() => {
+          throw failure;
+        }, onError),
+      ),
+    ).not.toThrow();
+    await act(async () => Promise.resolve());
+
+    expect(onError).toHaveBeenCalledWith(failure);
+    expect(result.current.busy).toBe(false);
+    expect(result.current.locked()).toBe(false);
+  });
+
+  it('reports a throwing error handler and still releases the lock', async () => {
+    const actionFailure = new Error('the action failed');
+    const handlerFailure = new Error('the error surface failed');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { result } = renderHook(() => useExclusiveOperation());
+
+      act(() =>
+        result.current.run(
+          () => Promise.reject(actionFailure),
+          () => {
+            throw handlerFailure;
+          },
+        ),
+      );
+      await act(async () => Promise.resolve());
+
+      expect(consoleError).toHaveBeenCalledWith(
+        'Exclusive action error handler failed',
+        handlerFailure,
+      );
+      expect(result.current.busy).toBe(false);
+      expect(result.current.locked()).toBe(false);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it('keeps run and locked stable across renders so they are safe effect/callback dependencies', () => {
+    const { result, rerender } = renderHook(() => useExclusiveOperation());
+    const { run, locked } = result.current;
+
+    rerender();
+    expect(result.current.run).toBe(run);
+    expect(result.current.locked).toBe(locked);
+  });
+});

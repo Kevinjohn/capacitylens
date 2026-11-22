@@ -35,7 +35,7 @@ import {
 export type NavigationLinkDefinition = { to: string; label: () => string; icon: LucideIcon };
 
 /**
- * Which routes a member is shown in navigation. Route guards and the server decide access
+ * Which routes a member is shown in navigation. Route gates and the server decide access
  * independently; hiding a route here never authorizes or refuses anything.
  */
 export type RouteVisibilityRule = 'everyone' | 'disciplines' | 'capacity-overview' | 'diagnostics';
@@ -53,7 +53,7 @@ export type AppRouteDefinition = NavigationLinkDefinition & {
 };
 
 /** The facts each {@link RouteVisibilityRule} is decided by for the current member. */
-export interface RouteVisibilityContext {
+export interface RouteVisibilityFacts {
   disciplinesEnabled: boolean;
   capacityOverviewAllowed: boolean;
   diagnosticsAllowed: boolean;
@@ -169,21 +169,21 @@ export const APP_ROUTES: readonly AppRouteDefinition[] = [
   ACCOUNT_LINK,
 ];
 
-/** Reports whether a route's visibility rule shows it in the given context. */
-export function isRouteVisible(route: AppRouteDefinition, context: RouteVisibilityContext) {
+/** Reports whether a route's visibility rule shows it in the given facts. */
+export function isRouteVisible(route: AppRouteDefinition, facts: RouteVisibilityFacts) {
   switch (route.visibility) {
     case 'everyone':
       return true;
     case 'disciplines':
-      return context.disciplinesEnabled;
+      return facts.disciplinesEnabled;
     case 'capacity-overview':
-      return context.capacityOverviewAllowed;
+      return facts.capacityOverviewAllowed;
     case 'diagnostics':
-      return context.diagnosticsAllowed;
+      return facts.diagnosticsAllowed;
   }
 }
 
 /** Lists the routes from {@link APP_ROUTES} whose visibility rule shows them, in table order. */
-export function listVisibleRoutes(context: RouteVisibilityContext): AppRouteDefinition[] {
-  return APP_ROUTES.filter((route) => isRouteVisible(route, context));
+export function listVisibleRoutes(facts: RouteVisibilityFacts): AppRouteDefinition[] {
+  return APP_ROUTES.filter((route) => isRouteVisible(route, facts));
 }

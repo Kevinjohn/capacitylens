@@ -2,14 +2,14 @@ import { CompanySetup } from './CompanySetup';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
-  bindStoredAccountCommandsToIdentity,
-  clearStoredAccountCommands,
-} from '@/account/accountCommands';
+  bindStoredAccountOperationsToIdentity,
+  clearStoredAccountOperations,
+} from '@/account/accountOperations';
 import { readSoleCompanyOwnership } from './useCompanySummaries';
 import { resolvePublicAuthEntry } from './authEntryRoute';
 import { useStore } from '@/store/useStore';
 import { queryClient } from '@/api/queryClient';
-import { masqueradeController } from './masqueradeControllerInstance';
+import { masqueradeModel } from './masqueradeModelInstance';
 import { AuthContext } from './authContext';
 import { m } from '@/i18n';
 import { Button } from '@/components/ui/button';
@@ -21,27 +21,27 @@ import { AuthLoading } from './authScreens';
 import { AccessScreen } from './AccessScreens';
 import { useAuthContextValue } from './useAuthContextValue';
 
-// Auth boundary checks GET /api/auth/me once at boot; a 401 replaces everything with the LoginScreen. The screen is a
-// lazy chunk so interactive auth forms never load unless a login is actually shown.
+// Auth gate checks GET /api/auth/me once at boot; a 401 replaces everything with the SignInScreen. The screen is a
+// lazy chunk so interactive auth forms never load unless a sign-in is actually shown.
 
-const LoginScreen = lazy(() =>
-  import('./LoginScreen').then((screenModule) => ({ default: screenModule.LoginScreen })),
+const SignInScreen = lazy(() =>
+  import('./SignInScreen').then((screenModule) => ({ default: screenModule.SignInScreen })),
 );
 
 type CheckAuth = (onNull: 'report-error' | 'keep-previous') => Promise<AuthStatusResult | null>;
 
-function useTenantAccessReady(status: AuthStatusResult, onTenantAccessReady?: () => void) {
-  const tenantAccessSignalled = useRef(false);
+function useCompanyAccessReady(status: AuthStatusResult, onCompanyAccessReady?: () => void) {
+  const companyAccessSignalled = useRef(false);
   const ready = status.kind === 'pass' && !status.companySetupRequired && !status.accessGate;
   useEffect(() => {
     if (!ready) {
-      tenantAccessSignalled.current = false;
+      companyAccessSignalled.current = false;
       return;
     }
-    if (tenantAccessSignalled.current) return;
-    tenantAccessSignalled.current = true;
-    onTenantAccessReady?.();
-  }, [onTenantAccessReady, ready]);
+    if (companyAccessSignalled.current) return;
+    companyAccessSignalled.current = true;
+    onCompanyAccessReady?.();
+  }, [onCompanyAccessReady, ready]);
 }
 
 function useAuthStatus() {
@@ -59,13 +59,13 @@ function useAuthStatus() {
       }
       return next;
     }
-    if (next.kind === 'login') {
-      clearStoredAccountCommands();
-      masqueradeController.invalidate();
+    if (next.kind === 'signIn') {
+      clearStoredAccountOperations();
+      masqueradeModel.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
     } else if (next.kind === 'pass') {
-      bindStoredAccountCommandsToIdentity(next.user.id);
+      bindStoredAccountOperationsToIdentity(next.user.id);
     }
     setStatus(next);
     return next;
@@ -129,7 +129,7 @@ function useAuthInvalidation({
   useEffect(() => {
     const resetOnAuthInvalidation = (event: StorageEvent) => {
       if (event.key !== AUTH_INVALIDATION_STORAGE_KEY) return;
-      masqueradeController.invalidate();
+      masqueradeModel.invalidate();
       queryClient.clear();
       useStore.getState().clearPlanning();
       setStatus({ kind: 'checking' });
@@ -140,12 +140,12 @@ function useAuthInvalidation({
   }, [checkAuth, setStatus]);
 }
 
-function LoginBoundary({
+function SignInGate({
   status,
   children,
   authContextValue,
 }: {
-  status: Extract<AuthStatusResult, { kind: 'login' }>;
+  status: Extract<AuthStatusResult, { kind: 'signIn' }>;
   children: ReactNode;
   authContextValue: ReturnType<typeof useAuthContextValue>;
 }) {
@@ -156,7 +156,7 @@ function LoginBoundary({
   }
   return (
     <Suspense fallback={<AuthLoading message={m.auth_loading_sign_in()} />}>
-      <LoginScreen
+      <SignInScreen
         needsSetup={status.needsSetup}
         passwordResetEmail={status.passwordResetEmail}
         degraded={status.degraded}
@@ -185,7 +185,7 @@ function AuthError({ message, retry }: { message: string; retry: () => void }) {
   );
 }
 
-function AuthenticatedBoundary({
+function AuthenticatedGate({
   children,
   authContextValue,
 }: {
@@ -194,17 +194,17 @@ function AuthenticatedBoundary({
 }) {
   return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
 }
-/** Provides server-verified authentication state and a retryable boot boundary. Unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
+/** Provides server-verified authentication state and a retryable boot gate. Unresolved later checks preserve the current snapshot, while a confirmed 401 opens sign-in. */
 export function AuthProvider({
   children,
-  onTenantAccessReady,
+  onCompanyAccessReady,
 }: {
   children: ReactNode;
-  /** Starts tenant-data hydration after /me admits access; the callback must be idempotent under StrictMode effect replay. */
-  onTenantAccessReady?: () => void;
+  /** Starts company-data hydration after /me admits access; the callback must be idempotent under StrictMode effect replay. */
+  onCompanyAccessReady?: () => void;
 }) {
   return (
-    <AuthenticatedAppProvider {...(onTenantAccessReady ? { onTenantAccessReady } : {})}>
+    <AuthenticatedAppProvider {...(onCompanyAccessReady ? { onCompanyAccessReady } : {})}>
       {children}
     </AuthenticatedAppProvider>
   );
@@ -212,14 +212,14 @@ export function AuthProvider({
 
 function AuthenticatedAppProvider({
   children,
-  onTenantAccessReady,
+  onCompanyAccessReady,
 }: {
   children: ReactNode;
-  onTenantAccessReady?: () => void;
+  onCompanyAccessReady?: () => void;
 }) {
   const planningAuthLossVersion = useStore((state) => state.planningAuthLossVersion);
   const { status, setStatus, checkAuth, refreshAuth } = useAuthStatus();
-  useTenantAccessReady(status, onTenantAccessReady);
+  useCompanyAccessReady(status, onCompanyAccessReady);
   useAuthRevalidation({ planningAuthLossVersion, checkAuth, refreshAuth });
   useAuthInvalidation({ checkAuth, setStatus });
 
@@ -247,11 +247,11 @@ function AuthenticatedAppProvider({
       />
     );
   }
-  if (status.kind === 'login') {
+  if (status.kind === 'signIn') {
     return (
-      <LoginBoundary status={status} authContextValue={authContextValue}>
+      <SignInGate status={status} authContextValue={authContextValue}>
         {children}
-      </LoginBoundary>
+      </SignInGate>
     );
   }
   // The address confirmation page stays reachable from the limited screen that asks for it.
@@ -272,9 +272,7 @@ function AuthenticatedAppProvider({
     );
   }
   if (confirmingAddress) {
-    return (
-      <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
-    );
+    return <AuthenticatedGate authContextValue={authContextValue}>{children}</AuthenticatedGate>;
   }
   if (status.companySetupRequired) {
     return (
@@ -302,7 +300,5 @@ function AuthenticatedAppProvider({
       />
     );
   }
-  return (
-    <AuthenticatedBoundary authContextValue={authContextValue}>{children}</AuthenticatedBoundary>
-  );
+  return <AuthenticatedGate authContextValue={authContextValue}>{children}</AuthenticatedGate>;
 }

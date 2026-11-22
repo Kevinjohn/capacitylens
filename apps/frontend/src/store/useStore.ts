@@ -34,7 +34,7 @@ export {
 
 /**
  * The app store: one active company projection, UI state and server-backed planning history.
- * CRUD actions throw on a tenancy or integrity violation and silently ignore a stale id; ids are
+ * CRUD actions throw on a company scoping or integrity violation and silently ignore a stale id; ids are
  * assigned here, never by callers, and timestamps are assigned by the server.
  */
 export const useStore = create<StoreState>()((set, get, store) => {

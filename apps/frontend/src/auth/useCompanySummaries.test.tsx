@@ -9,7 +9,7 @@ import {
 } from './useCompanySummaries';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
-import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
+import { grantFor, masqueradeGrantFor } from '@/test/permissionGrants';
 import { createDeferred } from '@/test/createDeferred';
 
 // Only a genuine empty array may clear the directory. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
@@ -22,14 +22,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// A 2xx answer arrives inside the `{ data }` envelope; a refusal is flat.
 const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
+  new Response(JSON.stringify(status < 300 ? { data: body } : body), {
     status,
     headers: { 'content-type': 'application/json' },
   });
 
 function createBasicResponseClassificationTests() {
-  it('a genuine empty array -> [] (the real "no accounts" answer)', async () => {
+  it('a genuine empty array -> [] (the real "no companies" answer)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => json(200, [])),
@@ -130,7 +131,7 @@ function createUnknownRoleResponseTest() {
 }
 
 function createMalformedResponseClassificationTests() {
-  it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
+  it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no companies") + a warn', async () => {
     // An array containing only invalid entries is a malformed response, not evidence that no companies exist. It must preserve the current directory.
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
@@ -154,7 +155,7 @@ function createMalformedResponseClassificationTests() {
     await expect(fetchCompanySummaries()).resolves.toBeNull();
   });
 
-  it('a 200 whose body is NOT an array -> null (malformed, not "no accounts") + a warn breadcrumb', async () => {
+  it('a 200 whose body is NOT an array -> null (malformed, not "no companies") + a warn breadcrumb', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
@@ -361,7 +362,7 @@ function createYieldingHookTest() {
           targetUserId: 'target',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
-          ...viewAsGrantFor('viewer'),
+          ...masqueradeGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',

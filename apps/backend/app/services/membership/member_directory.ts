@@ -60,15 +60,15 @@ export async function readMemberDirectory(
   const { actorId } = actor;
   const membershipQuery: DatabaseQueryBuilderContract<MembershipDirectoryRow> = trx
     .from(`${access.config.membershipsTable} as member`)
-    .leftJoin('users as principal', 'principal.id', 'member.user_id')
+    .leftJoin('users as member_user', 'member_user.id', 'member.user_id')
     .where('member.scope_id', companyId)
     .select(
       'member.user_id',
       'member.role',
       'member.status',
       'member.created_at',
-      'principal.display_name',
-      'principal.email'
+      'member_user.display_name',
+      'member_user.email'
     )
     .orderBy('member.created_at', 'asc');
   const [rows, tracking, resourceCandidates] = await Promise.all([

@@ -5,19 +5,15 @@ import { isRole, type Role } from '@capacitylens/shared/account/types';
 import type { PermissionKey } from '@capacitylens/shared/domain/access';
 import access from '#config/access_control';
 import { requireActor } from '#services/auth/current_actor';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 
 /** A transaction, or none where a caller has none; reads then use the default connection. */
 type Reader = TransactionClientContract | undefined;
 
-export class IdentityAuthorityError extends Error {
-  code = 'IDENTITY_AUTHORITY_DENIED';
-  status = 403;
-}
-
 /** Returns the membership's role, or throws when storage holds a role outside the product vocabulary. */
 export function requireStoredRole(membership: Membership): Role {
   if (!isRole(membership.role)) {
-    throw new IdentityAuthorityError('Invalid membership role.');
+    throw new IdentityAuthorizationException('Invalid membership role.');
   }
   return membership.role;
 }
@@ -28,7 +24,7 @@ export async function getActiveMembership(userId: string, companyId: string, trx
   return membership?.status === 'active' ? membership : null;
 }
 
-/** Resolves active company standing for ordinary data and member policies. */
+/** Resolves active company standing for ordinary data and member rules. */
 export async function getActiveCompanyRole(
   userId: string,
   companyId: string,
@@ -39,7 +35,7 @@ export async function getActiveCompanyRole(
 }
 
 /** Authorizes one company permission from live membership inside the actor's verified transaction. */
-export async function assertCompanyAction(
+export async function assertCompanyPermission(
   companyId: string,
   key: PermissionKey,
   trx: TransactionClientContract
@@ -55,7 +51,7 @@ export async function assertCompanyAction(
     return { actorId: actor.userId, role: requireStoredRole(membership) };
   } catch (error) {
     if (error instanceof AccessControlError && error.code === 'E_ACCESS_CONTROL_FORBIDDEN') {
-      throw new IdentityAuthorityError('Forbidden.');
+      throw new IdentityAuthorizationException('Forbidden.');
     }
     throw error;
   }

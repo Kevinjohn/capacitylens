@@ -2,15 +2,15 @@ import { requireCreated } from '@/test/requireCreated';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeResourceDraft, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from './useStore';
-import { PlanningControllerError } from '@/data/planning/planningErrors';
+import { PlanningCacheError } from '@/data/planning/planningErrors';
 import { getStubPlanningTransport } from '@/test/planningTransportHandle';
 
 const s = () => useStore.getState();
-const personDraft = makeResourceDraft({ name: 'Person', role: 'Dev', color: '#1' });
+const personDraft = makeResourceDraft({ name: 'Person', jobTitle: 'Dev', color: '#1' });
 
 function refuseNextPlanningMutation(): void {
   getStubPlanningTransport().failNext(
-    new PlanningControllerError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
+    new PlanningCacheError('The server refused the planning change.', 'VALIDATION_ERROR', 400),
   );
 }
 

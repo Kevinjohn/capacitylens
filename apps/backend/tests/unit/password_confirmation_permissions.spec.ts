@@ -4,7 +4,7 @@ import {
   PASSWORD_CONFIRMATION_KINDS,
 } from '#services/auth/password_confirmation';
 
-test.group('Password confirmation permissions', () => {
+test.group('password confirmation permissions', () => {
   test('only an Owner may confirm each company action', ({ assert }) => {
     for (const kind of PASSWORD_CONFIRMATION_KINDS) {
       assert.isTrue(canConfirmPassword('owner', kind), kind);

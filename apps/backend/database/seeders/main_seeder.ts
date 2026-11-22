@@ -1,7 +1,7 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders';
-import { insertSeed } from '#services/fixture_seed';
+import { insertSeed } from '#services/seed_rows';
 
-/** Provides sample data for Lucid to seed in development and test. */
+/** Provides example data for Lucid to seed in development and test. */
 export default class MainSeeder extends BaseSeeder {
   static environment = ['development', 'test'];
 

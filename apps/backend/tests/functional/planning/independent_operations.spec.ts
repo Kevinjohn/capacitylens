@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { TIME_OFF_REPEAT_POLICY } from '@capacitylens/shared/lib/repeatingDates';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readState } from '#tests/helpers/state_fixture';
 import { buildActiveData } from '@capacitylens/shared/domain/lifecycle';
@@ -14,7 +14,7 @@ import {
   session,
   signIn,
   trusted,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 
 const route = (path: string) => `/api/companies/${companyId}/${path}`;
 const input = (baseRevision: number, intent: Record<string, unknown>) => ({
@@ -22,8 +22,9 @@ const input = (baseRevision: number, intent: Record<string, unknown>) => ({
   baseRevision,
   intent,
 });
-const body = (response: { body(): unknown }) =>
-  response.body() as {
+/** Reads a success answer inside its `data` envelope and a refusal as it stands. */
+const body = (response: { body(): unknown; status(): number }) =>
+  (response.status() < 300 ? (response.body() as { data: unknown }).data : response.body()) as {
     code?: string;
     error?: string;
     status?: string;
@@ -92,7 +93,7 @@ test.group('independent typed planning operations', (group) => {
     const repeated = randomUUID();
     for (const [occurrenceIds, error] of [
       [
-        Array.from({ length: TIME_OFF_REPEAT_POLICY.maxOccurrences }, () => randomUUID()),
+        Array.from({ length: TIME_OFF_REPEAT_RULES.maxOccurrences }, () => randomUUID()),
         'occurrenceIds',
       ],
       [[repeated, repeated], 'Entity IDs must be unique.'],
@@ -143,7 +144,7 @@ test.group('independent typed planning operations', (group) => {
     );
     assert.deepEqual(await readState(companyId, true), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 0);
+    assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -151,7 +152,7 @@ test.group('independent typed planning operations', (group) => {
     );
   });
 
-  test('archives and unarchives catalogue and resource rows by their same stable IDs', async ({
+  test('archives and restores catalogue and resource rows by their same stable IDs', async ({
     client,
     assert,
     cleanup,
@@ -171,7 +172,7 @@ test.group('independent typed planning operations', (group) => {
         id: clientId,
       },
       {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity: { entity: 'clients', id: clientId },
         entityTable: 'clients',
         id: clientId,
@@ -182,7 +183,7 @@ test.group('independent typed planning operations', (group) => {
         entityTable: 'resources',
       },
       {
-        operation: 'resource.unarchive',
+        operation: 'resource.restore',
         id: resourceId,
         entityTable: 'resources',
       },
@@ -204,7 +205,7 @@ test.group('independent typed planning operations', (group) => {
       assert.equal(body(response).revision, index + 1);
       // Only a catalogue archive reports what it hid.
       if (transition.operation !== 'catalogue.archive')
-        assert.notProperty(response.body() as object, 'archived');
+        assert.notProperty((response.body() as { data: unknown }).data as object, 'archived');
       const row = await db.from(transition.entityTable).where({ id: transition.id }).first();
       assert.isDefined(row);
       assert.equal(row!.id, transition.id);
@@ -225,7 +226,7 @@ test.group('independent typed planning operations', (group) => {
     assert.isNull(final.clients.find((row) => row.id === clientId)!.archivedAt);
     assert.isNull(final.resources.find((row) => row.id === resourceId)!.archivedAt);
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 4);
+    assert.equal(snapshot.body().data.revision, 4);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 4);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -246,7 +247,7 @@ test.group('independent typed planning operations', (group) => {
 
     const alreadyActive = await session(client.post(route('planning/mutations')), cookie)
       .json(
-        input(0, { operation: 'catalogue.unarchive', entity: { entity: 'clients', id: clientId } })
+        input(0, { operation: 'catalogue.restore', entity: { entity: 'clients', id: clientId } })
       )
       .send();
     alreadyActive.assertStatus(400);
@@ -278,7 +279,7 @@ test.group('independent typed planning operations', (group) => {
     assert.deepEqual(Object.keys(repeated.body() as object).sort(), ['code', 'error']);
 
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 1);
+    assert.equal(snapshot.body().data.revision, 1);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -306,7 +307,9 @@ test.group('independent typed planning operations', (group) => {
     const hidden = (key: 'projects' | 'phases' | 'activities' | 'allocations' | 'timeOff') =>
       buildActiveData(before)[key].filter((row) => row.companyId === companyId).length -
       buildActiveData(after)[key].filter((row) => row.companyId === companyId).length;
-    const reported = (archived.body() as { archived?: Record<string, number> }).archived;
+    const reported = (
+      (archived.body() as { data: unknown }).data as { archived?: Record<string, number> }
+    ).archived;
     assert.deepEqual(reported, {
       projects: hidden('projects'),
       phases: hidden('phases'),
@@ -331,7 +334,7 @@ test.group('independent typed planning operations', (group) => {
     const before = await db.from('clients').where({ id: internal.id }).first();
     assert.isDefined(before);
 
-    for (const operation of ['catalogue.archive', 'catalogue.unarchive'] as const) {
+    for (const operation of ['catalogue.archive', 'catalogue.restore'] as const) {
       const response = await session(client.post(route('planning/mutations')), cookie)
         .json(
           input(0, {
@@ -345,7 +348,7 @@ test.group('independent typed planning operations', (group) => {
     }
 
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 0);
+    assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -377,7 +380,7 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(body(renamed).code, 'VALIDATION_ERROR');
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
     const refusedSnapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(refusedSnapshot.body().revision, 0);
+    assert.equal(refusedSnapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -409,8 +412,8 @@ test.group('independent typed planning operations', (group) => {
     });
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
     const createdSnapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(createdSnapshot.body().revision, 1);
-    const createdClients = createdSnapshot.body().data.clients as Array<{
+    assert.equal(createdSnapshot.body().data.revision, 1);
+    const createdClients = createdSnapshot.body().data.data.clients as Array<{
       id: string;
       name: string;
       builtin?: boolean;
@@ -464,8 +467,8 @@ test.group('independent typed planning operations', (group) => {
     assert.deepEqual(await db.from('clients').where({ id: internal.id }).first(), before);
 
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 2);
-    const canonicalClients = snapshot.body().data.clients as typeof createdClients;
+    assert.equal(snapshot.body().data.revision, 2);
+    const canonicalClients = snapshot.body().data.data.clients as typeof createdClients;
     assert.equal(canonicalClients.find((row) => row.id === spoofedId)?.name, 'Ordinary renamed');
     assert.notEqual(canonicalClients.find((row) => row.id === spoofedId)?.builtin, true);
     assert.deepEqual(
@@ -517,7 +520,7 @@ test.group('independent typed planning operations', (group) => {
     assert.equal(body(refused).code, 'VALIDATION_ERROR');
     assert.deepEqual(await db.from('projects').where({ id: foreignProject.id }).first(), before);
     const snapshot = await session(client.get(planningUrl), cookie).send();
-    assert.equal(snapshot.body().revision, 0);
+    assert.equal(snapshot.body().data.revision, 0);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
   });
 

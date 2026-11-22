@@ -1,8 +1,5 @@
 import { test } from '@japa/runner';
-import {
-  assertPlanningBaseRevision,
-  StalePlanningRevisionError,
-} from '#services/planning_revision';
+import { assertPlanningBaseRevision } from '#services/planning_revision';
 import {
   buildExternalCapacityDefaults,
   buildPlaceholderCapacityDefaults,
@@ -12,6 +9,7 @@ import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
+import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
 
 const uuid = '782b6098-3560-4d96-a2b6-5c8b271c57b3';
 const otherUuid = '86ca2a77-a2e8-4a13-bfa5-7c01f13fd4f5';
@@ -269,7 +267,7 @@ test.group('planning operation contracts', () => {
         planningMutationValidator.validate({
           mutationId: uuid,
           baseRevision: 8,
-          intent: { operation: 'resource.update', id: uuid, changes: { role: 'Designer' } },
+          intent: { operation: 'resource.update', id: uuid, changes: { jobTitle: 'Designer' } },
         })
       ),
       'resource.update'
@@ -512,7 +510,7 @@ test.group('planning operation contracts', () => {
     const external = {
       kind: 'external',
       name: 'Wayne Partners',
-      role: 'Consultant',
+      jobTitle: 'Consultant',
       avatarUrl: null,
       disciplineId: null,
       ...buildExternalCapacityDefaults(),
@@ -552,7 +550,7 @@ test.group('planning operation contracts', () => {
     const placeholder = {
       kind: 'placeholder',
       name: 'Wayne Enterprises capacity',
-      role: 'Design support',
+      jobTitle: 'Design support',
       avatarUrl: null,
       disciplineId: otherUuid,
       employmentType: 'contractor',
@@ -622,9 +620,9 @@ test.group('planning operation contracts', () => {
     } catch (error) {
       conflict = error;
     }
-    assert.instanceOf(conflict, StalePlanningRevisionError);
-    assert.equal((conflict as StalePlanningRevisionError).statusCode, 409);
-    assert.equal((conflict as StalePlanningRevisionError).code, 'STALE_REVISION');
+    assert.instanceOf(conflict, StalePlanningRevisionException);
+    assert.equal((conflict as StalePlanningRevisionException).status, 409);
+    assert.equal((conflict as StalePlanningRevisionException).code, 'STALE_REVISION');
     assert.doesNotThrow(() => assertPlanningBaseRevision(5, 5, uuid));
   });
 });

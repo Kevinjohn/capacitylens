@@ -1,6 +1,6 @@
 import { args, BaseCommand, flags } from '@adonisjs/core/ace';
 import type { CommandOptions } from '@adonisjs/core/types/ace';
-import { recoverOwner } from '#services/operations/owner_recovery';
+import { recoverOwner } from '#services/operator/owner_recovery';
 
 /** Recover a sole owner using an audited single-use link while the server is stopped. */
 export default class OwnerResetPassword extends BaseCommand {
@@ -10,6 +10,8 @@ export default class OwnerResetPassword extends BaseCommand {
   @args.string({ description: 'Owner email address' }) declare email: string;
   @flags.boolean({ description: 'Confirm that the application server is stopped' })
   declare confirmServerStopped: boolean;
+
+  #reported = false;
 
   async run() {
     try {
@@ -27,7 +29,14 @@ export default class OwnerResetPassword extends BaseCommand {
             ? 'Database schema is not current'
             : 'Owner recovery failed; no recovery link was delivered';
       this.logger.error(safe);
+      this.error = error;
+      this.#reported = true;
       this.exitCode = 1;
     }
+  }
+
+  /** Marks a caught error as already reported, so Ace does not print it raw. */
+  async completed() {
+    return this.#reported;
   }
 }

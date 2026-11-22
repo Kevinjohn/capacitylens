@@ -1,16 +1,15 @@
-import { RefusalError } from '#exceptions/refusal_error';
+import { OwnershipTransferException } from '#exceptions/ownership_transfer_exception';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { OwnershipTransferReceipt } from '@capacitylens/shared/account/types';
-import { getActiveCompanyRole, IdentityAuthorityError } from '#services/auth/authorization';
+import { getActiveCompanyRole } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
 import { refuseWhileViewing } from '#services/auth/password_confirmation';
 import { requireKitContext, type CurrentActor } from '#services/auth/current_actor';
 import passwordConfirmations from '@kevinjohn/adonisjs-confirm-action-with-password/services/main';
-import { runAccountCommand, type AccountCommandIdentity } from '#services/account_commands';
+import { runAccountOperation, type AccountOperationIdentity } from '#services/account_operations';
 import access from '#config/access_control';
 import { writeAudit } from '#services/audit';
 import { advancePlanningRevision } from '#services/planning_revision';
-
-export class OwnershipTransferError extends RefusalError {}
 
 /** One ownership transfer in the caller's transaction, by its verified actor. */
 export interface OwnershipTransferInput {
@@ -19,7 +18,7 @@ export interface OwnershipTransferInput {
   companyId: string;
   toUserId: string;
   confirmationId: string;
-  command: AccountCommandIdentity;
+  command: AccountOperationIdentity;
 }
 
 /** Exchanges Owner and Admin inside one product transaction, with exact semantic replay. */
@@ -32,14 +31,14 @@ export async function transferOwnership({
   command,
 }: OwnershipTransferInput): Promise<OwnershipTransferReceipt> {
   let currentRole: Awaited<ReturnType<typeof getActiveCompanyRole>>;
-  return runAccountCommand(trx, {
+  return runAccountOperation(trx, {
     name: 'transfer-ownership',
     authorizeAccess: async () => {
       refuseWhileViewing(actor);
       // A membership proves its company exists, so an unknown company is refused like any other
       // company the caller does not belong to.
       currentRole = await getActiveCompanyRole(actor.userId, companyId, trx);
-      if (!currentRole) throw new IdentityAuthorityError('Forbidden.');
+      if (!currentRole) throw new IdentityAuthorizationException('Forbidden.');
     },
     authorizeReplay: (_context, receipt) => {
       if (receipt.fromUserId !== actor.userId || receipt.toUserId !== toUserId) {
@@ -50,17 +49,17 @@ export async function transferOwnership({
     parseAuthorization: (raw) => raw as string,
     authorizeExecute: async (_context, authorization) => {
       if (!currentRole || !access.can(currentRole, 'ownership:transfer')) {
-        throw new IdentityAuthorityError('Forbidden.');
+        throw new IdentityAuthorizationException('Forbidden.');
       }
       if (actor.userId === toUserId) {
-        throw new OwnershipTransferError('Choose another administrator.', 409, 'TARGET_INELIGIBLE');
+        throw new OwnershipTransferException('Choose another Admin.', 409, 'TARGET_INELIGIBLE');
       }
       const target = await access.memberships.find(companyId, toUserId, trx);
-      if (!target) throw new OwnershipTransferError('Member not found.', 404, 'NOT_FOUND');
+      if (!target) throw new OwnershipTransferException('Member not found.', 404, 'NOT_FOUND');
       // The package accepts any active member; CapacityLens hands ownership to an Admin only.
       if (target.status !== 'active' || target.role !== 'admin') {
-        throw new OwnershipTransferError(
-          'Target is no longer an active administrator.',
+        throw new OwnershipTransferException(
+          'Target is no longer an active Admin.',
           409,
           'TARGET_INELIGIBLE'
         );

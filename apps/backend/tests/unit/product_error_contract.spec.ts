@@ -1,8 +1,6 @@
-import { RestorationConfirmationError } from '#services/planning/restoration';
-import { PlanningOperationError } from '#services/planning/execute';
 import { errors as vineErrors } from '@vinejs/vine';
 import { test } from '@japa/runner';
-import type { HttpContext } from '@adonisjs/core/http';
+import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
 import {
   ThrottledError,
   PostCommitError,
@@ -12,7 +10,9 @@ import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admissio
 import PlanningController from '#controllers/planning_controller';
 import HttpExceptionHandler from '#exceptions/handler';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
-import { IdentityAuthorityError } from '#services/auth/authorization';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 
 function context(error: unknown, routeName?: string) {
   const result = { status: 0, body: undefined as unknown, headers: {} as Record<string, string> };
@@ -107,7 +107,7 @@ test.group('product error adapters', () => {
   test('identity and admission refusals keep the wording stated for each surface', async ({
     assert,
   }) => {
-    const identity = new IdentityAuthorityError('Invalid membership role.');
+    const identity = new IdentityAuthorizationException('Invalid membership role.');
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     const admission = new AdmissionRequiredError(decision);
     const viaHandler = async (error: unknown) => {
@@ -121,17 +121,17 @@ test.group('product error adapters', () => {
     };
     assert.deepEqual(await viaHandler(identity), {
       error: 'Invalid membership role.',
-      code: 'IDENTITY_AUTHORITY_DENIED',
+      code: 'IDENTITY_AUTHORIZATION_DENIED',
     });
     assert.deepEqual(await viaPlanning(identity), {
       error: 'Planning access is unavailable.',
       code: 'ACCOUNT_MEMBERSHIP_LOST',
     });
-    const admissionRoute = context(identity, 'api.member-resources.set');
+    const admissionRoute = context(identity, 'api.member_resource_links.update');
     await new HttpExceptionHandler().handle(identity, admissionRoute.ctx);
     assert.deepEqual(admissionRoute.result.body, {
       error: 'Forbidden.',
-      code: 'IDENTITY_AUTHORITY_DENIED',
+      code: 'IDENTITY_AUTHORIZATION_DENIED',
     });
     assert.deepEqual(await viaHandler(admission), {
       error: 'Your access to this company is waiting on admission.',
@@ -151,16 +151,16 @@ test.group('product error adapters', () => {
     const routes = {
       product: 'api.companies.index',
       planning: 'api.planning.show',
-      admission: 'api.member-resources.set',
+      admission: 'api.member_resource_links.update',
     } as const;
     const productAdmission = 'Your access to this company is waiting on admission.';
     const cases = [
       {
-        error: () => new IdentityAuthorityError('Invalid membership role.'),
+        error: () => new IdentityAuthorizationException('Invalid membership role.'),
         expected: {
-          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORITY_DENIED' },
+          product: { error: 'Invalid membership role.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
           planning: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
-          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORITY_DENIED' },
+          admission: { error: 'Forbidden.', code: 'IDENTITY_AUTHORIZATION_DENIED' },
         },
       },
       {
@@ -203,7 +203,7 @@ test.group('product error adapters', () => {
     const decision = { admitted: false, requirements: { invitation: { met: false } } };
     const cases = [
       {
-        thrown: new IdentityAuthorityError('Masquerade company authority changed.'),
+        thrown: new IdentityAuthorizationException('Masquerade company access changed.'),
         expected: { error: 'Planning access is unavailable.', code: 'ACCOUNT_MEMBERSHIP_LOST' },
       },
       {
@@ -216,7 +216,7 @@ test.group('product error adapters', () => {
       },
     ];
     for (const { thrown, expected } of cases) {
-      const { ctx, result } = context(thrown, 'api.export');
+      const { ctx, result } = context(thrown, 'api.company_exports.show');
       await new HttpExceptionHandler().handle(thrown, ctx);
       assert.deepEqual(result.body, expected, thrown.constructor.name);
     }
@@ -226,8 +226,8 @@ test.group('product error adapters', () => {
       new MasqueradeError('E_MASQUERADE_CONTEXT_CHANGED'),
       new MasqueradeError('E_MASQUERADE_NOT_ALLOWED'),
       new AdmissionRequiredError({ admitted: false, requirements: { invitation: { met: false } } }),
-      new IdentityAuthorityError('Invalid membership role.'),
-      Object.assign(new Error('Route not found'), { code: 'E_ROUTE_NOT_FOUND' }),
+      new IdentityAuthorizationException('Invalid membership role.'),
+      new httpServerErrors.E_ROUTE_NOT_FOUND(['GET', '/missing']),
     ]) {
       const { ctx, diagnostics } = context(error);
       await new HttpExceptionHandler().report(error, ctx);
@@ -277,20 +277,20 @@ test.group('product error adapters', () => {
     assert,
   }) => {
     const conflict = await answerOnPlanning(
-      new PlanningOperationError(409, null, 'The record is in use.')
+      new PlanningOperationException(409, null, 'The record is in use.')
     );
     assert.equal(conflict.status, 409);
     assert.deepEqual(conflict.body, { error: 'The record is in use.' });
 
     // No code is inferred from the status, and a stated code does not rewrite the status.
     const uncoded = await answerOnPlanning(
-      new PlanningOperationError(400, null, 'Nothing to restore.')
+      new PlanningOperationException(400, null, 'Nothing to restore.')
     );
     assert.equal(uncoded.status, 400);
     assert.deepEqual(uncoded.body, { error: 'Nothing to restore.' });
 
     const stale = await answerOnPlanning(
-      new PlanningOperationError(409, 'STALE_REVISION', 'Reload first.')
+      new PlanningOperationException(409, 'STALE_REVISION', 'Reload first.')
     );
     assert.equal(stale.status, 409);
     assert.deepEqual(stale.body, { error: 'Reload first.', code: 'STALE_REVISION' });
@@ -299,7 +299,7 @@ test.group('product error adapters', () => {
     assert,
   }) => {
     for (const stale of [false, true]) {
-      const error = new RestorationConfirmationError(3, stale);
+      const error = new RestorationConfirmationException(3, stale);
       const result = await answerOnPlanning(error);
       assert.equal(result.status, 409);
       assert.deepEqual(result.body, {

@@ -2,8 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http';
 import type { NextFn } from '@adonisjs/core/types/http';
 import { AccessControlError } from '@kevinjohn/adonisjs-access-control';
 import ScopeMiddleware from '@kevinjohn/adonisjs-access-control/middleware';
-import { IdentityAuthorityError } from '#services/auth/authorization';
-import { PlanningOperationError } from '#services/planning/execute';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 const scope = new ScopeMiddleware();
 
@@ -26,8 +26,8 @@ export default class CompanyScopeMiddleware {
       if (!(error instanceof AccessControlError) || error.code !== 'E_ACCESS_CONTROL_FORBIDDEN') {
         throw error;
       }
-      if (!options.planning) throw new IdentityAuthorityError('Forbidden.');
-      throw new PlanningOperationError(
+      if (!options.planning) throw new IdentityAuthorizationException('Forbidden.');
+      throw new PlanningOperationException(
         403,
         'ACCOUNT_MEMBERSHIP_LOST',
         'Company membership is unavailable.'

@@ -4,7 +4,7 @@ import { CompanyAccessRecovery } from './company/CompanyAccessRecovery';
 import { RotateHint } from './RotateHint';
 import { m } from '@/i18n';
 
-function LoadingBoundary() {
+function LoadingGate() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
       <p role="status" className="text-sm text-muted-foreground">
@@ -32,7 +32,7 @@ interface AppEntryGateProps {
   children: ReactNode;
 }
 
-/** Expresses the mutually-exclusive app entry sequence in one ordered boundary. */
+/** Expresses the mutually-exclusive app entry sequence in one ordered gate. */
 export function AppEntryGate({
   hydrated,
   hasActiveCompany,
@@ -40,7 +40,7 @@ export function AppEntryGate({
   allowWithoutActiveCompany,
   children,
 }: AppEntryGateProps) {
-  if (!hydrated) return <LoadingBoundary />;
+  if (!hydrated) return <LoadingGate />;
 
   if (ambiguousCompanyDirectory || (!hasActiveCompany && !allowWithoutActiveCompany)) {
     return (

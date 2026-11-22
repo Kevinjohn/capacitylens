@@ -1,8 +1,8 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed, resetState } from '#tests/helpers/state_fixture';
-import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import db from '@adonisjs/lucid/services/db';
 
 const securityHeaders = [
@@ -14,16 +14,16 @@ const securityHeaders = [
   'x-frame-options',
 ];
 
-test.group('M1 HTTP contract', (group) => {
+test.group('HTTP contract', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
 
   test('validates state queries and scopes the account read', async ({ client, assert }) => {
     client = await resetAuthenticatedClient(client, true);
-    const empty = await client.get('/api/state?companyId=');
+    const empty = await client.visit('api.company_state.show').qs({ companyId: '' });
     assert.equal(empty.status(), 400);
-    assert.equal(empty.body().code, 'VALIDATION_ERROR');
-    const missing = await client.get('/api/state');
+    assert.equal((empty.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
+    const missing = await client.visit('api.company_state.show');
     assert.equal(missing.status(), 400);
     const refusal = missing.body() as unknown as { code: string; error: string };
     assert.equal(refusal.code, 'VALIDATION_ERROR');
@@ -33,9 +33,11 @@ test.group('M1 HTTP contract', (group) => {
     const whitespace = await client.get('/api/state?companyId=%20%20');
     assert.equal(whitespace.status(), 400);
     assert.equal(whitespace.body().code, 'VALIDATION_ERROR');
-    const invalidInactive = await client.get('/api/state?companyId=a-studio&includeInactive=true');
+    const invalidInactive = await client
+      .visit('api.company_state.show')
+      .qs({ companyId: 'a-studio', includeInactive: 'true' } as never);
     assert.equal(invalidInactive.status(), 400);
-    assert.equal(invalidInactive.body().code, 'VALIDATION_ERROR');
+    assert.equal((invalidInactive.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
     for (const query of [
       'companyId=a-studio&unknown=1',
       'companyId=a-studio&includeInactive=1&includeInactive=1',
@@ -45,10 +47,10 @@ test.group('M1 HTTP contract', (group) => {
       invalid.assertStatus(400);
       assert.equal(invalid.body().code, 'VALIDATION_ERROR');
     }
-    const scoped = await client.get('/api/state?companyId=a-studio');
+    const scoped = await client.visit('api.company_state.show').qs({ companyId: 'a-studio' });
     assert.equal(scoped.status(), 200);
     assert.deepEqual(
-      scoped.body().accounts.map(({ id }: { id: string }) => id),
+      scoped.body().data.companies.map(({ id }: { id: string }) => id),
       ['a-studio']
     );
     for (const key of [
@@ -63,9 +65,9 @@ test.group('M1 HTTP contract', (group) => {
       'closures',
     ])
       assert.isTrue(
-        scoped
-          .body()
-          [key].every(({ companyId }: { companyId: string }) => companyId === 'a-studio'),
+        ((scoped.body() as { data: unknown }).data as Record<string, { companyId: string }[]>)[
+          key
+        ].every(({ companyId }: { companyId: string }) => companyId === 'a-studio'),
         key
       );
   });
@@ -93,9 +95,9 @@ test.group('M1 HTTP contract', (group) => {
     assert,
   }) => {
     for (const response of [
-      await client.get('/api/health'),
+      await client.visit('api.health_checks.live'),
       await client
-        .post('/api/auth/sign-in')
+        .visit('api.session.store')
         .header('content-type', 'application/json')
         .setup((request) => {
           request.request.send('{');
@@ -115,11 +117,13 @@ test.group('M1 HTTP contract', (group) => {
   }) => {
     client = await resetAuthenticatedClient(client, true);
     const allowed = 'http://localhost:5173';
-    const accepted = await client.get('/api/health').header('origin', allowed);
+    const accepted = await client.visit('api.health_checks.live').header('origin', allowed);
     assert.equal(accepted.header('access-control-allow-origin'), allowed);
     assert.equal(accepted.header('access-control-allow-credentials'), 'true');
 
-    const disallowed = await client.get('/api/health').header('origin', 'https://attacker.example');
+    const disallowed = await client
+      .visit('api.health_checks.live')
+      .header('origin', 'https://attacker.example');
     assert.isUndefined(disallowed.header('access-control-allow-origin'));
     assert.isUndefined(disallowed.header('access-control-allow-credentials'));
     assert.equal(disallowed.status(), 200);
@@ -133,12 +137,12 @@ test.group('M1 HTTP contract', (group) => {
     assert.equal(preflight.header('access-control-allow-origin'), allowed);
     assert.equal(preflight.header('access-control-allow-credentials'), 'true');
 
-    const planning = await client.get('/api/companies/a-studio/planning');
+    const planning = await client.visit('api.planning.show', { companyId: 'a-studio' });
     assert.equal(planning.status(), 200);
     const writePath = '/api/companies/a-studio/planning/mutations';
     const write = {
       mutationId: randomUUID(),
-      baseRevision: (planning.body() as { revision: number }).revision,
+      baseRevision: (planning.body().data as { revision: number }).revision,
       intent: {
         operation: 'catalogue.create',
         entity: {
@@ -184,14 +188,14 @@ test.group('M1 HTTP contract', (group) => {
     client = await resetAuthenticatedClient(client, true);
     await db.rawQuery('DROP INDEX closures_company_id_index');
     try {
-      const response = await client.get('/api/diagnostics');
+      const response = await client.visit('api.diagnostics.show');
       assert.equal(response.status(), 503);
       assert.deepEqual(response.body(), {
         server: {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: null },
-          backup: { newestSnapshotAt: null },
+          backup: { newestBackupAt: null },
         },
       });
     } finally {

@@ -2,7 +2,29 @@ import env from '#start/env';
 import app from '@adonisjs/core/services/app';
 import type { LoggerConfig, LoggerManagerConfig } from '@adonisjs/logger/types';
 import { defineConfig, syncDestination, targets } from '@adonisjs/core/logger';
-import { classifyLogError } from '#services/logging_safety';
+
+const ERROR_CATEGORIES = new Map<string, string>([
+  ['E_VALIDATION_ERROR', 'validation'],
+  ['E_ROUTE_NOT_FOUND', 'not_found'],
+  ['E_REQUEST_ENTITY_TOO_LARGE', 'request_too_large'],
+  ['E_ENCODING_UNSUPPORTED', 'unsupported_media_type'],
+  ['SQLITE_CONSTRAINT_NOTNULL', 'database_constraint'],
+  ['SQLITE_CONSTRAINT_PRIMARYKEY', 'database_constraint'],
+  ['SQLITE_CONSTRAINT_UNIQUE', 'database_constraint'],
+  ['SQLITE_CONSTRAINT_FOREIGNKEY', 'database_constraint'],
+  ['SQLITE_CONSTRAINT_CHECK', 'database_constraint'],
+]);
+
+/** Return a fixed error category without retaining caller controlled exception values. */
+export function classifyLogError(error: unknown): string {
+  if (typeof error !== 'object' || error === null) return 'unexpected';
+  try {
+    const code = 'code' in error ? error.code : undefined;
+    return typeof code === 'string' ? (ERROR_CATEGORIES.get(code) ?? 'unexpected') : 'unexpected';
+  } catch {
+    return 'unexpected';
+  }
+}
 
 type AppLoggerConfig = LoggerConfig & {
   enabled: true;

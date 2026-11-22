@@ -13,13 +13,13 @@ vi.mock('@/data/requestTimeout', () => ({
   createRequestSignal: mocks.requestSignal,
 }));
 
-import { clearStoredAccountCommands } from './accountCommands';
-import { hasUnknownAccountCommandOutcome } from './commandOutcome';
+import { clearStoredAccountOperations } from './accountOperations';
+import { hasUnknownAccountOperationOutcome } from './operationOutcome';
 import { invitationRequests } from './invitationRequests';
 import { invitationSignupRequests } from './invitationSignupRequests';
 import { masqueradeRequests } from '@/auth/masqueradeRequests';
 import { memberRequests } from './memberRequests';
-import { command, expectCommand } from './accountCommands.testSupport';
+import { operation, expectOperation } from './accountOperationsTestKit';
 
 function requestInitAt(
   calls: ReadonlyArray<Parameters<typeof mocks.fetchApi>>,
@@ -32,9 +32,9 @@ function requestInitAt(
   return call[1];
 }
 
-describe('browser account client', () => {
+describe('browser account api', () => {
   beforeEach(() => {
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
@@ -45,24 +45,24 @@ describe('browser account client', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-  it('routes member-resource commands with operation headers and ambiguous conflict handling', async () => {
+  it('routes member-resource operations with operation headers and ambiguous conflict handling', async () => {
     mocks.fetchApi.mockResolvedValueOnce(new Response('unreadable conflict', { status: 409 }));
     const link = await memberRequests.setMemberResourceLink(
       {
         companyId: 'company / one',
-        principalId: 'person / one',
+        userId: 'person / one',
         resourceId: 'resource / one',
         expectedRevision: null,
       },
-      command,
+      operation,
     );
 
-    expect(hasUnknownAccountCommandOutcome(link)).toBe(true);
+    expect(hasUnknownAccountOperationOutcome(link)).toBe(true);
     const [linkUrl, linkInit] = mocks.fetchApi.mock.calls[0] as unknown as [string, RequestInit];
     expect(linkUrl).toBe(
       '/api/companies/company%20%2F%20one/members/person%20%2F%20one/resource-link',
     );
-    expectCommand(linkInit, 'PUT');
+    expectOperation(linkInit, 'PUT');
     expect(JSON.parse(String(linkInit.body))).toEqual({
       resourceId: 'resource / one',
       expectedRevision: null,
@@ -71,17 +71,17 @@ describe('browser account client', () => {
     await memberRequests.clearMemberResourceLink(
       {
         companyId: 'company / one',
-        principalId: 'person / one',
+        userId: 'person / one',
         expectedRevision: 'revision-1',
       },
-      command,
+      operation,
     );
     const [unlinkUrl, unlinkInit] = mocks.fetchApi.mock.calls[1] as unknown as [
       string,
       RequestInit,
     ];
     expect(unlinkUrl).toBe(linkUrl);
-    expectCommand(unlinkInit, 'DELETE');
+    expectOperation(unlinkInit, 'DELETE');
     expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: 'revision-1' });
   });
   it('owns member, invitation preview, and signup routes', async () => {
@@ -98,20 +98,20 @@ describe('browser account client', () => {
 
     const directoryUrls = mocks.fetchApi.mock.calls
       .map((call) => String(call[0]))
-      .filter((url) => url.endsWith('/members') || url.endsWith('/invites'));
+      .filter((url) => url.endsWith('/members') || url.endsWith('/invitations'));
     expect(directoryUrls).toEqual([
       '/api/companies/company%20%2F%20one/members',
-      '/api/companies/company%20%2F%20one/invites',
+      '/api/companies/company%20%2F%20one/invitations',
     ]);
     const urls = mocks.fetchApi.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
       '/api/companies/company%20%2F%20one/members',
-      '/api/companies/company%20%2F%20one/invites',
+      '/api/companies/company%20%2F%20one/invitations',
       '/api/companies/company%20%2F%20one/masquerade',
       '/api/masquerade',
       '/api/masquerade',
-      '/api/invites/token%20%2F%20one/preview',
-      '/api/invites/token%20%2F%20one/signup',
+      '/api/invitations/token%20%2F%20one/preview',
+      '/api/invitations/token%20%2F%20one/sign-up',
     ]);
     expect(requestInitAt(mocks.fetchApi.mock.calls, 2)).toMatchObject({
       method: 'POST',
@@ -129,17 +129,17 @@ describe('browser account client', () => {
       body: JSON.stringify({ name: 'New user', password: 'example-password' }),
     });
   });
-  it('sends one command and bound proof to the typed ownership route', async () => {
+  it('sends one operation and bound proof to the typed ownership route', async () => {
     await memberRequests.transferOwnership({
       companyId: 'company / one',
-      targetPrincipalId: 'person / one',
+      targetUserId: 'person / one',
       confirmationId: 'proof-1',
-      command,
+      operation,
     });
 
     const [url, init] = mocks.fetchApi.mock.calls[0] ?? [];
     expect(url).toBe('/api/companies/company%20%2F%20one/ownership-transfer');
-    expectCommand(init as RequestInit, 'POST');
+    expectOperation(init as RequestInit, 'POST');
     expect(JSON.parse(String(init?.body))).toEqual({
       toUserId: 'person / one',
       confirmationId: 'proof-1',

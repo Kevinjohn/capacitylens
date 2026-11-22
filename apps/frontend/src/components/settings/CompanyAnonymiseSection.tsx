@@ -7,7 +7,7 @@ import { runSuspendedReplacement } from '@/store/suspendedReplacement';
 import { resolveErrorMessage } from '@/lib/errorMessage';
 import { reloadPage } from '@/lib/reloadPage';
 import { useStore } from '@/store/useStore';
-import { Modal } from '@/components/common/ui';
+import { FormDialog } from '@/components/common/ui';
 import { Button } from '@/components/ui/button';
 import { SettingsSection } from './SettingsSection';
 
@@ -97,10 +97,10 @@ export function CompanyAnonymiseSection() {
         {m.settings_company_anonymise_button()}
       </Button>
       {confirming && !proving && (
-        <Modal
+        <FormDialog
           title={m.settings_company_anonymise_confirm_title()}
           description={m.settings_company_anonymise_confirm_body()}
-          guardDirty={false}
+          warnOnDirty={false}
           onClose={() => {
             if (busy) return;
             setConfirming(false);
@@ -134,7 +134,7 @@ export function CompanyAnonymiseSection() {
               {busy ? m.ownership_transfer_working() : m.settings_company_anonymise_button()}
             </Button>
           )}
-        </Modal>
+        </FormDialog>
       )}
       {proving && (
         <PasswordConfirmationDialog

@@ -1,52 +1,43 @@
 import { column } from '@adonisjs/lucid/orm';
 import { CAPACITY_OVERVIEW_ACCESS_VALUES } from '@capacitylens/shared/types/entities';
-import type {
-  CapacityOverviewAccess,
-  ISOTimestamp,
-  Weekday,
-} from '@capacitylens/shared/types/entities';
-import { AccountSchema } from '#database/schema';
-import {
-  isArrayOf,
-  isBoolean,
-  isOneOf,
-  isoTimestampColumn,
-  jsonColumn,
-} from '@kevinjohn/adonisjs-lucid-checked-columns';
-import { isWeekday } from '#models/scalar_column';
+import type { CapacityOverviewAccess, Weekday } from '@capacitylens/shared/types/entities';
+import { CompanySchema } from '#database/schema';
+import type { DateTime } from 'luxon';
+import { isArrayOf, isOneOf, jsonColumn } from '@kevinjohn/adonisjs-lucid-checked-columns';
+import { booleanColumn, isWeekday, timestampColumn } from '#models_support/scalar_column';
 
-export default class Company extends AccountSchema {
-  static table = 'accounts';
+export default class Company extends CompanySchema {
+  static table = 'companies';
 
-  @column(jsonColumn('accounts', 'week_starts_on', isOneOf([0, 1] as const)))
+  @column(jsonColumn('companies', 'week_starts_on', isOneOf([0, 1] as const)))
   declare weekStartsOn: 0 | 1 | null;
 
-  @column(jsonColumn('accounts', 'working_days', isArrayOf(isWeekday)))
+  @column(jsonColumn('companies', 'working_days', isArrayOf(isWeekday)))
   declare workingDays: Weekday[] | null;
 
-  @column(jsonColumn('accounts', 'disciplines_enabled', isBoolean))
+  @column(booleanColumn('companies', 'disciplines_enabled'))
   declare disciplinesEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'placeholders_enabled', isBoolean))
+  @column(booleanColumn('companies', 'placeholders_enabled'))
   declare placeholdersEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'external_enabled', isBoolean))
+  @column(booleanColumn('companies', 'external_enabled'))
   declare externalEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'inline_activity_create_enabled', isBoolean))
+  @column(booleanColumn('companies', 'inline_activity_create_enabled'))
   declare inlineActivityCreateEnabled: boolean | null;
 
-  @column(jsonColumn('accounts', 'show_task_field_in_schedule', isBoolean))
+  @column(booleanColumn('companies', 'show_task_field_in_schedule'))
   declare showTaskFieldInSchedule: boolean | null;
 
   @column(
-    jsonColumn('accounts', 'capacity_overview_access', isOneOf(CAPACITY_OVERVIEW_ACCESS_VALUES))
+    jsonColumn('companies', 'capacity_overview_access', isOneOf(CAPACITY_OVERVIEW_ACCESS_VALUES))
   )
   declare capacityOverviewAccess: CapacityOverviewAccess | null;
 
-  @column(isoTimestampColumn('accounts', 'created_at'))
-  declare createdAt: ISOTimestamp;
+  @column.dateTime(timestampColumn('companies', 'created_at'))
+  declare createdAt: DateTime;
 
-  @column(isoTimestampColumn('accounts', 'updated_at'))
-  declare updatedAt: ISOTimestamp;
+  @column.dateTime(timestampColumn('companies', 'updated_at'))
+  declare updatedAt: DateTime;
 }

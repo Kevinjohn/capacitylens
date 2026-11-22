@@ -5,7 +5,7 @@
 // Product compositions layer CapacityLens behaviour over the generic primitives.
 
 export * from './dialogs';
-export * from './actionButtons';
+export * from './crudButtons';
 export * from './EmptyState';
 export * from './ListPage';
 export * from './fields';
@@ -13,4 +13,4 @@ export * from './badges';
 export * from './SegmentedControl';
 export * from './TogglePill';
 export * from './SectionHelp';
-export * from './FormActions';
+export * from './FormButtons';

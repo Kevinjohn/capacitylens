@@ -36,8 +36,8 @@ G -->|no or uncertain| I["Read the error; reload when instructed"]
 flowchart TD
   button["CompanyAnonymiseSection opens confirmation"] --> proof["PasswordConfirmationDialog issues action anonymise confirmation"]
   proof --> post["CompanyAnonymiseSection POSTs anonymise with confirmationId"]
-  post --> controller["anonymise_controller authorizes Owner and calls anonymiseResources"]
+  post --> controller["company_anonymisations_controller authorizes Owner and calls anonymiseResources"]
   controller --> reload["successful response triggers reloadPage"]
 ```
 
-**Code references:** [CompanyAnonymiseSection.tsx](../../apps/frontend/src/components/settings/CompanyAnonymiseSection.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [anonymise_controller.ts](../../apps/backend/app/controllers/anonymise_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)
+**Code references:** [CompanyAnonymiseSection.tsx](../../apps/frontend/src/components/settings/CompanyAnonymiseSection.tsx), [PasswordConfirmationDialog.tsx](../../apps/frontend/src/auth/PasswordConfirmationDialog.tsx), [company_anonymisations_controller.ts](../../apps/backend/app/controllers/company_anonymisations_controller.ts), [anonymise.ts](../../apps/backend/app/services/anonymise.ts)

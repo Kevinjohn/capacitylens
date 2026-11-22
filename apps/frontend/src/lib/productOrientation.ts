@@ -20,7 +20,7 @@ export function hasDismissedProductOrientation(subjectId: string, companyId: str
   try {
     return localStorage.getItem(buildProductOrientationKey(subjectId, companyId)) === 'dismissed';
   } catch {
-    // Unreadable optional orientation storage defaults to showing guidance; no tenant data is lost.
+    // Unreadable optional orientation storage defaults to showing guidance; no company data is lost.
     return false;
   }
 }

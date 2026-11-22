@@ -1,4 +1,4 @@
-# US-ALL-01 — Create an allocation via the modal
+# US-ALL-01 — Create an allocation via the dialog
 
 As an Editor, I want to book an activity onto a resource for a date range so that the Schedule shows the assigned work and its capacity.
 
@@ -6,7 +6,7 @@ As an Editor, I want to book an activity onto a resource for a date range so tha
 **Access:** Editor, Admin or Owner
 **Entry:** Schedule (`/`)
 **Documentation:** [schedule-work.md](../../docs-src/using/schedule-work.md)
-**Source:** [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx), [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
+**Source:** [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx), [AllocationScheduleFields.tsx](../../apps/frontend/src/components/scheduler/AllocationScheduleFields.tsx)
 
 ## Acceptance criteria
 
@@ -54,15 +54,15 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["AllocationModal create dialog"] --> B["allocationSubmit validates draft and assignment"]
+  A["AllocationDialog create dialog"] --> B["allocationSubmit validates draft and assignment"]
   B -->|valid| C["allocationSlice.addAllocation"]
   B -->|invalid| I["Field/form error; dialog remains open"]
-  C --> D["Planning cache controller executes command"]
+  C --> D["Planning cache executes command"]
   D --> E["createStorePlanningTransport uses the server HTTP transport"]
-  E --> F["planningTransport sends api.planning.mutate"]
+  E --> F["planningTransport sends api.planning_mutations.store"]
   F --> J["Request refusal or transport failure returns to allocationSubmit"]
   J --> I["Form error; draft remains available"]
-  F --> G["PlanningController.mutatePlanning executes scoped writeRow"]
+  F --> G["PlanningMutationsController.store executes scoped writeRow"]
   G --> H["Acknowledgement reconciles store; Schedule redraws"]
 ```
 
@@ -76,9 +76,9 @@ flowchart TD
 
 - [storePlanningTransport.ts](../../apps/frontend/src/data/planning/storePlanningTransport.ts)
 - [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
-- [planning_controller.ts](../../apps/backend/app/controllers/planning_controller.ts)
-- [AllocationModal.tsx](../../apps/frontend/src/components/scheduler/AllocationModal.tsx)
-- [useAllocationModalState.ts](../../apps/frontend/src/components/scheduler/useAllocationModalState.ts)
+- [planning_mutations_controller.ts](../../apps/backend/app/controllers/planning_mutations_controller.ts)
+- [AllocationDialog.tsx](../../apps/frontend/src/components/scheduler/AllocationDialog.tsx)
+- [useAllocationDialogState.ts](../../apps/frontend/src/components/scheduler/useAllocationDialogState.ts)
 - [allocationSubmit.ts](../../apps/frontend/src/components/scheduler/allocationSubmit.ts)
 - [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

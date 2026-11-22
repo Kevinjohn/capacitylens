@@ -4,16 +4,15 @@ import db from '@adonisjs/lucid/services/db';
 import { AccountAdmission } from '@kevinjohn/adonisjs-account-kit/admission';
 import { bootstrapDevelopmentCredential } from '#services/development_bootstrap';
 import { seedForCurrentWeek } from '@capacitylens/shared/data/seed';
-import { withTransaction } from '#services/with_transaction';
-import { establishInitialCompanyAuthority } from '#services/initial_company_authority';
+import { initializeCompanyAccess } from '#services/initial_company_access';
 import { tables } from '#services/product_tables';
 import { encodeRow } from '#services/state_repository';
-import env from '#start/env';
-import { hasNoCompany } from '#models/installation_company';
+import capacitylens from '#config/capacitylens';
+import { hasNoCompany } from '#services/installation_company';
 
-/** Insert the single disposable company graph and its authority in one transaction. */
+/** Insert the single disposable company graph and its first membership in one transaction. */
 async function insertDisposableDemoSeed(ownerId: string) {
-  await withTransaction(async (trx) => {
+  await db.transaction(async (trx) => {
     if (!(await hasNoCompany(trx))) {
       throw new Error('Refusing demo seed: companies already exist');
     }
@@ -21,11 +20,11 @@ async function insertDisposableDemoSeed(ownerId: string) {
       throw new Error('Refusing demo seed: memberships already exist');
     }
     const data = seedForCurrentWeek();
-    const company = data.accounts.find((row) => row.id === 'a-studio');
-    if (!company) throw new Error('Disposable company fixture is missing');
+    const company = data.companies.find((row) => row.id === 'a-studio');
+    if (!company) throw new Error('Disposable demo company is missing');
     for (const [key, table] of Object.entries(tables)) {
       const rows =
-        key === 'accounts'
+        key === 'companies'
           ? [company]
           : data[key as keyof typeof tables].filter(
               (row) => 'companyId' in row && row.companyId === company.id
@@ -38,7 +37,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
           );
       }
     }
-    await establishInitialCompanyAuthority(trx, {
+    await initializeCompanyAccess(trx, {
       companyId: company.id,
       ownerId,
       actorId: ownerId,
@@ -49,7 +48,7 @@ async function insertDisposableDemoSeed(ownerId: string) {
 
 /** The demo commands run only on the per-launch storage `pnpm run dev:demo` creates under tmp/. */
 export function assertDisposableDemoDatabase(app: ApplicationService) {
-  const databasePath = env.get('CAPACITYLENS_DB');
+  const databasePath = capacitylens.databasePath;
   const directory = databasePath ? dirname(resolve(databasePath)) : '';
   if (
     !databasePath ||

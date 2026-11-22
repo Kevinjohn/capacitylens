@@ -56,14 +56,14 @@ anything happens on the way. Read these two calls from `app/services/auth/author
 
 ```ts
 const role = await getActiveCompanyRole(userId, companyId, trx); // Role | null: absence is a value
-await assertCompanyAction(companyId, 'write', trx); // throws if refused
+await assertCompanyPermission(companyId, 'write', trx); // throws if refused
 ```
 
 | Verb               | Promise                                                                                              | Example in the tree                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                  | `canArchive` in `packages/shared/src/domain/lifecycle/transitions.ts`             |
-| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyAction` in `apps/backend/app/services/auth/authorization.ts`        |
-| `require`          | Returns what the caller needs or throws. The throwing partner of `get`.                              | `requireCompanyScope` in `apps/backend/app/models/scoped_model.ts`                |
+| `assert`           | Throws when the condition fails. On success returns what it established, or nothing.                 | `assertCompanyPermission` in `apps/backend/app/services/auth/authorization.ts`        |
+| `require`          | Returns what the caller needs or throws. The throwing partner of `get`.                              | `requireCompanyScope` in `apps/backend/app/models_support/scoped_model.ts`                |
 | `prepare`           | Prepares a resource for use according to its stated prerequisites.                                         | `prepareDirectory` from `@kevinjohn/adonisjs-sqlite-backup`  |
 | `get`              | Looks one thing up by key. Returns it, or `null` when absent. Never throws for absence.               | `getMasqueradeContextToken` in `apps/frontend/src/api/masqueradeContext.ts`         |
 | `list`             | Returns an array of matches, empty when there are none.                                              | `listActiveCompanyIds` in `apps/backend/app/services/auth/authorization.ts`                |
@@ -76,7 +76,7 @@ await assertCompanyAction(companyId, 'write', trx); // throws if refused
 | `create`           | Constructs something with identity or capabilities.                                                  | `createMaintenance` in `apps/backend/app/services/storage_maintenance.ts`            |
 | `make`             | Test fixtures only.                                                                                  | `makeResource` in `apps/frontend/src/test/fixtures.ts`                            |
 | `use`              | A React hook.                                                                                        | `useScopedData` in `apps/frontend/src/store/useScopedData.ts`                     |
-| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withTransaction` in `apps/backend/app/services/with_transaction.ts`              |
+| `with`             | Runs a callback inside a scope it opens and closes, and returns the callback's result.               | `withActor` in `apps/backend/app/services/auth/current_actor.ts`                  |
 
 Functions that do something rather than answer something use a plain domain verb (`remove`,
 `revoke`, `send`, `record`, `transform`) and say which. Two verbs stay out: `find`, because `get`
@@ -102,7 +102,7 @@ it. A backend service that serves a request takes the verified actor and the tra
 controller, and only controllers and middleware read the request; a service that wraps a package
 bound to the request (Masquerade, Account Kit sign-in) receives the context only to hand it to
 that package. Boot-time and operator services run outside any request and are exempt: Ace commands
-and `app/services/operations/`, the readiness and schema checks, fixture, demo and development bootstrap seeding, storage
+and `app/services/operator/`, the readiness and schema checks, seed rows, demo and development bootstrap seeding, storage
 maintenance and the transaction helper may import the database service and read the clock, and a
 function they share with request code may default its connection to that service. Optional means
 absent, not `null`.
@@ -126,7 +126,7 @@ one is a swallow too.
 
 Validation returns a value; enforcement throws. Validators return a `ValidationResult` or a VineJS
 schema result and never throw on bad input. The write boundary converts a failed result into a
-typed error whose message is safe to show, such as `PlanningOperationError` in
+typed error whose message is safe to show, such as `PlanningOperationException` in
 `apps/backend/app/services/planning/writer.ts`, and `app/exceptions/handler.ts` maps
 the class to a status. The frontend catches at the form or gesture handler and relays the message
 to the field or toast. Add to the typed error vocabulary rather than sniffing message strings; the
@@ -146,7 +146,7 @@ whose cause would otherwise be invisible leaves a `console.warn` breadcrumb.
 
 Backend boundary rule: `ctx.params`, `request.body()` and Lucid query rows arrive typed `any`.
 Narrow them where they enter, with a `validateUsing` schema for bodies and queries, a one-line
-checked read for route parameters (`parseUserIdParam` in `app/controllers/admission_controller.ts`),
+checked read for route parameters (`parseUserIdParam` in `app/services/admission/admission_decisions.ts`),
 and `String(row.column)` or a typed model for rows. An `as` cast is not a narrowing; a comment
 beside any remaining cast says why it is sound.
 
@@ -157,7 +157,7 @@ numbered so a review can cite one.
 
 1. **A comment says why; the code says what.** Delete any comment a reader would not miss.
 2. **Every exported symbol gets TSDoc.** The first sentence stands alone and says what the call
-   does, in the third person: "Authorizes one company action from live membership." State
+   does, in the third person: "Authorises one company permission from live membership." State
    preconditions, what a throw means, and purity whenever they apply. Document the contract the
    type cannot carry: "a foreign id throws and nothing is changed" is the most important thing a
    caller can know.
@@ -183,21 +183,21 @@ One example for each backend shape. Controllers document the route's contract, n
 mechanics; models document what the column promises; middleware documents what it refuses.
 
 ```ts
-/** Returns the companies this principal may enter, or 409 while the installation has more than one. */
+/** Returns the companies this user may enter, or 409 while the installation has more than one. */
 export default class CompaniesController {
 
 /**
- * Authorizes one company action from live membership inside the actor's verified transaction.
+ * Authorizes one company permission from live membership inside the actor's verified transaction.
  *
- * @throws `IdentityAuthorityError`, mapped to 403 by the handler; nothing was read or written.
+ * @throws `IdentityAuthorizationException`, mapped to 403 by the handler; nothing was read or written.
  */
-export async function assertCompanyAction(
+export async function assertCompanyPermission(
 
 /** A client row. `isPrivate` hides the name from non-owners; `builtin` marks the internal client. */
-export default class Client extends SoftDeletes(ClientSchema) {
+export default class Client extends compose(ClientSchema, SoftDeletes) {
 
 /**
- * The Masquerade package's route policy: on a member route it admits the view-as mode, requires
+ * The Masquerade package's route rules: on a member route it admits the view-as mode, requires
  * the captured context on a write, and refuses writes and sensitive routes while a mode is active.
  */
 export default class MasqueradeContextMiddleware {

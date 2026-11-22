@@ -1,6 +1,5 @@
 import { type SchemaRules } from '@adonisjs/lucid/types/schema_generator';
 
-const boolean = { tsType: 'boolean' };
 const weekdays = { tsType: "import('@capacitylens/shared/types/entities').Weekday[]" };
 
 export default {
@@ -9,38 +8,13 @@ export default {
       tsType: "import('@capacitylens/shared/types/entities').ISODate",
       decorators: [{ name: '@column' }],
     },
-    DateTime: {
-      tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
-      decorators: [{ name: '@column' }],
-    },
   },
   columns: {
-    created_at: {
-      tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
-      decorators: [{ name: '@column' }],
-    },
-    updated_at: {
-      tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
-      decorators: [{ name: '@column' }],
-    },
-    deleted_at: {
-      tsType: "import('luxon').DateTime",
-      decorators: [{ name: '@column.dateTime' }],
-    },
     working_days: weekdays,
     half_days: weekdays,
-    disciplines_enabled: boolean,
-    placeholders_enabled: boolean,
-    external_enabled: boolean,
-    inline_activity_create_enabled: boolean,
-    show_task_field_in_schedule: boolean,
-    is_private: boolean,
-    builtin: boolean,
-    is_favourite: boolean,
-    ignore_working_days: boolean,
   },
   tables: {
-    accounts: {
+    companies: {
       columns: {
         scheduling_mode: {
           tsType: "import('@capacitylens/shared/types/entities').SchedulingMode",
@@ -83,6 +57,14 @@ export default {
     // Account Kit's Lucid adapter reads and writes these as Luxon values.
     users: {
       columns: {
+        created_at: {
+          tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
+          decorators: [{ name: '@column' }],
+        },
+        updated_at: {
+          tsType: "import('@capacitylens/shared/types/entities').ISOTimestamp",
+          decorators: [{ name: '@column' }],
+        },
         email_verified_at: {
           tsType: "import('luxon').DateTime | null",
           decorators: [{ name: '@column.dateTime' }],

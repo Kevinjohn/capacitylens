@@ -5,7 +5,7 @@ import { SettingsView } from './SettingsView';
 import { useStore } from '@/store/useStore';
 import { resetStoreWithCompany, DEFAULT_COMPANY_ID } from '@/test/fixtures';
 import { PermissionContext } from '@/auth/permissionContext';
-import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 beforeEach(async () => {
   await resetStoreWithCompany();
@@ -111,7 +111,7 @@ describe('SettingsView — grouped information architecture', () => {
     try {
       render(
         <PermissionContext.Provider
-          value={{ role: 'owner', status: 'resolved', grant: viewAsGrantFor('owner') }}
+          value={{ role: 'owner', status: 'resolved', grant: masqueradeGrantFor('owner') }}
         >
           <SettingsView />
         </PermissionContext.Provider>,

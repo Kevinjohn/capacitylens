@@ -9,6 +9,7 @@
 /// <reference path="../../config/admission.ts" />
 /// <reference path="../../config/auth.ts" />
 /// <reference path="../../config/backup.ts" />
+/// <reference path="../../config/capacitylens.ts" />
 /// <reference path="../../config/hash.ts" />
 /// <reference path="../../config/limiter.ts" />
 /// <reference path="../../config/logger.ts" />

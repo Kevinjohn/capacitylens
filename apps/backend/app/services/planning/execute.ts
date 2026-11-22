@@ -3,44 +3,42 @@ import { isAllocationAttributionAllowed } from '@capacitylens/shared/lib/integri
 import { DomainError } from '@capacitylens/shared/domain/errors';
 import {
   archive,
-  canUnarchive,
+  canRestore,
   LifecycleTransitionError,
   resolveLifecycleStatus,
-  unarchive,
+  restore,
 } from '@capacitylens/shared/domain/lifecycle';
 import type { AppData, AppDataKey, Client } from '@capacitylens/shared/types/entities';
 import { hasHourlyLoad } from '@capacitylens/shared/types/entities';
 import { reconcileReassignedHours } from '@capacitylens/shared/domain/placement';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { resolveEffectiveWorkingWeek } from '@capacitylens/shared/lib/effectiveWorkingWeek';
-import { EntityWriteError } from '#services/planning/errors';
 import { createServerRevision } from '#services/planning/server_timestamp';
 import { encodeRow } from '#services/state_repository';
 import { tables } from '#services/product_tables';
 import type { PlanningIntent, PlanningMutationSuccess } from '#validators/planning/contracts';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
+import { requireExistingRow, updateSettings, type WrittenRow } from '#services/planning/writer';
+import { writeEntity } from '#services/planning/entity_write';
 import {
-  requireExistingRow,
-  PlanningOperationError,
-  updateSettings,
-  type WrittenRow,
-} from './writer.js';
-import { writeEntity } from './entity_write.js';
-import { buildAllocationOccurrences, buildTimeOffOccurrences } from './repeat_occurrences.js';
+  buildAllocationOccurrences,
+  buildTimeOffOccurrences,
+} from '#services/planning/repeat_occurrences';
 import {
   deleteAllocations,
   deleteRows,
   restoreGroup,
   type RestorationIdentity,
-} from './restoration.js';
-export { PlanningOperationError } from './writer.js';
+} from '#services/planning/restoration';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 type LifecycleTable = Extract<AppDataKey, 'clients' | 'projects' | 'resources' | 'activities'>;
 
 /** A repeat names one id per later occurrence; a different count means the client's repeat differs. */
 function assertOccurrenceIdsMatch(occurrenceIds: readonly string[], later: readonly unknown[]) {
   if (occurrenceIds.length !== later.length) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       400,
       'VALIDATION_ERROR',
       'The occurrence identities do not match the repeat.'
@@ -53,7 +51,7 @@ function resolveSeriesFrom(data: AppData, id: string): string[] {
   const target = requireExistingRow(data, 'allocations', id);
   const { seriesId, startDate } = target;
   if (!seriesId) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       400,
       'VALIDATION_ERROR',
       'This allocation is not part of a repeat series.'
@@ -70,16 +68,16 @@ async function transitionLifecycle(
   companyId: string,
   table: LifecycleTable,
   id: string,
-  action: 'archive' | 'unarchive',
+  action: 'archive' | 'restore',
   written: WrittenRow[]
 ) {
   const current = requireExistingRow(data, table, id);
   // Checking the table does not narrow the row, but a clients row is a Client.
   if (table === 'clients' && (current as Client).builtin === true) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       409,
       null,
-      `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'unarchived'}.`
+      `The built-in Internal client cannot be ${action === 'archive' ? 'archived' : 'restored'}.`
     );
   }
   const now = createServerRevision(current.updatedAt);
@@ -90,18 +88,18 @@ async function transitionLifecycle(
       updatedAt: now,
     };
   } else {
-    if (!canUnarchive(current)) {
+    if (!canRestore(current)) {
       const noChange = resolveLifecycleStatus(current) === 'active';
-      throw new PlanningOperationError(
+      throw new PlanningOperationException(
         400,
         noChange ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         noChange
           ? 'The record is already active.'
-          : 'The record is not archived and cannot be unarchived.'
+          : 'The record is not archived and cannot be restored.'
       );
     }
     next = {
-      ...unarchive(current),
+      ...restore(current),
       updatedAt: now,
     };
   }
@@ -119,7 +117,7 @@ export interface ExecutePlanningIntentOptions {
   trx: TransactionClientContract;
   companyId: string;
   intent: PlanningIntent;
-  capabilities: PlanningCapabilities;
+  accessGrant: PlanningAccessGrant;
   /** The mutable, complete company snapshot; the caller keeps its own before-image. */
   data: AppData;
   identity: RestorationIdentity;
@@ -154,7 +152,7 @@ async function applyIntent(
     trx,
     companyId,
     intent,
-    capabilities,
+    accessGrant,
     data,
     identity,
     expectedUpdatedAt,
@@ -163,13 +161,13 @@ async function applyIntent(
   committed: { intent: PlanningIntent }
 ): Promise<PlanningMutationSuccess['restoration']> {
   const unchanged = { consumedGroupId: null, replacementGroupId: null };
-  if (!capabilities.canWrite) {
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
+  if (!accessGrant.canWrite) {
+    throw new PlanningOperationException(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
-  if (!data.accounts.some((row) => row.id === companyId)) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The company was not found.');
+  if (!data.companies.some((row) => row.id === companyId)) {
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
-  const writeOptions = { trx, data, written, companyId, capabilities, identity, expectedUpdatedAt };
+  const writeOptions = { trx, data, written, companyId, accessGrant, identity, expectedUpdatedAt };
   try {
     switch (intent.operation) {
       case 'allocation.create':
@@ -223,7 +221,7 @@ async function applyIntent(
         const { id, resourceId, startDate, endDate } = intent;
         const existing = requireExistingRow(data, 'allocations', id);
         const target = requireExistingRow(data, 'resources', resourceId);
-        const company = requireExistingRow(data, 'accounts', companyId);
+        const company = requireExistingRow(data, 'companies', companyId);
         const hoursPerDay = reconcileReassignedHours({
           current: existing.hoursPerDay,
           target,
@@ -307,14 +305,14 @@ async function applyIntent(
         return unchanged;
       }
       case 'catalogue.archive':
-      case 'catalogue.unarchive':
+      case 'catalogue.restore':
         await transitionLifecycle(
           trx,
           data,
           companyId,
           intent.entity.entity,
           intent.entity.id,
-          intent.operation === 'catalogue.archive' ? 'archive' : 'unarchive',
+          intent.operation === 'catalogue.archive' ? 'archive' : 'restore',
           written
         );
         return unchanged;
@@ -341,14 +339,14 @@ async function applyIntent(
         });
         return unchanged;
       case 'resource.archive':
-      case 'resource.unarchive':
+      case 'resource.restore':
         await transitionLifecycle(
           trx,
           data,
           companyId,
           'resources',
           intent.id,
-          intent.operation === 'resource.archive' ? 'archive' : 'unarchive',
+          intent.operation === 'resource.archive' ? 'archive' : 'restore',
           written
         );
         return unchanged;
@@ -423,7 +421,7 @@ async function applyIntent(
         return { consumedGroupId: null, replacementGroupId: groupId };
       }
       case 'settings.update':
-        await updateSettings(trx, data, companyId, intent.changes, capabilities, written);
+        await updateSettings(trx, data, companyId, intent.changes, accessGrant, written);
         return unchanged;
       case 'allocation.delete':
       case 'allocation.deleteGroup': {
@@ -440,24 +438,24 @@ async function applyIntent(
         await restoreGroup(trx, data, companyId, intent.restorationGroupId, identity, written);
         return { consumedGroupId: intent.restorationGroupId, replacementGroupId: null };
       default:
-        throw new PlanningOperationError(
+        throw new PlanningOperationException(
           403,
           'AUTHORIZATION_DENIED',
           'This operation is unavailable.'
         );
     }
   } catch (error) {
-    if (error instanceof PlanningOperationError) throw error;
-    if (error instanceof EntityWriteError) {
+    if (error instanceof PlanningOperationException) throw error;
+    if (error instanceof EntityWriteException) {
       throw error.status === 403
-        ? new PlanningOperationError(403, 'AUTHORIZATION_DENIED', error.message)
-        : new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
+        ? new PlanningOperationException(403, 'AUTHORIZATION_DENIED', error.message)
+        : new PlanningOperationException(400, 'VALIDATION_ERROR', error.message);
     }
     if (error instanceof DomainError) {
-      throw new PlanningOperationError(400, 'VALIDATION_ERROR', error.message);
+      throw new PlanningOperationException(400, 'VALIDATION_ERROR', error.message);
     }
     if (error instanceof LifecycleTransitionError) {
-      throw new PlanningOperationError(
+      throw new PlanningOperationException(
         400,
         error.code === 'already_inactive' ? 'NO_CHANGE' : 'VALIDATION_ERROR',
         error.message
@@ -472,7 +470,7 @@ async function applyIntent(
       Array.isArray(error.messages)
     ) {
       const first = error.messages[0];
-      throw new PlanningOperationError(
+      throw new PlanningOperationException(
         400,
         'VALIDATION_ERROR',
         typeof first?.message === 'string' ? first.message : 'The operation is invalid.'

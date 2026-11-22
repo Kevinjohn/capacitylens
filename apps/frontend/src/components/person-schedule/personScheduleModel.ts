@@ -39,7 +39,7 @@ export interface BuildPersonScheduleInput {
   activityFallback: string;
 }
 
-interface ProjectionContext {
+interface PersonScheduleLookups {
   activitiesById: Map<ID, Activity>;
   projectsById: Map<ID, Project>;
   clientsById: Map<ID, Client>;
@@ -62,7 +62,7 @@ function compareEntries(left: PersonScheduleEntry, right: PersonScheduleEntry): 
   );
 }
 
-function createProjectionContext(input: BuildPersonScheduleInput): ProjectionContext {
+function createPersonScheduleLookups(input: BuildPersonScheduleInput): PersonScheduleLookups {
   const activitiesById = new Map(input.data.activities.map((row) => [row.id, row]));
   const projectsById = new Map(input.data.projects.map((row) => [row.id, row]));
   const clientsById = new Map(input.data.clients.map((row) => [row.id, row]));
@@ -113,7 +113,7 @@ function isOverlappingWindow(
 function buildAllocationEntry(
   allocation: Allocation,
   input: BuildPersonScheduleInput,
-  context: ProjectionContext,
+  context: PersonScheduleLookups,
 ): PersonScheduleEntry {
   const activity = context.activitiesById.get(allocation.activityId);
   const { project, client } = buildAllocationAttribution({
@@ -148,7 +148,7 @@ function buildAllocationEntry(
 
 function listAllocationEntries(
   input: BuildPersonScheduleInput,
-  context: ProjectionContext,
+  context: PersonScheduleLookups,
 ): PersonScheduleEntry[] {
   const entries: PersonScheduleEntry[] = [];
   for (const allocation of input.data.allocations) {
@@ -191,7 +191,7 @@ function listTimeOffEntries(input: BuildPersonScheduleInput): {
 
 /** Projects one resource's allocations and time off into dated schedule entries. */
 export function buildPersonSchedule(input: BuildPersonScheduleInput): PersonScheduleBuildResult {
-  const context = createProjectionContext(input);
+  const context = createPersonScheduleLookups(input);
   const allocationInvalidRecords = collectSeriesMetadata(
     input.data.allocations,
     input.companyId,

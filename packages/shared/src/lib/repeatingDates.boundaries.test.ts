@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_ISO_DATE } from './dateMath.js';
 import {
-  ALLOCATION_REPEAT_POLICY,
-  TIME_OFF_REPEAT_POLICY,
+  ALLOCATION_REPEAT_RULES,
+  TIME_OFF_REPEAT_RULES,
   resolveDefaultRepeatUntilDate,
   generateRepeatingStartDates,
   resolveMaximumRepeatUntilDate,
   RepeatingDateError,
 } from './repeatingDates.js';
-import type { RepeatingDatePolicy } from './repeatingDates.js';
+import type { RepeatingDateRules } from './repeatingDates.js';
 
 // repeatingDates.test.ts covers the cadences; this file pins the exact boundary of each limit,
-// using caller policies to reach month offsets the built-in policies never request.
+// using caller rules to reach month offsets the built-in rules never request.
 
-function policy(overrides: Partial<RepeatingDatePolicy>): RepeatingDatePolicy {
-  return { ...ALLOCATION_REPEAT_POLICY, ...overrides };
+function rules(overrides: Partial<RepeatingDateRules>): RepeatingDateRules {
+  return { ...ALLOCATION_REPEAT_RULES, ...overrides };
 }
 
 function thrown(run: () => unknown): unknown {
@@ -26,16 +26,16 @@ function thrown(run: () => unknown): unknown {
   throw new Error('Expected the call to throw.');
 }
 
-describe('repeat policies', () => {
+describe('repeat rules', () => {
   it('caps allocation repeats on the anchor day and time off on the month end', () => {
-    expect(ALLOCATION_REPEAT_POLICY.maximumCutoff).toBe('anchor-day');
+    expect(ALLOCATION_REPEAT_RULES.maximumCutoff).toBe('anchor-day');
     expect(resolveMaximumRepeatUntilDate('2026-01-15')).toBe('2026-07-15');
-    expect(TIME_OFF_REPEAT_POLICY.maximumCutoff).toBe('month-end');
+    expect(TIME_OFF_REPEAT_RULES.maximumCutoff).toBe('month-end');
   });
 
   it.each([
-    [ALLOCATION_REPEAT_POLICY, 'allocation'],
-    [TIME_OFF_REPEAT_POLICY, 'entry'],
+    [ALLOCATION_REPEAT_RULES, 'allocation'],
+    [TIME_OFF_REPEAT_RULES, 'entry'],
   ])('names the occurrence noun in the limit message', (base, noun) => {
     expect(base.occurrenceNoun).toBe(noun);
     const error = thrown(() =>
@@ -59,7 +59,7 @@ describe('occurrence limit', () => {
 
   it('accepts exactly the maximum number of occurrences', () => {
     expect(
-      generateRepeatingStartDates('2026-01-05', '2026-01-19', weekly, policy({ maxOccurrences: 3 }))
+      generateRepeatingStartDates('2026-01-05', '2026-01-19', weekly, rules({ maxOccurrences: 3 }))
         .startDates,
     ).toEqual(['2026-01-05', '2026-01-12', '2026-01-19']);
   });
@@ -71,7 +71,7 @@ describe('occurrence limit', () => {
           '2026-01-05',
           '2026-01-19',
           weekly,
-          policy({ maxOccurrences: 2 }),
+          rules({ maxOccurrences: 2 }),
         ),
       ),
     ).toMatchObject({ code: 'occurrence-limit' });
@@ -79,17 +79,17 @@ describe('occurrence limit', () => {
 });
 
 describe('default cutoff', () => {
-  it('keeps the anchor day when the policy asks for it', () => {
+  it('keeps the anchor day when the rules ask for it', () => {
     expect(
-      resolveDefaultRepeatUntilDate('2026-01-15', policy({ defaultCutoff: 'anchor-day' })),
+      resolveDefaultRepeatUntilDate('2026-01-15', rules({ defaultCutoff: 'anchor-day' })),
     ).toBe('2026-03-15');
     expect(resolveDefaultRepeatUntilDate('2026-01-15')).toBe('2026-03-31');
   });
 
   it('clamps a suggestion beyond the maximum and keeps one equal to it', () => {
-    const longer = policy({ defaultCalendarMonths: 8, defaultCutoff: 'anchor-day' });
+    const longer = rules({ defaultCalendarMonths: 8, defaultCutoff: 'anchor-day' });
     expect(resolveDefaultRepeatUntilDate('2026-01-15', longer)).toBe('2026-07-15');
-    const equal = policy({ defaultCalendarMonths: 6, defaultCutoff: 'anchor-day' });
+    const equal = rules({ defaultCalendarMonths: 6, defaultCutoff: 'anchor-day' });
     expect(resolveDefaultRepeatUntilDate('2026-01-15', equal)).toBe('2026-07-15');
   });
 
@@ -101,27 +101,27 @@ describe('default cutoff', () => {
 
 describe('calendar-month offsets', () => {
   it('accepts the first and last supported months exactly', () => {
-    // A zero or negative offset is reachable only through a caller policy.
-    expect(resolveMaximumRepeatUntilDate('0001-01-15', policy({ maximumCalendarMonths: 0 }))).toBe(
+    // A zero or negative offset is reachable only through caller rules.
+    expect(resolveMaximumRepeatUntilDate('0001-01-15', rules({ maximumCalendarMonths: 0 }))).toBe(
       '0001-01-15',
     );
-    expect(resolveMaximumRepeatUntilDate('0001-02-15', policy({ maximumCalendarMonths: -1 }))).toBe(
+    expect(resolveMaximumRepeatUntilDate('0001-02-15', rules({ maximumCalendarMonths: -1 }))).toBe(
       '0001-01-15',
     );
     expect(resolveMaximumRepeatUntilDate('9999-06-15')).toBe('9999-12-15');
   });
 
   it('clamps an offset just beyond either end to the last supported date', () => {
-    expect(resolveMaximumRepeatUntilDate('0001-01-15', policy({ maximumCalendarMonths: -1 }))).toBe(
+    expect(resolveMaximumRepeatUntilDate('0001-01-15', rules({ maximumCalendarMonths: -1 }))).toBe(
       MAX_ISO_DATE,
     );
     expect(resolveMaximumRepeatUntilDate('9999-07-15')).toBe(MAX_ISO_DATE);
   });
 
   it('clamps a non-integer offset to the last supported date', () => {
-    expect(
-      resolveMaximumRepeatUntilDate('2026-01-15', policy({ maximumCalendarMonths: 1.5 })),
-    ).toBe(MAX_ISO_DATE);
+    expect(resolveMaximumRepeatUntilDate('2026-01-15', rules({ maximumCalendarMonths: 1.5 }))).toBe(
+      MAX_ISO_DATE,
+    );
   });
 });
 

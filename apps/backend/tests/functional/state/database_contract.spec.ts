@@ -1,12 +1,12 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { seed } from '@capacitylens/shared/data/seed';
 import { checkDatabase } from '#services/database_health';
 import { readState, replaceWithSeed } from '#tests/helpers/state_fixture';
 import { assertSchemaIntegrity } from '#services/schema_integrity';
 import Company from '#models/company';
-import { insertTenantFixture } from './database_contract_fixtures.js';
+import { insertTwoCompanyFixture } from '#tests/functional/state/database_contract_fixtures';
 import {
   ACTIVITY_KINDS,
   ALLOCATION_STATUSES,
@@ -26,7 +26,7 @@ import {
   foreignKeyIndexes,
   fullFixtureRows,
   insertInvalidReference,
-} from './database_contract_cases.js';
+} from '#tests/functional/state/database_contract_cases';
 
 const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';
@@ -48,12 +48,12 @@ async function rowCount(table: string, where: Record<string, string>) {
   return Number(result?.count ?? 0);
 }
 
-test.group('M1 database contract', (group) => {
+test.group('database contract', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(async () => {
     await db.from('account_member_resources').delete();
     await replaceWithSeed();
-    await insertTenantFixture();
+    await insertTwoCompanyFixture();
   });
 
   test('creates the complete fresh schema, including identity and control tables', async ({
@@ -77,8 +77,8 @@ test.group('M1 database contract', (group) => {
 
   test('schema checks reject an unknown enum value or reversed date range')
     .with([
-      { table: 'accounts', id: companyIds.dc, values: { scheduling_mode: 'weekly' } },
-      { table: 'accounts', id: companyIds.dc, values: { date_style: 'iso' } },
+      { table: 'companies', id: companyIds.dc, values: { scheduling_mode: 'weekly' } },
+      { table: 'companies', id: companyIds.dc, values: { date_style: 'iso' } },
       { table: 'resources', id: 'm1-dc-resource', values: { kind: 'robot' } },
       { table: 'resources', id: 'm1-dc-resource', values: { employment_type: 'intern' } },
       { table: 'resources', id: 'm1-dc-resource', values: { engagement: 'remote' } },
@@ -107,6 +107,16 @@ test.group('M1 database contract', (group) => {
         id: 'm1-dc-closure',
         values: { start_date: '2026-02-01', end_date: '2026-01-01' },
       },
+      { table: 'companies', id: companyIds.dc, values: { disciplines_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { placeholders_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { external_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { inline_activity_create_enabled: 'true' } },
+      { table: 'companies', id: companyIds.dc, values: { show_task_field_in_schedule: 'true' } },
+      { table: 'clients', id: 'm1-dc-client', values: { is_private: 'true' } },
+      { table: 'clients', id: 'm1-dc-client', values: { builtin: 'true' } },
+      { table: 'projects', id: 'm1-dc-project', values: { is_private: 'true' } },
+      { table: 'resources', id: 'm1-dc-resource', values: { is_favourite: 'true' } },
+      { table: 'allocations', id: 'm1-dc-allocation', values: { ignore_working_days: 2 } },
     ])
     .run(async ({ assert }, { table, id, values }) => {
       const source = await db.from(table).where('id', id).first();
@@ -127,8 +137,8 @@ test.group('M1 database contract', (group) => {
 
   test('each enum CHECK lists exactly the shared runtime list')
     .with([
-      { table: 'accounts', column: 'scheduling_mode', values: SCHEDULING_MODES },
-      { table: 'accounts', column: 'date_style', values: DATE_STYLES },
+      { table: 'companies', column: 'scheduling_mode', values: SCHEDULING_MODES },
+      { table: 'companies', column: 'date_style', values: DATE_STYLES },
       { table: 'resources', column: 'kind', values: RESOURCE_KINDS },
       { table: 'resources', column: 'employment_type', values: EMPLOYMENT_TYPES },
       { table: 'resources', column: 'engagement', values: RESOURCE_ENGAGEMENTS },
@@ -171,7 +181,7 @@ test.group('M1 database contract', (group) => {
       ),
       2
     );
-    await db.from('accounts').where('id', companyIds.dc).delete();
+    await db.from('companies').where('id', companyIds.dc).delete();
     assert.isNull(await db.from('request_receipts').where('id', receipts[0]!.id).first());
     assert.isNotNull(await db.from('request_receipts').where('id', receipts[1]!.id).first());
   });
@@ -329,31 +339,31 @@ test.group('M1 database contract', (group) => {
     }
   });
 
-  test('keeps account discovery global while filtering scoped entity reads to one tenant', async ({
+  test('keeps company discovery global while filtering scoped entity reads to one company', async ({
     assert,
   }) => {
-    const accounts = await Company.all();
+    const companies = await Company.all();
     assert.includeMembers(
-      accounts.map((account) => account.id),
+      companies.map((account) => account.id),
       [companyIds.dc, companyIds.marvel]
     );
 
     const state = await readState(companyIds.dc);
     assert.deepEqual(
-      state.accounts.map((account) => account.id),
+      state.companies.map((account) => account.id),
       [companyIds.dc]
     );
     for (const [table, rows] of Object.entries(state)) {
-      if (table === 'accounts') continue;
+      if (table === 'companies') continue;
       assert.isTrue(
         (rows as Array<{ companyId: string }>).every((row) => row.companyId === companyIds.dc),
-        `${table} contains only the requested tenant`
+        `${table} contains only the requested company`
       );
     }
 
     const unknown = await readState('a-unknown');
     for (const [table, rows] of Object.entries(unknown))
-      assert.lengthOf(rows, 0, `${table} is empty for an unknown tenant`);
+      assert.lengthOf(rows, 0, `${table} is empty for an unknown company`);
   });
 
   test('scoped reads hide inactive lifecycle rows by default and can include them explicitly', async ({
@@ -455,12 +465,12 @@ test.group('M1 database contract', (group) => {
     }
 
     await db
-      .from('accounts')
+      .from('companies')
       .where('id', companyIds.dc)
       .update({ capacity_overview_access: JSON.stringify('all_users') });
     await assert.rejects(
       () => readState(),
-      /Invalid persisted JSON in accounts\.capacity_overview_access/
+      /Invalid persisted JSON in companies\.capacity_overview_access/
     );
   });
 
@@ -504,7 +514,7 @@ test.group('M1 database contract', (group) => {
     test(`rejects cross-account ${relationship} inserts`, async ({ assert }) => {
       await assert.rejects(
         () => insertInvalidReference(table, column, targetId),
-        /cross-account reference/
+        /cross-company reference/
       );
       assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_check'), []);
     });
@@ -519,7 +529,7 @@ test.group('M1 database contract', (group) => {
           .from('allocations')
           .where('id', 'm1-dc-allocation')
           .update({ resource_id: 'm1-marvel-resource' }),
-      /cross-account reference/
+      /cross-company reference/
     );
     await db
       .from('resources')
@@ -530,9 +540,7 @@ test.group('M1 database contract', (group) => {
     assert.isNull(resource.discipline_id);
   });
 
-  test('keeps tenant account identifiers immutable on every scoped entity table', async ({
-    assert,
-  }) => {
+  test('keeps company identifiers immutable on every scoped entity table', async ({ assert }) => {
     const ids = [
       'm1-dc-client',
       'm1-dc-discipline',
@@ -558,7 +566,7 @@ test.group('M1 database contract', (group) => {
       triggers.map((trigger) => [trigger.name as string, String(trigger.sql)])
     );
     for (const table of scopedTables) {
-      const sql = byName.get(`${table}_account_immutable`);
+      const sql = byName.get(`${table}_company_immutable`);
       assert.isDefined(sql, `${table} account immutability trigger exists`);
       assert.match(sql!, /BEFORE\s+UPDATE\s+OF\s+company_id/i);
       assert.match(sql!, /NEW\.company_id\s*<>\s*OLD\.company_id/i);
@@ -590,7 +598,7 @@ test.group('M1 database contract', (group) => {
           new RegExp(`FROM\\s+${target}\\s+WHERE\\s+id\\s*=\\s*NEW\\.${column}`, 'i')
         );
         assert.match(sql!, /company_id\s*=\s*NEW\.company_id/i);
-        assert.match(sql!, /RAISE\s*\(\s*ABORT\s*,\s*'cross-account reference'/i);
+        assert.match(sql!, /RAISE\s*\(\s*ABORT\s*,\s*'cross-company reference'/i);
       }
     }
     const cleanupSql = byName.get('capacitylens_member_resource_kind_cleanup');
@@ -672,7 +680,7 @@ test.group('M1 database contract', (group) => {
     assert.deepEqual(await db.rawQuery('PRAGMA foreign_key_check'), []);
   });
 
-  test('uses tenant indexes for account-scoped reads and deletes', async ({ assert }) => {
+  test('uses company indexes for company-scoped reads and deletes', async ({ assert }) => {
     for (const [table, column] of accountIndexes) {
       for (const operation of ['SELECT *', 'DELETE'] as const) {
         const query =
@@ -734,7 +742,7 @@ test.group('M1 database contract', (group) => {
     assert.equal(await rowCount('clients', { id: 'm1-marvel-client' }), 1);
   });
 
-  test('resource deletion cascades allocations and time off without crossing accounts', async ({
+  test('resource deletion cascades allocations and time off without crossing companies', async ({
     assert,
   }) => {
     await db.from('resources').where('id', 'm1-dc-resource').delete();
@@ -770,7 +778,7 @@ test.group('M1 database contract', (group) => {
   test('account deletion cascades exactly its scoped rows and preserves the other account', async ({
     assert,
   }) => {
-    await db.from('accounts').where('id', companyIds.dc).delete();
+    await db.from('companies').where('id', companyIds.dc).delete();
     for (const table of scopedTables) {
       assert.equal(
         await rowCount(table, { company_id: companyIds.dc }),
@@ -831,7 +839,7 @@ test.group('M1 database contract', (group) => {
     await assertSchemaIntegrity();
   });
 
-  test('readiness refuses a missing tenant account index', async ({ assert }) => {
+  test('readiness refuses a missing company index', async ({ assert }) => {
     const index = await db
       .from('sqlite_master')
       .select('name', 'sql')
@@ -840,7 +848,7 @@ test.group('M1 database contract', (group) => {
       .whereNotNull('sql')
       .whereLike('sql', '%company_id%')
       .first();
-    assert.isDefined(index?.sql, 'the clients.company_id tenant index exists');
+    assert.isDefined(index?.sql, 'the clients.company_id index exists');
     await db.rawQuery(`DROP INDEX "${String(index!.name)}"`);
     try {
       await assert.rejects(() => assertSchemaIntegrity(), /clients\.company_id index is missing/);
@@ -901,7 +909,7 @@ test.group('M1 database contract', (group) => {
     await assertSchemaIntegrity();
   });
 
-  test('readiness refuses a same-name tenant trigger with a drifted enforcement body', async ({
+  test('readiness refuses a same-name company trigger with a drifted enforcement body', async ({
     assert,
   }) => {
     const triggerName = 'projects_client_id_insert';

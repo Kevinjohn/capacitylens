@@ -12,7 +12,7 @@ const resource: Resource = {
   updatedAt: 't',
   kind: 'person',
   name: 'Diana Prince',
-  role: 'Designer',
+  jobTitle: 'Designer',
   employmentType: 'permanent',
   engagement: 'studio',
   workingHoursPerDay: 8,

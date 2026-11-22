@@ -39,7 +39,7 @@ async function writeMarker(child, value) {
 }
 
 test(
-  'concurrent lanes and repeated lanes own distinct writable databases; live groups prevent deletion',
+  'concurrent port lanes and repeated port lanes own distinct writable databases; live groups prevent deletion',
   { timeout: 20_000, skip: process.platform === 'win32' },
   async (context) => {
     const backendDirectory = await mkdtemp(join(tmpdir(), 'capacitylens-demo-storage-'));
@@ -54,7 +54,7 @@ test(
     });
     stores.push(
       ...(await Promise.all(
-        [0, 1, 0].map((lane) => createDisposableDemoStorage(lane, { backendDirectory })),
+        [0, 1, 0].map((portLane) => createDisposableDemoStorage(portLane, { backendDirectory })),
       )),
     );
     assert.equal(new Set(stores.map((store) => store.databasePath)).size, 3);

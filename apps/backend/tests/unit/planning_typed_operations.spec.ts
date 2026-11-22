@@ -1,14 +1,15 @@
 import { test } from '@japa/runner';
 import { randomUUID } from 'node:crypto';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { readStateWithClient } from '#services/state_repository';
 import { readState, resetState } from '#tests/helpers/state_fixture';
-import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
+import { executePlanningIntent } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
-const owner: PlanningCapabilities = {
+const owner: PlanningAccessGrant = {
   role: 'owner',
   canWrite: true,
   canSeePrivateNames: true,
@@ -22,7 +23,7 @@ async function execute(intent: PlanningIntent) {
       trx,
       companyId: 'a-studio',
       intent,
-      capabilities: owner,
+      accessGrant: owner,
       data,
       identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
     });
@@ -33,7 +34,7 @@ async function refused(intent: PlanningIntent) {
   try {
     await execute(intent);
   } catch (error) {
-    if (error instanceof PlanningOperationError) return error;
+    if (error instanceof PlanningOperationException) return error;
     throw error;
   }
   throw new Error('Expected the planning intent to be refused.');
@@ -101,14 +102,14 @@ test.group('typed allocation group and lifecycle operations', (group) => {
           allocation: makeAllocation(source, refusedFirstId, '2026-10-25'),
           repeat: { pattern: { kind: 'weeks', interval: 1 }, until: '2026-11-01' },
         }),
-      PlanningOperationError
+      PlanningOperationException
     );
     const unchanged = await readState('a-studio', true);
     assert.isFalse(unchanged.allocations.some((row) => row.id === refusedFirstId));
     assert.lengthOf(unchanged.allocations, after.allocations.length);
   });
 
-  test('archives and unarchives catalogue and resource rows through shared lifecycle rules', async ({
+  test('archives and restores catalogue and resource rows through shared lifecycle rules', async ({
     assert,
   }) => {
     await resetState('single');
@@ -128,16 +129,16 @@ test.group('typed allocation group and lifecycle operations', (group) => {
 
     await execute({ operation: 'resource.archive', id: resource.id });
     await execute({
-      operation: 'catalogue.unarchive',
+      operation: 'catalogue.restore',
       entity: { entity: 'clients', id: client.id },
     });
-    await execute({ operation: 'resource.unarchive', id: resource.id });
+    await execute({ operation: 'resource.restore', id: resource.id });
     after = await readState('a-studio', true);
     assert.isNull(after.clients.find((row) => row.id === client.id)?.archivedAt);
     assert.isNull(after.resources.find((row) => row.id === resource.id)?.archivedAt);
   });
 
-  test('refuses repeated archive, active unarchive, built-in archive, and tombstone unarchive', async ({
+  test('refuses repeated archive, active restore, built-in archive, and tombstone restore', async ({
     assert,
   }) => {
     await resetState('single');
@@ -145,19 +146,19 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     const client = before.clients.find((row) => row.builtin !== true)!;
     const internal = before.clients.find((row) => row.builtin === true)!;
 
-    const activeUnarchive = await refused({
-      operation: 'catalogue.unarchive',
+    const activeRestore = await refused({
+      operation: 'catalogue.restore',
       entity: { entity: 'clients', id: client.id },
     });
-    assert.equal(activeUnarchive.status, 400);
-    assert.equal(activeUnarchive.code, 'NO_CHANGE');
+    assert.equal(activeRestore.status, 400);
+    assert.equal(activeRestore.code, 'NO_CHANGE');
 
     const protectedArchive = await refused({
       operation: 'catalogue.archive',
       entity: { entity: 'clients', id: internal.id },
     });
     assert.equal(protectedArchive.status, 409);
-    assert.isNull(protectedArchive.code);
+    assert.isUndefined(protectedArchive.code);
 
     await execute({ operation: 'catalogue.archive', entity: { entity: 'clients', id: client.id } });
     const archivedState = await readState('a-studio', true);
@@ -178,12 +179,12 @@ test.group('typed allocation group and lifecycle operations', (group) => {
     await db.from('clients').where({ id: client.id, company_id: 'a-studio' }).update({
       deleted_at: '2026-10-20T12:00:00.000Z',
     });
-    const tombstoneUnarchive = await refused({
-      operation: 'catalogue.unarchive',
+    const tombstoneRestore = await refused({
+      operation: 'catalogue.restore',
       entity: { entity: 'clients', id: client.id },
     });
-    assert.equal(tombstoneUnarchive.status, 400);
-    assert.equal(tombstoneUnarchive.code, 'VALIDATION_ERROR');
+    assert.equal(tombstoneRestore.status, 400);
+    assert.equal(tombstoneRestore.code, 'VALIDATION_ERROR');
     const after = await readState('a-studio', true);
     assert.equal(
       after.clients.find((row) => row.id === client.id)?.deletedAt,

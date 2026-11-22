@@ -5,7 +5,7 @@ import { isValidISODate } from './isoDates.js';
 import {
   generateRepeatingStartDates,
   RepeatingDateError,
-  TIME_OFF_REPEAT_POLICY,
+  TIME_OFF_REPEAT_RULES,
 } from './repeatingDates.js';
 import type { RepeatPattern } from './repeatingDates.js';
 import { endDateForSpan, calculateMaxSpanDays, MAX_SPAN_DAYS } from './schedulingDays.js';
@@ -15,7 +15,7 @@ import type { ISODate, Resource, SchedulingMode } from '../types/entities.js';
 // The dated occurrences a repeat produces from its first occurrence, shared by the form preview and
 // the save.
 
-/** The allocation fields a repeat projection reads; every other field is copied unchanged. */
+/** The allocation fields a repeat expansion reads; every other field is copied unchanged. */
 interface RepeatableAllocation {
   resourceId: string;
   startDate: ISODate;
@@ -24,7 +24,7 @@ interface RepeatableAllocation {
 }
 
 /** Scheduling inputs that a persisted allocation draft does not carry. */
-export interface RepeatProjectionContext {
+export interface RepeatExpansionInput {
   schedulingMode: SchedulingMode;
   daysOver: number;
   resource: Pick<Resource, 'id' | 'kind'>;
@@ -32,20 +32,20 @@ export interface RepeatProjectionContext {
 }
 
 /**
- * Project a validated allocation draft onto generated repeat starts.
+ * Expand a validated allocation draft onto generated repeat starts.
  * The first result is the exact `baseDraft` object; later results change only the date range.
  *
  * @throws Error when the resolved resource does not match the draft.
  * @throws RangeError when a working-span mode receives an invalid `daysOver` value, has no effective
- * working days, or a projected range leaves the supported ISO-date domain. Record-creation callers
- * reject an empty effective week before projection so copy is routed to the assignee/form surface.
+ * working days, or an expanded range leaves the supported ISO-date domain. Record-creation callers
+ * reject an empty effective week before expansion so copy is routed to the assignee/form surface.
  */
 export function buildRepeatedAllocationDrafts<T extends RepeatableAllocation>(
   baseDraft: T,
   startDates: readonly ISODate[],
-  context: RepeatProjectionContext,
+  context: RepeatExpansionInput,
 ): T[] {
-  assertRepeatProjection(baseDraft, startDates, context);
+  assertRepeatExpansion(baseDraft, startDates, context);
   const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
   const usesCalendarSpan =
     isExternalResource(context.resource) || context.schedulingMode === 'hourly';
@@ -66,34 +66,34 @@ export function buildRepeatedAllocationDrafts<T extends RepeatableAllocation>(
   });
 }
 
-function assertRepeatProjection(
+function assertRepeatExpansion(
   baseDraft: RepeatableAllocation,
   startDates: readonly ISODate[],
-  context: RepeatProjectionContext,
+  context: RepeatExpansionInput,
 ): void {
   if (context.resource.id !== baseDraft.resourceId) {
-    throw new Error('The repeat projection resource does not match the allocation resource.');
+    throw new Error('The repeat expansion resource does not match the allocation resource.');
   }
   if (startDates.length === 0 || startDates[0] !== baseDraft.startDate) {
-    throw new Error('Repeat projection must begin with the validated allocation draft.');
+    throw new Error('Repeat expansion must begin with the validated allocation draft.');
   }
   const usesCalendarSpan =
     isExternalResource(context.resource) || context.schedulingMode === 'hourly';
   if (!usesCalendarSpan && !isValidWorkingSpan(context.daysOver)) {
     throw new RangeError(
-      `Repeat projection daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`,
+      `Repeat expansion daysOver must be a whole number from 1 to ${MAX_SPAN_DAYS}.`,
     );
   }
 
   const calendarSpan = countDaysInclusive(baseDraft.startDate, baseDraft.endDate);
   if (calendarSpan < 1) {
-    throw new RangeError('Repeat projection requires a valid inclusive date range.');
+    throw new RangeError('Repeat expansion requires a valid inclusive date range.');
   }
   if (
     !usesCalendarSpan &&
     hasNoEffectiveWorkingDays(context.effectiveWeek, baseDraft.ignoreWorkingDays ?? undefined)
   ) {
-    throw new RangeError('Repeat projection requires at least one effective working day.');
+    throw new RangeError('Repeat expansion requires at least one effective working day.');
   }
 }
 
@@ -135,14 +135,14 @@ export function buildRepeatedTimeOffDrafts<T extends { startDate: ISODate; endDa
   if (!Number.isSafeInteger(duration) || duration < 1) {
     throw new RepeatingDateError(
       'invalid-date',
-      'Repeat projection requires a valid inclusive date range.',
+      'Repeat expansion requires a valid inclusive date range.',
     );
   }
   const generated = generateRepeatingStartDates(
     baseDraft.startDate,
     repeatUntil,
     pattern,
-    TIME_OFF_REPEAT_POLICY,
+    TIME_OFF_REPEAT_RULES,
   );
   const drafts = generated.startDates.map((startDate, index) => {
     if (index === 0) return baseDraft;

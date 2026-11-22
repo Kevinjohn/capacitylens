@@ -3,7 +3,7 @@ import type { ApplicationService } from '@adonisjs/core/types';
 import db from '@adonisjs/lucid/services/db';
 import { pruneReceipts } from '@kevinjohn/adonisjs-duplicate-request-guard';
 
-/** Completed request receipts are kept this long; a client retries a command within seconds. */
+/** Completed request receipts are kept this long; a client retries an operation within seconds. */
 export const REQUEST_RECEIPT_RETENTION_MS = 24 * 60 * 60_000;
 
 /**
@@ -22,7 +22,7 @@ export function pruneRequestReceipts(now = new Date()): Promise<number> {
  * holding only that package's commands, so a pass does not load every application command.
  * @throws the command's error when the pass fails.
  */
-export async function pruneViewAs(app: ApplicationService): Promise<void> {
+export async function pruneExpiredMasquerades(app: ApplicationService): Promise<void> {
   const kernel = new Kernel(app);
   kernel.addLoader(() => import('@kevinjohn/adonisjs-masquerade/commands'));
   const command = await kernel.exec('masquerade:prune', []);

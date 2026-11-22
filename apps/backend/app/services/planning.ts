@@ -16,8 +16,8 @@ import {
   advancePlanningRevision,
   assertPlanningBaseRevision,
 } from '#services/planning_revision';
-import { executePlanningIntent, PlanningOperationError } from '#services/planning/execute';
-import { resolvePlanningAuthority, type PlanningAuthority } from '#services/planning/authority';
+import { executePlanningIntent } from '#services/planning/execute';
+import { resolvePlanningAccess, type PlanningAccess } from '#services/planning/access';
 import {
   changesNothing,
   isRestorationInvalidated,
@@ -31,7 +31,6 @@ import {
   discardRestorationGroups,
   isMutationCommitted,
   recordCommittedMutation,
-  RestorationConfirmationError,
 } from '#services/planning/restoration';
 import {
   discardHistory,
@@ -51,8 +50,11 @@ import type {
   PlanningMutationInput,
   PlanningMutationSuccess,
 } from '#validators/planning/contracts';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { EmptyHistoryException } from '#exceptions/empty_history_exception';
+import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 
-export type { PlanningAuthority };
+export type { PlanningAccess };
 
 /** One planning mutation in the caller's transaction, by its verified actor. */
 export interface PlanningMutationOptions {
@@ -74,7 +76,7 @@ export interface PlanningHistoryStepOptions {
 interface PlanningReadBase {
   companyId: string;
   revision: number;
-  authority: PlanningAuthority;
+  access: PlanningAccess;
   /** The company's current calendar date in its own time zone. */
   today: ISODate;
   capacity: CapacitySection;
@@ -82,13 +84,13 @@ interface PlanningReadBase {
   history: PlanningHistoryState;
 }
 
-/** A planning read: the complete projected slice, or none when the reader named the current
+/** A planning read: the complete projected data, or none when the reader named the current
  * revision as the one it already holds. */
 export type PlanningRead =
-  | (PlanningReadBase & { slice: 'full'; data: AppData })
-  | (PlanningReadBase & { slice: 'unchanged' });
+  | (PlanningReadBase & { content: 'full'; data: AppData })
+  | (PlanningReadBase & { content: 'unchanged' });
 
-/** Resolves current product authority, revision, rows and their capacity from the same database
+/** Resolves current planning access, revision, rows and their capacity from the same database
  * snapshot. Capacity covers `window`, or the scheduler's default window when it is absent. The rows
  * are left out only when `page.ifRevision` is exactly the current revision. */
 export async function readPlanning(
@@ -97,46 +99,50 @@ export async function readPlanning(
   window?: CapacityRange,
   page?: { sessionId: number; historyId?: string; ifRevision?: number }
 ): Promise<PlanningRead> {
-  const { authority } = await resolvePlanningAuthority(trx, companyId);
+  const { planningAccess } = await resolvePlanningAccess(trx, companyId);
   const revision = await getPlanningRevision(trx, companyId);
   const data = await readStateWithClient(trx, companyId, true);
-  const company = data.accounts.find((row) => row.id === companyId);
+  const company = data.companies.find((row) => row.id === companyId);
   const today = readCompanyToday(company?.timezone ?? null);
-  const visible = transformState(buildActiveData(data), companyId, authority.role);
+  const visible = transformState(buildActiveData(data), companyId, planningAccess.role);
   const base: PlanningReadBase = {
     companyId,
     revision,
-    authority,
+    access: planningAccess,
     today,
     // Computed from the rows the reader receives, so it reveals nothing they cannot already see.
     capacity: buildCapacitySection({ data: visible, company, today, window }),
     history:
-      page?.historyId === undefined || !authority.canWrite
+      page?.historyId === undefined || !planningAccess.canWrite
         ? NO_HISTORY
         : await readHistoryState(
             trx,
             {
               companyId,
               sessionId: page.sessionId,
-              actorId: authority.actorId,
+              actorId: planningAccess.actorId,
               historyId: page.historyId,
             },
             revision
           ),
   };
   return page?.ifRevision === revision
-    ? { ...base, slice: 'unchanged' }
-    : { ...base, slice: 'full', data: visible };
+    ? { ...base, content: 'unchanged' }
+    : { ...base, content: 'full', data: visible };
 }
 
-/** Read only recoverable identities under current transactional write authority. */
+/** Read only recoverable identities under the current transactional write permission. */
 export async function readArchiveRecovery(trx: TransactionClientContract, companyId: string) {
-  const { authority } = await resolvePlanningAuthority(trx, companyId);
-  if (!authority.canWrite) {
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
+  const { planningAccess } = await resolvePlanningAccess(trx, companyId);
+  if (!planningAccess.canWrite) {
+    throw new PlanningOperationException(
+      403,
+      'AUTHORIZATION_DENIED',
+      'This action is not allowed.'
+    );
   }
   const data = await readStateWithClient(trx, companyId, true);
-  return archiveRecovery(data, companyId, authority.role);
+  return archiveRecovery(data, companyId, planningAccess.role);
 }
 
 /** Commits one deliberate operation, its revision, audit entry and identity as one atomic unit. */
@@ -155,13 +161,6 @@ export function stepPlanningHistory({
   return commit({ trx, actor, companyId, meta: input, step, supplied: null });
 }
 
-/** The caller's history holds no step in that direction; nothing was attempted or refused. */
-export class EmptyHistoryError extends PlanningOperationError {
-  constructor(message: string) {
-    super(409, null, message);
-  }
-}
-
 /**
  * Ends the caller's history after the server refused one of its steps. A stored change that can no
  * longer be applied would otherwise stay on top and block every change beneath it.
@@ -172,8 +171,13 @@ export async function abandonPlanningHistory({
   companyId,
   historyId,
 }: Pick<PlanningHistoryStepOptions, 'trx' | 'actor' | 'companyId'> & { historyId: string }) {
-  const { authority } = await resolvePlanningAuthority(trx, companyId);
-  const owner = { companyId, sessionId: actor.sessionId, actorId: authority.actorId, historyId };
+  const { planningAccess } = await resolvePlanningAccess(trx, companyId);
+  const owner = {
+    companyId,
+    sessionId: actor.sessionId,
+    actorId: planningAccess.actorId,
+    historyId,
+  };
   const revision = await getPlanningRevision(trx, companyId);
   if (await readHistory(trx, owner, revision)) await discardHistory(trx, companyId);
 }
@@ -199,12 +203,16 @@ async function commit({
   step,
   supplied,
 }: CommitOptions): Promise<PlanningMutationSuccess> {
-  const { authority, capabilities } = await resolvePlanningAuthority(trx, companyId);
-  if (!authority.canWrite) {
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
+  const { planningAccess, accessGrant } = await resolvePlanningAccess(trx, companyId);
+  if (!planningAccess.canWrite) {
+    throw new PlanningOperationException(
+      403,
+      'AUTHORIZATION_DENIED',
+      'This action is not allowed.'
+    );
   }
   if (await isMutationCommitted(trx, companyId, input.mutationId)) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       409,
       'MUTATION_ID_REUSED',
       'This mutation identity has already committed.'
@@ -221,14 +229,14 @@ async function commit({
       : {
           companyId,
           sessionId: actor.sessionId,
-          actorId: authority.actorId,
+          actorId: planningAccess.actorId,
           historyId: input.historyId,
         };
   const current = owner ? await readHistory(trx, owner, input.baseRevision) : null;
   const entry = step === 'undo' ? current?.past.at(-1) : current?.future.at(-1);
   const requested = supplied ?? (step === 'undo' ? entry?.inverse : entry?.forward);
   if (!requested) {
-    throw new EmptyHistoryError(
+    throw new EmptyHistoryException(
       step === 'undo' ? 'There is nothing to undo.' : 'There is nothing to redo.'
     );
   }
@@ -238,10 +246,10 @@ async function commit({
     trx,
     companyId,
     intent: requested,
-    capabilities,
+    accessGrant,
     data: working,
     identity: {
-      actorId: authority.actorId,
+      actorId: planningAccess.actorId,
       sessionId: actor.sessionId,
       mutationId: input.mutationId,
     },
@@ -255,7 +263,7 @@ async function commit({
       ? archiveImpact(before, intent.entity.entity, intent.entity.id)
       : undefined;
   if (changesNothing(written)) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       400,
       'NO_CHANGE',
       'The operation does not change planning data.'
@@ -270,10 +278,10 @@ async function commit({
       input.confirmedRestorationCount !== undefined &&
       input.confirmedRestorationCount !== count
     ) {
-      throw new RestorationConfirmationError(count, true);
+      throw new RestorationConfirmationException(count, true);
     }
     if (count > 0 && input.confirmedRestorationCount === undefined) {
-      throw new RestorationConfirmationError(count, false);
+      throw new RestorationConfirmationException(count, false);
     }
     await discardRestorationGroups(trx, companyId);
   }
@@ -281,19 +289,19 @@ async function commit({
   await recordCommittedMutation(trx, {
     companyId,
     mutationId: input.mutationId,
-    actorId: authority.actorId,
+    actorId: planningAccess.actorId,
     revision,
     restorationGroupId: restoration.replacementGroupId,
     originSessionId: restoration.replacementGroupId ? actor.sessionId : null,
   });
   // The receipt carries the rows this commit changed, as the writer's own read shows them.
   const changed = buildProjectionChanges(
-    transformState(buildActiveData(before), companyId, authority.role),
-    transformState(buildActiveData(working), companyId, authority.role)
+    transformState(buildActiveData(before), companyId, planningAccess.role),
+    transformState(buildActiveData(working), companyId, planningAccess.role)
   );
   await writeAudit(trx, {
     companyId,
-    actorId: authority.actorId,
+    actorId: planningAccess.actorId,
     action: intent.operation,
     entity: 'planning',
     entityId: input.mutationId,

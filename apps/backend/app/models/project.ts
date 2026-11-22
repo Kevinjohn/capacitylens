@@ -1,31 +1,33 @@
 import { ProjectSchema } from '#database/schema';
 import { beforeFetch, beforeFind, column, hasMany } from '@adonisjs/lucid/orm';
 import type { HasMany } from '@adonisjs/lucid/types/relations';
+import { compose } from '@adonisjs/core/helpers';
 import { SoftDeletes } from '@kevinjohn/adonisjs-lucid-soft-delete';
-import { deletedAtColumn } from '#models/scalar_column';
-import type { ISOTimestamp } from '@capacitylens/shared/types/entities';
+import { booleanColumn, deletedAtColumn, timestampColumn } from '#models_support/scalar_column';
 import type { DateTime } from 'luxon';
-import { forCompany, requireCompanyScope } from '#models/scoped_model';
+import { forCompany, requireCompanyScope } from '#models_support/scoped_model';
+import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model';
 import Activity from '#models/activity';
-import {
-  isBoolean,
-  isoTimestampColumn,
-  jsonColumn,
-} from '@kevinjohn/adonisjs-lucid-checked-columns';
 /** A company-scoped project; `isPrivate` protects its name in member projections. */
-export default class Project extends SoftDeletes(ProjectSchema) {
+export default class Project extends compose(ProjectSchema, SoftDeletes) {
   static forCompany = forCompany;
-  @beforeFind() static requireFindScope = requireCompanyScope;
-  @beforeFetch() static requireFetchScope = requireCompanyScope;
+  @beforeFind()
+  static requireFindScope(query: ModelQueryBuilderContract<typeof Project>) {
+    requireCompanyScope(query);
+  }
+  @beforeFetch()
+  static requireFetchScope(query: ModelQueryBuilderContract<typeof Project>) {
+    requireCompanyScope(query);
+  }
   @hasMany(() => Activity, { foreignKey: 'projectId' }) declare activities: HasMany<
     typeof Activity
   >;
-  @column(jsonColumn('projects', 'is_private', isBoolean))
+  @column(booleanColumn('projects', 'is_private'))
   declare isPrivate: boolean | null;
 
-  @column(isoTimestampColumn('projects', 'archived_at')) declare archivedAt: ISOTimestamp | null;
-  @column(isoTimestampColumn('projects', 'created_at')) declare createdAt: ISOTimestamp;
+  @column.dateTime(timestampColumn('projects', 'archived_at')) declare archivedAt: DateTime | null;
+  @column.dateTime(timestampColumn('projects', 'created_at')) declare createdAt: DateTime;
   @column.dateTime(deletedAtColumn)
   declare deletedAt: DateTime | null;
-  @column(isoTimestampColumn('projects', 'updated_at')) declare updatedAt: ISOTimestamp;
+  @column.dateTime(timestampColumn('projects', 'updated_at')) declare updatedAt: DateTime;
 }

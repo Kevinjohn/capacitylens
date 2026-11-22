@@ -1,0 +1,378 @@
+import { test } from '@japa/runner';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
+import { assertDateRange } from '@capacitylens/shared/domain/mutations';
+
+const ROOT = resolve(process.cwd(), '../..');
+const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8');
+const storyPattern = /^US-[A-Z]+-\d+.*\.md$/;
+const sourceReferences =
+  /`((?:apps\/backend|apps\/frontend|packages\/shared|e2e)\/[^`]+\.[cm]?[jt]sx?)`/g;
+const documentationTarget = /^\*\*Documentation:\*\*\s+\[[^\]]+\]\(([^)]+)\)/gm;
+
+function storyFiles(directory = resolve(ROOT, 'user-stories')): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return storyFiles(path);
+    return storyPattern.test(entry.name) ? [path] : [];
+  });
+}
+
+function storyPaths(): string[] {
+  return storyFiles()
+    .map((file) => relative(resolve(ROOT, 'user-stories'), file).replaceAll('\\', '/'))
+    .sort();
+}
+
+function slug(heading: string): string {
+  return heading
+    .replace(/\s+\{#[^}]+\}\s*$/, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[`*_~]/g, '')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+function markdownHeadings(source: string): Set<string> {
+  const ids = new Set<string>();
+  for (const [, heading] of source.matchAll(/^#{1,6}\s+(.+)$/gm)) {
+    if (!heading) continue;
+    const explicit = heading.match(/\{#([^}]+)\}\s*$/)?.[1];
+    ids.add(explicit ?? slug(heading));
+  }
+  for (const [, id] of source.matchAll(/<[^>]+\bid=["']([^"']+)["'][^>]*>/g)) {
+    if (id) ids.add(id);
+  }
+  return ids;
+}
+
+function sourcePage(story: string, target: string): string | undefined {
+  const path = target.split('#', 1)[0];
+  if (!path) return;
+  const absolute = resolve(dirname(story), path);
+  const relativeToDocs = relative(resolve(ROOT, 'docs-src'), absolute);
+  if (relativeToDocs.startsWith('..') || relativeToDocs === '') return;
+  return absolute;
+}
+
+function markdownSlug(heading: string): string {
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/[`*_~]/g, '')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+test.group('documentation and repository rule contracts', () => {
+  test('keeps the README install commands and success check in step with the guide', ({
+    assert,
+  }) => {
+    const installBlock = (text: string) => /```bash\n(sha256sum -c[\s\S]*?)```/.exec(text)?.[1];
+    const guide = read('docs-src/self-hosting/install-without-docker.md');
+    const readme = read('README.md');
+    assert.isString(installBlock(readme));
+    assert.equal(installBlock(readme), installBlock(guide));
+    for (const text of [readme, guide]) assert.include(text, '`"isHealthy":true`');
+  });
+
+  test('keeps local Markdown links from the public README resolvable', ({ assert }) => {
+    const links = [...read('README.md').matchAll(/\]\(([^)]+)\)/g)]
+      .map((match) => match[1])
+      .filter(
+        (target): target is string =>
+          Boolean(target) && !target!.includes('://') && !target!.startsWith('#')
+      );
+    assert.isAbove(links.length, 0);
+
+    for (const target of links) {
+      const [path, fragment] = target.split('#', 2);
+      const absolute = resolve(ROOT, path);
+      assert.isTrue(existsSync(absolute), `Missing README target ${target}`);
+      if (!fragment || !/\.md$/i.test(path)) continue;
+      const headings = markdownHeadings(readFileSync(absolute, 'utf8'));
+      const slugs = new Set([...headings].map(markdownSlug));
+      assert.isTrue(slugs.has(decodeURIComponent(fragment)), `Missing README fragment ${target}`);
+    }
+  });
+
+  test('documents the native AdonisJS commands and health routes without legacy server entry points', ({
+    assert,
+  }) => {
+    const install = read('docs-src/self-hosting/install-without-docker.md');
+    const operations = read('docs-src/self-hosting/upgrades.md');
+    const backups = read('docs-src/self-hosting/backups-and-restore.md');
+    const monitoring = read('docs-src/self-hosting/monitoring.md');
+    const operatorDocs = [install, operations, backups, monitoring].join('\n');
+
+    for (const command of [
+      'node ace.js app:upgrade',
+      'node ace.js db:backup',
+      'node ace.js owner:reset-password',
+      'node ace.js app:reset',
+    ])
+      assert.include(operatorDocs, command);
+    // nginx site files are copied by hand, so an upgrade must point at the release's copy.
+    assert.match(
+      operations,
+      /`capacitylens\.nginx\.conf`, compare that copy\s+with the new release's file and copy over any changed `location` blocks[\s\S]*`\/api\/invitations\/<token>\/\.\.\.` and\s+`\/invitation\/<token>`/
+    );
+    assert.include(monitoring, '/health/live');
+    assert.include(monitoring, '/health/ready');
+    assert.notMatch(
+      operatorDocs,
+      /server\/dist|capacitylens-server|recover:audit-outbox|cutover:repair|ends existing member views/
+    );
+  });
+
+  test('keeps current operator configuration tied to the packaged environment sample', ({
+    assert,
+  }) => {
+    const configuration = read('docs-src/self-hosting/configuration.md');
+    const example = read('packaging/release/capacitylens.env.example');
+    for (const key of [
+      'APP_KEY',
+      'APP_URL',
+      'CAPACITYLENS_PUBLIC_URL',
+      'CAPACITYLENS_DB',
+      'CAPACITYLENS_BACKUP_DIR',
+    ]) {
+      assert.include(example, `${key}=`);
+      assert.include(configuration, `\`${key}\``);
+    }
+    assert.include(configuration, 'SQL audit records remain active');
+    for (const retired of [
+      'CAPACITYLENS_REQUIRE_MFA',
+      'CAPACITYLENS_AUDIT_FILE',
+      'CAPACITYLENS_AUDIT_STDOUT',
+      'CAPACITYLENS_AUDIT_MAX_MB',
+    ])
+      assert.notInclude(configuration, retired);
+    assert.include(configuration, 'account-kit:admission:bootstrap');
+    assert.include(configuration, '`CAPACITYLENS_MAIL_HOST`');
+    for (const removed of ['CAPACITYLENS_SETUP_TOKEN', 'CAPACITYLENS_MODE', 'CAPACITYLENS_GOOGLE'])
+      assert.notInclude(configuration, removed);
+  });
+
+  test('documents daily backups and retention bounds without an interval setting', ({ assert }) => {
+    const configuration = read('docs-src/self-hosting/configuration.md').replace(/\s+/g, ' ');
+    assert.match(configuration, /at web-service startup and every 24 hours/);
+    assert.match(configuration, /defaulting to 48/);
+    assert.match(configuration, /Positive fractional values are floored to whole bundles/);
+    assert.match(configuration, /invalid or nonpositive values use 48 with a startup warning/);
+    assert.match(configuration, /values above 10,000 clamp to 10,000 with a warning/);
+    assert.match(configuration, /`CAPACITYLENS_BACKUP_INTERVAL_MIN` setting is no longer used/);
+  });
+
+  test('documents sole-owner password recovery as a stopped-server command', ({ assert }) => {
+    for (const path of [
+      'docs-src/self-hosting/backups-and-restore.md',
+      'docs-src/self-hosting/incidents.md',
+      'docs-src/self-hosting/faq.md',
+    ]) {
+      const document = read(path).replace(/\s+/g, ' ');
+      assert.include(document, 'owner:reset-password');
+      assert.include(document, '--confirm-server-stopped');
+      assert.notInclude(document, 'CAPACITYLENS_MODE');
+    }
+  });
+
+  test('documents the current standalone Docker lifecycle and persistent data', ({ assert }) => {
+    const dockerGuide = read('docs-src/self-hosting/install-with-docker.md');
+    // Published images are the default; a source build is the stated alternative.
+    assert.include(dockerGuide, 'docker compose up --detach --wait');
+    assert.include(dockerGuide, 'docker compose --profile caddy up --detach --wait');
+    assert.include(dockerGuide, 'docker compose up --build --detach --wait');
+    assert.include(dockerGuide, '`CAPACITYLENS_VERSION`');
+    assert.include(dockerGuide, '/vX.Y.Z/docker-compose.yml');
+    assert.include(dockerGuide, '`capacitylens-caddy-data`');
+    assert.isBelow(
+      dockerGuide.indexOf('docker compose up --detach --wait'),
+      dockerGuide.indexOf('docker compose up --build --detach --wait')
+    );
+    assert.include(dockerGuide, '`app:upgrade`');
+    assert.include(dockerGuide, '`capacitylens-db`');
+    assert.include(dockerGuide, '`capacitylens-backups`');
+    assert.include(dockerGuide, '/health/ready');
+    assert.include(
+      dockerGuide,
+      'docker compose exec api node ace.js account-kit:admission:bootstrap'
+    );
+    assert.notInclude(dockerGuide, 'CAPACITYLENS_SETUP_TOKEN');
+  });
+
+  test('ignores runtime databases', ({ assert }) => {
+    const ignored = (path: string) => {
+      try {
+        execFileSync('git', ['check-ignore', '--no-index', '--quiet', path], {
+          cwd: ROOT,
+          stdio: 'ignore',
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    assert.isTrue(ignored('capacitylens-local.db'));
+    assert.isTrue(ignored('apps/backend/tmp/operator.db'));
+  });
+
+  test('asks contributors to commit documentation sources, not the built site', ({ assert }) => {
+    const markdown = (directory: string): string[] =>
+      readdirSync(resolve(ROOT, directory), { withFileTypes: true }).flatMap((entry) => {
+        const path = `${directory}/${entry.name}`;
+        if (entry.isDirectory()) return entry.name === '.vitepress' ? [] : markdown(path);
+        return entry.name.endsWith('.md') ? [path] : [];
+      });
+    const guidance = [
+      'AGENTS.md',
+      'CONTRIBUTING.md',
+      'README.md',
+      '.github/pull_request_template.md',
+      ...markdown('docs-src'),
+    ];
+    for (const path of guidance) {
+      assert.notMatch(read(path), /\bcommitted (?:site|`?docs\/)|rebuilt `?docs\//i, path);
+    }
+  });
+
+  test('keeps the shared domain core executable from the backend Node runtime', ({ assert }) => {
+    assert.doesNotThrow(() => assertDateRange('2026-01-01', '2026-01-05'));
+    assert.throws(() => assertDateRange('2026-01-05', '2026-01-01'));
+  });
+
+  test('keeps user-story source and documentation references resolvable', ({ assert }) => {
+    const files = storyFiles();
+    const catalogue = read('user-stories/README.md');
+    const indexed = [...catalogue.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
+      (match) => match[1]
+    );
+    assert.equal(Number(catalogue.match(/\n(\d+) stories across/)?.[1]), files.length);
+    assert.equal(indexed.length, files.length);
+    assert.equal(new Set(indexed).size, files.length);
+    assert.deepEqual(indexed.toSorted(), storyPaths());
+
+    const matrix = read('user-stories/COVERAGE.md');
+    const matrixPaths = [...matrix.matchAll(/\]\(([^)]+\/US-[^)]+\.md)\)/g)].map(
+      (match) => match[1]
+    );
+    assert.deepEqual(
+      matrixPaths.toSorted(),
+      storyPaths(),
+      'Every story appears once in the matrix'
+    );
+    const identifiers = new Set<string>();
+
+    for (const file of files) {
+      const content = readFileSync(file, 'utf8');
+      const identifier = content.match(/^# (US-[A-Z]+-\d+) — /)?.[1];
+      assert.isDefined(identifier, `Missing story identifier: ${file}`);
+      assert.isFalse(identifiers.has(identifier!), `Duplicate story identifier: ${identifier}`);
+      identifiers.add(identifier!);
+      assert.match(content.replace(/\s+/g, ' '), /As an? .+, I want .+ so that .+/);
+      assert.match(content, /^\*\*Status:\*\* (?:Current|Hidden|Removed|Demo|Operator|Planned)\b/m);
+      const pathInCatalogue = relative(resolve(ROOT, 'user-stories'), file).replaceAll('\\', '/');
+      const matrixRow = matrix.split('\n').find((line) => line.includes(`](${pathInCatalogue})`));
+      const matrixStatus = matrixRow?.match(
+        /\|\s*(Current|Hidden|Removed|Demo|Operator|Planned)\s*\|\s*(?:New|Existing)\s*\|$/
+      )?.[1];
+      const storyStatus = content.match(/^\*\*Status:\*\* (\w+)/m)?.[1];
+      assert.equal(matrixStatus, storyStatus, `Matrix status differs for ${pathInCatalogue}`);
+      assert.match(content, /^\*\*Access:\*\* \S/m);
+      assert.match(content, /^\*\*Entry:\*\* \S/m);
+      assert.match(content, /^\*\*Documentation:\*\* \[/m);
+      assert.match(content, /^\*\*Source:\*\* \[/m);
+      assert.match(content, /^## Acceptance criteria$/m);
+      assert.match(content, /^(?:- \S|\|\s+Field\s+\|)/m);
+      const metadata = content.split(/^## Acceptance criteria$/m, 1)[0] ?? '';
+      for (const [, target] of content.matchAll(/\]\(([^)]+)\)/g)) {
+        if (!target || target.includes('://') || target.startsWith('#')) continue;
+        const path = target.split('#', 1)[0];
+        assert.isTrue(existsSync(resolve(dirname(file), path!)), `Missing story link ${target}`);
+      }
+      for (const [, path] of metadata.matchAll(sourceReferences)) {
+        if (path) assert.isTrue(existsSync(resolve(ROOT, path)), `Missing source ${path}`);
+      }
+      for (const [, target] of content.matchAll(documentationTarget)) {
+        if (!target) continue;
+        const page = sourcePage(file, target);
+        assert.isDefined(page, `Documentation target must resolve inside docs-src: ${target}`);
+        assert.isTrue(existsSync(page!), `Missing documentation page ${target}`);
+        const fragment = target.split('#')[1];
+        if (fragment) {
+          const decoded = decodeURIComponent(fragment);
+          assert.include(
+            markdownHeadings(readFileSync(page!, 'utf8')),
+            decoded,
+            `Missing #${decoded}`
+          );
+        }
+      }
+    }
+  });
+
+  test('keeps a user flow and a source-linked code flow on every story', ({ assert }) => {
+    for (const file of storyFiles()) {
+      const content = readFileSync(file, 'utf8');
+      assert.lengthOf([...content.matchAll(/^## User flow$/gm)], 1, file);
+      assert.lengthOf([...content.matchAll(/^## Code flow$/gm)], 1, file);
+      const userStart = content.indexOf('## User flow');
+      const codeStart = content.indexOf('## Code flow');
+      assert.isBelow(userStart, codeStart, `User flow must precede code flow: ${file}`);
+      const userFlow = content.slice(userStart, codeStart);
+      assert.match(userFlow, /^```mermaid\n[\s\S]+?^```$/m, `Missing user flowchart: ${file}`);
+      const diagrams = [...content.matchAll(/^```mermaid\n([\s\S]+?)^```$/gm)];
+      assert.lengthOf(diagrams, 2, `Expected user and code diagrams: ${file}`);
+      for (const diagram of diagrams) assert.match(diagram[1]!, /^flowchart (?:TD|LR)\b/, file);
+      assert.match(content.slice(codeStart), /^\*\*Code references:\*\*\s+(?:- )?\[/m, file);
+    }
+  });
+
+  test('keeps permanent deletion guidance on the entity view', ({ assert }) => {
+    assert.notMatch(
+      read('docs-src/using/resources.md'),
+      /permanent deletion[^.]*\]\(\/using\/settings\)/i
+    );
+  });
+
+  test('keeps the product name and literal plural marker out of localized copy', ({ assert }) => {
+    const brand = read('packages/shared/src/brand.ts').match(
+      /export const APP_NAME = '([^']+)'/
+    )?.[1];
+    assert.isDefined(brand, 'Expected the shared brand module to export APP_NAME');
+    const messages = Object.values(
+      JSON.parse(read('apps/frontend/messages/en.json')) as Record<string, string>
+    );
+    assert.deepEqual(
+      messages.filter((message) => message.includes(brand!)),
+      []
+    );
+    assert.deepEqual(
+      messages.filter((message) => message.includes('(s)')),
+      []
+    );
+  });
+
+  test('keeps operational execution and resource boundaries in current runbooks', ({ assert }) => {
+    const install = read('docs-src/self-hosting/install.md').replace(/\s+/g, ' ');
+    const managedHost = read('docs-src/self-hosting/managed-vps/index.md');
+    const monitoring = read('docs-src/self-hosting/monitoring.md').replace(/\s+/g, ' ');
+    const managedSiteUser = /^-\s+run as the dedicated site user from\b/im;
+    assert.match(install, /background process runs as a dedicated site user/i);
+    assert.match(managedHost, managedSiteUser);
+    assert.match(
+      monitoring,
+      /Authentication and request-work safeguards are process-wide, not per-company reservations/
+    );
+    assert.match(monitoring, /Authentication is identity-global before company selection/);
+    assert.match(
+      monitoring,
+      /Use edge\/global quotas or separate CapacityLens instances when installations require resource isolation/
+    );
+    assert.include(monitoring, 'journalctl -u capacitylens --since "30 min ago"');
+  });
+});

@@ -5,7 +5,7 @@ import { resolvePlaywrightRunMode } from './scripts/e2e/playwrightRunMode.mjs';
 import { configurationWorkerCount } from './scripts/e2e/playwrightWorkers.mjs';
 import { ports } from './tooling/ports.mjs';
 
-const lanePorts = ports();
+const portLanePorts = ports();
 const runMode = resolvePlaywrightRunMode(process.env);
 const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
 const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
@@ -25,16 +25,16 @@ const engineSensitive = /@engine/;
 const authApiServer = {
   command: 'pnpm run start:auth-e2e',
   cwd: './apps/backend',
-  url: `http://127.0.0.1:${lanePorts.authApi}/health/ready`,
+  url: `http://127.0.0.1:${portLanePorts.authApi}/health/ready`,
   reuseExistingServer: false,
   timeout: 120_000,
 };
 const authWebServer = {
   command: 'pnpm run dev:auth',
-  url: `http://127.0.0.1:${lanePorts.authWeb}/health/ready`,
+  url: `http://127.0.0.1:${portLanePorts.authWeb}/health/ready`,
   reuseExistingServer: false,
   timeout: 120_000,
-  env: { CAPACITYLENS_DEV_API_PORT: String(lanePorts.authApi) },
+  env: { CAPACITYLENS_DEV_API_PORT: String(portLanePorts.authApi) },
 };
 
 /** Each `*.db.spec.ts` project owns one real SQLite-backed worker server. */
@@ -68,7 +68,7 @@ export default defineConfig({
             workers: 1,
             use: {
               ...devices['Desktop Chrome'],
-              baseURL: `http://localhost:${lanePorts.authWeb}`,
+              baseURL: `http://localhost:${portLanePorts.authWeb}`,
             },
           },
         ]

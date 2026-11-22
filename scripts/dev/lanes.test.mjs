@@ -3,9 +3,9 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { laneDirectory } from './laneClaims.mjs';
-import { leftoverPids, surveyLanes } from './lanes.mjs';
-import { portsForLane } from '../../tooling/ports.mjs';
+import { portLaneDirectory } from './laneClaims.mjs';
+import { leftoverPids, surveyPortLanes } from './lanes.mjs';
+import { portsForPortLane } from '../../tooling/ports.mjs';
 
 function scratch() {
   const cache = mkdtempSync(join(tmpdir(), 'lanes-report-'));
@@ -17,7 +17,7 @@ test("only an unclaimed listener from this repository's worktrees is a leftover"
   const worktree = mkdtempSync(join(tmpdir(), 'lanes-worktree-'));
   const elsewhere = mkdtempSync(join(tmpdir(), 'lanes-elsewhere-'));
   mkdirSync(join(worktree, 'server'));
-  const directory = laneDirectory(environment);
+  const directory = portLaneDirectory(environment);
   mkdirSync(directory, { recursive: true });
   writeFileSync(
     join(directory, '1.json'),
@@ -25,16 +25,16 @@ test("only an unclaimed listener from this repository's worktrees is a leftover"
   );
 
   const listeners = new Map([
-    [portsForLane(0).web, { pid: 1000, directory: join(worktree, 'server') }],
-    [portsForLane(1).web, { pid: 1001, directory: worktree }],
-    [portsForLane(2).web, { pid: 1002, directory: elsewhere }],
-    [portsForLane(3).web, { pid: null, directory: null }],
+    [portsForPortLane(0).web, { pid: 1000, directory: join(worktree, 'server') }],
+    [portsForPortLane(1).web, { pid: 1001, directory: worktree }],
+    [portsForPortLane(2).web, { pid: 1002, directory: elsewhere }],
+    [portsForPortLane(3).web, { pid: null, directory: null }],
   ]);
   const byPid = new Map(
     [...listeners.values()].map((listener) => [listener.pid, listener.directory]),
   );
 
-  const rows = await surveyLanes({
+  const rows = await surveyPortLanes({
     environment,
     worktrees: [worktree],
     probe: async (port) => listeners.has(port),
@@ -43,29 +43,34 @@ test("only an unclaimed listener from this repository's worktrees is a leftover"
   });
 
   assert.deepEqual(
-    rows.map(({ lane, pid, orphan, claim }) => ({ lane, pid, orphan, claimed: claim !== null })),
+    rows.map(({ portLane, pid, orphan, claim }) => ({
+      portLane,
+      pid,
+      orphan,
+      claimed: claim !== null,
+    })),
     [
-      { lane: 0, pid: 1000, orphan: true, claimed: false },
-      { lane: 1, pid: 1001, orphan: false, claimed: true },
-      { lane: 2, pid: 1002, orphan: false, claimed: false },
-      { lane: 3, pid: null, orphan: false, claimed: false },
+      { portLane: 0, pid: 1000, orphan: true, claimed: false },
+      { portLane: 1, pid: 1001, orphan: false, claimed: true },
+      { portLane: 2, pid: 1002, orphan: false, claimed: false },
+      { portLane: 3, pid: null, orphan: false, claimed: false },
     ],
   );
 });
 
-test('a run that claims its lane during the scan is not a leftover', async () => {
+test('a run that claims its port lane during the scan is not a leftover', async () => {
   const environment = scratch();
   const worktree = mkdtempSync(join(tmpdir(), 'lanes-worktree-'));
-  const directory = laneDirectory(environment);
+  const directory = portLaneDirectory(environment);
   mkdirSync(directory, { recursive: true });
-  const port = portsForLane(4).web;
+  const port = portsForPortLane(4).web;
 
-  const rows = await surveyLanes({
+  const rows = await surveyPortLanes({
     environment,
     worktrees: [worktree],
     probe: async (probed) => {
       if (probed !== port) return false;
-      // Another worktree claims lane 4 and starts its server while this survey is scanning.
+      // Another worktree claims port lane 4 and starts its server while this survey is scanning.
       writeFileSync(
         join(directory, '4.json'),
         JSON.stringify({ pid: process.pid, worktree, share: 1, token: 't' }),
@@ -77,13 +82,13 @@ test('a run that claims its lane during the scan is not a leftover', async () =>
   });
 
   assert.deepEqual(
-    rows.map(({ lane, orphan }) => ({ lane, orphan })),
-    [{ lane: 4, orphan: false }],
+    rows.map(({ portLane, orphan }) => ({ portLane, orphan })),
+    [{ portLane: 4, orphan: false }],
   );
 });
 
-test('an empty or missing lane directory reports nothing in use', async () => {
-  const rows = await surveyLanes({
+test('an empty or missing port lane directory reports nothing in use', async () => {
+  const rows = await surveyPortLanes({
     environment: scratch(),
     worktrees: [],
     probe: async () => false,
@@ -91,7 +96,7 @@ test('an empty or missing lane directory reports nothing in use', async () => {
   assert.deepEqual(rows, []);
 });
 
-test('a process is stopped once, and never when it also serves a claimed lane', () => {
+test('a process is stopped once, and never when it also serves a claimed port lane', () => {
   const row = (pid, orphan) => ({ pid, orphan });
   assert.deepEqual(
     leftoverPids([row(1, true), row(1, true), row(2, true), row(2, false), row(null, false)]),

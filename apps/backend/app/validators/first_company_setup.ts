@@ -8,7 +8,7 @@ export const firstCompanySetupMessage = `Enter a company name of up to ${MAX_NAM
  * The calendar fields are additive: a name-only body keeps the defaults, but a supplied `null`
  * is refused. The name and time-zone rules stay in the service.
  */
-export const storeValidator = vine.create(
+export const createFirstCompanyValidator = vine.create(
   vine
     .object({
       name: vine.string(),
@@ -25,4 +25,4 @@ export const storeValidator = vine.create(
       })
     )
 );
-storeValidator.messagesProvider = fixedMessage(firstCompanySetupMessage);
+createFirstCompanyValidator.messagesProvider = fixedMessage(firstCompanySetupMessage);

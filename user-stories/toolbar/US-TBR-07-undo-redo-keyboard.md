@@ -15,15 +15,15 @@ As an Editor, I want keyboard shortcuts for Undo and Redo so that I can reverse 
 ## Acceptance criteria
 
 - ⌘Z / Ctrl+Z undo and ⌘⇧Z / Ctrl+Shift+Z redo planning changes.
-- The shortcuts work on every app screen. They do not run while text entry, IME composition or a modal owns input, or while a form has unsaved changes.
+- The shortcuts work on every app screen. They do not run while text entry, IME composition or a dialog owns input, or while a form has unsaved changes.
 
 ## User flow
 
 ```mermaid
 flowchart TD
   A["Editor presses Undo or Redo shortcut"]
-  B["Outside text entry and modal: planning history action runs"]
-  C["While typing, a modal is open or a form has unsaved changes: shortcut is ignored"]
+  B["Outside text entry and dialog: planning history action runs"]
+  C["While typing, a dialog is open or a form has unsaved changes: shortcut is ignored"]
   A --> B
   A --> C
 ```
@@ -32,11 +32,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["useAppShellController installs useGlobalShortcuts key listener"] --> B["applyHistoryShortcutEffect checks key, composition, text entry, open modal and unsaved form"]
+  A["useAppShellViewModel installs useGlobalShortcuts key listener"] --> B["handleHistoryShortcut checks key, composition, text entry, open dialog and unsaved form"]
   B -->|blocked| C["No history action runs"]
   B -->|allowed| D["undoPlanning or redoPlanning"]
-  D --> E["planningCacheController executes history intent through PlanningTransport"]
+  D --> E["planningCache executes history intent through PlanningTransport"]
   E --> F["Accepted result updates planning history and Schedule"]
 ```
 
-**Code references:** [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts), [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)
+**Code references:** [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts), [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts), [allocationSlice.ts](../../apps/frontend/src/store/slices/allocationSlice.ts), [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts), [planningTransport.ts](../../apps/frontend/src/data/planning/planningTransport.ts)

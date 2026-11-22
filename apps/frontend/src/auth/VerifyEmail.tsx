@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { authClient } from './authClient';
+import { authApi } from './authApi';
 
 /** `unavailable`: the link could not be checked; `uncertain`: the outcome of confirming is unknown. */
 type State = 'checking' | 'unavailable' | 'form' | 'working' | 'done' | 'invalid' | 'uncertain';
@@ -38,7 +38,7 @@ export function VerifyEmail() {
   useEffect(() => {
     if (!token) return;
     let current = true;
-    authClient
+    authApi
       .inspectEmailVerification(token)
       .then(({ data, error: failure }) => {
         // Only the server's answer about the link is authoritative; an outage is not an invalid link.
@@ -78,7 +78,7 @@ export function VerifyEmail() {
     setError(null);
     setState('working');
     try {
-      const { error: failure } = await authClient.completeEmailVerification({ token, password });
+      const { error: failure } = await authApi.completeEmailVerification({ token, password });
       // VERIFICATION_COMMITTED: the address is confirmed and only a later step failed.
       if (!failure || failure.code === 'VERIFICATION_COMMITTED') finish('done');
       else if (failure.code === 'INVALID_TOKEN') finish('invalid');

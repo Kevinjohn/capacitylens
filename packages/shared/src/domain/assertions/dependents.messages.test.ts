@@ -24,7 +24,7 @@ import {
   A1,
   A2,
   makeBaseData,
-} from './assertionMessagesTestSupport.js';
+} from './assertionMessagesTestKit.js';
 
 // These specs check each rule's rejection message without the store or React. The server uses
 // the same module, so these assertions pin the validation rules for both callers.
@@ -99,10 +99,10 @@ describe('assertResourceExists', () => {
       'Time off must reference an active resource in this company.',
     );
   });
-  it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
+  it('throws for an external party (no capacity → no time off)', () => {
     const data = { ...makeBaseData(), resources: [makeExternal('ext', A1)] };
     expect(() => assertResourceExists({ data, companyId: A1, resourceId: 'ext' })).toThrow(
-      'Time off can’t be recorded for an external / 3rd-party resource.',
+      'Time off can’t be recorded for an external party.',
     );
   });
 });
@@ -312,7 +312,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
           ...NULLABLE_FIELDS.activities,
           ...makeMeta('general', A1),
           name: 'Admin',
-          kind: 'repeatable',
+          kind: 'allProjects',
         },
       ],
       allocations: [
@@ -330,20 +330,20 @@ describe('parent project edits preserve placeholder allocation assignments', () 
       }),
     ).not.toThrow();
   });
-  it('rejects rebinding a placeholder with repeatable work attributed to its bound project', () => {
+  it('rejects rebinding a placeholder with all-projects work attributed to its bound project', () => {
     const existing = makePlaceholder('ph', A1, 'p1');
-    const repeatable: Activity = {
+    const allProjects: Activity = {
       ...NULLABLE_FIELDS.activities,
       ...makeMeta('shared', A1),
       name: 'Shared',
-      kind: 'repeatable',
+      kind: 'allProjects',
     };
     const data: AppData = {
       ...makeBaseData(),
       clients: [makeClient('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       resources: [existing],
-      activities: [repeatable],
+      activities: [allProjects],
       allocations: [
         allocation({
           id: 'al',
@@ -366,12 +366,12 @@ describe('parent project edits preserve placeholder allocation assignments', () 
     ).toThrow(rejectResource);
   });
 
-  it('validates the post-clear effective project when repeatable work becomes project-specific', () => {
+  it('validates the post-clear effective project when all-projects work becomes project-specific', () => {
     const existing: Activity = {
       ...NULLABLE_FIELDS.activities,
       ...makeMeta('shared', A1),
       name: 'Shared',
-      kind: 'repeatable',
+      kind: 'allProjects',
     };
     const data: AppData = {
       ...makeBaseData(),
@@ -490,7 +490,7 @@ describe('parent project edits preserve placeholder allocation assignments', () 
         companyId: A1,
         activityId: 'placeholder-work',
         merged: (() => {
-          const changed = { ...placeholderActivity, kind: 'repeatable' as const };
+          const changed = { ...placeholderActivity, kind: 'allProjects' as const };
           changed.projectId = null;
           return changed;
         })(),

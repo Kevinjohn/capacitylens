@@ -4,7 +4,7 @@ import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
 import { HISTORY_LIMIT } from '#services/planning/history';
 import { readState } from '#tests/helpers/state_fixture';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
@@ -14,13 +14,13 @@ import {
   session,
   signIn,
   signInAgain,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
 import {
   listCreatedAllocationIds,
   mutationsUrl,
   planningAudit,
   stored,
-} from './restoration_helpers.js';
+} from '#tests/functional/planning/restoration_helpers';
 
 interface Reply {
   revision: number;
@@ -46,7 +46,8 @@ class Page {
         ...body,
       })
       .send();
-    const reply = response.body() as Reply;
+    const answer: unknown = response.body();
+    const reply = (response.status() === 200 ? (answer as { data: Reply }).data : answer) as Reply;
     if (response.status() === 200) this.revision = reply.revision;
     return { ...reply, status: response.status() };
   }
@@ -67,7 +68,7 @@ class Page {
     const query = this.historyId === null ? '' : `?historyId=${this.historyId}`;
     const response = await session(this.client.get(`${planningUrl}${query}`), this.cookie).send();
     response.assertStatus(200);
-    const reply = response.body() as Reply & {
+    const reply = response.body().data as Reply & {
       data: { allocations: Array<{ id: string; updatedAt: string }> };
     };
     this.revision = reply.revision;

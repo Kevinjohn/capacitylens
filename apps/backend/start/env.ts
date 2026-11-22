@@ -63,7 +63,9 @@ type OptionalStringKey =
   | 'CAPACITYLENS_TEST_HTTP_PORT';
 
 type OptionalBooleanKey =
-  'CAPACITYLENS_ALLOW_OPEN_SIGNUP' | 'CAPACITYLENS_ALLOW_RESET' | 'CAPACITYLENS_CREATE_ADMIN_ADMIN';
+  | 'CAPACITYLENS_ALLOW_OPEN_SIGN_UP'
+  | 'CAPACITYLENS_ALLOW_RESET'
+  | 'CAPACITYLENS_CREATE_ADMIN_ADMIN';
 
 type CapacityLensEnvironmentSchema = {
   NODE_ENV: EnumValidator<'development' | 'production' | 'test'>;
@@ -78,7 +80,7 @@ type CapacityLensEnvironmentSchema = {
   [Key in OptionalBooleanKey]: OptionalBooleanValidator;
 };
 
-/** Validate operator values while leaving compound policies to their owning configuration. */
+/** Validate operator values while leaving compound rules to their owning configuration. */
 export const envSchema: CapacityLensEnvironmentSchema = {
   NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
   PORT: Env.schema.number(),
@@ -94,9 +96,9 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   ] as const),
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: optionalBoolean,
+  CAPACITYLENS_ALLOW_OPEN_SIGN_UP: optionalBoolean,
   CAPACITYLENS_ALLOW_RESET: optionalBoolean,
-  // Admission owns domain-list policy; CORS owns its explicit origin-list validation.
+  // Admission owns the domain-list rules; CORS owns its explicit origin-list validation.
   CAPACITYLENS_ALLOWED_EMAIL_DOMAINS: optional,
   CAPACITYLENS_BACKUP_DIR: optional,
   // Retention deliberately accepts raw text for the backup parser’s warning/default/clamp behavior.
@@ -105,7 +107,7 @@ export const envSchema: CapacityLensEnvironmentSchema = {
   CAPACITYLENS_CORS_ORIGIN: optional,
   CAPACITYLENS_CREATE_ADMIN_ADMIN: optionalBoolean,
   CAPACITYLENS_DB: optional,
-  // Set by scripts/dev/dev-fullstack.mjs to its lane's Vite origins; ignored outside development.
+  // Set by scripts/dev/dev-fullstack.mjs to its port lane's Vite origins; ignored outside development.
   CAPACITYLENS_DEV_WEB_ORIGINS: optional,
   // Set by scripts/e2e-server.mjs so the server's today matches the browser tests' frozen date.
   CAPACITYLENS_FIXED_TODAY: parseOptionalISODate,

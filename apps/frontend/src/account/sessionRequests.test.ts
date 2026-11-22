@@ -13,13 +13,13 @@ vi.mock('@/data/requestTimeout', () => ({
   createRequestSignal: mocks.requestSignal,
 }));
 
-import { clearStoredAccountCommands } from './accountCommands';
+import { clearStoredAccountOperations } from './accountOperations';
 import { sessionRequests } from './sessionRequests';
 import { announceAuditWarning, AUDIT_WARNING_EVENT } from '@/lib/auditWarning';
 
-describe('browser account client', () => {
+describe('browser account api', () => {
   beforeEach(() => {
-    clearStoredAccountCommands();
+    clearStoredAccountOperations();
     mocks.fetchApi
       .mockReset()
       .mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));

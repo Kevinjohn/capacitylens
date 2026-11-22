@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
 import { readFile } from 'node:fs/promises';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed } from '#tests/helpers/state_fixture';
 import { APP_DATA_KEYS, type AppData } from '@capacitylens/shared/types/entities';
 import { fillNullableFields } from '@capacitylens/shared/types/nullableFields';
-import { resetAuthenticatedClient } from '../../helpers/authenticated_data_fixture.js';
+import { resetAuthenticatedClient } from '#tests/helpers/authenticated_data_fixture';
 import db from '@adonisjs/lucid/services/db';
 
 const fixture = JSON.parse(
@@ -19,7 +19,7 @@ const fixture = JSON.parse(
   }>;
 };
 
-test.group('M1 read path', (group) => {
+test.group('read path', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
   for (const expected of fixture.responses.filter(
@@ -51,7 +51,7 @@ test.group('M1 read path', (group) => {
                 connectivity: 'ok',
                 database: { status: 'ok' },
                 schema: { migration: lastMigration?.name ?? null },
-                backup: { newestSnapshotAt: null },
+                backup: { newestBackupAt: null },
               },
             }
           : expected.path.startsWith('/api/state')
@@ -64,7 +64,9 @@ test.group('M1 read path', (group) => {
                 return body;
               })()
             : expected.body;
-      assert.deepEqual(response.body(), expectedBody);
+      // Main recorded unwrapped bodies; a success now answers inside `data`, health excepted.
+      const wrapped = expected.status < 300 && expected.path !== '/api/health';
+      assert.deepEqual(response.body(), wrapped ? { data: expectedBody } : expectedBody);
       for (const header of [
         'content-security-policy',
         'cross-origin-opener-policy',
@@ -82,12 +84,12 @@ test.group('M1 read path', (group) => {
     client,
     assert,
   }) => {
-    const state = await client.get('/api/state');
+    const state = await client.visit('api.company_state.show');
     state.assertStatus(401);
     client = await resetAuthenticatedClient(client, true);
-    const identity = await client.get('/api/auth/me');
+    const identity = await client.visit('api.session.show');
     identity.assertStatus(200);
-    assert.equal(identity.body().user.email, 'bruce.wayne@wayne.example');
+    assert.equal(identity.body().data.user.email, 'bruce.wayne@wayne.example');
   });
 
   test('exposes liveness and readiness', async ({ client, assert }) => {

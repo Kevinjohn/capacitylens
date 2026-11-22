@@ -1,0 +1,241 @@
+import { requireCreated } from '@/test/requireCreated';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AllocationDialog } from './AllocationDialog';
+import { AllocationBar } from './AllocationBar';
+import { useStore } from '@/store/useStore';
+import {
+  chooseOption,
+  GEOM,
+  indexAtClientX,
+  renderWithOwnerAndTooltip,
+} from '@/test/schedulerTestKit';
+import { settlePlanning } from '@/test/allocationBarInteractionTestKit';
+import {
+  required,
+  ACC,
+  resetAllocationDialogStore,
+  person,
+  enableDays,
+  renderAsOwner,
+} from '@/test/allocationDialogTestKit';
+
+beforeEach(async () => {
+  await resetAllocationDialogStore();
+});
+
+describe('#257: dialog and gesture effective-week agreement', () => {
+  it('saves the same end and hours/day as a resize commit for the same five-day span', async () => {
+    await enableDays([1, 2, 3, 4]);
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: 't1',
+        startDate: '2026-06-01',
+        endDate: '2026-06-04',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+    const user = userEvent.setup();
+    const dialog = renderAsOwner(
+      <AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '5' } });
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(
+        useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      ).toMatchObject({ endDate: '2026-06-08', hoursPerDay: 6.4 }),
+    );
+    const dialogAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      'Expected the dialog-resized allocation.',
+    );
+    dialog.unmount();
+
+    await useStore
+      .getState()
+      .updateAllocation(allocation.id, { endDate: '2026-06-04', hoursPerDay: 8 });
+    const resetAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      'Expected the reset allocation.',
+    );
+    renderWithOwnerAndTooltip(
+      <AllocationBar
+        bar={{
+          allocation: resetAllocation,
+          x: 0,
+          width: 192,
+          top: 0,
+          color: '#3b82f6',
+          label: 'Wireframes',
+          external: false,
+        }}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true });
+    await settlePlanning();
+    const gestureAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      'Expected the gesture-resized allocation.',
+    );
+
+    expect(dialogAllocation).toMatchObject({ endDate: '2026-06-08', hoursPerDay: 6.4 });
+    expect(gestureAllocation).toMatchObject({
+      endDate: dialogAllocation.endDate,
+      hoursPerDay: dialogAllocation.hoursPerDay,
+    });
+  });
+});
+
+describe('#257: stale-start edit and duplicate creation checks', () => {
+  it('still saves an existing allocation after its assignee loses every effective working day', async () => {
+    await useStore.getState().updateCompany(ACC, { workingDays: [2] });
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1] }),
+    );
+    const allocation = requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: 't1',
+        startDate: '2026-06-01',
+        endDate: '2026-06-01',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />);
+
+    await user.type(screen.getByLabelText('Note'), 'Still editable');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+    ).toMatchObject({
+      resourceId: resource.id,
+      startDate: '2026-06-01',
+      note: 'Still editable',
+    });
+  });
+
+  // The typed-date create path must enforce the same start rule as the gesture check: new normal
+  // allocations begin on an effective working day, whatever field the date arrived through.
+  it('rejects creating an allocation whose typed start is company-non-working', async () => {
+    await useStore.getState().updateCompany(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    renderAsOwner(
+      <AllocationDialog
+        kind="create"
+        create={{ resourceId: resource.id, startDate: '2026-06-05', endDate: '2026-06-05' }}
+        onClose={onClose}
+      />,
+    );
+
+    await chooseOption(user, 'Project', 'Ferris / Lightning');
+    await chooseOption(user, 'Activity', 'Wireframes');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'New allocations must begin on a company and personal working day. Move the start date.',
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(0);
+  });
+
+  it('rejects duplicating an allocation whose start is company-non-working', async () => {
+    await useStore.getState().updateCompany(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: 't1',
+        startDate: '2026-06-05',
+        endDate: '2026-06-05',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={onClose} />);
+
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'New allocations must begin on a company and personal working day. Move the start date.',
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(1);
+  });
+
+  it('rejects duplicating even an ignored allocation whose start is non-effective (no escape hatch)', async () => {
+    await useStore.getState().updateCompany(ACC, { workingDays: [1, 2, 3, 4] });
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: 't1',
+        startDate: '2026-06-05',
+        endDate: '2026-06-05',
+        hoursPerDay: 8,
+        status: 'confirmed',
+        ignoreWorkingDays: true,
+      }),
+    );
+    const user = userEvent.setup();
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }));
+
+    expect(useStore.getState().data.allocations).toHaveLength(1);
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'New allocations must begin on a company and personal working day. Move the start date.',
+    );
+  });
+
+  it('rejects duplicating a normal allocation for a zero-overlap person', async () => {
+    await useStore.getState().updateCompany(ACC, { workingDays: [2] });
+    const resource = await requireCreated(
+      useStore.getState().addResource({ ...person('Barbara'), workingDays: [1] }),
+    );
+    const allocation = requireCreated(
+      await useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: 't1',
+        startDate: '2026-06-01',
+        endDate: '2026-06-01',
+        hoursPerDay: 8,
+        status: 'confirmed',
+      }),
+    );
+    const user = userEvent.setup();
+    renderAsOwner(<AllocationDialog kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Duplicate' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "This person has no working days within the company's current working week.",
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(1);
+  });
+});

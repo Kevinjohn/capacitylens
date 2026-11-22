@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import {
-  CompanyDocumentError,
+  CompanyExportError,
   buildCompanyExport,
   parseCompanyExport,
   prepareCompanyImport,
-  type CompanyExportDocument,
-} from '@capacitylens/shared/data/companyDocument';
+  type CompanyExport,
+} from '@capacitylens/shared/data/companyExport';
 import {
   APP_DATA_KEYS,
   SCOPED_KEYS,
@@ -15,34 +15,34 @@ import {
 } from '@capacitylens/shared/types/entities';
 import { encodeRow, readStateWithClient } from '#services/state_repository';
 import { tables } from '#services/product_tables';
-import { EntityWriteError } from '#services/planning/errors';
 import { getPlanningRevision, advancePlanningRevision } from '#services/planning_revision';
 import { writeAudit } from '#services/audit';
 import { discardRestorationGroups } from '#services/planning/restoration';
 import { discardHistory } from '#services/planning/history';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
 
 /**
- * Validates a document taken from a parsed request body, throwing a {@link CompanyDocumentError} that
+ * Validates a document taken from a parsed request body, throwing a {@link CompanyExportError} that
  * names the reason when it is not a valid export. Nesting too deep to serialise is one such reason;
  * any other failure propagates.
  */
-export function readRequestDocument(value: unknown): CompanyExportDocument {
+export function readRequestDocument(value: unknown): CompanyExport {
   try {
     return parseCompanyExport(JSON.stringify(value));
   } catch (error) {
     if (error instanceof RangeError) {
-      throw new CompanyDocumentError('document', 'is nested too deeply');
+      throw new CompanyExportError('document', 'is nested too deeply');
     }
     throw error;
   }
 }
 
 /** Like {@link readRequestDocument}, but returns null instead of naming why the document is invalid. */
-export function parseRequestDocument(value: unknown): CompanyExportDocument | null {
+export function parseRequestDocument(value: unknown): CompanyExport | null {
   try {
     return readRequestDocument(value);
   } catch (error) {
-    if (error instanceof CompanyDocumentError) return null;
+    if (error instanceof CompanyExportError) return null;
     throw error;
   }
 }
@@ -81,7 +81,7 @@ async function assertNoForeignIdCollision(
         .select('id')
         .first();
       if (foreign) {
-        throw new EntityWriteError(
+        throw new EntityWriteException(
           'The import contains scheduling IDs used by another company on this server.',
           409,
           undefined,
@@ -113,15 +113,15 @@ async function readImportContext(trx: TransactionClientContract, companyId: stri
 export async function previewCompanyImport(
   trx: TransactionClientContract,
   companyId: string,
-  document: CompanyExportDocument
+  document: CompanyExport
 ) {
   const current = await readStateWithClient(trx, companyId, true);
-  if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
+  if (current.companies.length !== 1) throw new EntityWriteException('Company not found.', 404);
   const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
   await assertNoForeignIdCollision(trx, companyId, prepared.data);
   const changed = buildPortableFingerprint(current, companyId) !== buildFingerprint(prepared.data);
   const baseRevision = await getPlanningRevision(trx, companyId);
-  const company = prepared.data.accounts.at(0);
+  const company = prepared.data.companies.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one account.');
   return {
     baseRevision,
@@ -136,15 +136,15 @@ export async function previewCompanyImport(
 export async function applyCompanyImport(
   trx: TransactionClientContract,
   companyId: string,
-  document: CompanyExportDocument,
+  document: CompanyExport,
   baseRevision: number,
   actorId: string
 ) {
   const current = await readStateWithClient(trx, companyId, true);
-  if (current.accounts.length !== 1) throw new EntityWriteError('Company not found.', 404);
+  if (current.companies.length !== 1) throw new EntityWriteException('Company not found.', 404);
   const revision = await getPlanningRevision(trx, companyId);
   if (revision !== baseRevision) {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'The company changed. Preview the current data again.',
       409,
       { revision },
@@ -162,12 +162,12 @@ export async function applyCompanyImport(
   for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
     await trx.from(tables[key]).where('company_id', companyId).delete();
   }
-  const company = prepared.data.accounts.at(0);
+  const company = prepared.data.companies.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one account.');
   await trx
-    .from('accounts')
+    .from('companies')
     .where('id', companyId)
-    .update(encodeRow('accounts', company as unknown as Record<string, unknown>));
+    .update(encodeRow('companies', company as unknown as Record<string, unknown>));
   for (const key of SCOPED_WRITE_ORDER) {
     const rows = prepared.data[key];
     for (let offset = 0; offset < rows.length; offset += INSERT_CHUNK_SIZE) {

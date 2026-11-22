@@ -1,26 +1,23 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { expect, vi } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import type { PlanningIntent } from '@/api/planningContracts';
 import { makeCompany, makeAppData, makeClient } from '@/test/fixtures';
-import {
-  createPlanningCacheController,
-  createPlanningCacheState,
-} from '@/data/planning/planningCacheController';
+import { createPlanningCache, createPlanningCacheState } from '@/data/planning/planningCache';
 import type {
   FullPlanningSnapshot,
   PlanningCacheState,
-  PlanningControllerOptions,
+  PlanningCacheOptions,
   PlanningTransport,
 } from '@/data/planning/planningCacheTypes';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { makeReceipt } from '@/test/planning/makeReceipt';
 import { createServerHistoryModel } from '@/test/planning/serverHistoryModel';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 export { makeReceipt };
 
-// Shared setup for the planning cache controller transition tests.
+// Shared setup for the planning cache transition tests.
 
 export const context = { identity: 'bruce-session', companyId: 'wayne' };
 export const update: PlanningIntent = {
@@ -36,9 +33,9 @@ export function snapshot(
 ): FullPlanningSnapshot {
   return {
     revision,
-    authority: makePlanningAuthority(),
+    access: makePlanningAccess(),
     data: makeAppData({
-      accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
+      companies: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],
     }),
     today: '2026-06-03',
@@ -47,7 +44,7 @@ export function snapshot(
   };
 }
 
-export type Options = Pick<PlanningControllerOptions, 'onAuthLoss' | 'confirmRestorationCleanup'>;
+export type Options = Pick<PlanningCacheOptions, 'onAuthLoss' | 'confirmRestorationCleanup'>;
 
 export function setup(options: Options = {}) {
   const store = createStore<PlanningCacheState>(() => createPlanningCacheState());
@@ -80,8 +77,8 @@ export function setup(options: Options = {}) {
   const redo = stepper('redo');
   let id = 0;
   let historyNumber = 0;
-  const controller = createPlanningCacheController({
-    readMasqueradeContextToken: getMasqueradeContextToken,
+  const cache = createPlanningCache({
+    readMasqueradeToken: getMasqueradeToken,
     getState: store.getState,
     setState: store.setState,
     transport: { read, execute, undo, redo },
@@ -90,20 +87,20 @@ export function setup(options: Options = {}) {
     ...options,
   });
   const state = () => store.getState();
-  return { store, state, server, read, execute, undo, redo, controller };
+  return { store, state, server, read, execute, undo, redo, cache };
 }
 
 export async function ready(options: Options = {}) {
   const h = setup(options);
-  h.controller.setContext(context);
-  await expect(h.controller.refresh()).resolves.toBe(true);
+  h.cache.setContext(context);
+  await expect(h.cache.refresh()).resolves.toBe(true);
   return h;
 }
 
 /** Ready at revision 2 with one change the server reports as undoable. */
 export async function readyWithHistory(options: Options = {}) {
   const h = await ready(options);
-  await h.controller.execute(h.controller.begin(), update);
+  await h.cache.execute(h.cache.begin(), update);
   expect(h.state().planning.history).toEqual({ canUndo: true, canRedo: false });
   expect(h.state().planning.revision).toBe(2);
   return h;

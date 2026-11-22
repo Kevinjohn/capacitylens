@@ -8,7 +8,7 @@
 
 import { createOriginGuard } from '@kevinjohn/adonisjs-origin-guard';
 import { publicOrigin } from '#config/public_origin';
-import { corsOrigins } from '#services/cors_policy';
+import { corsOrigins } from '#config/cors';
 
 /** Refuses unsafe requests from any origin other than the public URL's or a configured CORS origin. */
 export default createOriginGuard({

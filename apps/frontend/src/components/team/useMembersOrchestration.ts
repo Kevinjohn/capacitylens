@@ -1,8 +1,8 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { m } from '@/i18n';
 import type { Role } from '@capacitylens/shared/domain/access';
-import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessClient';
+import type { TeamInvitation, TeamMember as Member } from '@/account/teamAccessApi';
 import { useAuth } from '@/auth/authContext';
 import { useAccessGrant } from '@/auth/permissionContext';
 import { useDeadlineClock } from '@/hooks/useDeadlineClock';
@@ -10,7 +10,7 @@ import { useFieldError } from '@/hooks/useFieldError';
 import { useStore } from '@/store/useStore';
 import type { StoreState } from '@/store/types';
 import { useTeamDirectory } from './useTeamDirectory';
-import { useTeamActionLock } from './useTeamActionLock';
+import { useTeamOperationLock } from './useTeamOperationLock';
 import { useMemberInvites } from './useMemberInvites';
 import { useMemberResourceLinkRequests } from './useMemberResourceLinkRequest';
 import { createMemberAccessReconciliation } from './createMemberAccessReconciliation';
@@ -112,35 +112,35 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
       mounted.current = false;
     };
   }, []);
-  const actionContext = getMasqueradeContextToken();
+  const actionContext = getMasqueradeToken();
   const directoryState = useTeamDirectory({
     enabled: input.enabled,
     activeCompanyId: input.activeCompanyId,
     fail: input.fail,
   });
-  const actionLock = useTeamActionLock();
+  const operationLock = useTeamOperationLock();
   const authorizedDirectory = selectAuthorizedDirectory(directoryState.directory);
   const members = authorizedDirectory?.members ?? null;
   const invites = authorizedDirectory?.invites ?? NO_INVITES;
   const resourceCandidates = authorizedDirectory?.resourceCandidates ?? [];
   const requestCompanyId = (): string => {
-    if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_account());
+    if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_company());
     return input.activeCompanyId;
   };
   const isActiveCompany = (companyId: string): boolean =>
     mounted.current &&
     useStore.getState().activeCompanyId === companyId &&
-    getMasqueradeContextToken() === actionContext;
+    getMasqueradeToken() === actionContext;
   const withMemberAction = async (
     key: string,
     body: (companyId: string) => Promise<void>,
   ): Promise<void> => {
     const companyId = requestCompanyId();
-    if (!actionLock.beginAction(key)) return;
+    if (!operationLock.beginAction(key)) return;
     try {
       await body(companyId);
     } finally {
-      actionLock.endAction();
+      operationLock.endAction();
     }
   };
   const renderedAt = useDeadlineClock({
@@ -149,7 +149,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   });
   return {
     ...directoryState,
-    busyAction: actionLock.busyAction,
+    busyAction: operationLock.busyAction,
     members,
     resourceCandidates,
     renderedAt,

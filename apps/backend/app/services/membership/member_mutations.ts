@@ -1,4 +1,4 @@
-import { RefusalError } from '#exceptions/refusal_error';
+import { MembershipException } from '#exceptions/membership_exception';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import type { MembershipStatus, Role } from '@capacitylens/shared/account/types';
 import access from '#config/access_control';
@@ -7,15 +7,13 @@ import { requireStoredRole } from '#services/auth/authorization';
 import { resetMemberSignIn } from '#services/membership/sign_in_tracking';
 import { advancePlanningRevision } from '#services/planning_revision';
 
-export class MembershipError extends RefusalError {}
-
 async function requireTargetMember(
   trx: TransactionClientContract,
   companyId: string,
   userId: string
 ) {
   const member = await access.memberships.find(companyId, userId, trx);
-  if (!member) throw new MembershipError('Not a member of this company.', 404, 'NOT_FOUND');
+  if (!member) throw new MembershipException('Not a member of this company.', 404, 'NOT_FOUND');
   requireStoredRole(member);
   return member;
 }
@@ -27,9 +25,9 @@ export async function changeMemberRole(
 ) {
   const member = await requireTargetMember(trx, input.companyId, input.userId);
   // The package would change a suspended member's role; CapacityLens changes active members only.
-  if (member.status !== 'active') throw new MembershipError('Forbidden.', 403, 'FORBIDDEN');
+  if (member.status !== 'active') throw new MembershipException('Forbidden.', 403, 'FORBIDDEN');
   if (input.role === 'owner') {
-    throw new MembershipError(
+    throw new MembershipException(
       'Transfer ownership to assign the Owner role.',
       400,
       'OWNER_TRANSFER_REQUIRED'

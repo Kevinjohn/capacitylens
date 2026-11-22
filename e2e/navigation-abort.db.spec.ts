@@ -1,5 +1,5 @@
 import { test } from './dbFixtures';
-import { openApp } from './browserTestSupport';
+import { openApp } from './browserTestKit';
 
 // WebKit refuses a fetch started while its document unloads and reports the refusal as a page
 // error even though the application handles the rejection. The page-error gate ignores only the

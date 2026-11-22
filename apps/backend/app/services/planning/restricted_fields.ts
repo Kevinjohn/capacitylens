@@ -1,25 +1,25 @@
 import type { Client, Project, ScopedEntityKey } from '@capacitylens/shared/types/entities';
 import { redactPrivateName } from '@capacitylens/shared/domain/privateNames';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 
-type RestrictionCapability = 'canSeePrivateNames' | 'canSeeTimeOffNote';
+type RestrictionFlag = 'canSeePrivateNames' | 'canSeeTimeOffNote';
 
-/** Fields a role without the named capability may neither see nor change. */
+/** Fields a role without the named visibility flag may neither see nor change. */
 export interface RestrictedFieldRule {
-  capability: RestrictionCapability;
+  flag: RestrictionFlag;
   /** Hidden on every row of the table. */
   fields: readonly string[];
   /** Hidden only on a row marked private (`isPrivate: true`). */
   privateRowFields: readonly string[];
   /** Hidden fields the read projection still sends, because the browser needs them. */
   shownOnRead: readonly string[];
-  /** A create may send these fields empty (`null`, `false`) without the capability. */
+  /** A create may send these fields empty (`null`, `false`) without the flag. */
   emptyAllowedOnCreate: boolean;
   refusal: string;
 }
 
 const PRIVATE_NAME_RULE: RestrictedFieldRule = {
-  capability: 'canSeePrivateNames',
+  flag: 'canSeePrivateNames',
   fields: ['isPrivate', 'codeName'],
   privateRowFields: ['name'],
   shownOnRead: ['isPrivate'],
@@ -32,7 +32,7 @@ export const RESTRICTED_FIELDS: Partial<Record<ScopedEntityKey, RestrictedFieldR
   clients: PRIVATE_NAME_RULE,
   projects: PRIVATE_NAME_RULE,
   timeOff: {
-    capability: 'canSeeTimeOffNote',
+    flag: 'canSeeTimeOffNote',
     fields: ['note'],
     privateRowFields: [],
     shownOnRead: [],
@@ -41,31 +41,31 @@ export const RESTRICTED_FIELDS: Partial<Record<ScopedEntityKey, RestrictedFieldR
   },
 };
 
-type Capabilities = Pick<PlanningCapabilities, RestrictionCapability>;
+type VisibilityFlags = Pick<PlanningAccessGrant, RestrictionFlag>;
 
-/** The table's rule when the caller lacks its capability; otherwise nothing is restricted. */
-export function getRestriction(table: ScopedEntityKey, capabilities: Capabilities) {
+/** The table's rule when the caller lacks its flag; otherwise nothing is restricted. */
+export function getRestriction(table: ScopedEntityKey, flags: VisibilityFlags) {
   const rule = RESTRICTED_FIELDS[table];
-  return rule && !capabilities[rule.capability] ? rule : undefined;
+  return rule && !flags[rule.flag] ? rule : undefined;
 }
 
 /** Whether the caller is restricted on this stored row's private fields. */
 export function isPrivateRowRestricted(
   table: ScopedEntityKey,
-  capabilities: Capabilities,
+  flags: VisibilityFlags,
   existing: Record<string, unknown> | undefined
 ) {
-  const rule = getRestriction(table, capabilities);
+  const rule = getRestriction(table, flags);
   return Boolean(rule && rule.privateRowFields.length > 0 && existing?.isPrivate === true);
 }
 
 /** The fields this caller cannot see on this row. */
 export function listHiddenFields(
   table: ScopedEntityKey,
-  capabilities: Capabilities,
+  flags: VisibilityFlags,
   existing: Record<string, unknown> | undefined
 ): readonly string[] {
-  const rule = getRestriction(table, capabilities);
+  const rule = getRestriction(table, flags);
   if (!rule) return [];
   return existing?.isPrivate === true ? [...rule.fields, ...rule.privateRowFields] : rule.fields;
 }
@@ -76,10 +76,10 @@ export function listHiddenFields(
  */
 export function projectForReader<T extends object>(
   table: ScopedEntityKey,
-  capabilities: Capabilities,
+  flags: VisibilityFlags,
   row: T
 ): T {
-  const rule = getRestriction(table, capabilities);
+  const rule = getRestriction(table, flags);
   if (!rule) return row;
   // Only clients and projects have private-row fields, so a row reaching redaction is one of them.
   let projected = (

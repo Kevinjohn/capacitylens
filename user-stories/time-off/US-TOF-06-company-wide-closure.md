@@ -54,4 +54,4 @@ flowchart TD
 
 - [ClosureForm.tsx](../../apps/frontend/src/components/time-off/ClosureForm.tsx)
 - [typedPlanningActions.ts](../../apps/frontend/src/store/typedPlanningActions.ts)
-- [planningCacheController.ts](../../apps/frontend/src/data/planning/planningCacheController.ts)
+- [planningCache.ts](../../apps/frontend/src/data/planning/planningCache.ts)

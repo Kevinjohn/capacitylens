@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine';
 import { writableFields } from '@capacitylens/shared/types/entityFields';
 import { TIME_OFF_TYPES } from '@capacitylens/shared/types/entities';
-import { TIME_OFF_REPEAT_POLICY } from '@capacitylens/shared/lib/repeatingDates';
+import { TIME_OFF_REPEAT_RULES } from '@capacitylens/shared/lib/repeatingDates';
 import {
   calendarDate,
   dateRange,
@@ -52,7 +52,7 @@ export const timeOffIntent = vine.union([
         occurrenceIds: vine
           .array(uuid())
           .minLength(1)
-          .maxLength(TIME_OFF_REPEAT_POLICY.maxOccurrences - 1),
+          .maxLength(TIME_OFF_REPEAT_RULES.maxOccurrences - 1),
       })
       .use(uniqueArrayIds('occurrenceIds'))
       .use(occurrenceIdsExcludeFirst('timeOff'))

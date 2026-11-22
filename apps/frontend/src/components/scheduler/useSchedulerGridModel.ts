@@ -6,7 +6,7 @@ import { LAYOUT, SCHEDULER_DENSITY, SCHEDULER_LANE_LAYOUT } from './layout';
 import { buildSchedulerModel, applyVisibleUtilisation } from './schedulerModel';
 import { useCompanyToday } from '@/hooks/useCompanyToday';
 import { buildVisibleSpanLabels, resolveVisibleWindow } from './visibleSpan';
-import { buildAverageUtilisationLabel } from './schedulerGridModal';
+import { buildAverageUtilisationLabel } from './schedulerGridDialog';
 import type { useSchedulerViewport } from './useSchedulerViewport';
 import {
   hasDisciplinesEnabled,
@@ -145,11 +145,11 @@ function useSchedulerModelProjection({
 export function useSchedulerGridPreferences() {
   const data = useActiveScopedData();
   const activeCompany = useStore((state) =>
-    state.data.accounts.find((company) => company.id === state.activeCompanyId),
+    state.data.companies.find((company) => company.id === state.activeCompanyId),
   );
   // Resolve company preferences from one company row to avoid repeated lookups, while retaining each shared selector's absent-field default.
   const companyPreferences = useMemo(() => {
-    const view = { ...createEmptyAppData(), accounts: activeCompany ? [activeCompany] : [] };
+    const view = { ...createEmptyAppData(), companies: activeCompany ? [activeCompany] : [] };
     const id = activeCompany?.id ?? null;
     return {
       placeholdersEnabled: hasPlaceholdersEnabled(view, id),
@@ -220,7 +220,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   const filtersActive = hasActiveFilters(ui.filters);
 
   const overallUtil = useMemo(
-    // External / 3rd-party rows are excluded inside the shared average; with none tracked, read 0%.
+    // External-party rows are excluded inside the shared average; with none tracked, read 0%.
     () => buildAverageUtilisationLabel(model.flatMap((group) => group.rows)) ?? '0',
     [model],
   );

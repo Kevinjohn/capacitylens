@@ -1,18 +1,22 @@
-import { getMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken } from '@/api/masqueradeToken';
 import { fetchApi } from '@/data/requestTimeout';
 import { buildApiRouteUrl, buildJsonBody } from '@/api/queryClient';
-import type { BrowserAccountCommand } from './accountCommands';
-import { buildPayloadOperationKey } from './commandOutcome';
+import type { BrowserAccountOperation } from './accountOperations';
+import { buildPayloadOperationKey } from './operationOutcome';
 import type { CreateInvitationBody } from './accountRequestTypes';
-import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from './commandRequest';
+import {
+  runOperation,
+  buildOperationRequestInit,
+  buildJsonOperationRequestInit,
+} from './operationRequest';
 
 /**
- * Invitation administration requests. Their typed reader is `teamAccessClient`; screens use it,
+ * Invitation administration requests. Their typed reader is `teamAccessApi`; screens use it,
  * never these responses.
  */
 export const invitationRequests = {
   listInvitations(companyId: string, signal?: AbortSignal): Promise<Response> {
-    return fetchApi(buildApiRouteUrl('api.invites.index', { params: { companyId } }), {
+    return fetchApi(buildApiRouteUrl('api.invitations.index', { params: { companyId } }), {
       credentials: 'include',
       ...(signal ? { signal } : {}),
     });
@@ -20,13 +24,13 @@ export const invitationRequests = {
 
   async createInvitation(
     body: CreateInvitationBody,
-    command?: BrowserAccountCommand,
+    operation?: BrowserAccountOperation,
   ): Promise<Response> {
-    const capturedContext = getMasqueradeContextToken();
+    const capturedContext = getMasqueradeToken();
     const payload = { ...body };
     const companyId = payload.companyId;
     const operationKey = await buildPayloadOperationKey(`invitation-create:${companyId}`, payload);
-    if (getMasqueradeContextToken() !== capturedContext) {
+    if (getMasqueradeToken() !== capturedContext) {
       return Response.json(
         {
           error: 'The action context changed. Review the invitation before trying again.',
@@ -35,15 +39,15 @@ export const invitationRequests = {
         { status: 409 },
       );
     }
-    return runCommand({
+    return runOperation({
       operationKey,
-      explicit: command,
+      explicit: operation,
       request: (resolved) =>
         fetchApi(
-          buildApiRouteUrl('api.invites.create', {}),
-          buildJsonCommandRequestInit(
+          buildApiRouteUrl('api.invitations.store', {}),
+          buildJsonOperationRequestInit(
             'POST',
-            buildJsonBody('api.invites.create', payload),
+            buildJsonBody('api.invitations.store', payload),
             resolved,
           ),
         ),
@@ -53,17 +57,17 @@ export const invitationRequests = {
   revokeInvitation(
     companyId: string,
     invitationId: string,
-    command?: BrowserAccountCommand,
+    operation?: BrowserAccountOperation,
   ): Promise<Response> {
-    return runCommand({
+    return runOperation({
       operationKey: `invitation-revoke:${companyId}:${invitationId}`,
-      explicit: command,
+      explicit: operation,
       request: (resolved) =>
         fetchApi(
-          buildApiRouteUrl('api.invites.revoke', {
+          buildApiRouteUrl('api.invitations.destroy', {
             params: { companyId, id: invitationId },
           }),
-          buildCommandRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
+          buildOperationRequestInit({ method: 'DELETE', credentials: 'include' }, resolved),
         ),
     });
   },
@@ -71,7 +75,9 @@ export const invitationRequests = {
   /** Sends a fresh link for a pending invitation; the earlier link stops working. */
   resendInvitation(companyId: string, invitationId: string): Promise<Response> {
     return fetchApi(
-      buildApiRouteUrl('api.invites.resend', { params: { companyId, id: invitationId } }),
+      buildApiRouteUrl('api.invitation_deliveries.store', {
+        params: { companyId, id: invitationId },
+      }),
       {
         method: 'POST',
         credentials: 'include',

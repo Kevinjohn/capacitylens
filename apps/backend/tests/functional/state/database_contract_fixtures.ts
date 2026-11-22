@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db';
 const companyIds = { dc: 'a-studio', marvel: 'a-loft' } as const;
 const stamp = '2026-10-12T00:00:00.000Z';
 
-export async function insertTenantFixture() {
+export async function insertTwoCompanyFixture() {
   await db.table('clients').multiInsert([
     {
       id: 'm1-dc-client',
@@ -109,7 +109,7 @@ export async function insertTenantFixture() {
       company_id: companyIds.dc,
       kind: 'person',
       name: 'Bruce Wayne',
-      role: 'Designer',
+      job_title: 'Designer',
       discipline_id: 'm1-dc-discipline',
       employment_type: 'permanent',
       engagement: 'studio',
@@ -126,7 +126,7 @@ export async function insertTenantFixture() {
       company_id: companyIds.dc,
       kind: 'person',
       name: 'Clark Kent',
-      role: 'Designer',
+      job_title: 'Designer',
       discipline_id: 'm1-dc-discipline',
       employment_type: 'permanent',
       engagement: 'studio',
@@ -143,7 +143,7 @@ export async function insertTenantFixture() {
       company_id: companyIds.marvel,
       kind: 'person',
       name: 'Tony Stark',
-      role: 'Designer',
+      job_title: 'Designer',
       discipline_id: 'm1-marvel-discipline',
       employment_type: 'permanent',
       engagement: 'studio',

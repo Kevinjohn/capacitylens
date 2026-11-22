@@ -1,5 +1,5 @@
 import { getErrorDetails } from './planningErrors';
-import type { PlanningControllerMetadata, PlanningPhase } from './planningCacheTypes';
+import type { PlanningCacheMetadata, PlanningPhase } from './planningCacheTypes';
 
 /** True when the planning state already shows the outcome: the follow-up canonical read resolves a
  * stale revision, and a 403 refusal stays visible as refused. Callers add no notice for either. */
@@ -27,7 +27,7 @@ export function readPlanningError(phase: PlanningPhase): unknown {
 /** The planning notice to show: a 403 refusal keeps the rows (K2), a failed read leaves them stale,
  * and a write whose reply was lost asks the person to check the change. */
 export function readPlanningProblem(
-  planning: PlanningControllerMetadata,
+  planning: PlanningCacheMetadata,
 ): 'refused' | 'unavailable' | 'unconfirmed' | null {
   const { phase } = planning;
   const error = readPlanningError(phase);

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { SectionHelp } from './SectionHelp';
 
 describe('SectionHelp', () => {
-  it('keeps help hidden until its labelled action opens the titled modal', async () => {
+  it('keeps help hidden until its labelled action opens the titled dialog', async () => {
     const user = userEvent.setup();
     render(<SectionHelp title="External">External help</SectionHelp>);
 

@@ -1,8 +1,7 @@
 import { test } from '@japa/runner';
 import db from '@adonisjs/lucid/services/db';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import { replaceWithSeed } from '#tests/helpers/state_fixture';
-import { withTransaction } from '#services/with_transaction';
 
 const companyId = 'a-studio';
 const timestamp = '2026-10-12T00:00:00.000Z';
@@ -18,7 +17,7 @@ function clientRow(id: string) {
   };
 }
 
-test.group('M2a SQLite transaction faults', (group) => {
+test.group('SQLite transaction faults', (group) => {
   group.setup(() => freshDatabase());
   group.each.setup(() => replaceWithSeed());
 
@@ -109,7 +108,7 @@ test.group('M2a SQLite transaction faults', (group) => {
     try {
       await assert.rejects(
         () =>
-          withTransaction(async (trx) => {
+          db.transaction(async (trx) => {
             dirtyNativeConnection = await (trx.knexClient as any).client.acquireConnection();
             const originalPrepare = dirtyNativeConnection.prepare.bind(dirtyNativeConnection);
             dirtyNativeConnection.prepare = (sql: string) => {
@@ -145,7 +144,7 @@ test.group('M2a SQLite transaction faults', (group) => {
   });
 
   test('does not report rollback when an after-commit callback fails', async ({ assert }) => {
-    await withTransaction(async (trx) => {
+    await db.transaction(async (trx) => {
       await trx.table('clients').insert(clientRow('m2a-after-commit'));
       trx.after('commit', () => {
         throw new Error('post-commit callback failure');

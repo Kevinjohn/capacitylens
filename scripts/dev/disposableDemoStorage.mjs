@@ -1,4 +1,4 @@
-// Each `pnpm run dev:demo` invocation owns a fresh `demo-l<lane>-*` directory beneath the backend's
+// Each `pnpm run dev:demo` invocation owns a fresh `demo-l<port lane>-*` directory beneath the backend's
 // `tmp/` directory, with `.demo.db` as its database basename. Cleanup removes it only after the
 // owned process groups have exited.
 
@@ -9,7 +9,7 @@ import { isProcessTreeRunning } from '../../tooling/devProcesses.mjs';
 
 /** Allocate fresh storage; a later invocation never deletes an earlier invocation's database. */
 export async function createDisposableDemoStorage(
-  lane,
+  portLane,
   {
     backendDirectory = fileURLToPath(new URL('../../apps/backend/', import.meta.url)),
     platform = process.platform,
@@ -17,7 +17,7 @@ export async function createDisposableDemoStorage(
 ) {
   const parent = join(backendDirectory, 'tmp');
   await mkdir(parent, { recursive: true });
-  const directory = await mkdtemp(join(parent, `demo-l${lane}-`));
+  const directory = await mkdtemp(join(parent, `demo-l${portLane}-`));
   return {
     directory,
     databasePath: join(directory, '.demo.db'),

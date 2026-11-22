@@ -12,12 +12,16 @@ import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWor
 import type { Allocation, AppData } from '@capacitylens/shared/types/entities';
 import { readStateWithClient } from '#services/state_repository';
 import { parseAffectedRows } from '#services/affected_rows';
-import { buildRetainedQuery, isRetainedTable, type RetainedTable } from './retained_rows.js';
+import {
+  buildRetainedQuery,
+  isRetainedTable,
+  type RetainedTable,
+} from '#services/planning/retained_rows';
 import { tables } from '#services/product_tables';
 import { transformRow } from '#transformers/row_transformer';
 import { createServerRevision } from '#services/planning/server_timestamp';
-import { asRecord, requireExistingRow, type WrittenRow } from './writer.js';
-import { PlanningOperationError } from './errors.js';
+import { asRecord, requireExistingRow, type WrittenRow } from '#services/planning/writer';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 /** The identities that bind a restoration group to one actor's native session and mutation. */
 export interface RestorationIdentity {
@@ -31,7 +35,7 @@ type SavedRow = { kind: 'row' };
 type SavedLink = { kind: 'link'; parentId: string };
 
 function refuseRestorationConflict(): never {
-  throw new PlanningOperationError(409, null, 'The deleted records can no longer be restored.');
+  throw new PlanningOperationException(409, null, 'The deleted records can no longer be restored.');
 }
 
 /** Maps expected domain refusals to a restoration conflict while surfacing implementation faults. */
@@ -178,7 +182,7 @@ export async function restoreGroup(
   );
   if (consumed === 0) {
     if (await trx.from('deleted_groups').where(owner).select('group_id').first()) {
-      throw new PlanningOperationError(409, null, 'This deletion has already been restored.');
+      throw new PlanningOperationException(409, null, 'This deletion has already been restored.');
     }
     const origin = await trx
       .from('planning_mutations')
@@ -191,9 +195,13 @@ export async function restoreGroup(
       .select('mutation_id')
       .first();
     if (origin) {
-      throw new PlanningOperationError(409, null, 'This deletion can no longer be restored.');
+      throw new PlanningOperationException(409, null, 'This deletion can no longer be restored.');
     }
-    throw new PlanningOperationError(403, 'AUTHORIZATION_DENIED', 'This action is not allowed.');
+    throw new PlanningOperationException(
+      403,
+      'AUTHORIZATION_DENIED',
+      'This action is not allowed.'
+    );
   }
   const saved = await trx
     .from('deleted_rows')
@@ -229,7 +237,7 @@ export async function restoreGroup(
   }
   if (rows.length === 0) refuseRestorationConflict();
   const dependencies = await readStateWithClient(trx, companyId, true);
-  const company = dependencies.accounts.find((row) => row.id === companyId);
+  const company = dependencies.companies.find((row) => row.id === companyId);
   const companyWorkingDays = normalizeCompanyWorkingDays(
     company?.workingDays,
     company?.weekStartsOn === 0 ? 0 : 1
@@ -335,10 +343,10 @@ export async function reclaimRetainedId(
     .first();
   if (!prior) return;
   if (prior.company_id !== companyId || !prior.deleted_at || !prior.deletion_group_id) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   if (!(await hasOwnUnconsumedGroup(trx, companyId, String(prior.deletion_group_id), identity))) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   // Purges a row already deleted, which is not in the snapshot; the create that follows records it.
   const purged = await buildRetainedQuery(trx, companyId, table)
@@ -347,7 +355,7 @@ export async function reclaimRetainedId(
     .where('deletion_group_id', String(prior.deletion_group_id))
     .forceDelete();
   if (purged !== 1) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
 }
 
@@ -444,22 +452,4 @@ export async function countRestorableItems(
     if (row) total++;
   }
   return total;
-}
-
-/** Carries only the count required for an explicit, revision-bound cleanup decision. */
-export class RestorationConfirmationError extends PlanningOperationError {
-  declare readonly code: 'RESTORATION_CONFIRMATION_REQUIRED' | 'RESTORATION_CONFIRMATION_STALE';
-
-  constructor(
-    readonly restorableItemCount: number,
-    stale: boolean
-  ) {
-    super(
-      409,
-      stale ? 'RESTORATION_CONFIRMATION_STALE' : 'RESTORATION_CONFIRMATION_REQUIRED',
-      stale
-        ? 'The restorable items changed. Review this change again.'
-        : `This change clears ${restorableItemCount} restorable ${restorableItemCount === 1 ? 'item' : 'items'}`
-    );
-  }
 }

@@ -4,14 +4,14 @@ import { errors as vineErrors } from '@vinejs/vine';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import { seed } from '@capacitylens/shared/data/seed';
 import GettingStartedController from '#controllers/getting_started_controller';
 import { parseRequestDocument } from '#services/company_import';
 
 // Expected invalid input becomes a 400; anything else must reach the exception handler and reporting.
 
-test.group('Expected input errors', () => {
+test.group('expected input errors', () => {
   test('a request document parses, or is null only when it is invalid input', ({ assert }) => {
     // A request carries the file as the browser read it, in the interchange shape.
     const document = JSON.parse(
@@ -45,7 +45,9 @@ test.group('Expected input errors', () => {
         params: { companyId: 'a-studio' },
         request: {
           body: () => ({}),
-          validateUsing: async () => {
+          // Mirrors the framework: Vine failures are returned, anything else is re-thrown.
+          tryValidateUsing: async () => {
+            if (failure instanceof vineErrors.E_VALIDATION_ERROR) return [failure, null];
             throw failure;
           },
         },

@@ -10,7 +10,7 @@ import {
 } from '@/components/common/ui';
 import { ProjectForm } from './ProjectForm';
 import type { Client, ID, Project } from '@capacitylens/shared/types/entities';
-import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
 import { m } from '@/i18n';
 import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames';
 import { resolveProjectColor } from '@capacitylens/shared/lib/color';
@@ -78,7 +78,7 @@ export function ProjectList() {
     [clients],
   );
 
-  const { archive } = useLifecycleActions();
+  const { archive } = useLifecycleOperations();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
     useEntityListState<Project>();
 

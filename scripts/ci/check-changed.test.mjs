@@ -394,7 +394,7 @@ test('the built-site lightbox test runs through the docs steps, never as a front
 });
 
 test('deleted files and documentation policy inputs run the documentation policy spec', () => {
-  const policy = 'apps/backend/tests/functional/policy/documentation_policy.spec.ts';
+  const policy = 'apps/backend/tests/functional/conventions/documentation.spec.ts';
   for (const [paths, exists] of [
     [['apps/frontend/src/components/a.test.tsx'], (path) => path === policy],
     [['user-stories/navigation/US-NAV-15.md'], everything],
@@ -656,13 +656,13 @@ test('permissions, schema, configuration, test infrastructure and unmapped backe
   const importedByEverything = () => ['apps/backend/tests/unit/a.spec.ts'];
   for (const path of [
     'apps/backend/app/services/auth/authorization.ts',
-    'apps/backend/app/services/account_kit/policy.ts',
+    'apps/backend/app/services/account_kit/admission_rules.ts',
     'apps/backend/app/services/membership/member_directory.ts',
-    'apps/backend/app/services/planning/data_policy.ts',
+    'apps/backend/app/services/planning/access_grant.ts',
+    'apps/backend/app/services/planning/entity_rules.ts',
     'apps/backend/app/middleware/company_scope_middleware.ts',
-    'apps/backend/app/models/scoped_model.ts',
+    'apps/backend/app/models_support/scoped_model.ts',
     'apps/backend/app/services/state_repository.ts',
-    'apps/backend/app/services/with_transaction.ts',
     'apps/backend/database/migrations/0001_baseline.ts',
     'apps/backend/start/routes.ts',
     'apps/backend/config/admission.ts',

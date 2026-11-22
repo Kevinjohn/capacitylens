@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { test } from '@japa/runner';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath';
 import env from '#start/env';
-import { updateSettings, PlanningOperationError } from '#services/planning/writer';
+import { updateSettings } from '#services/planning/writer';
 import { readState } from '#tests/helpers/state_fixture';
 import { advancePlanningRevision } from '#services/planning_revision';
 import {
@@ -16,7 +16,8 @@ import {
   session,
   signIn,
   trusted,
-} from './helpers.js';
+} from '#tests/functional/planning/helpers';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 test.group('authenticated typed planning transactions', (group) => {
   group.setup(() => freshDatabase());
@@ -24,7 +25,7 @@ test.group('authenticated typed planning transactions', (group) => {
     await resetPlanningFixture();
   });
 
-  test('read returns current authority, revision and confidential company rows', async ({
+  test('read returns current access, revision and confidential company rows', async ({
     client,
     assert,
     cleanup,
@@ -39,24 +40,27 @@ test.group('authenticated typed planning transactions', (group) => {
     await db
       .from('clients')
       .where('id', hidden.id)
-      .update({ name: 'Wayne secret', is_private: 'true', code_name: 'Nightwing' });
+      .update({ name: 'Wayne secret', is_private: true, code_name: 'Nightwing' });
     const response = await session(client.get(planningUrl), cookie).send();
     response.assertStatus(200);
-    assert.equal(response.body().companyId, companyId);
-    assert.equal(response.body().revision, 0);
-    assert.match(response.body().today, /^\d{4}-\d{2}-\d{2}$/);
-    assert.equal(response.body().authority.actorId, userId);
-    assert.equal(response.body().authority.role, 'editor');
-    assert.isTrue(response.body().authority.canWrite);
+    assert.equal(response.body().data.companyId, companyId);
+    assert.equal(response.body().data.revision, 0);
+    assert.match(response.body().data.today, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(response.body().data.access.actorId, userId);
+    assert.equal(response.body().data.access.role, 'editor');
+    assert.isTrue(response.body().data.access.canWrite);
     assert.notInclude(response.text(), 'Wayne secret');
     assert.isTrue(
       response
         .body()
-        .data.clients.every((row: { companyId: string }) => row.companyId === companyId)
+        .data.data.clients.every((row: { companyId: string }) => row.companyId === companyId)
     );
-    const foreign = await session(client.get('/api/companies/a-loft/planning'), cookie).send();
+    const foreign = await session(
+      client.visit('api.planning.show', { companyId: 'a-loft' }),
+      cookie
+    ).send();
     foreign.assertStatus(403);
-    assert.equal(foreign.body().code, 'ACCOUNT_MEMBERSHIP_LOST');
+    assert.equal((foreign.body() as unknown as { code: string }).code, 'ACCOUNT_MEMBERSHIP_LOST');
     const anonymous = await trusted(client.get(planningUrl)).send();
     anonymous.assertStatus(401);
   });
@@ -76,7 +80,7 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
-    const { capacity } = read.body();
+    const { capacity } = read.body().data;
     assert.deepEqual(capacity.window, { from: '2026-05-04', to: '2026-09-28' });
     assert.deepEqual(capacity.horizon, { from: '2026-06-03', to: '2026-08-23' });
     assert.sameMembers(
@@ -95,8 +99,11 @@ test.group('authenticated typed planning transactions', (group) => {
       cookie
     ).send();
     requested.assertStatus(200);
-    assert.deepEqual(requested.body().capacity.window, { from: '2026-01-05', to: '2026-01-11' });
-    assert.deepEqual(requested.body().capacity.horizon, capacity.horizon);
+    assert.deepEqual(requested.body().data.capacity.window, {
+      from: '2026-01-05',
+      to: '2026-01-11',
+    });
+    assert.deepEqual(requested.body().data.capacity.horizon, capacity.horizon);
   });
 
   test('read capacity leaves deleted allocations and those of an archived activity out', async ({
@@ -121,7 +128,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const readWindow = async () => {
       const response = await session(client.get(planningUrl), cookie).send();
       response.assertStatus(200);
-      const { capacity } = response.body();
+      const { capacity } = response.body().data;
       return {
         from: capacity.window.from as string,
         days: capacity.resources[resourceId] as { window: Days },
@@ -146,7 +153,7 @@ test.group('authenticated typed planning transactions', (group) => {
         hoursPerDay: 24,
       };
       const created = await session(
-        client.post(`/api/companies/${companyId}/planning/mutations`),
+        client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
         .json({
@@ -187,18 +194,18 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const unchanged = await read({ ifRevision: 1 });
     unchanged.assertStatus(200);
-    assert.equal(unchanged.body().slice, 'unchanged');
-    assert.equal(unchanged.body().revision, 1);
-    assert.notProperty(unchanged.body(), 'data');
-    assert.property(unchanged.body(), 'capacity');
-    assert.equal(unchanged.body().authority.role, 'editor');
+    assert.equal(unchanged.body().data.content, 'unchanged');
+    assert.equal(unchanged.body().data.revision, 1);
+    assert.notProperty(unchanged.body().data, 'data');
+    assert.property(unchanged.body().data, 'capacity');
+    assert.equal(unchanged.body().data.access.role, 'editor');
 
     const fullQueries: Array<Record<string, number>> = [{ ifRevision: 0 }, { ifRevision: 2 }, {}];
     for (const query of fullQueries) {
       const full = await read(query);
       full.assertStatus(200);
-      assert.equal(full.body().slice, 'full', JSON.stringify(query));
-      assert.isArray(full.body().data.clients, JSON.stringify(query));
+      assert.equal(full.body().data.content, 'full', JSON.stringify(query));
+      assert.isArray(full.body().data.data.clients, JSON.stringify(query));
     }
     for (const ifRevision of ['-1', '1.5', 'abc']) {
       const refused = await read({ ifRevision });
@@ -216,8 +223,8 @@ test.group('authenticated typed planning transactions', (group) => {
     });
     const afterRoleChange = await read({ ifRevision: 1 });
     afterRoleChange.assertStatus(200);
-    assert.equal(afterRoleChange.body().slice, 'full');
-    assert.equal(afterRoleChange.body().authority.role, 'viewer');
+    assert.equal(afterRoleChange.body().data.content, 'full');
+    assert.equal(afterRoleChange.body().data.access.role, 'viewer');
   });
 
   test('read refuses a capacity window that is reversed, one-sided or longer than 366 days', async ({
@@ -246,7 +253,7 @@ test.group('authenticated typed planning transactions', (group) => {
       cookie
     ).send();
     longest.assertStatus(200);
-    const [resource] = Object.values(longest.body().capacity.resources) as Array<{
+    const [resource] = Object.values(longest.body().data.capacity.resources) as Array<{
       window: { over: boolean[] };
     }>;
     assert.lengthOf(resource!.window.over, 366);
@@ -255,7 +262,10 @@ test.group('authenticated typed planning transactions', (group) => {
       cookie
     ).send();
     leapYear.assertStatus(200);
-    assert.deepEqual(leapYear.body().capacity.window, { from: '2028-01-01', to: '2028-12-31' });
+    assert.deepEqual(leapYear.body().data.capacity.window, {
+      from: '2028-01-01',
+      to: '2028-12-31',
+    });
   });
 
   test('create and move commit once, stale and duplicate identities never commit again', async ({
@@ -274,15 +284,15 @@ test.group('authenticated typed planning transactions', (group) => {
       intent: { operation: 'allocation.create', allocation },
     };
     const created = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     created.assertStatus(200);
-    assert.equal(created.body().revision, 1);
-    assert.equal(created.body().status, 'committed');
-    const { changes, ...receipt } = created.body();
+    assert.equal(created.body().data.revision, 1);
+    assert.equal(created.body().data.status, 'committed');
+    const { changes, ...receipt } = created.body().data;
     assert.deepEqual(receipt, {
       status: 'committed',
       mutationId,
@@ -301,22 +311,19 @@ test.group('authenticated typed planning transactions', (group) => {
     assert.deepEqual(changes.removed, []);
     const read = await session(client.get(planningUrl), cookie).send();
     read.assertStatus(200);
-    assert.equal(read.body().revision, 1);
+    assert.equal(read.body().data.revision, 1);
     assert.isTrue(
-      read.body().data.allocations.some((row: { id: string }) => row.id === allocation.id)
+      read.body().data.data.allocations.some((row: { id: string }) => row.id === allocation.id)
     );
     const duplicate = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     duplicate.assertStatus(409);
-    assert.equal(duplicate.body().code, 'MUTATION_ID_REUSED');
-    const stale = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
-      cookie
-    )
+    assert.equal((duplicate.body() as unknown as { code: string }).code, 'MUTATION_ID_REUSED');
+    const stale = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 0,
@@ -328,11 +335,8 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     stale.assertStatus(409);
-    assert.equal(stale.body().code, 'STALE_REVISION');
-    const moved = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
-      cookie
-    )
+    assert.equal((stale.body() as unknown as { code: string }).code, 'STALE_REVISION');
+    const moved = await session(client.visit('api.planning_mutations.store', { companyId }), cookie)
       .json({
         mutationId: randomUUID(),
         baseRevision: 1,
@@ -344,7 +348,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     moved.assertStatus(200);
-    assert.equal(moved.body().revision, 2);
+    assert.equal(moved.body().data.revision, 2);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 2);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -417,7 +421,7 @@ test.group('authenticated typed planning transactions', (group) => {
       ),
       ...(['clients', 'projects', 'activities'] as const).flatMap((entity) => {
         const id = { clients: ids.client, projects: ids.project, activities: ids.activity }[entity];
-        return (['catalogue.archive', 'catalogue.unarchive'] as const).map((operation) => () => ({
+        return (['catalogue.archive', 'catalogue.restore'] as const).map((operation) => () => ({
           operation,
           entity: { entity, id },
         }));
@@ -433,7 +437,7 @@ test.group('authenticated typed planning transactions', (group) => {
         fields: {
           kind: 'person',
           name: 'Barbara Gordon',
-          role: 'Analyst',
+          jobTitle: 'Analyst',
           avatarUrl: null,
           disciplineId: null,
           employmentType: 'permanent',
@@ -448,9 +452,9 @@ test.group('authenticated typed planning transactions', (group) => {
           lastAvailableDate: null,
         },
       }),
-      () => ({ operation: 'resource.update', id: ids.resource, changes: { role: 'Lead' } }),
+      () => ({ operation: 'resource.update', id: ids.resource, changes: { jobTitle: 'Lead' } }),
       () => ({ operation: 'resource.archive', id: ids.resource }),
-      () => ({ operation: 'resource.unarchive', id: ids.resource }),
+      () => ({ operation: 'resource.restore', id: ids.resource }),
       () => ({ operation: 'allocation.create', allocation }),
       () => ({
         operation: 'allocation.update',
@@ -495,7 +499,7 @@ test.group('authenticated typed planning transactions', (group) => {
         id: ids.closure,
         fields: { name: 'Wayne anniversary', startDate: '2026-12-25', endDate: '2026-12-25' },
       }),
-      () => ({ operation: 'closure.update', id: ids.closure, changes: { name: 'Wayne holiday' } }),
+      () => ({ operation: 'closure.update', id: ids.closure, changes: { name: 'Wayne closure' } }),
       () => ({ operation: 'closure.delete', id: ids.closure }),
       () => ({ operation: 'settings.update', changes: { dateStyle: 'month-day' } }),
     ];
@@ -503,14 +507,14 @@ test.group('authenticated typed planning transactions', (group) => {
     for (const [revision, build] of operations.entries()) {
       const intent = build();
       const reply = await session(
-        client.post(`/api/companies/${companyId}/planning/mutations`),
+        client.visit('api.planning_mutations.store', { companyId }),
         cookie
       )
-        .json({ mutationId: randomUUID(), baseRevision: revision, intent })
+        .json({ mutationId: randomUUID(), baseRevision: revision, intent } as never)
         .send();
       assert.equal(reply.status(), 200, `${String(intent.operation)}: ${reply.text()}`);
-      assert.equal(reply.body().status, 'committed');
-      restorationGroupId = reply.body().restoration?.replacementGroupId ?? restorationGroupId;
+      assert.equal(reply.body().data.status, 'committed');
+      restorationGroupId = reply.body().data.restoration?.replacementGroupId ?? restorationGroupId;
     }
   });
 
@@ -546,8 +550,8 @@ test.group('authenticated typed planning transactions', (group) => {
   test('settings service rejects a language change before writing in its transaction', async ({
     assert,
   }) => {
-    // HTTP settings strip language; a different stored locale exposes the service's frozen-field guard.
-    await db.from('accounts').where('id', companyId).update({ language: 'fr' });
+    // HTTP settings strip language; a different stored locale exposes the service's frozen-field rules.
+    await db.from('companies').where('id', companyId).update({ language: 'fr' });
     const before = await readState(companyId, true);
     await assert.rejects(
       async () => {
@@ -566,7 +570,7 @@ test.group('authenticated typed planning transactions', (group) => {
           );
         });
       },
-      PlanningOperationError,
+      PlanningOperationException,
       'Language, week start and time zone are set when the company is created and cannot be changed.'
     );
     assert.deepEqual(await readState(companyId, true), before);
@@ -592,13 +596,13 @@ test.group('authenticated typed planning transactions', (group) => {
       },
     };
     const response = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     response.assertStatus(200);
-    assert.equal(response.body().revision, 1);
+    assert.equal(response.body().data.revision, 1);
     const after = await readState(companyId, true);
     const copy = after.allocations.find((row) => row.id === id)!;
     assert.isDefined(copy);
@@ -622,13 +626,13 @@ test.group('authenticated typed planning transactions', (group) => {
       source
     );
     const replay = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
-      .json(input)
+      .json(input as never)
       .send();
     replay.assertStatus(409);
-    assert.equal(replay.body().code, 'MUTATION_ID_REUSED');
+    assert.equal((replay.body() as unknown as { code: string }).code, 'MUTATION_ID_REUSED');
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
       await db.from('audit_entries').where({ company_id: companyId, entity: 'planning' }),
@@ -690,7 +694,10 @@ test.group('authenticated typed planning transactions', (group) => {
 
     const response = await session(client.get(planningUrl), cookie).send();
     response.assertStatus(200);
-    const resources = response.body().data.resources as { id: string; avatarUrl: string | null }[];
+    const resources = response.body().data.data.resources as {
+      id: string;
+      avatarUrl: string | null;
+    }[];
     for (const person of [linked, unlinked, suspendedLink]) {
       assert.equal(
         resources.find((row) => row.id === person.id)?.avatarUrl,
@@ -710,7 +717,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const { cookie } = await signIn(client);
     const allocation = newAllocation(await readState(companyId, true));
     const created = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -722,7 +729,7 @@ test.group('authenticated typed planning transactions', (group) => {
     created.assertStatus(200);
     const before = await readState(companyId, true);
     const occupied = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -732,10 +739,10 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     occupied.assertStatus(400);
-    assert.equal(occupied.body().code, 'VALIDATION_ERROR');
+    assert.equal((occupied.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
     const missingId = randomUUID();
     const missing = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -749,7 +756,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     missing.assertStatus(400);
-    assert.equal(missing.body().code, 'VALIDATION_ERROR');
+    assert.equal((missing.body() as unknown as { code: string }).code, 'VALIDATION_ERROR');
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 1);
     assert.lengthOf(
@@ -769,7 +776,7 @@ test.group('authenticated typed planning transactions', (group) => {
     const allocation = data.allocations.find((row) => row.companyId === companyId)!;
     const before = await readState(companyId, true);
     const response = await session(
-      client.post(`/api/companies/${companyId}/planning/mutations`),
+      client.visit('api.planning_mutations.store', { companyId }),
       cookie
     )
       .json({
@@ -783,7 +790,7 @@ test.group('authenticated typed planning transactions', (group) => {
       })
       .send();
     response.assertStatus(400);
-    assert.equal(response.body().code, 'NO_CHANGE');
+    assert.equal((response.body() as unknown as { code: string }).code, 'NO_CHANGE');
     assert.deepEqual(await readState(companyId, true), before);
     assert.lengthOf(await db.from('planning_mutations').where('company_id', companyId), 0);
     assert.lengthOf(
@@ -791,6 +798,6 @@ test.group('authenticated typed planning transactions', (group) => {
       0
     );
     const current = await session(client.get(planningUrl), cookie).send();
-    assert.equal(current.body().revision, 0);
+    assert.equal(current.body().data.revision, 0);
   });
 });

@@ -4,17 +4,17 @@ import type { ApiClient, ApiRequest, ApiResponse } from '@japa/api-client';
 import router from '@adonisjs/core/services/router';
 import db from '@adonisjs/lucid/services/db';
 import { seed } from '@capacitylens/shared/data/seed';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   companyId,
   configureAuth,
   resetPlanningFixture,
   session,
   signIn,
-} from '../planning/helpers.js';
+} from '#tests/functional/planning/helpers';
 
 // Every named route is classified by whether its reply can carry a restricted value. Routes that can
-// are called for every principal, and the raw reply must not contain a value that principal's
+// are called for every test user, and the raw reply must not contain a value that user's
 // effective role may not see. A new route fails the classification test until it is reviewed here.
 
 const MARKER_CLIENT = 'MARKER_CLIENT_KANE';
@@ -30,13 +30,13 @@ const codeNamesByMarker: Record<string, string> = {
 
 type Role = 'owner' | 'admin' | 'editor' | 'viewer';
 
-interface Principal {
+interface TestUser {
   label: string;
   effective: Role;
-  viewAs: boolean;
-  /** The signed-in role behind a view-as principal; Owner when absent. */
+  masquerade: boolean;
+  /** The signed-in role behind a view-as test user; Owner when absent. */
   actor?: Role;
-  /** A view-as target the server must refuse; the principal then reads as itself. */
+  /** A view-as target the server must refuse; the test user then reads as itself. */
   refusedTarget?: Role;
 }
 
@@ -50,21 +50,21 @@ interface Fixture {
   resourceId: string;
 }
 
-const principals: Principal[] = [
-  { label: 'Owner', effective: 'owner', viewAs: false },
-  { label: 'Admin', effective: 'admin', viewAs: false },
-  { label: 'Editor', effective: 'editor', viewAs: false },
-  { label: 'Viewer', effective: 'viewer', viewAs: false },
-  { label: 'Owner viewing as Admin', effective: 'admin', viewAs: true },
-  { label: 'Owner viewing as Editor', effective: 'editor', viewAs: true },
-  { label: 'Owner viewing as Viewer', effective: 'viewer', viewAs: true },
-  { label: 'Admin viewing as Admin', effective: 'admin', viewAs: true, actor: 'admin' },
-  { label: 'Admin viewing as Editor', effective: 'editor', viewAs: true, actor: 'admin' },
-  { label: 'Admin viewing as Viewer', effective: 'viewer', viewAs: true, actor: 'admin' },
+const testUsers: TestUser[] = [
+  { label: 'Owner', effective: 'owner', masquerade: false },
+  { label: 'Admin', effective: 'admin', masquerade: false },
+  { label: 'Editor', effective: 'editor', masquerade: false },
+  { label: 'Viewer', effective: 'viewer', masquerade: false },
+  { label: 'Owner viewing as Admin', effective: 'admin', masquerade: true },
+  { label: 'Owner viewing as Editor', effective: 'editor', masquerade: true },
+  { label: 'Owner viewing as Viewer', effective: 'viewer', masquerade: true },
+  { label: 'Admin viewing as Admin', effective: 'admin', masquerade: true, actor: 'admin' },
+  { label: 'Admin viewing as Editor', effective: 'editor', masquerade: true, actor: 'admin' },
+  { label: 'Admin viewing as Viewer', effective: 'viewer', masquerade: true, actor: 'admin' },
   {
     label: 'Admin refused a view as Owner',
     effective: 'admin',
-    viewAs: false,
+    masquerade: false,
     refusedTarget: 'owner',
   },
 ];
@@ -150,10 +150,10 @@ async function stepHistory(fixture: Fixture, step: 'undo' | 'redo', historyId: s
 
 type Exposure =
   | {
-      call: (fixture: Fixture, principal: Principal) => Promise<ApiResponse>;
+      call: (fixture: Fixture, testUser: TestUser) => Promise<ApiResponse>;
       write: boolean;
       /** Markers the reply carries for a reader allowed to see them. */
-      carries: string[] | ((principal: Principal) => string[]);
+      carries: string[] | ((testUser: TestUser) => string[]);
     }
   | { none: string };
 
@@ -164,42 +164,42 @@ const replies: Record<string, Exposure> = {
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('planning')), fixture.cookie).send(),
   },
-  'api.planning.archive': {
+  'api.planning_archive.show': {
     write: false,
     carries: [MARKER_ARCHIVED_CLIENT],
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('planning/archive')), fixture.cookie).send(),
   },
-  'api.export': {
+  'api.company_exports.show': {
     write: false,
-    carries: (principal) => [
+    carries: (testUser) => [
       MARKER_CLIENT,
       MARKER_PROJECT,
       MARKER_NOTE,
-      ...(canReadInactive(principal.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
+      ...(canReadInactive(testUser.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
     ],
     call: (fixture) =>
       session(fixture.client.get(buildCompanyRoute('export')), fixture.cookie).send(),
   },
-  'api.state': {
+  'api.company_state.show': {
     write: false,
-    carries: (principal) => [
+    carries: (testUser) => [
       MARKER_CLIENT,
       MARKER_PROJECT,
       MARKER_NOTE,
-      ...(canReadInactive(principal.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
+      ...(canReadInactive(testUser.effective) ? [MARKER_ARCHIVED_CLIENT] : []),
     ],
-    call: (fixture, principal) => {
-      const inactive = canReadInactive(principal.effective);
+    call: (fixture, testUser) => {
+      const inactive = canReadInactive(testUser.effective);
       return session(
-        fixture.client.get(
-          `/api/state?companyId=${companyId}${inactive ? '&includeInactive=1' : ''}`
-        ),
+        fixture.client
+          .visit('api.company_state.show')
+          .qs({ companyId, ...(inactive ? { includeInactive: '1' as const } : {}) }),
         fixture.cookie
       ).send();
     },
   },
-  'api.planning.mutate#catalogue.update clients': {
+  'api.planning_mutations.store#catalogue.update clients': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) =>
@@ -212,7 +212,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning.mutate#catalogue.unarchive clients': {
+  'api.planning_mutations.store#catalogue.restore clients': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -222,12 +222,12 @@ const replies: Record<string, Exposure> = {
         entity,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity,
       });
     },
   },
-  'api.planning.mutate#catalogue.update projects': {
+  'api.planning_mutations.store#catalogue.update projects': {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) =>
@@ -240,7 +240,7 @@ const replies: Record<string, Exposure> = {
         },
       }),
   },
-  'api.planning.mutate#catalogue.unarchive projects': {
+  'api.planning_mutations.store#catalogue.restore projects': {
     write: true,
     carries: [MARKER_PROJECT],
     call: async (fixture) => {
@@ -250,12 +250,12 @@ const replies: Record<string, Exposure> = {
         entity,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity,
       });
     },
   },
-  'api.planning.mutate#timeOff.update': {
+  'api.planning_mutations.store#timeOff.update': {
     write: true,
     carries: [MARKER_NOTE],
     call: async (fixture) => {
@@ -268,7 +268,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning.mutate#resource.unarchive': {
+  'api.planning_mutations.store#resource.restore': {
     write: true,
     carries: [],
     call: async (fixture) => {
@@ -277,12 +277,12 @@ const replies: Record<string, Exposure> = {
         id: fixture.resourceId,
       });
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
-        operation: 'resource.unarchive',
+        operation: 'resource.restore',
         id: fixture.resourceId,
       });
     },
   },
-  'api.planning.mutate#planning.restoreGroup': {
+  'api.planning_mutations.store#planning.restoreGroup': {
     write: true,
     carries: [MARKER_NOTE],
     call: async (fixture) => {
@@ -297,8 +297,8 @@ const replies: Record<string, Exposure> = {
       const groupId =
         deleted.status() === 200
           ? // A committed delete reply always carries its replacement restoration group.
-            (deleted.body() as { restoration: { replacementGroupId: string } }).restoration
-              .replacementGroupId
+            (deleted.body() as { data: { restoration: { replacementGroupId: string } } }).data
+              .restoration.replacementGroupId
           : randomUUID();
       return send(fixture.client.post(buildCompanyRoute('planning/mutations')), fixture.cookie, {
         operation: 'planning.restoreGroup',
@@ -306,7 +306,7 @@ const replies: Record<string, Exposure> = {
       });
     },
   },
-  'api.planning.undo': {
+  'api.planning_undo.store': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -315,7 +315,7 @@ const replies: Record<string, Exposure> = {
       return stepHistory(fixture, 'undo', historyId);
     },
   },
-  'api.planning.redo': {
+  'api.planning_redo.store': {
     write: true,
     carries: [MARKER_CLIENT],
     call: async (fixture) => {
@@ -325,54 +325,56 @@ const replies: Record<string, Exposure> = {
       return stepHistory(fixture, 'redo', historyId);
     },
   },
-  'api.companies.anonymise': { none: COUNTS },
+  'api.company_anonymisations.store': { none: COUNTS },
   'api.companies.index': { none: IDENTITY },
-  'api.admission.approve': { none: IDENTITY },
-  'api.admission.complete': { none: IDENTITY },
-  'api.admission.index': { none: IDENTITY },
-  'api.admission.reject': { none: IDENTITY },
-  'api.admission.request': { none: IDENTITY },
-  'api.admission.revoke': { none: IDENTITY },
+  'api.admission_approvals.store': { none: IDENTITY },
+  'api.memberships.store': { none: IDENTITY },
+  'api.admission_requests.index': { none: IDENTITY },
+  'api.admission_rejections.store': { none: IDENTITY },
+  'api.admission_requests.store': { none: IDENTITY },
+  'api.admission_revocations.store': { none: IDENTITY },
   'api.admission.show': { none: IDENTITY },
-  'api.auth.change-password': { none: IDENTITY },
-  'api.auth.delete-account': { none: IDENTITY },
-  'api.auth.inspect-reset': { none: IDENTITY },
-  'api.auth.me': { none: IDENTITY },
-  'api.auth.password-confirmation': { none: IDENTITY },
-  'api.auth.request-reset': { none: IDENTITY },
-  'api.auth.reset-password': { none: IDENTITY },
-  'api.auth.sign-in': { none: IDENTITY },
-  'api.auth.sign-out': { none: IDENTITY },
-  'api.auth.sign-up': { none: IDENTITY },
-  'api.auth.verification.complete': { none: IDENTITY },
-  'api.auth.verification.inspect': { none: IDENTITY },
-  'api.auth.verification.send': { none: IDENTITY },
-  'api.diagnostics': { none: IDENTITY },
-  'api.example-data': { none: COUNTS },
-  'api.getting-started.show': { none: IDENTITY },
-  'api.getting-started.update': { none: IDENTITY },
-  'api.health': { none: IDENTITY },
-  'api.installation.company': { none: IDENTITY },
-  'api.invites.create': { none: IDENTITY },
-  'api.invites.index': { none: IDENTITY },
-  'api.invites.preview': { none: IDENTITY },
-  'api.invites.resend': { none: IDENTITY },
-  'api.invites.revoke': { none: IDENTITY },
-  'api.invites.sign-up': { none: IDENTITY },
-  'api.masquerade.end': { none: IDENTITY },
-  'api.masquerade.start': { none: IDENTITY },
-  'api.masquerade.status': { none: IDENTITY },
-  'api.member-resources.clear': { none: IDENTITY },
-  'api.member-resources.set': { none: IDENTITY },
+  'api.password.update': { none: IDENTITY },
+  'api.account.destroy': { none: IDENTITY },
+  'api.password_resets.show': { none: IDENTITY },
+  'api.session.show': { none: IDENTITY },
+  'api.password_confirmations.store': { none: IDENTITY },
+  'api.password_reset_requests.store': { none: IDENTITY },
+  'api.password_resets.update': { none: IDENTITY },
+  'api.session.store': { none: IDENTITY },
+  'api.session.destroy': { none: IDENTITY },
+  'api.new_account.store': { none: IDENTITY },
+  'api.email_verifications.update': { none: IDENTITY },
+  'api.email_verifications.show': { none: IDENTITY },
+  'api.email_verification_requests.store': { none: IDENTITY },
+  'api.diagnostics.show': { none: IDENTITY },
+  'api.example_data.store': { none: COUNTS },
+  'api.getting_started.show': { none: IDENTITY },
+  'api.getting_started.update': { none: IDENTITY },
+  'api.health_checks.live': { none: IDENTITY },
+  'health_checks.live': { none: IDENTITY },
+  'health_checks.ready': { none: IDENTITY },
+  'api.first_company_setup.store': { none: IDENTITY },
+  'api.invitations.store': { none: IDENTITY },
+  'api.invitations.index': { none: IDENTITY },
+  'api.invitation_links.show': { none: IDENTITY },
+  'api.invitation_deliveries.store': { none: IDENTITY },
+  'api.invitations.destroy': { none: IDENTITY },
+  'api.invitation_acceptances.store': { none: IDENTITY },
+  'api.masquerade.destroy': { none: IDENTITY },
+  'api.masquerade.store': { none: IDENTITY },
+  'api.masquerade.show': { none: IDENTITY },
+  'api.member_resource_links.destroy': { none: IDENTITY },
+  'api.member_resource_links.update': { none: IDENTITY },
   'api.members.index': { none: IDENTITY },
-  'api.members.role': { none: IDENTITY },
-  'api.members.status': { none: IDENTITY },
-  'api.members.tracking': { none: IDENTITY },
-  'api.not-found': { none: IDENTITY },
-  'api.ownership.transfer': { none: IDENTITY },
-  'api.resources.anonymise': { none: COUNTS },
-  'api.transfer.apply': { none: COUNTS },
-  'api.transfer.preview': { none: PREVIEW },
+  'api.members.update': { none: IDENTITY },
+  'api.member_status.update': { none: IDENTITY },
+  'api.member_sign_in_tracking.update': { none: IDENTITY },
+  'api.not_found': { none: IDENTITY },
+  'api.ownership_transfers.store': { none: IDENTITY },
+  'api.resource_anonymisations.store': { none: COUNTS },
+  'api.imports.store': { none: COUNTS },
+  'api.import_previews.store': { none: PREVIEW },
 };
 
 /** Marks one client, project and time-off note, and adds an archived private client. */
@@ -384,12 +386,12 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
   if (!clientRow || !projectRow || !timeOffRow) throw new Error('Seed data lacks the marker rows');
   await db.from('clients').where({ id: clientRow.id }).update({
     name: MARKER_CLIENT,
-    is_private: 'true',
+    is_private: true,
     code_name: codeNamesByMarker[MARKER_CLIENT],
   });
   await db.from('projects').where({ id: projectRow.id }).update({
     name: MARKER_PROJECT,
-    is_private: 'true',
+    is_private: true,
     code_name: codeNamesByMarker[MARKER_PROJECT],
   });
   await db.from('time_off').where({ id: timeOffRow.id }).update({ note: MARKER_NOTE });
@@ -422,13 +424,13 @@ async function prepareMarkers(client: ApiClient, ownerCookie: string) {
 }
 
 async function readContextToken(client: ApiClient, cookie: string) {
-  const status = await session(client.get('/api/masquerade'), cookie).send();
+  const status = await session(client.visit('api.masquerade.show'), cookie).send();
   status.assertStatus(200);
   // The status reply is checked by String(); a missing token fails the masquerade start.
-  return String((status.body() as { contextToken: unknown }).contextToken);
+  return String((status.body()!.data as { masqueradeToken: unknown }).masqueradeToken);
 }
 
-async function startViewAs(client: ApiClient, viewerCookie: string, targetUserId: string) {
+async function startMasqueradeAs(client: ApiClient, viewerCookie: string, targetUserId: string) {
   return session(
     client
       .post(buildCompanyRoute('masquerade'))
@@ -455,47 +457,47 @@ test.group('restricted values in replies', (group) => {
   });
 
   test('no reply carries a restricted value to {label}')
-    .with(principals)
-    .run(async ({ client, assert, cleanup }, principal) => {
+    .with(testUsers)
+    .run(async ({ client, assert, cleanup }, testUser) => {
       configureAuth(cleanup);
       const owner = await signIn(client, 'owner');
       const markers = await prepareMarkers(client, owner.cookie);
       let cookie: string;
       let viewToken: string | undefined;
-      if (principal.viewAs) {
-        const viewer = await signIn(client, principal.actor ?? 'owner');
-        const target = await signIn(client, principal.effective);
-        const started = await startViewAs(client, viewer.cookie, target.userId);
+      if (testUser.masquerade) {
+        const viewer = await signIn(client, testUser.actor ?? 'owner');
+        const target = await signIn(client, testUser.effective);
+        const started = await startMasqueradeAs(client, viewer.cookie, target.userId);
         started.assertStatus(200);
         cookie = viewer.cookie;
         viewToken = await readContextToken(client, cookie);
       } else {
         const member =
-          principal.effective === 'owner' ? owner : await signIn(client, principal.effective);
+          testUser.effective === 'owner' ? owner : await signIn(client, testUser.effective);
         cookie = member.cookie;
-        if (principal.refusedTarget) {
+        if (testUser.refusedTarget) {
           const target =
-            principal.refusedTarget === 'owner'
+            testUser.refusedTarget === 'owner'
               ? owner
-              : await signIn(client, principal.refusedTarget);
-          const refused = await startViewAs(client, cookie, target.userId);
+              : await signIn(client, testUser.refusedTarget);
+          const refused = await startMasqueradeAs(client, cookie, target.userId);
           refused.assertStatus(403);
         }
       }
       const fixture: Fixture = { client, ownerCookie: owner.cookie, cookie, ...markers };
-      const hidden = listHiddenMarkers(principal.effective);
+      const hidden = listHiddenMarkers(testUser.effective);
       for (const [name, exposure] of Object.entries(replies)) {
         if ('none' in exposure) continue;
-        const reply = await exposure.call(fixture, principal);
+        const reply = await exposure.call(fixture, testUser);
         const text = reply.text();
-        const where = `${name} to ${principal.label}`;
+        const where = `${name} to ${testUser.label}`;
         for (const marker of hidden) assert.notInclude(text, marker, where);
         if (exposure.write) {
-          const refused = principal.viewAs || principal.effective === 'viewer';
+          const refused = testUser.masquerade || testUser.effective === 'viewer';
           assert.equal(reply.status(), refused ? 403 : 200, where);
-        } else if (name === 'api.planning.archive') {
-          if (principal.viewAs) assert.equal(reply.status(), 403, where);
-          else if (principal.effective === 'owner' || principal.effective === 'admin')
+        } else if (name === 'api.planning_archive.show') {
+          if (testUser.masquerade) assert.equal(reply.status(), 403, where);
+          else if (testUser.effective === 'owner' || testUser.effective === 'admin')
             assert.equal(reply.status(), 200, where);
         } else {
           assert.equal(reply.status(), 200, where);
@@ -504,20 +506,20 @@ test.group('restricted values in replies', (group) => {
         // quoted code name, as JSON text, in place of each name it may not.
         if (reply.status() === 200) {
           const { carries } = exposure;
-          for (const marker of typeof carries === 'function' ? carries(principal) : carries) {
+          for (const marker of typeof carries === 'function' ? carries(testUser) : carries) {
             const codeName = codeNamesByMarker[marker];
             if (!hidden.includes(marker)) assert.include(text, marker, where);
             else if (codeName) assert.include(text, `\\"${codeName}\\"`, where);
           }
         }
         // The export is labelled full only for an effective Owner, whoever is signed in.
-        if (name === 'api.export' && reply.status() === 200) {
+        if (name === 'api.company_exports.show' && reply.status() === 200) {
           const { completeness } = JSON.parse(text) as { completeness: string };
-          assert.equal(completeness, principal.effective === 'owner' ? 'full' : 'redacted', where);
+          assert.equal(completeness, testUser.effective === 'owner' ? 'full' : 'redacted', where);
         }
       }
       if (viewToken) {
-        const ended = await session(client.delete('/api/masquerade'), cookie)
+        const ended = await session(client.visit('api.masquerade.destroy'), cookie)
           .json({ token: viewToken, reason: 'explicit' })
           .send();
         ended.assertStatus(200);

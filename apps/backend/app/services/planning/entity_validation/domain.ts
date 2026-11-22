@@ -19,7 +19,6 @@ import {
 } from '@capacitylens/shared/domain/mutations';
 import { assertAllocationPlacement } from '@capacitylens/shared/domain/placement';
 import type { AppData, Resource, ScopedEntityKey } from '@capacitylens/shared/types/entities';
-import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
 import { asRecord } from '#services/planning/writer';
 import { getWeekday } from '@capacitylens/shared/lib/dateMath';
 import {
@@ -28,6 +27,8 @@ import {
 } from '@capacitylens/shared/lib/effectiveWorkingWeek';
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { isUnavailable } from '@capacitylens/shared/lib/capacity';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 /** One prepared row of a table and the stored row it replaces, if any. */
 export type EntityWrite = {
@@ -59,10 +60,10 @@ export function assertEntityDomain(
         (value) => typeof value === 'string'
       )
     ) {
-      throw new EntityWriteError('The built-in Internal client must remain active.');
+      throw new EntityWriteException('The built-in Internal client must remain active.');
     }
     if (typeof existing?.deletedAt === 'string') {
-      throw new EntityWriteError(
+      throw new EntityWriteException(
         'Soft-deleted records can only be changed through lifecycle endpoints.'
       );
     }
@@ -74,25 +75,25 @@ export function assertEntityDomain(
     (parentTable, parentId) => lookup.row(parentTable, parentId) as LifecycleAncestryRow | undefined
   );
   if (ancestry.kind === 'hidden') {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.'
     );
   }
   if (table === 'clients') {
     if (existing?.builtin === true) {
-      throw new EntityWriteError('The built-in Internal client cannot be modified.');
+      throw new EntityWriteException('The built-in Internal client cannot be modified.');
     }
     if (row.builtin === true && !existing) {
-      throw new EntityWriteError('The built-in Internal client is managed by the server.');
+      throw new EntityWriteException('The built-in Internal client is managed by the server.');
     }
     if (
       row.builtin === true &&
       (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)
     ) {
-      throw new EntityWriteError('The built-in Internal client has a fixed name and colour.');
+      throw new EntityWriteException('The built-in Internal client has a fixed name and colour.');
     }
     if (row.builtin === true && hasOtherBuiltinClient(companyId, id)) {
-      throw new EntityWriteError('This company already has its built-in Internal client.');
+      throw new EntityWriteException('This company already has its built-in Internal client.');
     }
     return;
   }
@@ -111,7 +112,7 @@ export function assertEntityDomain(
         activity.projectId !== row.projectId
     )
   ) {
-    throw new EntityWriteError(
+    throw new EntityWriteException(
       'A phase with activities cannot move to a different project.',
       400,
       undefined,
@@ -140,7 +141,7 @@ export function assertEntityDomain(
       resource.lastAvailableDate ?? undefined
     );
     if (!availability.ok) {
-      throw new EntityWriteError(
+      throw new EntityWriteException(
         availability.codes[0] === 'date_reversed'
           ? 'First available date cannot be after last available date.'
           : 'Availability dates must be valid calendar dates (YYYY-MM-DD).'
@@ -209,7 +210,7 @@ export function assertAllocationStartsOnWorkingDay(
   if (!resource || typeof row.startDate !== 'string') return;
   const effectiveWeek = resolveEffectiveWorkingWeek(resource, lookup.companyWorkingDays(companyId));
   if (!hasEffectiveWeekDay(effectiveWeek, getWeekday(row.startDate))) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       400,
       'VALIDATION_ERROR',
       'The allocation must start on a working day.'
@@ -239,7 +240,7 @@ export function assertAllocationStartIsAvailable(
     closures: data.closures.filter((closure) => closure.companyId === companyId),
   });
   if (unavailable) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       400,
       'VALIDATION_ERROR',
       "The allocation cannot start during this person's time off or a company closure."

@@ -7,10 +7,10 @@ import type {
   ProductHttpErrorBody,
   ProductValidationFailure,
 } from '@capacitylens/shared/api/httpErrors';
-import type { HttpContext } from '@adonisjs/core/http';
+import { errors as httpServerErrors, type HttpContext } from '@adonisjs/core/http';
 import { errors as vineErrors } from '@vinejs/vine';
 import { errors as limiterErrors } from '@adonisjs/limiter';
-import { CompanyDocumentError } from '@capacitylens/shared/data/companyDocument';
+import { CompanyExportError } from '@capacitylens/shared/data/companyExport';
 import { AdmissionRequiredError } from '@kevinjohn/adonisjs-account-kit/admission';
 import { MasqueradeError } from '@kevinjohn/adonisjs-masquerade';
 import {
@@ -21,13 +21,14 @@ import {
   PasswordConfirmationThrottledException,
   InvalidPasswordConfirmationRequestException,
 } from '@kevinjohn/adonisjs-confirm-action-with-password';
-import { IdentityAuthorityError } from '#services/auth/authorization';
-import { RefusalError } from '#exceptions/refusal_error';
+import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
+import { RefusalException } from '#exceptions/refusal_exception';
 import { buildKitRefusal } from '#services/account_kit/refusal';
 import { buildAccessRefusal } from '#services/access_control/refusal';
-import { EntityWriteError, PlanningOperationError } from '#services/planning/errors';
-import { RestorationConfirmationError } from '#services/planning/restoration';
-import { StalePlanningRevisionError } from '#services/planning_revision';
+import { StalePlanningRevisionException } from '#exceptions/stale_planning_revision_exception';
+import { EntityWriteException } from '#exceptions/entity_write_exception';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
+import { RestorationConfirmationException } from '#exceptions/restoration_confirmation_exception';
 
 /** One mapped HTTP outcome. `report` marks a mapped outcome that is still logged as a failure. */
 export interface HttpErrorResponse {
@@ -44,17 +45,31 @@ interface SharedRefusal {
 }
 
 /**
- * The routes that word a shared refusal differently. `planning` is every `api.planning.*` route and
- * the export download, which reads through planning authority; `admission` is the member-resource
+ * The routes that word a shared refusal differently. `planning` is every planning route and the
+ * export download, which reads through planning access; `admission` is the member-resource link
  * routes; `product` is every other route.
  */
 export type RefusalSurface = 'product' | 'planning' | 'admission';
 
-/** Reads the refusal surface from the matched route's name. Pure. */
+const PLANNING_ROUTE_NAMES = new Set([
+  'api.planning.show',
+  'api.planning_archive.show',
+  'api.planning_mutations.store',
+  'api.planning_undo.store',
+  'api.planning_redo.store',
+  'api.company_exports.show',
+]);
+
+const ADMISSION_ROUTE_NAMES = new Set([
+  'api.member_resource_links.update',
+  'api.member_resource_links.destroy',
+]);
+
+/** Reads the refusal surface from the matched route's generated name. Pure. */
 export function readRefusalSurface(ctx: HttpContext): RefusalSurface {
   const name = ctx.route?.name ?? '';
-  if (name.startsWith('api.planning.') || name === 'api.export') return 'planning';
-  if (name.startsWith('api.member-resources.')) return 'admission';
+  if (PLANNING_ROUTE_NAMES.has(name)) return 'planning';
+  if (ADMISSION_ROUTE_NAMES.has(name)) return 'admission';
   return 'product';
 }
 
@@ -84,8 +99,8 @@ function buildAdmissionRequiredResponse(
  * to drop its planning projection; the admission routes keep the code but not the message; every
  * other route sends the error's own message and code.
  */
-function buildIdentityAuthorityResponse(
-  error: IdentityAuthorityError,
+function buildIdentityAuthorizationResponse(
+  error: IdentityAuthorizationException,
   surface: RefusalSurface
 ): SharedRefusal {
   if (surface === 'planning') {
@@ -242,7 +257,7 @@ const CONSTRAINT_CODES = new Set([
 function buildFrameworkCodeResponse(error: unknown): HttpErrorResponse | undefined {
   if (typeof error !== 'object' || error === null) return;
   const code = 'code' in error ? error.code : undefined;
-  if (code === 'E_ROUTE_NOT_FOUND') {
+  if (error instanceof httpServerErrors.E_ROUTE_NOT_FOUND) {
     return {
       status: 404,
       body: { error: 'Not found.', code: 'NOT_FOUND' } satisfies ProductHttpErrorBody,
@@ -285,7 +300,7 @@ function buildPlanningResponse(
   error: unknown,
   surface: RefusalSurface
 ): HttpErrorResponse | undefined {
-  if (error instanceof RestorationConfirmationError) {
+  if (error instanceof RestorationConfirmationException) {
     return {
       status: 409,
       body: {
@@ -295,7 +310,7 @@ function buildPlanningResponse(
       } satisfies ProductHttpErrorBody,
     };
   }
-  if (error instanceof PlanningOperationError) {
+  if (error instanceof PlanningOperationException) {
     return {
       status: error.status,
       body: { error: error.message, ...(error.code ? { code: error.code } : {}) },
@@ -303,7 +318,7 @@ function buildPlanningResponse(
   }
   // Planning words an entity refusal as authorization or validation; the import and example-data
   // routes send the stated status, code and the current revision.
-  if (error instanceof EntityWriteError) {
+  if (error instanceof EntityWriteException) {
     if (surface === 'planning') {
       return {
         status: error.status === 403 ? 403 : 400,
@@ -322,7 +337,7 @@ function buildPlanningResponse(
       },
     };
   }
-  if (error instanceof StalePlanningRevisionError) {
+  if (error instanceof StalePlanningRevisionException) {
     return { status: 409, body: { error: error.message, code: 'STALE_REVISION' } };
   }
 }
@@ -361,11 +376,11 @@ export function mapHttpError(
       ? accessRefusal
       : { ...accessRefusal, headers: { 'Cache-Control': 'no-store' } };
   }
-  if (error instanceof RefusalError) return { status: error.status, body: error.body() };
+  if (error instanceof RefusalException) return { status: error.status, body: error.body() };
   const confirmation = buildConfirmationResponse(error);
   if (confirmation) return confirmation;
-  if (error instanceof IdentityAuthorityError) {
-    return buildIdentityAuthorityResponse(error, surface);
+  if (error instanceof IdentityAuthorizationException) {
+    return buildIdentityAuthorizationResponse(error, surface);
   }
   if (error instanceof vineErrors.E_VALIDATION_ERROR) {
     return {
@@ -378,11 +393,14 @@ export function mapHttpError(
       } satisfies ProductValidationFailure['body'],
     };
   }
-  if (error instanceof CompanyDocumentError) {
+  if (error instanceof CompanyExportError) {
     return { status: 400, body: { error: error.message } };
   }
   if (error instanceof limiterErrors.E_TOO_MANY_REQUESTS) {
-    return { status: 429, body: { error: 'Rate limit exceeded.' } };
+    const headers = Object.fromEntries(
+      Object.entries(error.getDefaultHeaders()).map(([name, value]) => [name, String(value)])
+    );
+    return { status: 429, headers, body: { error: 'Rate limit exceeded.' } };
   }
   return buildParserFailureResponse(error) ?? buildFrameworkCodeResponse(error);
 }

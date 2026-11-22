@@ -8,8 +8,8 @@ import {
   buildAllocationCreate,
   buildAllocationDuplicate,
   buildAllocationUpdate,
-} from '@/data/planning/planningCommands';
-import type { PlanningCommand } from '@/data/planning/planningCommands';
+} from '@/data/planning/planningIntents';
+import type { PlanningIntentRequest } from '@/data/planning/planningIntents';
 import type { AllocationSaveAdvisory } from '@/store/StoreEntityActions';
 import type { StoreInternals } from '@/store/storeInternal';
 import type { Draft, StoreState } from '@/store/types';
@@ -37,9 +37,9 @@ function assertSuppliedHours(hours: number): void {
   }
 }
 
-function requireCommand(command: PlanningCommand | null): PlanningCommand {
-  if (!command) throw new Error('The allocation could not be prepared for saving.');
-  return command;
+function requireIntentRequest(intentRequest: PlanningIntentRequest | null): PlanningIntentRequest {
+  if (!intentRequest) throw new Error('The allocation could not be prepared for saving.');
+  return intentRequest;
 }
 
 function requireCreatedRows(
@@ -58,13 +58,13 @@ function readSaveAdvisory(receipt: PlanningMutationSuccess | undefined): Allocat
   };
 }
 
-/** Create allocation actions backed by the planning cache controller. */
+/** Create allocation actions backed by the planning cache. */
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
 ): StateCreator<StoreState, [], [], AllocationSlice> {
   return (_set, get) => {
     const { requireCompany, isBlockedByViewer, resolveOwnedRow, applyPatch } = internals;
-    const send = (command: PlanningCommand) => get().sendPlanningCommand(command);
+    const send = (intentRequest: PlanningIntentRequest) => get().sendPlanningIntent(intentRequest);
     const prepareNew = (inputs: readonly Draft<Allocation>[]) => {
       if (inputs.length === 0) throw new Error('At least one allocation is required.');
       const companyId = requireCompany();
@@ -72,7 +72,7 @@ export function createAllocationSlice(
       const data = get().data;
       for (const input of inputs) assertSuppliedHours(input.hoursPerDay);
       for (const input of inputs) assertDateRange(input.startDate, input.endDate);
-      // Row ids are minted here, on the typed command path; the server assigns any series id.
+      // Row ids are minted here, on the typed intent path; the server assigns any series id.
       return { companyId, data, drafts: inputs.map((fields) => ({ id: createId(), fields })) };
     };
 
@@ -82,7 +82,7 @@ export function createAllocationSlice(
         if (!prepared) return { kind: 'blocked' };
         const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
         const receipt = await send(
-          requireCommand(buildAllocationCreate({ ...prepared, args: draft })),
+          requireIntentRequest(buildAllocationCreate({ ...prepared, args: draft })),
         );
         const [created] = requireCreatedRows(get, [draft.id]);
         if (!created) throw new Error('Allocation creation produced no row.');
@@ -92,15 +92,17 @@ export function createAllocationSlice(
         const prepared = prepareNew([input]);
         if (!prepared) return { kind: 'blocked' };
         const draft = prepared.drafts[0] as (typeof prepared.drafts)[number];
-        const command = requireCommand(buildAllocationCreate({ ...prepared, args: draft }));
-        if (command.intent.operation !== 'allocation.create') {
-          throw new Error('Unexpected allocation command.');
+        const intentRequest = requireIntentRequest(
+          buildAllocationCreate({ ...prepared, args: draft }),
+        );
+        if (intentRequest.intent.operation !== 'allocation.create') {
+          throw new Error('Unexpected allocation intent.');
         }
         // The server expands the pattern and mints the later ids; its receipt names every row.
         const receipt = await send({
           intent: {
             operation: 'allocation.createGroup',
-            allocation: command.intent.allocation,
+            allocation: intentRequest.intent.allocation,
             repeat,
           },
         });
@@ -121,7 +123,7 @@ export function createAllocationSlice(
         const original = resolveOwnedRow(prepared.data, 'allocations', sourceId);
         if (!original) throw new Error('The allocation to duplicate no longer exists.');
         const receipt = await send(
-          requireCommand(
+          requireIntentRequest(
             buildAllocationDuplicate({
               ...prepared,
               original,
@@ -140,14 +142,14 @@ export function createAllocationSlice(
         const effective = applyPatch(existing, patch);
         assertSuppliedHours(effective.hoursPerDay);
         assertDateRange(effective.startDate, effective.endDate);
-        const command = buildAllocationUpdate({
+        const intentRequest = buildAllocationUpdate({
           data,
           companyId: existing.companyId,
           original: existing,
           args: { id, changes: patch },
         });
-        if (!command) return false;
-        return readSaveAdvisory(await send(command));
+        if (!intentRequest) return false;
+        return readSaveAdvisory(await send(intentRequest));
       },
       reassignAllocation: async (id, placement) => {
         const data = get().data;

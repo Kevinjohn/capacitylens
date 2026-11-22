@@ -1,9 +1,9 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
 import access from '#config/access_control';
 import { parseUserName } from '@capacitylens/shared/lib/strings';
-import { hasNoCompany } from '#models/installation_company';
+import { hasNoCompany } from '#services/installation_company';
 
-/** Only the sole native principal can claim an entirely uninitialized installation. */
+/** Only the sole native user can claim an entirely uninitialised installation. */
 export async function isFirstCompanySetupRequired(
   userId: string,
   connection: TransactionClientContract

@@ -11,7 +11,7 @@ import {
 } from '@/components/common/ui';
 import { ClientForm } from './ClientForm';
 import type { Client } from '@capacitylens/shared/types/entities';
-import { useLifecycleActions } from '@/hooks/useLifecycleActions';
+import { useLifecycleOperations } from '@/hooks/useLifecycleOperations';
 import { m } from '@/i18n';
 import { buildQuotedContextName } from '@capacitylens/shared/domain/privateNames';
 import { Fragment, useMemo } from 'react';
@@ -68,7 +68,7 @@ export function ClientList() {
     [scoped.clients],
   );
 
-  const { archive } = useLifecycleActions();
+  const { archive } = useLifecycleOperations();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } =
     useEntityListState<Client>();
 

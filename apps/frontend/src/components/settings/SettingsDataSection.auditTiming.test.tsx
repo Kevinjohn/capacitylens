@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '@/auth/authContext';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { PlanningSnapshot } from '@/data/planning/planningCacheTypes';
-import { useAppShellController } from '@/components/useAppShellController';
+import { useAppShellViewModel } from '@/components/useAppShellViewModel';
 import { useStore } from '@/store/useStore';
 import { makeResource, resetStoreWithCompany, requireValue } from '@/test/fixtures';
 import {
@@ -17,7 +17,7 @@ import { m } from '@/i18n';
 import { SettingsDataSection } from './SettingsDataSection';
 import { emptyCapacity } from '@/test/capacityFixtures';
 import { permissionValue } from '@/test/permissionGrants';
-import { makePlanningAuthority } from '@/test/planning/planningAuthorityFixtures';
+import { makePlanningAccess } from '@/test/planning/planningAccessFixtures';
 
 const hold = vi.hoisted(() => ({
   promise: null as Promise<void> | null,
@@ -31,7 +31,7 @@ vi.mock('@/data/planning/storePlanningTransport', async () => {
   return { createStorePlanningTransport: actual.createTestPlanningTransport };
 });
 function ShellListener() {
-  useAppShellController();
+  useAppShellViewModel();
   return null;
 }
 beforeEach(async () => {
@@ -116,7 +116,7 @@ it.each(
       const canonicalSnapshot: PlanningSnapshot = {
         data: canonicalData,
         revision: revision + 1,
-        authority: makePlanningAuthority(),
+        access: makePlanningAccess(),
         today: getStubPlanningTransport().todayFor(companyId),
         capacity: emptyCapacity(),
       };

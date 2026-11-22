@@ -10,11 +10,11 @@ import {
   setMasqueradeEndedHandler,
 } from './requestTimeout';
 import { MASQUERADE_ERROR_CODES } from '@capacitylens/shared/domain/masquerade';
-import { getMasqueradeContextToken, setMasqueradeContextToken } from '@/api/masqueradeContext';
+import { getMasqueradeToken, setMasqueradeToken } from '@/api/masqueradeToken';
 
 afterEach(() => {
   setMasqueradeEndedHandler(null);
-  setMasqueradeContextToken(null);
+  setMasqueradeToken(null);
   vi.unstubAllGlobals();
 });
 
@@ -103,7 +103,7 @@ describe('fetchApi', () => {
   it('captures the current context for reads and writes while preserving explicit action context', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'));
     vi.stubGlobal('fetch', fetcher);
-    setMasqueradeContextToken('newer-context');
+    setMasqueradeToken('newer-context');
 
     await fetchApi('/api/write', { method: 'POST' });
     await fetchApi('/api/write', {
@@ -133,7 +133,7 @@ describe('fetchApi', () => {
     expect(new Headers(fetcher.mock.calls[5]?.[1]?.headers).has('X-Masquerade-Context')).toBe(
       false,
     );
-    expect(getMasqueradeContextToken()).toBe('newer-context');
+    expect(getMasqueradeToken()).toBe('newer-context');
   });
 
   it.each([

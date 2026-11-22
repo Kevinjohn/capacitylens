@@ -3,20 +3,20 @@ import type { AppData, ScopedEntityKey, Weekday } from '@capacitylens/shared/typ
 import type { ValidationDataLookup } from '@capacitylens/shared/domain/mutations';
 import { normalizeCompanyWorkingDays } from '@capacitylens/shared/lib/companyWorkingDays';
 import { tables } from '#services/product_tables';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
 import {
   applyCreateDefaults,
   assertMayWriteRestrictedFields,
   prepareEntityWrite,
-} from '#services/planning/entity_policy';
+} from '#services/planning/entity_rules';
 import {
   assertAllocationStartIsAvailable,
   assertAllocationStartsOnWorkingDay,
 } from '#services/planning/entity_validation/domain';
-import { PlanningOperationError } from '#services/planning/errors';
-import { isRetainedTable } from './retained_rows.js';
-import { reclaimRetainedId, type RestorationIdentity } from './restoration.js';
-import { asRecord, writeRow, type WrittenRow } from './writer.js';
+import { isRetainedTable } from '#services/planning/retained_rows';
+import { reclaimRetainedId, type RestorationIdentity } from '#services/planning/restoration';
+import { asRecord, writeRow, type WrittenRow } from '#services/planning/writer';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
 interface WriteEntityOptions<K extends ScopedEntityKey> {
   trx: TransactionClientContract;
@@ -27,7 +27,7 @@ interface WriteEntityOptions<K extends ScopedEntityKey> {
   table: K;
   id: string;
   fields: Partial<AppData[K][number]>;
-  capabilities: PlanningCapabilities;
+  accessGrant: PlanningAccessGrant;
   mode: 'create' | 'update';
   identity: RestorationIdentity;
   permissiveRepeatStart?: boolean;
@@ -64,7 +64,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
     resourceHasTimeOff: (companyId, resourceId) =>
       data.timeOff.some((row) => row.companyId === companyId && row.resourceId === resourceId),
     companyWorkingDays: (companyId): Weekday[] => {
-      const company = data.accounts.find((row) => row.id === companyId);
+      const company = data.companies.find((row) => row.id === companyId);
       return normalizeCompanyWorkingDays(company?.workingDays, company?.weekStartsOn === 0 ? 0 : 1);
     },
   };
@@ -74,7 +74,7 @@ function lookupFor(data: AppData): ValidationDataLookup {
  * Validates and writes one row in the caller's transaction, then mutates its unprojected company state.
  * Later compound entries validate against those changes. The caller owns rollback and atomic
  * revision, audit and commitment recording. Only later occurrences of a repeated create may use
- * permissiveRepeatStart; creates, duplicates and the first occurrence retain the working-day gate.
+ * permissiveRepeatStart; creates, duplicates and the first occurrence retain the working-day check.
  * Reusing a retained id requires the deleting actor's original native session; otherwise the
  * existing id-conflict refusal leaves the pending deletion intact. Identity is server-verified.
  */
@@ -86,7 +86,7 @@ export async function writeEntity<K extends ScopedEntityKey>({
   table,
   id,
   fields,
-  capabilities,
+  accessGrant,
   mode,
   identity,
   permissiveRepeatStart,
@@ -94,26 +94,26 @@ export async function writeEntity<K extends ScopedEntityKey>({
 }: WriteEntityOptions<K>) {
   const rows: readonly AppData[K][number][] = data[table];
   const existing = rows.find((row) => row.id === id);
-  assertMayWriteRestrictedFields(table, asRecord(fields), capabilities, mode);
+  assertMayWriteRestrictedFields(table, asRecord(fields), accessGrant, mode);
   if (mode === 'create' && existing) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   if (
     mode === 'create' &&
     !isRetainedTable(table) &&
     (await trx.from(tables[table]).select('id').where('id', id).first())
   ) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record already exists.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record already exists.');
   }
   if (mode === 'update' && !existing) {
-    throw new PlanningOperationError(400, 'VALIDATION_ERROR', 'The record was not found.');
+    throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The record was not found.');
   }
   if (
     mode === 'update' &&
     expectedUpdatedAt !== undefined &&
     existing?.updatedAt !== expectedUpdatedAt
   ) {
-    throw new PlanningOperationError(
+    throw new PlanningOperationException(
       409,
       'STALE_REVISION',
       'The record changed since it was opened.'
@@ -130,7 +130,7 @@ export async function writeEntity<K extends ScopedEntityKey>({
     candidate.sortOrder = resolveNextDisciplineSortOrder(data, companyId);
   }
   const lookup = lookupFor(data);
-  const clean = await prepareEntityWrite(table, candidate, existing, data, capabilities, {
+  const clean = await prepareEntityWrite(table, candidate, existing, data, accessGrant, {
     lookup,
     hasOtherBuiltinClient: (targetCompanyId, clientId) =>
       data.clients.some(

@@ -55,14 +55,14 @@ status definitions. Guide and implementation links live with each story; tests r
 
 | Story                                                          | Action                                         | Status  |
 | -------------------------------------------------------------- | ---------------------------------------------- | ------- |
-| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create an allocation via the modal             | Current |
+| [US-ALL-01](allocation/US-ALL-01-create.md)                    | Create an allocation via the dialog            | Current |
 | [US-ALL-02](allocation/US-ALL-02-edit.md)                      | Edit an existing allocation                    | Current |
 | [US-ALL-03](allocation/US-ALL-03-duplicate.md)                 | Duplicate an allocation                        | Current |
 | [US-ALL-04](allocation/US-ALL-04-delete.md)                    | Delete an allocation                           | Current |
-| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add a new activity inline from the modal       | Current |
+| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md)       | Add a new activity inline from the dialog      | Current |
 | [US-ALL-06](allocation/US-ALL-06-change-assignee.md)           | Change an allocation's assignee                | Current |
 | [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder assignee locks the project         | Current |
-| [US-ALL-08](allocation/US-ALL-08-validation.md)                | The modal rejects bad input                    | Current |
+| [US-ALL-08](allocation/US-ALL-08-validation.md)                | The dialog rejects bad input                   | Current |
 | [US-ALL-09](allocation/US-ALL-09-repeat-creation.md)           | Create repeating weekly or monthly allocations | Current |
 | [US-ALL-10](allocation/US-ALL-10-task-field.md)                | Add an optional task to an allocation          | Current |
 | [US-ALL-11](allocation/US-ALL-11-cancel-allocation-form.md)    | Cancel allocation create or edit               | Current |
@@ -86,16 +86,16 @@ status definitions. Guide and implementation links live with each story; tests r
 
 ## Data
 
-| Story                                                   | Action                                    | Status  |
-| ------------------------------------------------------- | ----------------------------------------- | ------- |
-| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                       | Current |
-| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data          | Current |
-| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history   | Current |
-| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files               | Current |
-| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload          | Current |
-| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable sample data            | Demo    |
-| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in transfer | Current |
-| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation        | Current |
+| Story                                                   | Action                                             | Status  |
+| ------------------------------------------------------- | -------------------------------------------------- | ------- |
+| [US-DAT-01](data/US-DAT-01-export-json.md)              | Export company data                                | Current |
+| [US-DAT-02](data/US-DAT-02-import-json.md)              | Preview and replace company data                   | Current |
+| [US-DAT-03](data/US-DAT-03-undo-import.md)              | Keep imported data outside undo history            | Current |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md)  | Reject invalid import files                        | Current |
+| [US-DAT-05](data/US-DAT-05-persist-reload.md)           | Keep server changes after reload                   | Current |
+| [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md)       | Explore disposable demo data                       | Demo    |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Preserve private names safely in export and import | Current |
+| [US-DAT-08](data/US-DAT-08-preview-exact-import.md)     | Confirm the exact import operation                 | Current |
 
 ## Disciplines
 
@@ -140,11 +140,11 @@ status definitions. Guide and implementation links live with each story; tests r
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recover from a rendering error                | Current |
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Jump with the command palette                 | Current |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Use navigation on a narrow screen             | Current |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Enter the persisted application               | Current |
+| [US-NAV-10](navigation/US-NAV-10-sign-in-screen.md)            | Enter the persisted application               | Current |
 | [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Understand the product at entry               | Current |
 | [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Track first schedule progress                 | Current |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Set up and open the installation company      | Current |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognize action meaning and product identity | Current |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Recognise action meaning and product identity | Current |
 | [US-NAV-16](navigation/US-NAV-16-help-and-role-tour.md)        | Find help and a role-based tour               | Current |
 | [US-NAV-18](navigation/US-NAV-18-not-found-route.md)           | Recover from an unmatched address             | Current |
 | [US-NAV-20](navigation/US-NAV-20-account-load-recovery.md)     | Recover when the active company fails to load | Removed |

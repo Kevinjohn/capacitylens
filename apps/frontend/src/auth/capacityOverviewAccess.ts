@@ -3,7 +3,7 @@ import type { Role } from '@capacitylens/shared/domain/access';
 import type { CapacityOverviewAccess } from '@capacitylens/shared/types/entities';
 import type { AccessPermissionStatus } from '@/lib/accessCopy';
 
-/** Access outcome for the capacity overview route guard. */
+/** Access outcome for the capacity overview route gate. */
 export type CapacityOverviewAccessDecision = 'allowed' | 'pending' | 'denied';
 
 /** Resolves route access from the caller role and permission-check status. */

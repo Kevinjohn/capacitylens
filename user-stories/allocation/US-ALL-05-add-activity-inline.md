@@ -1,4 +1,4 @@
-# US-ALL-05 — Add a new activity inline from the modal
+# US-ALL-05 — Add a new activity inline from the dialog
 
 As an Editor, I want to add an activity from the allocation form so that I can assign new work without leaving the Schedule.
 

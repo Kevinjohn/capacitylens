@@ -40,4 +40,4 @@ flowchart TD
   palette --> close["Escape closes palette"]
 ```
 
-**Code references:** [buildPaletteItems.ts](../../apps/frontend/src/components/buildPaletteItems.ts); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [useAppShellController.ts](../../apps/frontend/src/components/useAppShellController.ts); [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [CommandPalette.tsx](../../apps/frontend/src/components/CommandPalette.tsx)
+**Code references:** [buildPaletteItems.ts](../../apps/frontend/src/components/buildPaletteItems.ts); [navLinks.ts](../../apps/frontend/src/lib/navLinks.ts); [useAppShellViewModel.ts](../../apps/frontend/src/components/useAppShellViewModel.ts); [globalShortcuts.ts](../../apps/frontend/src/components/app-shell/globalShortcuts.ts); [AppShell.tsx](../../apps/frontend/src/components/AppShell.tsx); [CommandPalette.tsx](../../apps/frontend/src/components/CommandPalette.tsx)

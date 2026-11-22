@@ -5,9 +5,9 @@ import { resetState } from '#tests/helpers/state_fixture';
 import {
   asDataOwner,
   createFixtureCompanyForOwner,
-} from '../../helpers/authenticated_data_fixture.js';
-import { createIdentity, signUpAndIn } from '../../helpers/identities.js';
-import { freshDatabase } from '../../helpers/fresh_database.js';
+} from '#tests/helpers/authenticated_data_fixture';
+import { createIdentity, signUpAndIn } from '#tests/helpers/identities';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 
 const companyId = 'member-directory-storage';
 const ownerEmail = 'bruce.wayne@wayne.example';
@@ -18,7 +18,7 @@ const now = '2026-10-20T12:00:00.000Z';
 interface CorruptionCase {
   label: string;
   invalidValue: string;
-  guardMessage: string;
+  checkMessage: string;
   column: 'role' | 'status';
   validValue: string;
 }
@@ -27,14 +27,14 @@ const corruptions: CorruptionCase[] = [
   {
     label: 'membership role',
     invalidValue: 'invalid-role-sentinel',
-    guardMessage: 'Membership has an invalid role.',
+    checkMessage: 'Membership has an invalid role.',
     column: 'role',
     validValue: 'editor',
   },
   {
     label: 'membership status',
     invalidValue: 'invalid-status-sentinel',
-    guardMessage: 'Membership has an invalid status.',
+    checkMessage: 'Membership has an invalid status.',
     column: 'status',
     validValue: 'active',
   },
@@ -84,37 +84,40 @@ async function createFixture(client: Parameters<typeof signUpAndIn>[0]) {
       updated_at: now,
     });
   });
-  const contextResponse = await asDataOwner(client.get('/api/masquerade'), ownerCookie).send();
+  const contextResponse = await asDataOwner(
+    client.visit('api.masquerade.show'),
+    ownerCookie
+  ).send();
   contextResponse.assertStatus(200);
-  const contextBody: unknown = contextResponse.body();
-  const contextToken =
+  const contextBody: unknown = contextResponse.body()!.data;
+  const masqueradeToken =
     typeof contextBody === 'object' &&
     contextBody !== null &&
     !Array.isArray(contextBody) &&
-    'contextToken' in contextBody
-      ? contextBody.contextToken
+    'masqueradeToken' in contextBody
+      ? contextBody.masqueradeToken
       : undefined;
-  if (typeof contextToken !== 'string' || !contextToken) {
+  if (typeof masqueradeToken !== 'string' || !masqueradeToken) {
     throw new Error('Owner masquerade context did not include a request token.');
   }
-  return { ownerCookie, ownerId, memberId, contextToken };
+  return { ownerCookie, ownerId, memberId, masqueradeToken };
 }
 
 interface OwnerGetInput {
   client: Parameters<typeof signUpAndIn>[0];
   path: string;
   ownerCookie: string;
-  contextToken: string;
+  masqueradeToken: string;
 }
 
-function ownerGet({ client, path, ownerCookie, contextToken }: OwnerGetInput) {
+function ownerGet({ client, path, ownerCookie, masqueradeToken }: OwnerGetInput) {
   return client
     .get(path)
     .setup((prepared) => {
       prepared.withCookie('adonis-session', ownerCookie);
     })
     .header('sec-fetch-site', 'same-origin')
-    .header('X-Masquerade-Context', contextToken);
+    .header('X-Masquerade-Context', masqueradeToken);
 }
 
 async function writeCorruption(corruption: CorruptionCase, memberId: string) {
@@ -150,20 +153,23 @@ test.group('member directory malformed storage', (group) => {
     await db.from('users').delete();
   });
 
-  test('guards corrupted company rows at the service and authenticated HTTP boundary', async ({
+  test('rejects corrupted company rows at the service and authenticated HTTP boundary', async ({
     client,
     assert,
   }) => {
-    const { ownerCookie, ownerId, memberId, contextToken } = await createFixture(client);
+    const { ownerCookie, ownerId, memberId, masqueradeToken } = await createFixture(client);
     const path = `/api/companies/${companyId}/members`;
-    const baseline = await ownerGet({ client, path, ownerCookie, contextToken }).send();
+    const baseline = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
     baseline.assertStatus(200);
-    assert.deepInclude(readDirectoryMemberEntry(baseline.body(), memberId), {
-      userId: memberId,
-      role: 'editor',
-      status: 'active',
-      manage: true,
-    });
+    assert.deepInclude(
+      readDirectoryMemberEntry((baseline.body() as { data: unknown }).data, memberId),
+      {
+        userId: memberId,
+        role: 'editor',
+        status: 'active',
+        manage: true,
+      }
+    );
 
     for (const corruption of corruptions) {
       await writeCorruption(corruption, memberId);
@@ -174,10 +180,10 @@ test.group('member directory malformed storage', (group) => {
             readMemberDirectory(trx, companyId, { actorId: ownerId, role: 'owner' })
           ),
         Error,
-        new RegExp('^' + corruption.guardMessage.replace('.', '\\.') + '$'),
-        `${corruption.label} must reach its own service guard`
+        new RegExp('^' + corruption.checkMessage.replace('.', '\\.') + '$'),
+        `${corruption.label} must reach its own service check`
       );
-      const failed = await ownerGet({ client, path, ownerCookie, contextToken }).send();
+      const failed = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
       failed.assertStatus(500);
       assert.deepEqual(failed.body(), { error: 'Internal server error.' });
       assert.notInclude(JSON.stringify(failed.body()), corruption.invalidValue);
@@ -194,19 +200,22 @@ test.group('member directory malformed storage', (group) => {
           .where({ scope_id: companyId, user_id: memberId })
           .update({ [corruption.column]: corruption.validValue });
       });
-      const restored = await ownerGet({ client, path, ownerCookie, contextToken }).send();
+      const restored = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
       restored.assertStatus(200);
-      assert.deepInclude(readDirectoryMemberEntry(restored.body(), memberId), {
-        userId: memberId,
-        role: 'editor',
-        status: 'active',
-        manage: true,
-      });
+      assert.deepInclude(
+        readDirectoryMemberEntry((restored.body() as { data: unknown }).data, memberId),
+        {
+          userId: memberId,
+          role: 'editor',
+          status: 'active',
+          manage: true,
+        }
+      );
     }
   });
 
   test('ignores malformed rows from another company', async ({ client, assert }) => {
-    const { ownerCookie, ownerId, contextToken } = await createFixture(client);
+    const { ownerCookie, ownerId, masqueradeToken } = await createFixture(client);
     const otherCompanyId = 'member-directory-storage-other';
     await createFixtureCompanyForOwner(ownerId, 'Daily Planet', otherCompanyId);
     const foreignMemberId = await createIdentity('lex.luthor@dailyplanet.example', {
@@ -224,10 +233,16 @@ test.group('member directory malformed storage', (group) => {
     });
 
     const path = `/api/companies/${companyId}/members`;
-    const isolated = await ownerGet({ client, path, ownerCookie, contextToken }).send();
+    const isolated = await ownerGet({ client, path, ownerCookie, masqueradeToken }).send();
     isolated.assertStatus(200);
-    assert.notInclude(JSON.stringify(isolated.body()), foreignMemberId);
-    assert.notInclude(JSON.stringify(isolated.body()), 'foreign-invalid-role-sentinel');
-    assert.notInclude(JSON.stringify(isolated.body()), 'foreign-invalid-status-sentinel');
+    assert.notInclude(JSON.stringify((isolated.body() as { data: unknown }).data), foreignMemberId);
+    assert.notInclude(
+      JSON.stringify((isolated.body() as { data: unknown }).data),
+      'foreign-invalid-role-sentinel'
+    );
+    assert.notInclude(
+      JSON.stringify((isolated.body() as { data: unknown }).data),
+      'foreign-invalid-status-sentinel'
+    );
   });
 });

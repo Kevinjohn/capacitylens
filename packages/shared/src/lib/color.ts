@@ -2,7 +2,7 @@ import { isExternalResource } from '../types/entities.js';
 import { resolveEffectiveProjectId } from './integrity.js';
 import type { Allocation, Client, ID, Project, Resource, Activity } from '../types/entities.js';
 
-/** The single neutral grey, the bar/colour fallback and the colour of external / 3rd-party
+/** The single neutral grey, the bar/colour fallback and the colour of external-party
  * identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
  * src/lib/palette so both sides share one definition. */
 export const NEUTRAL_COLOR = '#9ca3af';
@@ -116,7 +116,7 @@ function hasNeutralBarColor(attribution: BarAttribution): boolean {
  * resource → neutral fallback order. */
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
   const resource = maps.resources.get(allocation.resourceId);
-  // External / 3rd-party work reads as a single neutral colour (an "awareness" signal),
+  // External-party work reads as a single neutral colour (an "awareness" signal),
   // overriding the usual project→client colouring so an outsourced bar never looks like one of
   // our own.
   if (resource && isExternalResource(resource)) return NEUTRAL_COLOR;

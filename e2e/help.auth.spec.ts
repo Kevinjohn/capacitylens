@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures';
-import { AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from './authTestSupport';
-import { waitForAppLanding } from './browserTestSupport';
+import { AUTH_PASSWORD, bootstrapOrg, createTestMember, signUpUser } from './authTestKit';
+import { waitForAppLanding } from './browserTestKit';
 
 const STAMP = Date.now();
 const COMPANY = `Wayne Enterprises ${STAMP}`;
@@ -26,7 +26,7 @@ test('every company role can open Help; a Viewer can start the read-only tour', 
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
   for (const role of ['admin', 'editor', 'viewer'] as const) {
     const member = await signUpUser(USERS[role], NAMES[role]);
-    seedFixtureMember(companyId, member.email, role);
+    createTestMember(companyId, member.email, role);
   }
 
   for (const email of Object.values(USERS)) {

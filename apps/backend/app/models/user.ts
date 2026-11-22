@@ -1,18 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { RefusalError } from '#exceptions/refusal_error';
+import { FirstCompanyPendingException } from '#exceptions/first_company_pending_exception';
 import { UserSchema } from '#database/schema';
 import { beforeCreate, beforeSave, column } from '@adonisjs/lucid/orm';
-import { hasNoCompany } from '#models/installation_company';
-
-export class FirstCompanyPendingError extends RefusalError {
-  constructor() {
-    super(
-      'Only the invited first Owner may join before the company exists.',
-      409,
-      'FIRST_COMPANY_PENDING'
-    );
-  }
-}
+import { hasNoCompany } from '#services/installation_company';
 
 export default class User extends UserSchema {
   // Identities use UUIDs; without this Lucid replaces the id with SQLite's row id after insert.
@@ -36,7 +26,7 @@ export default class User extends UserSchema {
     if (!trx) throw new Error('Identities are created only inside the Account Kit transaction.');
     if (!(await hasNoCompany(trx))) return;
     if (user.unverifiedEmail !== null || (await trx.from('users').select('id').first())) {
-      throw new FirstCompanyPendingError();
+      throw new FirstCompanyPendingException();
     }
   }
 

@@ -1,10 +1,10 @@
 import { test } from '@japa/runner';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import {
   authenticatedDataClient,
   createFixtureCompanyForOwner,
   resetAuthenticatedData,
-} from '../helpers/authenticated_data_fixture.js';
+} from '#tests/helpers/authenticated_data_fixture';
 
 test.group('retired persistence routes', (group) => {
   group.setup(() => freshDatabase());
@@ -29,10 +29,10 @@ test.group('retired persistence routes', (group) => {
       response.assertStatus(404);
     }
 
-    const read = await owner.get(`/api/state?companyId=${companyId}`).send();
+    const read = await owner.visit('api.company_state.show').qs({ companyId }).send();
     read.assertStatus(200);
     assert.deepEqual(
-      read.body().accounts.map((account: { id: string }) => account.id),
+      read.body().data.companies.map((account: { id: string }) => account.id),
       [companyId]
     );
   });
@@ -44,7 +44,7 @@ test.group('retired persistence routes', (group) => {
     await createFixtureCompanyForOwner(session.userId, 'Wayne Enterprises');
     await createFixtureCompanyForOwner(session.userId, 'Stark Industries');
     const owner = authenticatedDataClient(client, session.cookie);
-    const directory = await owner.get('/api/companies').send();
+    const directory = await owner.visit('api.companies.index').send();
     directory.assertStatus(409);
   });
 });

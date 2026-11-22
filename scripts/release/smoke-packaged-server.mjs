@@ -71,7 +71,7 @@ export function seedSmokeViewer(path, { companyId, actorUserId, targetUserId, ta
   assert.notEqual(actorUserId, targetUserId);
   const database = new DatabaseSync(path);
   try {
-    const account = database.prepare('SELECT id FROM accounts WHERE id = ?').get(companyId);
+    const account = database.prepare('SELECT id FROM companies WHERE id = ?').get(companyId);
     const target = database.prepare('SELECT id, email FROM users WHERE id = ?').get(targetUserId);
     assert.ok(account, 'Smoke Viewer fixture account is missing');
     assert.ok(target, 'Smoke Viewer fixture identity is missing');
@@ -191,22 +191,22 @@ export async function runPackagedSmoke({
     assert.doesNotMatch(initial.output, /Pre-upgrade backup written/);
     assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
-    const upgradeDir = join(workDir, 'upgrade snapshots');
+    const upgradeDir = join(workDir, 'upgrade backups');
     const upgrade = runAce(backend, { ...environment, CAPACITYLENS_BACKUP_DIR: upgradeDir }, [
       'app:upgrade',
     ]);
     assert.equal(upgrade.status, 0, upgrade.output);
     const upgradeBundle = upgrade.output.match(/Pre-upgrade backup written (.+)/)?.[1]?.trim();
-    const upgradeSnapshot = upgradeBundle && join(upgradeBundle, 'db.sqlite');
-    assert.ok(upgradeSnapshot, `Upgrade did not name its snapshot: ${upgrade.output}`);
-    assert.match(upgradeSnapshot, /pre-migration\/bak-utc-/);
+    const upgradeBackupPath = upgradeBundle && join(upgradeBundle, 'db.sqlite');
+    assert.ok(upgradeBackupPath, `Upgrade did not name its backup: ${upgrade.output}`);
+    assert.match(upgradeBackupPath, /pre-migration\/bak-utc-/);
     verifyBackup(
       backend,
       environment,
       join(upgradeDir, 'pre-migration'),
       upgradeBundle.split('/').at(-1),
     );
-    assert.equal(inspectDatabase(upgradeSnapshot).length, MIGRATION_COUNT);
+    assert.equal(inspectDatabase(upgradeBackupPath).length, MIGRATION_COUNT);
     assert.equal(inspectDatabase(databasePath).length, MIGRATION_COUNT);
 
     const beforeStartup = await backupBundles(backupDir);
@@ -215,7 +215,7 @@ export async function runPackagedSmoke({
     });
     await waitUntilReady(baseUrl, child);
     const scheduledAtStartup = await waitFor(
-      'the daily scheduled startup snapshot',
+      'the daily scheduled startup backup',
       STARTUP_TIMEOUT_MS,
       async () => {
         const files = await backupBundles(backupDir);
@@ -253,7 +253,7 @@ export async function runPackagedSmoke({
     const { url: setupLink } = JSON.parse(bootstrap.stdout);
     assert.ok(setupLink, 'The packaged bootstrap command printed no setup link.');
     const setupToken = new URL(setupLink).pathname.split('/').filter(Boolean).at(-1);
-    const signup = await fetch(`${baseUrl}/api/invites/${setupToken}/signup`, {
+    const signup = await fetch(`${baseUrl}/api/invitations/${setupToken}/sign-up`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'sec-fetch-site': 'same-origin' },
       body: JSON.stringify({ name: 'Bruce Wayne', password: credentials.password }),
@@ -280,14 +280,14 @@ export async function runPackagedSmoke({
     assert.ok(cookie, 'Native sign-in did not return a session cookie');
     const session = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(session.user.email, credentials.email);
 
     const mode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
-    );
-    assert.equal(typeof mode.contextToken, 'string');
-    const contextToken = mode.contextToken;
+    ).data;
+    assert.equal(typeof mode.masqueradeToken, 'string');
+    const masqueradeToken = mode.masqueradeToken;
     assert.equal(session.companySetupRequired, true);
     const initialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: 'POST',
@@ -295,26 +295,26 @@ export async function runPackagedSmoke({
         cookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({ name: 'Wayne Enterprises' }),
     });
     assert.equal(initialize.status, 201, 'Authenticated browser company setup failed');
-    const { companyId } = await initialize.json();
+    const { companyId } = (await initialize.json()).data;
     const secondInitialize = await fetch(`${baseUrl}/api/installation/company`, {
       method: 'POST',
       headers: {
         cookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': contextToken,
+        'X-Masquerade-Context': masqueradeToken,
       },
       body: JSON.stringify({ name: 'Stark Industries' }),
     });
     assert.equal(secondInitialize.status, 409, 'Second company initialization must be refused');
     const companies = JSON.parse(
       (await fetchOk(`${baseUrl}/api/companies`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(companies.length, 1);
     assert.equal(companies[0].id, companyId);
     assert.equal(companies[0].role, 'owner');
@@ -324,10 +324,10 @@ export async function runPackagedSmoke({
           headers: { cookie },
         })
       ).body,
-    );
+    ).data;
     assert.equal(initializedState.clients.length, 1);
     assert.equal(initializedState.clients[0].builtin, true);
-    assert.equal(initializedState.accounts[0].name, 'Wayne Enterprises');
+    assert.equal(initializedState.companies[0].name, 'Wayne Enterprises');
 
     // Create the real identity over HTTP, then seed only email confirmation, admission and membership while stopped.
     const viewerCredentials = {
@@ -347,7 +347,7 @@ export async function runPackagedSmoke({
     assert.ok(viewerCookie, 'Packaged Viewer registration did not return a session cookie');
     const viewerIdentity = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie: viewerCookie } })).body,
-    );
+    ).data;
     assert.equal(viewerIdentity.user.email, viewerCredentials.email);
     assert.notEqual(viewerIdentity.user.id, session.user.id);
 
@@ -381,13 +381,13 @@ export async function runPackagedSmoke({
     assert.ok(secondOwnerCookie, 'Second native sign-in did not return a session cookie');
     const idleMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(idleMode.active, false);
-    assert.equal(typeof idleMode.contextToken, 'string');
+    assert.equal(typeof idleMode.masqueradeToken, 'string');
     const secondIdleMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
-    );
-    assert.equal(secondIdleMode.contextToken, idleMode.contextToken);
+    ).data;
+    assert.equal(secondIdleMode.masqueradeToken, idleMode.masqueradeToken);
 
     const { seed } = await import(
       pathToFileURL(
@@ -400,7 +400,7 @@ export async function runPackagedSmoke({
       cookie,
       companyId,
       fixture,
-      idleMode.contextToken,
+      idleMode.masqueradeToken,
     );
 
     const started = await fetch(`${baseUrl}/api/companies/${companyId}/masquerade`, {
@@ -409,11 +409,15 @@ export async function runPackagedSmoke({
         cookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': idleMode.contextToken,
+        'X-Masquerade-Context': idleMode.masqueradeToken,
       },
       body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
     });
-    const activeMode = await expectJsonStatus(started, 200, 'Packaged member-view start failed');
+    const { data: activeMode } = await expectJsonStatus(
+      started,
+      200,
+      'Packaged member-view start failed',
+    );
     assert.equal(activeMode.active, true);
     assert.equal(activeMode.targetUserId, viewerIdentity.user.id);
     assert.ok(
@@ -423,22 +427,22 @@ export async function runPackagedSmoke({
 
     const otherSessionMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
-    );
+    ).data;
     assert.equal(
       otherSessionMode.active,
       true,
       'Member view must apply to every signed-in session',
     );
     assert.equal(otherSessionMode.targetUserId, viewerIdentity.user.id);
-    assert.equal(otherSessionMode.contextToken, activeMode.contextToken);
+    assert.equal(otherSessionMode.masqueradeToken, activeMode.masqueradeToken);
     const memberRead = await fetchOk(
       `${baseUrl}/api/state?companyId=${encodeURIComponent(companyId)}`,
       {
         headers: { cookie: secondOwnerCookie },
       },
     );
-    const memberState = JSON.parse(memberRead.body);
-    assert.equal(memberState.accounts[0].id, companyId);
+    const memberState = JSON.parse(memberRead.body).data;
+    assert.equal(memberState.companies[0].id, companyId);
     assert.equal(memberState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
 
     const refusedWrite = await fetch(`${baseUrl}/api/companies/${companyId}/planning/mutations`, {
@@ -447,7 +451,7 @@ export async function runPackagedSmoke({
         cookie: secondOwnerCookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': activeMode.contextToken,
+        'X-Masquerade-Context': activeMode.masqueradeToken,
       },
       body: JSON.stringify({ mutationId: randomUUID(), baseRevision: 4, intent: {} }),
     });
@@ -460,22 +464,26 @@ export async function runPackagedSmoke({
         cookie: secondOwnerCookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': activeMode.contextToken,
+        'X-Masquerade-Context': activeMode.masqueradeToken,
       },
-      body: JSON.stringify({ token: activeMode.contextToken, reason: 'explicit' }),
+      body: JSON.stringify({ token: activeMode.masqueradeToken, reason: 'explicit' }),
     });
-    const endedMode = await expectJsonStatus(ended, 200, 'Packaged member-view end failed');
+    const { data: endedMode } = await expectJsonStatus(
+      ended,
+      200,
+      'Packaged member-view end failed',
+    );
     assert.equal(endedMode.active, false);
     const endedInFirstSession = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(
       endedInFirstSession.active,
       false,
       'Ending in one session must end the shared member view',
     );
 
-    const restartContext = endedInFirstSession.contextToken;
+    const restartContext = endedInFirstSession.masqueradeToken;
     const expiringStart = await fetch(`${baseUrl}/api/companies/${companyId}/masquerade`, {
       method: 'POST',
       headers: {
@@ -486,7 +494,7 @@ export async function runPackagedSmoke({
       },
       body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
     });
-    const expiringMode = await expectJsonStatus(
+    const { data: expiringMode } = await expectJsonStatus(
       expiringStart,
       200,
       'Packaged expiring member-view start failed',
@@ -505,7 +513,7 @@ export async function runPackagedSmoke({
         cookie: secondOwnerCookie,
         'content-type': 'application/json',
         'sec-fetch-site': 'same-origin',
-        'X-Masquerade-Context': expiringMode.contextToken,
+        'X-Masquerade-Context': expiringMode.masqueradeToken,
       },
       body: JSON.stringify({ targetUserId: viewerIdentity.user.id }),
     });
@@ -517,7 +525,7 @@ export async function runPackagedSmoke({
     assert.equal(expiredResult.code, 'MASQUERADE_CONTEXT_CHANGED');
     const expiredMode = JSON.parse(
       (await fetchOk(`${baseUrl}/api/masquerade`, { headers: { cookie: secondOwnerCookie } })).body,
-    );
+    ).data;
     assert.equal(expiredMode.active, false);
 
     assert.equal(inspectDatabase(databasePath, RESOURCE_NAME).length, MIGRATION_COUNT);
@@ -537,7 +545,7 @@ export async function runPackagedSmoke({
     const explicitBundle = explicit.output.match(/Backup (bak-utc-[\d-]+) written to (.+)/);
     const explicitName = explicitBundle?.[1];
     const explicitPath = explicitBundle && join(explicitBundle[2].trim(), 'db.sqlite');
-    assert.ok(explicitPath, `Backup command did not name its snapshot: ${explicit.output}`);
+    assert.ok(explicitPath, `Backup command did not name its backup: ${explicit.output}`);
     const afterExplicit = await backupBundles(backupDir);
     assert.ok(!beforeExplicit.includes(explicitName));
     assert.ok(afterExplicit.includes(explicitName));
@@ -556,7 +564,7 @@ export async function runPackagedSmoke({
           headers: { cookie },
         })
       ).body,
-    );
+    ).data;
     assert.equal(state.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
     assert.equal(
       state.allocations.find((row) => row.id === allocation.id)?.hoursPerDay,
@@ -588,7 +596,7 @@ export async function runPackagedSmoke({
     await waitUntilReady(baseUrl, child);
     const restoredSession = JSON.parse(
       (await fetchOk(`${baseUrl}/api/auth/me`, { headers: { cookie } })).body,
-    );
+    ).data;
     assert.equal(restoredSession.user.email, credentials.email);
     const restoredState = JSON.parse(
       (
@@ -596,7 +604,7 @@ export async function runPackagedSmoke({
           headers: { cookie },
         })
       ).body,
-    );
+    ).data;
     assert.equal(
       restoredState.resources.find((row) => row.id === resource.id)?.name,
       RESOURCE_NAME,
@@ -623,9 +631,9 @@ export async function runPackagedSmoke({
         scheduleWrite: 'persisted',
         allocation: 'persisted and restored',
         explicitBackup: 'verified',
-        restoredSnapshot: 'verified',
+        restoredBackup: 'verified',
         scheduledStartupBackup: 'verified',
-        upgradeSnapshot: 'verified',
+        upgradeBackup: 'verified',
         shutdown: 'clean',
       }),
     );

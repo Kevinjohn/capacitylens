@@ -58,7 +58,7 @@ export async function createIdentity(
 /** Signs in through the public route and returns the session cookie and its raw header. */
 export async function signIn(client: ApiClient, email: string, password = fixturePassword) {
   const response = await client
-    .post('/api/auth/sign-in')
+    .visit('api.session.store')
     .header('sec-fetch-site', 'same-origin')
     .json({ email, password })
     .send();
@@ -72,7 +72,7 @@ export async function signIn(client: ApiClient, email: string, password = fixtur
     ?.split(';', 1)[0];
   if (!cookie || !cookieHeader) throw new Error('Sign-in did not create a session.');
   sessionCookieHeaders.set(cookie, cookieHeader);
-  const userId = String((response.body() as { user: { id: string } }).user.id);
+  const userId = String((response.body().data as { user: { id: string } }).user.id);
   return { cookie, cookieHeader, userId };
 }
 
@@ -92,7 +92,7 @@ export async function signUpAndIn(
 ) {
   await createIdentity(details.email, { name: details.name, password: details.password });
   const response = await client
-    .post('/api/auth/sign-in')
+    .visit('api.session.store')
     .header('sec-fetch-site', 'same-origin')
     .json({ email: details.email, password: details.password })
     .send();
@@ -139,7 +139,7 @@ export async function bootstrapInvitation(email: string) {
   return linkToken(url);
 }
 
-/** Fakes mail delivery with a configured mail host and reads the links the Kit sends. */
+/** Stubs mail delivery with AdonisJS `mail.fake()` and reads the links the Kit sends. */
 export function captureMail(cleanup: (callback: () => void) => void) {
   const fake = mail.fake();
   const host = env.get('CAPACITYLENS_MAIL_HOST');

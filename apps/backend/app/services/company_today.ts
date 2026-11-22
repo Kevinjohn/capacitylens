@@ -1,4 +1,4 @@
-import env from '#start/env';
+import capacitylens from '#config/capacitylens';
 import { resolveCalendarToday } from '@capacitylens/shared/lib/calendarToday';
 import { assertFourDigitISODate } from '@capacitylens/shared/lib/dateMath';
 import type { ISODate } from '@capacitylens/shared/types/entities';
@@ -14,7 +14,7 @@ const DEFAULT_TIME_ZONE = 'Etc/GMT';
  * data fault to surface rather than replace with another date.
  */
 export function readCompanyToday(timezone: string | null, now: number = Date.now()): ISODate {
-  const fixed = env.get('CAPACITYLENS_FIXED_TODAY');
+  const fixed = capacitylens.fixedToday;
   if (fixed) return assertFourDigitISODate(fixed);
   const today = resolveCalendarToday(timezone ?? DEFAULT_TIME_ZONE, now);
   if (today.kind === 'invalid-time-zone') {

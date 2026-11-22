@@ -1,18 +1,16 @@
 import { test } from '@japa/runner';
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database';
-import { freshDatabase } from '../helpers/fresh_database.js';
+import { freshDatabase } from '#tests/helpers/fresh_database';
 import db from '@adonisjs/lucid/services/db';
 import { randomUUID } from 'node:crypto';
 import { readStateWithClient } from '#services/state_repository';
 import { readState, resetState } from '#tests/helpers/state_fixture';
-import {
-  executePlanningIntent as applyPlanningIntent,
-  PlanningOperationError,
-} from '#services/planning/execute';
+import { executePlanningIntent as applyPlanningIntent } from '#services/planning/execute';
 import type { PlanningIntent } from '#validators/planning/contracts';
-import type { PlanningCapabilities } from '#services/planning/data_policy';
+import type { PlanningAccessGrant } from '#services/planning/access_grant';
+import { PlanningOperationException } from '#exceptions/planning_operation_exception';
 
-const owner: PlanningCapabilities = {
+const owner: PlanningAccessGrant = {
   role: 'owner',
   canWrite: true,
   canSeePrivateNames: true,
@@ -23,14 +21,14 @@ async function executePlanningIntent(
   trx: TransactionClientContract,
   companyId: string,
   intent: PlanningIntent,
-  capabilities: PlanningCapabilities
+  accessGrant: PlanningAccessGrant
 ) {
   const data = await readStateWithClient(trx, companyId, true);
   return applyPlanningIntent({
     trx,
     companyId,
     intent,
-    capabilities,
+    accessGrant,
     data,
     identity: { actorId: 'u-bruce', sessionId: 1, mutationId: randomUUID() },
   });
@@ -96,7 +94,7 @@ test.group('typed planning writers', (group) => {
             owner
           )
         ),
-      PlanningOperationError
+      PlanningOperationException
     );
     const state = await readState('a-studio', true);
     assert.isUndefined(state.timeOff.find((row) => row.id === id));
@@ -132,7 +130,7 @@ test.group('typed planning writers', (group) => {
 
   test('permits Editor settings but reserves capacity access for Admin', async ({ assert }) => {
     await resetState('single');
-    const editor: PlanningCapabilities = {
+    const editor: PlanningAccessGrant = {
       ...owner,
       role: 'editor',
       canSeePrivateNames: false,
@@ -150,7 +148,7 @@ test.group('typed planning writers', (group) => {
       )
     );
     const state = await readState('a-studio', true);
-    const account = state.accounts[0];
+    const account = state.companies[0];
     assert.equal(account?.weekStartsOn, 0);
     assert.equal(account?.timezone, 'Europe/London');
     await assert.rejects(
@@ -166,7 +164,7 @@ test.group('typed planning writers', (group) => {
             editor
           )
         ),
-      PlanningOperationError
+      PlanningOperationException
     );
   });
 
@@ -194,7 +192,7 @@ test.group('typed planning writers', (group) => {
         owner
       )
     );
-    const editor: PlanningCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
+    const editor: PlanningAccessGrant = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
@@ -219,7 +217,7 @@ test.group('typed planning writers', (group) => {
     await resetState('single');
     const before = await readState('a-studio', true);
     const id = randomUUID();
-    const editor: PlanningCapabilities = { ...owner, role: 'editor', canSeePrivateNames: false };
+    const editor: PlanningAccessGrant = { ...owner, role: 'editor', canSeePrivateNames: false };
     await db.transaction((trx) =>
       executePlanningIntent(
         trx,
