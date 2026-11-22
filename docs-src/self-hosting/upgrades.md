@@ -9,6 +9,10 @@ Keep the database and backup directory outside versioned release folders. Before
 running code, read the release notes and confirm that a recent backup can be read. Use one
 process and stop it before replacing files or running the migration command.
 
+An upgrade never changes your nginx site file. Compare it with the new release's
+`capacitylens.nginx.conf` and copy over any changed `location` blocks: an old file stops keeping
+renamed invitation and sign-in paths, and the secrets in them, out of the access log.
+
 ## Upgrade with the install command
 
 If you installed with the [install command](/self-hosting/install-without-docker#install-with-one-command),
