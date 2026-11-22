@@ -129,7 +129,7 @@ inventory, not an assertion that every runtime, security or error-path test has 
 
 | Story                                                         | Action                                        | Access                                                                                          | Status  | Catalogue |
 | ------------------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------- | --------- |
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)        | Navigate permitted sections                   | Owner, Admin, Editor, Viewer; section visibility and write controls follow role policy.         | Current | Existing  |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)        | Navigate permitted sections                   | Owner, Admin, Editor, Viewer; section visibility and write controls follow role permissions.    | Current | Existing  |
 | [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md) | See the active section                        | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-03](navigation/US-NAV-03-loading-gate.md)             | Wait for company data                         | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |
 | [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)     | See planning read and save failures           | Owner, Admin, Editor, Viewer                                                                    | Current | Existing  |

@@ -10,7 +10,7 @@ As an invited person, I want to accept my email invitation so that I can request
 
 ## Acceptance criteria
 
-- Use the **Name** and **Password** fields in [Create my account from an invitation](../account/US-ACCOUNT-06-sign-up.md) .
+- Use the **Name** and **Password** fields in [Create my account from an invitation](../account/US-ACCOUNT-06-sign-up.md).
 
 - The page shows the invited company and role, then **Accept invitation** creates the invited sign-in and membership. The person must still ask for access and receive approval before seeing company data.
 
