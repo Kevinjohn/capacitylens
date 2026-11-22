@@ -118,18 +118,18 @@ describe('active-account replacement invariant', () => {
 });
 
 describe('active-account permission publication', () => {
-  it('atomically fail-closes a switched company before an imperative write can use the prior authority', async () => {
+  it('atomically fail-closes a switched company before an imperative write can use the prior access', async () => {
     setPlanningAccess({ role: 'editor' });
     const rolesPublishedForB: Array<string | null> = [];
     const unsubscribe = useStore.subscribe((state) => {
       if (state.activeCompanyId === B) {
-        rolesPublishedForB.push(state.planning.authority?.role ?? null);
+        rolesPublishedForB.push(state.planning.access?.role ?? null);
       }
     });
 
     getStubPlanningTransport().setAccess({ role: 'viewer', canWrite: false });
     s().setActiveCompany(B);
-    // B is known from the summaries before its rows load, so the write reaches the authority check,
+    // B is known from the summaries before its rows load, so the write reaches the access check,
     // which refuses it while B's planning read has not been accepted.
     await expect(s().addClient({ name: 'Must not land', color: '#111111' })).resolves.toEqual({
       kind: 'blocked',
@@ -140,7 +140,7 @@ describe('active-account permission publication', () => {
 
     expect(rolesPublishedForB[0]).toBeNull();
     expect(new Set(rolesPublishedForB)).toEqual(new Set([null, 'viewer']));
-    expect(s().planning.authority?.role).toBe('viewer');
+    expect(s().planning.access?.role).toBe('viewer');
     expect(s().data.clients.some((client) => client.name.includes('must not land'))).toBe(false);
     expect(s().data.clients.find((client) => client.id === 'cB')?.companyId).toBe(B);
     expect(s().notice).toMatchObject({ tone: 'error' });
@@ -155,7 +155,7 @@ describe('active-account permission publication', () => {
     await s().refreshPlanning();
     read.mockRestore();
 
-    expect(s().planning.authority).toBeNull();
+    expect(s().planning.access).toBeNull();
     const dataBefore = s().data;
     expect(transport.calls).toEqual([]);
     await expect(s().addClient({ name: 'Must not land', color: '#111111' })).rejects.toThrow(
@@ -172,12 +172,12 @@ describe('active-account permission publication', () => {
     expect(s().notice?.message).toBe(m.access_unavailable_summary());
   });
 
-  it('honors canonical read-only authority even when the role is owner', async () => {
+  it('honors canonical read-only access even when the role is owner', async () => {
     const transport = getStubPlanningTransport();
     transport.setAccess({ role: 'owner', canWrite: false });
     expect(await s().refreshPlanning({ fresh: true })).toBe(true);
 
-    expect(s().planning.authority).toMatchObject({ role: 'owner', canWrite: false });
+    expect(s().planning.access).toMatchObject({ role: 'owner', canWrite: false });
     expect(s().planningReadyForReplacement()).toBe(false);
     await expect(s().addClient({ name: 'Must not land', color: '#111111' })).resolves.toEqual({
       kind: 'blocked',

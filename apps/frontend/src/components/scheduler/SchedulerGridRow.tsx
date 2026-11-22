@@ -98,7 +98,7 @@ function UtilisationCell({
     : m.scheduler_util_title({ span: visibleWeeksLabel });
   return (
     <span
-      data-testid="utilization"
+      data-testid="utilisation"
       title={title}
       className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
         overSoon ? 'font-semibold text-danger' : 'text-faint'

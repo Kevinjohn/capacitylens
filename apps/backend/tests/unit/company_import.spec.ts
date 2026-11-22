@@ -5,7 +5,7 @@ import {
   parseCompanyExport,
   prepareCompanyImport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import { validateRow } from '#validators/planning/row';
 import { transformState } from '#transformers/state_transformer';
 

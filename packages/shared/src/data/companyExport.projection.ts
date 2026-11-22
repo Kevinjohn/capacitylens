@@ -1,9 +1,9 @@
 import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import type { AppData } from '../types/entities.js';
 import { isRecord } from '../lib/isRecord.js';
-import { fail, hasOwn } from './companyDocument.errors.js';
-import { FIELDS } from './companyDocument.fields.js';
-import type { Row } from './companyDocument.fields.js';
+import { fail, hasOwn } from './companyExport.errors.js';
+import { FIELDS } from './companyExport.fields.js';
+import type { Row } from './companyExport.fields.js';
 
 /** Copy only the named portable fields for one already scoped company. */
 export function projectCompanyData(data: AppData, companyId: string): AppData {

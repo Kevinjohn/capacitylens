@@ -77,10 +77,10 @@ export function buildInverseIntent(
     }
     case 'catalogue.archive':
       return {
-        operation: 'catalogue.unarchive',
+        operation: 'catalogue.restore',
         entity: { entity: intent.entity.entity, id: intent.entity.id },
       };
-    case 'catalogue.unarchive':
+    case 'catalogue.restore':
       return {
         operation: 'catalogue.archive',
         entity: { entity: intent.entity.entity, id: intent.entity.id },
@@ -97,8 +97,8 @@ export function buildInverseIntent(
       );
     }
     case 'resource.archive':
-      return { operation: 'resource.unarchive', id: intent.id };
-    case 'resource.unarchive':
+      return { operation: 'resource.restore', id: intent.id };
+    case 'resource.restore':
       return { operation: 'resource.archive', id: intent.id };
     case 'timeOff.create':
       return { operation: 'timeOff.delete', id: intent.timeOff.id };

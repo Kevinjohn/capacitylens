@@ -28,7 +28,7 @@ describe('planning cache', () => {
     h.cache.setContext(context);
     await h.readSnapshot({
       revision: 3,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -47,7 +47,7 @@ describe('planning cache', () => {
   it('sends a canonical read with the proof current when the read is dispatched', async () => {
     const read = vi.fn<PlanningTransport['read']>().mockResolvedValue({
       revision: 3,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -81,7 +81,7 @@ describe('planning cache', () => {
     h.cache.setContext(null);
     resolveRead({
       revision: 9,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: { ...createEmptyAppData(), companies: [{ id: 'leak' } as never] },
       today: companyToday,
       capacity: emptyCapacity(),
@@ -109,7 +109,7 @@ describe('planning cache', () => {
     h.cache.setContext(anonymous);
     await h.readSnapshot({
       revision: 1,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -119,7 +119,7 @@ describe('planning cache', () => {
     h.cache.setContext(anonymous);
     await h.readSnapshot({
       revision: 7,
-      authority: makePlanningAccess(),
+      access: makePlanningAccess(),
       data: makeCanonicalData(),
       today: companyToday,
       capacity: emptyCapacity(),
@@ -145,7 +145,7 @@ describe('planning cache', () => {
 
 describe('planning receipt completion context', () => {
   for (const action of ['execute', 'undo', 'redo'] as const) {
-    it.each(['sign-out', 'company switch', 'authority change'] as const)(
+    it.each(['sign-out', 'company switch', 'access change'] as const)(
       `suppresses ${action} completion after %s during the acknowledged read`,
       async (change) => {
         const execute = vi.fn<PlanningTransport['execute']>((_context, execution) =>
@@ -159,7 +159,7 @@ describe('planning receipt completion context', () => {
           data: makeCanonicalData(),
           today: companyToday,
           capacity: emptyCapacity(),
-          authority: makePlanningAccess(),
+          access: makePlanningAccess(),
         });
         await h.cache.execute(h.cache.begin(), intent);
         if (action === 'redo') await h.cache.undo();
@@ -182,8 +182,8 @@ describe('planning receipt completion context', () => {
         }
         delayed.resolve({
           revision,
-          authority: makePlanningAccess({
-            role: change === 'authority change' ? 'editor' : 'owner',
+          access: makePlanningAccess({
+            role: change === 'access change' ? 'editor' : 'owner',
           }),
           data: makeCanonicalData(),
           today: companyToday,

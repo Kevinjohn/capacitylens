@@ -30,7 +30,7 @@ export function registerAdmissionRoutes() {
     .get('/invitations/:token/preview', [controllers.InvitationLinks, 'show'])
     .use(asOwnAccount());
   router
-    .post('/invitations/:token/signup', [controllers.InvitationAcceptances, 'store'])
+    .post('/invitations/:token/sign-up', [controllers.InvitationAcceptances, 'store'])
     .use(asOwnAccount());
 
   router

@@ -34,7 +34,7 @@ const reviewedUnclassified = [
   'POST /api/auth/verification/inspect [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'POST /api/auth/verification/complete [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'GET,HEAD /api/invitations/:token/preview [UNCLASSIFIED READ] (Account Kit blocker registered)',
-  'POST /api/invitations/:token/signup [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
+  'POST /api/invitations/:token/sign-up [UNCLASSIFIED MUTATION] (Account Kit blocker registered)',
   'GET,HEAD /api/masquerade [UNCLASSIFIED READ]',
   'GET,HEAD /api/health [UNCLASSIFIED READ]',
   'GET,HEAD /health/live [UNCLASSIFIED READ]',

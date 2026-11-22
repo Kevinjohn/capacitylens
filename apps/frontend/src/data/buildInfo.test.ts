@@ -94,7 +94,7 @@ describe('diagnostics projection', () => {
     const report = readDiagnostics(null, observedAt, client);
 
     expect(report.observedAt).toBe(observedAt);
-    expect(formatDiagnostics(report)).toContain(`Snapshot observed: ${observedAt}`);
+    expect(formatDiagnostics(report)).toContain(`Observed at: ${observedAt}`);
   });
 
   it('leaves the observation time empty until a snapshot or failure is classified', async () => {
@@ -102,7 +102,7 @@ describe('diagnostics projection', () => {
     expect(readDiagnostics(null, undefined, client).observedAt).toBeNull();
     expect(readDiagnostics(null, 'not-a-timestamp', client).observedAt).toBeNull();
     expect(formatDiagnostics(readDiagnostics(null, undefined, client))).toContain(
-      'Snapshot observed: Unknown',
+      'Observed at: Unknown',
     );
   });
 
@@ -114,13 +114,13 @@ describe('diagnostics projection', () => {
     first.server.connectivity = 'ok';
     first.server.database.status = 'ok';
     first.server.schema.migration = 'database/migrations/202610120001_create_capacitylens_baseline';
-    first.server.backup.newestSnapshotAt = '2026-09-10T12:00:00.000Z';
+    first.server.backup.newestBackupAt = '2026-09-10T12:00:00.000Z';
 
     expect(second.server).toEqual({
       connectivity: 'unavailable',
       database: { status: 'unavailable' },
       schema: { migration: null },
-      backup: { newestSnapshotAt: null },
+      backup: { newestBackupAt: null },
     });
   });
 });
@@ -138,7 +138,7 @@ describe('diagnostics projection privacy', () => {
             migration: 'database/migrations/202610120001_create_capacitylens_baseline',
             path: '/private/db',
           },
-          backup: { newestSnapshotAt: '2026-09-10T12:00:00.000Z', sessionId: 'secret' },
+          backup: { newestBackupAt: '2026-09-10T12:00:00.000Z', sessionId: 'secret' },
           persistence: 'degraded',
           password: 'should never be copied',
         },
@@ -152,13 +152,13 @@ describe('diagnostics projection privacy', () => {
       connectivity: 'ok',
       database: { status: 'ok' },
       schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
-      backup: { newestSnapshotAt: '2026-09-10T12:00:00.000Z' },
+      backup: { newestBackupAt: '2026-09-10T12:00:00.000Z' },
     });
     const text = formatDiagnostics(report);
     expect(text).toContain(
       'Schema migration: database/migrations/202610120001_create_capacitylens_baseline',
     );
-    expect(text).toContain('Newest snapshot: 2026-09-10T12:00:00.000Z');
+    expect(text).toContain('Newest backup: 2026-09-10T12:00:00.000Z');
     expect(text).not.toMatch(/password|sessionId|inviteToken|secret|Persistence:/i);
   });
 
@@ -171,7 +171,7 @@ describe('diagnostics projection privacy', () => {
           connectivity: true,
           database: { status: 'ok' },
           schema: { migration: '/private/database/migration' },
-          backup: { newestSnapshotAt: 'database password' },
+          backup: { newestBackupAt: 'database password' },
         },
       },
       undefined,
@@ -182,7 +182,7 @@ describe('diagnostics projection privacy', () => {
       connectivity: 'unavailable',
       database: { status: 'ok' },
       schema: { migration: null },
-      backup: { newestSnapshotAt: null },
+      backup: { newestBackupAt: null },
     });
   });
 
@@ -194,7 +194,7 @@ describe('diagnostics projection privacy', () => {
           connectivity: 'ok',
           database: { status: 'unavailable' },
           schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
-          backup: { newestSnapshotAt: '2026-02-31T12:00:00.000Z' },
+          backup: { newestBackupAt: '2026-02-31T12:00:00.000Z' },
         },
       },
       undefined,
@@ -202,7 +202,7 @@ describe('diagnostics projection privacy', () => {
     );
     expect(report.server.database).toEqual({ status: 'unavailable' });
     expect(report.server.schema).toEqual({ migration: null });
-    expect(report.server.backup).toEqual({ newestSnapshotAt: null });
+    expect(report.server.backup).toEqual({ newestBackupAt: null });
   });
 });
 
@@ -235,7 +235,7 @@ describe('diagnostics client facts', () => {
             database: { status: 'ok', path: '/srv/capacitylens/app.db' },
             schema: { migration: 'database/migrations/202610120001_create_capacitylens_baseline' },
             backup: {
-              newestSnapshotAt: '2026-09-10T12:00:00.000Z',
+              newestBackupAt: '2026-09-10T12:00:00.000Z',
               target: 'https://backups.example',
             },
             companyId: id,

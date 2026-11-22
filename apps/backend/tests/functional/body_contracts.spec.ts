@@ -135,7 +135,7 @@ const contracts: Record<string, BodyContract> = {
   },
   'api.invitation_acceptances.store': {
     method: 'post',
-    url: () => '/api/invitations/token/signup',
+    url: () => '/api/invitations/token/sign-up',
     sentence: admission,
     body: () => ({ name: 'Clark Kent', password }),
     keySentences: { name: 'Invalid sign-up details.', password: 'Invalid sign-up details.' },

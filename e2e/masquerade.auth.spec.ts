@@ -130,13 +130,13 @@ test.describe('member masquerade', () => {
       },
     );
     expect(status.status()).toBe(200);
-    const contextToken = ((await status.json()) as { data: { contextToken: string } }).data
-      .contextToken;
-    expect(contextToken).not.toBe('');
+    const masqueradeToken = ((await status.json()) as { data: { masqueradeToken: string } }).data
+      .masqueradeToken;
+    expect(masqueradeToken).not.toBe('');
     const headers = {
       cookie,
       'sec-fetch-site': 'same-origin',
-      'X-Masquerade-Context': contextToken,
+      'X-Masquerade-Context': masqueradeToken,
     };
     const planning = await request.get(`${AUTH_API}/api/companies/${companyId}/planning`, {
       headers,

@@ -244,8 +244,8 @@ const routes = {
   },
   'api.invitation_acceptances.store': {
     methods: ["POST"],
-    pattern: '/api/invitations/:token/signup',
-    tokens: [[0,"api"],[0,"invitations"],[1,"token"],[0,"signup"]],
+    pattern: '/api/invitations/:token/sign-up',
+    tokens: [[0,"api"],[0,"invitations"],[1,"token"],[0,"sign-up"]],
     types: placeholder as Registry['api.invitation_acceptances.store']['types'],
   },
   'api.admission.show': {
