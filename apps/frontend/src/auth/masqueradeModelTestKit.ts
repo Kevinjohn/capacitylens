@@ -4,14 +4,14 @@ import type { MasqueradeState, MasqueradeStatus } from '@capacitylens/shared/dom
 import { useStore } from '@/store/useStore';
 import { MasqueradeModel } from './masqueradeModel';
 import type { MasqueradeModelDependencies } from './masqueradeModel';
-import { viewAsGrantFor } from '@/test/permissionGrants';
+import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 export const state: MasqueradeState & { contextToken: string } = {
   companyId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',
-  ...viewAsGrantFor('viewer'),
+  ...masqueradeGrantFor('viewer'),
   startedAt: '2026-09-01T10:00:00.000Z',
   expiresAt: '2026-09-01T10:15:00.000Z',
   token: 'token-1',

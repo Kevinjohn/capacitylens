@@ -9,7 +9,7 @@ import type { TeamMember } from '@/account/teamAccessApi';
 import { DEFAULT_COMPANY_ID, resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { OwnershipTransferCard } from './OwnershipTransferCard';
-import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 const client = vi.hoisted(() => ({ listMembers: vi.fn(), transferOwnership: vi.fn() }));
 const reproject = vi.hoisted(() => vi.fn(async () => true));
@@ -230,7 +230,7 @@ describe('OwnershipTransferCard', () => {
           targetUserId: 'selina',
           targetName: 'Selina Kyle',
           effectiveRole: 'owner',
-          ...viewAsGrantFor('owner'),
+          ...masqueradeGrantFor('owner'),
           startedAt: '2026-09-01T00:00:00.000Z',
           expiresAt: '2999-09-01T00:15:00.000Z',
           token: 'masquerade-token',

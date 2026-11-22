@@ -52,7 +52,7 @@ export function can(role: Role, key: PermissionKey): boolean {
  * company: the actor holds `viewAs:use` and the target does not rank above the actor. Unknown roles
  * return false.
  */
-export function canViewAs(actorRole: Role, targetRole: Role): boolean {
+export function canMasqueradeAs(actorRole: Role, targetRole: Role): boolean {
   const targetRank = accessRoles.indexOf(targetRole);
   return (
     can(actorRole, 'viewAs:use') && targetRank >= 0 && targetRank <= accessRoles.indexOf(actorRole)

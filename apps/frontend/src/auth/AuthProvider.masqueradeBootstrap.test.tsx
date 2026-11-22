@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import type { MasqueradeBootstrapStatus } from './masqueradeApi';
 import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 import { SessionProbe } from '@/test/SessionProbe';
-import { viewAsGrantFor } from '@/test/permissionGrants';
+import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
@@ -33,7 +33,7 @@ describe('AuthProvider — server mode', () => {
       targetUserId: 'target-user',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
-      ...viewAsGrantFor('viewer'),
+      ...masqueradeGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',
@@ -64,7 +64,7 @@ describe('AuthProvider — server mode', () => {
       targetUserId: 'target-user',
       targetName: 'Selina Kyle',
       effectiveRole: 'viewer',
-      ...viewAsGrantFor('viewer'),
+      ...masqueradeGrantFor('viewer'),
       startedAt: '2026-09-01T10:00:00.000Z',
       expiresAt: '2026-09-01T10:15:00.000Z',
       token: 'session-token',

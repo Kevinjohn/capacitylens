@@ -9,7 +9,7 @@ import {
 } from './useCompanySummaries';
 import { useStore } from '@/store/useStore';
 import { m } from '@/i18n';
-import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
+import { grantFor, masqueradeGrantFor } from '@/test/permissionGrants';
 import { createDeferred } from '@/test/createDeferred';
 
 // Only a genuine empty array may clear the directory. Malformed responses or an array with no valid rows preserve the existing list; mixed responses keep valid rows and log discarded entries.
@@ -361,7 +361,7 @@ function createYieldingHookTest() {
           targetUserId: 'target',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
-          ...viewAsGrantFor('viewer'),
+          ...masqueradeGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',

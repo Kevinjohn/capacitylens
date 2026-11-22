@@ -1,6 +1,6 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { m } from '@/i18n';
-import { canViewAs } from '@capacitylens/shared/domain/access';
+import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/domain/access';
 import type { TeamMember } from '@/account/teamAccessApi';
 import { useCan } from '@/auth/permissionContext';
@@ -17,14 +17,18 @@ import type { MemberResourceLinkRequest } from './useMemberResourceLinkRequest';
 
 // The server decides `manage` with the Access Control package and authorizes each operation again.
 function buildMemberAffordances(
-  mayViewAs: boolean,
+  canUseMasquerade: boolean,
   myRole: Role | undefined,
   member: TeamMember,
 ): { mayMasquerade: boolean; mayTouch: boolean; hasMenu: boolean } {
   const active = member.status === 'active';
   return {
     mayMasquerade:
-      active && !member.isSelf && mayViewAs && !!myRole && canViewAs(myRole, member.role),
+      active &&
+      !member.isSelf &&
+      canUseMasquerade &&
+      !!myRole &&
+      canMasqueradeAs(myRole, member.role),
     mayTouch: active && member.manage,
     hasMenu: member.manage,
   };

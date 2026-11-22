@@ -11,7 +11,7 @@ import { useCompanySummaries } from './useCompanySummaries';
 import * as companyTransition from './companyTransition';
 import type { MasqueradeStatus } from '@capacitylens/shared/domain/masquerade';
 import { isRole } from '@capacitylens/shared/account/types';
-import { grantFor, viewAsGrantFor } from '@/test/permissionGrants';
+import { grantFor, masqueradeGrantFor } from '@/test/permissionGrants';
 import { createDeferred } from '@/test/createDeferred';
 
 const permissionMocks = vi.hoisted(() => ({
@@ -123,7 +123,7 @@ describe('PermissionProvider authenticated lookup posture', () => {
           targetUserId: 'u-viewer',
           targetName: 'Selina Kyle',
           effectiveRole: 'viewer',
-          ...viewAsGrantFor('viewer'),
+          ...masqueradeGrantFor('viewer'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',
@@ -354,7 +354,7 @@ describe('PermissionProvider account-switch safety', () => {
         targetUserId: 'u-viewer',
         targetName: 'Selina Kyle',
         effectiveRole: 'viewer',
-        ...viewAsGrantFor('viewer'),
+        ...masqueradeGrantFor('viewer'),
         startedAt: '2026-09-01T10:00:00.000Z',
         expiresAt: '2026-09-01T10:15:00.000Z',
         token: 'stale-mode-token',

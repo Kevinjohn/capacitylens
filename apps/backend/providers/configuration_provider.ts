@@ -12,7 +12,7 @@ import { bootstrapDevelopmentCredential } from '#services/development_bootstrap'
 import {
   createMaintenance,
   pruneRequestReceipts,
-  pruneViewAs,
+  pruneExpiredMasquerades,
 } from '#services/storage_maintenance';
 
 const PRUNE_INTERVAL_MS = 60 * 60_000;
@@ -96,7 +96,7 @@ export default class ConfigurationProvider {
       [
         ['Account sign-in pruning', () => accountKit.maintenance.prune()],
         ['Request receipt pruning', () => pruneRequestReceipts()],
-        ['View-as pruning', () => pruneViewAs(this.app)],
+        ['Masquerade pruning', () => pruneExpiredMasquerades(this.app)],
       ],
       (task, error) => console.error(`${task} failed`, error instanceof Error ? error.name : error)
     );

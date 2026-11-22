@@ -15,14 +15,14 @@ vi.mock('./masqueradeRequests', () => ({
 }));
 
 import { masqueradeApi } from './masqueradeApi';
-import { viewAsGrantFor } from '@/test/permissionGrants';
+import { masqueradeGrantFor } from '@/test/permissionGrants';
 
 const state = {
   companyId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
   effectiveRole: 'viewer',
-  ...viewAsGrantFor('viewer'),
+  ...masqueradeGrantFor('viewer'),
   startedAt: '2026-09-01T10:00:00.000Z',
   expiresAt: '2026-09-01T10:15:00.000Z',
   token: 'token-1',

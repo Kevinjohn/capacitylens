@@ -19,7 +19,7 @@ import type {
 } from '@adonisjs/lucid/types/database';
 import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
 import { IdentityAuthorizationException } from '#exceptions/identity_authorization_exception';
-import { canViewAs } from '@capacitylens/shared/domain/access';
+import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type { Role } from '@capacitylens/shared/account/types';
 import { buildAccessGrant } from '#services/auth/access_grant';
 
@@ -65,7 +65,7 @@ export async function readCurrentMasquerade(
   if (requestedCompanyId) {
     const actorRole = await getActiveCompanyRole(actor.id, requestedCompanyId, undefined);
     const targetRole = await getActiveCompanyRole(view.targetId, requestedCompanyId, undefined);
-    if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
+    if (actorRole && targetRole && canMasqueradeAs(actorRole, targetRole)) {
       companyId = requestedCompanyId;
       effectiveRole = targetRole;
     }
@@ -78,7 +78,7 @@ export async function readCurrentMasquerade(
     for (const candidate of memberships) {
       const actorRole = await getActiveCompanyRole(actor.id, candidate, undefined);
       const targetRole = await getActiveCompanyRole(view.targetId, candidate, undefined);
-      if (actorRole && targetRole && canViewAs(actorRole, targetRole)) {
+      if (actorRole && targetRole && canMasqueradeAs(actorRole, targetRole)) {
         companyId = candidate;
         effectiveRole = targetRole;
         break;
@@ -138,7 +138,7 @@ export async function resolveEffectiveReadUser(
     }
     const actorRole = await getActiveCompanyRole(actor.userId, companyId, trx);
     const targetRole = await getActiveCompanyRole(context.effectiveId, companyId, trx);
-    if (!actorRole || !targetRole || !canViewAs(actorRole, targetRole)) {
+    if (!actorRole || !targetRole || !canMasqueradeAs(actorRole, targetRole)) {
       throw new IdentityAuthorizationException('Masquerade company authority changed.');
     }
   }

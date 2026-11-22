@@ -10,7 +10,7 @@ import { createFixtureCompanyForOwner } from '../../helpers/authenticated_data_f
 import { signIn, signUpAndIn } from '../../helpers/identities.js';
 import { masqueradeAdmission } from '../../helpers/masquerade_admission.js';
 import app from '@adonisjs/core/services/app';
-import { pruneViewAs } from '#services/storage_maintenance';
+import { pruneExpiredMasquerades } from '#services/storage_maintenance';
 import { getMasqueradeService } from '#services/auth/masquerade';
 
 const password = 'batman-secret-2026';
@@ -808,7 +808,7 @@ test.group('native read-only masquerade', (group) => {
       .where({ actor_id: ownerId, kind: 'started' })
       .update({ at: new Date(now - 366 * 24 * 60 * 60_000).toISOString() });
 
-    await pruneViewAs(app);
+    await pruneExpiredMasquerades(app);
 
     const mode = await db.from('masquerade_modes').where(owner).firstOrFail();
     assert.notEqual(mode.state, 'active');

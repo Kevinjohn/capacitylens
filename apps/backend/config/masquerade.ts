@@ -7,7 +7,7 @@ import { LucidControlStore } from '@kevinjohn/adonisjs-masquerade/stores/lucid';
 import { managedGuard } from '#services/auth/managed_guard';
 import { sessionUsers } from '#config/auth';
 import { listActiveCompanyIds, getActiveCompanyRole } from '#services/auth/authorization';
-import { canViewAs } from '@capacitylens/shared/domain/access';
+import { canMasqueradeAs } from '@capacitylens/shared/domain/access';
 import type User from '#models/user';
 
 type MasqueradeUser = User;
@@ -32,13 +32,13 @@ function requestedCompanyId(request?: HttpContext): string | null {
  * belongs to when the request names none: the actor holds `viewAs:use` there and the target is an
  * active member who does not rank above the actor.
  */
-async function sharesViewAsCompany(actorId: string, targetId: string, request?: HttpContext) {
+async function sharesMasqueradeCompany(actorId: string, targetId: string, request?: HttpContext) {
   const requested = requestedCompanyId(request);
   const companies = requested ? [requested] : await listActiveCompanyIds(actorId, undefined);
   for (const companyId of companies) {
     const actorRole = await getActiveCompanyRole(actorId, companyId, undefined);
     const targetRole = await getActiveCompanyRole(targetId, companyId, undefined);
-    if (actorRole && targetRole && canViewAs(actorRole, targetRole)) return true;
+    if (actorRole && targetRole && canMasqueradeAs(actorRole, targetRole)) return true;
   }
   return false;
 }
@@ -47,10 +47,12 @@ export default defineConfig<MasqueradeUser, HttpContext>({
   authority: nativeAdapter.authority,
   policy: {
     async canMasquerade({ actor, target, request }) {
-      return actor.id !== target.id && (await sharesViewAsCompany(actor.id, target.id, request));
+      return (
+        actor.id !== target.id && (await sharesMasqueradeCompany(actor.id, target.id, request))
+      );
     },
     canUseRequest: ({ actor, target, request }) =>
-      sharesViewAsCompany(actor.id, target.id, request),
+      sharesMasqueradeCompany(actor.id, target.id, request),
   },
   // The package opens the store while providers boot, before the `db` service import resolves.
   store: async () => {

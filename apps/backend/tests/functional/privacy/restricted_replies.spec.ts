@@ -33,7 +33,7 @@ type Role = 'owner' | 'admin' | 'editor' | 'viewer';
 interface TestUser {
   label: string;
   effective: Role;
-  viewAs: boolean;
+  masquerade: boolean;
   /** The signed-in role behind a view-as test user; Owner when absent. */
   actor?: Role;
   /** A view-as target the server must refuse; the test user then reads as itself. */
@@ -51,20 +51,20 @@ interface Fixture {
 }
 
 const testUsers: TestUser[] = [
-  { label: 'Owner', effective: 'owner', viewAs: false },
-  { label: 'Admin', effective: 'admin', viewAs: false },
-  { label: 'Editor', effective: 'editor', viewAs: false },
-  { label: 'Viewer', effective: 'viewer', viewAs: false },
-  { label: 'Owner viewing as Admin', effective: 'admin', viewAs: true },
-  { label: 'Owner viewing as Editor', effective: 'editor', viewAs: true },
-  { label: 'Owner viewing as Viewer', effective: 'viewer', viewAs: true },
-  { label: 'Admin viewing as Admin', effective: 'admin', viewAs: true, actor: 'admin' },
-  { label: 'Admin viewing as Editor', effective: 'editor', viewAs: true, actor: 'admin' },
-  { label: 'Admin viewing as Viewer', effective: 'viewer', viewAs: true, actor: 'admin' },
+  { label: 'Owner', effective: 'owner', masquerade: false },
+  { label: 'Admin', effective: 'admin', masquerade: false },
+  { label: 'Editor', effective: 'editor', masquerade: false },
+  { label: 'Viewer', effective: 'viewer', masquerade: false },
+  { label: 'Owner viewing as Admin', effective: 'admin', masquerade: true },
+  { label: 'Owner viewing as Editor', effective: 'editor', masquerade: true },
+  { label: 'Owner viewing as Viewer', effective: 'viewer', masquerade: true },
+  { label: 'Admin viewing as Admin', effective: 'admin', masquerade: true, actor: 'admin' },
+  { label: 'Admin viewing as Editor', effective: 'editor', masquerade: true, actor: 'admin' },
+  { label: 'Admin viewing as Viewer', effective: 'viewer', masquerade: true, actor: 'admin' },
   {
     label: 'Admin refused a view as Owner',
     effective: 'admin',
-    viewAs: false,
+    masquerade: false,
     refusedTarget: 'owner',
   },
 ];
@@ -428,7 +428,7 @@ async function readContextToken(client: ApiClient, cookie: string) {
   return String((status.body() as { contextToken: unknown }).contextToken);
 }
 
-async function startViewAs(client: ApiClient, viewerCookie: string, targetUserId: string) {
+async function startMasqueradeAs(client: ApiClient, viewerCookie: string, targetUserId: string) {
   return session(
     client
       .post(buildCompanyRoute('masquerade'))
@@ -462,10 +462,10 @@ test.group('restricted values in replies', (group) => {
       const markers = await prepareMarkers(client, owner.cookie);
       let cookie: string;
       let viewToken: string | undefined;
-      if (testUser.viewAs) {
+      if (testUser.masquerade) {
         const viewer = await signIn(client, testUser.actor ?? 'owner');
         const target = await signIn(client, testUser.effective);
-        const started = await startViewAs(client, viewer.cookie, target.userId);
+        const started = await startMasqueradeAs(client, viewer.cookie, target.userId);
         started.assertStatus(200);
         cookie = viewer.cookie;
         viewToken = await readContextToken(client, cookie);
@@ -478,7 +478,7 @@ test.group('restricted values in replies', (group) => {
             testUser.refusedTarget === 'owner'
               ? owner
               : await signIn(client, testUser.refusedTarget);
-          const refused = await startViewAs(client, cookie, target.userId);
+          const refused = await startMasqueradeAs(client, cookie, target.userId);
           refused.assertStatus(403);
         }
       }
@@ -491,10 +491,10 @@ test.group('restricted values in replies', (group) => {
         const where = `${name} to ${testUser.label}`;
         for (const marker of hidden) assert.notInclude(text, marker, where);
         if (exposure.write) {
-          const refused = testUser.viewAs || testUser.effective === 'viewer';
+          const refused = testUser.masquerade || testUser.effective === 'viewer';
           assert.equal(reply.status(), refused ? 403 : 200, where);
         } else if (name === 'api.planning.archive') {
-          if (testUser.viewAs) assert.equal(reply.status(), 403, where);
+          if (testUser.masquerade) assert.equal(reply.status(), 403, where);
           else if (testUser.effective === 'owner' || testUser.effective === 'admin')
             assert.equal(reply.status(), 200, where);
         } else {

@@ -9,7 +9,7 @@ import { teamAccessApi } from '@/account/teamAccessApi';
 import type { AdmissionRequest } from '@/account/teamAccessApi';
 import { TeamAccessView } from './TeamAccessView';
 import { useStore } from '@/store/useStore';
-import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 vi.mock('./MembersSection', () => ({
   MembersSection: () => <div data-testid="member-management">Member controls</div>,
@@ -100,7 +100,7 @@ describe('TeamAccessView access presentation', () => {
       <MemoryRouter>
         <AuthContext.Provider value={auth()}>
           <PermissionContext.Provider
-            value={{ role: 'editor', status: 'resolved', grant: viewAsGrantFor('editor') }}
+            value={{ role: 'editor', status: 'resolved', grant: masqueradeGrantFor('editor') }}
           >
             <TeamAccessView />
           </PermissionContext.Provider>
@@ -125,7 +125,7 @@ describe('TeamAccessView access presentation', () => {
           targetUserId: 'target-user',
           targetName: 'Kara Danvers',
           effectiveRole: 'admin',
-          ...viewAsGrantFor('admin'),
+          ...masqueradeGrantFor('admin'),
           startedAt: '2026-09-01T10:00:00.000Z',
           expiresAt: '2999-09-01T10:15:00.000Z',
           token: 'session-token',
@@ -136,7 +136,7 @@ describe('TeamAccessView access presentation', () => {
       <MemoryRouter>
         <AuthContext.Provider value={auth()}>
           <PermissionContext.Provider
-            value={{ role: 'admin', status: 'resolved', grant: viewAsGrantFor('admin') }}
+            value={{ role: 'admin', status: 'resolved', grant: masqueradeGrantFor('admin') }}
           >
             <TeamAccessView />
           </PermissionContext.Provider>

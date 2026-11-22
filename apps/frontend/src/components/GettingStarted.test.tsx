@@ -7,7 +7,7 @@ import { resetStoreWithCompany } from '@/test/fixtures';
 import { useStore } from '@/store/useStore';
 import { PermissionContext } from '@/auth/permissionContext';
 import type { Role } from '@capacitylens/shared/domain/access';
-import { permissionValue, viewAsGrantFor } from '@/test/permissionGrants';
+import { permissionValue, masqueradeGrantFor } from '@/test/permissionGrants';
 
 const NO_STEPS = {
   person: false,
@@ -154,7 +154,7 @@ describe('Getting started', () => {
         targetUserId: 'u-editor',
         targetName: 'Clark Kent',
         effectiveRole: 'editor' as const,
-        ...viewAsGrantFor('editor'),
+        ...masqueradeGrantFor('editor'),
         startedAt: '2026-10-19T10:00:00.000Z',
         expiresAt: '2999-10-19T10:15:00.000Z',
         token: 'test-projection',
