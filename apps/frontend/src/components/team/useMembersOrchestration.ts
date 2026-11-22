@@ -124,7 +124,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   const invites = authorizedDirectory?.invites ?? NO_INVITES;
   const resourceCandidates = authorizedDirectory?.resourceCandidates ?? [];
   const requestCompanyId = (): string => {
-    if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_account());
+    if (!input.activeCompanyId) throw new Error(m.settings_members_err_no_active_company());
     return input.activeCompanyId;
   };
   const isActiveCompany = (companyId: string): boolean =>

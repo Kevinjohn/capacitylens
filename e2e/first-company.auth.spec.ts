@@ -82,7 +82,7 @@ test('operator setup creates the first Owner, one company and its default client
       )
       .toBe(true);
     await page.goto(origin);
-    await expect(page.getByTestId('login-setup-needed')).toBeVisible();
+    await expect(page.getByTestId('sign-in-setup-needed')).toBeVisible();
     await page.goto(setupLink!);
     await page.getByTestId('invite-name').fill('Bruce Wayne');
     await page.getByTestId('invite-password').fill('first-company-password-2026');

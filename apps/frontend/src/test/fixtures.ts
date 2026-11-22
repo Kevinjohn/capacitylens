@@ -214,15 +214,15 @@ export function loadPlanningData(data: AppData): void {
   }));
 }
 
-/** Publish a planning authority as the last accepted read's, and have later reads return it. */
+/** Publish a planning access as the last accepted read's, and have later reads return it. */
 export function setPlanningAccess(overrides: Partial<PlanningAccess>): void {
   getStubPlanningTransport().setAccess(overrides);
   useStore.setState((state) => ({
-    planning: { ...state.planning, authority: makePlanningAccess(overrides) },
+    planning: { ...state.planning, access: makePlanningAccess(overrides) },
   }));
 }
 
-/** Reset test data and authority, then wait for the selected canonical company snapshot. */
+/** Reset test data and access, then wait for the selected canonical company snapshot. */
 export function resetStoreWithData(
   data: AppData,
   companyId: ID = data.companies[0]?.id ?? DEFAULT_COMPANY_ID,
@@ -253,14 +253,14 @@ export function archiveForTest(
 }
 
 /** Exercise lifecycle presentation from a canonical typed-planning response. */
-export function unarchiveForTest(
+export function restoreForTest(
   entity: LifecycleEntity,
   id: ID,
 ): Promise<PlanningMutationSuccess | undefined> {
   const intent =
     entity === 'resources'
-      ? { operation: 'resource.unarchive' as const, id }
-      : { operation: 'catalogue.unarchive' as const, entity: { entity, id } };
+      ? { operation: 'resource.restore' as const, id }
+      : { operation: 'catalogue.restore' as const, entity: { entity, id } };
   return useStore.getState().sendPlanningIntent({ intent });
 }
 
@@ -319,7 +319,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
 
 /** A read that sent no `ifRevision` carries the complete set; narrow it to one that does. */
 export function requireFullSnapshot(snapshot: PlanningSnapshot): FullPlanningSnapshot {
-  if (snapshot.slice === 'unchanged') throw new Error('Expected a full planning read');
+  if (snapshot.content === 'unchanged') throw new Error('Expected a full planning read');
   return snapshot;
 }
 

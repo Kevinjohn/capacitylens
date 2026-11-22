@@ -6,7 +6,7 @@ import { renderFreshProvider, makeMeResponse } from './AuthProviderTestKit';
 const authBootstrapMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn<() => Promise<MasqueradeBootstrapStatus>>(async () => ({
     active: false,
-    contextToken: 'idle',
+    masqueradeToken: 'idle',
   })),
 }));
 vi.mock('./masqueradeApi', () => ({
@@ -16,7 +16,7 @@ vi.mock('./masqueradeApi', () => ({
 afterEach(() => {
   authBootstrapMocks.masqueradeStatus
     .mockReset()
-    .mockResolvedValue({ active: false, contextToken: 'idle' });
+    .mockResolvedValue({ active: false, masqueradeToken: 'idle' });
   localStorage.clear();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -136,7 +136,7 @@ describe('AuthProvider — server mode', () => {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByTestId('login-setup-needed')).toBeInTheDocument();
+    expect(await screen.findByTestId('sign-in-setup-needed')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.queryByText('app-content')).not.toBeInTheDocument();
   });

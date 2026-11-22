@@ -26,7 +26,7 @@ export function canArchive(entity: LifecycleFields): boolean {
  * @param entity - the entity to test.
  * @returns `true` iff {@link resolveLifecycleStatus} is `'archived'`.
  */
-export function canUnarchive(entity: LifecycleFields): boolean {
+export function canRestore(entity: LifecycleFields): boolean {
   return resolveLifecycleStatus(entity) === 'archived';
 }
 
@@ -82,11 +82,11 @@ export function archive<T extends LifecycleFields>(entity: T, nowISO: ISOTimesta
 /** Restore an archived entity to active without mutating it.
  * Removes archivedAt and any malformed deletedAt; a valid deleted tombstone is rejected.
  * @throws LifecycleTransitionError when the entity is not archived. */
-export function unarchive<T extends LifecycleFields>(entity: T): T {
-  if (!canUnarchive(entity)) {
+export function restore<T extends LifecycleFields>(entity: T): T {
+  if (!canRestore(entity)) {
     throw new LifecycleTransitionError(
       'invalid_transition',
-      `Cannot unarchive: entity is ${resolveLifecycleStatus(entity)}, not archived.`,
+      `Cannot restore: entity is ${resolveLifecycleStatus(entity)}, not archived.`,
     );
   }
   // Remove archivedAt to represent the active state by absence.

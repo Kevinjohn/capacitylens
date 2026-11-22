@@ -59,7 +59,7 @@ test.group('data routes', (group) => {
     }
   });
 
-  test('example data requires Admin authority', async ({ client }) => {
+  test('example data requires Admin access', async ({ client }) => {
     const dataOwner = await reset(client, false);
     client = dataOwner.client;
     const account = { ...seed().companies[0]!, id: 'a-example' };

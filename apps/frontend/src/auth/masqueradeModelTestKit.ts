@@ -6,7 +6,7 @@ import { MasqueradeModel } from './masqueradeModel';
 import type { MasqueradeModelDependencies } from './masqueradeModel';
 import { masqueradeGrantFor } from '@/test/permissionGrants';
 
-export const state: MasqueradeState & { contextToken: string } = {
+export const state: MasqueradeState & { masqueradeToken: string } = {
   companyId: 'a-studio',
   targetUserId: 'u-viewer',
   targetName: 'Selina Kyle',
@@ -15,9 +15,9 @@ export const state: MasqueradeState & { contextToken: string } = {
   startedAt: '2026-09-01T10:00:00.000Z',
   expiresAt: '2026-09-01T10:15:00.000Z',
   token: 'token-1',
-  contextToken: 'token-1',
+  masqueradeToken: 'token-1',
 };
-export const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
+export const inactiveStatus = { active: false as const, masqueradeToken: 'idle-context' };
 
 export function createHarness(overrides: Partial<MasqueradeModelDependencies> = {}) {
   const resume = vi.fn();
