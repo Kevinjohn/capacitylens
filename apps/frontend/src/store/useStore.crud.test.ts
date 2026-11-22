@@ -174,7 +174,7 @@ describe('store CRUD covers every entity', () => {
     expect(requireValue(s().data.resources[0], 'resource')).toHaveProperty('isFavourite', null);
     expect(s().notice).toMatchObject({ tone: 'error' });
   });
-  it('blocks a write when the planning authority cannot write, whatever the role', async () => {
+  it('blocks a write when the planning access cannot write, whatever the role', async () => {
     setPlanningAccess({ role: 'owner', canWrite: false });
 
     expect(await s().addClient({ name: 'Wayne Foundation', color: '#1' })).toEqual({

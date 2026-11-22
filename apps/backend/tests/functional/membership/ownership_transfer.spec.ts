@@ -236,7 +236,7 @@ test.group('atomic ownership transfer', (group) => {
     self.assertStatus(409);
     const absent = await post(ownerCookie, 'a-studio', 'missing-user');
     absent.assertStatus(404);
-    // An unknown company answers exactly like a company the caller holds no authority in.
+    // An unknown company answers exactly like a company the caller holds no access in.
     const wrongCompany = await post(ownerCookie, 'a-missing', adminId);
     wrongCompany.assertStatus(403);
     assert.deepEqual(wrongCompany.body(), nonOwner.body());
@@ -434,7 +434,7 @@ test.group('atomic ownership transfer', (group) => {
     assert.deepEqual(retried.body().data, { fromUserId: ownerId, toUserId: adminId });
   });
 
-  test('two distinct concurrent commands produce one swap and one refused stale authority', async ({
+  test('two distinct concurrent commands produce one swap and one refused stale access', async ({
     client,
     assert,
   }) => {

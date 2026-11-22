@@ -51,7 +51,7 @@ function company(companyId: string) {
       context: { identity: 'user', companyId },
       phase: { kind: 'ready', lastWrite: null },
       revision: 0,
-      authority: makePlanningAccess({
+      access: makePlanningAccess({
         actorId: 'bruce',
         effectiveActorId: 'bruce',
         role: 'editor',
@@ -102,7 +102,7 @@ describe('archive recovery request boundaries', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
-        authority: makePlanningAccess({ actorId: 'bruce', effectiveActorId: 'bruce' }),
+        access: makePlanningAccess({ actorId: 'bruce', effectiveActorId: 'bruce' }),
       },
     }));
     const rendered = render(view(cache, 'owner'));
@@ -117,7 +117,7 @@ describe('archive recovery request boundaries', () => {
     useStore.setState((state) => ({
       planning: {
         ...state.planning,
-        authority: makePlanningAccess({
+        access: makePlanningAccess({
           actorId: 'bruce',
           effectiveActorId: 'diana',
           role: 'editor',

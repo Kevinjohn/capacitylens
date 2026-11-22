@@ -90,7 +90,7 @@ test.group('beta import apply', (group) => {
     await db.from('password_confirmations').delete();
   });
 
-  test('restores a full source export into a fresh company and retains destination authority', async ({
+  test('restores a full source export into a fresh company and retains destination access', async ({
     client,
     assert,
   }) => {
@@ -259,7 +259,7 @@ test.group('beta import apply', (group) => {
     assert.equal(await revision(), baseRevision + 1);
   });
 
-  test('invalidates only this company restoration while preserving other company and authority records', async ({
+  test('invalidates only this company restoration while preserving other company and access records', async ({
     client,
     assert,
   }) => {

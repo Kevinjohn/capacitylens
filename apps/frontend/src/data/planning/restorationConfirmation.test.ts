@@ -43,7 +43,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
       redo: vi.fn(),
       read: async () => ({
         revision: 0,
-        authority: makePlanningAccess(),
+        access: makePlanningAccess(),
         data: {
           ...createPlanningCacheState().data,
           companies: [makeCompany({ id: context.companyId })],

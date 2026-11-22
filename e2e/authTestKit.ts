@@ -197,7 +197,7 @@ export function createTestMember(
   }
 }
 
-/** Revokes a disposable E2E user's real session authority without relying on browser cookie timing. */
+/** Revokes a disposable E2E user's real session access without relying on browser cookie timing. */
 export function revokeTestSessions(email: string): void {
   const db = openAuthE2EDatabase();
   try {

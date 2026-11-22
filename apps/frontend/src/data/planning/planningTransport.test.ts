@@ -246,8 +246,8 @@ describe('generated planning transport', () => {
     expect(fetcher).toHaveBeenCalledOnce();
   });
 
-  it('normalizes a read with the complete canonical authority fingerprint', async () => {
-    const authority = {
+  it('normalizes a read with the complete canonical access fingerprint', async () => {
+    const access = {
       actorId: 'bruce',
       effectiveActorId: 'diana',
       role: 'editor',
@@ -258,21 +258,21 @@ describe('generated planning transport', () => {
     const { transport, requests } = harness({
       companyId: 'wayne',
       revision: 5,
-      authority,
+      access,
       data: createEmptyAppData(),
     });
     const result = await transport.read(context, signal);
-    expect(result).toEqual({ revision: 5, slice: 'full', data: createEmptyAppData(), authority });
+    expect(result).toEqual({ revision: 5, content: 'full', data: createEmptyAppData(), access });
     expect(requests[0]?.url).toBe('http://planning.test/api/companies/wayne/planning');
     expect(requests[0]?.method).toBe('GET');
     expect(requests[0]?.headers.get('X-Masquerade-Context')).toBe('captured-context');
   });
 
-  it('rejects a read whose authority has no role', async () => {
+  it('rejects a read whose access has no role', async () => {
     const { transport } = harness({
       companyId: 'wayne',
       revision: 5,
-      authority: {
+      access: {
         actorId: 'bruce',
         effectiveActorId: 'bruce',
         canWrite: true,
@@ -283,7 +283,7 @@ describe('generated planning transport', () => {
     });
 
     await expect(transport.read(context, signal)).rejects.toThrow(
-      'The server returned an invalid planning authority.',
+      'The server returned an invalid planning access.',
     );
   });
 
@@ -293,7 +293,7 @@ describe('generated planning transport', () => {
       horizon: { from: '2026-06-03', to: '2026-08-23' },
       resources: {},
     };
-    const authority = {
+    const access = {
       actorId: 'bruce',
       effectiveActorId: 'bruce',
       role: 'owner',
@@ -304,7 +304,7 @@ describe('generated planning transport', () => {
     const reply = {
       companyId: 'wayne',
       revision: 5,
-      authority,
+      access,
       data: createEmptyAppData(),
       capacity,
     };
@@ -324,7 +324,7 @@ describe('generated planning transport', () => {
     const { transport, requests } = harness({
       companyId: 'wayne',
       revision: 5,
-      authority: {
+      access: {
         actorId: 'bruce',
         effectiveActorId: 'bruce',
         role: 'owner',
@@ -346,8 +346,8 @@ describe('generated planning transport', () => {
     const { transport, requests } = harness({
       companyId: 'wayne',
       revision: 5,
-      slice: 'unchanged',
-      authority: {
+      content: 'unchanged',
+      access: {
         actorId: 'bruce',
         effectiveActorId: 'bruce',
         role: 'owner',
@@ -359,7 +359,7 @@ describe('generated planning transport', () => {
 
     const result = await transport.read(context, signal, { ifRevision: 5 });
 
-    expect(result).toMatchObject({ revision: 5, slice: 'unchanged' });
+    expect(result).toMatchObject({ revision: 5, content: 'unchanged' });
     expect(result).not.toHaveProperty('data');
     expect(new URL(requests[0]?.url ?? '').searchParams.get('ifRevision')).toBe('5');
   });
@@ -407,7 +407,7 @@ describe('generated planning transport', () => {
     const { transport } = harness({
       companyId: 'wayne',
       revision: 5,
-      authority: {
+      access: {
         actorId: 'bruce',
         effectiveActorId: 'bruce',
         role: 'owner',
@@ -423,7 +423,7 @@ describe('generated planning transport', () => {
     const { transport } = harness({
       companyId: 'stark',
       revision: 5,
-      authority: {},
+      access: {},
       data: createEmptyAppData(),
     });
     await expect(transport.read(context, signal)).rejects.toThrow(/another company/);
