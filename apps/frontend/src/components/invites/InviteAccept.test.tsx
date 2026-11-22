@@ -7,7 +7,7 @@ import { InviteAccept } from './InviteAccept';
 
 const preview = {
   email: 'clark.kent@wayne.test',
-  accountName: 'Wayne Enterprises',
+  companyName: 'Wayne Enterprises',
   role: 'editor',
 };
 

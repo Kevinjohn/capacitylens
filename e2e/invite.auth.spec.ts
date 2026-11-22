@@ -21,7 +21,7 @@ test.describe('invitation page', () => {
     await page.route('**/api/invites/*/preview', (route) =>
       route.fulfill({
         json: {
-          data: { companyId: 'a-studio', accountName: 'Wayne Enterprises', role: 'editor', email },
+          data: { companyId: 'a-studio', companyName: 'Wayne Enterprises', role: 'editor', email },
         },
       }),
     );

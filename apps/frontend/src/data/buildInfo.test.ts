@@ -223,12 +223,12 @@ describe('diagnostics client facts', () => {
 
   it('excludes names, email addresses, identifiers and hosts from every input', async () => {
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
-    const accountName = 'Wayne Enterprises';
+    const companyName = 'Wayne Enterprises';
     const id = '3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b';
     const text = formatDiagnostics(
       readDiagnostics(
         {
-          account: { id, name: accountName },
+          account: { id, name: companyName },
           user: { email: 'bruce.wayne@wayne.example', name: 'Bruce Wayne' },
           server: {
             connectivity: 'ok',
@@ -245,7 +245,7 @@ describe('diagnostics client facts', () => {
         {
           ...client,
           browser: {
-            userAgent: `Agent\u0000${accountName}`,
+            userAgent: `Agent\u0000${companyName}`,
             viewport: 'wide',
             timeZone: 'https://zones.example/London',
             language: 'bruce.wayne@wayne.example',
@@ -256,7 +256,7 @@ describe('diagnostics client facts', () => {
 
     expect(text).not.toContain('@');
     expect(text).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-    expect(text).not.toContain(accountName);
+    expect(text).not.toContain(companyName);
     expect(text).not.toContain('Bruce Wayne');
     expect(text).not.toMatch(/https?:\/\/|\.example|\/srv\//);
     expect(text).toContain('User agent: Unknown');
