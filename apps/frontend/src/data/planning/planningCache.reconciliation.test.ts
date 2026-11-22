@@ -66,20 +66,20 @@ describe('planning cache', () => {
     {
       revision: 2,
       authority: makePlanningAccess(),
-      data: { ...createEmptyAppData(), accounts: [{ id: 'other-company' }] },
+      data: { ...createEmptyAppData(), companies: [{ id: 'other-company' }] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 3,
-      data: { ...createEmptyAppData(), accounts: [{ id: 'company-1', name: 'Unverified' }] },
+      data: { ...createEmptyAppData(), companies: [{ id: 'company-1', name: 'Unverified' }] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
     {
       revision: 4,
       authority: makePlanningAccess(),
-      data: { ...makeCanonicalData(), accounts: [] },
+      data: { ...makeCanonicalData(), companies: [] },
       today: companyToday,
       capacity: emptyCapacity(),
     },
@@ -88,7 +88,7 @@ describe('planning cache', () => {
       authority: makePlanningAccess(),
       data: {
         ...makeCanonicalData(),
-        accounts: [...makeCanonicalData().accounts, ...makeCanonicalData().accounts],
+        companies: [...makeCanonicalData().companies, ...makeCanonicalData().companies],
       },
       today: companyToday,
       capacity: emptyCapacity(),

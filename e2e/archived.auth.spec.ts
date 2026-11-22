@@ -92,12 +92,12 @@ test('an Owner archives, restores and anonymises a resource, then anonymises all
   const state = (
     (await stateResponse.json()) as {
       data: {
-        accounts: Array<{ id: string }>;
+        companies: Array<{ id: string }>;
         resources: Array<{ id: string; name: string; role: string; avatarUrl: string | null }>;
       };
     }
   ).data;
-  expect(state.accounts.some((account) => account.id === companyId)).toBe(true);
+  expect(state.companies.some((account) => account.id === companyId)).toBe(true);
   for (const resource of resources) {
     const scrubbed = state.resources.find((row) => row.id === resource.id);
     expect(scrubbed?.name).toMatch(/^Removed person/);

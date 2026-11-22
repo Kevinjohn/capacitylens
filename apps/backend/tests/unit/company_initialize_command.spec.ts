@@ -300,11 +300,11 @@ test.group('company initialize command', () => {
         const { data } = (await state.json()) as {
           data: {
             clients: { builtin: boolean }[];
-            accounts: { weekStartsOn: number; workingDays: number[] }[];
+            companies: { weekStartsOn: number; workingDays: number[] }[];
           };
         };
-        assert.deepEqual(data.accounts[0]!.workingDays, [1, 2, 3, 4, 5]);
-        assert.equal(data.accounts[0]!.weekStartsOn, 1);
+        assert.deepEqual(data.companies[0]!.workingDays, [1, 2, 3, 4, 5]);
+        assert.equal(data.companies[0]!.weekStartsOn, 1);
         assert.lengthOf(data.clients, 1);
         assert.equal(data.clients[0]!.builtin, true);
         const modeResponse = await fetch(`${origin}/api/masquerade`, { headers: { cookie } });

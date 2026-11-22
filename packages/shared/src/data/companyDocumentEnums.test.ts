@@ -33,9 +33,9 @@ function firstRow<T>(
 }
 
 const cases: [string, (doc: CompanyExportDocument) => Record<string, unknown>][] = [
-  ['accounts.schedulingMode', (doc) => firstRow(doc.data.accounts)],
-  ['accounts.capacityOverviewAccess', (doc) => firstRow(doc.data.accounts)],
-  ['accounts.dateStyle', (doc) => firstRow(doc.data.accounts)],
+  ['companies.schedulingMode', (doc) => firstRow(doc.data.companies)],
+  ['companies.capacityOverviewAccess', (doc) => firstRow(doc.data.companies)],
+  ['companies.dateStyle', (doc) => firstRow(doc.data.companies)],
   ['resources.employmentType', (doc) => firstRow(doc.data.resources, (r) => r.kind === 'person')],
   ['resources.engagement', (doc) => firstRow(doc.data.resources, (r) => r.kind === 'person')],
   ['allocations.status', (doc) => firstRow(doc.data.allocations)],

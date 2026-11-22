@@ -35,7 +35,7 @@ export function snapshot(
     revision,
     authority: makePlanningAccess(),
     data: makeAppData({
-      accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
+      companies: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ id: 'client-1', companyId: 'wayne', name: clientName })],
     }),
     today: '2026-06-03',

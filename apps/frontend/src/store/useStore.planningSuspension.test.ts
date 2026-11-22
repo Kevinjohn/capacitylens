@@ -50,7 +50,7 @@ describe('planning intent suspension', () => {
   it('does not let an old company release unlock a later context incarnation', async () => {
     loadPlanningData({
       ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, makeCompany({ id: 'a2' })],
+      companies: [...useStore.getState().data.companies, makeCompany({ id: 'a2' })],
     });
     const releaseA = useStore.getState().suspendPlanningIntents();
     if (!releaseA) throw new Error('Company A did not acquire its replacement lock.');
@@ -81,13 +81,13 @@ describe('planning intent suspension', () => {
   it('retires a lock after context clear and requires a fresh directory and canonical read', async () => {
     loadPlanningData({
       ...useStore.getState().data,
-      accounts: [...useStore.getState().data.accounts, makeCompany({ id: 'a2' })],
+      companies: [...useStore.getState().data.companies, makeCompany({ id: 'a2' })],
     });
     const releaseOldA = useStore.getState().suspendPlanningIntents();
     if (!releaseOldA) throw new Error('The first company A context was not ready.');
     useStore.getState().setActiveCompany(null);
     expect(useStore.getState().planning.context).toBeNull();
-    expect(useStore.getState().data.accounts).toEqual([]);
+    expect(useStore.getState().data.companies).toEqual([]);
 
     useStore.getState().setCompanySummaries({
       list: [
@@ -161,14 +161,14 @@ describe('planning intent suspension', () => {
   it('clears private planning rows even when the cache context is already null', () => {
     useStore.getState().clearPlanning();
     useStore.setState((state) => ({
-      data: { ...state.data, accounts: [makeCompany()] },
+      data: { ...state.data, companies: [makeCompany()] },
       companySummaries: [{ id: 'acct-test', name: 'Test Co', role: 'owner' }],
     }));
     expect(useStore.getState().planning.context).toBeNull();
 
     useStore.getState().clearPlanning();
 
-    expect(useStore.getState().data.accounts).toEqual([]);
+    expect(useStore.getState().data.companies).toEqual([]);
     expect(useStore.getState().companySummaries).toEqual([]);
   });
 });

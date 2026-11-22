@@ -813,15 +813,15 @@ test.group('authenticated planning operations', (group) => {
     read.assertStatus(200);
     const snapshot = read.body().data as {
       revision: number;
-      data: { accounts: Array<{ id: string; weekStartsOn: number | null }> };
+      data: { companies: Array<{ id: string; weekStartsOn: number | null }> };
     };
     assert.equal(snapshot.revision, 2);
     assert.deepEqual(
-      snapshot.data.accounts.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
+      snapshot.data.companies.map(({ id, weekStartsOn }) => ({ id, weekStartsOn })),
       [{ id: companyId, weekStartsOn: 0 }]
     );
     const state = await readState(companyId, true);
-    assert.equal(state.accounts[0]?.weekStartsOn, 0);
+    assert.equal(state.companies[0]?.weekStartsOn, 0);
     assert.equal(state.closures.find((row) => row.id === closureId)?.name, 'Gotham Founders Day');
   });
 
@@ -842,7 +842,7 @@ test.group('authenticated planning operations', (group) => {
     cleared.assertStatus(200);
     assert.equal(body(cleared).revision, 2);
     const state = await readState(companyId, true);
-    assert.isNull(state.accounts[0]?.dateStyle);
+    assert.isNull(state.companies[0]?.dateStyle);
   });
 
   test('refuses phase reassignment that would invalidate its activities without committing effects', async ({

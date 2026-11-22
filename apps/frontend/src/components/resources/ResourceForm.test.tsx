@@ -206,7 +206,7 @@ describe('ResourceForm disciplines', () => {
     );
     await useStore
       .getState()
-      .updateCompany(requireValue(useStore.getState().data.accounts[0], 'account').id, {
+      .updateCompany(requireValue(useStore.getState().data.companies[0], 'account').id, {
         disciplinesEnabled: false,
       });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
@@ -529,7 +529,7 @@ it('saves a placeholder once a bound project is chosen', async () => {
   const onClose = vi.fn();
   await useStore
     .getState()
-    .updateCompany(requireValue(useStore.getState().data.accounts[0], 'account').id, {
+    .updateCompany(requireValue(useStore.getState().data.companies[0], 'account').id, {
       workingDays: [1, 3, 5],
     });
   const client = await requireCreated(

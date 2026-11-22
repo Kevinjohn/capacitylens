@@ -74,9 +74,9 @@ const makeActiveOnlyProject = ({
 });
 const ACTIVE_ONLY_DATA: AppData = {
   ...createEmptyAppData(),
-  accounts: [
+  companies: [
     {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: ACTIVE_ONLY_COMPANY,
       name: 'Studio',
       color: '#3b82f6',
@@ -312,7 +312,7 @@ describe('buildActiveData — VIEW/read projection that drops non-active resourc
     expect(out.allocations.map((row) => row.id)).toEqual(['al1']);
     expect(out.timeOff.map((row) => row.id)).toEqual(['to1']);
     expect(out.disciplines).toBe(input.disciplines);
-    expect(out.accounts).toBe(input.accounts);
+    expect(out.companies).toBe(input.companies);
     expect(
       resolveLifecycleStatus(input.activities.find((row) => row.id === 'act-hidden') ?? {}),
     ).toBe('active');
@@ -477,9 +477,9 @@ const ARCHIVE_IMPACT_COMPANY = 'acct-1';
 
 const ARCHIVE_IMPACT_DATA: AppData = {
   ...createEmptyAppData(),
-  accounts: [
+  companies: [
     {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: ARCHIVE_IMPACT_COMPANY,
       name: 'Studio',
       color: '#3b82f6',

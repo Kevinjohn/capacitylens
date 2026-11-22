@@ -125,7 +125,7 @@ export function buildInverseIntent(
     }
     case 'settings.update': {
       const changes = buildEarlierValues(
-        before.accounts.find((row) => row.id === companyId),
+        before.companies.find((row) => row.id === companyId),
         intent.changes
       );
       return changes && ({ operation: 'settings.update', changes } as PlanningIntent);

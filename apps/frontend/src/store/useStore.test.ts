@@ -81,11 +81,11 @@ describe('store scheduler UI', () => {
     };
 
     updatePlanningFixtureSource(
-      makeAppData({ accounts: [makeCompany({ name: 'Updated account name' })] }),
+      makeAppData({ companies: [makeCompany({ name: 'Updated account name' })] }),
     );
     await s().refreshPlanning();
 
-    expect(s().data.accounts[0]?.name).toBe('Updated account name');
+    expect(s().data.companies[0]?.name).toBe('Updated account name');
     expect({
       originDate: s().ui.originDate,
       focusDate: s().ui.focusDate,
@@ -160,7 +160,7 @@ describe('store scheduler UI', () => {
       s().setCompanySummaries({ list: [{ id: companyId, name: 'Late account', role: 'owner' }] });
       updatePlanningFixtureSource(
         makeAppData({
-          accounts: [makeCompany({ id: companyId, weekStartsOn })],
+          companies: [makeCompany({ id: companyId, weekStartsOn })],
         }),
       );
       s().setActiveCompany(companyId);
@@ -347,7 +347,7 @@ describe('store scheduler UI', () => {
     const sunStart = 'acct-sun';
     await resetStoreWithData(
       makeAppData({
-        accounts: [makeCompany({ id: sunStart, weekStartsOn: 0 })],
+        companies: [makeCompany({ id: sunStart, weekStartsOn: 0 })],
       }),
       sunStart,
     );

@@ -46,7 +46,7 @@ function harness(confirm?: (count: number, signal: AbortSignal) => Promise<boole
         authority: makePlanningAccess(),
         data: {
           ...createPlanningCacheState().data,
-          accounts: [makeCompany({ id: context.companyId })],
+          companies: [makeCompany({ id: context.companyId })],
         },
         today: '2026-06-03',
         capacity: emptyCapacity(),

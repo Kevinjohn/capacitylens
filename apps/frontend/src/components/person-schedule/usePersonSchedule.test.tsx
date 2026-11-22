@@ -64,7 +64,7 @@ const activity = withoutProjectId(makeActivity({ id: 't1', companyId: 'a1', kind
 function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
   loadPlanningData(
     makeAppData({
-      accounts: [makeCompany({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 1 })],
+      companies: [makeCompany({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 1 })],
       resources: [resource],
       activities: [activity],
       allocations: [
@@ -92,7 +92,7 @@ describe('usePersonSchedule availability', () => {
     });
 
     act(() => {
-      seed({ accounts: [makeCompany({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 0 })] });
+      seed({ companies: [makeCompany({ id: 'a1', timezone: 'Europe/London', weekStartsOn: 0 })] });
     });
     expect(monday.result.current).toMatchObject({
       kind: 'available',
@@ -144,7 +144,7 @@ describe('usePersonSchedule calendar rollover', () => {
     });
     calendarToday.today = '2026-12-31';
     seed({
-      accounts: [makeCompany({ id: 'a1', timezone: 'Pacific/Kiritimati', weekStartsOn: 1 })],
+      companies: [makeCompany({ id: 'a1', timezone: 'Pacific/Kiritimati', weekStartsOn: 1 })],
       allocations: [oldAllocation, newAllocation],
     });
 
@@ -196,7 +196,7 @@ describe('usePersonSchedule authorized projection', () => {
       }),
     );
     seed({
-      accounts: [makeCompany({ id: 'a1', placeholdersEnabled: true })],
+      companies: [makeCompany({ id: 'a1', placeholdersEnabled: true })],
       resources: [placeholder],
       disciplines: [
         {

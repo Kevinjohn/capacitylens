@@ -118,18 +118,18 @@ function assertDocument(value: unknown): CompanyExportDocument {
       ),
     );
   }
-  const accountRows = data.accounts;
-  assert(accountRows.length === 1, 'data.accounts', 'must contain exactly one account');
-  const scoped = APP_DATA_KEYS.filter((key) => key !== 'accounts') as ScopedEntityKey[];
+  const accountRows = data.companies;
+  assert(accountRows.length === 1, 'data.companies', 'must contain exactly one company');
+  const scoped = APP_DATA_KEYS.filter((key) => key !== 'companies') as ScopedEntityKey[];
   const account = accountRows[0];
-  assert(account, 'data.accounts', 'must contain exactly one account');
+  assert(account, 'data.companies', 'must contain exactly one company');
   const accountId = account.id;
   for (const key of scoped) {
     (data[key] as unknown as Array<{ accountId: string }>).forEach((row, i) =>
       assert(
         row.accountId === accountId,
         `data.${key}[${i}].accountId`,
-        'does not match the exported account',
+        'does not match the exported company',
       ),
     );
   }
@@ -205,8 +205,8 @@ export function prepareCompanyImport(
   const validated = buildCompanyDocument(assertDocument(buildWireDocument(document)));
   assert(validated.completeness === 'full', 'completeness', 'only full exports can be imported');
   const data = validated.data;
-  const importedAccount = data.accounts[0];
-  assert(importedAccount, 'data.accounts', 'must contain exactly one account');
+  const importedAccount = data.companies[0];
+  assert(importedAccount, 'data.companies', 'must contain exactly one company');
   // Validate source scope before rebinding; scheduling IDs and their relationships stay portable.
   importedAccount.id = context.companyId;
   for (const key of SCOPED_KEYS) {

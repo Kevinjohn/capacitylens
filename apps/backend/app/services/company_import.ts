@@ -116,12 +116,12 @@ export async function previewCompanyImport(
   document: CompanyExportDocument
 ) {
   const current = await readStateWithClient(trx, companyId, true);
-  if (current.accounts.length !== 1) throw new EntityWriteException('Company not found.', 404);
+  if (current.companies.length !== 1) throw new EntityWriteException('Company not found.', 404);
   const prepared = prepareCompanyImport(document, await readImportContext(trx, companyId));
   await assertNoForeignIdCollision(trx, companyId, prepared.data);
   const changed = buildPortableFingerprint(current, companyId) !== buildFingerprint(prepared.data);
   const baseRevision = await getPlanningRevision(trx, companyId);
-  const company = prepared.data.accounts.at(0);
+  const company = prepared.data.companies.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one account.');
   return {
     baseRevision,
@@ -141,7 +141,7 @@ export async function applyCompanyImport(
   actorId: string
 ) {
   const current = await readStateWithClient(trx, companyId, true);
-  if (current.accounts.length !== 1) throw new EntityWriteException('Company not found.', 404);
+  if (current.companies.length !== 1) throw new EntityWriteException('Company not found.', 404);
   const revision = await getPlanningRevision(trx, companyId);
   if (revision !== baseRevision) {
     throw new EntityWriteException(
@@ -162,7 +162,7 @@ export async function applyCompanyImport(
   for (const key of [...SCOPED_WRITE_ORDER].reverse()) {
     await trx.from(tables[key]).where('company_id', companyId).delete();
   }
-  const company = prepared.data.accounts.at(0);
+  const company = prepared.data.companies.at(0);
   if (!company) throw new Error('A prepared beta import always carries exactly one account.');
   await trx
     .from('companies')

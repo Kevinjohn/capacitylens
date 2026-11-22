@@ -30,7 +30,7 @@ export const masqueradeModel = new MasqueradeModel({
     );
     // A read that names no revision always carries the rows.
     if (snapshot.slice === 'unchanged') return null;
-    return snapshot.data.accounts.find((company) => company.id === companyId)?.name ?? null;
+    return snapshot.data.companies.find((company) => company.id === companyId)?.name ?? null;
   },
   api: masqueradeApi,
   readState: () => useStore.getState(),

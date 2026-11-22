@@ -25,7 +25,7 @@ function snapshot(name: string, revision = 1): FullPlanningSnapshot {
     revision,
     authority: makePlanningAccess(),
     data: makeAppData({
-      accounts: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
+      companies: [makeCompany({ id: 'wayne', name: 'Wayne Enterprises' })],
       clients: [makeClient({ companyId: 'wayne', name })],
     }),
     today: '2026-06-03',
@@ -67,7 +67,7 @@ describe('planning request access boundaries', () => {
     const duplicateCompany = makeCompany({ id: 'wayne', name: 'Wayne Enterprises' });
     fixture.read.mockResolvedValueOnce({
       ...snapshot('Wayne Enterprises', 2),
-      data: makeAppData({ accounts: [duplicateCompany, duplicateCompany] }),
+      data: makeAppData({ companies: [duplicateCompany, duplicateCompany] }),
     });
 
     await expect(fixture.cache.refresh()).resolves.toBe(false);

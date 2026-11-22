@@ -69,7 +69,7 @@ const dates = {
  * read-projection field and is never stored.
  */
 export const ENTITY_FIELDS = {
-  accounts: {
+  companies: {
     ...base,
     name: { kind: 'text', required: true },
     color: { kind: 'color', required: true },

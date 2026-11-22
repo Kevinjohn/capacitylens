@@ -152,7 +152,7 @@ describe('SchedulerToolbar discipline filter visibility', () => {
     useStore.setState((state) => ({
       data: {
         ...state.data,
-        accounts: state.data.accounts.map((company) =>
+        companies: state.data.companies.map((company) =>
           company.id === state.activeCompanyId ? { ...company, disciplinesEnabled: true } : company,
         ),
         disciplines: [],

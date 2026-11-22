@@ -87,13 +87,13 @@ export function usePersonSchedule({
   const data = useActiveScopedData();
   const activeCompanyId = useStore((state) => state.activeCompanyId);
   const activeCompany = useStore((state) =>
-    state.data.accounts.find((candidate) => candidate.id === state.activeCompanyId),
+    state.data.companies.find((candidate) => candidate.id === state.activeCompanyId),
   );
   const role = useRole();
   const grant = useAccessGrant();
   const permissionStatus = usePermissionStatus();
   const companyView = useMemo(
-    () => ({ ...data, accounts: activeCompany ? [activeCompany] : [] }),
+    () => ({ ...data, companies: activeCompany ? [activeCompany] : [] }),
     [activeCompany, data],
   );
   const today = useCompanyToday();

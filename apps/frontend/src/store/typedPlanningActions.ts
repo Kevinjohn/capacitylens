@@ -55,7 +55,7 @@ export function createTypedPlanningActions(
       masquerade.kind === 'inactive' &&
       planning.authority === null &&
       planning.phase.kind === 'failed' &&
-      !data.accounts.some((row) => row.id === companyId)
+      !data.companies.some((row) => row.id === companyId)
     ) {
       throw new Error('No active company is selected.');
     }
@@ -65,7 +65,7 @@ export function createTypedPlanningActions(
   // until its row is published, which the person sees as no company being selected yet.
   const buildUnpreparedError = (companyId: string, message: string) =>
     new Error(
-      get().data.accounts.some((row) => row.id === companyId)
+      get().data.companies.some((row) => row.id === companyId)
         ? message
         : 'No active company is selected.',
     );
@@ -334,7 +334,7 @@ export function createTypedPlanningActions(
       if (id !== companyId) {
         throw new Error('Cannot update a company other than the active company.');
       }
-      const original = get().data.accounts.find((row) => row.id === id);
+      const original = get().data.companies.find((row) => row.id === id);
       if (!original) return;
       if (
         patch.workingDays != null &&

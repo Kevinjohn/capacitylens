@@ -23,25 +23,25 @@ const unflaggedDraft = { ...personDraft };
 delete unflaggedDraft.isFavourite;
 
 describe('store CRUD covers every entity', () => {
-  it('accounts: update', async () => {
-    const company = requireValue(s().data.accounts[0], 'account');
+  it('companies: update', async () => {
+    const company = requireValue(s().data.companies[0], 'account');
     await s().updateCompany(company.id, { name: 'Renamed company' });
-    expect(s().data.accounts[0]?.name).toBe('Renamed company');
+    expect(s().data.companies[0]?.name).toBe('Renamed company');
   });
-  it('accounts: stores working days and keeps the update undoable', async () => {
-    const company = requireValue(s().data.accounts[0], 'account');
+  it('companies: stores working days and keeps the update undoable', async () => {
+    const company = requireValue(s().data.companies[0], 'account');
     await s().updateCompany(company.id, { workingDays: [1, 3, 5] });
-    expect(s().data.accounts[0]?.workingDays).toEqual([1, 3, 5]);
+    expect(s().data.companies[0]?.workingDays).toEqual([1, 3, 5]);
 
     await s().updateCompany(company.id, { workingDays: [2, 4] });
     await s().undoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
-      [1, 3, 5],
-    );
+    expect(
+      s().data.companies.find((candidate) => candidate.id === company.id)?.workingDays,
+    ).toEqual([1, 3, 5]);
     await s().redoPlanning();
-    expect(s().data.accounts.find((candidate) => candidate.id === company.id)?.workingDays).toEqual(
-      [2, 4],
-    );
+    expect(
+      s().data.companies.find((candidate) => candidate.id === company.id)?.workingDays,
+    ).toEqual([2, 4]);
   });
   it('disciplines: add / update / delete', async () => {
     const d = await requireCreated(s().addDiscipline({ name: 'Design', color: '#1' }));

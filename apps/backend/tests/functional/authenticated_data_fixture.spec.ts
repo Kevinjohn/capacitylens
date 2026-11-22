@@ -23,7 +23,7 @@ test.group('authenticated data fixture', (group) => {
       session.cookie
     ).send();
     member.assertStatus(200);
-    assert.equal(member.body().data.accounts[0]?.id, 'a-studio');
+    assert.equal(member.body().data.companies[0]?.id, 'a-studio');
     const owner = authenticatedDataClient(client, session.cookie);
     const proxied = await owner
       .visit('api.company_state.show')

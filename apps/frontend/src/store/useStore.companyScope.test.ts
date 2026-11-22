@@ -33,7 +33,7 @@ function assertDefined<T>(value: T | undefined, label: string): T {
 
 function twoCompanyData(): AppData {
   return makeAppData({
-    accounts: [
+    companies: [
       makeCompany({ id: A, name: 'Company A' }),
       makeCompany({ id: B, name: 'Company B' }),
     ],

@@ -39,7 +39,7 @@
         "content-length": "9126"
       },
       "body": {
-        "accounts": [
+        "companies": [
           {
             "id": "a-studio",
             "name": "Wayne Enterprises",
@@ -516,7 +516,7 @@
         "content-length": "7480"
       },
       "body": {
-        "accounts": [
+        "companies": [
           {
             "id": "a-studio",
             "name": "Wayne Enterprises",
@@ -913,7 +913,7 @@
         "content-length": "1785"
       },
       "body": {
-        "accounts": [
+        "companies": [
           {
             "id": "a-loft",
             "name": "Stark Industries",

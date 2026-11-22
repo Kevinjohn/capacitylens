@@ -149,7 +149,7 @@ describe('CapacityOverviewTable date style', () => {
     await resetStoreWithCompany('account');
     loadPlanningData({
       ...data,
-      accounts: [makeCompany({ id: 'account', dateStyle: 'day-month' })],
+      companies: [makeCompany({ id: 'account', dateStyle: 'day-month' })],
     });
     await useStore.getState().refreshPlanning();
     renderTable();

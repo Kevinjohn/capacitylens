@@ -23,7 +23,7 @@ const TS2 = '2026-06-01T12:00:00.000Z';
 
 /** Complete account fixture with every optional field set. */
 export const FIXTURE_COMPANY: Company = {
-  ...NULLABLE_FIELDS.accounts,
+  ...NULLABLE_FIELDS.companies,
   id: 'fix-a1',
   name: 'Fixture Studio',
   color: '#2d75da',

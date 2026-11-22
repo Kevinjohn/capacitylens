@@ -119,7 +119,7 @@ describe('named lifecycle actions', () => {
   it('blocks another anonymisation after a failed canonical refresh, including after remount', async () => {
     loadPlanningData({
       ...useStore.getState().data,
-      accounts: [makeCompany({ id: 'a-recovery-failed' })],
+      companies: [makeCompany({ id: 'a-recovery-failed' })],
     });
     useStore.getState().setActiveCompany('a-recovery-failed');
     await useStore.getState().refreshPlanning();

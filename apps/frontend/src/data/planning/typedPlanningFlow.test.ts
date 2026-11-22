@@ -37,11 +37,11 @@ function flow(initial: PlanningCacheState['data']) {
 describe('typed planning flow', () => {
   it('publishes settings and takes them back and forward through Undo and Redo', async () => {
     const initial = makeAppData({
-      accounts: [makeCompany({ id: companyId, dateStyle: null, timezone: null })],
+      companies: [makeCompany({ id: companyId, dateStyle: null, timezone: null })],
     });
     const { cache, state } = flow(initial);
     await cache.refresh();
-    const original = state().data.accounts[0];
+    const original = state().data.companies[0];
     if (!original) throw new Error('Expected account.');
     const intentRequest = buildSettingsUpdate({
       data: state().data,
@@ -52,7 +52,7 @@ describe('typed planning flow', () => {
     if (!intentRequest) throw new Error('Expected settings intent.');
 
     await cache.execute(cache.begin(), intentRequest.intent);
-    expect(state().data.accounts[0]).toMatchObject({
+    expect(state().data.companies[0]).toMatchObject({
       dateStyle: 'month-day',
       timezone: 'Europe/London',
     });
@@ -60,10 +60,10 @@ describe('typed planning flow', () => {
     expect(state().planning.history.canUndo).toBe(true);
 
     await cache.undo();
-    expect(state().data.accounts[0]).toMatchObject({ dateStyle: null, timezone: null });
+    expect(state().data.companies[0]).toMatchObject({ dateStyle: null, timezone: null });
     expect(state().planning.revision).toBe(2);
     await cache.redo();
-    expect(state().data.accounts[0]).toMatchObject({
+    expect(state().data.companies[0]).toMatchObject({
       dateStyle: 'month-day',
       timezone: 'Europe/London',
     });
@@ -72,7 +72,7 @@ describe('typed planning flow', () => {
 
   it('asks the server to undo a deletion and shows the rows it restores', async () => {
     const initial = makeAppData({
-      accounts: [makeCompany({ id: companyId })],
+      companies: [makeCompany({ id: companyId })],
       projects: [
         makeProject({
           id: 'p1',
@@ -140,7 +140,7 @@ describe('typed planning flow', () => {
   });
 
   it('undoes and redoes a resource creation without changing its id', async () => {
-    const initial = makeAppData({ accounts: [makeCompany({ id: companyId })] });
+    const initial = makeAppData({ companies: [makeCompany({ id: companyId })] });
     const { cache, state, transport } = flow(initial);
     await cache.refresh();
     const id = 'resource-1';
@@ -178,7 +178,7 @@ describe('typed planning flow', () => {
   it('keeps a failed draft out of canonical rows while recording its sent intent', async () => {
     const client = makeClient({ id: 'client-1', companyId });
     const initial = makeAppData({
-      accounts: [makeCompany({ id: companyId })],
+      companies: [makeCompany({ id: companyId })],
       clients: [client],
     });
     const { cache, state, transport } = flow(initial);

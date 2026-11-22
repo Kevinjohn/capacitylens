@@ -273,7 +273,7 @@ describe('planning intent builders', () => {
 
   it('normalizes create drafts and reports created IDs for resources and time off', () => {
     const data = makeAppData({
-      accounts: [makeCompany({ id: companyId })],
+      companies: [makeCompany({ id: companyId })],
       resources: [makeResource({ id: 'resource-1', companyId })],
     });
     const resource = buildResourceCreate({
@@ -382,7 +382,7 @@ describe('planning intent builders', () => {
   });
 
   it('preserves supplied activity fields for authoritative validation and creates closures by id', () => {
-    const data = makeAppData({ accounts: [makeCompany({ id: companyId })] });
+    const data = makeAppData({ companies: [makeCompany({ id: companyId })] });
     expect(
       buildCatalogueCreate({
         data,
@@ -439,7 +439,7 @@ describe('planning intent builders', () => {
 
     const company = makeCompany({ id: companyId, name: 'Before' });
     const settings = buildSettingsUpdate({
-      data: makeAppData({ accounts: [company] }),
+      data: makeAppData({ companies: [company] }),
       companyId,
       original: company,
       args: { name: 'After' },
@@ -451,7 +451,7 @@ describe('planning intent builders', () => {
     const nullableSetting = makeCompany({ id: companyId, timezone: 'Etc/GMT' });
     expect(
       buildSettingsUpdate({
-        data: makeAppData({ accounts: [nullableSetting] }),
+        data: makeAppData({ companies: [nullableSetting] }),
         companyId,
         original: nullableSetting,
         args: { timezone: undefined },

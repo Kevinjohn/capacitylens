@@ -17,9 +17,9 @@ export async function resetAuthenticatedData(client: ApiClient, seed: boolean | 
   if (!(await db.from('users').where('email', ownerEmail).select('id').first()))
     await createIdentity(ownerEmail, { name: 'Bruce Wayne' });
   const { cookie, cookieHeader, userId } = await signIn(client, ownerEmail);
-  const accounts = await db.from('companies').select('id');
+  const companies = await db.from('companies').select('id');
   const now = new Date().toISOString();
-  for (const account of accounts)
+  for (const account of companies)
     await db.table('memberships').insert({
       scope_id: account.id,
       user_id: userId,

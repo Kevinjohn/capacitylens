@@ -129,7 +129,7 @@ test.group('atomic ownership transfer', (group) => {
     assert,
   }) => {
     const { ownerId, adminId, ownerCookie, now } = await fixture(client);
-    const otherCompany = { ...seed().accounts[0]!, id: 'a-loft', name: 'Stark Industries' };
+    const otherCompany = { ...seed().companies[0]!, id: 'a-loft', name: 'Stark Industries' };
     await db.table('companies').insert(encodeRow('companies', otherCompany));
     await db
       .table('clients')

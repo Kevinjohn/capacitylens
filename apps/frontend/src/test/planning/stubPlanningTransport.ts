@@ -170,7 +170,7 @@ export class StubPlanningTransport implements PlanningTransport {
   /** The company date a read returns: the set value, or the clock's date in the company's zone. */
   todayFor(companyId: string): ISODate {
     if (this.today !== null) return this.today;
-    const company = this.data.accounts.find((row) => row.id === companyId);
+    const company = this.data.companies.find((row) => row.id === companyId);
     return resolveCalendarToday(company?.timezone ?? 'Etc/GMT').date;
   }
 
@@ -341,7 +341,7 @@ export class StubPlanningTransport implements PlanningTransport {
     const data = createEmptyAppData();
     for (const entity of APP_DATA_KEYS) {
       const rows = this.rows(entity).filter((row) =>
-        entity === 'accounts' ? row.id === companyId : row.companyId === companyId,
+        entity === 'companies' ? row.id === companyId : row.companyId === companyId,
       );
       Object.assign(data, { [entity]: structuredClone(rows) });
     }
@@ -351,7 +351,7 @@ export class StubPlanningTransport implements PlanningTransport {
   private replaceCompanyRows(companyId: string, rows: AppData, kind: 'undo' | 'redo'): void {
     for (const entity of APP_DATA_KEYS) {
       const inCompany = (row: Row) =>
-        entity === 'accounts' ? row.id === companyId : row.companyId === companyId;
+        entity === 'companies' ? row.id === companyId : row.companyId === companyId;
       const others = this.rows(entity).filter((row) => !inCompany(row));
       const restored = structuredClone(rows[entity]) as unknown as Row[];
       const restoredIds = new Set(restored.map((row) => row.id));
@@ -400,7 +400,7 @@ export class StubPlanningTransport implements PlanningTransport {
         updatedAt: now,
         ...fields,
         id,
-        ...(entity === 'accounts' ? {} : { companyId }),
+        ...(entity === 'companies' ? {} : { companyId }),
       } as Row;
       this.replaceRows(entity, [...this.rows(entity).filter((current) => current.id !== id), row]);
     };
@@ -434,7 +434,7 @@ export class StubPlanningTransport implements PlanningTransport {
           Allocation | undefined;
         const target = this.rows('resources').find((row) => row.id === resourceId) as
           Resource | undefined;
-        const company = this.rows('accounts').find((row) => row.id === companyId) as
+        const company = this.rows('companies').find((row) => row.id === companyId) as
           Company | undefined;
         if (!existing || !target || !company) {
           throw new Error('stub: load the allocation, target and company before reassigning');
@@ -507,7 +507,7 @@ export class StubPlanningTransport implements PlanningTransport {
       case 'closure.delete':
         return remove('closures', intent.id);
       case 'settings.update':
-        update('accounts', companyId, intent.changes);
+        update('companies', companyId, intent.changes);
         break;
       case 'allocation.createGroup':
       case 'allocation.deleteGroup':

@@ -143,7 +143,7 @@ test('authenticated smoke writes a typed allocation under its isolated company',
   };
   try {
     const fixture = {
-      accounts: [{ id: 'a-studio', name: 'Wayne Enterprises', color: '#6366f1' }],
+      companies: [{ id: 'a-studio', name: 'Wayne Enterprises', color: '#6366f1' }],
       resources: [
         {
           id: 'bruce',

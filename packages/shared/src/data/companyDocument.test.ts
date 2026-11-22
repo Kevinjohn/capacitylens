@@ -13,7 +13,7 @@ import { APP_DATA_KEYS } from '../types/entityKeys.js';
 import { buildInternalClientId } from './internalClient.js';
 
 const original = seed();
-const companyId = original.accounts[0]?.id ?? '';
+const companyId = original.companies[0]?.id ?? '';
 const context = {
   companyId,
   memberResourceLinks: [{ memberId: 'member-1', resourceId: original.resources[0]?.id ?? '' }],
@@ -41,7 +41,7 @@ describe('beta-native transfer', () => {
 
   it('round-trips every table, supported private content, archived rows, settings and IDs', () => {
     const source = structuredClone(original);
-    const account = fixture(source.accounts[0], 'account');
+    const account = fixture(source.companies[0], 'account');
     account.name = 'Wayne Enterprises';
     source.closures.push({
       id: 'closure-wayne-shutdown',
@@ -91,7 +91,7 @@ describe('beta-native transfer', () => {
     expect(prepared.imported).toBe(APP_DATA_KEYS.reduce((n, key) => n + built.data[key].length, 0));
     expect(parsed.format).toBe(COMPANY_EXPORT_FORMAT);
     expect(parsed.schemaVersion).toBe(COMPANY_EXPORT_SCHEMA_VERSION);
-    expect(parsed.data.accounts[0]?.id).toBe(companyId);
+    expect(parsed.data.companies[0]?.id).toBe(companyId);
     expect(built.data.closures).toHaveLength(1);
     expect(built.data.clients.find((row) => row.id === privateClient.id)?.codeName).toBe(
       'Project Bat',
@@ -148,7 +148,7 @@ describe('beta-native transfer', () => {
       [
         'field',
         (doc) => {
-          delete (doc.data.accounts[0] as Partial<(typeof doc.data.accounts)[0]>).dateStyle;
+          delete (doc.data.companies[0] as Partial<(typeof doc.data.companies)[0]>).dateStyle;
         },
       ],
       [
@@ -247,9 +247,9 @@ describe('beta-native transfer', () => {
     const before = structuredClone(document);
     const destinationId = 'new-company';
     const prepared = prepareCompanyImport(document, { ...context, companyId: destinationId });
-    expect(prepared.data.accounts).toEqual([{ ...document.data.accounts[0], id: destinationId }]);
+    expect(prepared.data.companies).toEqual([{ ...document.data.companies[0], id: destinationId }]);
     for (const key of APP_DATA_KEYS) {
-      if (key === 'accounts') continue;
+      if (key === 'companies') continue;
       expect(prepared.data[key]).toEqual(
         document.data[key].map((row) => ({ ...row, companyId: destinationId })),
       );

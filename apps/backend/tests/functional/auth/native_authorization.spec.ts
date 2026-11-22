@@ -206,11 +206,11 @@ test.group('native authorization and role projections', (group) => {
       const read = await stateFor(client, cookie);
       read.assertStatus(200);
       const body = read.body().data as {
-        accounts: Array<{ id: string }>;
+        companies: Array<{ id: string }>;
         clients: Array<{ companyId: string }>;
       };
       assert.deepEqual(
-        body.accounts.map((row) => row.id),
+        body.companies.map((row) => row.id),
         [companyId]
       );
       assert.isTrue(body.clients.every((row) => row.companyId === companyId));

@@ -89,7 +89,7 @@ function companyResponse(id: string, role: string) {
 function addSecondCompany() {
   loadPlanningData(
     makeAppData({
-      accounts: [
+      companies: [
         makeCompany({ id: 'acct-test' }),
         makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' }),
       ],

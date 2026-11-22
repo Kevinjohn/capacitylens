@@ -15,7 +15,7 @@ it('reads a reset snapshot scoped to its company at that company revision', asyn
   getStubPlanningTransport().reset(
     context.companyId,
     makeAppData({
-      accounts: [makeCompany({ id: context.companyId }), makeCompany({ id: 'acct-two' })],
+      companies: [makeCompany({ id: context.companyId }), makeCompany({ id: 'acct-two' })],
       clients: [client, other],
     }),
   );
@@ -24,7 +24,7 @@ it('reads a reset snapshot scoped to its company at that company revision', asyn
 
   expect(snapshot).toMatchObject({ revision: 0, authority: { canWrite: true } });
   expect(snapshot.data.clients).toEqual([client]);
-  expect(snapshot.data.accounts).toEqual([makeCompany({ id: context.companyId })]);
+  expect(snapshot.data.companies).toEqual([makeCompany({ id: context.companyId })]);
 });
 
 it('records the sent intent and applies an unvalidated single-row change', async () => {
@@ -135,13 +135,13 @@ it('reset discards queued responses, failures and calls', async () => {
 
   stub.reset(
     context.companyId,
-    makeAppData({ accounts: [makeCompany({ id: context.companyId, name: 'Reset' })] }),
+    makeAppData({ companies: [makeCompany({ id: context.companyId, name: 'Reset' })] }),
   );
 
   expect(stub.calls).toEqual([]);
   await expect(transport.read(context, signal)).resolves.toMatchObject({
     revision: 0,
-    data: { accounts: [{ name: 'Reset' }] },
+    data: { companies: [{ name: 'Reset' }] },
   });
   await expect(
     transport.execute(
@@ -160,7 +160,7 @@ it('lets one page undo two of its own changes and ends that history when another
   const transport = createTestPlanningTransport();
   getStubPlanningTransport().reset(
     context.companyId,
-    makeAppData({ accounts: [makeCompany({ id: context.companyId, name: 'Wayne' })] }),
+    makeAppData({ companies: [makeCompany({ id: context.companyId, name: 'Wayne' })] }),
   );
   const rename = (name: string, baseRevision: number, historyId: string) =>
     transport.execute(
@@ -175,7 +175,7 @@ it('lets one page undo two of its own changes and ends that history when another
     );
   const readAs = async (historyId: string) => {
     const snapshot = requireFullSnapshot(await transport.read(context, signal, { historyId }));
-    return { name: snapshot.data.accounts[0]?.name, history: snapshot.history };
+    return { name: snapshot.data.companies[0]?.name, history: snapshot.history };
   };
 
   await rename('Stark', 0, 'page-a');

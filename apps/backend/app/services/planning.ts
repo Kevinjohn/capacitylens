@@ -102,7 +102,7 @@ export async function readPlanning(
   const { planningAccess } = await resolvePlanningAccess(trx, companyId);
   const revision = await getPlanningRevision(trx, companyId);
   const data = await readStateWithClient(trx, companyId, true);
-  const company = data.accounts.find((row) => row.id === companyId);
+  const company = data.companies.find((row) => row.id === companyId);
   const today = readCompanyToday(company?.timezone ?? null);
   const visible = transformState(buildActiveData(data), companyId, planningAccess.role);
   const base: PlanningReadBase = {

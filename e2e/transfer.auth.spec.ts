@@ -47,7 +47,7 @@ test('an Owner previews, cancels, then confirms one password-bound company impor
   const companyId = await bootstrapOrg(request, owner.cookie, COMPANY);
   const before = await companyState(request, owner.cookie, companyId);
   const document = buildCompanyExport(before, { companyId, completeness: 'full' });
-  const account = document.data.accounts[0];
+  const account = document.data.companies[0];
   if (!account) throw new Error('The company export is empty.');
   account.name = `Wayne Transfer Restored ${STAMP}`;
 
@@ -65,7 +65,7 @@ test('an Owner previews, cancels, then confirms one password-bound company impor
     .getByRole('alertdialog', { name: 'Import data?' })
     .getByRole('button', { name: 'Cancel' })
     .click();
-  expect((await companyState(request, owner.cookie, companyId)).accounts[0]?.name).toBe(COMPANY);
+  expect((await companyState(request, owner.cookie, companyId)).companies[0]?.name).toBe(COMPANY);
 
   await chooseFile(page, document);
   await page.getByRole('button', { name: 'Replace data' }).click();
@@ -77,7 +77,7 @@ test('an Owner previews, cancels, then confirms one password-bound company impor
   await page.getByLabel('Password').fill(AUTH_PASSWORD);
   await page.getByTestId('password-confirmation-submit').click();
   await expect
-    .poll(async () => (await companyState(request, owner.cookie, companyId)).accounts[0]?.name)
+    .poll(async () => (await companyState(request, owner.cookie, companyId)).companies[0]?.name)
     .toBe(account.name);
   await page.reload();
   await expect(page.getByText(account.name).first()).toBeVisible();

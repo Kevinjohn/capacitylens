@@ -10,7 +10,7 @@ import type { AppData } from '@capacitylens/shared/types/entities';
 export function companySeed(companyId: string): AppData {
   const data = seed();
   const company: Record<string, unknown[]> = {
-    accounts: data.accounts.filter((row) => row.id === companyId),
+    companies: data.companies.filter((row) => row.id === companyId),
   };
   for (const key of SCOPED_KEYS) {
     const rows: { companyId: string }[] = data[key];

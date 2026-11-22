@@ -56,7 +56,7 @@ export async function anonymiseResources(
     companyId,
     actorId,
     action: 'anonymise',
-    entity: resourceId ? 'resources' : 'accounts',
+    entity: resourceId ? 'resources' : 'companies',
     entityId: resourceId ?? companyId,
     fields: ['name', 'role', 'avatarUrl', 'allocations.note', 'timeOff.note'],
   });

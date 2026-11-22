@@ -9,7 +9,7 @@ type WireField<T> =
 
 /** Declares every portable field for each beta export table. */
 export const FIELDS = {
-  accounts: [
+  companies: [
     'id',
     'createdAt',
     'updatedAt',

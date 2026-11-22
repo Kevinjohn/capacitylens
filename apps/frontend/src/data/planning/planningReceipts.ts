@@ -24,8 +24,8 @@ function isValidSlice(snapshot: Record<string, unknown>): boolean {
   const data = snapshot.data;
   return (
     isRecord(data) &&
-    Array.isArray(data.accounts) &&
-    data.accounts.every(isRecord) &&
+    Array.isArray(data.companies) &&
+    data.companies.every(isRecord) &&
     SCOPED_KEYS.every((key) => Array.isArray(data[key])) &&
     SCOPED_KEYS.every((key) => (data[key] as unknown[]).every(isRecord))
   );
@@ -50,8 +50,8 @@ export function isValidSnapshot(snapshot: unknown): snapshot is PlanningSnapshot
 export function isSnapshotForCompany(snapshot: PlanningSnapshot, companyId: string): boolean {
   if (snapshot.slice === 'unchanged') return true;
   return (
-    snapshot.data.accounts.length === 1 &&
-    snapshot.data.accounts.every((company) => isRecord(company) && company.id === companyId) &&
+    snapshot.data.companies.length === 1 &&
+    snapshot.data.companies.every((company) => isRecord(company) && company.id === companyId) &&
     SCOPED_KEYS.every((key) =>
       snapshot.data[key].every((row) => isRecord(row) && row.companyId === companyId),
     )

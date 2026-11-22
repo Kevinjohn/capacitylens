@@ -164,7 +164,7 @@ async function applyIntent(
   if (!accessGrant.canWrite) {
     throw new PlanningOperationException(403, 'AUTHORIZATION_DENIED', 'Write access is required.');
   }
-  if (!data.accounts.some((row) => row.id === companyId)) {
+  if (!data.companies.some((row) => row.id === companyId)) {
     throw new PlanningOperationException(400, 'VALIDATION_ERROR', 'The company was not found.');
   }
   const writeOptions = { trx, data, written, companyId, accessGrant, identity, expectedUpdatedAt };
@@ -221,7 +221,7 @@ async function applyIntent(
         const { id, resourceId, startDate, endDate } = intent;
         const existing = requireExistingRow(data, 'allocations', id);
         const target = requireExistingRow(data, 'resources', resourceId);
-        const company = requireExistingRow(data, 'accounts', companyId);
+        const company = requireExistingRow(data, 'companies', companyId);
         const hoursPerDay = reconcileReassignedHours({
           current: existing.hoursPerDay,
           target,

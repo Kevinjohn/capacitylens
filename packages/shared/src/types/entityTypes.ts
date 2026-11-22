@@ -289,7 +289,7 @@ export interface Closure extends ScopedEntity {
 
 /** Every portable table, as held in memory and exported. */
 export interface AppData {
-  accounts: Company[];
+  companies: Company[];
   disciplines: Discipline[];
   resources: Resource[];
   clients: Client[];

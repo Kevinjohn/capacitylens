@@ -204,7 +204,7 @@ describe('isLifecycleEntityKey — narrowing guard for the tombstone-carrying ta
     expect(isLifecycleEntityKey('allocations')).toBe(false);
     expect(isLifecycleEntityKey('timeOff')).toBe(false);
     expect(isLifecycleEntityKey('disciplines')).toBe(false);
-    expect(isLifecycleEntityKey('accounts')).toBe(false);
+    expect(isLifecycleEntityKey('companies')).toBe(false);
     expect(isLifecycleEntityKey('nonsense')).toBe(false);
   });
 });

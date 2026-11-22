@@ -82,7 +82,7 @@ describe('planning cache', () => {
     resolveRead({
       revision: 9,
       authority: makePlanningAccess(),
-      data: { ...createEmptyAppData(), accounts: [{ id: 'leak' } as never] },
+      data: { ...createEmptyAppData(), companies: [{ id: 'leak' } as never] },
       today: companyToday,
       capacity: emptyCapacity(),
     });

@@ -98,7 +98,7 @@ describe('planning cache', () => {
         authority: makePlanningAccess(),
       }),
     ).resolves.toBe(true);
-    expect(h.state().data.accounts).toHaveLength(1);
+    expect(h.state().data.companies).toHaveLength(1);
     await expect(
       h.readSnapshot({
         revision: 3,

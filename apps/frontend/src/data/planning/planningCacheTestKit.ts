@@ -25,7 +25,7 @@ const makeState = (): PlanningCacheState => createPlanningCacheState();
 export const companyToday: ISODate = '2026-06-03';
 export const makeCanonicalData = (companyOverrides: Partial<Company> = {}): AppData => ({
   ...createEmptyAppData(),
-  accounts: [makeCompany({ id: context.companyId, ...companyOverrides })],
+  companies: [makeCompany({ id: context.companyId, ...companyOverrides })],
 });
 
 /**

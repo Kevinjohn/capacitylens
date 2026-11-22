@@ -327,7 +327,7 @@ export async function runPackagedSmoke({
     ).data;
     assert.equal(initializedState.clients.length, 1);
     assert.equal(initializedState.clients[0].builtin, true);
-    assert.equal(initializedState.accounts[0].name, 'Wayne Enterprises');
+    assert.equal(initializedState.companies[0].name, 'Wayne Enterprises');
 
     // Create the real identity over HTTP, then seed only email confirmation, admission and membership while stopped.
     const viewerCredentials = {
@@ -442,7 +442,7 @@ export async function runPackagedSmoke({
       },
     );
     const memberState = JSON.parse(memberRead.body).data;
-    assert.equal(memberState.accounts[0].id, companyId);
+    assert.equal(memberState.companies[0].id, companyId);
     assert.equal(memberState.resources.find((row) => row.id === resource.id)?.name, RESOURCE_NAME);
 
     const refusedWrite = await fetch(`${baseUrl}/api/companies/${companyId}/planning/mutations`, {

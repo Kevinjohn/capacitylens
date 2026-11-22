@@ -12,7 +12,7 @@ export function projectCompanyData(data: AppData, accountId: string): AppData {
     const source = data[key] as unknown[];
     if (!Array.isArray(source)) fail(`data.${key}`, 'must be a list');
     const selected =
-      key === 'accounts'
+      key === 'companies'
         ? source.filter((row): row is Row => isRecord(row) && row.id === accountId)
         : source.filter((row): row is Row => isRecord(row) && row.accountId === accountId);
     (projected as unknown as Record<string, unknown>)[key] = selected.map((input) => {

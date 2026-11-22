@@ -95,7 +95,7 @@ describe('AuthProvider — server mode', () => {
             canSeeTimeOffNote: false,
           },
           data: makeAppData({
-            accounts: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
+            companies: [makeCompany({ id: 'a-studio', name: 'Wayne Enterprises' })],
           }),
           today: '2026-06-03',
         });

@@ -339,7 +339,7 @@ describe('beta import and export', () => {
   it("ignores a cancelled file's late preview before confirming a newer selection", async () => {
     const first = document();
     const second = document();
-    const secondCompany = second.data.accounts[0];
+    const secondCompany = second.data.companies[0];
     if (!secondCompany) throw new Error('The second import fixture has no company.');
     secondCompany.name = 'Wayne Enterprises replacement';
     const previews: Array<(response: Response) => void> = [];

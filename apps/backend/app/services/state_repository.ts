@@ -100,7 +100,7 @@ export async function readStateWithClient(
     Closure.query({ client }).withScopes((scopes) => scopes.forCompany(companyId)),
   ]);
   const data = {
-    accounts: serializeRows(companies),
+    companies: serializeRows(companies),
     clients: serializeRows(clients),
     disciplines: serializeRows(disciplines),
     projects: serializeRows(projects),

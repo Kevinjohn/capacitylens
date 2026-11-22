@@ -115,7 +115,7 @@ type CompaniesOptions = { disciplinesEnabled?: boolean | undefined };
 describe('disciplinesEnabledFor', () => {
   const companies = ({ disciplinesEnabled }: CompaniesOptions) => ({
     ...createEmptyAppData(),
-    accounts: [
+    companies: [
       makeCompany({
         id: 'a1',
         createdAt: 't',
@@ -143,7 +143,7 @@ describe('disciplinesEnabledFor', () => {
 
 const companyData = (values: Partial<Company> = {}): AppData => ({
   ...createEmptyAppData(),
-  accounts: [
+  companies: [
     makeCompany({
       id: 'a1',
       createdAt: 't',
@@ -213,7 +213,7 @@ describe('calendar primitive selectors', () => {
     calendar?: Pick<Partial<Company>, 'timezone' | 'weekStartsOn' | 'workingDays'>,
   ) => ({
     ...createEmptyAppData(),
-    accounts: [
+    companies: [
       makeCompany({
         id: 'a1',
         createdAt: 't',
@@ -241,14 +241,14 @@ describe('calendar primitive selectors', () => {
   it('derives legacy account working days from week start and preserves an explicit selection', () => {
     expect(listCompanyWorkingDays(companies({ weekStartsOn: 1 }), 'a1')).toEqual([1, 2, 3, 4, 5]);
     expect(listCompanyWorkingDays(companies({ weekStartsOn: 0 }), 'a1')).toEqual([0, 1, 2, 3, 4]);
-    const sundayCompany = companies({ weekStartsOn: 0 }).accounts[0];
+    const sundayCompany = companies({ weekStartsOn: 0 }).companies[0];
     if (!sundayCompany) throw new Error('Expected Sunday-start account fixture');
     expect(
       listCompanyWorkingDays(
         {
-          ...NULLABLE_FIELDS.accounts,
+          ...NULLABLE_FIELDS.companies,
           ...companies({ weekStartsOn: 0 }),
-          accounts: [{ ...sundayCompany, workingDays: [1, 3, 5] }],
+          companies: [{ ...sundayCompany, workingDays: [1, 3, 5] }],
         },
         'a1',
       ),
@@ -304,14 +304,14 @@ describe('hasVisibleTaskFieldInSchedule', () => {
   it('defaults off and remains account-scoped', () => {
     const appData = {
       ...createEmptyAppData(),
-      accounts: [
+      companies: [
         { ...makeCompany({ id: 'a1' }), showTaskFieldInSchedule: true },
         { ...makeCompany({ id: 'a2' }), showTaskFieldInSchedule: false },
       ],
     };
     expect(hasVisibleTaskFieldInSchedule(appData, 'a1')).toBe(true);
     expect(hasVisibleTaskFieldInSchedule(appData, 'a2')).toBe(false);
-    expect(hasVisibleTaskFieldInSchedule({ ...appData, accounts: [] }, 'a1')).toBe(false);
+    expect(hasVisibleTaskFieldInSchedule({ ...appData, companies: [] }, 'a1')).toBe(false);
   });
 });
 
@@ -339,7 +339,7 @@ describe('resolveDateStyle', () => {
     // spread of `{ dateStyle } | {}` widens to `dateStyle?: DateStyle | undefined`, which the
     // optional-but-never-undefined property on Company rejects.
     const company: Company = {
-      ...NULLABLE_FIELDS.accounts,
+      ...NULLABLE_FIELDS.companies,
       id: 'a1',
       createdAt: 't',
       updatedAt: 't',
@@ -347,10 +347,10 @@ describe('resolveDateStyle', () => {
       color: '#1',
     };
     if (dateStyle) company.dateStyle = dateStyle as NonNullable<Company['dateStyle']>;
-    return { ...createEmptyAppData(), accounts: [company] };
+    return { ...createEmptyAppData(), companies: [company] };
   };
 
-  it('defaults absent and unmatched accounts to day-month', () => {
+  it('defaults absent and unmatched companies to day-month', () => {
     expect(resolveDateStyle(withStyle(), 'a1')).toBe('day-month');
     expect(resolveDateStyle(withStyle('month-day'), 'missing')).toBe('day-month');
   });
@@ -360,7 +360,7 @@ describe('resolveDateStyle', () => {
   });
 
   it('reads a style this build has no descriptor for as the default', () => {
-    // `accounts.dateStyle` is plain nullable TEXT with no CHECK constraint, and the style is a
+    // `companies.dateStyle` is plain nullable TEXT with no CHECK constraint, and the style is a
     // lookup key in every formatter. A database from a build that shipped another style, or a
     // hand-edited row, would otherwise take every date on screen down with it.
     expect(resolveDateStyle(withStyle('year-month-day'), 'a1')).toBe('day-month');

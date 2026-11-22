@@ -112,13 +112,13 @@ test.group('company import contract regressions', () => {
     for (const color of ['#5C34D4', ' #5c34d4 ']) {
       const source = transformState(seed(), 'a-studio', 'owner');
       const rows = [
-        source.accounts[0]!,
+        source.companies[0]!,
         source.clients.find((row) => !row.builtin)!,
         source.projects[0]!,
         source.resources.find((row) => row.kind === 'person')!,
         source.disciplines[0]!,
       ];
-      const keys = ['accounts', 'clients', 'projects', 'resources', 'disciplines'] as const;
+      const keys = ['companies', 'clients', 'projects', 'resources', 'disciplines'] as const;
       for (const [index, row] of rows.entries()) {
         row.color = color;
         const validated = await validateRow(

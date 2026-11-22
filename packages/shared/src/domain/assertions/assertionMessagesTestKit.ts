@@ -45,7 +45,7 @@ export const makeMeta = (id: ID, companyId: ID) => ({
 });
 
 export const makeCompany = (id: ID, name = 'Co'): Company => ({
-  ...NULLABLE_FIELDS.accounts,
+  ...NULLABLE_FIELDS.companies,
   id,
   name,
   color: '#3b82f6',
@@ -141,5 +141,5 @@ export const A1 = 'acct-1';
 export const A2 = 'acct-2';
 export const makeBaseData = (): AppData => ({
   ...createEmptyAppData(),
-  accounts: [makeCompany(A1), makeCompany(A2)],
+  companies: [makeCompany(A1), makeCompany(A2)],
 });

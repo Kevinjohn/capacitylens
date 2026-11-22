@@ -109,7 +109,7 @@ test.group('beta transfer apply', (group) => {
       .send();
     preview.assertStatus(200);
     assert.deepInclude(preview.body().data, {
-      companyName: full.data.accounts[0]!.name,
+      companyName: full.data.companies[0]!.name,
       counts: Object.fromEntries(SCOPED_KEYS.map((key) => [key, full.data[key].length])),
     });
     const baseRevision = (preview.body().data as { baseRevision: number }).baseRevision;
@@ -121,7 +121,7 @@ test.group('beta transfer apply', (group) => {
     result.assertStatus(200);
     assert.deepInclude(result.body().data, { changed: true, revision: baseRevision + 1 });
     const expected = structuredClone(full.data);
-    expected.accounts[0]!.id = companyId;
+    expected.companies[0]!.id = companyId;
     for (const key of [
       'clients',
       'disciplines',
@@ -222,7 +222,7 @@ test.group('beta transfer apply', (group) => {
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const full = await document();
-    full.data.accounts[0]!.name += ' confirmed';
+    full.data.companies[0]!.name += ' confirmed';
     const before = await readState(companyId, true);
     const linkedPerson = before.resources.find((row) => row.kind === 'person')!;
     await db.table('account_member_resources').insert({
@@ -268,7 +268,7 @@ test.group('beta transfer apply', (group) => {
   }) => {
     const { cookie, userId } = await resetAuthenticatedData(client);
     const selected = await document();
-    selected.data.accounts[0]!.name += ' restored';
+    selected.data.companies[0]!.name += ' restored';
     const selectedDelete = await deleteForRestoration(client, cookie);
     const foreignDelete = await deleteForRestoration(client, cookie, 'a-loft');
     const now = new Date().toISOString();
@@ -355,7 +355,7 @@ test.group('beta transfer apply', (group) => {
       document: asExportFile(full),
     });
     const other = structuredClone(full);
-    other.data.accounts[0]!.name += ' changed';
+    other.data.companies[0]!.name += ' changed';
     const wrongDocument = await apply(client, cookie, other, baseRevision, confirmationId);
     wrongDocument.assertStatus(403);
     const wrongRevision = await apply(client, cookie, full, baseRevision + 1, confirmationId);
@@ -498,7 +498,7 @@ test.group('beta transfer apply', (group) => {
     const { cookie } = await resetAuthenticatedData(client);
     const deletion = await deleteForRestoration(client, cookie);
     const full = await document();
-    full.data.accounts[0]!.name += ' changed';
+    full.data.companies[0]!.name += ' changed';
     const before = await readState(companyId, true);
     const groupBefore = await db.from('deleted_groups').where('group_id', deletion.groupId).first();
     const rowsBefore = await db.from('deleted_rows').where('group_id', deletion.groupId);

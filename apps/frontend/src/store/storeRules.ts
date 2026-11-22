@@ -16,7 +16,7 @@ export function createStoreRules(get: StoreApi<StoreState>['getState']) {
     const id = state.activeCompanyId;
     if (!id) throw new Error('No active company is selected.');
     if (
-      !state.data.accounts.some((company) => company.id === id) &&
+      !state.data.companies.some((company) => company.id === id) &&
       !state.companySummaries.some((company) => company.id === id)
     ) {
       throw new Error('The active account is not loaded — cannot mutate scoped data.');

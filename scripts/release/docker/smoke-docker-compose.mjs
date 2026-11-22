@@ -81,9 +81,9 @@ const recreated = compose(
 assert.equal(recreated.status, 0, recreated.output);
 
 cookie = await signIn();
-const accounts = await fetch(`${baseUrl}/api/companies`, { headers: { cookie } });
-assert.equal(accounts.status, 200);
-const companies = (await accounts.json()).data;
+const companiesResponse = await fetch(`${baseUrl}/api/companies`, { headers: { cookie } });
+assert.equal(companiesResponse.status, 200);
+const companies = (await companiesResponse.json()).data;
 assert.ok(
   companies.some((row) => row.name === 'Wayne Enterprises' && row.role === 'owner'),
   'The company did not survive API recreation',

@@ -19,7 +19,7 @@ async function fetchOk(url, options = {}) {
 
 /** Write one scheduled allocation through authenticated typed planning routes. */
 export async function writeSmokeSchedule(baseUrl, cookie, companyId, fixture, contextToken) {
-  const account = fixture.accounts.find((row) => row.id === 'a-studio');
+  const account = fixture.companies.find((row) => row.id === 'a-studio');
   assert.ok(account);
   const resource = {
     ...fixture.resources.find((row) => row.kind === 'person' && row.companyId === 'a-studio'),

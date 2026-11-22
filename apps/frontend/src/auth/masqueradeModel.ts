@@ -472,7 +472,7 @@ export class MasqueradeModel {
       }
       publishMasqueradeCompany(this.store, state);
       const loadedName =
-        this.store.data.accounts.find((company) => company.id === state.companyId)?.name ?? name;
+        this.store.data.companies.find((company) => company.id === state.companyId)?.name ?? name;
       this.store.setCompanySummaries({
         list: [{ id: state.companyId, name: loadedName, role: state.effectiveRole }],
         complete: true,

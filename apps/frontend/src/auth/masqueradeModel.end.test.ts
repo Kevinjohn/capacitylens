@@ -62,7 +62,7 @@ describe('MasqueradeModel', () => {
   it("preserves a failed cold End attempt's retry ownership after server confirms it remains active", async () => {
     useStore.getState().clearPlanning();
     loadPlanningData(
-      makeAppData({ accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })] }),
+      makeAppData({ companies: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })] }),
     );
     const { model, dependencies } = createHarness({
       suspend: vi.fn(() => useStore.getState().suspendPlanningIntents()),

@@ -109,7 +109,7 @@ function assertColor(value: Row, field: string, path: string, systemColor?: stri
 
 type RowLimits = { nameMaximum: number };
 
-function assertAccountRow(row: Row, path: string): void {
+function assertCompanyRow(row: Row, path: string): void {
   assertText(row, 'name', path);
   assertColor(row, 'color', path);
   assert(
@@ -362,7 +362,7 @@ function assertClosureRow(row: Row, path: string): void {
 
 /** The table-specific field rules, one validator per export table. */
 const rowRules: { [K in AppDataKey]: (row: Row, path: string, limits: RowLimits) => void } = {
-  accounts: assertAccountRow,
+  companies: assertCompanyRow,
   disciplines: assertDisciplineRow,
   resources: assertResourceRow,
   clients: assertClientRow,
@@ -393,7 +393,7 @@ export function assertRow(
   assert(isId(row.id), `${path}.id`, 'must be a bounded non-empty id without whitespace');
   assert(isTimestamp(row.createdAt), `${path}.createdAt`, 'must be an ISO timestamp');
   assert(isTimestamp(row.updatedAt), `${path}.updatedAt`, 'must be an ISO timestamp');
-  if (key !== 'accounts') {
+  if (key !== 'companies') {
     assert(
       isId(row.accountId),
       `${path}.accountId`,

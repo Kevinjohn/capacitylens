@@ -79,7 +79,7 @@ db.exec('COMMIT')`,
       assert.equal(attempted, 3, 'the external writer waits for the snapshot');
       assert.equal(snapshot.body().data.revision, 0);
       assert.equal(snapshot.body().data.authority.role, 'owner');
-      assert.equal(snapshot.body().data.data.accounts[0].name, before.accounts[0]!.name);
+      assert.equal(snapshot.body().data.data.companies[0].name, before.companies[0]!.name);
     } finally {
       knex.off('query-response', interleave);
     }
@@ -89,7 +89,7 @@ db.exec('COMMIT')`,
     assert.equal(current.body().data.revision, 1);
     assert.equal(current.body().data.authority.role, 'viewer');
     assert.isFalse(current.body().data.authority.canWrite);
-    assert.equal(current.body().data.data.accounts[0].name, 'Wayne Revised');
+    assert.equal(current.body().data.data.companies[0].name, 'Wayne Revised');
   });
 
   test('one allocation update reads the allocations table once', async ({

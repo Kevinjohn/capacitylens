@@ -16,7 +16,7 @@ const email = 'bruce.wayne@wayne.example';
 const password = 'batman-secret-2026';
 const companyId = 'a-studio';
 
-const accounts = (client: ApiClient, cookie: string) =>
+const companies = (client: ApiClient, cookie: string) =>
   asDataOwner(client.visit('api.companies.index'), cookie).send();
 const planning = (client: ApiClient, cookie: string) =>
   asDataOwner(client.visit('api.planning.show', { companyId }), cookie).send();
@@ -55,8 +55,8 @@ test.group('password sign-in and sessions', (group) => {
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 2);
     const signedOut = await asDataOwner(client.visit('api.session.destroy'), laptop.cookie).send();
     signedOut.assertStatus(200);
-    await expectStatus(accounts(client, laptop.cookie), 401);
-    await expectStatus(accounts(client, phone.cookie), 200);
+    await expectStatus(companies(client, laptop.cookie), 401);
+    await expectStatus(companies(client, phone.cookie), 200);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 1);
   });
 
@@ -107,7 +107,7 @@ test.group('password sign-in and sessions', (group) => {
         await db.from('adonis_sessions').where('id', session!.id).first(),
         'the late framework-session write does not recreate the destroyed row'
       );
-      await expectStatus(accounts(client, cookie), 401);
+      await expectStatus(companies(client, cookie), 401);
     } finally {
       barrier.release();
       service.resolve = original;
@@ -162,14 +162,14 @@ test.group('password sign-in and sessions', (group) => {
       .send();
     wrong.assertStatus(403);
     assert.equal((wrong.body() as { code?: string }).code, 'CURRENT_PASSWORD_INCORRECT');
-    await expectStatus(accounts(client, phone.cookie), 200);
+    await expectStatus(companies(client, phone.cookie), 200);
     const changed = await asDataOwner(client.visit('api.password.update'), laptop.cookie)
       .json({ currentPassword: password, newPassword: 'another-batman-2026' })
       .send();
     changed.assertStatus(200);
     assert.deepEqual(changed.body().data, { ok: true, signedOut: true });
-    await expectStatus(accounts(client, laptop.cookie), 401);
-    await expectStatus(accounts(client, phone.cookie), 401);
+    await expectStatus(companies(client, laptop.cookie), 401);
+    await expectStatus(companies(client, phone.cookie), 401);
     assert.lengthOf(await db.from('account_sessions').where('user_id', userId), 0);
     const old = await client
       .visit('api.session.store')
@@ -193,10 +193,10 @@ test.group('password sign-in and sessions', (group) => {
       .from('account_sessions')
       .where('user_id', userId)
       .update({ expires_at: '2000-01-01T00:00:00.000Z' });
-    await expectStatus(accounts(client, expiring.cookie), 401);
+    await expectStatus(companies(client, expiring.cookie), 401);
     const removed = await signIn(client, email, password);
     await db.from('account_sessions').where('user_id', userId).delete();
-    await expectStatus(accounts(client, removed.cookie), 401);
+    await expectStatus(companies(client, removed.cookie), 401);
   });
 
   test('a session revoked after request admission refuses the protected write', async ({

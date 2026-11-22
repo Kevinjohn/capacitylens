@@ -18,7 +18,7 @@ function requireValue<T>(value: T | undefined | null): T {
 const context = { companyId: 'a-studio', memberResourceLinks: [] };
 const freshDocument = () => {
   const source = seed();
-  const account = requireValue(source.accounts.find((row) => row.id === context.companyId));
+  const account = requireValue(source.companies.find((row) => row.id === context.companyId));
   source.closures.push({
     id: 'gotham-closure',
     companyId: context.companyId,
@@ -98,13 +98,13 @@ const failures: [string, CorruptDocument][] = [
   [
     'boolean strings',
     (doc) => {
-      Object.assign(requireValue(doc.data.accounts[0]), { placeholdersEnabled: 'false' });
+      Object.assign(requireValue(doc.data.companies[0]), { placeholdersEnabled: 'false' });
     },
   ],
   [
     'unsupported time zones',
     (doc) => {
-      requireValue(doc.data.accounts[0]).timezone = 'Gotham/Invalid';
+      requireValue(doc.data.companies[0]).timezone = 'Gotham/Invalid';
     },
   ],
   [
@@ -130,7 +130,7 @@ const failures: [string, CorruptDocument][] = [
   [
     'unsupported text',
     (doc) => {
-      requireValue(doc.data.accounts[0]).name = 'Wayne\u0000Enterprises';
+      requireValue(doc.data.companies[0]).name = 'Wayne\u0000Enterprises';
     },
   ],
   [
@@ -268,7 +268,7 @@ describe('company import failure boundaries', () => {
     const document = freshDocument();
     const before = structuredClone(document);
     const prepared = prepareCompanyImport(document, context);
-    requireValue(prepared.data.accounts[0]).name = 'Gotham Studio';
+    requireValue(prepared.data.companies[0]).name = 'Gotham Studio';
     requireValue(prepared.data.resources[0]).workingDays.push(0);
     expect(document).toEqual(before);
   });
@@ -282,7 +282,7 @@ describe('company import failure boundaries', () => {
       memberships: [{ role: 'owner' }],
       activeAccountId: 'a-loft',
     };
-    Object.assign(requireValue(input.data.accounts[0]), {
+    Object.assign(requireValue(input.data.companies[0]), {
       admissionPolicy: 'open',
       role: 'owner',
       theme: 'dark',
@@ -290,8 +290,8 @@ describe('company import failure boundaries', () => {
     const prepared = prepareCompanyImport(input, context);
     expect(prepared.data).toEqual(freshDocument().data);
     expect(JSON.stringify(prepared)).not.toContain('must-not-survive');
-    expect(prepared.data.accounts[0]).not.toHaveProperty('admissionPolicy');
-    expect(prepared.data.accounts[0]).not.toHaveProperty('role');
-    expect(prepared.data.accounts[0]).not.toHaveProperty('theme');
+    expect(prepared.data.companies[0]).not.toHaveProperty('admissionPolicy');
+    expect(prepared.data.companies[0]).not.toHaveProperty('role');
+    expect(prepared.data.companies[0]).not.toHaveProperty('theme');
   });
 });

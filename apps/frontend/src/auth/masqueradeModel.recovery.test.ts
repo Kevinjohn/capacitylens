@@ -45,7 +45,7 @@ const inactiveStatus = { active: false as const, contextToken: 'idle-context' };
 
 function modelWithNativeData(bootstrapFailure = false) {
   const nativeData = makeAppData({
-    accounts: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })],
+    companies: [makeCompany({ id: state.companyId, name: 'Wayne Enterprises' })],
   });
   useStore.setState({ data: nativeData });
   getStubPlanningTransport().reset(state.companyId, nativeData);
@@ -72,7 +72,7 @@ function modelWithNativeData(bootstrapFailure = false) {
           new AbortController().signal,
         ),
       );
-      return snapshot.data.accounts.find((candidate) => candidate.id === companyId)?.name ?? null;
+      return snapshot.data.companies.find((candidate) => candidate.id === companyId)?.name ?? null;
     },
     switchCompany,
     api,

@@ -92,7 +92,7 @@ export function setUpAppShellTests(syncLocaleFromCompany: Mock) {
       buildProductOrientationKey(authenticatedUser.user.id, DEFAULT_COMPANY_ID),
       'dismissed',
     );
-    loadPlanningData(makeAppData({ accounts: [makeCompany()] }));
+    loadPlanningData(makeAppData({ companies: [makeCompany()] }));
     useStore.getState().setCompanySummaries({
       list: [{ id: DEFAULT_COMPANY_ID, name: 'Wayne Enterprises', role: 'owner' }],
     });

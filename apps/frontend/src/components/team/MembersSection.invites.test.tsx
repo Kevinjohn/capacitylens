@@ -185,7 +185,7 @@ describe('MembersSection — invite mint', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Invite reload failed.');
     expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
   });
-  it('ignores a late unknown mutation outcome after the user has switched accounts', async () => {
+  it('ignores a late unknown mutation outcome after the user has switched companies', async () => {
     const nextCompanyId = 'acc_second';
     let resolveCreate: ((response: Response) => void) | undefined;
     const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
