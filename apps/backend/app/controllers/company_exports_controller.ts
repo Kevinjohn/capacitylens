@@ -7,7 +7,7 @@ import { resolvePlanningAccess } from '#services/planning/access';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 
 /** The company's export document. */
 export default class CompanyExportsController {

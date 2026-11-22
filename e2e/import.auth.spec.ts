@@ -3,7 +3,7 @@ import type { APIRequestContext, Page } from './fixtures';
 import {
   buildCompanyExport,
   serializeCompanyExport,
-} from '@capacitylens/shared/data/companyDocument';
+} from '@capacitylens/shared/data/companyExport';
 import type { AppData } from '@capacitylens/shared/types/entities';
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from './authTestKit';
 import { waitForAppLanding } from './browserTestKit';

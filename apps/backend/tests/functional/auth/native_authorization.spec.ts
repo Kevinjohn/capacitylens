@@ -6,7 +6,7 @@ import type { ApiClient } from '@japa/api-client';
 import env from '#start/env';
 import { resetState } from '#tests/helpers/state_fixture';
 import { seed } from '@capacitylens/shared/data/seed';
-import { buildCompanyExport } from '@capacitylens/shared/data/companyDocument';
+import { buildCompanyExport } from '@capacitylens/shared/data/companyExport';
 import { readState } from '#tests/helpers/state_fixture';
 import { signUpAndIn, expectStatus } from '#tests/helpers/identities';
 import { asDataOwner } from '#tests/helpers/authenticated_data_fixture';

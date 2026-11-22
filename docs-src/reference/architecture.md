@@ -351,7 +351,7 @@ member-to-person links. It rejects invalid data instead of repairing or remappin
 must redact confidential values before document construction; the completeness marker does not
 redact data. A redacted export cannot be restored as a full replacement.
 
-The public entry point is `@capacitylens/shared/data/companyDocument`: `buildCompanyExport`,
+The public entry point is `@capacitylens/shared/data/companyExport`: `buildCompanyExport`,
 `serializeCompanyExport`, `parseCompanyExport` and `prepareCompanyImport`. Preparation receives explicit
 server-owned `{ companyId, memberResourceLinks }` context and returns `{ data, imported }`, where
 `imported` includes the company row. Export callers must supply an authorised, confidentially
